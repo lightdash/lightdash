@@ -5,11 +5,14 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-const GENERATION_TIMEOUT_MS = 20000;
+// The server may look up several tables before answering
+const GENERATION_TIMEOUT_MS = 45000;
 
 const generateSqlRunnerQueryApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateSqlRunnerQueryRequest,
     signal?: AbortSignal,
@@ -35,6 +38,7 @@ export const useGenerateSqlRunnerQuery = ({
     onSuccess,
     onError,
 }: Options) => {
+    const lightdashApi = useLightdashApi();
     const abortControllerRef = useRef<AbortController | null>(null);
 
     const mutation = useMutation<
@@ -58,6 +62,7 @@ export const useGenerateSqlRunnerQuery = ({
             }, GENERATION_TIMEOUT_MS);
 
             return generateSqlRunnerQueryApi(
+                lightdashApi,
                 projectUuid,
                 request,
                 controller.signal,

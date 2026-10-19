@@ -1,6 +1,7 @@
 import {
     type GenerateSqlRunnerQueryRequest,
     type SqlRunnerAiTableContext,
+    type SqlRunnerAiTarget,
 } from '@lightdash/common';
 import { type editor } from 'monaco-editor';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -30,19 +31,19 @@ type ActivePrompt = {
     currentSql: string | null;
 };
 
-// Tables whose columns are known; a preview made before they loaded is stale
-const getTablesSignature = (tables: SqlRunnerAiTableContext[]) =>
-    tables
-        .filter((table) => table.columns !== null)
-        .map((table) => `${table.schema}.${table.table}`)
-        .join(',');
-
+// A preview made before the known tables loaded, or for another target, is stale
 const requestKey = ({
     prompt,
     currentSql,
-    tables,
+    target,
+    knownTables,
 }: GenerateSqlRunnerQueryRequest) =>
-    [prompt, currentSql ?? '', getTablesSignature(tables)].join('\u0000');
+    [
+        prompt,
+        currentSql ?? '',
+        JSON.stringify(target),
+        knownTables.map((table) => `${table.schema}.${table.table}`).join(','),
+    ].join('\u0000');
 
 const isSamePrompt = (a: ActivePrompt | null, b: ActivePrompt | null) =>
     a?.lineNumber === b?.lineNumber &&
@@ -69,7 +70,9 @@ type Options = {
     monaco: Monaco | null;
     enabled: boolean;
     projectUuid: string | undefined;
-    tables: SqlRunnerAiTableContext[];
+    /** Null until the editor knows which warehouse it queries. */
+    target: SqlRunnerAiTarget | null;
+    knownTables: SqlRunnerAiTableContext[];
 };
 
 /**
@@ -81,7 +84,8 @@ export const useSqlAiAutocomplete = ({
     monaco,
     enabled,
     projectUuid,
-    tables,
+    target,
+    knownTables,
 }: Options) => {
     const { data: project } = useProject(projectUuid);
     const { user } = useApp();
@@ -98,14 +102,15 @@ export const useSqlAiAutocomplete = ({
 
     const activeRequest = useMemo(
         (): GenerateSqlRunnerQueryRequest | null =>
-            activePrompt
+            activePrompt && target
                 ? {
                       prompt: activePrompt.prompt,
                       currentSql: activePrompt.currentSql,
-                      tables,
+                      target,
+                      knownTables,
                   }
                 : null,
-        [activePrompt, tables],
+        [activePrompt, target, knownTables],
     );
     const previewSql = activeRequest
         ? (previews[requestKey(activeRequest)] ?? null)

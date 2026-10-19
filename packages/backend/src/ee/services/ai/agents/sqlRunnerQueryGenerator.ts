@@ -1,54 +1,58 @@
 import {
+    type GeneratedSqlRunnerQuery,
     type GenerateSqlRunnerQueryRequest,
     type SqlRunnerAiTableContext,
     type WarehouseTypes,
 } from '@lightdash/common';
-import { generateText, Output } from 'ai';
+import { generateText, hasToolCall, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import { type GeneratorModelOptions } from '../models/types';
+import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
+import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import type {
+    DescribeWarehouseTableFn,
+    ListWarehouseTablesFn,
+} from '../types/aiAgentDependencies';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
-const MAX_TABLES_IN_PROMPT = 200;
+const MAX_STEPS = 8;
 
-const SqlRunnerQuerySchema = z.object({
+const submitSqlInputSchema = z.object({
     sql: z
         .string()
-        .min(1, 'SQL query must not be empty')
+        .min(1)
         .describe('One complete, runnable SQL query without markdown fences'),
 });
 
-export type GeneratedSqlRunnerQuery = z.infer<typeof SqlRunnerQuerySchema>;
+// No execute: calling it ends the loop and carries the answer
+const submitSql = tool({
+    description:
+        'Submit the final SQL query. Call this exactly once, when the query is ready.',
+    inputSchema: submitSqlInputSchema,
+});
 
-export type SqlRunnerQueryContext = GenerateSqlRunnerQueryRequest & {
+export type SqlRunnerQueryContext = Omit<
+    GenerateSqlRunnerQueryRequest,
+    'target'
+> & {
     warehouseType: WarehouseTypes;
 };
 
+/** Read-only catalog lookups for the warehouse the editor queries. */
+export type SqlRunnerWarehouseCatalog = {
+    listWarehouseTables: ListWarehouseTablesFn;
+    describeWarehouseTable: DescribeWarehouseTableFn;
+};
+
 const formatTable = (table: SqlRunnerAiTableContext): string => {
-    const name = `${table.schema}.${table.table}`;
-    if (table.columns === null) return `  ${name}`;
     const columns = table.columns
         .map((column) => `${column.name} (${column.type})`)
         .join(', ');
-    return `  ${name}: ${columns}`;
-};
-
-export const buildTableReferenceGuide = (
-    tables: SqlRunnerAiTableContext[],
-): string => {
-    if (tables.length === 0) return 'No tables available.';
-    // Tables with known columns first, so truncation drops the least useful ones
-    const sorted = [...tables].sort(
-        (a, b) => Number(a.columns === null) - Number(b.columns === null),
-    );
-    const shown = sorted.slice(0, MAX_TABLES_IN_PROMPT).map(formatTable);
-    const hidden = sorted.length - shown.length;
-    return hidden > 0
-        ? `${shown.join('\n')}\n  …and ${hidden} more tables`
-        : shown.join('\n');
+    return `  ${table.schema}.${table.table}: ${columns}`;
 };
 
 export const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
@@ -57,10 +61,16 @@ export const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
         content: [
             'You write SQL queries for a SQL editor connected to a data warehouse.',
             '',
+            'TOOLS',
+            '- You only have listWarehouseTables, describeWarehouseTable and submitSql. Ignore mentions of other tools in their descriptions.',
+            '- Find candidate tables with listWarehouseTables (search by keyword), then describe each table you use before referencing its columns.',
+            '- Tables already known to the editor are listed with their columns; you do not need to describe them again.',
+            '- Keep lookups few: stop as soon as you know every table and column the query needs.',
+            '',
             'CONTRACT',
-            '- Return exactly one complete SQL query that runs as-is in the given warehouse dialect.',
-            '- Only reference tables and columns from the available tables list. Tables listed without columns have unknown columns; prefer tables whose columns are listed.',
-            '- Qualify tables with their schema, exactly as listed.',
+            '- Submit exactly one complete SQL query with submitSql. It must run as-is in the given warehouse dialect.',
+            '- Only reference tables and columns you have seen in the known tables or in tool results. Never guess a column name.',
+            '- Qualify tables as schema.table, without the database, even though listWarehouseTables returns database.schema.table.',
             '- When a current query is given, return the full revised query, keeping everything the request does not ask to change.',
             '- Format the query over multiple lines with uppercase keywords.',
             '- Do not include markdown fences, comments explaining the query, or a trailing semicolon.',
@@ -71,7 +81,9 @@ export const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
         content: [
             `Request:\n${context.prompt}`,
             `Warehouse dialect: ${context.warehouseType}`,
-            `Available tables:\n${buildTableReferenceGuide(context.tables)}`,
+            context.knownTables.length > 0
+                ? `Known tables:\n${context.knownTables.map(formatTable).join('\n')}`
+                : undefined,
             context.currentSql
                 ? `Current query to revise:\n${context.currentSql}`
                 : undefined,
@@ -81,7 +93,7 @@ export const buildSqlRunnerQueryMessages = (context: SqlRunnerQueryContext) => [
     },
 ];
 
-const stripMarkdownFences = (sql: string): string =>
+export const stripMarkdownFences = (sql: string): string =>
     sql
         .trim()
         .replace(/^```[a-z]*\n?/i, '')
@@ -92,6 +104,7 @@ const stripMarkdownFences = (sql: string): string =>
 export async function generateSqlRunnerQuery(
     modelOptions: GeneratorModelOptions,
     context: SqlRunnerQueryContext,
+    catalog: SqlRunnerWarehouseCatalog,
 ): Promise<GeneratedSqlRunnerQuery> {
     const telemetry = getGeneratorTelemetry(
         modelOptions,
@@ -103,12 +116,40 @@ export async function generateSqlRunnerQuery(
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         ...telemetry,
-        output: Output.object({ schema: SqlRunnerQuerySchema }),
+        tools: {
+            listWarehouseTables: getListWarehouseTables({
+                listWarehouseTables: catalog.listWarehouseTables,
+            }),
+            describeWarehouseTable: getDescribeWarehouseTable({
+                describeWarehouseTable: catalog.describeWarehouseTable,
+            }),
+            submitSql,
+        },
+        stopWhen: [stepCountIs(MAX_STEPS), hasToolCall('submitSql')],
+        // The last step must submit, so a long search still returns SQL
+        prepareStep: ({ stepNumber }) =>
+            stepNumber === MAX_STEPS - 1
+                ? {
+                      toolChoice: {
+                          type: 'tool' as const,
+                          toolName: 'submitSql' as const,
+                      },
+                  }
+                : {},
         allowSystemInMessages: true,
         messages: buildSqlRunnerQueryMessages(context),
     });
 
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
-    return { sql: stripMarkdownFences(result.output.sql) };
+    const submitted = submitSqlInputSchema.safeParse(
+        result.toolCalls.find((call) => call.toolName === 'submitSql')?.input,
+    );
+    const sql = submitted.success
+        ? stripMarkdownFences(submitted.data.sql)
+        : '';
+    if (sql.length === 0) {
+        throw new Error('The model did not return a SQL query');
+    }
+    return { sql };
 }

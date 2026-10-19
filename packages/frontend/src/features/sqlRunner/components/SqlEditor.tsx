@@ -1,3 +1,4 @@
+import { type SqlRunnerAiTarget } from '@lightdash/common';
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
@@ -45,7 +46,7 @@ import {
     registerCustomCompletionProvider,
     registerMonacoLanguage,
 } from '../utils/monaco';
-import { buildSqlAiTables } from '../utils/sqlAiPrompt';
+import { buildSqlAiKnownTables } from '../utils/sqlAiPrompt';
 import { getSqlFunctions } from '../utils/sqlCompletion/vocabulary';
 import { inferSqlEditorPreferences } from '../utils/sqlEditorPreferences';
 import styles from './SqlEditor.module.css';
@@ -93,7 +94,11 @@ export type SqlEditorCatalog = {
     detectedTablesFieldData: WarehouseTableFieldWithContext[] | undefined;
     currentTable: string | undefined;
     currentSchema: string | undefined;
+    /** The warehouse AI generates SQL for; null while it isn't known yet. */
+    aiTarget: SqlRunnerAiTarget | null;
 };
+
+const PROJECT_AI_TARGET: SqlRunnerAiTarget = { kind: 'project' };
 
 export const SqlEditor: FC<SqlEditorProps> = (props) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -134,15 +139,12 @@ export const SqlEditor: FC<SqlEditorProps> = (props) => {
         };
     }, [tablesData]);
 
-    const isAiEnabled = !!useAmbientAiEnabled(projectUuid);
-
     // Use React Query to fetch field data for all detected tables in SQL
     const { data: detectedTablesFieldData } = useDetectedTableFields({
         sql,
         quoteChar,
         projectUuid,
         transformedData,
-        includeAiPromptTables: isAiEnabled,
     });
 
     return (
@@ -155,6 +157,7 @@ export const SqlEditor: FC<SqlEditorProps> = (props) => {
                 detectedTablesFieldData,
                 currentTable,
                 currentSchema,
+                aiTarget: PROJECT_AI_TARGET,
             }}
         />
     );
@@ -170,6 +173,7 @@ export const SqlEditorView: FC<
         detectedTablesFieldData,
         currentTable,
         currentSchema,
+        aiTarget,
     } = catalog;
     const { monaco: monacoTheme } = useEditorTheme();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -270,31 +274,23 @@ export const SqlEditorView: FC<
     );
 
     const isAiEnabled = !!useAmbientAiEnabled(projectUuid);
-    const aiTables = useMemo(
+    const aiKnownTables = useMemo(
         () =>
-            buildSqlAiTables({
-                transformedData,
-                isTablesDataLoading,
+            buildSqlAiKnownTables({
                 tableFieldsData,
                 detectedTablesFieldData,
                 currentTable,
                 currentSchema,
             }),
-        [
-            transformedData,
-            isTablesDataLoading,
-            tableFieldsData,
-            detectedTablesFieldData,
-            currentTable,
-            currentSchema,
-        ],
+        [tableFieldsData, detectedTablesFieldData, currentTable, currentSchema],
     );
     const aiStatus = useSqlAiAutocomplete({
         codeEditor,
         monaco,
-        enabled: isAiEnabled,
+        enabled: isAiEnabled && aiTarget !== null,
         projectUuid,
-        tables: aiTables,
+        target: aiTarget,
+        knownTables: aiKnownTables,
     });
 
     // Register completion provider reactively when data changes

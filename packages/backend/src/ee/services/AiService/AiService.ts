@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
+    assertUnreachable,
     CommercialFeatureFlags,
     FeatureFlags,
     ForbiddenError,
@@ -22,14 +23,20 @@ import {
     isField,
     isSummaryExploreError,
     ItemsMap,
+    NotFoundError,
+    ParameterError,
+    QueryExecutionContext,
     resolveQueryTimezone,
     SessionUser,
+    SqlRunnerAiTarget,
     SuggestChartTypeExploreRequest,
     SuggestChartTypeFieldsRequest,
     SuggestedChartTypeExploreResult,
     SuggestedChartTypeFields,
     TableCalculationType,
     UnexpectedServerError,
+    WarehouseTableSchema,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
 import NodeCache from 'node-cache';
@@ -93,7 +100,10 @@ import {
     GeneratedGoogleSheetsExtensionReportDraft,
     GenerateGoogleSheetsExtensionReportDraftRequest,
 } from '../ai/agents/googleSheetsExtensionReportDraftTypes';
-import { generateSqlRunnerQuery as generateSqlRunnerQueryFromContext } from '../ai/agents/sqlRunnerQueryGenerator';
+import {
+    generateSqlRunnerQuery as generateSqlRunnerQueryFromContext,
+    type SqlRunnerWarehouseCatalog,
+} from '../ai/agents/sqlRunnerQueryGenerator';
 import {
     generateTableCalculation as generateTableCalculationFromContext,
     sanitizeCustomFormat,
@@ -938,18 +948,26 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             throw new ForbiddenError();
         }
 
-        const warehouseType = project.warehouseConnection?.type;
-        if (!warehouseType) {
-            throw new ForbiddenError('Warehouse type is not available');
-        }
+        const { warehouseType, catalog } = await this.getSqlRunnerAiWarehouse(
+            user,
+            projectUuid,
+            project.warehouseConnection?.type,
+            payload.target,
+        );
 
         const modelOptions = await this.getAmbientAiModel(user, {
             projectUuid,
         });
-        const result = await generateSqlRunnerQueryFromContext(modelOptions, {
-            ...payload,
-            warehouseType,
-        });
+        const result = await generateSqlRunnerQueryFromContext(
+            modelOptions,
+            {
+                prompt: payload.prompt,
+                currentSql: payload.currentSql,
+                knownTables: payload.knownTables,
+                warehouseType,
+            },
+            catalog,
+        );
 
         this.analytics.track<GenerateSqlRunnerQueryGenerated>({
             userId: user.userUuid,
@@ -962,6 +980,119 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         });
 
         return result;
+    }
+
+    private async getSqlRunnerAiWarehouse(
+        user: SessionUser,
+        projectUuid: string,
+        projectWarehouseType: WarehouseTypes | undefined,
+        target: SqlRunnerAiTarget,
+    ): Promise<{
+        warehouseType: WarehouseTypes;
+        catalog: SqlRunnerWarehouseCatalog;
+    }> {
+        const toColumns = (fields: WarehouseTableSchema) =>
+            Object.entries(fields).map(([name, type]) => ({
+                name,
+                type: String(type),
+            }));
+
+        switch (target.kind) {
+            case 'project': {
+                if (!projectWarehouseType) {
+                    throw new ForbiddenError('Warehouse type is not available');
+                }
+                return {
+                    warehouseType: projectWarehouseType,
+                    catalog: {
+                        listWarehouseTables: (context) =>
+                            this.projectService.getWarehouseTables(
+                                user,
+                                projectUuid,
+                                context ?? QueryExecutionContext.AI,
+                            ),
+                        describeWarehouseTable: async ({
+                            table,
+                            schema,
+                            database,
+                        }) => {
+                            const fields =
+                                await this.projectService.getWarehouseFields(
+                                    user,
+                                    projectUuid,
+                                    QueryExecutionContext.AI,
+                                    table,
+                                    schema,
+                                    database,
+                                );
+                            return {
+                                columns: toColumns(fields),
+                                resolvedSchema: schema ?? null,
+                                resolvedDatabase: database ?? null,
+                            };
+                        },
+                    },
+                };
+            }
+            case 'connection': {
+                const { warehouseConnectionUuid, listedDatabase, database } =
+                    target;
+                const account = fromSession(user);
+                const connection = (
+                    await this.projectService.getSqlRunnerConnections(
+                        account,
+                        projectUuid,
+                    )
+                ).find(
+                    (candidate) =>
+                        candidate.warehouseConnectionUuid ===
+                        warehouseConnectionUuid,
+                );
+                if (!connection) {
+                    throw new NotFoundError('Warehouse connection not found');
+                }
+                return {
+                    warehouseType: connection.warehouseType,
+                    catalog: {
+                        listWarehouseTables: (context) =>
+                            this.projectService.getConnectionTables(
+                                account,
+                                projectUuid,
+                                warehouseConnectionUuid,
+                                listedDatabase,
+                                context ?? QueryExecutionContext.AI,
+                            ),
+                        // The editor targets one database, so ignore any other
+                        describeWarehouseTable: async ({ table, schema }) => {
+                            if (!schema) {
+                                throw new ParameterError(
+                                    'Schema name is required',
+                                );
+                            }
+                            const fields =
+                                await this.projectService.getConnectionTableFields(
+                                    account,
+                                    projectUuid,
+                                    warehouseConnectionUuid,
+                                    {
+                                        databaseName: database,
+                                        schemaName: schema,
+                                        tableName: table,
+                                    },
+                                    QueryExecutionContext.AI,
+                                );
+                            return {
+                                columns: toColumns(fields),
+                                resolvedSchema: schema,
+                                resolvedDatabase: database,
+                            };
+                        },
+                    },
+                };
+            }
+            default:
+                return assertUnreachable(target, 'Unknown SQL runner target');
+        }
     }
 
     async generateTooltip(

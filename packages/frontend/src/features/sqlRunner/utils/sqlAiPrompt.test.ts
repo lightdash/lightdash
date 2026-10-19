@@ -1,9 +1,8 @@
 import { DimensionType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    buildSqlAiTables,
+    buildSqlAiKnownTables,
     getSqlAiPrompt,
-    getSqlAiPromptTablePaths,
     getSqlWithoutLine,
 } from './sqlAiPrompt';
 
@@ -23,23 +22,6 @@ describe('getSqlAiPrompt', () => {
     });
 });
 
-describe('getSqlAiPromptTablePaths', () => {
-    it('offers singular and plural names from prompt lines only', () => {
-        expect(
-            getSqlAiPromptTablePaths(
-                'SELECT * FROM payments\n-- Orders per customer',
-            ),
-        ).toEqual([
-            ['orders'],
-            ['order'],
-            ['per'],
-            ['pers'],
-            ['customer'],
-            ['customers'],
-        ]);
-    });
-});
-
 describe('getSqlWithoutLine', () => {
     it('drops the prompt line and keeps the rest of the query', () => {
         expect(
@@ -52,16 +34,9 @@ describe('getSqlWithoutLine', () => {
     });
 });
 
-describe('buildSqlAiTables', () => {
-    it('lists catalog tables and attaches loaded columns', () => {
-        const tables = buildSqlAiTables({
-            transformedData: {
-                database: 'db',
-                tablesBySchema: [
-                    { schema: 'jaffle', tables: { orders: {}, customers: {} } },
-                ],
-            },
-            isTablesDataLoading: false,
+describe('buildSqlAiKnownTables', () => {
+    it('lists only tables with loaded columns', () => {
+        const tables = buildSqlAiKnownTables({
             tableFieldsData: [{ name: 'amount', type: DimensionType.NUMBER }],
             detectedTablesFieldData: [
                 {
