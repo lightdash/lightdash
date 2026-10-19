@@ -66,6 +66,38 @@ const getMergeSourceConfig = (
     };
 };
 
+/** Drills filter on their query's dimensions, so join keys the source leaves unselected still scope the row. */
+const withJoinKeyDimensions = (
+    config: DrillDownConfig,
+    fieldOrigins: MergeFieldOrigins,
+): DrillDownConfig => {
+    if (!config.source) return config;
+    const { metricQuery } = config.source;
+    const joinKeys = new Set(
+        Object.values(fieldOrigins).flatMap((origin) =>
+            origin.kind === 'joinKey'
+                ? Object.values(origin.fieldIdBySourceId)
+                : [],
+        ),
+    );
+    const unselectedJoinKeys = [...joinKeys].filter(
+        (fieldId) =>
+            fieldId in config.fieldValues &&
+            !metricQuery.dimensions.includes(fieldId),
+    );
+    if (unselectedJoinKeys.length === 0) return config;
+    return {
+        ...config,
+        source: {
+            ...config.source,
+            metricQuery: {
+                ...metricQuery,
+                dimensions: [...metricQuery.dimensions, ...unselectedJoinKeys],
+            },
+        },
+    };
+};
+
 /** Routes a merged-row drill to the source that owns the clicked column. */
 export const useMergeDrillDownConfig = (
     config: DrillDownConfig | undefined,
@@ -73,13 +105,16 @@ export const useMergeDrillDownConfig = (
     const { resolve } = useMergeSourceCell();
     const fieldOrigins = useMergeSafe()?.mergeResults?.fieldOrigins;
     return useMemo(() => {
-        if (!config || config.source || !fieldOrigins) return config;
-        const sourceConfig = getMergeSourceConfig(
-            config,
-            fieldOrigins,
-            resolve,
-        );
-        return sourceConfig ? { ...config, ...sourceConfig } : config;
+        if (!config || !fieldOrigins) return config;
+        const sourceConfig = config.source
+            ? config
+            : getMergeSourceConfig(config, fieldOrigins, resolve);
+        return sourceConfig
+            ? withJoinKeyDimensions(
+                  { ...config, ...sourceConfig },
+                  fieldOrigins,
+              )
+            : config;
     }, [config, fieldOrigins, resolve]);
 };
 

@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { Context, type MetricQueryDataContext } from './context';
 import UnderlyingDataModal from './UnderlyingDataModal';
@@ -97,7 +97,7 @@ const metricQuery: MetricQuery = {
     limit: 500,
     tableCalculations: [],
 };
-const merge = {
+let merge = {
     additionalSources: [
         {
             id: 'b',
@@ -154,6 +154,11 @@ const renderModal = (context: MetricQueryDataContext) =>
     );
 
 describe('underlying data modal on a merged result', () => {
+    const mergeWithKeySelected = merge;
+    afterEach(() => {
+        merge = mergeWithKeySelected;
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         lightdashApi.mockResolvedValue({ queryUuid: 'source-query' });
@@ -212,6 +217,37 @@ describe('underlying data modal on a merged result', () => {
                 },
             },
         });
+
+        await waitFor(() =>
+            expect(useUnderlyingDataResults).toHaveBeenCalledWith(
+                {
+                    dimensions: {
+                        id: expect.any(String),
+                        and: [
+                            expect.objectContaining({
+                                target: { fieldId: 'orders_status' },
+                                values: ['completed'],
+                            }),
+                        ],
+                    },
+                },
+                'source-query',
+                'orders_count',
+                undefined,
+                undefined,
+                [],
+            ),
+        );
+    });
+
+    it('keeps the join key filter the source does not select', async () => {
+        merge = {
+            ...merge,
+            additionalSources: [
+                { ...merge.additionalSources[0], dimensions: [] },
+            ],
+        };
+        renderModal(metricQueryData);
 
         await waitFor(() =>
             expect(useUnderlyingDataResults).toHaveBeenCalledWith(

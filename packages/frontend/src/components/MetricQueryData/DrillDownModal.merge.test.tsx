@@ -6,6 +6,8 @@ import {
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
+    type Filters,
+    type MergeFieldOrigins,
     type MetricQuery,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -87,7 +89,16 @@ const metricQuery: MetricQuery = {
     limit: 500,
     tableCalculations: [],
 };
-const merge = {
+let merge: {
+    additionalSources: Array<{
+        id: string;
+        exploreName: string;
+        dimensions: string[];
+        metrics: string[];
+        filters: Filters;
+    }>;
+    mergeResults: { fieldOrigins: MergeFieldOrigins };
+} = {
     additionalSources: [
         {
             id: 'b',
@@ -133,36 +144,39 @@ const metricQueryData: MetricQueryDataContext = {
     closeDrillDownModal: vi.fn(),
 };
 
+const drillByStatus = async (context: MetricQueryDataContext) => {
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    const user = userEvent.setup();
+    renderWithProviders(
+        <Context.Provider value={context}>
+            <DrillDownModal />
+        </Context.Provider>,
+    );
+
+    expect(screen.getByText('Drill into "3"')).toBeInTheDocument();
+    await user.click(screen.getByPlaceholderText('Search field...'));
+    await user.click(await screen.findByRole('option', { name: 'Status' }));
+
+    const href = screen
+        .getByText('Open in new tab')
+        .closest('a')
+        ?.getAttribute('href');
+    return new URL(href ?? '', 'http://localhost').searchParams;
+};
+const drilledChart = (params: URLSearchParams) =>
+    JSON.parse(params.get('create_saved_chart_version') ?? '{}');
+
 describe('drill-down modal on a merged result', () => {
-    afterEach(() => vi.restoreAllMocks());
+    const mergeWithKeySelected = merge;
+    afterEach(() => {
+        vi.restoreAllMocks();
+        merge = mergeWithKeySelected;
+        window.history.replaceState(null, '', '/');
+    });
 
     it('drills into the source that owns the clicked column', async () => {
-        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
-            300,
-        );
-        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
-            400,
-        );
-        const user = userEvent.setup();
-        renderWithProviders(
-            <Context.Provider value={metricQueryData}>
-                <DrillDownModal />
-            </Context.Provider>,
-        );
-
-        expect(screen.getByText('Drill into "3"')).toBeInTheDocument();
-        await user.click(screen.getByPlaceholderText('Search field...'));
-        await user.click(await screen.findByRole('option', { name: 'Status' }));
-
-        const href = screen
-            .getByText('Open in new tab')
-            .closest('a')
-            ?.getAttribute('href');
-        const chart = JSON.parse(
-            new URL(href ?? '', 'http://localhost').searchParams.get(
-                'create_saved_chart_version',
-            ) ?? '{}',
-        );
+        const chart = drilledChart(await drillByStatus(metricQueryData));
         expect(chart.metricQuery.metrics).toEqual(['orders_count']);
         expect(chart.metricQuery.filters.dimensions.and).toEqual([
             expect.objectContaining({
@@ -171,4 +185,42 @@ describe('drill-down modal on a merged result', () => {
             }),
         ]);
     });
+
+    it.each([
+        ['a chart series', metricQueryData.drillDownConfig],
+        [
+            'a results cell',
+            {
+                item: count,
+                fieldValues: {
+                    orders_status: { raw: 'completed', formatted: 'completed' },
+                    orders_count: { raw: 3, formatted: '3' },
+                },
+                source: {
+                    tableName: 'orders',
+                    metricQuery: { ...metricQuery, dimensions: [] },
+                },
+            },
+        ],
+    ])(
+        'keeps the join key filter the source does not select, from %s',
+        async (_, drillDownConfig) => {
+            merge = {
+                ...merge,
+                additionalSources: [
+                    { ...merge.additionalSources[0], dimensions: [] },
+                ],
+            };
+
+            const chart = drilledChart(
+                await drillByStatus({ ...metricQueryData, drillDownConfig }),
+            );
+            expect(chart.metricQuery.filters.dimensions.and).toEqual([
+                expect.objectContaining({
+                    target: { fieldId: 'orders_status' },
+                    values: ['completed'],
+                }),
+            ]);
+        },
+    );
 });
