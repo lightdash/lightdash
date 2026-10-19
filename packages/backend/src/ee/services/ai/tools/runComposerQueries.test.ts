@@ -296,7 +296,7 @@ const makeTool = ({
         listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: artifactStore.createOrUpdateArtifact,
+        createOrUpdateArtifact: vi.fn(artifactStore.createOrUpdateArtifact),
         listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
         registerThreadComposerQueryNodes:
             registry.registerThreadComposerQueryNodes,
@@ -682,6 +682,38 @@ describe('getRunComposerQueries', () => {
         );
 
         expect(failed.metadata?.status).toBe('error');
+        expect(corrected.metadata?.status).toBe('success');
+        expect(
+            registry
+                .nodes('thread-uuid')
+                .find((node) => node.nodeId === 'joined'),
+        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
+    });
+
+    it('registers nothing when the Slack artifact fails, so the node id can be resubmitted corrected', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+        });
+        dependencies.createOrUpdateArtifact.mockRejectedValueOnce(
+            new Error('artifact store unavailable'),
+        );
+
+        const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+        expect(failed.metadata?.status).toBe('error');
+        expect(registry.nodes('thread-uuid')).toEqual([]);
+
+        const corrected = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    semanticNode,
+                    sqlNode,
+                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                ],
+            }),
+            'tool-call-2',
+        );
         expect(corrected.metadata?.status).toBe('success');
         expect(
             registry

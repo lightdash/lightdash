@@ -364,11 +364,6 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
-                await registerThreadComposerQueryNodes({
-                    threadUuid: prompt.threadUuid,
-                    nodes: queries,
-                });
-
                 if (approvalSql !== null) {
                     await renderState({
                         kind: 'success',
@@ -505,45 +500,54 @@ export const getRunComposerQueries = ({
                 };
 
                 const vizLine = vizNote ? `\n${vizNote}` : '';
-                if (!enableDataAccess || terminal.rowCount === 0) {
-                    return await persistIfResumed({
-                        result: `${resultSummary}${vizLine}`,
-                        metadata,
-                        structuredContent: { ...summary, preview: null },
+                const buildOutput = (): ComposerQueriesOutput => {
+                    if (!enableDataAccess || terminal.rowCount === 0) {
+                        return {
+                            result: `${resultSummary}${vizLine}`,
+                            metadata,
+                            structuredContent: { ...summary, preview: null },
+                        };
+                    }
+                    const previewRows = terminal.rows
+                        .slice(0, PREVIEW_ROW_LIMIT)
+                        .map((row) =>
+                            columnReferences.reduce<Record<string, AnyType>>(
+                                (acc, col) => {
+                                    acc[col] = row[col];
+                                    return acc;
+                                },
+                                {},
+                            ),
+                        );
+                    const previewCsv = stringify(previewRows, {
+                        header: true,
+                        columns: columnReferences,
                     });
-                }
+                    const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
+                    const truncatedNote = truncated
+                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        : '';
+                    return {
+                        result: `${resultSummary}${truncatedNote}\n${serializeData(
+                            previewCsv,
+                            'csv',
+                        )}${vizLine}`,
+                        metadata,
+                        structuredContent: {
+                            ...summary,
+                            preview: { rows: previewRows, truncated },
+                        },
+                    };
+                };
+                const output = buildOutput();
 
-                const previewRows = terminal.rows
-                    .slice(0, PREVIEW_ROW_LIMIT)
-                    .map((row) =>
-                        columnReferences.reduce<Record<string, AnyType>>(
-                            (acc, col) => {
-                                acc[col] = row[col];
-                                return acc;
-                            },
-                            {},
-                        ),
-                    );
-                const previewCsv = stringify(previewRows, {
-                    header: true,
-                    columns: columnReferences,
+                // Last fallible step: a failure anywhere above registers nothing.
+                await registerThreadComposerQueryNodes({
+                    threadUuid: prompt.threadUuid,
+                    nodes: queries,
                 });
-                const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
-                const truncatedNote = truncated
-                    ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
-                    : '';
 
-                return await persistIfResumed({
-                    result: `${resultSummary}${truncatedNote}\n${serializeData(
-                        previewCsv,
-                        'csv',
-                    )}${vizLine}`,
-                    metadata,
-                    structuredContent: {
-                        ...summary,
-                        preview: { rows: previewRows, truncated },
-                    },
-                });
+                return await persistIfResumed(output);
             } catch (e) {
                 if (approvalSql !== null) {
                     await renderState({
