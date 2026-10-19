@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     resolveComposerPresentations,
-    type ComposerToolResult,
+    type TurnToolResult,
 } from './composerPresentation';
 
 const node = (nodeId: string, references: string[] = []): SourceQuery => ({
@@ -36,22 +36,22 @@ const success = (
 
 const result = (
     metadata: unknown,
-    overrides: Partial<ComposerToolResult> = {},
-): ComposerToolResult => ({
+    overrides: Partial<TurnToolResult> = {},
+): TurnToolResult => ({
     promptUuid: 'prompt-uuid',
     toolName: 'runComposerQueries',
     metadata,
     ...overrides,
 });
 
-const resolve = (response: string, toolResults: ComposerToolResult[]) =>
+const resolve = (response: string, toolResults: TurnToolResult[]) =>
     resolveComposerPresentations({
         response,
         promptUuid: 'prompt-uuid',
         toolResults,
     });
 
-const presentedNodes = (response: string, toolResults: ComposerToolResult[]) =>
+const presentedNodes = (response: string, toolResults: TurnToolResult[]) =>
     resolve(response, toolResults).presentations.map(
         (presentation) => presentation.vizConfig.terminalNodeId,
     );

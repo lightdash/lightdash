@@ -1,5 +1,6 @@
 import {
     parseToolComposerQueriesSuccessMetadata,
+    runComposerQueriesToolDefinition,
     toComposerArtifactVersion,
     type AiComposerArtifactVersion,
     type ToolComposerQueriesSuccessMetadata,
@@ -19,7 +20,7 @@ const mapProse = (text: string, fn: (prose: string) => string): string =>
         .map((segment, index) => (index % 2 === 0 ? fn(segment) : segment))
         .join('');
 
-export type ComposerToolResult = {
+export type TurnToolResult = {
     promptUuid: string;
     toolName: string;
     metadata: unknown;
@@ -43,14 +44,14 @@ export const resolveComposerPresentations = ({
 }: {
     response: string;
     promptUuid: string;
-    toolResults: ComposerToolResult[];
+    toolResults: TurnToolResult[];
 }): { presentations: ComposerPresentation[]; response: string } => {
     // Later calls win when two calls end at the same node.
     const presentable = new Map<string, ToolComposerQueriesSuccessMetadata>(
         toolResults.flatMap((result) => {
             if (
                 result.promptUuid !== promptUuid ||
-                result.toolName !== 'runComposerQueries'
+                result.toolName !== runComposerQueriesToolDefinition.name
             ) {
                 return [];
             }

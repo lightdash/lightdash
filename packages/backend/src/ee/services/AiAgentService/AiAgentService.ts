@@ -578,7 +578,7 @@ import {
 import {
     resolveComposerPresentations,
     type ComposerPresentation,
-    type ComposerToolResult,
+    type TurnToolResult,
 } from '../ai/utils/composerPresentation';
 import {
     createUserFacingErrorResolver,
@@ -15652,7 +15652,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
         // This turn's tool results, so the final answer can present composer nodes.
-        const turnToolResults: ComposerToolResult[] = [];
+        const turnToolResults: TurnToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
