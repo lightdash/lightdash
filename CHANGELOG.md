@@ -1,3 +1,10 @@
+## [2.605.1](https://github.com/lightdash/lightdash/compare/2.605.0...2.605.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** don't persist step responses in generate path ([#31125](https://github.com/lightdash/lightdash/issues/31125)) ([385f5a9](https://github.com/lightdash/lightdash/commit/385f5a9c3d1824b399ff12b19135c1399f5c6c39))
+
 # [2.605.0](https://github.com/lightdash/lightdash/compare/2.604.0...2.605.0) (2026-10-19)
 
 
