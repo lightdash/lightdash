@@ -162,6 +162,7 @@ export const seasonalityPrePass = (
 
     const flags: Flag[] = [];
     let hadAssessableGroup = false;
+    let skippedZeroBaseline = false;
     groups.forEach((rowIndexes) => {
         if (rowIndexes.length < MIN_SAMPLES_PER_WEEKDAY) return;
         hadAssessableGroup = true;
@@ -186,6 +187,11 @@ export const seasonalityPrePass = (
                     .map((s) => Math.abs(s.value - groupMedian))
                     .sort((a, b) => a - b),
             );
+            // Relative deviations have no meaningful scale for this baseline.
+            if (groupMedian === 0 && mad === 0) {
+                skippedZeroBaseline = true;
+                return;
+            }
             samples.forEach(({ rowIndex, value }) => {
                 const date = dates[rowIndex] as Date;
                 if (date.toISOString().slice(0, 10) === todayUtc) return;
@@ -218,11 +224,16 @@ export const seasonalityPrePass = (
             limitation: `Too little history to assess weekly seasonality (needs at least ${MIN_SAMPLES_PER_WEEKDAY} of each weekday)`,
         };
     }
+    const limitation = skippedZeroBaseline
+        ? 'Weekday groups with zero median and zero MAD were not assessed for anomalies; relative deviations from these baselines are undefined.'
+        : null;
     if (flags.length === 0) {
         return {
             annotations: null,
-            note: 'Seasonality: weekday baselines were computed deterministically; no row breaks its own weekday baseline.',
-            limitation: null,
+            note: limitation
+                ? `Seasonality: no deviations were flagged in assessed weekday groups. ${limitation}`
+                : 'Seasonality: weekday baselines were computed deterministically; no row breaks its own weekday baseline.',
+            limitation,
         };
     }
 
@@ -237,7 +248,11 @@ export const seasonalityPrePass = (
     });
     return {
         annotations: { header: SEASONALITY_COLUMN_HEADER, cells },
-        note: `Seasonality: the "${SEASONALITY_COLUMN_HEADER}" column holds deterministically pre-computed deviations from each row's own weekday baseline (median of the same weekday). Rows without a marker are within their normal weekly pattern.`,
-        limitation: null,
+        note: `Seasonality: the "${SEASONALITY_COLUMN_HEADER}" column holds deterministically pre-computed deviations from each row's own weekday baseline (median of the same weekday). ${
+            limitation
+                ? `${limitation} Absence of a marker does not establish that a row is within its normal weekly pattern.`
+                : 'Rows without a marker are within their normal weekly pattern.'
+        }`,
+        limitation,
     };
 };

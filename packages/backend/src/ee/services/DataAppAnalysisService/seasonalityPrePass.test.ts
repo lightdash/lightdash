@@ -53,6 +53,47 @@ const flatWeeklyPattern = (date: Date): number =>
     date.getUTCDay() === 0 || date.getUTCDay() === 6 ? 300 : 100;
 
 describe('seasonalityPrePass', () => {
+    it.each([0, 1, 100000])(
+        'reports an unassessed zero baseline with a departure of %s',
+        (value) => {
+            const rows = weeklyRows(5, () => 0);
+            rows[0][METRIC_FIELD] = value;
+            const result = seasonalityPrePass(rows, fields, TODAY);
+            expect(result.annotations).toBeNull();
+            expect(result.limitation).toContain('zero median and zero MAD');
+            expect(result.note).toContain('not assessed');
+            expect(result.note).not.toContain('no row breaks');
+        },
+    );
+
+    it('keeps ordinary anomalies when sparse groups would fill the marker budget', () => {
+        const rows = Array.from({ length: 11 }, (_, region) =>
+            weeklyRows(5, () => 0).map((row, index) => ({
+                ...row,
+                orders_region: String(region),
+                [METRIC_FIELD]: index === 0 ? 1 : 0,
+            })),
+        ).flat();
+        const ordinary = weeklyRows(5, flatWeeklyPattern).map((row, index) => ({
+            ...row,
+            orders_region: 'ordinary',
+            [METRIC_FIELD]: index === 0 ? 1000 : row[METRIC_FIELD],
+        }));
+        const result = seasonalityPrePass(
+            [...rows, ...ordinary],
+            fields,
+            TODAY,
+        );
+        const marked = result.annotations!.cells.filter(
+            (cell) => cell !== null,
+        );
+        expect(marked).toHaveLength(1);
+        expect(result.annotations!.cells[rows.length]).toContain('median 100');
+        expect(result.limitation).toContain('zero median and zero MAD');
+        expect(result.note).toContain('not assessed');
+        expect(result.note).not.toContain('Rows without a marker are within');
+    });
+
     it.each([null, undefined, ''])(
         'does not flag a missing metric value (%s)',
         (missing) => {
