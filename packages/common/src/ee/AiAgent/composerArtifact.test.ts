@@ -1,10 +1,10 @@
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import {
     buildComposerArtifactPipeline,
-    type AiComposerChartArtifactConfig,
+    type ThreadComposerQueryNode,
 } from './composerArtifact';
 
-const orders: SourceQuery = {
+const orders: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'orders',
     title: 'Orders',
@@ -14,7 +14,7 @@ const orders: SourceQuery = {
     limit: 500,
 };
 
-const customers: SourceQuery = {
+const customers: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SQL,
     nodeId: 'customers',
     title: 'Customers',
@@ -22,7 +22,7 @@ const customers: SourceQuery = {
     limit: 500,
 };
 
-const enriched: SourceQuery = {
+const enriched: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'enriched',
     title: 'Orders with customer names',
@@ -31,17 +31,11 @@ const enriched: SourceQuery = {
     limit: 500,
 };
 
-const version1: AiComposerChartArtifactConfig = {
-    source: 'composer',
-    schemaVersion: 1,
-    queries: [orders, customers, enriched],
-    terminalNodeId: 'enriched',
-    vizConfig: null,
-};
+const threadNodes = [orders, customers, enriched];
 
 const summary = (
     references: Record<string, string> | string[],
-): SourceQuery => ({
+): ThreadComposerQueryNode => ({
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'summary',
     title: 'Spend summary',
@@ -54,7 +48,7 @@ describe('buildComposerArtifactPipeline', () => {
     it('copies a reused node and everything it reads, keeping their node ids', () => {
         const queries = buildComposerArtifactPipeline({
             queries: [summary(['enriched'])],
-            earlierPipelines: [version1],
+            threadNodes,
         });
 
         expect(queries).toEqual([
@@ -68,7 +62,7 @@ describe('buildComposerArtifactPipeline', () => {
     it('aliases a reused node in the map form of references', () => {
         const queries = buildComposerArtifactPipeline({
             queries: [summary({ e: 'enriched', o: 'orders' })],
-            earlierPipelines: [version1],
+            threadNodes,
         });
 
         expect(queries.map((node) => node.nodeId)).toEqual([
@@ -88,7 +82,7 @@ describe('buildComposerArtifactPipeline', () => {
 
         const queries = buildComposerArtifactPipeline({
             queries: [orders, resubmitted, summary(['enriched'])],
-            earlierPipelines: [version1],
+            threadNodes,
         });
 
         expect(queries).toEqual([
@@ -102,7 +96,7 @@ describe('buildComposerArtifactPipeline', () => {
     it('orders a copied node after a submitted node it reads', () => {
         const queries = buildComposerArtifactPipeline({
             queries: [summary(['enriched']), orders],
-            earlierPipelines: [version1],
+            threadNodes,
         });
 
         expect(queries.map((node) => node.nodeId)).toEqual([
@@ -113,14 +107,7 @@ describe('buildComposerArtifactPipeline', () => {
         ]);
     });
 
-    it('takes a node from whichever earlier version defined it', () => {
-        const version2: AiComposerChartArtifactConfig = {
-            source: 'composer',
-            schemaVersion: 1,
-            queries: [orders, customers, enriched, summary(['enriched'])],
-            terminalNodeId: 'summary',
-            vizConfig: null,
-        };
+    it('reads nodes defined by different earlier calls', () => {
         const ranked: SourceQuery = {
             sourceType: QuerySourceType.PYTHON,
             nodeId: 'ranked',
@@ -132,7 +119,7 @@ describe('buildComposerArtifactPipeline', () => {
 
         const queries = buildComposerArtifactPipeline({
             queries: [ranked],
-            earlierPipelines: [version1, version2],
+            threadNodes: [...threadNodes, summary(['enriched'])],
         });
 
         expect(queries).toEqual([
@@ -151,34 +138,34 @@ describe('buildComposerArtifactPipeline', () => {
         expect(() =>
             buildComposerArtifactPipeline({
                 queries: [redefined, summary(['orders'])],
-                earlierPipelines: [version1],
+                threadNodes,
             }),
         ).toThrow(
             'Node id "orders" already names a different node in this thread ("Orders"). To reuse it, read "orders" without resubmitting it; to define a new node, give it a different node id.',
         );
     });
 
-    it('rejects an unknown node id, listing the nodes of earlier versions', () => {
+    it('rejects an unknown node id, listing the thread composer query nodes', () => {
         expect(() =>
             buildComposerArtifactPipeline({
                 queries: [summary({ e: 'enriched', x: 'ordrs' })],
-                earlierPipelines: [version1],
+                threadNodes,
             }),
         ).toThrow(
-            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier version in this thread. Nodes from earlier versions: orders ("Orders"), customers ("Customers"), enriched ("Orders with customer names").',
+            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier call in this thread. Nodes defined earlier in this thread: orders ("Orders"), customers ("Customers"), enriched ("Orders with customer names").',
         );
     });
 
-    it('rejects a query id reference when the thread has no earlier nodes', () => {
+    it('rejects a query id reference when the thread has no nodes', () => {
         expect(() =>
             buildComposerArtifactPipeline({
                 queries: [
                     summary({ e: '11111111-1111-4111-8111-111111111111' }),
                 ],
-                earlierPipelines: [],
+                threadNodes: [],
             }),
         ).toThrow(
-            'Node "summary" reads "11111111-1111-4111-8111-111111111111", which is not a node of this submission or of an earlier version in this thread. There are no nodes from earlier versions in this thread.',
+            'Node "summary" reads "11111111-1111-4111-8111-111111111111", which is not a node of this submission or of an earlier call in this thread. No nodes have been defined earlier in this thread.',
         );
     });
 });
