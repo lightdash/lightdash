@@ -9979,6 +9979,12 @@ export class AppGenerateService extends BaseService {
             });
         }
 
+        // The sandbox is per app, not per version. Only the latest version
+        // can be the one running in it; cancelling an older stuck version
+        // (e.g. an orphaned pending upload) must not interrupt a live build.
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        const isLatestVersion = latestVersion?.version === version;
+
         // Kill the in-flight claude process, then suspend the sandbox while
         // keeping it resumable for the next iteration (snapshot + destroy on
         // object-store backends, preserving state). The kill must happen
@@ -9989,7 +9995,7 @@ export class AppGenerateService extends BaseService {
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
-        if (app.sandbox_id) {
+        if (app.sandbox_id && isLatestVersion) {
             try {
                 await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
                     beforeSuspend: async (handle) => {
