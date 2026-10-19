@@ -1,3 +1,11 @@
+## [2.606.3](https://github.com/lightdash/lightdash/compare/2.606.2...2.606.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* resolve saved chart timezones for Sheets AI drafts ([#31140](https://github.com/lightdash/lightdash/issues/31140)) ([9c5d991](https://github.com/lightdash/lightdash/commit/9c5d991e8ac024c9a19b0ca1711f70801ccef09a))
+* **validator:** show the full Fix button label ([#31132](https://github.com/lightdash/lightdash/issues/31132)) ([6bbcc70](https://github.com/lightdash/lightdash/commit/6bbcc706e6f21e3f6ebbff4cab41dbdd2e2be097))
+
 ## [2.606.2](https://github.com/lightdash/lightdash/compare/2.606.1...2.606.2) (2026-10-19)
 
 
