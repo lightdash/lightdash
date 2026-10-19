@@ -27,9 +27,6 @@ vi.mock('../../hooks/useExplore', () => ({
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => vi.fn(),
 }));
-vi.mock('../../features/mergeQuery/hooks/useMergeSourceNames', () => ({
-    useMergeSourceNames: () => ({ handleByName: {} }),
-}));
 vi.mock('../../features/mergeQuery/context/useMerge', () => ({
     useMergeSafe: () => merge,
 }));

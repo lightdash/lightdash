@@ -20,7 +20,7 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import { convertDateFilters } from '../../../utils/dateFilter';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
-import { useMergeSourceNames } from './useMergeSourceNames';
+import { getMergeSourceNames } from '../utils/getMergeSourceNames';
 
 export const getMergeSourceFieldValues = (
     fieldOrigins: MergeFieldOrigins,
@@ -77,13 +77,22 @@ export const useMergeSourceCell = () => {
     const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const merge = useMergeSafe();
-    const { handleByName } = useMergeSourceNames();
     const {
         tableName,
         metricQuery: primaryMetricQuery,
         parameters,
         resolvedTimezone,
     } = useMetricQueryDataContext();
+    // Not useMergeSourceNames: it reads the explorer store, absent outside the explorer
+    const { handleByName } = useMemo(
+        () =>
+            getMergeSourceNames({
+                tableName,
+                primarySourceName: merge?.primarySourceName ?? null,
+                additionalSources: merge?.additionalSources ?? [],
+            }),
+        [tableName, merge?.primarySourceName, merge?.additionalSources],
+    );
     const additionalSource = merge?.additionalSources[0];
     const { data: primaryExplore } = useExplore(tableName, {
         refetchOnMount: false,
