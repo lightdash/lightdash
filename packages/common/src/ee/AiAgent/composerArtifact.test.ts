@@ -1,6 +1,7 @@
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import {
     buildComposerArtifactPipeline,
+    toComposerArtifactVersion,
     type ThreadComposerQueryNode,
 } from './composerArtifact';
 
@@ -167,5 +168,29 @@ describe('buildComposerArtifactPipeline', () => {
         ).toThrow(
             'Node "summary" reads "11111111-1111-4111-8111-111111111111", which is not a node of this submission or of an earlier call in this thread. No nodes have been defined earlier in this thread.',
         );
+    });
+});
+
+describe('toComposerArtifactVersion', () => {
+    it('saves a composer chart version, omitting an empty description', () => {
+        expect(
+            toComposerArtifactVersion({
+                title: 'Orders',
+                description: null,
+                queries: [orders],
+                terminalNodeId: 'orders',
+                vizConfig: null,
+            }),
+        ).toEqual({
+            artifactType: 'chart',
+            title: 'Orders',
+            vizConfig: {
+                source: 'composer',
+                schemaVersion: 1,
+                queries: [orders],
+                terminalNodeId: 'orders',
+                vizConfig: null,
+            },
+        });
     });
 });

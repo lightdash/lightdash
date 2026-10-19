@@ -53,7 +53,7 @@ const resolve = (response: string, toolResults: ComposerToolResult[]) =>
 
 const presentedNodes = (response: string, toolResults: ComposerToolResult[]) =>
     resolve(response, toolResults).presentations.map(
-        (presentation) => presentation.config.terminalNodeId,
+        (presentation) => presentation.vizConfig.terminalNodeId,
     );
 
 describe('resolveComposerPresentations', () => {
@@ -89,9 +89,10 @@ describe('resolveComposerPresentations', () => {
         ).toEqual({
             presentations: [
                 {
+                    artifactType: 'chart',
                     title: 'Revenue',
                     description: 'Monthly revenue',
-                    config: {
+                    vizConfig: {
                         source: 'composer',
                         schemaVersion: 1,
                         queries: metadata.snapshot,

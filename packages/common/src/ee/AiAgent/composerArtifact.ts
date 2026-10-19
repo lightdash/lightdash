@@ -21,6 +21,39 @@ export type AiComposerChartArtifactConfig = {
     vizConfig: AllVizChartConfig | null;
 };
 
+/** Arguments for saving a composer artifact version. */
+export type AiComposerArtifactVersion = {
+    artifactType: 'chart';
+    title: string;
+    description?: string;
+    vizConfig: AiComposerChartArtifactConfig;
+};
+
+export const toComposerArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+}: {
+    title: string;
+    description: string | null;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: AllVizChartConfig | null;
+}): AiComposerArtifactVersion => ({
+    artifactType: 'chart',
+    title,
+    ...(description ? { description } : {}),
+    vizConfig: {
+        source: 'composer',
+        schemaVersion: 1,
+        queries,
+        terminalNodeId,
+        vizConfig,
+    },
+});
+
 export const isAiComposerChartArtifactConfig = (
     config: unknown,
 ): config is AiComposerChartArtifactConfig =>

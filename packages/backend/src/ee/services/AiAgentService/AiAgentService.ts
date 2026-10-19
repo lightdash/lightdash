@@ -8243,16 +8243,13 @@ export class AiAgentService extends BaseService {
     }): Promise<void> {
         try {
             await presentations.reduce<Promise<void>>(
-                (previous, { title, description, config }) =>
+                (previous, presentation) =>
                     previous.then(async () => {
                         const artifact =
                             await this.aiAgentModel.createOrUpdateArtifact({
                                 threadUuid,
                                 promptUuid,
-                                artifactType: 'chart',
-                                title,
-                                ...(description ? { description } : {}),
-                                vizConfig: config,
+                                ...presentation,
                             });
                         onArtifactReady(artifact);
                     }),

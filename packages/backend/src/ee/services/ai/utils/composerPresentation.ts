@@ -1,6 +1,7 @@
 import {
     parseToolComposerQueriesSuccessMetadata,
-    type AiComposerChartArtifactConfig,
+    toComposerArtifactVersion,
+    type AiComposerArtifactVersion,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 
@@ -24,11 +25,7 @@ export type ComposerToolResult = {
     metadata: unknown;
 };
 
-export type ComposerPresentation = {
-    title: string;
-    description: string | null;
-    config: AiComposerChartArtifactConfig;
-};
+export type ComposerPresentation = AiComposerArtifactVersion;
 
 export const stripComposerPresentationMarkers = (response: string): string =>
     mapProse(response, (prose) =>
@@ -77,17 +74,13 @@ export const resolveComposerPresentations = ({
             const metadata = presentable.get(nodeId);
             return metadata
                 ? [
-                      {
+                      toComposerArtifactVersion({
                           title: metadata.title,
                           description: metadata.description,
-                          config: {
-                              source: 'composer',
-                              schemaVersion: 1,
-                              queries: metadata.snapshot,
-                              terminalNodeId: metadata.terminalNodeId,
-                              vizConfig: metadata.vizConfig,
-                          },
-                      },
+                          queries: metadata.snapshot,
+                          terminalNodeId: metadata.terminalNodeId,
+                          vizConfig: metadata.vizConfig,
+                      }),
                   ]
                 : [];
         }),

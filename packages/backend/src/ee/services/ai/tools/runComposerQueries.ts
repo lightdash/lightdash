@@ -8,6 +8,7 @@ import {
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
+    toComposerArtifactVersion,
     toolComposerQueryNodeToSourceQuery,
     type AiComposerChartArtifactConfig,
     type AnyType,
@@ -418,16 +419,13 @@ export const getRunComposerQueries = ({
                     ? await createOrUpdateArtifact({
                           threadUuid: prompt.threadUuid,
                           promptUuid: prompt.promptUuid,
-                          artifactType: 'chart',
-                          title: artifactTitle,
-                          ...(description ? { description } : {}),
-                          vizConfig: {
-                              source: 'composer',
-                              schemaVersion: 1,
+                          ...toComposerArtifactVersion({
+                              title: artifactTitle,
+                              description: description ?? null,
                               queries,
                               terminalNodeId: resolvedTerminalNodeId,
                               vizConfig,
-                          } satisfies AiComposerChartArtifactConfig,
+                          }),
                       })
                     : null;
                 if (isSlack && enableDataAccess) {
