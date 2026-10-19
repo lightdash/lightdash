@@ -227,7 +227,7 @@ describe('validateMergeQuery', () => {
             );
         });
 
-        it('rejects a merge with more than two sources', () => {
+        it('accepts a merge with more than two sources', () => {
             const queryC: MergeQuerySource = {
                 id: 'c',
                 metricQuery: metricQuery(
@@ -252,9 +252,7 @@ describe('validateMergeQuery', () => {
                 }),
             );
 
-            expect(errors.map((error) => error.kind)).toEqual(
-                expect.arrayContaining([MergeQueryErrorKind.TOO_MANY_SOURCES]),
-            );
+            expect(errors).toEqual([]);
         });
 
         it('rejects duplicate source ids', () => {
@@ -726,6 +724,71 @@ describe('saved merge schemas', () => {
                 },
             ],
         });
+    });
+
+    it('round-trips a merge over more than two sources, including a repeated explore', () => {
+        const source = (id: string, explore: string) => ({
+            id,
+            metricQuery: metricQuery(
+                explore,
+                [`${explore}_week`],
+                [`${explore}_score`],
+            ),
+        });
+        const chartSource = source('orders', 'orders');
+        const runnable: MergeQuery = {
+            sources: [
+                chartSource,
+                source('calls', 'calls'),
+                { ...source('complaints', 'complaints'), repeatValues: true },
+                source('calls_2', 'calls'),
+            ],
+            joinKey: [
+                {
+                    name: 'orders_week',
+                    fieldIdBySourceId: {
+                        orders: 'orders_week',
+                        calls: 'calls_week',
+                        complaints: 'complaints_week',
+                        calls_2: 'calls_week',
+                    },
+                },
+            ],
+            joinType: MergeJoinType.LEFT,
+            tableCalculations: [
+                {
+                    name: 'score',
+                    displayName: 'Score',
+                    sql: '${calls.calls_score} + ${calls_2.calls_score}',
+                },
+            ],
+            sorts: [],
+            limit: 500,
+        };
+        const merge = buildSavedMergeDefinition({
+            mergeQuery: runnable,
+            chartSourceId: 'orders',
+        });
+
+        expect(Object.keys(merge.queries)).toEqual([
+            'calls',
+            'complaints',
+            'calls_2',
+        ]);
+        expect(merge.keys).toEqual({
+            orders_week: [
+                'calls.calls_week',
+                'complaints.complaints_week',
+                'calls_2.calls_week',
+            ],
+        });
+        expect(
+            parseSavedMergeDefinition(JSON.parse(JSON.stringify(merge))),
+        ).toEqual(merge);
+        expect(
+            buildMergeQueryFromMergeDefinition(chartSource.metricQuery, merge),
+        ).toEqual(runnable);
+        expect(validateMergeQuery(runnable)).toEqual([]);
     });
 
     it('refuses to save a merge over an existing result or without the chart query', () => {

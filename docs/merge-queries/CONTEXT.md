@@ -1,7 +1,7 @@
 # Merge queries
 
-Joining the results of two explore queries into one result set, in the
-Explorer, over the semantic layer. Both sides run as ordinary metric queries;
+Joining the results of multiple explore queries into one result set, in the
+Explorer, over the semantic layer. All sources run as ordinary metric queries;
 the join runs in DuckDB over their materialized results.
 
 Read `architecture.md` in this directory before changing execution. A second,
@@ -11,14 +11,14 @@ the most common mistake in this area.
 ## Language
 
 **Merge**:
-Joining two explore queries on a shared key so their metrics appear side by
+Joining two or more explore queries on a shared key so their metrics appear side by
 side in one result set. A property of a query, not a saved entity of its own.
 _Avoid_: blend, union (a merge is a join, never a union), federated query
 
 **Source**:
 One side of a merge: an explore plus the metric query run against it. A merge
-has exactly two today. Sources are identified by short ids (`a`, `b`) that are
-internal and must never reach the user interface.
+has at least two sources. The editor uses stable internal handles (`a`, `b`,
+`source_2`, …); saved queries use readable source names.
 _Avoid_: query (ambiguous with the merged query itself), side, input
 
 **Leg**:
@@ -34,8 +34,8 @@ it, and the merged result shows it once, as the key column.
 _Avoid_: merge key, join column, linking field
 
 **Join type**:
-Which rows survive the join: `full` keeps rows either source has, `left` keeps
-the first source's rows, `inner` keeps only matched rows. Surfaced to users as
+Which rows survive the join: `full` keeps rows any source has, `left` keeps
+the first source's rows, `inner` keeps only keys found in every source. Surfaced to users as
 what to include, never as SQL keywords.
 _Avoid_: join mode, include mode (in code), outer join
 
@@ -68,8 +68,9 @@ _Avoid_: row explosion, duplication, cartesian
 
 **Repeat values**:
 A per-source opt-in that turns the fan-out refusal into the lookup the user
-asked for: the source's value columns repeat on every row the other source
-produces for the same key, so the other source may keep dimensions that are
+asked for: the source's value columns repeat on every row the finer-grained source
+produces for the same key. At most one source may keep unjoined dimensions;
+every other source must opt into repetition. The finer-grained source keeps dimensions that are
 not join keys. Off by default. A repeated column has no total over the merged
 rows, because a sum would count it once per repeat.
 _Avoid_: one-to-many join (in copy), broadcast, lookup join
@@ -104,8 +105,8 @@ product noun in user-facing copy)
 
 **Query source**:
 A registered kind of node in a composed query: the semantic layer, raw SQL,
-DuckDB over other results, or an external source. A merge is two semantic-layer
-nodes and one DuckDB node. See `docs/multi-source-queries.md`.
+DuckDB over other results, or an external source. A merge is one semantic-layer node per source
+and one DuckDB join node. See `docs/multi-source-queries.md`.
 _Avoid_: connector, provider, data source (collides with warehouse connections)
 
 **Saved merge definition**:

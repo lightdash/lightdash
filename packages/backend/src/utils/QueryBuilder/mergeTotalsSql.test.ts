@@ -122,3 +122,63 @@ describe('buildMergeTotalsSql', () => {
         ).toBeNull();
     });
 });
+
+test('returns one totals row combining all seven sources and merged values', async () => {
+    const sourceTotalTables = Array.from({ length: 7 }, (_, index) => ({
+        sourceId: `s${index}`,
+        table: `total_${index}`,
+        sourceFieldIds: ['unique_count'],
+    }));
+    const statement = buildMergeTotalsSql({
+        fieldIds: [
+            'combined',
+            ...sourceTotalTables.map(
+                ({ sourceId }) => `${sourceId}_unique_count`,
+            ),
+        ],
+        columnTotals: {
+            combined: { from: 'mergedRows', aggregation: 'sum' },
+            ...Object.fromEntries(
+                sourceTotalTables.map(({ sourceId }) => [
+                    `${sourceId}_unique_count`,
+                    {
+                        from: 'sourceQuery',
+                        sourceId,
+                        sourceFieldId: 'unique_count',
+                        sourceLabel: sourceId,
+                    } satisfies MergeColumnTotal,
+                ]),
+            ),
+        },
+        sourceTotalTables,
+    });
+    if (!statement) throw new Error('Expected totals SQL');
+    const instance = await DuckDBInstance.create(':memory:');
+    const connection = await instance.connect();
+    try {
+        await connection.run(
+            'CREATE TABLE merged_result AS SELECT 28::DOUBLE AS combined UNION ALL SELECT 27::DOUBLE',
+        );
+        for (const [index, source] of sourceTotalTables.entries()) {
+            // eslint-disable-next-line no-await-in-loop
+            await connection.run(
+                `CREATE TABLE ${source.table} AS SELECT ${index + 1}::DOUBLE AS unique_count`,
+            );
+        }
+        const reader = await connection.runAndReadAll(statement.sql);
+        expect(reader.getRowObjects()).toEqual([
+            {
+                combined: 55,
+                ...Object.fromEntries(
+                    sourceTotalTables.map(({ sourceId }, index) => [
+                        `${sourceId}_unique_count`,
+                        index + 1,
+                    ]),
+                ),
+            },
+        ]);
+    } finally {
+        connection.closeSync();
+        instance.closeSync();
+    }
+});
