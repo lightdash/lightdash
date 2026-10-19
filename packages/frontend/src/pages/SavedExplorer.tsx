@@ -1,6 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Button } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import isEqual from 'lodash/isEqual';
 import {
     lazy,
     memo,
@@ -20,10 +21,14 @@ import Explorer from '../components/Explorer';
 import { useChartGalleryRightSidebar } from '../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import { useRefreshSavedChartOnAgentEdit } from '../ee/features/aiCopilot/hooks/useRefreshSavedChartOnAgentEdit';
 import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsEditMode,
+    selectSavedChart,
+    useExplorerSelector,
 } from '../features/explorer/store';
 import { MergeProvider } from '../features/mergeQuery/context/MergeContext';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
@@ -36,6 +41,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 import { getCandidateExploreNames } from '../utils/exploreSplitError';
+import { pickSavedChartVersion } from '../utils/savedChartVersion';
 
 const LazyExplorePanel = lazy(
     () => import('../components/Explorer/ExplorePanel'),
@@ -71,6 +77,24 @@ const SavedExplorerContent = memo(() => {
     );
 });
 
+const SavedExplorerSession = () => {
+    const savedChart = useExplorerSelector(selectSavedChart);
+    const isEditMode = useExplorerSelector(selectIsEditMode);
+    const versionKey = isEditMode
+        ? 'editing'
+        : JSON.stringify(pickSavedChartVersion(savedChart));
+
+    return (
+        <MergeProvider
+            key={versionKey}
+            savedMerge={savedChart?.merge ?? null}
+            readOnly={!isEditMode}
+        >
+            <SavedExplorerContent />
+        </MergeProvider>
+    );
+};
+
 const SavedExplorer = () => {
     const { health } = useApp();
 
@@ -92,6 +116,11 @@ const SavedExplorer = () => {
         uuidOrSlug: savedQueryUuid,
         projectUuid,
         includeUnpublishedDraft: true,
+    });
+    useRefreshSavedChartOnAgentEdit({
+        projectUuid,
+        chartUuid: data?.uuid,
+        chartSlug: data?.slug,
     });
     useRecordContentView(
         projectUuid,
@@ -168,8 +197,15 @@ const SavedExplorer = () => {
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
         const isExploreChanged =
             currentSavedChart?.tableName !== data.tableName;
+        // View mode follows saved versions, e.g. after an agent edit; edit mode keeps staged changes.
+        const isViewedVersionChanged =
+            !isEditMode &&
+            !isEqual(
+                pickSavedChartVersion(currentSavedChart),
+                pickSavedChartVersion(data),
+            );
 
-        if (isNewChart || isExploreChanged) {
+        if (isNewChart || isExploreChanged || isViewedVersionChanged) {
             // Switching charts must never inherit the previous session's
             // handover, even if create_saved_chart_version is still briefly
             // in the URL while cleanup races the route change.
@@ -269,12 +305,7 @@ const SavedExplorer = () => {
 
     return (
         <Provider store={store} key={`saved-${savedQueryUuid}`}>
-            <MergeProvider
-                savedMerge={data?.merge ?? null}
-                readOnly={mode !== 'edit'}
-            >
-                <SavedExplorerContent />
-            </MergeProvider>
+            <SavedExplorerSession />
         </Provider>
     );
 };

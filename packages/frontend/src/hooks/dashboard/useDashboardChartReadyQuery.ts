@@ -20,6 +20,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
+import { pickSavedChartVersion } from '../../utils/savedChartVersion';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
@@ -269,6 +270,10 @@ export const useDashboardChartReadyQuery = (
     const isZoomLikelyApplied =
         isAffectedByDateZoom && tileDateZoom !== undefined;
 
+    const chartVersion = useMemo(
+        () => pickSavedChartVersion(chartQuery.data),
+        [chartQuery.data],
+    );
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
@@ -285,6 +290,8 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartVersion,
+            includeUnpublishedDraft,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -301,6 +308,8 @@ export const useDashboardChartReadyQuery = (
             invalidateCache,
             chartParameterValues,
             sessionTimezone,
+            chartVersion,
+            includeUnpublishedDraft,
         ],
     );
 
