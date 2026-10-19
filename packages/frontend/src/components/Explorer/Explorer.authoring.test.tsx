@@ -65,6 +65,9 @@ vi.mock(
 vi.mock('../../features/mergeQuery/components/MergeAutoRun', () => ({
     MergeAutoRun: () => <div data-testid="merge-auto-run" />,
 }));
+vi.mock('../../features/mergeQuery/components/MergeSharedJoinFilters', () => ({
+    MergeSharedJoinFilters: () => null,
+}));
 vi.mock('../../features/mergeQuery/components/MergeReadOnlyBar', () => ({
     MergeReadOnlyBar: () => null,
 }));

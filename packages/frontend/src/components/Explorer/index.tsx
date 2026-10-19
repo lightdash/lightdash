@@ -35,6 +35,7 @@ import {
 import { MergeAutoRun } from '../../features/mergeQuery/components/MergeAutoRun';
 import { MergeReadOnlyBar } from '../../features/mergeQuery/components/MergeReadOnlyBar';
 import { MergeRelationshipCard } from '../../features/mergeQuery/components/MergeRelationshipCard';
+import { MergeSharedJoinFilters } from '../../features/mergeQuery/components/MergeSharedJoinFilters';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useParameters } from '../../hooks/parameters/useParameters';
@@ -274,6 +275,7 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             >
                 <Stack className={classes.stack}>
                     <MergeAutoRun />
+                    <MergeSharedJoinFilters />
                     <ExplorerQueryCostConfirmModal />
                     {!hideHeader &&
                         (isEditMode ? (

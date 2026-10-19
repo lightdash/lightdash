@@ -104,3 +104,87 @@ export const syncMergeJoinFilters = ({
         }),
     );
 };
+
+const keyFieldsOf = (parts: MergeJoinPart[], sourceId: string) =>
+    new Set(
+        parts.flatMap(({ fieldIdBySourceId }) => {
+            const fieldId = fieldIdBySourceId[sourceId];
+            return fieldId ? [fieldId] : [];
+        }),
+    );
+
+const hasRuleOn = (
+    group: FilterGroup | undefined,
+    fieldIds: Set<string>,
+): boolean =>
+    !!group &&
+    itemsOf(group).some((item): boolean =>
+        'and' in item || 'or' in item
+            ? hasRuleOn(item, fieldIds)
+            : fieldIds.has(fieldIdOf(item) ?? ''),
+    );
+
+/**
+ * When a source gains a join-key field, it takes the join-key filters the
+ * other sources already share, from the first source whose key is unchanged.
+ * A source whose key field moved drops the rules on the field it left.
+ */
+export const applySharedJoinFilters = ({
+    filtersBySourceId,
+    previousParts,
+    joinParts,
+}: {
+    filtersBySourceId: FiltersBySourceId;
+    previousParts: MergeJoinPart[];
+    joinParts: MergeJoinPart[];
+}): FiltersBySourceId => {
+    const sourceIds = Object.keys(filtersBySourceId);
+    const changes = new Map(
+        sourceIds.map((sourceId) => {
+            const before = keyFieldsOf(previousParts, sourceId);
+            const after = keyFieldsOf(joinParts, sourceId);
+            return [
+                sourceId,
+                {
+                    added: [...after].filter((id) => !before.has(id)),
+                    left: [...before].filter((id) => !after.has(id)),
+                },
+            ];
+        }),
+    );
+    const targets = sourceIds.filter(
+        (sourceId) => (changes.get(sourceId)?.added.length ?? 0) > 0,
+    );
+    const referenceId = sourceIds.find(
+        (sourceId) =>
+            !targets.includes(sourceId) &&
+            hasRuleOn(
+                filtersBySourceId[sourceId].dimensions,
+                keyFieldsOf(joinParts, sourceId),
+            ),
+    );
+    if (targets.length === 0 || !referenceId) return filtersBySourceId;
+
+    const next = { ...filtersBySourceId };
+    targets.forEach((targetId) => {
+        const left = changes.get(targetId)?.left ?? [];
+        const filters = next[targetId];
+        const synced = syncMergeJoinFilters({
+            changedSourceId: referenceId,
+            filtersBySourceId: {
+                [referenceId]: next[referenceId],
+                [targetId]: {
+                    ...filters,
+                    dimensions: replaceJoinKeyRules(
+                        filters.dimensions,
+                        undefined,
+                        new Map(left.map((id) => [id, id])),
+                    ),
+                },
+            },
+            joinParts,
+        });
+        next[targetId] = synced[targetId];
+    });
+    return next;
+};
