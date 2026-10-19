@@ -189,6 +189,10 @@ import {
     UpdateUserNameFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
+import {
+    assertAgentKeepsChartMerge,
+    assertAgentKeepsDocumentMerges,
+} from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import {
     expandMetricsWithPopAdditionalMetrics,
@@ -3197,6 +3201,12 @@ export class AiAgentToolsService extends BaseService {
                     patch,
                     true,
                 ).newDocument;
+                if (context.source === 'ai_agent') {
+                    assertAgentKeepsChartMerge(
+                        patchedContent,
+                        currentContent.content,
+                    );
+                }
                 let patchedSlug = slug;
                 let uuid: string | undefined;
 
@@ -3319,6 +3329,9 @@ export class AiAgentToolsService extends BaseService {
             { slug: content.slug, type },
             async () => {
                 this.aiAgentContentValidation.validateNewContent(type, content);
+                if (context.source === 'ai_agent') {
+                    assertAgentKeepsChartMerge(content, null);
+                }
                 await this.assertContentSpaceInScope(
                     context,
                     content.spaceSlug,
@@ -5681,6 +5694,9 @@ export class AiAgentToolsService extends BaseService {
         assertRegisteredAccount(context.account);
         const input = documentAsCodeSchema.parse(raw);
         AiAgentToolsService.assertNoConversationTags(input.markdown);
+        if (context.source === 'ai_agent') {
+            assertAgentKeepsDocumentMerges(input.charts, {});
+        }
         const space =
             input.spaceSlug === null
                 ? null
@@ -5868,7 +5884,10 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         const { content: stored } = existing.version;
-        const getContent = (): unknown => {
+        const getContent = (): {
+            markdown: string;
+            charts: Record<string, unknown>;
+        } => {
             if (edit.type === 'content') {
                 AiAgentToolsService.assertNoConversationTags(edit.markdown);
                 // Charts placed by tag alone keep their current definition.
@@ -5895,6 +5914,10 @@ export class AiAgentToolsService extends BaseService {
                 charts: { ...stored.charts, [edit.chartId]: patched },
             };
         };
+        const nextContent = getContent();
+        if (context.source === 'ai_agent') {
+            assertAgentKeepsDocumentMerges(nextContent.charts, stored.charts);
+        }
         const document = await this.documentService.updateContent(
             context.account,
             context.projectUuid,
@@ -5903,7 +5926,7 @@ export class AiAgentToolsService extends BaseService {
                 baseVersionUuid: edit.baseVersionUuid,
                 content: parseDocumentContent(
                     existing.version.schemaVersion,
-                    getContent(),
+                    nextContent,
                     { previous: stored },
                 ),
             },

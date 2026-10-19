@@ -5553,33 +5553,114 @@ Recommended Dashboard Structure:
               "description": "A descriptive summary or explanation for the chart.",
               "type": "string",
             },
-            "mergeConfig": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/__schema134",
-                },
-                {
-                  "type": "null",
-                },
-              ],
-              "default": null,
-              "description": "null for a normal visualization. Set this to combine queryConfig with one additional semantic-layer query. Every source may contain only join-key dimensions plus metrics; other dimensions cause fan-out and are refused. In chartConfig, join-key field ids are merge_<joinKeyName>. Metric field ids are <sourceId>_<originalFieldId>. Replace dots in either name with two underscores.",
-            },
             "queryConfig": {
               "additionalProperties": false,
               "properties": {
                 "customMetrics": {
-                  "$ref": "#/definitions/__schema11",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/__schema7",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Define new metric columns the explore doesn't already have. Two kinds:
+
+(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
+    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
+    Use when the requested metric doesn't exist in the explore.
+
+(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
+    back in time. Use whenever the user asks for "year-over-year",
+    "month-over-month", "vs last quarter", "compare to previous period",
+    "N periods ago".
+
+For period comparisons, every successful chart has three things:
+- The time dimension in queryConfig.dimensions
+- The base metric in queryConfig.metrics
+- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
+
+The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
+
+DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
+
+For aggregation entries:
+1. Add the entry to customMetrics with kind: "aggregation"
+2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+
+Example A — "Average customer age sorted descending"
+  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
+  queryConfig.metrics: ["customers_avg_customer_age"]
+  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
+
+Example B — "Revenue by month with year-over-year comparison"
+  queryConfig.dimensions: ["orders_order_date_month"]
+  queryConfig.metrics: ["orders_revenue"]
+  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
                 },
                 "dimensions": {
-                  "$ref": "#/definitions/__schema2",
+                  "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
+                  "items": {
+                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
                 "exploreName": {
                   "description": "The name of the explore containing the metrics and dimensions used for the chart.",
                   "type": "string",
                 },
                 "filters": {
-                  "$ref": "#/definitions/__schema122",
+                  "additionalProperties": false,
+                  "properties": {
+                    "dimensions": {
+                      "items": {
+                        "$ref": "#/definitions/__schema119",
+                      },
+                      "type": [
+                        "array",
+                        "null",
+                      ],
+                    },
+                    "metrics": {
+                      "items": {
+                        "$ref": "#/definitions/__schema119",
+                      },
+                      "type": [
+                        "array",
+                        "null",
+                      ],
+                    },
+                    "tableCalculations": {
+                      "items": {
+                        "$ref": "#/definitions/__schema37",
+                      },
+                      "type": [
+                        "array",
+                        "null",
+                      ],
+                    },
+                    "type": {
+                      "description": "Type of filter group operation",
+                      "enum": [
+                        "and",
+                        "or",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "dimensions",
+                    "metrics",
+                    "tableCalculations",
+                  ],
+                  "type": [
+                    "object",
+                    "null",
+                  ],
                 },
                 "limit": {
                   "description": "The total number of data points / rows allowed on the chart. null means this tool's maximum, not "no data" — use it unless the user asked for a specific number of rows. Row limits documented for other tools do not apply here.",
@@ -5589,24 +5670,33 @@ Recommended Dashboard Structure:
                   ],
                 },
                 "metrics": {
-                  "$ref": "#/definitions/__schema4",
+                  "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
+                  "items": {
+                    "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
                 "parameters": {
                   "allOf": [
                     {
-                      "$ref": "#/definitions/__schema10",
+                      "$ref": "#/definitions/__schema6",
                     },
                   ],
                   "default": null,
                   "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
                 },
                 "sorts": {
-                  "$ref": "#/definitions/__schema6",
+                  "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
+                  "items": {
+                    "$ref": "#/definitions/__schema3",
+                  },
+                  "type": "array",
                 },
                 "tableCalculations": {
                   "anyOf": [
                     {
-                      "$ref": "#/definitions/__schema119",
+                      "$ref": "#/definitions/__schema114",
                     },
                     {
                       "type": "null",
@@ -5650,100 +5740,17 @@ Use them whenever the question needs math the metric query alone can't express: 
           ],
           "type": "object",
         },
-        "__schema10": {
-          "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string",
-              },
-              {
-                "type": "number",
-              },
-              {
-                "items": {
-                  "type": "string",
-                },
-                "type": "array",
-              },
-              {
-                "items": {
-                  "type": "number",
-                },
-                "type": "array",
-              },
-            ],
-          },
-          "type": [
-            "object",
-            "null",
-          ],
-        },
-        "__schema101": {
-          "description": "Current period unit, e.g. weeks for this week.",
-          "enum": [
-            "days",
-            "weeks",
-            "months",
-            "quarters",
-            "years",
-          ],
-          "type": "string",
-        },
-        "__schema107": {
+        "__schema102": {
           "const": true,
           "description": "Set true to end the period at the end of today instead of the end of the period, for requests like "month to date", "quarter to date", or "this year so far". Only valid with weeks, months, quarters, or years; omit otherwise.",
           "type": "boolean",
         },
-        "__schema109": {
+        "__schema104": {
           "const": true,
           "description": "With toDate, end the period at the end of yesterday so today's partial data is excluded, for requests like "month to date excluding today" or "compare completed days only". Requires toDate; omit otherwise.",
           "type": "boolean",
         },
-        "__schema11": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/__schema12",
-            },
-            {
-              "type": "null",
-            },
-          ],
-          "description": "Define new metric columns the explore doesn't already have. Two kinds:
-
-(1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
-    (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
-    Use when the requested metric doesn't exist in the explore.
-
-(2) kind: "periodComparison" — a column that is an EXISTING metric shifted
-    back in time. Use whenever the user asks for "year-over-year",
-    "month-over-month", "vs last quarter", "compare to previous period",
-    "N periods ago".
-
-For period comparisons, every successful chart has three things:
-- The time dimension in queryConfig.dimensions
-- The base metric in queryConfig.metrics
-- A customMetric of kind "periodComparison" pointing at that base metric and time dimension
-
-The server generates the comparison column automatically and appends it next to the base metric. Do NOT add the comparison column id to queryConfig.metrics yourself.
-
-DO NOT simulate a period comparison by adding a second time-dimension granularity (e.g. _year) and using groupBy. groupBy is for categorical splits (region, product). Time comparisons use a kind: "periodComparison" customMetric.
-
-For aggregation entries:
-1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
-
-Example A — "Average customer age sorted descending"
-  customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
-  queryConfig.metrics: ["customers_avg_customer_age"]
-  sorts: [{ fieldId: "customers_avg_customer_age", descending: true }]
-
-Example B — "Revenue by month with year-over-year comparison"
-  queryConfig.dimensions: ["orders_order_date_month"]
-  queryConfig.metrics: ["orders_revenue"]
-  customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }]",
-        },
-        "__schema111": {
+        "__schema106": {
           "description": "Use for before/after comparisons against one explicit date or datetime.",
           "enum": [
             "lessThan",
@@ -5753,25 +5760,25 @@ Example B — "Revenue by month with year-over-year comparison"
           ],
           "type": "string",
         },
-        "__schema116": {
+        "__schema111": {
           "description": "Exactly one explicit ISO date/datetime threshold.",
           "items": {
-            "$ref": "#/definitions/__schema77",
+            "$ref": "#/definitions/__schema72",
           },
           "maxItems": 1,
           "minItems": 1,
           "type": "array",
         },
-        "__schema118": {
+        "__schema113": {
           "description": "Exactly two explicit ISO dates/datetimes: [start, end].",
           "items": {
-            "$ref": "#/definitions/__schema77",
+            "$ref": "#/definitions/__schema72",
           },
           "maxItems": 2,
           "minItems": 2,
           "type": "array",
         },
-        "__schema119": {
+        "__schema114": {
           "items": {
             "additionalProperties": false,
             "properties": {
@@ -5839,7 +5846,663 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema12": {
+        "__schema119": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/__schema9",
+            },
+            {
+              "$ref": "#/definitions/__schema21",
+            },
+            {
+              "$ref": "#/definitions/__schema37",
+            },
+            {
+              "$ref": "#/definitions/__schema61",
+            },
+          ],
+        },
+        "__schema21": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "string",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "string",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
+  fieldId: "orders_status"; // use the actual field id
+  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
+  values: string[];
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "string",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "string",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema28",
+                },
+                "values": {
+                  "description": "String values to match. Do not put natural-language date ranges here.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema28": {
+          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
+          "enum": [
+            "equals",
+            "notEquals",
+            "startsWith",
+            "endsWith",
+            "include",
+            "doesNotInclude",
+          ],
+          "type": "string",
+        },
+        "__schema3": {
+          "additionalProperties": false,
+          "properties": {
+            "descending": {
+              "description": "If true sorts in descending order, if false sorts in ascending order",
+              "type": "boolean",
+            },
+            "fieldId": {
+              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+              "type": "string",
+            },
+            "nullsFirst": {
+              "default": null,
+              "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
+              "type": [
+                "boolean",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "fieldId",
+            "descending",
+          ],
+          "type": "object",
+        },
+        "__schema37": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema39",
+                },
+                "operator": {
+                  "description": "Use isNull for missing values, notNull for present values.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
+  fieldId: "orders_item_count"; // use the actual field id
+  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: number[];
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema39",
+                },
+                "operator": {
+                  "description": "Use equals/notEquals for exact numeric matches.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
+                },
+                "values": {
+                  "description": "One or more exact numeric values to match.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [number]; // exactly one array value
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema39",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema49",
+                },
+                "values": {
+                  "description": "Exactly one numeric threshold value.",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
+  fieldId: "orders_total_revenue"; // use the actual field id
+  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween" | "notInBetween"; // | means or
+  values: [number, number]; // exactly two array values; lower and upper bounds
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "number",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "$ref": "#/definitions/__schema39",
+                },
+                "operator": {
+                  "description": "Use for ranges between two numeric bounds.",
+                  "enum": [
+                    "inBetween",
+                    "notInBetween",
+                  ],
+                  "type": "string",
+                },
+                "values": {
+                  "description": "Exactly two numeric bounds: [lower, upper].",
+                  "items": {
+                    "type": "number",
+                  },
+                  "maxItems": 2,
+                  "minItems": 2,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema39": {
+          "enum": [
+            "number",
+            "percentile",
+            "median",
+            "average",
+            "count",
+            "count_distinct",
+            "sum",
+            "sum_distinct",
+            "average_distinct",
+            "min",
+            "max",
+          ],
+          "type": "string",
+        },
+        "__schema49": {
+          "description": "Use for threshold comparisons such as greater than 100.",
+          "enum": [
+            "lessThan",
+            "lessThanOrEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+          ],
+          "type": "string",
+        },
+        "__schema6": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+              {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              {
+                "items": {
+                  "type": "number",
+                },
+                "type": "array",
+              },
+            ],
+          },
+          "type": [
+            "object",
+            "null",
+          ],
+        },
+        "__schema61": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "isNull" | "notNull"; // | means or
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "description": "Use isNull for missing dates, notNull for present dates.",
+                  "enum": [
+                    "isNull",
+                    "notNull",
+                  ],
+                  "type": "string",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "equals" | "notEquals"; // | means or
+  values: string[];
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "description": "Use equals/notEquals for explicit dates or datetimes.",
+                  "enum": [
+                    "equals",
+                    "notEquals",
+                  ],
+                  "type": "string",
+                },
+                "values": {
+                  "$ref": "#/definitions/__schema71",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
+  values: [number]; // exactly one array value; number of periods
+  settings: {
+  completed: false | true; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+};
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema75",
+                },
+                "settings": {
+                  "$ref": "#/definitions/__schema81",
+                },
+                "values": {
+                  "$ref": "#/definitions/__schema79",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+                "settings",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
+  values: [1]; // exactly one array value; always [1] for current-period filters
+  settings: {
+  completed: false; // false includes current partial period; true means completed periods only
+  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
+  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days
+  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded
+};
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema89",
+                },
+                "settings": {
+                  "$ref": "#/definitions/__schema94",
+                },
+                "values": {
+                  "description": "Always [1] for current-period filters.",
+                  "items": {
+                    "const": 1,
+                    "type": "number",
+                  },
+                  "maxItems": 1,
+                  "minItems": 1,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+                "settings",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
+  values: [string]; // exactly one array value
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "$ref": "#/definitions/__schema106",
+                },
+                "values": {
+                  "$ref": "#/definitions/__schema111",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
+  fieldId: "orders_order_date"; // use the actual field id
+  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
+  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
+  operator: "inBetween"; // | means or
+  values: [string, string]; // exactly two array values; lower and upper bounds
+}",
+              "properties": {
+                "fieldFilterType": {
+                  "const": "date",
+                  "type": "string",
+                },
+                "fieldId": {
+                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "enum": [
+                    "date",
+                    "timestamp",
+                  ],
+                  "type": "string",
+                },
+                "operator": {
+                  "const": "inBetween",
+                  "description": "Use for explicit date ranges between two dates/datetimes.",
+                  "type": "string",
+                },
+                "values": {
+                  "$ref": "#/definitions/__schema113",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "fieldFilterType",
+                "operator",
+                "values",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema7": {
           "items": {
             "oneOf": [
               {
@@ -5856,7 +6519,7 @@ All branches of an IF must return the same type.",
                   "filters": {
                     "anyOf": [
                       {
-                        "$ref": "#/definitions/__schema13",
+                        "$ref": "#/definitions/__schema8",
                       },
                       {
                         "type": "null",
@@ -5954,89 +6617,70 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema122": {
-          "additionalProperties": false,
-          "properties": {
-            "dimensions": {
-              "items": {
-                "$ref": "#/definitions/__schema125",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "metrics": {
-              "items": {
-                "$ref": "#/definitions/__schema125",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "tableCalculations": {
-              "items": {
-                "$ref": "#/definitions/__schema42",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "type": {
-              "description": "Type of filter group operation",
-              "enum": [
-                "and",
-                "or",
-              ],
-              "type": "string",
-            },
+        "__schema71": {
+          "description": "One or more explicit ISO dates/datetimes.",
+          "items": {
+            "$ref": "#/definitions/__schema72",
           },
-          "required": [
-            "type",
-            "dimensions",
-            "metrics",
-            "tableCalculations",
-          ],
-          "type": [
-            "object",
-            "null",
-          ],
+          "type": "array",
         },
-        "__schema125": {
+        "__schema72": {
           "anyOf": [
             {
-              "$ref": "#/definitions/__schema14",
+              "$ref": "#/definitions/__schema73",
             },
             {
-              "$ref": "#/definitions/__schema26",
-            },
-            {
-              "$ref": "#/definitions/__schema42",
-            },
-            {
-              "$ref": "#/definitions/__schema66",
+              "$ref": "#/definitions/__schema74",
             },
           ],
+          "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
         },
-        "__schema13": {
+        "__schema73": {
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
+          "type": "string",
+        },
+        "__schema74": {
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+          "type": "string",
+        },
+        "__schema75": {
+          "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
+          "enum": [
+            "inThePast",
+            "notInThePast",
+            "inTheNext",
+          ],
+          "type": "string",
+        },
+        "__schema79": {
+          "description": "Exactly one positive number of periods, e.g. [2].",
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer",
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "type": "array",
+        },
+        "__schema8": {
           "items": {
             "additionalProperties": false,
             "properties": {
               "filter": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/__schema14",
+                    "$ref": "#/definitions/__schema9",
                   },
                   {
-                    "$ref": "#/definitions/__schema26",
+                    "$ref": "#/definitions/__schema21",
                   },
                   {
-                    "$ref": "#/definitions/__schema42",
+                    "$ref": "#/definitions/__schema37",
                   },
                   {
-                    "$ref": "#/definitions/__schema66",
+                    "$ref": "#/definitions/__schema61",
                   },
                 ],
               },
@@ -6053,138 +6697,44 @@ All branches of an IF must return the same type.",
           },
           "type": "array",
         },
-        "__schema134": {
+        "__schema81": {
           "additionalProperties": false,
+          "description": "Relative period settings.",
           "properties": {
-            "additionalSources": {
-              "description": "The additional query to merge with queryConfig. Merge queries currently support exactly two sources.",
-              "items": {
-                "$ref": "#/definitions/__schema135",
-              },
-              "maxItems": 1,
-              "minItems": 1,
-              "type": "array",
+            "completed": {
+              "description": "false for rolling periods including the current partial period; true for completed periods only.",
+              "type": "boolean",
             },
-            "joinKey": {
-              "items": {
-                "$ref": "#/definitions/__schema136",
-              },
-              "minItems": 1,
-              "type": "array",
-            },
-            "joinType": {
-              "enum": [
-                "full",
-                "left",
-                "inner",
-              ],
-              "type": "string",
-            },
-            "primarySourceId": {
-              "description": "Stable id assigned to the primary queryConfig.",
-              "minLength": 1,
-              "type": "string",
+            "unitOfTime": {
+              "$ref": "#/definitions/__schema83",
             },
           },
           "required": [
-            "primarySourceId",
-            "additionalSources",
-            "joinKey",
-            "joinType",
+            "completed",
+            "unitOfTime",
           ],
           "type": "object",
         },
-        "__schema135": {
-          "additionalProperties": false,
-          "properties": {
-            "id": {
-              "minLength": 1,
-              "type": "string",
-            },
-            "queryConfig": {
-              "additionalProperties": false,
-              "description": "A second semantic-layer query. The primary query limit and parameter values apply to the whole merge.",
-              "properties": {
-                "customMetrics": {
-                  "$ref": "#/definitions/__schema11",
-                },
-                "dimensions": {
-                  "$ref": "#/definitions/__schema2",
-                },
-                "exploreName": {
-                  "description": "The name of the explore containing the metrics and dimensions used for the chart.",
-                  "type": "string",
-                },
-                "filters": {
-                  "$ref": "#/definitions/__schema122",
-                },
-                "metrics": {
-                  "$ref": "#/definitions/__schema4",
-                },
-                "sorts": {
-                  "$ref": "#/definitions/__schema6",
-                },
-              },
-              "required": [
-                "exploreName",
-                "dimensions",
-                "metrics",
-                "sorts",
-                "customMetrics",
-                "filters",
-              ],
-              "type": "object",
-            },
-          },
-          "required": [
-            "id",
-            "queryConfig",
+        "__schema83": {
+          "description": "Period unit for the relative date filter.",
+          "enum": [
+            "days",
+            "weeks",
+            "months",
+            "quarters",
+            "years",
           ],
-          "type": "object",
+          "type": "string",
         },
-        "__schema136": {
-          "additionalProperties": false,
-          "properties": {
-            "fields": {
-              "description": "One selected dimension from each source. Both must represent the same grain and value type.",
-              "items": {
-                "$ref": "#/definitions/__schema137",
-              },
-              "maxItems": 2,
-              "minItems": 2,
-              "type": "array",
-            },
-            "name": {
-              "description": "Stable output name for this shared join-key column.",
-              "minLength": 1,
-              "type": "string",
-            },
-          },
-          "required": [
-            "name",
-            "fields",
+        "__schema89": {
+          "description": "Use for this/current period or to exclude this/current period.",
+          "enum": [
+            "inTheCurrent",
+            "notInTheCurrent",
           ],
-          "type": "object",
+          "type": "string",
         },
-        "__schema137": {
-          "additionalProperties": false,
-          "properties": {
-            "fieldId": {
-              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-              "type": "string",
-            },
-            "sourceId": {
-              "minLength": 1,
-              "type": "string",
-            },
-          },
-          "required": [
-            "sourceId",
-            "fieldId",
-          ],
-          "type": "object",
-        },
-        "__schema14": {
+        "__schema9": {
           "anyOf": [
             {
               "additionalProperties": false,
@@ -6279,726 +6829,7 @@ All branches of an IF must return the same type.",
             },
           ],
         },
-        "__schema2": {
-          "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
-          "items": {
-            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-            "type": "string",
-          },
-          "type": "array",
-        },
-        "__schema26": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "description": "Use for string fields when checking if a value is missing or present. Do not include values. Type shape: {
-  fieldId: "orders_status"; // use the actual field id
-  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "isNull" | "notNull"; // | means or
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "string",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "string",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "description": "Use isNull for missing values, notNull for present values.",
-                  "enum": [
-                    "isNull",
-                    "notNull",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for text matching on string fields. For dates like "last 2 weeks", use a date filter instead. Type shape: {
-  fieldId: "orders_status"; // use the actual field id
-  fieldType: "string"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "string"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals" | "startsWith" | "endsWith" | "include" | "doesNotInclude"; // | means or
-  values: string[];
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "string",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "string",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema33",
-                },
-                "values": {
-                  "description": "String values to match. Do not put natural-language date ranges here.",
-                  "items": {
-                    "type": "string",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "__schema33": {
-          "description": "equals/notEquals for exact matches; include/doesNotInclude for contains; startsWith/endsWith for prefixes/suffixes.",
-          "enum": [
-            "equals",
-            "notEquals",
-            "startsWith",
-            "endsWith",
-            "include",
-            "doesNotInclude",
-          ],
-          "type": "string",
-        },
-        "__schema4": {
-          "description": "The field ids of the metrics to be calculated. They will be grouped by the dimensions.",
-          "items": {
-            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-            "type": "string",
-          },
-          "type": "array",
-        },
-        "__schema42": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields when checking if a value is missing or present. Do not include values. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "isNull" | "notNull"; // | means or
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema44",
-                },
-                "operator": {
-                  "description": "Use isNull for missing values, notNull for present values.",
-                  "enum": [
-                    "isNull",
-                    "notNull",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields that equal or exclude specific values. Type shape: {
-  fieldId: "orders_item_count"; // use the actual field id
-  fieldType: "count"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals"; // | means or
-  values: number[];
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema44",
-                },
-                "operator": {
-                  "description": "Use equals/notEquals for exact numeric matches.",
-                  "enum": [
-                    "equals",
-                    "notEquals",
-                  ],
-                  "type": "string",
-                },
-                "values": {
-                  "description": "One or more exact numeric values to match.",
-                  "items": {
-                    "type": "number",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields with a single comparison threshold. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
-  values: [number]; // exactly one array value
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema44",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema54",
-                },
-                "values": {
-                  "description": "Exactly one numeric threshold value.",
-                  "items": {
-                    "type": "number",
-                  },
-                  "maxItems": 1,
-                  "minItems": 1,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for numeric fields inside or outside a two-value range. Type shape: {
-  fieldId: "orders_total_revenue"; // use the actual field id
-  fieldType: "sum"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "number"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "inBetween" | "notInBetween"; // | means or
-  values: [number, number]; // exactly two array values; lower and upper bounds
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "number",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "$ref": "#/definitions/__schema44",
-                },
-                "operator": {
-                  "description": "Use for ranges between two numeric bounds.",
-                  "enum": [
-                    "inBetween",
-                    "notInBetween",
-                  ],
-                  "type": "string",
-                },
-                "values": {
-                  "description": "Exactly two numeric bounds: [lower, upper].",
-                  "items": {
-                    "type": "number",
-                  },
-                  "maxItems": 2,
-                  "minItems": 2,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "__schema44": {
-          "enum": [
-            "number",
-            "percentile",
-            "median",
-            "average",
-            "count",
-            "count_distinct",
-            "sum",
-            "sum_distinct",
-            "average_distinct",
-            "min",
-            "max",
-          ],
-          "type": "string",
-        },
-        "__schema54": {
-          "description": "Use for threshold comparisons such as greater than 100.",
-          "enum": [
-            "lessThan",
-            "lessThanOrEqual",
-            "greaterThan",
-            "greaterThanOrEqual",
-          ],
-          "type": "string",
-        },
-        "__schema6": {
-          "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
-          "items": {
-            "$ref": "#/definitions/__schema7",
-          },
-          "type": "array",
-        },
-        "__schema66": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "description": "Use for date/timestamp fields when checking if a value is missing or present. Do not include values. Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "isNull" | "notNull"; // | means or
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "description": "Use isNull for missing dates, notNull for present dates.",
-                  "enum": [
-                    "isNull",
-                    "notNull",
-                  ],
-                  "type": "string",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for specific dates like 2024-01-01. For relative periods like "last 2 weeks", use inThePast. Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "equals" | "notEquals"; // | means or
-  values: string[];
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "description": "Use equals/notEquals for explicit dates or datetimes.",
-                  "enum": [
-                    "equals",
-                    "notEquals",
-                  ],
-                  "type": "string",
-                },
-                "values": {
-                  "$ref": "#/definitions/__schema76",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for relative date requests such as "last 2 weeks" or "next 3 months". Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "inThePast" | "notInThePast" | "inTheNext"; // | means or
-  values: [number]; // exactly one array value; number of periods
-  settings: {
-  completed: false | true; // false includes current partial period; true means completed periods only
-  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
-};
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema80",
-                },
-                "settings": {
-                  "$ref": "#/definitions/__schema86",
-                },
-                "values": {
-                  "$ref": "#/definitions/__schema84",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-                "settings",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for current date requests such as "today", "this week", "this month", or "this year". Add settings.toDate for "month to date" style requests. Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "inTheCurrent" | "notInTheCurrent"; // | means or
-  values: [1]; // exactly one array value; always [1] for current-period filters
-  settings: {
-  completed: false; // false includes current partial period; true means completed periods only
-  unitOfTime: "days" | "weeks" | "months" | "quarters" | "years";
-  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days
-  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded
-};
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema94",
-                },
-                "settings": {
-                  "$ref": "#/definitions/__schema99",
-                },
-                "values": {
-                  "description": "Always [1] for current-period filters.",
-                  "items": {
-                    "const": 1,
-                    "type": "number",
-                  },
-                  "maxItems": 1,
-                  "minItems": 1,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-                "settings",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for date/timestamp fields before, on-or-before, after, or on-or-after a specific date. Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "lessThan" | "lessThanOrEqual" | "greaterThan" | "greaterThanOrEqual"; // | means or
-  values: [string]; // exactly one array value
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "$ref": "#/definitions/__schema111",
-                },
-                "values": {
-                  "$ref": "#/definitions/__schema116",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "description": "Use for explicit date ranges such as from 2024-01-01 to 2024-01-31. Type shape: {
-  fieldId: "orders_order_date"; // use the actual field id
-  fieldType: "date"; // one of: string, number, timestamp, date, boolean, percentile, average, count, count_distinct, sum, sum_distinct, average_distinct, min, max, percent_of_previous, percent_of_total, running_total, median
-  fieldFilterType: "date"; // one of: string, number, date, boolean; used to choose valid operators
-  operator: "inBetween"; // | means or
-  values: [string, string]; // exactly two array values; lower and upper bounds
-}",
-              "properties": {
-                "fieldFilterType": {
-                  "const": "date",
-                  "type": "string",
-                },
-                "fieldId": {
-                  "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                  "type": "string",
-                },
-                "fieldType": {
-                  "enum": [
-                    "date",
-                    "timestamp",
-                  ],
-                  "type": "string",
-                },
-                "operator": {
-                  "const": "inBetween",
-                  "description": "Use for explicit date ranges between two dates/datetimes.",
-                  "type": "string",
-                },
-                "values": {
-                  "$ref": "#/definitions/__schema118",
-                },
-              },
-              "required": [
-                "fieldId",
-                "fieldType",
-                "fieldFilterType",
-                "operator",
-                "values",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "__schema7": {
-          "additionalProperties": false,
-          "properties": {
-            "descending": {
-              "description": "If true sorts in descending order, if false sorts in ascending order",
-              "type": "boolean",
-            },
-            "fieldId": {
-              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-              "type": "string",
-            },
-            "nullsFirst": {
-              "default": null,
-              "description": "If true sorts nulls first, if false sorts nulls last, otherwise sorts by warehouse default",
-              "type": [
-                "boolean",
-                "null",
-              ],
-            },
-          },
-          "required": [
-            "fieldId",
-            "descending",
-          ],
-          "type": "object",
-        },
-        "__schema76": {
-          "description": "One or more explicit ISO dates/datetimes.",
-          "items": {
-            "$ref": "#/definitions/__schema77",
-          },
-          "type": "array",
-        },
-        "__schema77": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/__schema78",
-            },
-            {
-              "$ref": "#/definitions/__schema79",
-            },
-          ],
-          "description": "ISO date (YYYY-MM-DD) or ISO datetime. Do not use relative phrases like "last 2 weeks" here.",
-        },
-        "__schema78": {
-          "format": "date",
-          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$",
-          "type": "string",
-        },
-        "__schema79": {
-          "format": "date-time",
-          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
-          "type": "string",
-        },
-        "__schema80": {
-          "description": "Use inThePast for last/past N periods, inTheNext for next N periods, notInThePast to exclude recent periods.",
-          "enum": [
-            "inThePast",
-            "notInThePast",
-            "inTheNext",
-          ],
-          "type": "string",
-        },
-        "__schema84": {
-          "description": "Exactly one positive number of periods, e.g. [2].",
-          "items": {
-            "exclusiveMinimum": 0,
-            "type": "integer",
-          },
-          "maxItems": 1,
-          "minItems": 1,
-          "type": "array",
-        },
-        "__schema86": {
-          "additionalProperties": false,
-          "description": "Relative period settings.",
-          "properties": {
-            "completed": {
-              "description": "false for rolling periods including the current partial period; true for completed periods only.",
-              "type": "boolean",
-            },
-            "unitOfTime": {
-              "$ref": "#/definitions/__schema88",
-            },
-          },
-          "required": [
-            "completed",
-            "unitOfTime",
-          ],
-          "type": "object",
-        },
-        "__schema88": {
-          "description": "Period unit for the relative date filter.",
-          "enum": [
-            "days",
-            "weeks",
-            "months",
-            "quarters",
-            "years",
-          ],
-          "type": "string",
-        },
         "__schema94": {
-          "description": "Use for this/current period or to exclude this/current period.",
-          "enum": [
-            "inTheCurrent",
-            "notInTheCurrent",
-          ],
-          "type": "string",
-        },
-        "__schema99": {
           "additionalProperties": false,
           "description": "Current-period settings.",
           "properties": {
@@ -7008,13 +6839,13 @@ All branches of an IF must return the same type.",
               "type": "boolean",
             },
             "excludeToday": {
-              "$ref": "#/definitions/__schema109",
+              "$ref": "#/definitions/__schema104",
             },
             "toDate": {
-              "$ref": "#/definitions/__schema107",
+              "$ref": "#/definitions/__schema102",
             },
             "unitOfTime": {
-              "$ref": "#/definitions/__schema101",
+              "$ref": "#/definitions/__schema96",
             },
           },
           "required": [
@@ -7022,6 +6853,17 @@ All branches of an IF must return the same type.",
             "unitOfTime",
           ],
           "type": "object",
+        },
+        "__schema96": {
+          "description": "Current period unit, e.g. weeks for this week.",
+          "enum": [
+            "days",
+            "weeks",
+            "months",
+            "quarters",
+            "years",
+          ],
+          "type": "string",
         },
       },
       "properties": {

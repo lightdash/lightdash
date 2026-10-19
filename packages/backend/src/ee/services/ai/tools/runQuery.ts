@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_MERGE_REFUSAL,
     AiAccessRefusedError,
     AiAgentValidatorError,
     convertAiTableCalcsSchemaToTableCalcs,
@@ -668,9 +669,7 @@ export const getRunQuery = ({
                         toolRunQueryArgsSchemaTransformed.parse(toolArgs);
                     // The input schema rejects merges; never drop one silently.
                     if (queryTool.mergeConfig) {
-                        throw new AiAgentValidatorError(
-                            'Merge queries are not supported by the agent.',
-                        );
+                        throw new AiAgentValidatorError(AI_AGENT_MERGE_REFUSAL);
                     }
                 }
 

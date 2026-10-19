@@ -3,6 +3,7 @@ import {
     ConflictError,
     ContentType,
     ForbiddenError,
+    MergeJoinType,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
@@ -794,6 +795,172 @@ describe('MCP Document runtime', () => {
         const saved = documentService.updateContent.mock.calls[0][3].content;
         expect(saved.markdown).toBe(withChart.version.content.markdown);
         expect(saved.charts.c1.chart.name).toBe('Renamed');
+    });
+
+    describe('AI Agent merge authoring', () => {
+        const mergeChart = {
+            source: 'merge' as const,
+            chart: {
+                ...chart.chart,
+                metricQuery: {
+                    ...chart.chart.metricQuery,
+                    dimensions: ['orders_status'],
+                },
+                merge: {
+                    primarySourceId: 'a',
+                    sources: [
+                        { id: 'a', kind: 'chart' as const },
+                        {
+                            id: 'b',
+                            kind: 'query' as const,
+                            metricQuery: {
+                                ...chart.chart.metricQuery,
+                                dimensions: ['orders_status'],
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'status',
+                            fieldIdBySourceId: {
+                                a: 'orders_status',
+                                b: 'orders_status',
+                            },
+                        },
+                    ],
+                    joinType: MergeJoinType.FULL,
+                    tableCalculations: [],
+                },
+            },
+        };
+        const withMergeChart = {
+            ...withChart,
+            version: {
+                ...withChart.version,
+                content: {
+                    markdown: withChart.version.content.markdown,
+                    charts: { c1: mergeChart },
+                },
+            },
+        };
+        const agentSetup = (stored: Document = document) => {
+            const result = setup();
+            result.documentService.getBySlug.mockResolvedValue(stored);
+            return {
+                ...result,
+                runtime: result.service.createRuntime({
+                    ...result.context,
+                    source: 'ai_agent',
+                    enableDocuments: true,
+                }),
+            };
+        };
+        const refusal = 'Merge queries are not supported by the agent.';
+
+        test('refuses a Document created with a merged chart', async () => {
+            const { runtime, documentService } = agentSetup();
+            await expect(
+                runtime.createContent({
+                    type: 'document',
+                    content: {
+                        ...content,
+                        markdown: '<document-chart id="merged">',
+                        charts: { merged: mergeChart },
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.create).not.toHaveBeenCalled();
+        });
+
+        test('refuses a content edit that adds a merged chart', async () => {
+            const { runtime, documentService } = agentSetup(withChart);
+            await expect(
+                runtime.editContent({
+                    type: 'document',
+                    slug: document.slug,
+                    documentEdit: {
+                        type: 'content',
+                        baseVersionUuid: versionUuid,
+                        markdown: '<document-chart id="merged">',
+                        charts: { merged: mergeChart },
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart edit that changes a stored merge', async () => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            await expect(
+                runtime.editContent({
+                    type: 'document',
+                    slug: document.slug,
+                    documentEdit: {
+                        type: 'chart',
+                        baseVersionUuid: versionUuid,
+                        chartId: 'c1',
+                        patch: [
+                            {
+                                op: 'replace',
+                                path: '/chart/merge/joinType',
+                                value: 'inner',
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [
+                'renames a merged chart',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/chart/name',
+                            value: 'Renamed',
+                        },
+                    ],
+                },
+            ],
+            [
+                'edits the narrative around a merged chart',
+                {
+                    type: 'content' as const,
+                    baseVersionUuid: versionUuid,
+                    markdown: '# New narrative\n\n<document-chart id="c1">',
+                    charts: {},
+                },
+            ],
+        ])('allows an edit that %s', async (_label, documentEdit) => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            await runtime.editContent({
+                type: 'document',
+                slug: document.slug,
+                documentEdit,
+            });
+            const saved =
+                documentService.updateContent.mock.calls[0][3].content;
+            expect(saved.charts.c1.chart.merge).toEqual(mergeChart.chart.merge);
+        });
+
+        test('MCP can still author merged charts', async () => {
+            const { runtime, documentService } = setup();
+            await runtime.createContent({
+                type: 'document',
+                content: {
+                    ...content,
+                    markdown: '<document-chart id="merged">',
+                    charts: { merged: mergeChart },
+                },
+            });
+            expect(documentService.create).toHaveBeenCalledOnce();
+        });
     });
 
     test('chart edits reject an unknown chart id', async () => {
