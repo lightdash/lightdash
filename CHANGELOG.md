@@ -1,3 +1,10 @@
+## [2.616.2](https://github.com/lightdash/lightdash/compare/2.616.1...2.616.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* drop stale route entries and shifted CLI call sites from auth test inventories ([#31197](https://github.com/lightdash/lightdash/issues/31197)) ([b0637d2](https://github.com/lightdash/lightdash/commit/b0637d2d77503950da81dddb92d656a584819d6a))
+
 ## [2.616.1](https://github.com/lightdash/lightdash/compare/2.616.0...2.616.1) (2026-10-19)
 
 
