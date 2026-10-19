@@ -32,6 +32,8 @@ vi.mock('../../../providers/Ability', () => ({
 }));
 vi.mock('../../../hooks/useExplore', () => ({
     useExplore: () => ({ data: explore }),
+    useExploreQueries: (names: (string | undefined)[]) =>
+        names.map((name) => (name ? explore : undefined)),
 }));
 vi.mock('../../../features/mergeQuery/hooks/useMergeQuickFilter', () => ({
     useMergeQuickFilter: () => ({ canFilter: () => false, addFilter: vi.fn() }),

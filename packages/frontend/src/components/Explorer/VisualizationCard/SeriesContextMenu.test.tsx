@@ -20,6 +20,7 @@ vi.mock('../../../hooks/useProjectUuid', () => ({
 }));
 vi.mock('../../../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined }),
+    useExploreQueries: (names: unknown[]) => names.map(() => undefined),
 }));
 vi.mock('../../../hooks/user/useAccount', () => ({
     useAccount: () => ({ data: undefined }),
