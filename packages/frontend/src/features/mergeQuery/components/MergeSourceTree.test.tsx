@@ -9,6 +9,7 @@ import { MergeSourceTree } from './MergeSourceTree';
 const state = vi.hoisted(() => ({
     setSourceExplore: vi.fn(),
     addSourceFilter: vi.fn(),
+    exploreName: 'subscriptions' as string | null,
     exploreTreeProps: undefined as
         | ComponentProps<typeof ExploreTree>
         | undefined,
@@ -19,7 +20,7 @@ vi.mock('../context/useMerge', () => ({
         additionalSources: [
             {
                 id: 'combined',
-                exploreName: 'subscriptions',
+                exploreName: state.exploreName,
                 dimensions: ['subscriptions_started_at'],
                 metrics: ['subscriptions_count'],
                 filters: {
@@ -117,6 +118,7 @@ describe('MergeSourceTree table picker', () => {
     beforeEach(() => {
         state.setSourceExplore.mockReset();
         state.exploreTreeProps = undefined;
+        state.exploreName = 'subscriptions';
     });
 
     it('returns to the selected fields without changing the source', async () => {
@@ -129,6 +131,19 @@ describe('MergeSourceTree table picker', () => {
 
         expect(setIsChoosingExplore).toHaveBeenCalledWith(false);
         expect(state.setSourceExplore).not.toHaveBeenCalled();
+    });
+
+    // There are no fields to go back to until the source has a table
+    it('offers no way back before the source has a table', () => {
+        state.exploreName = null;
+        renderPicker({ isChoosingExplore: false });
+
+        expect(
+            screen.queryByRole('button', { name: 'Back to fields' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Customers' }),
+        ).toBeInTheDocument();
     });
 
     it('does not clear fields when the current table is selected again', async () => {
