@@ -1905,7 +1905,7 @@ export const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         deferSlackVisualization:
-            args.decisions && args.execution.mode === 'standard'
+            args.execution.mode === 'standard'
                 ? dependencies.deferSlackVisualization
                 : undefined,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,

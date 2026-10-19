@@ -2089,8 +2089,7 @@ export class AiAgentService extends BaseService {
                 return null;
             throw error;
         }
-        if (!agent.enableDataAccess || !(await this.getDecisionClient(user)))
-            return null;
+        if (!agent.enableDataAccess) return null;
         const installation =
             await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
                 prompt.organizationUuid,
