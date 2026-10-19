@@ -20,7 +20,6 @@ import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
@@ -66,7 +65,7 @@ export const evidenceResources = () => {
     };
     const settle = async () => {
         if (pending.size > 0) {
-            await Promise.allSettled([...pending]);
+            await Promise.allSettled(pending);
             await settle();
         }
     };
@@ -247,12 +246,9 @@ export const queueEvidenceFixture = async (
     const compileLogs = new ProjectCompileLogModel({ database });
     const preAggregateModel = new PreAggregateModel({ database });
     const savedChartModel = new SavedChartModel({ database, lightdashConfig });
-    const organizationWarehouseCredentialsModel =
-        new OrganizationWarehouseCredentialsModel({ database, encryptionUtil });
     const warehouseConnectionModel = new WarehouseConnectionModel({
         database,
         encryptionUtil,
-        organizationWarehouseCredentialsModel,
     });
     const projectDbtSourcesModel = new ProjectDbtSourcesModel({
         database,
@@ -273,7 +269,6 @@ export const queueEvidenceFixture = async (
             database,
             encryptionUtil,
         }),
-        organizationWarehouseCredentialsModel,
         catalogModel,
         tagsModel,
         projectParametersModel: parameters,

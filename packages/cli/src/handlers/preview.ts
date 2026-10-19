@@ -55,7 +55,6 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     tableConfiguration: CreateProjectTableConfiguration;
     skipCopyContent?: boolean;
     asyncCopyContent?: boolean;
-    organizationCredentials?: string;
     assumeYes?: boolean;
     warehouseCredentials?: boolean;
     batchedDeploy?: boolean;
@@ -170,9 +169,7 @@ const updatePreviewExpiration = async (
             }),
         });
         console.error(
-            `${styles.success(
-                '✔',
-            )}   Preview expiration extended until ${new Date(
+            `${styles.success('✔')}   Preview expiration extended until ${new Date(
                 expiresAt,
             ).toLocaleString()}`,
         );
@@ -273,12 +270,6 @@ const refreshPreviewWarehouseCredentials = async (
     upstreamProjectUuid: string | undefined,
 ): Promise<void> => {
     const source = getWarehouseCredentialsSource(options);
-    if (source.source === 'organization') {
-        GlobalState.debug(
-            `> Preview uses organization warehouse credentials "${source.name}", nothing to refresh`,
-        );
-        return;
-    }
     if (source.source === 'none') {
         GlobalState.debug(
             '> Skipping warehouse credentials refresh (--no-warehouse-credentials)',
@@ -622,9 +613,7 @@ export const previewHandler = async (
         }
 
         spinner.succeed(
-            `  Developer preview "${name}" ready at: ${await projectUrl(
-                project,
-            )}\n`,
+            `  Developer preview "${name}" ready at: ${await projectUrl(project)}\n`,
         );
         await LightdashAnalytics.track({
             event: 'preview.completed',
@@ -845,9 +834,7 @@ export const startPreviewHandler = async (
             );
         } else {
             console.error(
-                `\n${styles.success(
-                    '✔',
-                )}   Copying charts and dashboards from "${
+                `\n${styles.success('✔')}   Copying charts and dashboards from "${
                     config.context?.projectName || 'source project'
                 }"`,
             );

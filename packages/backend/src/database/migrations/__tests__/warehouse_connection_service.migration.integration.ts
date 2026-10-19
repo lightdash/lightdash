@@ -24,7 +24,6 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EnterpriseLicenseService } from '../../../ee/services/LicenseService/LicenseService';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -34,7 +33,6 @@ import {
     ENTITLEMENT_REASON,
     PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
-    WAREHOUSE_TYPE_REASON,
     WarehouseConnectionService,
 } from '../../../services/WarehouseConnectionService/WarehouseConnectionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -217,36 +215,13 @@ describe('WarehouseConnectionService on the real schema', () => {
             credentialsAdmin: account(
                 user.user_uuid,
                 organization.organization_uuid,
-                [
-                    { subject: 'Project', action: 'manage' },
-                    {
-                        subject: 'OrganizationWarehouseCredentials',
-                        action: 'view',
-                    },
-                ],
+                [{ subject: 'Project', action: 'manage' }],
             ),
             viewer: account(user.user_uuid, organization.organization_uuid, [
                 { subject: 'Project', action: 'view' },
             ]),
         };
     };
-
-    const createOrganizationCredential = async (
-        organizationUuid: string,
-        credentials: CreateWarehouseCredentials = postgresCredentials,
-    ) =>
-        (
-            await database('organization_warehouse_credentials')
-                .insert({
-                    organization_uuid: organizationUuid,
-                    name: `Shared ${randomUUID()}`,
-                    warehouse_type: credentials.type,
-                    warehouse_connection: encryptionUtil.encrypt(
-                        JSON.stringify(credentials),
-                    ),
-                } as never)
-                .returning('organization_warehouse_credentials_uuid')
-        )[0].organization_warehouse_credentials_uuid as string;
 
     const addExtra = (fixture: Fixture, name = 'Finance') =>
         buildService().create(fixture.credentialsAdmin, fixture.projectUuid, {
@@ -281,11 +256,6 @@ describe('WarehouseConnectionService on the real schema', () => {
         model = new WarehouseConnectionModel({
             database,
             encryptionUtil,
-            organizationWarehouseCredentialsModel:
-                new OrganizationWarehouseCredentialsModel({
-                    database,
-                    encryptionUtil,
-                }),
         });
         projectService = new ProjectService({
             featureFlagModel: {
@@ -474,7 +444,6 @@ describe('WarehouseConnectionService on the real schema', () => {
                 name: 'Finance',
                 isOriginal: false,
                 warehouseType: WarehouseTypes.POSTGRES,
-                organizationWarehouseCredentialsUuid: null,
             });
             expect(
                 await database('project_connection_mode_events')
@@ -563,36 +532,6 @@ describe('WarehouseConnectionService on the real schema', () => {
                     warehouseConnection: extraCredentials,
                 }),
             ).rejects.toEqual(new ForbiddenError(ROLLOUT_REASON));
-        });
-
-        test('accepts saved organisation Snowflake credentials as an extra source', async () => {
-            const fixture = await createProject({
-                mode: 'multi',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                credentials: snowflakeCredentials,
-            });
-            const organizationWarehouseCredentialsUuid =
-                await createOrganizationCredential(fixture.organizationUuid, {
-                    ...snowflakeCredentials,
-                    account: 'example-account',
-                    warehouse: 'ANALYTICS_WH',
-                });
-            const created = await buildService().create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                { name: 'Analytics', organizationWarehouseCredentialsUuid },
-            );
-            expect(created).toMatchObject({
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-                organizationWarehouseCredentialsUuid,
-            });
-            const stored = await database('warehouse_connections')
-                .where(
-                    'warehouse_connection_uuid',
-                    created.warehouseConnectionUuid,
-                )
-                .first('encrypted_credentials');
-            expect(stored.encrypted_credentials).toBeNull();
         });
 
         test('requires personal credentials for an extra Snowflake connection without shared authentication', async () => {
@@ -915,79 +854,6 @@ describe('WarehouseConnectionService on the real schema', () => {
     });
 
     describe('B4 guards', () => {
-        test('refuses an organisation credential without permission to view it, before loading it', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const organizationWarehouseCredentialsUuid =
-                await createOrganizationCredential(fixture.organizationUuid);
-            const loadOrganizationCredentials = vi.spyOn(
-                model,
-                'loadOrganizationCredentials',
-            );
-
-            await expect(
-                buildService().create(fixture.admin, fixture.projectUuid, {
-                    name: 'Shared',
-                    organizationWarehouseCredentialsUuid,
-                }),
-            ).rejects.toEqual(
-                new ForbiddenError(
-                    'You do not have permission to use these organization warehouse credentials',
-                ),
-            );
-            expect(loadOrganizationCredentials).not.toHaveBeenCalled();
-            loadOrganizationCredentials.mockRestore();
-            expect(await countConnections(fixture.projectUuid)).toBe(1);
-        });
-
-        test('refuses to update a connection that keeps an organisation credential without permission to view it', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const organizationWarehouseCredentialsUuid =
-                await createOrganizationCredential(fixture.organizationUuid);
-            const created = await buildService().create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                { name: 'Shared', organizationWarehouseCredentialsUuid },
-            );
-
-            await expect(
-                buildService().update(
-                    fixture.admin,
-                    fixture.projectUuid,
-                    created.warehouseConnectionUuid,
-                    { listAllDatabases: true },
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-        });
-
-        test('uses an organisation credential with permission to view it', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const organizationWarehouseCredentialsUuid =
-                await createOrganizationCredential(fixture.organizationUuid);
-
-            await expect(
-                buildService().create(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    { name: 'Shared', organizationWarehouseCredentialsUuid },
-                ),
-            ).resolves.toMatchObject({ organizationWarehouseCredentialsUuid });
-        });
-
-        test('refuses an organisation credential from another organisation', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const other = await createProject({ mode: 'single' });
-            const organizationWarehouseCredentialsUuid =
-                await createOrganizationCredential(other.organizationUuid);
-
-            await expect(
-                buildService().create(
-                    fixture.credentialsAdmin,
-                    fixture.projectUuid,
-                    { name: 'Shared', organizationWarehouseCredentialsUuid },
-                ),
-            ).rejects.toBeInstanceOf(NotFoundError);
-        });
-
         test('refuses every write on the analytics project', async () => {
             const fixture = await createProject({
                 mode: 'multi',
@@ -1246,85 +1112,18 @@ describe('WarehouseConnectionService on the real schema', () => {
             ).toMatchObject({ host: 'elsewhere.internal', password: '' });
         });
 
-        test('never copies an organisation credential secret into the connection when it moves to its own credentials', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const organizationCredential = await createOrganizationCredential(
-                fixture.organizationUuid,
-                {
-                    ...postgresCredentials,
-                    user: 'org-user',
-                    password: 'org-secret-password',
-                },
-            );
-            const service = buildService();
-            const created = await service.create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                {
-                    name: 'Shared',
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredential,
-                },
-            );
-            testWarehouseConnectionCredentials.mockClear();
-
-            await service.update(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                created.warehouseConnectionUuid,
-                {
-                    warehouseConnection: {
-                        ...postgresCredentials,
-                        user: undefined,
-                        password: undefined,
-                    },
-                },
-            );
-
-            const row = await database('warehouse_connections')
-                .where(
-                    'warehouse_connection_uuid',
-                    created.warehouseConnectionUuid,
-                )
-                .first();
-            const stored = encryptionUtil.decrypt(row.encrypted_credentials);
-            expect(stored).not.toContain('org-secret-password');
-            expect(stored).not.toContain('org-user');
-            expect(row.organization_warehouse_credentials_uuid).toBeNull();
-            expect(
-                testWarehouseConnectionCredentials.mock.calls[0][2].password,
-            ).toBe('');
-        });
-
-        test.each(
-            [false, true].flatMap((enabled) =>
-                ['project', 'organization'].map((source) => ({
-                    enabled,
-                    source,
-                })),
-            ),
-        )(
-            'refuses a warehouse type change with mixed types $enabled and $source credentials',
-            async ({ enabled, source }) => {
+        test.each([false, true])(
+            'refuses a warehouse type change with mixed types %s',
+            async (enabled) => {
                 mixedTypes.enabled = enabled;
                 const fixture = await createProject({ mode: 'multi' });
                 const created = await addExtra(fixture);
-                const organizationCredential =
-                    await createOrganizationCredential(
-                        fixture.organizationUuid,
-                        athenaCredentials,
-                    );
                 await expect(
                     buildService().update(
                         fixture.credentialsAdmin,
                         fixture.projectUuid,
                         created.warehouseConnectionUuid,
-                        source === 'project'
-                            ? { warehouseConnection: athenaCredentials }
-                            : {
-                                  organizationWarehouseCredentialsUuid:
-                                      organizationCredential,
-                              },
+                        { warehouseConnection: athenaCredentials },
                     ),
                 ).rejects.toThrow(
                     enabled
@@ -2133,34 +1932,6 @@ describe('WarehouseConnectionService on the real schema', () => {
             }).toEqual({ getReports: true, effective: true });
         });
 
-        test('organisation credential extras keep their own credential requirement', async () => {
-            const fixture = await createProject({ mode: 'multi' });
-            const organizationCredential = await createOrganizationCredential(
-                fixture.organizationUuid,
-                { ...postgresCredentials, requireUserCredentials: true },
-            );
-            const shared = await buildService().create(
-                fixture.credentialsAdmin,
-                fixture.projectUuid,
-                {
-                    name: 'Shared',
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredential,
-                },
-            );
-            expect(
-                await buildService().listForUserCredentials(
-                    fixture.viewer,
-                    fixture.projectUuid,
-                ),
-            ).toContainEqual(
-                expect.objectContaining({
-                    warehouseConnectionUuid: shared.warehouseConnectionUuid,
-                    requireUserCredentials: true,
-                }),
-            );
-        });
-
         test('a project viewer lists every connection with its type and requirement, and no secret', async () => {
             const fixture = await createProject({
                 mode: 'multi',
@@ -2170,16 +1941,12 @@ describe('WarehouseConnectionService on the real schema', () => {
                 },
             });
             const finance = await addExtra(fixture, 'Finance');
-            const organizationCredential = await createOrganizationCredential(
-                fixture.organizationUuid,
-            );
             const shared = await buildService().create(
                 fixture.credentialsAdmin,
                 fixture.projectUuid,
                 {
                     name: 'Shared',
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredential,
+                    warehouseConnection: postgresCredentials,
                 },
             );
 
@@ -2213,9 +1980,6 @@ describe('WarehouseConnectionService on the real schema', () => {
             ]);
             expect(JSON.stringify(connections)).not.toContain(
                 'analyst-password',
-            );
-            expect(JSON.stringify(connections)).not.toContain(
-                organizationCredential,
             );
         });
 
@@ -2272,7 +2036,6 @@ describe('WarehouseConnectionService on the real schema', () => {
             await new WarehouseConnectionModel({
                 database: holder,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel: {} as never,
             }).lockProject(fixture.projectUuid);
             const other = await database.transaction();
             await other.raw(`SET LOCAL lock_timeout = '1s'`);
