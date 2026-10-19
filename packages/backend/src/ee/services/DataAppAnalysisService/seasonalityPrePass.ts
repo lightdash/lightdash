@@ -131,7 +131,10 @@ export const seasonalityPrePass = (
         if (!item || isDimension(item)) return false;
         const values = rows
             .map((row) => row[fieldId])
-            .filter((value) => value !== null && value !== undefined);
+            .filter(
+                (value) =>
+                    value !== null && value !== undefined && value !== '',
+            );
         return (
             values.length > 0 &&
             values.every((value) => Number.isFinite(Number(value)))
@@ -164,6 +167,12 @@ export const seasonalityPrePass = (
         hadAssessableGroup = true;
         metricIds.forEach((fieldId) => {
             const samples = rowIndexes
+                .filter((rowIndex) => {
+                    const value = rows[rowIndex][fieldId];
+                    return (
+                        value !== null && value !== undefined && value !== ''
+                    );
+                })
                 .map((rowIndex) => ({
                     rowIndex,
                     value: Number(rows[rowIndex][fieldId]),

@@ -53,6 +53,41 @@ const flatWeeklyPattern = (date: Date): number =>
     date.getUTCDay() === 0 || date.getUTCDay() === 6 ? 300 : 100;
 
 describe('seasonalityPrePass', () => {
+    it.each([null, undefined, ''])(
+        'does not flag a missing metric value (%s)',
+        (missing) => {
+            const rows = weeklyRows(5, flatWeeklyPattern);
+            rows[0][METRIC_FIELD] = missing;
+            expect(
+                seasonalityPrePass(rows, fields, TODAY).annotations,
+            ).toBeNull();
+        },
+    );
+
+    it('skips metrics with only empty-string values', () => {
+        const rows = weeklyRows(5, () => 100).map((row) => ({
+            ...row,
+            [METRIC_FIELD]: '',
+        }));
+        expect(seasonalityPrePass(rows, fields, TODAY)).toEqual({
+            annotations: null,
+            note: null,
+            limitation: null,
+        });
+    });
+
+    it('still flags a real zero below its weekday baseline', () => {
+        const rows = weeklyRows(5, flatWeeklyPattern);
+        rows[0][METRIC_FIELD] = 0;
+        const result = seasonalityPrePass(rows, fields, TODAY);
+        expect(result.annotations!.cells[0]).toContain(
+            '100% below typical Monday',
+        );
+        expect(
+            result.annotations!.cells.filter((cell) => cell !== null),
+        ).toHaveLength(1);
+    });
+
     it('flags nothing on a flat weekly pattern', () => {
         const result = seasonalityPrePass(
             weeklyRows(5, flatWeeklyPattern),
