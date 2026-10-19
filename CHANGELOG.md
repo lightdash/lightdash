@@ -1,3 +1,11 @@
+## [2.610.2](https://github.com/lightdash/lightdash/compare/2.610.1...2.610.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **merge-queries:** keep merged SQL sections intact in the AI View SQL modal ([#31143](https://github.com/lightdash/lightdash/issues/31143)) ([846055b](https://github.com/lightdash/lightdash/commit/846055be56b67cae064b83d4e770317d0656e759))
+* **merge-queries:** route underlying data for merged rows from every chart surface ([#31146](https://github.com/lightdash/lightdash/issues/31146)) ([e6546ab](https://github.com/lightdash/lightdash/commit/e6546ab74943c1bd90461f3d06d8b4dbb7eb5e21))
+
 ## [2.610.1](https://github.com/lightdash/lightdash/compare/2.610.0...2.610.1) (2026-10-19)
 
 
