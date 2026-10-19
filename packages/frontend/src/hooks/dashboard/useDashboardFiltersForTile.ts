@@ -3,13 +3,15 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+} from '../../features/dashboard/store';
 
 const useDashboardFiltersForTile = (tileUuid: string): DashboardFilters => {
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     return useMemo(
         () =>

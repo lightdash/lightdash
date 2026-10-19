@@ -24,6 +24,12 @@ import {
 } from '../../ee/features/aiCopilot/store/hooks';
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import {
+    selectOriginalDashboardFilters,
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -71,11 +77,11 @@ const DashboardAiAgentContextBridge = () => {
         (c) => c.includeUnpublishedDraft,
     );
     const activeTab = useDashboardContext((c) => c.activeTab);
-    const allFilters = useDashboardContext((c) => c.allFilters);
-    const originalDashboardFilters = useDashboardContext(
-        (c) => c.originalDashboardFilters,
+    const allFilters = useDashboardAllFilters();
+    const originalDashboardFilters = useDashboardSelector(
+        selectOriginalDashboardFilters,
     );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );

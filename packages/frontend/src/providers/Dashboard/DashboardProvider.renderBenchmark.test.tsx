@@ -15,6 +15,19 @@ import {
 } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+    selectDashboardFilters,
+    selectDashboardParameters,
+    selectHaveFiltersChanged,
+    selectMissingRequiredParameters,
+    selectParameterOrder,
+    selectParametersHaveChanged,
+    selectParameterValues,
+    selectPinnedParameters,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+} from '../../features/dashboard/store';
 import DashboardProvider from './DashboardProvider';
 import useDashboardContext from './useDashboardContext';
 
@@ -65,22 +78,20 @@ const useTileState = () => ({
     tiles: useDashboardContext((c) => c.dashboardTiles),
     activeTab: useDashboardContext((c) => c.activeTab),
 });
-const useFilterBarState = () => useDashboardContext((c) => c.allFilters);
+const useFilterBarState = () => useDashboardAllFilters();
 const useParameterBarState = () => ({
-    parameterValues: useDashboardContext((c) => c.parameterValues),
-    missing: useDashboardContext((c) => c.missingRequiredParameters),
+    parameterValues: useDashboardSelector(selectParameterValues),
+    missing: useDashboardSelector(selectMissingRequiredParameters),
 });
 const usePageState = () => ({
-    dashboardFilters: useDashboardContext((c) => c.dashboardFilters),
-    dashboardTemporaryFilters: useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    ),
-    haveFiltersChanged: useDashboardContext((c) => c.haveFiltersChanged),
-    parametersHaveChanged: useDashboardContext((c) => c.parametersHaveChanged),
-    parameterValues: useDashboardContext((c) => c.parameterValues),
-    dashboardParameters: useDashboardContext((c) => c.dashboardParameters),
-    pinnedParameters: useDashboardContext((c) => c.pinnedParameters),
-    parameterOrder: useDashboardContext((c) => c.parameterOrder),
+    dashboardFilters: useDashboardSelector(selectDashboardFilters),
+    dashboardTemporaryFilters: useDashboardTemporaryFilters(),
+    haveFiltersChanged: useDashboardSelector(selectHaveFiltersChanged),
+    parametersHaveChanged: useDashboardSelector(selectParametersHaveChanged),
+    parameterValues: useDashboardSelector(selectParameterValues),
+    dashboardParameters: useDashboardSelector(selectDashboardParameters),
+    pinnedParameters: useDashboardSelector(selectPinnedParameters),
+    parameterOrder: useDashboardSelector(selectParameterOrder),
 });
 type Actions = {
     updateDimensionDashboardFilter: (
@@ -366,42 +377,43 @@ describe('dashboard render benchmark', () => {
     });
 });
 
-// Baseline with the context provider: every provider render re-runs every
-// consumer, so tiles render even though their selected values never change.
+// Filter and parameter state comes from the dashboard store, so tiles and the
+// parameter bar only re-render for the router update a URL write causes (the
+// context provider re-ran every consumer on each of its 1-3 renders per edit).
 const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
-        wholeContextConsumer: 3,
-        tiles: 3 * TILE_COUNT,
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
         filterBar: 3,
-        parameterBar: 3,
+        parameterBar: 0,
         page: 3,
     },
     'add a temporary filter': {
-        wholeContextConsumer: 2,
-        tiles: 2 * TILE_COUNT,
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
         filterBar: 2,
-        parameterBar: 2,
+        parameterBar: 0,
         page: 2,
     },
     'set one parameter': {
-        wholeContextConsumer: 2,
-        tiles: 2 * TILE_COUNT,
-        filterBar: 2,
-        parameterBar: 2,
-        page: 2,
-    },
-    'toggle a parameter pin': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 1,
+        page: 2,
+    },
+    'toggle a parameter pin': {
+        wholeContextConsumer: 0,
+        tiles: 0,
+        filterBar: 0,
+        parameterBar: 0,
         page: 1,
     },
     '10 rapid filter updates': {
-        wholeContextConsumer: 30,
-        tiles: 30 * TILE_COUNT,
+        wholeContextConsumer: 10,
+        tiles: 10 * TILE_COUNT,
         filterBar: 30,
-        parameterBar: 30,
+        parameterBar: 0,
         page: 30,
     },
 };

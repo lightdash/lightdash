@@ -21,6 +21,10 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import {
     getDashboardFilterRuleLabel,
@@ -110,7 +114,7 @@ export const ViewerControls: FC<Props> = ({
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );

@@ -8,13 +8,38 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ActiveFilters from './index';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithStore = (ui: ReactElement) => {
+    const store = createDashboardTestStore(storeValues);
+    const result = renderWithProviders(
+        <DashboardStoreTestProvider store={store}>
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+    return {
+        ...result,
+        rerender: (next: ReactElement) =>
+            result.rerender(
+                <DashboardStoreTestProvider store={store}>
+                    {next}
+                </DashboardStoreTestProvider>,
+            ),
+    };
+};
 
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (context: Record<string, unknown>) => unknown) =>
@@ -87,8 +112,7 @@ const dashboardTiles = [
 ] satisfies DashboardTile[];
 
 const setMetricFilterLocation = (location: 'saved' | 'temporary') => {
-    mockDashboardContext.current = {
-        dashboardTiles,
+    storeValues = {
         dashboardFilters: {
             dimensions: [],
             metrics: location === 'saved' ? [metricFilter] : [],
@@ -97,7 +121,11 @@ const setMetricFilterLocation = (location: 'saved' | 'temporary') => {
         dashboardTemporaryFilters: {
             dimensions: [],
             metrics: location === 'temporary' ? [metricFilter] : [],
+            tableCalculations: [],
         },
+    };
+    mockDashboardContext.current = {
+        dashboardTiles,
         dashboardTabs: [
             { uuid: 'tab-1', name: 'Tab 1', order: 0 },
             { uuid: 'tab-2', name: 'Tab 2', order: 1 },
@@ -122,7 +150,7 @@ const setMetricFilterLocation = (location: 'saved' | 'temporary') => {
 };
 
 const renderActiveFilters = (activeTabUuid: string) =>
-    renderWithProviders(
+    renderWithStore(
         <ActiveFilters
             isEditMode={false}
             activeTabUuid={activeTabUuid}
@@ -173,13 +201,16 @@ describe('ActiveFilters saved filter on a hidden field', () => {
 
     const setHiddenFieldContext = (hiddenFieldIds: string[]) => {
         setMetricFilterLocation('saved');
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
+        storeValues = {
+            ...storeValues,
             dashboardFilters: {
                 dimensions: [hiddenFieldFilter],
                 metrics: [],
                 tableCalculations: [],
             },
+        };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
             dashboardTabs: [],
             filterableFieldsByTileUuid: { 'tile-1': [metricField] },
             hiddenFilterableFieldIds: new Set(hiddenFieldIds),
@@ -187,7 +218,7 @@ describe('ActiveFilters saved filter on a hidden field', () => {
     };
 
     const renderFilters = (isEditMode: boolean) =>
-        renderWithProviders(
+        renderWithStore(
             <ActiveFilters
                 isEditMode={isEditMode}
                 activeTabUuid={undefined}
@@ -211,7 +242,7 @@ describe('ActiveFilters saved filter on a hidden field', () => {
 
     it('shows a valueless locked filter as any value', () => {
         setHiddenFieldContext(['orders_status']);
-        mockDashboardContext.current.dashboardFilters = {
+        storeValues.dashboardFilters = {
             dimensions: [{ ...hiddenFieldFilter, values: [], disabled: true }],
             metrics: [],
             tableCalculations: [],
@@ -263,8 +294,7 @@ describe('ActiveFilters temporary filter on a hidden field', () => {
 
     it('removes the temporary filter, not a saved one', () => {
         setMetricFilterLocation('saved');
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
+        storeValues = {
             dashboardFilters: {
                 dimensions: [savedFilter],
                 metrics: [],
@@ -273,12 +303,16 @@ describe('ActiveFilters temporary filter on a hidden field', () => {
             dashboardTemporaryFilters: {
                 dimensions: [temporaryFilter],
                 metrics: [],
+                tableCalculations: [],
             },
+        };
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
             dashboardTabs: [],
             filterableFieldsByTileUuid: { 'tile-1': [metricField] },
             hiddenFilterableFieldIds: new Set(['orders_status']),
         };
-        renderWithProviders(
+        renderWithStore(
             <ActiveFilters
                 isEditMode
                 activeTabUuid={undefined}

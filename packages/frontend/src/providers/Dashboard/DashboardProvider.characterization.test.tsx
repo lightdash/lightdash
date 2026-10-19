@@ -18,6 +18,27 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
+import {
+    selectAppliedParameterValues,
+    selectDashboardFilters,
+    selectDashboardParameterDefinitions,
+    selectDashboardParameterReferences,
+    selectDashboardParameters,
+    selectHasParameterOrderChanged,
+    selectHaveFiltersChanged,
+    selectHavePinnedParametersChanged,
+    selectMissingRequiredParameters,
+    selectOriginalDashboardFilters,
+    selectParameterOrder,
+    selectParametersHaveChanged,
+    selectParameterValues,
+    selectPinnedParameters,
+    selectTileParameterReferences,
+    useDashboardAllFilters,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+    useDashboardUnmetFilterRequirements,
+} from '../../features/dashboard/store';
 import DashboardProvider from './DashboardProvider';
 import useDashboardContext from './useDashboardContext';
 
@@ -85,8 +106,44 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 // Assertions below read and write exclusively through `useHarness`.
 // ---------------------------------------------------------------------------
 
+const useStoreValues = () => ({
+    dashboardFilters: useDashboardSelector(selectDashboardFilters),
+    originalDashboardFilters: useDashboardSelector(
+        selectOriginalDashboardFilters,
+    ),
+    dashboardTemporaryFilters: useDashboardTemporaryFilters(),
+    allFilters: useDashboardAllFilters(),
+    haveFiltersChanged: useDashboardSelector(selectHaveFiltersChanged),
+    unmetFilterRequirements: useDashboardUnmetFilterRequirements(),
+    parametersHaveChanged: useDashboardSelector(selectParametersHaveChanged),
+    dashboardParameters: useDashboardSelector(selectDashboardParameters),
+    parameterValues: useDashboardSelector(selectParameterValues),
+    appliedParameterValues: useDashboardSelector(selectAppliedParameterValues),
+    parameterDefinitions: useDashboardSelector(
+        selectDashboardParameterDefinitions,
+    ),
+    dashboardParameterReferences: useDashboardSelector(
+        selectDashboardParameterReferences,
+    ),
+    tileParameterReferences: useDashboardSelector(
+        selectTileParameterReferences,
+    ),
+    missingRequiredParameters: useDashboardSelector(
+        selectMissingRequiredParameters,
+    ),
+    pinnedParameters: useDashboardSelector(selectPinnedParameters),
+    havePinnedParametersChanged: useDashboardSelector(
+        selectHavePinnedParametersChanged,
+    ),
+    parameterOrder: useDashboardSelector(selectParameterOrder),
+    hasParameterOrderChanged: useDashboardSelector(
+        selectHasParameterOrderChanged,
+    ),
+});
+
 const useHarness = () => ({
     ...useDashboardContext((context) => context),
+    ...useStoreValues(),
     search: useLocation().search,
 });
 
@@ -352,6 +409,31 @@ describe('filters: URL overrides on load', () => {
             metrics: [],
             tableCalculations: [],
         });
+    });
+
+    it('drops lock and requirement metadata a shared link tries to assert', () => {
+        mocks.dashboard = makeDashboard({ filters: savedFilters });
+        const crafted = {
+            ...rule('url-only', 'orders_city', ['Lisbon']),
+            lockedTabUuids: ['tab-a'],
+            required: true,
+            requiredGroupId: 'group-1',
+        };
+        const { result } = renderDashboard(
+            urlFor('/dashboard/dashboard-uuid', {
+                filters: { dimensions: [crafted], metrics: [] },
+            }),
+        );
+        const appended = result.current.dashboardFilters.dimensions.find(
+            ({ id }) => id === 'url-only',
+        );
+        expect(appended?.values).toEqual(['Lisbon']);
+        expect(appended?.lockedTabUuids).toBeUndefined();
+        expect(appended?.required).toBeUndefined();
+        expect(appended?.requiredGroupId).toBeUndefined();
+        expect(jsonParam(result.current.search, 'filters')).not.toHaveProperty(
+            'dimensions.0.lockedTabUuids',
+        );
     });
 
     it('applies a metric override from the URL', () => {
@@ -1436,6 +1518,7 @@ describe('parameters: URL', () => {
             }),
         );
         expect(result.current.dashboardParameters).toEqual({});
+        expect(result.current.parametersHaveChanged).toBe(false);
         // quirk: the URL param is left in place in edit mode (no sync runs)
         expect(jsonParam(result.current.search, 'parameters')).toEqual({
             status: 'Cancelled',

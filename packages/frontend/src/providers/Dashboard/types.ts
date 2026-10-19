@@ -17,13 +17,13 @@ import {
     type PreAggregateMatchMiss,
     type ResultColumn,
     type SortField,
-    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { type Dispatch, type SetStateAction } from 'react';
 import {
     type useDashboardCommentsCheck,
     type useGetComments,
 } from '../../features/comments';
+import { type TemporaryFilterLocks } from '../../features/dashboard/store/selectors';
 
 export type SqlChartTileMetadata = {
     columns: ResultColumn[];
@@ -64,10 +64,6 @@ export type DashboardContextType = {
     setActiveTab: Dispatch<
         SetStateAction<Dashboard['tabs'][number] | undefined>
     >;
-    dashboardFilters: DashboardFilters;
-    originalDashboardFilters: DashboardFilters;
-    dashboardTemporaryFilters: DashboardFilters;
-    allFilters: DashboardFilters;
     isLoadingDashboardFilters: boolean;
     isFetchingDashboardFilters: boolean;
     resetDashboardFilters: () => void;
@@ -99,7 +95,6 @@ export type DashboardContextType = {
         isInEditMode: boolean,
     ) => void;
     removeMetricDashboardFilter: (index: number, isTemporary: boolean) => void;
-    haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
     allFilterableMetricsMap: Record<string, Metric>;
@@ -109,6 +104,7 @@ export type DashboardContextType = {
     filterableFieldsByTileUuid:
         | Record<string, DashboardFilterableField[]>
         | undefined;
+    temporaryFilterLocks: TemporaryFilterLocks | undefined;
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
     setChartZoomableFields: (
         tileUuid: string,
@@ -137,7 +133,6 @@ export type DashboardContextType = {
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
-    unmetFilterRequirements: UnmetFilterRequirement[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
     isAddFilterDisabled: boolean;
@@ -145,30 +140,18 @@ export type DashboardContextType = {
     requiredFiltersNote: string | undefined;
     setRequiredFiltersNote: Dispatch<SetStateAction<string | undefined>>;
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
-    parametersHaveChanged: boolean;
-    dashboardParameters: DashboardParameters;
-    parameterValues: ParametersValuesMap;
-    appliedParameterValues: ParametersValuesMap;
     clearAllParameters: () => void;
     setParameter: (key: string, value: ParameterValue | null) => void;
-    dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
-    tileParameterReferences: Record<string, string[]>;
     setTileChartSavedParameters: (
         tileUuid: string,
         values: ParametersValuesMap,
     ) => void;
-    parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
-    missingRequiredParameters: string[];
-    pinnedParameters: string[];
     setPinnedParameters: (parameters: string[]) => void;
     toggleParameterPin: (parameterKey: string) => void;
-    havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
-    parameterOrder: string[];
     setParameterOrder: (order: string[]) => void;
-    hasParameterOrderChanged: boolean;
     setHasParameterOrderChanged: Dispatch<SetStateAction<boolean>>;
     dateZoomGranularities: (DateGranularity | string)[];
     setDateZoomGranularities: (

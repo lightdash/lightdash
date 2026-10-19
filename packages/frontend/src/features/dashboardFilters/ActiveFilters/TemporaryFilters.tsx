@@ -1,6 +1,7 @@
 import { getDashboardFilterField } from '@lightdash/common';
 import { type FC } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { useDashboardTemporaryFilters } from '../../dashboard/store';
 import Filter from './Filter';
 import { UnresolvedFilter } from './UnresolvedFilter';
 import {
@@ -27,9 +28,7 @@ export const TemporaryFilters: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
 }) => {
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );

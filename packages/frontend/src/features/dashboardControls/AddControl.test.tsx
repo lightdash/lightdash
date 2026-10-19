@@ -1,6 +1,9 @@
 import { fireEvent, screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { AddControl } from './AddControl';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -13,7 +16,14 @@ const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
 const mockTrack = vi.hoisted(() => vi.fn());
-const noFilters = { dimensions: [], metrics: [], tableCalculations: [] };
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore({ haveFiltersChanged: false })}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
@@ -49,8 +59,6 @@ describe('AddControl', () => {
             isFetchingDashboardFilters: false,
             isAddFilterDisabled: false,
             setIsAddFilterDisabled,
-            haveFiltersChanged: false,
-            dashboardTemporaryFilters: noFilters,
         };
     });
 

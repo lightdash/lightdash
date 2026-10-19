@@ -7,6 +7,8 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import DashboardTileStatusProvider, {
     type DashboardTileStatusProviderProps,
 } from './DashboardTileStatusProvider';
@@ -56,9 +58,11 @@ const renderStatus = (
     renderHook(() => useDashboardTileStatusContext((context) => context), {
         wrapper: ({ children }: { children: ReactNode }) => (
             <MemoryRouter initialEntries={[path]}>
-                <DashboardTileStatusProvider {...props}>
-                    {children}
-                </DashboardTileStatusProvider>
+                <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                    <DashboardTileStatusProvider {...props}>
+                        {children}
+                    </DashboardTileStatusProvider>
+                </DashboardStoreTestProvider>
             </MemoryRouter>
         ),
     });

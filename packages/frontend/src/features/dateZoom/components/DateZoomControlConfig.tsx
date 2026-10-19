@@ -34,6 +34,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectTileParameterReferences,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 
@@ -73,8 +77,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     );
     // Param-only tiles (custom SQL referencing `${ld.parameters.date_zoom}` but
     // no re-grainable date field) are also affected by a control's grain.
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
+    const tileParameterReferences = useDashboardSelector(
+        selectTileParameterReferences,
     );
     // Custom granularities discovered across the dashboard's tiles (same source
     // as the global picker). A control can zoom to these when available.

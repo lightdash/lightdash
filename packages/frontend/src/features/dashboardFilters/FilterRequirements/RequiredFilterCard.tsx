@@ -14,7 +14,10 @@ import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
 import { useDashboardFilterField } from './useDashboardFilterField';
@@ -34,7 +37,7 @@ const RequiredFilterCard: FC<Props> = ({
     onChangeFilterRule,
     onEditRules,
 }) => {
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
     const [isAddingAlternative, setIsAddingAlternative] = useState(false);
 

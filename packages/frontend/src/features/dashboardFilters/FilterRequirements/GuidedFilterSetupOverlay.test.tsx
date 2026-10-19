@@ -7,8 +7,14 @@ import {
 } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import GuidedFilterSetupOverlay from './GuidedFilterSetupOverlay';
 
 const unmetRule: DashboardFilterRule = {
@@ -48,6 +54,17 @@ vi.mock('../../../components/common/Filters/FilterInputs', () => ({
     }),
 }));
 
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 describe('GuidedFilterSetupOverlay', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -57,19 +74,16 @@ describe('GuidedFilterSetupOverlay', () => {
             writable: true,
             value: vi.fn(),
         });
-        mockDashboardContext.current = {
-            projectUuid: 'project-1',
-            dashboard: { name: 'Sales dashboard' },
+        storeValues = {
             dashboardFilters: {
                 dimensions: [unmetRule],
                 metrics: [],
                 tableCalculations: [],
             },
-            allFilters: {
-                dimensions: [unmetRule],
-                metrics: [],
-                tableCalculations: [],
-            },
+        };
+        mockDashboardContext.current = {
+            projectUuid: 'project-1',
+            dashboard: { name: 'Sales dashboard' },
             dashboardTiles: [],
             filterableFieldsByTileUuid: {},
             hiddenFilterableFieldIds: new Set<string>(),
@@ -152,9 +166,8 @@ describe('GuidedFilterSetupOverlay', () => {
                 metrics: [],
                 tableCalculations: [],
             };
+            storeValues = { dashboardFilters: filters };
             Object.assign(mockDashboardContext.current, {
-                dashboardFilters: filters,
-                allFilters: filters,
                 allFilterableFieldsMap: { team_name: fieldA },
                 filterableFieldsByTileUuid: {
                     'tile-a': [fieldA],
@@ -184,9 +197,8 @@ describe('GuidedFilterSetupOverlay', () => {
             metrics: [],
             tableCalculations: [],
         };
+        storeValues = { dashboardFilters: filters };
         Object.assign(mockDashboardContext.current, {
-            dashboardFilters: filters,
-            allFilters: filters,
             hiddenFilterableFieldIds: new Set(['customers_hidden']),
         });
 

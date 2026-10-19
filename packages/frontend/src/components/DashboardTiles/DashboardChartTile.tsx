@@ -128,6 +128,11 @@ import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAg
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
+import {
+    selectAppliedParameterValues,
+    selectDashboardParameterDefinitions,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
@@ -810,8 +815,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
-        const appliedParameterValues = useDashboardContext(
-            (c) => c.appliedParameterValues,
+        const appliedParameterValues = useDashboardSelector(
+            selectAppliedParameterValues,
         );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
@@ -844,8 +849,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             (c) => c.tilesWithDateZoomApplied,
         );
 
-        const parameterDefinitions = useDashboardContext(
-            (c) => c.parameterDefinitions,
+        const parameterDefinitions = useDashboardSelector(
+            selectDashboardParameterDefinitions,
         );
 
         const preAggregateStatuses = useDashboardTileStatusContext(

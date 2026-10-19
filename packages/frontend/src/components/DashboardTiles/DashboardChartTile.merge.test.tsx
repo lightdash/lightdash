@@ -33,6 +33,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import { toDashboardParameters } from '../../providers/Dashboard/dashboardParametersUrl';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { GenericDashboardChartTile } from './DashboardChartTile';
@@ -92,22 +95,9 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             projectUuid: 'project-uuid',
             hasTileComments: () => false,
             dashboardCommentsCheck: undefined,
-            dashboardFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
-            dashboardTemporaryFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
             dashboardTiles: [],
             dashboardTabs: [],
             dashboardCustomMetrics: [],
-            parameterDefinitions: {},
-            parameterValues: exportMocks.parameters,
-            appliedParameterValues: exportMocks.appliedParameters,
             tilesWithDateZoomApplied: new Set<string>(),
             dateZoomGranularity: undefined,
             dateZoomConfig: undefined,
@@ -116,7 +106,6 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
             setDashboardTiles: () => {},
             setChartSort: () => {},
             haveTilesChanged: false,
-            haveFiltersChanged: false,
         }),
     ),
 }));
@@ -410,32 +399,42 @@ const renderTile = (
     tileProps: Partial<ComponentProps<typeof GenericDashboardChartTile>> = {},
 ) =>
     renderWithProviders(
-        <MemoryRouter
-            initialEntries={[
-                '/projects/project-uuid/dashboards/dashboard-uuid/view',
-            ]}
+        <DashboardStoreTestProvider
+            // Applied values are the saved values under the current ones
+            store={createDashboardTestStore({
+                parameterValues: exportMocks.parameters,
+                savedParameters: toDashboardParameters(
+                    exportMocks.appliedParameters,
+                ),
+            })}
         >
-            <Routes>
-                <Route
-                    path="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                    element={
-                        <ChartColorMappingContextProvider>
-                            <GenericDashboardChartTile
-                                tile={tile}
-                                isEditMode={false}
-                                isLoading={false}
-                                error={null}
-                                dashboardChartReadyQuery={readyQuery}
-                                resultsData={resultsData}
-                                onDelete={() => {}}
-                                onEdit={() => {}}
-                                {...tileProps}
-                            />
-                        </ChartColorMappingContextProvider>
-                    }
-                />
-            </Routes>
-        </MemoryRouter>,
+            <MemoryRouter
+                initialEntries={[
+                    '/projects/project-uuid/dashboards/dashboard-uuid/view',
+                ]}
+            >
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                        element={
+                            <ChartColorMappingContextProvider>
+                                <GenericDashboardChartTile
+                                    tile={tile}
+                                    isEditMode={false}
+                                    isLoading={false}
+                                    error={null}
+                                    dashboardChartReadyQuery={readyQuery}
+                                    resultsData={resultsData}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                    {...tileProps}
+                                />
+                            </ChartColorMappingContextProvider>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: [{ action: 'manage', subject: 'all' }] } },
     );
 

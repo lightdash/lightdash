@@ -9,14 +9,30 @@ import {
 } from '@lightdash/common';
 import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { EventName } from '../../types/Events';
 import { FilterPills } from './FilterPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
@@ -134,7 +150,16 @@ describe('FilterPills', () => {
     const statusField = field('status', 'Order status');
     const regionField = field('region', 'Order region');
 
-    const setContext = (overrides: Record<string, unknown>) => {
+    const setContext = ({
+        dashboardFilters,
+        dashboardTemporaryFilters,
+        ...overrides
+    }: Record<string, unknown> & DashboardStoreTestValues) => {
+        storeValues = {
+            ...storeValues,
+            ...(dashboardFilters && { dashboardFilters }),
+            ...(dashboardTemporaryFilters && { dashboardTemporaryFilters }),
+        };
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
             ...overrides,
@@ -145,13 +170,14 @@ describe('FilterPills', () => {
         vi.clearAllMocks();
         mockDragEnd.handlers = [];
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
+        storeValues = {
+            dashboardFilters: filters,
+            dashboardTemporaryFilters: noFilters,
+        };
         mockDashboardContext.current = {
             dashboard: { uuid: 'dashboard-1', filters: noFilters },
             setDashboardFilters,
             setHaveFiltersChanged,
-            dashboardFilters: filters,
-            dashboardTemporaryFilters: noFilters,
-            allFilters: filters,
             dashboardTiles: [tile('tile-1')],
             dashboardTabs: [],
             activeTab: undefined,
@@ -165,10 +191,8 @@ describe('FilterPills', () => {
             },
             allFilterableMetricsMap: {},
             hiddenFilterableFieldIds: new Set<string>(),
-            unmetFilterRequirements: [],
             isLoadingDashboardFilters: false,
             isFetchingDashboardFilters: false,
-            parameterValues: {},
             removeDimensionDashboardFilter,
             updateDimensionDashboardFilter: vi.fn(),
             removeMetricDashboardFilter,
@@ -524,9 +548,6 @@ describe('FilterPills', () => {
                     ...filters,
                     dimensions: [requiredRule, noDefaultRule],
                 },
-                unmetFilterRequirements: [
-                    { type: 'single', filter: requiredRule },
-                ],
             });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 

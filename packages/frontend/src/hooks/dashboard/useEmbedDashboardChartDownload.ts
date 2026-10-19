@@ -5,6 +5,10 @@ import {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { Limit } from '../../components/ExportResults/types';
+import {
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -20,7 +24,7 @@ export const useEmbedDashboardChartDownload = (
     const lightdashApi = useLightdashApi();
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameterValues);
+    const parameters = useDashboardSelector(selectParameterValues);
     const dashboardSorts = useMemo(
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],

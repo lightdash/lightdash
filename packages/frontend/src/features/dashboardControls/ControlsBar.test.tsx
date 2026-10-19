@@ -1,13 +1,22 @@
 import { screen } from '@testing-library/react';
-import { type ComponentProps } from 'react';
+import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { ControlsBar } from './ControlsBar';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
+// Empty saved and temporary filters, so the combined filters are empty too
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider store={createDashboardTestStore()}>
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
 const mockCompact = vi.hoisted(() => ({ current: false }));
 const mockSidebar = vi.hoisted(() => ({ current: { isSidebarOpen: false } }));
 
@@ -80,7 +89,6 @@ describe('ControlsBar', () => {
         mockSidebar.current = { isSidebarOpen: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
-            allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
             setIsDateZoomDisabled: vi.fn(),
         };
     });

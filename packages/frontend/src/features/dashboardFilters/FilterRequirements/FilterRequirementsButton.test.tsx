@@ -1,8 +1,14 @@
 import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import FilterRequirementsButton from './FilterRequirementsButton';
 
 const requiredRule: DashboardFilterRule = {
@@ -83,15 +89,28 @@ const clickFilterOption = (label: string) => {
     );
 };
 
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 describe('FilterRequirementsButton explicit save', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockDashboardContext.current = {
+        storeValues = {
             dashboardFilters: {
                 dimensions: [requiredRule],
                 metrics: [],
                 tableCalculations: [],
             },
+        };
+        mockDashboardContext.current = {
             requiredFiltersNote: 'Saved note',
             setRequiredFiltersNote,
         };
@@ -192,8 +211,7 @@ describe('FilterRequirementsButton explicit save', () => {
     });
 
     it('converts a required singleton to a shared group when adding a member', async () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
+        storeValues = {
             dashboardFilters: {
                 dimensions: [requiredRule, eligibleRule],
                 metrics: [],
@@ -235,8 +253,7 @@ describe('FilterRequirementsButton explicit save', () => {
     });
 
     it('stages rule deletion for every member and applies it on Save', async () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
+        storeValues = {
             dashboardFilters: {
                 dimensions: [
                     { ...requiredRule, required: false, requiredGroupId: 'g1' },
@@ -267,8 +284,7 @@ describe('FilterRequirementsButton explicit save', () => {
     });
 
     it('creates a rule from a draft row and applies it on Save', async () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
+        storeValues = {
             dashboardFilters: {
                 dimensions: [eligibleRule],
                 metrics: [],

@@ -10,9 +10,23 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { act, render, renderHook } from '@testing-library/react';
-import { useState, type FC, type PropsWithChildren } from 'react';
+import {
+    useState,
+    type FC,
+    type PropsWithChildren,
+    type SetStateAction,
+} from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { EventName } from '../../types/Events';
+import {
+    dashboardFiltersActions,
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+    type DashboardStore,
+} from '../dashboard/store';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import { getFieldCount, getTileField, type FieldsByTile } from './peers';
 import {
@@ -77,15 +91,33 @@ const latest: {
     changed: false,
 };
 
-// Real state behind the mocked dashboard context so edits re-render
-const Wrapper: FC<PropsWithChildren> = ({ children }) => {
-    const [dashboardFilters, setDashboardFilters] = useState(initialFilters);
-    const [haveFiltersChanged, setHaveFiltersChanged] = useState(false);
+// The provider's setters, backed by the store
+const storeSetters = (store: DashboardStore) => ({
+    setDashboardFilters: (value: SetStateAction<DashboardFilters>) =>
+        store.dispatch(
+            dashboardFiltersActions.setDashboardFilters(
+                typeof value === 'function'
+                    ? value(selectDashboardFilters(store.getState()))
+                    : value,
+            ),
+        ),
+    setHaveFiltersChanged: (value: SetStateAction<boolean>) =>
+        store.dispatch(
+            dashboardFiltersActions.setHaveFiltersChanged(
+                typeof value === 'function'
+                    ? value(selectHaveFiltersChanged(store.getState()))
+                    : value,
+            ),
+        ),
+});
+
+const DashboardState: FC<
+    PropsWithChildren<{ setters: ReturnType<typeof storeSetters> }>
+> = ({ setters, children }) => {
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     mockDashboardContext.current = {
-        dashboardFilters,
-        setDashboardFilters,
-        haveFiltersChanged,
-        setHaveFiltersChanged,
+        ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
         dashboard: { tiles: mockTiles.saved },
         dashboardTiles: mockTiles.current,
@@ -93,6 +125,19 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
     latest.filters = dashboardFilters;
     latest.changed = haveFiltersChanged;
     return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
+};
+
+// Real dashboard store behind the mocked dashboard context so edits re-render
+const Wrapper: FC<PropsWithChildren> = ({ children }) => {
+    const [store] = useState(() =>
+        createDashboardTestStore({ dashboardFilters: initialFilters }),
+    );
+    const [setters] = useState(() => storeSetters(store));
+    return (
+        <DashboardStoreTestProvider store={store}>
+            <DashboardState setters={setters}>{children}</DashboardState>
+        </DashboardStoreTestProvider>
+    );
 };
 
 const setup = () =>

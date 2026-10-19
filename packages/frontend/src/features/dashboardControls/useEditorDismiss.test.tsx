@@ -4,8 +4,17 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type SetStateAction } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import {
+    dashboardFiltersActions,
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+    type DashboardStore,
+} from '../dashboard/store';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import {
     useControlsSidebar,
@@ -50,8 +59,7 @@ const Page: FC = () => {
     const value = useControlsSidebar();
     sidebar.current = value;
     const { editing, isSidebarOpen, openNew, open, close } = value;
-    const filters = mockDashboardContext.current
-        .dashboardFilters as DashboardFilters;
+    const filters = useDashboardSelector(selectDashboardFilters);
     return (
         <>
             <div data-testid="bar">
@@ -106,22 +114,43 @@ const Page: FC = () => {
     );
 };
 
+// The provider's setters, backed by the store
+const storeSetters = (store: DashboardStore) => ({
+    setDashboardFilters: (value: SetStateAction<DashboardFilters>) =>
+        store.dispatch(
+            dashboardFiltersActions.setDashboardFilters(
+                typeof value === 'function'
+                    ? value(selectDashboardFilters(store.getState()))
+                    : value,
+            ),
+        ),
+    setHaveFiltersChanged: (value: SetStateAction<boolean>) =>
+        store.dispatch(
+            dashboardFiltersActions.setHaveFiltersChanged(
+                typeof value === 'function'
+                    ? value(selectHaveFiltersChanged(store.getState()))
+                    : value,
+            ),
+        ),
+});
+
 const Wrapper: FC = () => {
-    const [dashboardFilters, setDashboardFilters] = useState(initialFilters);
-    const [haveFiltersChanged, setHaveFiltersChanged] = useState(false);
+    const [store] = useState(() =>
+        createDashboardTestStore({ dashboardFilters: initialFilters }),
+    );
+    const [setters] = useState(() => storeSetters(store));
     mockDashboardContext.current = {
-        dashboardFilters,
-        setDashboardFilters,
-        haveFiltersChanged,
-        setHaveFiltersChanged,
+        ...setters,
         filterableFieldsByTileUuid: {},
         dashboard: { tiles: [] },
         dashboardTiles: [],
     };
     return (
-        <ControlsSidebarProvider>
-            <Page />
-        </ControlsSidebarProvider>
+        <DashboardStoreTestProvider store={store}>
+            <ControlsSidebarProvider>
+                <Page />
+            </ControlsSidebarProvider>
+        </DashboardStoreTestProvider>
     );
 };
 
