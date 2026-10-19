@@ -6,7 +6,8 @@ import {
 import { addBreadcrumb, captureMessage } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import {
@@ -21,6 +22,7 @@ export type { AgentSuggestionsSurface } from './agentSuggestionsTelemetry';
 const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 
 const getAgentSuggestions = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     enableSqlMode: boolean,
@@ -60,6 +62,7 @@ export const useAgentSuggestions = ({
     enabled: boolean;
     surface: AgentSuggestionsSurface;
 }) => {
+    const lightdashApi = useLightdashApi();
     const { track } = useTracking();
     const trackRef = useRef(track);
     useEffect(() => {
@@ -115,6 +118,7 @@ export const useAgentSuggestions = ({
                 let result: ApiAgentSuggestionsResponse['results'];
                 try {
                     result = await getAgentSuggestions(
+                        lightdashApi,
                         projectUuid!,
                         agentUuid!,
                         enableSqlMode,

@@ -17,7 +17,7 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
 
 vi.mock('../../providers/App/useApp', () => ({
@@ -36,7 +36,7 @@ vi.mock('../../hooks/useProjects', () => ({
 vi.mock('../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -82,7 +82,7 @@ const groups: GroupWithMembers[] = [
 let availableGroups = groups;
 let loadError = false;
 const refetch = vi.fn();
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 const renderSection = () => {
     const client = new QueryClient({
         defaultOptions: {

@@ -4,6 +4,7 @@ import {
     type LearnCommandStatus,
 } from '@lightdash/common';
 import { useEffect, useState } from 'react';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { getCommandOutput } from '../api';
 import { sanitizeTerminalText } from '../terminalText';
 
@@ -44,6 +45,7 @@ export const useCommandOutput = (
     projectUuid: string,
     commandUuid: string | null,
 ) => {
+    const lightdashApi = useLightdashApi();
     const [state, setState] = useState<CommandOutputState>(EMPTY_STATE);
 
     useEffect(() => {
@@ -60,6 +62,7 @@ export const useCommandOutput = (
             inFlight = true;
             try {
                 const out = await getCommandOutput(
+                    lightdashApi,
                     projectUuid,
                     commandUuid,
                     after,
@@ -108,7 +111,7 @@ export const useCommandOutput = (
             stopped = true;
             clearInterval(timer);
         };
-    }, [projectUuid, commandUuid]);
+    }, [projectUuid, commandUuid, lightdashApi]);
 
     return {
         ...state,

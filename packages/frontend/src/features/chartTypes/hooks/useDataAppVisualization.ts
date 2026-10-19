@@ -1,9 +1,11 @@
 import { type ApiError, type DataAppViz } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const getDataAppVisualization = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     dataAppVizUuid: string,
     version: number | null,
@@ -31,6 +33,7 @@ export const useDataAppVisualization = (
     dataAppVizUuid: string | null,
     version: number | null,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { embedToken } = useEmbed();
     const isEmbedded = !!embedToken;
     return useQuery<DataAppViz, ApiError>({
@@ -43,6 +46,7 @@ export const useDataAppVisualization = (
         ],
         queryFn: () =>
             getDataAppVisualization(
+                lightdashApi,
                 projectUuid!,
                 dataAppVizUuid!,
                 version,

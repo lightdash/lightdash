@@ -14,6 +14,7 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
     CollectionBlockBuild,
     CollectionBlockView,
@@ -62,7 +63,7 @@ vi.mock('../../../../hooks/useSpaces', () => ({
 vi.mock('../../../../hooks/useContent', () => ({
     useInfiniteContent: () => ({ data: { pages: [{ data: [document] }] } }),
 }));
-vi.mock('../../../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../../../api');
 vi.mock('../../../../hooks/favorites/useFavorites', () => ({
     useFavorites: () => ({ data: favorites, isInitialLoading: false }),
 }));
@@ -126,14 +127,17 @@ describe('Document collections', () => {
         mocks.documentsEnabled = true;
         mocks.popular = [];
         mocks.toggle.mockReset();
-        mocks.api.mockReset();
-        mocks.api.mockImplementation(async ({ url }: { url: string }) => ({
-            data:
-                new URL(url, 'http://test').searchParams.get('contentTypes') ===
-                'document'
-                    ? [document]
-                    : [chart],
-        }));
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockImplementation(
+            async ({ url }: { url: string }) => ({
+                data:
+                    new URL(url, 'http://test').searchParams.get(
+                        'contentTypes',
+                    ) === 'document'
+                        ? [document]
+                        : [chart],
+            }),
+        );
     });
     afterEach(() => clients.forEach((client) => client.clear()));
 
@@ -154,8 +158,8 @@ describe('Document collections', () => {
         );
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.items).toEqual([app, chart]);
-        expect(mocks.api).toHaveBeenCalledTimes(1);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -169,13 +173,13 @@ describe('Document collections', () => {
         );
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(result.current.items).toEqual([document, chart]);
-        expect(mocks.api).toHaveBeenCalledTimes(2);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=direct-document&contentTypes=document&pageSize=10',
             }),
         );
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -201,7 +205,7 @@ describe('Document collections', () => {
     });
 
     it('omits Documents removed by server-side access filtering', async () => {
-        mocks.api.mockResolvedValue({ data: [chart] });
+        mockedLightdashApi.mockResolvedValue({ data: [chart] });
         const { result } = renderHook(
             () => useCollectionSourceContent('project', config),
             { wrapper: wrapper() },
@@ -220,8 +224,8 @@ describe('Document collections', () => {
             { wrapper: wrapper() },
         );
         await waitFor(() => expect(result.current.items).toEqual([chart]));
-        expect(mocks.api).toHaveBeenCalledTimes(1);
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(1);
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/content?projectUuids=project&uuids=chart&pageSize=10',
             }),
@@ -252,7 +256,7 @@ describe('Document collections', () => {
             );
             await waitFor(() => expect(result.current.isLoading).toBe(false));
             expect(result.current.items).toEqual([document, chart]);
-            expect(mocks.api).toHaveBeenCalledTimes(2);
+            expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
         },
     );
 
@@ -405,6 +409,6 @@ describe('Document collections', () => {
             expect(result.current.scoped.data).toEqual([document]),
         );
         await waitFor(() => expect(result.current.generic.data).toEqual([]));
-        expect(mocks.api).toHaveBeenCalledTimes(2);
+        expect(mockedLightdashApi).toHaveBeenCalledTimes(2);
     });
 });

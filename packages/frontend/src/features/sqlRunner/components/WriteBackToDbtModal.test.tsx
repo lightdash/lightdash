@@ -2,7 +2,8 @@ import { DbtProjectType } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { WriteBackToDbtModal } from './WriteBackToDbtModal';
 
@@ -40,7 +41,7 @@ vi.mock(
 vi.mock('../../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastError: mocks.showToastError }),
 }));
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 const onClose = vi.fn();
 const renderModal = () =>
     renderWithProviders(
@@ -60,7 +61,7 @@ beforeEach(() => {
     mocks.project.dbtConnection.type = DbtProjectType.BITBUCKET;
     mocks.project.dbtConnection.host_domain = undefined;
     mocks.hasGithub = false;
-    vi.mocked(lightdashApi).mockImplementation(async ({ url }) =>
+    mockedLightdashApi.mockImplementation(async ({ url }) =>
         url.endsWith('/preview')
             ? {
                   repo: 'workspace/jaffle',
@@ -99,7 +100,7 @@ describe('SQL writeback modal', () => {
             screen.getByRole('button', { name: 'Open Pull Request' }),
         );
         await waitFor(() => expect(onClose).toHaveBeenCalled());
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/project/sqlRunner/pull-request',
             method: 'POST',
             body: JSON.stringify({
@@ -123,7 +124,7 @@ describe('SQL writeback modal', () => {
         expect(
             screen.getByRole('button', { name: 'Open Pull Request' }),
         ).toBeDisabled();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
     it.each(['success', 'failure'])(
         'keeps the latest preview when an older request ends in %s',
@@ -146,7 +147,7 @@ describe('SQL writeback modal', () => {
                     }
                 };
             });
-            vi.mocked(lightdashApi).mockReturnValueOnce(oldRequest);
+            mockedLightdashApi.mockReturnValueOnce(oldRequest);
             renderModal();
             fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), {
                 target: { value: 'latest' },
@@ -164,7 +165,7 @@ describe('SQL writeback modal', () => {
     );
 
     it('shows the provider error when preview fails', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Update the Bitbucket project API token' },
         });
         renderModal();

@@ -41,18 +41,22 @@ import React, {
     type FC,
 } from 'react';
 import { animals, colors, uniqueNamesGenerator } from 'unique-names-generator';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import FormCollapseButton from '../ProjectConnection/FormCollapseButton';
 
-const getProjectGitBranches = async (projectUuid: string) =>
+const getProjectGitBranches = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<string[]>({
         url: `/projects/${projectUuid}/git-integration/branches`,
         method: 'GET',
@@ -60,10 +64,11 @@ const getProjectGitBranches = async (projectUuid: string) =>
     });
 
 const useBranches = (projectUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<string[], ApiError>({
         enabled: !!projectUuid,
         queryKey: ['project_git_branches', projectUuid],
-        queryFn: () => getProjectGitBranches(projectUuid!),
+        queryFn: () => getProjectGitBranches(lightdashApi, projectUuid!),
         retry: false,
     });
 };

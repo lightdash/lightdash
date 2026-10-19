@@ -1,9 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { roadmapApi } from './roadmapApi';
 
+type FollowRequest = Parameters<typeof roadmapApi.followProject>[1];
+
 export function useFollowRoadmapProject(cacheKey: string) {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
     const inFlight = useRef(new Set<string>());
@@ -12,7 +16,8 @@ export function useFollowRoadmapProject(cacheKey: string) {
         [],
     );
     const { mutateAsync } = useMutation({
-        mutationFn: roadmapApi.followProject,
+        mutationFn: (interest: FollowRequest) =>
+            roadmapApi.followProject(lightdashApi, interest),
         retry: false,
         onSuccess: ({ message }, { projectId }) => {
             setSubmittedProjectIds((ids) => [...new Set([...ids, projectId])]);
@@ -23,9 +28,7 @@ export function useFollowRoadmapProject(cacheKey: string) {
         },
     });
 
-    const follow = async (
-        interest: Parameters<typeof roadmapApi.followProject>[0],
-    ): Promise<boolean> => {
+    const follow = async (interest: FollowRequest): Promise<boolean> => {
         const { projectId } = interest;
         if (inFlight.current.has(projectId)) return false;
         inFlight.current.add(projectId);

@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MergeFiltersCard } from './MergeFiltersCard';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../hooks/useQueryError', () => ({ default: () => vi.fn() }));
 const flag = vi.hoisted(() => ({ enabled: true }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({

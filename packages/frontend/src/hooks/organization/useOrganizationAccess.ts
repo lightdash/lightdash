@@ -1,8 +1,11 @@
 import { type ApiError, type OrganizationAccess } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const getOrganizationAccess = async (): Promise<OrganizationAccess> => {
+const getOrganizationAccess = async (
+    lightdashApi: LightdashApi,
+): Promise<OrganizationAccess> => {
     return lightdashApi<OrganizationAccess>({
         url: '/org/access',
         method: 'GET',
@@ -10,11 +13,13 @@ const getOrganizationAccess = async (): Promise<OrganizationAccess> => {
     });
 };
 
-export const useOrganizationAccess = (enabled: boolean = true) =>
-    useQuery<OrganizationAccess, ApiError>({
+export const useOrganizationAccess = (enabled: boolean = true) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<OrganizationAccess, ApiError>({
         queryKey: ['organization-access'],
-        queryFn: getOrganizationAccess,
+        queryFn: () => getOrganizationAccess(lightdashApi),
         enabled,
         retry: false,
         refetchOnMount: false,
     });
+};

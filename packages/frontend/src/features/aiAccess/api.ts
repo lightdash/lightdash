@@ -22,11 +22,12 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useId } from 'react';
-import { lightdashApi, lightdashApiResponse } from '../../api';
+import { type LightdashApi } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const aiAccessUrl = (
     projectUuid: string,
@@ -38,6 +39,7 @@ const aiAccessUrl = (
     return `/projects/${encodeURIComponent(projectUuid)}/ai-access/${path}${query.size ? `?${query}` : ''}`;
 };
 const get = <T extends ApiResponse['results']>(
+    lightdashApi: LightdashApi,
     projectUuid: string,
     path: string,
     connection: string | null,
@@ -49,10 +51,22 @@ const get = <T extends ApiResponse['results']>(
         body: undefined,
     });
 export const aiAccessApi = {
-    capabilities: (project: string, connection: string | null) =>
-        get<AiWarehouseCapabilities>(project, 'capabilities', connection),
-    me: (project: string, connection: string | null) =>
-        get<AiAccessForUser>(project, 'me', connection),
+    capabilities: (
+        lightdashApi: LightdashApi,
+        project: string,
+        connection: string | null,
+    ) =>
+        get<AiWarehouseCapabilities>(
+            lightdashApi,
+            project,
+            'capabilities',
+            connection,
+        ),
+    me: (
+        lightdashApi: LightdashApi,
+        project: string,
+        connection: string | null,
+    ) => get<AiAccessForUser>(lightdashApi, project, 'me', connection),
 };
 const useAccessQuery = <T>(
     project: string,
@@ -79,13 +93,14 @@ export const useMyAiAccess = (
     project: string | undefined,
     connection: string | null = null,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const flagEnabled = flag?.enabled;
     const query = useAccessQuery(
         project ?? '',
         connection,
         'me',
-        () => aiAccessApi.me(project!, connection),
+        () => aiAccessApi.me(lightdashApi, project!, connection),
         flag?.enabled === true,
     );
     return {
@@ -102,6 +117,8 @@ export const useMyAiAccess = (
     };
 };
 export const useOrganizationAgentIdentitySettings = () => {
+    const lightdashApi = useLightdashApi();
+
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     return useQuery<OrganizationAgentIdentityOverview, ApiError>({
         queryKey: ['ai-access', 'org', 'agent-identity'],
@@ -119,8 +136,9 @@ export const useOrganizationAgentIdentitySettings = () => {
 export const useProjectsWithoutAiServiceAccount = (
     warehouseType: WarehouseTypes,
     enabled: boolean,
-) =>
-    useQuery<
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<
         ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results'],
         ApiError
     >({
@@ -143,8 +161,11 @@ export const useProjectsWithoutAiServiceAccount = (
         enabled,
         retry: false,
     });
+};
 
 export const useUpdateOrganizationAgentIdentityRule = () => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -172,13 +193,15 @@ export const useUpdateOrganizationAgentIdentityRule = () => {
 };
 
 export const useAiServiceAccount = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     return useAccessQuery(
         projectUuid,
         null,
         'service-account',
         () =>
-            lightdashApiResponse<ApiAiServiceAccountStatusResponse>({
+            lightdashApi.response<ApiAiServiceAccountStatusResponse>({
                 version: 'v2',
                 url: aiAccessUrl(projectUuid, 'service-account', null),
                 method: 'GET',
@@ -207,6 +230,8 @@ export interface AiServiceAccountSaveOutcome {
 }
 
 export const useSaveAiServiceAccount = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     const sensitiveScope = useSensitiveMutationScope();
@@ -219,7 +244,7 @@ export const useSaveAiServiceAccount = (projectUuid: string) => {
         cacheTime: 0,
         mutationFn: async (credentials) => {
             const response =
-                await lightdashApiResponse<ApiAiServiceAccountSaveResponse>({
+                await lightdashApi.response<ApiAiServiceAccountSaveResponse>({
                     version: 'v2',
                     url: aiAccessUrl(projectUuid, 'service-account', null),
                     method: 'PUT',
@@ -251,6 +276,8 @@ export const useSaveAiServiceAccount = (projectUuid: string) => {
 };
 
 export const useDeleteAiServiceAccount = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, void>({
@@ -274,6 +301,8 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
 };
 
 export const useTestAiServiceAccount = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { showToastApiError } = useToaster();
     const sensitiveScope = useSensitiveMutationScope();
@@ -312,6 +341,8 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
 };
 
 export const useSnowflakeAgentSetup = () => {
+    const lightdashApi = useLightdashApi();
+
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     return useQuery<OrganizationAgentIdentitySnowflakeSetup, ApiError>({
@@ -335,6 +366,8 @@ export const useSnowflakeAgentSetup = () => {
 };
 
 export const useSaveSnowflakeAgentClient = () => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
@@ -370,6 +403,8 @@ export const useSaveSnowflakeAgentClient = () => {
 };
 
 export const useSnowflakeAgentVerify = (enabled: boolean) => {
+    const lightdashApi = useLightdashApi();
+
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const sessionId = useId();
@@ -399,6 +434,8 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
 const agentPolicyUrl = '/org/agent-permissions';
 
 export const useAgentCapabilityPolicy = () => {
+    const lightdashApi = useLightdashApi();
+
     const { user } = useApp();
     const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     return useQuery<AgentCapabilityPolicyOverview, ApiError>({
@@ -431,6 +468,8 @@ const useAgentPermissionMutation = <
     onSaved?: (result: TResult) => void,
     mutationKey?: string[],
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<TResult, ApiError, TRequest>({

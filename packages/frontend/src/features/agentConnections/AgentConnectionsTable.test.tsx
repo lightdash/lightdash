@@ -9,12 +9,12 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AgentConnectionsTable } from './AgentConnectionsTable';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
-const api = vi.mocked(lightdashApi);
+vi.mock('../../api');
+const api = mockedLightdashApi;
 const connection = (grantUuid = 'grant-1') => ({
     grantUuid,
     name: grantUuid,

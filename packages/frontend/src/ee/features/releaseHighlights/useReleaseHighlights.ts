@@ -1,9 +1,11 @@
 import { type ApiError, type ReleaseHighlightsResult } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const useReleaseHighlights = ({ enabled }: { enabled: boolean }) => {
+    const lightdashApi = useLightdashApi();
+
     const { health } = useApp();
     return useQuery<ReleaseHighlightsResult, ApiError>({
         queryKey: [

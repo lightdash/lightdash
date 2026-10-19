@@ -19,7 +19,7 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState, type FC } from 'react';
 import { Navigate, useLocation, useParams } from 'react-router';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -34,6 +34,7 @@ import {
 } from '../hooks/useInviteLink';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useTracking from '../providers/Tracking/useTracking';
 import classes from './Invite.module.css';
 
@@ -210,7 +211,10 @@ const OneClickCard: FC<OneClickCardProps> = ({
     );
 };
 
-const createUserQuery = async (data: ActivateUserWithInviteCode) =>
+const createUserQuery = async (
+    lightdashApi: LightdashApi,
+    data: ActivateUserWithInviteCode,
+) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'POST',
@@ -219,6 +223,7 @@ const createUserQuery = async (data: ActivateUserWithInviteCode) =>
     });
 
 const Invite: FC = () => {
+    const lightdashApi = useLightdashApi();
     const { inviteCode } = useParams<{ inviteCode: string }>();
     const { health } = useApp();
     const { isNewLayout } = useAuthLayoutVariant();
@@ -254,19 +259,23 @@ const Invite: FC = () => {
         LightdashUser,
         ApiError,
         ActivateUserWithInviteCode
-    >(createUserQuery, {
-        mutationKey: ['create_user'],
-        onSuccess: (data) => {
-            identify({ id: data.userUuid });
-            window.location.href = redirectUrl;
+    >(
+        (data: ActivateUserWithInviteCode) =>
+            createUserQuery(lightdashApi, data),
+        {
+            mutationKey: ['create_user'],
+            onSuccess: (data) => {
+                identify({ id: data.userUuid });
+                window.location.href = redirectUrl;
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to create user`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create user`,
-                apiError: error,
-            });
-        },
-    });
+    );
 
     const isNewOnboarding = newOnboardingFlag.data?.enabled ?? false;
     const showOneClick =

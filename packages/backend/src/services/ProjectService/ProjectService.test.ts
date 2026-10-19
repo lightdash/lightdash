@@ -634,6 +634,7 @@ const emailModel = {
 };
 
 const schedulerClient = {
+    scheduleInitialUsageProcessing: vi.fn(async () => undefined),
     copyPreviewContent: vi.fn(),
     compileProject: vi.fn(),
     testAndCompileProject: vi.fn(async () => undefined),
@@ -1585,6 +1586,9 @@ describe('ProjectService', () => {
                 created: false,
             });
             expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).not.toHaveBeenCalled();
+            expect(
                 projectModel.runInAnalyticsProvisioningLock,
             ).toHaveBeenCalledWith('analytics-org', expect.any(Function));
             expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
@@ -1612,6 +1616,18 @@ describe('ProjectService', () => {
                 >);
             const result = await service.ensureAnalyticsProject(admin);
             expect(result.created).toBe(true);
+            expect(
+                schedulerClient.scheduleInitialUsageProcessing,
+            ).toHaveBeenCalledWith({
+                organizationUuid: admin.organizationUuid,
+                projectUuid: 'new',
+                userUuid: admin.userUuid,
+            });
+            expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
+                admin.organizationUuid,
+                expect.anything(),
+                { allowEmpty: true },
+            );
             expect(create).toHaveBeenCalledWith(
                 admin,
                 expect.objectContaining({
@@ -1623,6 +1639,27 @@ describe('ProjectService', () => {
                 }),
                 RequestMethod.BACKEND,
                 { source: 'analytics' },
+            );
+        });
+
+        test('preserves a newly created project when initial processing cannot be queued', async () => {
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            vi.spyOn(service, 'createWithoutCompile').mockResolvedValueOnce({
+                project: { projectUuid: 'new' },
+            } as Awaited<ReturnType<ProjectService['createWithoutCompile']>>);
+            schedulerClient.scheduleInitialUsageProcessing.mockRejectedValueOnce(
+                new Error('queue unavailable'),
+            );
+            await expect(
+                service.ensureAnalyticsProject(admin),
+            ).resolves.toMatchObject({
+                projectUuid: 'new',
+                created: true,
+            });
+            expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                'new',
+                expect.any(Array),
+                true,
             );
         });
 
@@ -1908,6 +1945,7 @@ describe('ProjectService', () => {
             expect(analyticsClient.createAnalyticsClient).toHaveBeenCalledWith(
                 admin.organizationUuid,
                 flags,
+                { allowEmpty: true },
             );
         });
 

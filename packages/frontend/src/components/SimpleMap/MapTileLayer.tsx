@@ -1,8 +1,9 @@
 import L from 'leaflet';
 import { useEffect, useMemo, type FC } from 'react';
 import { TileLayer, useMap, type TileLayerProps } from 'react-leaflet';
-import { lightdashApiStream } from '../../api';
+import { type LightdashApi } from '../../api';
 import type { TileConfig } from '../../hooks/leaflet/useLeafletMapConfig';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 // Fetch through the shared API helper so SDK/iframe embeds send their JWT too.
 // Leaflet's default <img src> requests cannot attach authentication headers.
@@ -11,6 +12,7 @@ export class AuthenticatedTileLayer extends L.GridLayer {
 
     constructor(
         private readonly url: string,
+        private readonly lightdashApi: LightdashApi,
         options: L.GridLayerOptions,
     ) {
         // Match the default maxZoom of Leaflet's standard TileLayer.
@@ -41,11 +43,12 @@ export class AuthenticatedTileLayer extends L.GridLayer {
         };
         image.onload = () => finish();
         image.onerror = () => finish(new Error('Unable to display map tile'));
-        void lightdashApiStream({
-            method: 'GET',
-            url: this.getTileUrl(coords),
-            signal: controller.signal,
-        })
+        void this.lightdashApi
+            .stream({
+                method: 'GET',
+                url: this.getTileUrl(coords),
+                signal: controller.signal,
+            })
             .then((response) => response.blob())
             .then((blob) => {
                 if (!controller.signal.aborted) {
@@ -63,9 +66,10 @@ const ProxiedTileLayer: FC<TileLayerProps> = ({
     eventHandlers,
 }) => {
     const map = useMap();
+    const lightdashApi = useLightdashApi();
     const layer = useMemo(
-        () => new AuthenticatedTileLayer(url, { attribution }),
-        [url, attribution],
+        () => new AuthenticatedTileLayer(url, lightdashApi, { attribution }),
+        [url, lightdashApi, attribution],
     );
     useEffect(() => {
         layer.addTo(map);

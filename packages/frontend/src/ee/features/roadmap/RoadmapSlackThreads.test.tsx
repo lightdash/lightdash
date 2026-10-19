@@ -53,7 +53,7 @@ describe('roadmap Slack threads', () => {
                 slackThreadUrls: projectUrls.slice(0, count),
             };
             vi.spyOn(roadmapApi, 'getProjects').mockImplementation(
-                async (query) =>
+                async (_lightdashApi, query) =>
                     mockRoadmapResults(
                         !query.statuses || query.statuses.includes('planned')
                             ? [project]
@@ -61,7 +61,7 @@ describe('roadmap Slack threads', () => {
                     ),
             );
             vi.spyOn(roadmapApi, 'getRequests').mockImplementation(
-                async (query) => {
+                async (_lightdashApi, query) => {
                     const data =
                         !query.statuses || query.statuses.includes('planned')
                             ? [

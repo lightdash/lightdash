@@ -1,11 +1,13 @@
 import { type ApiError, type ClosePullRequestResult } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 type CloseArgs = { prUrl: string };
 
 const closePullRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     { prUrl }: CloseArgs,
 ): Promise<ClosePullRequestResult> =>
@@ -21,11 +23,12 @@ const closePullRequest = (
  * the PR's CI/merge status so the card flips to its terminal "Closed" state.
  */
 export const useClosePullRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<ClosePullRequestResult, ApiError, CloseArgs>({
-        mutationFn: (args) => closePullRequest(projectUuid, args),
+        mutationFn: (args) => closePullRequest(lightdashApi, projectUuid, args),
         onSuccess: (_result, { prUrl }) => {
             showToastSuccess({ title: 'Pull request closed' });
             void queryClient.invalidateQueries({

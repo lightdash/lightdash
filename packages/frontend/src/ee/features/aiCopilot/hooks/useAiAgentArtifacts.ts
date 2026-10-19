@@ -13,12 +13,13 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import {
     getAiAccessRefusal,
     isAiAgentAuthorizationError,
 } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
@@ -32,6 +33,7 @@ export type AiAgentArtifactVersionRef = {
 };
 
 const getAiAgentArtifact = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     artifactUuid: string,
@@ -47,6 +49,7 @@ const getAiAgentArtifact = async (
 };
 
 const getAiAgentArtifactVersion = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     artifactUuid: string,
@@ -63,12 +66,15 @@ const getAiAgentArtifactVersion = async (
 };
 
 /** Key and fetcher shared by every observer of one artifact version. */
-export const aiAgentArtifactVersionQuery = ({
-    projectUuid,
-    agentUuid,
-    artifactUuid,
-    versionUuid,
-}: AiAgentArtifactVersionRef) => ({
+export const aiAgentArtifactVersionQuery = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+    }: AiAgentArtifactVersionRef,
+) => ({
     queryKey: [
         AI_AGENT_ARTIFACT_KEY,
         projectUuid,
@@ -79,6 +85,7 @@ export const aiAgentArtifactVersionQuery = ({
     ],
     queryFn: () =>
         getAiAgentArtifactVersion(
+            lightdashApi,
             projectUuid,
             agentUuid,
             artifactUuid,
@@ -101,13 +108,15 @@ export const useAiAgentArtifact = ({
     versionUuid,
     options,
 }: UseAiAgentArtifactProps) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     const { queryKey, queryFn } =
         versionUuid && artifactUuid
-            ? aiAgentArtifactVersionQuery({
+            ? aiAgentArtifactVersionQuery(lightdashApi, {
                   projectUuid,
                   agentUuid,
                   artifactUuid,
@@ -121,7 +130,12 @@ export const useAiAgentArtifact = ({
                       artifactUuid,
                   ],
                   queryFn: () =>
-                      getAiAgentArtifact(projectUuid, agentUuid, artifactUuid!),
+                      getAiAgentArtifact(
+                          lightdashApi,
+                          projectUuid,
+                          agentUuid,
+                          artifactUuid!,
+                      ),
               };
 
     return useQuery<AiArtifact, ApiError>({
@@ -148,19 +162,22 @@ export const useAiAgentArtifact = ({
     });
 };
 
-const setArtifactVersionVerified = async ({
-    projectUuid,
-    agentUuid,
-    artifactUuid,
-    versionUuid,
-    verified,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    artifactUuid: string;
-    versionUuid: string;
-    verified: boolean;
-}) =>
+const setArtifactVersionVerified = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+        verified,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        verified: boolean;
+    },
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/verified`,
         method: `PATCH`,
@@ -172,6 +189,8 @@ export const useSetArtifactVersionVerified = (
     agentUuid: string,
     { showSuccessAction = true }: { showSuccessAction?: boolean } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -183,7 +202,7 @@ export const useSetArtifactVersionVerified = (
         { artifactUuid: string; versionUuid: string; verified: boolean }
     >({
         mutationFn: ({ artifactUuid, versionUuid, verified }) => {
-            return setArtifactVersionVerified({
+            return setArtifactVersionVerified(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
@@ -267,6 +286,8 @@ export const useUpdateComposerVizConfig = ({
     artifactUuid,
     versionUuid,
 }: ArtifactVersionRef) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 

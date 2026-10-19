@@ -207,8 +207,9 @@ describe('Slack image delivery scope', () => {
             await h.service['prepareSlackArtifactImageDelivery']('prompt');
         expect(runtime).not.toBeNull();
         expect(userLoad).toHaveBeenCalledExactlyOnceWith('user', 'org');
-        expect(h.decisionFlag).toHaveBeenCalledTimes(1);
-        expect(h.decisionFlag).toHaveBeenCalledWith(
+        // Slack chart images are delivered on every instance, including those
+        // without a decisions provider.
+        expect(h.decisionFlag).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 featureFlagId: FeatureFlags.AiAgentFastDecisions,
             }),
@@ -547,15 +548,9 @@ describe('Slack image delivery scope', () => {
     );
 
     it.each([false, 'unavailable'])(
-        'cancels deferred images after the master flag is %s',
+        'prepares deferred images when the fast-decisions flag is %s',
         async (state) => {
-            const {
-                service,
-                decisionFlag,
-                replies,
-                exportAiAgentArtifact,
-                updateMessage,
-            } = setup();
+            const { service, decisionFlag } = setup();
             if (state === false)
                 decisionFlag.mockResolvedValue({ enabled: false });
             else
@@ -564,17 +559,7 @@ describe('Slack image delivery scope', () => {
                 );
             const runtime =
                 await service['prepareSlackArtifactImageDelivery']('prompt');
-            expect(runtime).toBeNull();
-            expect(decisionFlag).toHaveBeenCalledWith({
-                user: expect.objectContaining({
-                    userUuid: 'user',
-                    organizationUuid: 'org',
-                }),
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            });
-            expect(replies).not.toHaveBeenCalled();
-            expect(exportAiAgentArtifact).not.toHaveBeenCalled();
-            expect(updateMessage).not.toHaveBeenCalled();
+            expect(runtime).not.toBeNull();
         },
     );
 

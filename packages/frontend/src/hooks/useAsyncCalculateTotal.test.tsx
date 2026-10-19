@@ -4,9 +4,7 @@ import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
 import { useColumnTotalsEnabledByDefault } from './useAsyncCalculateTotal';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./useQueryError', () => ({
     default: () => vi.fn(),
@@ -17,9 +15,9 @@ vi.mock('../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mockEmbedToken }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 function createWrapper() {
     const queryClient = new QueryClient({

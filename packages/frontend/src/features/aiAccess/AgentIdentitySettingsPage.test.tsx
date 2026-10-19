@@ -21,7 +21,8 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { AgentIdentitySettingsPage } from './AgentIdentitySettingsPage';
 import {
     agentSettingsIdentityMock,
@@ -40,7 +41,7 @@ const mocks = vi.hoisted(() => ({
     toast: vi.fn(),
     errorToast: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: {
@@ -86,7 +87,7 @@ const policy: AgentCapabilityPolicyOverview = {
     systemRoleMatrix: matrix,
     defaults: matrix,
 };
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 const renderPage = (
     access = {
         agentsPage: true,
@@ -489,7 +490,7 @@ const apiHandler = async ({
     url,
     method,
     body,
-}: Parameters<typeof lightdashApi>[0]) => {
+}: Parameters<typeof sharedLightdashApi>[0]) => {
     if (
         url === '/org/agent-permissions' ||
         url.startsWith('/org/groups') ||
@@ -618,7 +619,7 @@ describe('Agents page identity integration', () => {
                 },
             ],
         };
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
     });
 
     it.each(['flag', 'permission'])(
@@ -637,12 +638,12 @@ describe('Agents page identity integration', () => {
                     name: /^ClickHouse: agents run as/,
                 }),
             ).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         },
     );
 
     it('waits for settings to load', () => {
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         renderIdentityPage();
         expect(
             screen.queryByRole('button', { name: /: agents run as/ }),
@@ -650,14 +651,14 @@ describe('Agents page identity integration', () => {
     });
 
     it('allows retry after a load failure', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         renderIdentityPage();
         expect(
             await screen.findByText('Could not load agent settings.'),
         ).toBeInTheDocument();
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(
             await screen.findAllByRole('button', { name: /: agents run as/ }),
@@ -671,7 +672,7 @@ describe('Agents page identity integration', () => {
         expect(
             screen.queryByRole('heading', { name: 'Identity' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 
     it.each(['/org/projects', '/org/agent-identity'])(
@@ -680,7 +681,7 @@ describe('Agents page identity integration', () => {
             let resolvePending: (
                 value: Awaited<ReturnType<typeof apiHandler>>,
             ) => void = () => {};
-            vi.mocked(lightdashApi).mockImplementation(async (request) =>
+            mockedLightdashApi.mockImplementation(async (request) =>
                 request.url === pendingUrl
                     ? new Promise((resolve) => {
                           resolvePending = resolve;
@@ -759,7 +760,7 @@ describe('Agents page identity integration', () => {
         const saveRequest = deferred<Awaited<ReturnType<typeof apiHandler>>>();
         const projectsRequest =
             deferred<Awaited<ReturnType<typeof apiHandler>>>();
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        mockedLightdashApi.mockImplementation((request) =>
             request.method === 'PUT'
                 ? saveRequest.promise
                 : apiHandler(request),
@@ -784,8 +785,8 @@ describe('Agents page identity integration', () => {
         const savingStatus = within(savingChip).getByRole('status', {
             name: 'Saving BigQuery identity',
         });
-        const callsBefore = vi.mocked(lightdashApi).mock.calls.length;
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        const callsBefore = mockedLightdashApi.mock.calls.length;
+        mockedLightdashApi.mockImplementation((request) =>
             request.url === '/org/projects'
                 ? projectsRequest.promise
                 : apiHandler(request),
@@ -795,7 +796,7 @@ describe('Agents page identity integration', () => {
             refetch = client.invalidateQueries(['projects']);
         });
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
         );
         await act(async () => {
             projectsRequest.reject({
@@ -824,12 +825,11 @@ describe('Agents page identity integration', () => {
             screen.queryByText('Could not load agent settings.'),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.slice(callsBefore)
+            mockedLightdashApi.mock.calls
+                .slice(callsBefore)
                 .map(([request]) => [request.method, request.url]),
         ).toEqual([['GET', '/org/projects']]);
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         await act(async () => {
             await client.invalidateQueries(['projects']);
         });
@@ -848,14 +848,13 @@ describe('Agents page identity integration', () => {
             screen.getByRole('button', { name: 'Run as the person' }),
         );
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) => request.method === 'PUT'),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.method === 'PUT',
+            ),
         ).toHaveLength(1);
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.slice(callsBefore)
+            mockedLightdashApi.mock.calls
+                .slice(callsBefore)
                 .map(([request]) => [request.method, request.url]),
         ).toEqual([
             ['GET', '/org/projects'],
@@ -895,8 +894,8 @@ describe('Agents page identity integration', () => {
             'Copy and run in Snowflake',
         );
         const hideSetup = screen.getByRole('button', { name: 'Hide setup' });
-        const callsBefore = vi.mocked(lightdashApi).mock.calls.length;
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        const callsBefore = mockedLightdashApi.mock.calls.length;
+        mockedLightdashApi.mockImplementation((request) =>
             request.url === '/org/projects'
                 ? projectsRequest.promise
                 : apiHandler(request),
@@ -906,7 +905,7 @@ describe('Agents page identity integration', () => {
             refetch = client.invalidateQueries(['projects']);
         });
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
         );
         await act(async () => {
             projectsRequest.reject({
@@ -932,12 +931,11 @@ describe('Agents page identity integration', () => {
             screen.queryByText('Could not load agent settings.'),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.slice(callsBefore)
+            mockedLightdashApi.mock.calls
+                .slice(callsBefore)
                 .map(([request]) => [request.method, request.url]),
         ).toEqual([['GET', '/org/projects']]);
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         await act(async () => {
             await client.invalidateQueries(['projects']);
         });
@@ -951,23 +949,18 @@ describe('Agents page identity integration', () => {
             hideSetup,
         );
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/setup'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/setup'),
+            ),
         ).toHaveLength(1);
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.slice(callsBefore)
+            mockedLightdashApi.mock.calls
+                .slice(callsBefore)
                 .map(([request]) => [request.method, request.url]),
         ).toEqual([
             ['GET', '/org/projects'],
@@ -976,7 +969,7 @@ describe('Agents page identity integration', () => {
     });
 
     it('retries a projects error without showing an empty row', async () => {
-        vi.mocked(lightdashApi).mockImplementation(async (request) => {
+        mockedLightdashApi.mockImplementation(async (request) => {
             if (request.url === '/org/projects')
                 throw { error: { message: 'Unavailable' } };
             return apiHandler(request);
@@ -988,7 +981,7 @@ describe('Agents page identity integration', () => {
         expect(
             screen.queryByText('No warehouses in use yet.'),
         ).not.toBeInTheDocument();
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(
             await screen.findAllByRole('button', { name: /: agents run as/ }),
@@ -998,14 +991,14 @@ describe('Agents page identity integration', () => {
     it.each(['/org/projects', '/org/agent-identity'])(
         'retries only the failed %s initial request',
         async (failedUrl) => {
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.url === failedUrl)
                     throw { error: { message: 'Unavailable' } };
                 return apiHandler(request);
             });
             renderIdentityPage();
             await screen.findByText('Could not load agent settings.');
-            vi.mocked(lightdashApi).mockImplementation(apiHandler);
+            mockedLightdashApi.mockImplementation(apiHandler);
             fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
             await screen.findAllByRole('button', { name: /: agents run as/ });
             for (const url of [
@@ -1016,9 +1009,9 @@ describe('Agents page identity integration', () => {
                 '/org/groups?includeMembers=1',
             ])
                 expect(
-                    vi
-                        .mocked(lightdashApi)
-                        .mock.calls.filter(([request]) => request.url === url),
+                    mockedLightdashApi.mock.calls.filter(
+                        ([request]) => request.url === url,
+                    ),
                 ).toHaveLength(url === failedUrl ? 2 : 1);
         },
     );

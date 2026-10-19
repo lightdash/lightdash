@@ -8,14 +8,12 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi, lightdashApiResponse } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-    lightdashApiResponse: vi.fn(),
-}));
+vi.mock('../../api');
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
 }));
@@ -76,13 +74,13 @@ const fill = () => {
 describe('Databricks AI service account form', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue(verification);
+        mockedLightdashApi.mockResolvedValue(verification);
         const response: ApiAiServiceAccountSaveResponse = {
             status: 'ok',
             results: slot,
             verification,
         };
-        vi.mocked(lightdashApiResponse).mockResolvedValue(response);
+        mockedLightdashApi.response.mockResolvedValue(response);
     });
     it('requires both non-blank inputs and masks the secret', () => {
         setup();
@@ -116,7 +114,7 @@ describe('Databricks AI service account form', () => {
         expect(await screen.findByRole('status')).toHaveTextContent(
             'Signs in as verified-principal',
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'POST',
                 sensitive: true,
@@ -140,14 +138,14 @@ describe('Databricks AI service account form', () => {
                 verification,
             ),
         );
-        expect(lightdashApiResponse).toHaveBeenCalledWith(
+        expect(sharedLightdashApi.response).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'PUT',
                 sensitive: true,
                 body: JSON.stringify(credentials),
             }),
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalledOnce();
         expect(
             screen.getByLabelText('Client secret', { exact: false }),
@@ -160,13 +158,13 @@ describe('Databricks AI service account form', () => {
             let finish: (() => void) | null = null;
             const pending = new Promise<never>(() => {});
             if (action === 'Test')
-                vi.mocked(lightdashApi).mockImplementation(
+                mockedLightdashApi.mockImplementation(
                     () =>
                         new Promise((resolve) => {
                             finish = () => resolve(verification);
                         }),
                 );
-            else vi.mocked(lightdashApiResponse).mockReturnValue(pending);
+            else mockedLightdashApi.response.mockReturnValue(pending);
             const { onClose, unmount, client } = setup();
             fill();
             fireEvent.click(screen.getByRole('button', { name: action }));
@@ -195,7 +193,7 @@ describe('Databricks AI service account form', () => {
         },
     );
     it('shows failures inline and clears them on edit', async () => {
-        vi.mocked(lightdashApiResponse).mockRejectedValue({
+        mockedLightdashApi.response.mockRejectedValue({
             error: { message: 'Could not verify these credentials.' },
         });
         const { onSaved } = setup();
@@ -212,7 +210,7 @@ describe('Databricks AI service account form', () => {
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
     it('shows a failed Test as an alert', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...verification,
             ok: false,
             principal: null,

@@ -3,11 +3,12 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { renderWithProviders } from '../testing/testUtils';
 import SavedExplorer from './SavedExplorer';
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 
 const featureFlagState = vi.hoisted(() => ({
     inDashboardChartEditorEnabled: true,
@@ -198,7 +199,7 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
         featureFlagState.isLoading = false;
         featureFlagState.handoverSearch =
             searchWithChartVersion(urlChartVersion);
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (
                 method === 'GET' &&
                 typeof url === 'string' &&
@@ -214,7 +215,7 @@ describe('SavedExplorer with an unsaved chart version in the url', () => {
                 return savedChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as LightdashApi);
     });
 
     it('starts the edit session on the version the url carries', async () => {

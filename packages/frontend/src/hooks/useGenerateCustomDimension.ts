@@ -8,11 +8,13 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const CUSTOM_DIMENSION_GENERATION_TIMEOUT_MS = 10000;
 
 const generateCustomDimensionApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateCustomDimensionRequest,
     signal?: AbortSignal,
@@ -35,6 +37,7 @@ export const useGenerateCustomDimension = ({
     explore,
     onSuccess,
 }: UseGenerateCustomDimensionOptions) => {
+    const lightdashApi = useLightdashApi();
     const abortControllerRef = useRef<AbortController | null>(null);
     const mutation = useMutation<
         GeneratedCustomDimension,
@@ -65,6 +68,7 @@ export const useGenerateCustomDimension = ({
             }));
 
             return generateCustomDimensionApi(
+                lightdashApi,
                 projectUuid,
                 {
                     prompt,

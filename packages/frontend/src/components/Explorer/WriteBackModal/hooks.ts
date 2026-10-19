@@ -8,11 +8,13 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const writeBackCustomDimensions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: CustomDimension[],
 ): Promise<PullRequestCreated> => {
@@ -26,6 +28,7 @@ const writeBackCustomDimensions = async (
 };
 
 const getCustomDimensionsWriteBackPreview = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     customDimensions: CustomDimension[],
 ): Promise<ApiCustomDimensionWriteBackPreview['results']> =>
@@ -38,23 +41,30 @@ const getCustomDimensionsWriteBackPreview = async (
 export const useCustomDimensionsWriteBackPreview = (
     projectUuid: string,
     customDimensions: CustomDimension[],
-) =>
-    useQuery<ApiCustomDimensionWriteBackPreview['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiCustomDimensionWriteBackPreview['results'], ApiError>({
         queryKey: [
             'custom_dimension_write_back_preview',
             projectUuid,
             customDimensions,
         ],
         queryFn: () =>
-            getCustomDimensionsWriteBackPreview(projectUuid, customDimensions),
+            getCustomDimensionsWriteBackPreview(
+                lightdashApi,
+                projectUuid,
+                customDimensions,
+            ),
         enabled: customDimensions.length > 0,
         retry: false,
     });
+};
 
 export const useWriteBackCustomDimensions = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<PullRequestCreated, ApiError, CustomDimension[]>(
-        (data) => writeBackCustomDimensions(projectUuid, data),
+        (data) => writeBackCustomDimensions(lightdashApi, projectUuid, data),
         {
             mutationKey: ['custom_dimension_write_back', projectUuid],
             onSuccess: (pullRequest) => {
@@ -86,6 +96,7 @@ export const useWriteBackCustomDimensions = (projectUuid: string) => {
 };
 
 const writeBackCustomMetrics = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: AdditionalMetric[],
 ): Promise<PullRequestCreated> => {
@@ -99,9 +110,10 @@ const writeBackCustomMetrics = async (
 };
 
 export const useWriteBackCustomMetrics = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<PullRequestCreated, ApiError, AdditionalMetric[]>(
-        (data) => writeBackCustomMetrics(projectUuid, data),
+        (data) => writeBackCustomMetrics(lightdashApi, projectUuid, data),
         {
             mutationKey: ['custom_metric_write_back', projectUuid],
             onSuccess: (pullRequest) => {

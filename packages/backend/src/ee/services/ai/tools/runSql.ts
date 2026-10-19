@@ -229,6 +229,7 @@ export const getRunSql = ({
                     await approveSql({
                         sql,
                         heading: RUN_SQL_APPROVAL_HEADING,
+                        steps: null,
                     });
                 } catch (e) {
                     if (e instanceof SqlNotApprovedError) {

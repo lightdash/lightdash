@@ -15,8 +15,9 @@ import {
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { useProjects } from '../../hooks/useProjects';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import classes from './AgentIdentityChip.module.css';
 import { useOrganizationAgentIdentitySettings } from './api';
@@ -37,7 +38,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../hooks/settings/useSettingsContext', () => ({
     useSettingsContext: () => ({ showMyAgentConnections: true }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: {
@@ -148,7 +149,7 @@ const apiHandler = async ({
     url,
     method,
     body,
-}: Parameters<typeof lightdashApi>[0]) => {
+}: Parameters<typeof sharedLightdashApi>[0]) => {
     if (url === '/org/projects') return projects;
     if (url.endsWith('/projects-without-ai-service-account'))
         return missingProjects;
@@ -293,7 +294,7 @@ describe('Organisation agent identity settings', () => {
                 },
             ],
         };
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
     });
     it('shows saved identity chips without a summary or raw source values', async () => {
         renderSection();
@@ -361,10 +362,10 @@ describe('Organisation agent identity settings', () => {
         expect(screen.getByRole('dialog')).toHaveTextContent(
             `Agents will get the same ${name} access as the person asking. Your warehouse can't limit agent queries separately.`,
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: expect.stringContaining(
                     '/projects-without-ai-service-account',
@@ -377,7 +378,7 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: `/org/agent-identity/${warehouseType}`,
                 method: 'PUT',
@@ -412,7 +413,7 @@ describe('Organisation agent identity settings', () => {
         expect(screen.getByRole('dialog')).toHaveTextContent(
             "Agents on BigQuery will run as each project's shared agent account, not as the person asking.",
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         expect(
@@ -426,7 +427,7 @@ describe('Organisation agent identity settings', () => {
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/bigquery',
                 method: 'PUT',
@@ -437,9 +438,9 @@ describe('Organisation agent identity settings', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) => request.method === 'PUT'),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.method === 'PUT',
+            ),
         ).toHaveLength(1);
     });
     it.each([1, 2, 5])(
@@ -472,13 +473,13 @@ describe('Organisation agent identity settings', () => {
                 expect(alert).toHaveTextContent(
                     'Project 0, Project 1, Project 2 and 2 more.',
                 );
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/bigquery/projects-without-ai-service-account',
                 method: 'GET',
                 body: undefined,
             });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
         },
@@ -496,13 +497,13 @@ describe('Organisation agent identity settings', () => {
                     name: /^BigQuery: agents run as/,
                 }),
             ).toHaveAccessibleName(/agents run as the person\. Change\./);
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
         },
     );
     it('waits for the affected-project read before allowing confirmation', async () => {
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        mockedLightdashApi.mockImplementation((request) =>
             request.url.endsWith('/projects-without-ai-service-account')
                 ? new Promise(() => {})
                 : apiHandler(request),
@@ -524,7 +525,7 @@ describe('Organisation agent identity settings', () => {
             .mockResolvedValueOnce([
                 { projectUuid: 'missing-project', name: 'Missing project' },
             ]);
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        mockedLightdashApi.mockImplementation((request) =>
             request.url.endsWith('/projects-without-ai-service-account')
                 ? readProjects()
                 : apiHandler(request),
@@ -548,12 +549,12 @@ describe('Organisation agent identity settings', () => {
         );
         expect(readProjects).toHaveBeenCalledTimes(2);
         expect(confirm).toBeEnabled();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
     it('keeps the modal open and prevents duplicate confirmation while saving', async () => {
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        mockedLightdashApi.mockImplementation((request) =>
             request.method === 'PUT'
                 ? new Promise(() => {})
                 : apiHandler(request),
@@ -571,13 +572,13 @@ describe('Organisation agent identity settings', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) => request.method === 'PUT'),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.method === 'PUT',
+            ),
         ).toHaveLength(1);
     });
     it('keeps the modal open after a save error', async () => {
-        vi.mocked(lightdashApi).mockImplementation((request) =>
+        mockedLightdashApi.mockImplementation((request) =>
             request.method === 'PUT'
                 ? Promise.reject({ error: { message: 'Save failed' } })
                 : apiHandler(request),
@@ -633,7 +634,7 @@ describe('Organisation agent identity settings', () => {
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/databricks',
                 method: 'PUT',
@@ -679,12 +680,12 @@ describe('Organisation agent identity settings', () => {
             'href',
             '/generalSettings/projectManagement/athena-project/agentIdentity',
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/athena',
                 method: 'PUT',
@@ -730,12 +731,12 @@ describe('Organisation agent identity settings', () => {
             'href',
             '/generalSettings/projectManagement/postgres-project/agentIdentity',
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/postgres',
                 method: 'PUT',
@@ -781,12 +782,12 @@ describe('Organisation agent identity settings', () => {
             'href',
             '/generalSettings/projectManagement/redshift-project/agentIdentity',
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/redshift',
                 method: 'PUT',
@@ -832,12 +833,12 @@ describe('Organisation agent identity settings', () => {
             'href',
             '/generalSettings/projectManagement/trino-project/agentIdentity',
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/trino',
                 method: 'PUT',
@@ -886,12 +887,12 @@ describe('Organisation agent identity settings', () => {
             'href',
             '/generalSettings/projectManagement/clickhouse-project/agentIdentity',
         );
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/clickhouse',
                 method: 'PUT',
@@ -916,7 +917,7 @@ describe('Organisation agent identity settings', () => {
             });
         });
         it('keeps the previous ClickHouse rule when saving fails', async () => {
-            vi.mocked(lightdashApi).mockImplementation((request) =>
+            mockedLightdashApi.mockImplementation((request) =>
                 request.method === 'PUT'
                     ? Promise.reject({ error: { message: 'Save failed' } })
                     : apiHandler(request),
@@ -955,7 +956,7 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByRole('button', { name: 'View setup' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/org/agent-identity/snowflake/setup',
             }),
@@ -1045,7 +1046,7 @@ describe('Organisation agent identity settings', () => {
                 }),
             ).toBeVisible();
             if (expectNoPut)
-                expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                     expect.objectContaining({ method: 'PUT' }),
                 );
         };
@@ -1081,7 +1082,7 @@ describe('Organisation agent identity settings', () => {
             await waitFor(() => expect(turnOn).toBeEnabled());
             fireEvent.click(turnOn);
             await waitFor(() =>
-                expect(lightdashApi).toHaveBeenCalledWith({
+                expect(sharedLightdashApi).toHaveBeenCalledWith({
                     version: 'v2',
                     url: '/org/agent-identity/snowflake',
                     method: 'PUT',
@@ -1108,9 +1109,9 @@ describe('Organisation agent identity settings', () => {
                 expect(menu.queryByText(label)).not.toBeInTheDocument();
             expect(saved).not.toHaveAttribute('data-setting-up');
             expect(
-                vi
-                    .mocked(lightdashApi)
-                    .mock.calls.filter(([request]) => request.method === 'PUT'),
+                mockedLightdashApi.mock.calls.filter(
+                    ([request]) => request.method === 'PUT',
+                ),
             ).toHaveLength(1);
         });
         it('restores the saved choice and setup hint after Cancel without saving', async () => {
@@ -1120,12 +1121,12 @@ describe('Organisation agent identity settings', () => {
                 await screen.findByRole('button', { name: 'Cancel' }),
             );
             expectNormalMenu(await openMenu());
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
         });
         it('keeps the setting-up menu after Turn on fails', async () => {
-            vi.mocked(lightdashApi).mockImplementation((request) =>
+            mockedLightdashApi.mockImplementation((request) =>
                 request.method === 'PUT' &&
                 request.url === '/org/agent-identity/snowflake'
                     ? Promise.reject({ error: { message: 'Save failed' } })
@@ -1140,7 +1141,7 @@ describe('Organisation agent identity settings', () => {
             await waitFor(() => expect(turnOn).toBeEnabled());
             fireEvent.click(turnOn);
             await waitFor(() =>
-                expect(lightdashApi).toHaveBeenCalledWith({
+                expect(sharedLightdashApi).toHaveBeenCalledWith({
                     version: 'v2',
                     url: '/org/agent-identity/snowflake',
                     method: 'PUT',
@@ -1171,7 +1172,7 @@ describe('Organisation agent identity settings', () => {
                 screen.queryByText('Not active yet'),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
             expectNormalMenu(await openMenu());
@@ -1199,7 +1200,7 @@ describe('Organisation agent identity settings', () => {
             expect(
                 screen.queryByText('Not active yet'),
             ).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
             expectNormalMenu(await openMenu());
@@ -1233,7 +1234,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByText('Add your Snowflake account and client details'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(
@@ -1280,7 +1281,7 @@ describe('Organisation agent identity settings', () => {
         );
         fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/snowflake',
                 method: 'PUT',
@@ -1414,7 +1415,7 @@ describe('Organisation agent identity settings', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
@@ -1434,7 +1435,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByRole('button', { name: /^Snowflake: agents run as/ }),
         ).toHaveAccessibleName(/agents run as the person\. Change\./);
         expect(screen.queryByText('Not active yet')).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         await selectAgentSignIn();
@@ -1479,7 +1480,7 @@ describe('Organisation agent identity settings', () => {
                 ).toBeEnabled(),
             );
             let finishRefetch: (() => void) | undefined;
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 const response = await apiHandler(request);
                 if (!request.url.endsWith('/setup')) return response;
                 return new Promise<typeof response>((resolve) => {
@@ -1535,12 +1536,12 @@ describe('Organisation agent identity settings', () => {
             screen.queryByText('Copy and run in Snowflake'),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeEnabled();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             ),
         );
@@ -1566,11 +1567,9 @@ describe('Organisation agent identity settings', () => {
             screen.queryByRole('button', { name: 'Turn on' }),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
     });
     it('opens setup when verification of an active integration fails', async () => {
@@ -1591,7 +1590,7 @@ describe('Organisation agent identity settings', () => {
         const button = await screen.findByRole('button', {
             name: 'Verify integration',
         });
-        vi.mocked(lightdashApi).mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: { message: 'Unavailable' },
         });
         fireEvent.click(button);
@@ -1630,13 +1629,13 @@ describe('Organisation agent identity settings', () => {
                 `/generalSettings/projectManagement/${projectUuid}/agentIdentity`,
             ),
         );
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/org/agent-identity/snowflake/projects-without-ai-service-account',
             method: 'GET',
             body: undefined,
         });
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         expect(
@@ -1652,7 +1651,7 @@ describe('Organisation agent identity settings', () => {
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/snowflake',
                 method: 'PUT',
@@ -1663,9 +1662,9 @@ describe('Organisation agent identity settings', () => {
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) => request.method === 'PUT'),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.method === 'PUT',
+            ),
         ).toHaveLength(1);
         expect(
             screen.getByRole('button', { name: /^Snowflake: agents run as/ }),
@@ -1676,7 +1675,7 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByText('Set up the Snowflake agent integration'),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/org/agent-identity/snowflake/setup',
             }),
@@ -1695,7 +1694,7 @@ describe('Organisation agent identity settings', () => {
                 await changeToMarkedPerson('Snowflake');
             }
             const dialog = await screen.findByRole('dialog', { name: title });
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
             fireEvent.click(
@@ -1710,7 +1709,7 @@ describe('Organisation agent identity settings', () => {
                 /agents run as the person's agent sign-in\. Change\./,
             );
             expect(currentOverview.rules[0].source).toBe('agent_sign_in');
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
         },
@@ -1836,7 +1835,7 @@ describe('Organisation agent identity settings', () => {
     it('disables only the saving chip and replaces its choice icon with a loader', async () => {
         renderSection();
         await screen.findAllByRole('button', { name: /: agents run as/ });
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         await changeToMarkedPerson('Snowflake');
         fireEvent.click(
             await screen.findByRole('button', {
@@ -1870,7 +1869,7 @@ describe('Organisation agent identity settings', () => {
     it('reports failed saves and preserves the value', async () => {
         renderSection();
         await screen.findAllByRole('button', { name: /: agents run as/ });
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         await changeToMarkedPerson('Snowflake');
@@ -2025,7 +2024,7 @@ describe('Organisation agent identity settings', () => {
             ).toBeVisible();
             fireEvent.click(choice);
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect(sharedLightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             );
         },
@@ -2101,7 +2100,7 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByRole('button', { name: 'The person' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
     it.each(['{Enter}', ' '])(
         'opens read-only warnings with %s and returns focus on Escape',
@@ -2141,7 +2140,7 @@ describe('Organisation agent identity settings', () => {
                 ).not.toBeInTheDocument(),
             );
             await waitFor(() => expect(count).toHaveFocus());
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         },
     );
     it('explains the default chip on keyboard focus and click without a summary', async () => {
@@ -2236,7 +2235,7 @@ describe('Organisation agent identity settings', () => {
                 screen.queryByRole('button', { name: 'The person' }),
             ).not.toBeInTheDocument();
             expect(chip).toHaveAttribute('aria-expanded', 'false');
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
             expect(clickListener).not.toHaveBeenCalled();
             expect(keyDownListener).not.toHaveBeenCalled();
             expect(keyUpListener).not.toHaveBeenCalled();
@@ -2254,7 +2253,7 @@ describe('Organisation agent identity settings', () => {
         const saveRequest = deferred<Awaited<ReturnType<typeof apiHandler>>>();
         let projectsRequest = deferred<typeof projects>();
         let refetching = false;
-        vi.mocked(lightdashApi).mockImplementation((request) => {
+        mockedLightdashApi.mockImplementation((request) => {
             if (request.method === 'PUT') return saveRequest.promise;
             if (request.url === '/org/projects' && refetching)
                 return projectsRequest.promise;
@@ -2307,9 +2306,9 @@ describe('Organisation agent identity settings', () => {
             fireEvent.click(chip);
             fireEvent.click(confirm);
             expect(
-                vi
-                    .mocked(lightdashApi)
-                    .mock.calls.filter(([request]) => request.method === 'PUT'),
+                mockedLightdashApi.mock.calls.filter(
+                    ([request]) => request.method === 'PUT',
+                ),
             ).toHaveLength(1);
             expect(
                 screen.queryByText('No warehouses in use yet.'),
@@ -2331,9 +2330,9 @@ describe('Organisation agent identity settings', () => {
             }),
         ).toBeEnabled();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) => request.method === 'PUT'),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) => request.method === 'PUT',
+            ),
         ).toHaveLength(1);
     });
     it('keeps pending Snowflake setup and manual verification after successful project removal', async () => {
@@ -2351,7 +2350,7 @@ describe('Organisation agent identity settings', () => {
             deferred<OrganizationAgentIdentitySnowflakeVerify>();
         const projectsRequest = deferred<typeof projects>();
         let refetching = false;
-        vi.mocked(lightdashApi).mockImplementation((request) => {
+        mockedLightdashApi.mockImplementation((request) => {
             if (request.url.endsWith('/verify')) return verifyRequest.promise;
             if (request.url === '/org/projects' && refetching)
                 return projectsRequest.promise;
@@ -2367,7 +2366,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByRole('button', { name: 'Verify integration' }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     method: 'POST',
                     url: '/org/agent-identity/snowflake/verify',
@@ -2378,14 +2377,14 @@ describe('Organisation agent identity settings', () => {
         await waitFor(() => expect(turnOn).toBeEnabled());
         const result = screen.getByText('OAuth client settings · Passed');
         expect(result).toBeVisible();
-        const callsBefore = vi.mocked(lightdashApi).mock.calls.length;
+        const callsBefore = mockedLightdashApi.mock.calls.length;
         refetching = true;
         let refetch: Promise<void>;
         act(() => {
             refetch = client.invalidateQueries(['projects']);
         });
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(callsBefore + 1),
         );
         await act(async () => {
             projectsRequest.resolve([]);
@@ -2405,23 +2404,18 @@ describe('Organisation agent identity settings', () => {
             screen.queryByText('No warehouses in use yet.'),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/setup'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/setup'),
+            ),
         ).toHaveLength(1);
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.slice(callsBefore)
+            mockedLightdashApi.mock.calls
+                .slice(callsBefore)
                 .map(([request]) => [request.method, request.url]),
         ).toEqual([['GET', '/org/projects']]);
     });
@@ -2451,7 +2445,7 @@ describe('Organisation agent identity settings', () => {
             [],
         ]) {
             const projectsRequest = deferred<typeof projects>();
-            vi.mocked(lightdashApi).mockImplementation((request) =>
+            mockedLightdashApi.mockImplementation((request) =>
                 request.url === '/org/projects'
                     ? projectsRequest.promise
                     : apiHandler(request),
@@ -2479,17 +2473,15 @@ describe('Organisation agent identity settings', () => {
             ).not.toBeInTheDocument();
         }
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(
-                    ([request]) =>
-                        request.url.endsWith('/setup') ||
-                        request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(
+                ([request]) =>
+                    request.url.endsWith('/setup') ||
+                    request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(0);
     });
     it('shows no status while active verification is checking', async () => {
-        vi.mocked(lightdashApi).mockImplementation(async (request) =>
+        mockedLightdashApi.mockImplementation(async (request) =>
             request.url.endsWith('/verify')
                 ? new Promise(() => {})
                 : apiHandler(request),
@@ -2509,7 +2501,7 @@ describe('Organisation agent identity settings', () => {
         ).not.toBeInTheDocument();
     });
     it('shows an attention icon and opens setup after an active verification error', async () => {
-        vi.mocked(lightdashApi).mockImplementation(async (request) => {
+        mockedLightdashApi.mockImplementation(async (request) => {
             if (request.url.endsWith('/verify'))
                 throw { error: { message: 'Unavailable' } };
             return apiHandler(request);
@@ -2547,11 +2539,9 @@ describe('Organisation agent identity settings', () => {
             screen.queryByText('Copy and run in Snowflake'),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
     });
     it('opens with Enter and Space, tabs to a choice, and restores focus on Escape', async () => {
@@ -2580,7 +2570,7 @@ describe('Organisation agent identity settings', () => {
         ).toHaveFocus();
         await user.keyboard('{Enter}');
         expect(await screen.findByText('Not active yet')).toBeVisible();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
@@ -2621,9 +2611,9 @@ describe('Organisation agent identity settings', () => {
                     },
                 );
             expect(
-                vi.mocked(lightdashApi).mock.calls.map(([request]) => request),
+                mockedLightdashApi.mock.calls.map(([request]) => request),
             ).toEqual(expect.arrayContaining(expected));
-            expect(lightdashApi).toHaveBeenCalledTimes(expected.length);
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(expected.length);
         },
     );
     it.each(Object.entries(identityWarehouseNames))(
@@ -2688,11 +2678,9 @@ describe('Organisation agent identity settings', () => {
             name: 'Snowflake agent sign-in needs attention',
         });
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(2);
         fireEvent.click(screen.getByRole('button', { name: 'Replace client' }));
         fireEvent.change(screen.getByLabelText('Snowflake account URL'), {
@@ -2704,7 +2692,7 @@ describe('Organisation agent identity settings', () => {
         fireEvent.change(screen.getByLabelText('Client secret'), {
             target: { value: 'test-secret' },
         });
-        vi.mocked(lightdashApi).mockImplementation(async (request) => {
+        mockedLightdashApi.mockImplementation(async (request) => {
             if (request.url.endsWith('/client'))
                 return apiHandler({
                     ...request,
@@ -2717,11 +2705,9 @@ describe('Organisation agent identity settings', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save' }));
         await waitFor(() =>
             expect(
-                vi
-                    .mocked(lightdashApi)
-                    .mock.calls.filter(([request]) =>
-                        request.url.endsWith('/verify'),
-                    ),
+                mockedLightdashApi.mock.calls.filter(([request]) =>
+                    request.url.endsWith('/verify'),
+                ),
             ).toHaveLength(3),
         );
         const chip = screen.getByRole('button', {
@@ -2757,11 +2743,9 @@ describe('Organisation agent identity settings', () => {
             await screen.findByText('Copy and run in Snowflake'),
         ).toBeVisible();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
     });
     it.each(['failure', 'error'] as const)(
@@ -2771,7 +2755,7 @@ describe('Organisation agent identity settings', () => {
                 deferred<Awaited<ReturnType<typeof apiHandler>>>();
             const verifyRequest =
                 deferred<OrganizationAgentIdentitySnowflakeVerify>();
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 if (request.url.endsWith('/setup')) return setupRequest.promise;
                 if (request.url.endsWith('/verify'))
                     return verifyRequest.promise;
@@ -2826,11 +2810,9 @@ describe('Organisation agent identity settings', () => {
             ).toBeVisible();
             for (const suffix of ['/setup', '/verify'])
                 expect(
-                    vi
-                        .mocked(lightdashApi)
-                        .mock.calls.filter(([request]) =>
-                            request.url.endsWith(suffix),
-                        ),
+                    mockedLightdashApi.mock.calls.filter(([request]) =>
+                        request.url.endsWith(suffix),
+                    ),
                 ).toHaveLength(1);
         },
     );
@@ -2838,7 +2820,7 @@ describe('Organisation agent identity settings', () => {
         const setupRequest = deferred<never>();
         const verifyRequest =
             deferred<OrganizationAgentIdentitySnowflakeVerify>();
-        vi.mocked(lightdashApi).mockImplementation(async (request) => {
+        mockedLightdashApi.mockImplementation(async (request) => {
             if (request.url.endsWith('/setup')) return setupRequest.promise;
             if (request.url.endsWith('/verify')) return verifyRequest.promise;
             return apiHandler(request);
@@ -2872,24 +2854,22 @@ describe('Organisation agent identity settings', () => {
         ).toBeVisible();
         expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
         expectNoCardLoader();
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(
             await screen.findByText('Copy and run in Snowflake'),
         ).toBeVisible();
         expectNoCardLoader();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
     });
     it('allows a loader when View setup is chosen before setup has loaded', async () => {
         const setupRequest = deferred<Awaited<ReturnType<typeof apiHandler>>>();
         verification.passed = false;
-        vi.mocked(lightdashApi).mockImplementation(async (request) =>
+        mockedLightdashApi.mockImplementation(async (request) =>
             request.url.endsWith('/setup')
                 ? setupRequest.promise
                 : apiHandler(request),
@@ -2922,7 +2902,7 @@ describe('Organisation agent identity settings', () => {
     });
     it('keeps a verified integration panel empty until View setup is chosen', async () => {
         const setupRequest = deferred<Awaited<ReturnType<typeof apiHandler>>>();
-        vi.mocked(lightdashApi).mockImplementation(async (request) =>
+        mockedLightdashApi.mockImplementation(async (request) =>
             request.url.endsWith('/setup')
                 ? setupRequest.promise
                 : apiHandler(request),

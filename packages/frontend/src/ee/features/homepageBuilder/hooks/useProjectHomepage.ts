@@ -12,15 +12,19 @@ import {
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { ANNOUNCEMENTS_QUERY_KEY } from './useAnnouncements';
 import { useOrgHomepageSettings } from './useOrgHomepageSettings';
 
 const PROJECT_HOMEPAGE_QUERY_KEY = 'project_homepage';
 
-const getResolvedHomepage = async (projectUuid: string) =>
+const getResolvedHomepage = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ResolvedHomepage | null>({
         url: `/projects/${projectUuid}/homepage`,
         method: 'GET',
@@ -28,6 +32,7 @@ const getResolvedHomepage = async (projectUuid: string) =>
     });
 
 const getHomepageForBuilder = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     homepageUuid?: string,
 ) =>
@@ -39,14 +44,21 @@ const getHomepageForBuilder = async (
         body: undefined,
     });
 
-const listHomepagesApi = async (projectUuid: string) =>
+const listHomepagesApi = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ProjectHomepage[]>({
         url: `/projects/${projectUuid}/homepage/list`,
         method: 'GET',
         body: undefined,
     });
 
-const deleteHomepageApi = async (projectUuid: string, homepageUuid: string) =>
+const deleteHomepageApi = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    homepageUuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/projects/${projectUuid}/homepage/${homepageUuid}`,
         method: 'DELETE',
@@ -54,6 +66,7 @@ const deleteHomepageApi = async (projectUuid: string, homepageUuid: string) =>
     });
 
 const createHomepageApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: CreateProjectHomepageRequest,
 ) =>
@@ -64,6 +77,7 @@ const createHomepageApi = async (
     });
 
 const updateHomepageDraftApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     homepageUuid: string,
     data: UpdateProjectHomepageDraftRequest,
@@ -75,6 +89,7 @@ const updateHomepageDraftApi = async (
     });
 
 const publishHomepageApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     homepageUuid: string,
     audience: HomepageAudience,
@@ -86,6 +101,7 @@ const publishHomepageApi = async (
     });
 
 const discardHomepageDraftApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     homepageUuid: string,
 ) =>
@@ -95,7 +111,11 @@ const discardHomepageDraftApi = async (
         body: undefined,
     });
 
-const viewAsApi = async (projectUuid: string, target: HomepageViewAsTarget) => {
+const viewAsApi = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    target: HomepageViewAsTarget,
+) => {
     const params = new URLSearchParams({ targetType: target.type });
     if (target.type === 'user') params.set('userUuid', target.userUuid);
     if (target.type === 'group') params.set('groupUuid', target.groupUuid);
@@ -107,7 +127,10 @@ const viewAsApi = async (projectUuid: string, target: HomepageViewAsTarget) => {
     });
 };
 
-const getAssignmentsApi = async (projectUuid: string) =>
+const getAssignmentsApi = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<HomepageAssignment[]>({
         url: `/projects/${projectUuid}/homepage/assignments`,
         method: 'GET',
@@ -115,6 +138,7 @@ const getAssignmentsApi = async (projectUuid: string) =>
     });
 
 const updateGroupPrioritiesApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     groupUuids: string[],
 ) =>
@@ -142,12 +166,14 @@ export const useHomepageBuilderFlag = () => {
 export const useResolvedHomepage = (
     projectUuid: string | undefined,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<ResolvedHomepage | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ResolvedHomepage | null, ApiError>({
         enabled: !!projectUuid && enabled,
         queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'resolved'],
-        queryFn: () => getResolvedHomepage(projectUuid!),
+        queryFn: () => getResolvedHomepage(lightdashApi, projectUuid!),
     });
+};
 
 export const useHomepageForBuilder = (
     projectUuid: string | undefined,
@@ -155,8 +181,9 @@ export const useHomepageForBuilder = (
         enabled = true,
         homepageUuid,
     }: { enabled?: boolean; homepageUuid?: string } = {},
-) =>
-    useQuery<ProjectHomepage | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectHomepage | null, ApiError>({
         enabled: !!projectUuid && enabled,
         queryKey: [
             PROJECT_HOMEPAGE_QUERY_KEY,
@@ -164,28 +191,34 @@ export const useHomepageForBuilder = (
             'builder',
             homepageUuid ?? 'default',
         ],
-        queryFn: () => getHomepageForBuilder(projectUuid!, homepageUuid),
+        queryFn: () =>
+            getHomepageForBuilder(lightdashApi, projectUuid!, homepageUuid),
         // The editor snapshots the draft on mount, so always refetch: with the
         // global 30s staleTime a warm cache would skip the fetch, leaving
         // isFetchedAfterMount false and the builder stuck on a spinner.
         refetchOnMount: 'always',
     });
+};
 
 export const useProjectHomepages = (
     projectUuid: string | undefined,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<ProjectHomepage[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectHomepage[], ApiError>({
         enabled: !!projectUuid && enabled,
         queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'list'],
-        queryFn: () => listHomepagesApi(projectUuid!),
+        queryFn: () => listHomepagesApi(lightdashApi, projectUuid!),
     });
+};
 
 export const useDeleteHomepage = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string>(
-        (homepageUuid) => deleteHomepageApi(projectUuid, homepageUuid),
+        (homepageUuid) =>
+            deleteHomepageApi(lightdashApi, projectUuid, homepageUuid),
         {
             mutationKey: ['delete_project_homepage'],
             onSuccess: async () => {
@@ -206,10 +239,11 @@ export const useDeleteHomepage = (projectUuid: string) => {
 };
 
 export const useCreateHomepage = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ProjectHomepage, ApiError, CreateProjectHomepageRequest>(
-        (data) => createHomepageApi(projectUuid, data),
+        (data) => createHomepageApi(lightdashApi, projectUuid, data),
         {
             mutationKey: ['create_project_homepage'],
             onSuccess: async () => {
@@ -232,6 +266,7 @@ export const useCreateHomepage = (projectUuid: string) => {
 // first-time empty state, which skips the blank/duplicate name modal and
 // seeds the draft straight from the caller instead.
 export const useCreateHomepageWithDraft = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -240,11 +275,18 @@ export const useCreateHomepageWithDraft = (projectUuid: string) => {
         { name: string; draftConfig: HomepageConfig }
     >(
         async ({ name, draftConfig }) => {
-            const created = await createHomepageApi(projectUuid, { name });
-            return updateHomepageDraftApi(projectUuid, created.homepageUuid, {
-                draftConfig,
-                baseUpdatedAt: created.updatedAt,
+            const created = await createHomepageApi(lightdashApi, projectUuid, {
+                name,
             });
+            return updateHomepageDraftApi(
+                lightdashApi,
+                projectUuid,
+                created.homepageUuid,
+                {
+                    draftConfig,
+                    baseUpdatedAt: created.updatedAt,
+                },
+            );
         },
         {
             mutationKey: ['create_project_homepage_with_draft'],
@@ -268,55 +310,71 @@ export const useUpdateHomepageDraft = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
         ProjectHomepage,
         ApiError,
         UpdateProjectHomepageDraftRequest
-    >((data) => updateHomepageDraftApi(projectUuid, homepageUuid!, data), {
-        mutationKey: ['update_project_homepage_draft'],
-        onSettled: async () => {
-            await queryClient.invalidateQueries([
-                PROJECT_HOMEPAGE_QUERY_KEY,
+    >(
+        (data) =>
+            updateHomepageDraftApi(
+                lightdashApi,
                 projectUuid,
-                'builder',
-            ]);
+                homepageUuid!,
+                data,
+            ),
+        {
+            mutationKey: ['update_project_homepage_draft'],
+            onSettled: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                    'builder',
+                ]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to save draft',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to save draft',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useHomepageViewAs = (
     projectUuid: string,
     target: HomepageViewAsTarget | null,
-) =>
-    useQuery<HomepageViewAsResult, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<HomepageViewAsResult, ApiError>({
         enabled: !!target,
         queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'view-as', target],
-        queryFn: () => viewAsApi(projectUuid, target!),
+        queryFn: () => viewAsApi(lightdashApi, projectUuid, target!),
     });
+};
 
 export const useHomepageAssignments = (
     projectUuid: string,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<HomepageAssignment[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<HomepageAssignment[], ApiError>({
         enabled,
         queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'assignments'],
-        queryFn: () => getAssignmentsApi(projectUuid),
+        queryFn: () => getAssignmentsApi(lightdashApi, projectUuid),
     });
+};
 
 export const useUpdateGroupPriorities = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string[]>(
-        (groupUuids) => updateGroupPrioritiesApi(projectUuid, groupUuids),
+        (groupUuids) =>
+            updateGroupPrioritiesApi(lightdashApi, projectUuid, groupUuids),
         {
             mutationKey: ['update_homepage_group_priorities'],
             onSuccess: async () => {
@@ -340,10 +398,11 @@ export const useDiscardHomepageDraft = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ProjectHomepage, ApiError, void>(
-        () => discardHomepageDraftApi(projectUuid, homepageUuid!),
+        () => discardHomepageDraftApi(lightdashApi, projectUuid, homepageUuid!),
         {
             mutationKey: ['discard_project_homepage_draft'],
             onSuccess: async () => {
@@ -367,6 +426,7 @@ export const usePublishHomepage = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -375,7 +435,12 @@ export const usePublishHomepage = (
         { audience: HomepageAudience }
     >(
         ({ audience }) =>
-            publishHomepageApi(projectUuid, homepageUuid!, audience),
+            publishHomepageApi(
+                lightdashApi,
+                projectUuid,
+                homepageUuid!,
+                audience,
+            ),
         {
             mutationKey: ['publish_project_homepage'],
             onSuccess: async () => {

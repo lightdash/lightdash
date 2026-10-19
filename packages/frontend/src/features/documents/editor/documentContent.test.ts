@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Editor } from '@tiptap/core';
 import { DOMParser } from '@tiptap/pm/model';
+import { sharedLightdashApi } from '../../../api';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
 import { getDocumentHeadings } from './DocumentHeadingIds';
@@ -43,7 +44,9 @@ const markdown = (text: string): DocumentChartBlock => ({
 const createEditor = () =>
     new Editor({
         editable: false,
-        extensions: createDocumentEditorExtensions({ projectUuid: 'project' }),
+        extensions: createDocumentEditorExtensions(sharedLightdashApi, {
+            projectUuid: 'project',
+        }),
     });
 
 const load = (blocks: DocumentChartBlock[]) => {
@@ -219,7 +222,7 @@ describe('pasted chart HTML', () => {
 describe('empty documents', () => {
     it('loads an empty version into a valid, editable document', () => {
         const editor = new Editor({
-            extensions: createDocumentEditorExtensions({
+            extensions: createDocumentEditorExtensions(sharedLightdashApi, {
                 projectUuid: 'project',
                 editing: { onInsertChart: null, onEditChart: null },
             }),

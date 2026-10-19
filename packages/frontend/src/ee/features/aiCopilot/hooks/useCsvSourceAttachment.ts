@@ -5,6 +5,7 @@ import {
     type ExternalSource,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { type LightdashApi } from '../../../../api';
 import {
     deleteExternalSourceApi,
     getExternalSourceApi,
@@ -12,6 +13,7 @@ import {
     useUploadCsv,
 } from '../../../../features/externalSources/hooks/useExternalSources';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export type PendingCsvSource = {
     id: number;
@@ -50,6 +52,7 @@ const waitForPollInterval = (signal: AbortSignal) =>
     });
 
 const waitForSourceReady = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     initialSource: ExternalSource,
     signal: AbortSignal,
@@ -74,7 +77,11 @@ const waitForSourceReady = async (
         if (Date.now() >= deadline) break;
 
         await waitForPollInterval(signal);
-        source = await getExternalSourceApi(projectUuid, source.sourceUuid);
+        source = await getExternalSourceApi(
+            lightdashApi,
+            projectUuid,
+            source.sourceUuid,
+        );
     }
 
     throw new SourcePreparationTimeoutError(
@@ -89,6 +96,7 @@ export const useCsvSourceAttachment = ({
     projectUuid: string | undefined;
     onReady: (source: ExternalSource) => void;
 }) => {
+    const lightdashApi = useLightdashApi();
     const uploadMutation = useUploadCsv(
         projectUuid,
         ExternalSourceScope.ATTACHMENT,
@@ -109,9 +117,12 @@ export const useCsvSourceAttachment = ({
     const deleteSource = useCallback(
         (sourceUuid: string) =>
             projectUuid
-                ? deleteExternalSourceApi({ projectUuid, sourceUuid })
+                ? deleteExternalSourceApi(lightdashApi, {
+                      projectUuid,
+                      sourceUuid,
+                  })
                 : Promise.resolve(undefined),
-        [projectUuid],
+        [projectUuid, lightdashApi],
     );
 
     useEffect(() => {
@@ -158,6 +169,7 @@ export const useCsvSourceAttachment = ({
                     payload: {},
                 });
                 const source = await waitForSourceReady(
+                    lightdashApi,
                     projectUuid,
                     committedSource,
                     pollingAbortControllerRef.current.signal,
@@ -205,6 +217,7 @@ export const useCsvSourceAttachment = ({
             showToastApiError,
             showToastError,
             uploadMutation,
+            lightdashApi,
         ],
     );
 

@@ -3,9 +3,11 @@ import {
     type ApiGitFileOrDirectoryResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const getGitDirectory = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     branch: string,
     path?: string,
@@ -21,9 +23,12 @@ export const useGitDirectory = (
     projectUuid: string | undefined,
     branch: string | undefined,
     path?: string,
-) =>
-    useQuery<ApiGitFileOrDirectoryResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiGitFileOrDirectoryResponse['results'], ApiError>({
         queryKey: ['gitDirectory', projectUuid, branch, path],
-        queryFn: () => getGitDirectory(projectUuid!, branch!, path),
+        queryFn: () =>
+            getGitDirectory(lightdashApi, projectUuid!, branch!, path),
         enabled: !!projectUuid && !!branch,
     });
+};

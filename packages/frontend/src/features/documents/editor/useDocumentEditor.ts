@@ -2,6 +2,7 @@ import { type Document } from '@lightdash/common';
 import { useEditor, useEditorState, type Editor } from '@tiptap/react';
 import { useMemo, useRef } from 'react';
 import { hydrateContentMentions } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type ReportHeading } from '../presentation/DocumentReportLayout';
 import { buildDocumentContent } from './documentContent';
 import {
@@ -33,12 +34,13 @@ const loadDocument = (editor: Editor, document: Document) => {
 
 /** A read-only editor over a saved version, recreated when the version changes. */
 export const useDocumentReader = (document: Document) => {
+    const lightdashApi = useLightdashApi();
     const extensions = useMemo(
         () =>
-            createDocumentEditorExtensions({
+            createDocumentEditorExtensions(lightdashApi, {
                 projectUuid: document.projectUuid,
             }),
-        [document.projectUuid],
+        [document.projectUuid, lightdashApi],
     );
     const editor = useEditor(
         {
@@ -59,6 +61,7 @@ export const useDocumentEditor = (
     document: Document,
     callbacks: EditingCallbacks,
 ) => {
+    const lightdashApi = useLightdashApi();
     // Extensions capture callbacks once; a ref keeps them current without recreating the editor.
     const callbacksRef = useRef(callbacks);
     callbacksRef.current = callbacks;
@@ -68,7 +71,7 @@ export const useDocumentEditor = (
     const canInsertSavedChart = (callbacks.onInsertSavedChart ?? null) !== null;
     const extensions = useMemo(
         () =>
-            createDocumentEditorExtensions({
+            createDocumentEditorExtensions(lightdashApi, {
                 projectUuid: document.projectUuid,
                 editing: {
                     onInsertChart: canInsertChart
@@ -95,6 +98,7 @@ export const useDocumentEditor = (
             canInsertChart,
             canEditChart,
             canInsertSavedChart,
+            lightdashApi,
         ],
     );
     const editor = useEditor(

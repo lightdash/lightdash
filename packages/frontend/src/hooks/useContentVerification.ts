@@ -4,10 +4,12 @@ import {
     type ContentVerificationInfo,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 const verifyChart = async (
+    lightdashApi: LightdashApi,
     chartUuid: string,
 ): Promise<ContentVerificationInfo> =>
     lightdashApi<ApiContentVerificationResponse['results']>({
@@ -16,7 +18,10 @@ const verifyChart = async (
         body: undefined,
     });
 
-const unverifyChart = async (chartUuid: string): Promise<void> => {
+const unverifyChart = async (
+    lightdashApi: LightdashApi,
+    chartUuid: string,
+): Promise<void> => {
     await lightdashApi<null>({
         url: `/saved/${chartUuid}/verification`,
         method: 'DELETE',
@@ -25,11 +30,12 @@ const unverifyChart = async (chartUuid: string): Promise<void> => {
 };
 
 export const useVerifyChartMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<ContentVerificationInfo, ApiError, string>(
-        (chartUuid) => verifyChart(chartUuid),
+        (chartUuid) => verifyChart(lightdashApi, chartUuid),
         {
             mutationKey: ['chart_verify'],
             onSuccess: async () => {
@@ -55,11 +61,12 @@ export const useVerifyChartMutation = () => {
 };
 
 export const useUnverifyChartMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<void, ApiError, string>(
-        (chartUuid) => unverifyChart(chartUuid),
+        (chartUuid) => unverifyChart(lightdashApi, chartUuid),
         {
             mutationKey: ['chart_unverify'],
             onSuccess: async () => {
@@ -87,6 +94,7 @@ export const useUnverifyChartMutation = () => {
 // Dashboard verification
 
 const verifyDashboard = async (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
 ): Promise<ContentVerificationInfo> =>
     lightdashApi<ApiContentVerificationResponse['results']>({
@@ -95,7 +103,10 @@ const verifyDashboard = async (
         body: undefined,
     });
 
-const unverifyDashboard = async (dashboardUuid: string): Promise<void> => {
+const unverifyDashboard = async (
+    lightdashApi: LightdashApi,
+    dashboardUuid: string,
+): Promise<void> => {
     await lightdashApi<null>({
         url: `/dashboards/${dashboardUuid}/verification`,
         method: 'DELETE',
@@ -104,11 +115,12 @@ const unverifyDashboard = async (dashboardUuid: string): Promise<void> => {
 };
 
 export const useVerifyDashboardMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<ContentVerificationInfo, ApiError, string>(
-        (dashboardUuid) => verifyDashboard(dashboardUuid),
+        (dashboardUuid) => verifyDashboard(lightdashApi, dashboardUuid),
         {
             mutationKey: ['dashboard_verify'],
             onSuccess: async () => {
@@ -134,26 +146,32 @@ export const useVerifyDashboardMutation = () => {
     );
 };
 
-const verifyDataApp = async ({
-    projectUuid,
-    appUuid,
-}: {
-    projectUuid: string;
-    appUuid: string;
-}): Promise<ContentVerificationInfo> =>
+const verifyDataApp = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+    },
+): Promise<ContentVerificationInfo> =>
     lightdashApi<ApiContentVerificationResponse['results']>({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
         method: 'POST',
         body: undefined,
     });
 
-const unverifyDataApp = async ({
-    projectUuid,
-    appUuid,
-}: {
-    projectUuid: string;
-    appUuid: string;
-}): Promise<void> => {
+const unverifyDataApp = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+    },
+): Promise<void> => {
     await lightdashApi<null>({
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/verification`,
         method: 'DELETE',
@@ -162,6 +180,7 @@ const unverifyDataApp = async ({
 };
 
 export const useVerifyDataAppMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -169,28 +188,35 @@ export const useVerifyDataAppMutation = () => {
         ContentVerificationInfo,
         ApiError,
         { projectUuid: string; appUuid: string }
-    >(({ projectUuid, appUuid }) => verifyDataApp({ projectUuid, appUuid }), {
-        mutationKey: ['data_app_verify'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['spaces']);
-            await queryClient.invalidateQueries(['content']);
-            await queryClient.invalidateQueries(['app']);
-            await queryClient.invalidateQueries(['verified-content-homepage']);
-            await queryClient.invalidateQueries(['verified-content']);
-            showToastSuccess({
-                title: 'Data app verified',
-            });
+    >(
+        ({ projectUuid, appUuid }) =>
+            verifyDataApp(lightdashApi, { projectUuid, appUuid }),
+        {
+            mutationKey: ['data_app_verify'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['app']);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
+                ]);
+                await queryClient.invalidateQueries(['verified-content']);
+                showToastSuccess({
+                    title: 'Data app verified',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to verify data app',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to verify data app',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useUnverifyDataAppMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -198,33 +224,40 @@ export const useUnverifyDataAppMutation = () => {
         void,
         ApiError,
         { projectUuid: string; appUuid: string }
-    >(({ projectUuid, appUuid }) => unverifyDataApp({ projectUuid, appUuid }), {
-        mutationKey: ['data_app_unverify'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['spaces']);
-            await queryClient.invalidateQueries(['content']);
-            await queryClient.invalidateQueries(['app']);
-            await queryClient.invalidateQueries(['verified-content-homepage']);
-            await queryClient.invalidateQueries(['verified-content']);
-            showToastSuccess({
-                title: 'Data app verification removed',
-            });
+    >(
+        ({ projectUuid, appUuid }) =>
+            unverifyDataApp(lightdashApi, { projectUuid, appUuid }),
+        {
+            mutationKey: ['data_app_unverify'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['spaces']);
+                await queryClient.invalidateQueries(['content']);
+                await queryClient.invalidateQueries(['app']);
+                await queryClient.invalidateQueries([
+                    'verified-content-homepage',
+                ]);
+                await queryClient.invalidateQueries(['verified-content']);
+                showToastSuccess({
+                    title: 'Data app verification removed',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to remove data app verification',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to remove data app verification',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useUnverifyDashboardMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<void, ApiError, string>(
-        (dashboardUuid) => unverifyDashboard(dashboardUuid),
+        (dashboardUuid) => unverifyDashboard(lightdashApi, dashboardUuid),
         {
             mutationKey: ['dashboard_unverify'],
             onSuccess: async () => {
@@ -272,6 +305,7 @@ const invalidateDocumentVerification = async (
 };
 
 export const useVerifyDocumentMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -303,6 +337,7 @@ export const useVerifyDocumentMutation = () => {
 };
 
 export const useUnverifyDocumentMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 

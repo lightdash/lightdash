@@ -1,3 +1,59 @@
+## [2.606.1](https://github.com/lightdash/lightdash/compare/2.606.0...2.606.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* honor organization row limits in Sheets AI drafts ([#31137](https://github.com/lightdash/lightdash/issues/31137)) ([56b0ae9](https://github.com/lightdash/lightdash/commit/56b0ae987be5a443d968a017db6b2fd11180097d))
+
+# [2.606.0](https://github.com/lightdash/lightdash/compare/2.605.5...2.606.0) (2026-10-19)
+
+
+### Features
+
+* process retained usage when creating analytics projects ([#31128](https://github.com/lightdash/lightdash/issues/31128)) ([36cf94d](https://github.com/lightdash/lightdash/commit/36cf94d05e0e77c4ffdc7b5fd13658a9bb2e249a))
+
+## [2.605.5](https://github.com/lightdash/lightdash/compare/2.605.4...2.605.5) (2026-10-19)
+
+
+### Bug Fixes
+
+* **sdk:** give each SDK component its own API client ([#30827](https://github.com/lightdash/lightdash/issues/30827)) ([440ce44](https://github.com/lightdash/lightdash/commit/440ce44dbbc31e07ed26cac5c06f4cf30b2b15b8))
+
+## [2.605.4](https://github.com/lightdash/lightdash/compare/2.605.3...2.605.4) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** Slack SQL approval for runComposerQueries ([#31126](https://github.com/lightdash/lightdash/issues/31126)) ([0bfcf3e](https://github.com/lightdash/lightdash/commit/0bfcf3e137de09f52d578e1c8552d9345eb43c2f))
+
+## [2.605.3](https://github.com/lightdash/lightdash/compare/2.605.2...2.605.3) (2026-10-19)
+
+
+### Bug Fixes
+
+* **mcp:** publish required numeric tool inputs as required ([#31106](https://github.com/lightdash/lightdash/issues/31106)) ([37ee14a](https://github.com/lightdash/lightdash/commit/37ee14af246a7ed2a089bd45f5cb5af7988a71cf))
+
+## [2.605.2](https://github.com/lightdash/lightdash/compare/2.605.1...2.605.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* simplify analytics settings while keeping access and recovery ([#31124](https://github.com/lightdash/lightdash/issues/31124)) ([e9b6f45](https://github.com/lightdash/lightdash/commit/e9b6f45b4cb7725c0186a1c6785a55bb543d1151))
+
+## [2.605.1](https://github.com/lightdash/lightdash/compare/2.605.0...2.605.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** don't persist step responses in generate path ([#31125](https://github.com/lightdash/lightdash/issues/31125)) ([385f5a9](https://github.com/lightdash/lightdash/commit/385f5a9c3d1824b399ff12b19135c1399f5c6c39))
+
+# [2.605.0](https://github.com/lightdash/lightdash/compare/2.604.0...2.605.0) (2026-10-19)
+
+
+### Features
+
+* capture usage events independently of the analytics flag ([#31098](https://github.com/lightdash/lightdash/issues/31098)) ([c709742](https://github.com/lightdash/lightdash/commit/c709742c9d8b3aaa87a26faf62750b65e22c88e8))
+
 # [2.604.0](https://github.com/lightdash/lightdash/compare/2.603.4...2.604.0) (2026-10-18)
 
 

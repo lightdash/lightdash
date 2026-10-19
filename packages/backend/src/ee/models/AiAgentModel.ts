@@ -8936,6 +8936,7 @@ export class AiAgentModel {
     async getPendingSqlApprovalForPrompt(promptUuid: string): Promise<{
         toolCallId: string;
         toolName: NativeSqlApprovalToolName;
+        toolArgs: unknown;
         sql: string;
     } | null> {
         const rows = await this.database(AiAgentToolCallTableName)
@@ -8978,6 +8979,7 @@ export class AiAgentModel {
                     return {
                         toolCallId: row.tool_call_id,
                         toolName: row.tool_name,
+                        toolArgs: row.tool_args,
                         sql,
                     };
                 }

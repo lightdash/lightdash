@@ -1195,6 +1195,7 @@ export class ProjectService
         const analyticsClient = await createAnalyticsClient(
             organizationUuid,
             this.featureFlagModel,
+            { allowEmpty: true },
         );
         await analyticsClient.test();
         // Both models are backend-owned. Compilation itself needs no warehouse IO.
@@ -1238,6 +1239,23 @@ export class ProjectService
                 );
                 this.userModel.invalidateSessionUserCache(user.userUuid);
                 const project = await this.projectModel.getSummary(projectUuid);
+                if (!existing) {
+                    try {
+                        await this.schedulerClient.scheduleInitialUsageProcessing(
+                            {
+                                organizationUuid,
+                                projectUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+                    } catch {
+                        // Persistence succeeded; the nightly job remains the fallback.
+                        this.logger.error(
+                            'Failed to enqueue initial usage processing',
+                            { organizationUuid, projectUuid },
+                        );
+                    }
+                }
                 return {
                     projectUuid,
                     url: `/projects/${project.slug ?? projectUuid}/tables`,
