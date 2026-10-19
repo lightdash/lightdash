@@ -28,7 +28,6 @@ export type DashboardFiltersState = {
     dashboardFilters: DashboardFilters;
     /** Unstripped; read through the lock-aware temporary-filter hooks. */
     temporaryFilters: DashboardFilters;
-    originalDashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
     /** Viewer overrides of saved filters, mirrored in the `filters` URL param. */
     savedFilterOverrides: SavedFilterOverrides;
@@ -37,7 +36,6 @@ export type DashboardFiltersState = {
 export const initialDashboardFiltersState: DashboardFiltersState = {
     dashboardFilters: emptyDashboardFilters,
     temporaryFilters: emptyDashboardFilters,
-    originalDashboardFilters: emptyDashboardFilters,
     haveFiltersChanged: false,
     savedFilterOverrides: emptySavedFilterOverrides,
 };
@@ -50,9 +48,6 @@ export const dashboardFiltersActions = {
     ),
     setTemporaryFilters: createAction<DashboardFilters>(
         'dashboardFilters/setTemporaryFilters',
-    ),
-    setOriginalDashboardFilters: createAction<DashboardFilters>(
-        'dashboardFilters/setOriginalDashboardFilters',
     ),
     setHaveFiltersChanged: createAction<boolean>(
         'dashboardFilters/setHaveFiltersChanged',
@@ -69,6 +64,8 @@ export const dashboardFiltersActions = {
         isInEditMode: boolean;
         /** Whether the rule exists in the saved dashboard's filters */
         isFilterSaved: boolean;
+        /** Saved rule at the same index, to detect a revert */
+        originalFilter: DashboardFilterRule | undefined;
         category: FilterCategory;
     }>('dashboardFilters/updateFilter'),
     removeFilter: createAction<{
@@ -124,11 +121,6 @@ export const dashboardFiltersReducer = (
             ? state
             : { ...state, temporaryFilters: action.payload };
     }
-    if (dashboardFiltersActions.setOriginalDashboardFilters.match(action)) {
-        return state.originalDashboardFilters === action.payload
-            ? state
-            : { ...state, originalDashboardFilters: action.payload };
-    }
     if (dashboardFiltersActions.setHaveFiltersChanged.match(action)) {
         return state.haveFiltersChanged === action.payload
             ? state
@@ -151,6 +143,7 @@ export const dashboardFiltersReducer = (
             isTemporary,
             isInEditMode,
             isFilterSaved,
+            originalFilter,
             category,
         } = action.payload;
         let { savedFilterOverrides } = state;
@@ -162,11 +155,9 @@ export const dashboardFiltersReducer = (
                     category,
                 );
             } else {
-                const originalRule =
-                    state.originalDashboardFilters[category][index];
                 const isReverted =
-                    originalRule &&
-                    !hasSavedFilterValueChanged(originalRule, filter);
+                    originalFilter &&
+                    !hasSavedFilterValueChanged(originalFilter, filter);
                 if (isReverted) {
                     savedFilterOverrides = removeSavedFilterOverride(
                         savedFilterOverrides,

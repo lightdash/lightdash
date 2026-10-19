@@ -28,7 +28,7 @@ import {
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
     selectMissingRequiredParameters,
-    selectOriginalDashboardFilters,
+    emptyDashboardFilters,
     selectParameterOrder,
     selectParametersHaveChanged,
     selectParameterValues,
@@ -108,8 +108,8 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 
 const useStoreValues = () => ({
     dashboardFilters: useDashboardSelector(selectDashboardFilters),
-    originalDashboardFilters: useDashboardSelector(
-        selectOriginalDashboardFilters,
+    originalDashboardFilters: useDashboardContext(
+        (context) => context.dashboard?.filters ?? emptyDashboardFilters,
     ),
     dashboardTemporaryFilters: useDashboardTemporaryFilters(),
     allFilters: useDashboardAllFilters(),
@@ -1178,7 +1178,7 @@ describe('filters: direct setters', () => {
         expect(result.current.dashboardFilters).toEqual(emptyFilters);
     });
 
-    it('setHaveFiltersChanged, setDashboardTemporaryFilters and setOriginalDashboardFilters', () => {
+    it('setHaveFiltersChanged and setDashboardTemporaryFilters', () => {
         mocks.dashboard = makeDashboard({ filters: savedFilters });
         const { result } = renderDashboard();
         act(() => result.current.setHaveFiltersChanged(true));
@@ -1200,10 +1200,8 @@ describe('filters: direct setters', () => {
         );
         expect(result.current.dashboardTemporaryFilters).toEqual(emptyFilters);
 
-        const other = { ...emptyFilters, dimensions: [regionFilter] };
-        act(() => result.current.setOriginalDashboardFilters(other));
-        // sticks until the load effect next runs and resets it to saved
-        expect(result.current.originalDashboardFilters).toBe(other);
+        // original filters are the loaded dashboard's, not settable state
+        expect(result.current.originalDashboardFilters).toBe(savedFilters);
     });
 });
 
@@ -1383,7 +1381,8 @@ describe('filters: SDK mode', () => {
         mocks.dashboard = makeDashboard({ filters: savedFilters });
         const { result, rerender } = renderDashboard();
         expect(result.current.dashboardFilters).toEqual(emptyFilters);
-        expect(result.current.originalDashboardFilters).toEqual(emptyFilters);
+        // derived from the dashboard, so known before the SDK filters apply
+        expect(result.current.originalDashboardFilters).toBe(savedFilters);
         mocks.availableFilters = availableFilters;
         rerender();
         expect(result.current.dashboardFilters.dimensions[0].values).toEqual([

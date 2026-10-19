@@ -19,8 +19,6 @@ export const selectDashboardFilters = (state: DashboardStoreState) =>
     state.filters.dashboardFilters;
 export const selectRawTemporaryFilters = (state: DashboardStoreState) =>
     state.filters.temporaryFilters;
-export const selectOriginalDashboardFilters = (state: DashboardStoreState) =>
-    state.filters.originalDashboardFilters;
 export const selectHaveFiltersChanged = (state: DashboardStoreState) =>
     state.filters.haveFiltersChanged;
 export const selectSavedFilterOverrides = (state: DashboardStoreState) =>

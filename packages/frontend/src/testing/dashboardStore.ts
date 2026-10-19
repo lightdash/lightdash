@@ -15,7 +15,6 @@ export type DashboardStoreTestValues = Partial<{
     dashboardFilters: DashboardFilters;
     /** Raw temporary filters; locks are applied by the read hooks */
     dashboardTemporaryFilters: DashboardFilters;
-    originalDashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
     isEditMode: boolean;
     savedParameters: DashboardParameters;
@@ -46,9 +45,6 @@ export const createDashboardTestStore = (
     }
     if (values.dashboardTemporaryFilters) {
         filters.temporaryFilters = values.dashboardTemporaryFilters;
-    }
-    if (values.originalDashboardFilters) {
-        filters.originalDashboardFilters = values.originalDashboardFilters;
     }
     if (values.haveFiltersChanged !== undefined) {
         filters.haveFiltersChanged = values.haveFiltersChanged;

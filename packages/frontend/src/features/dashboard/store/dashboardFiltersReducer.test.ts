@@ -41,7 +41,6 @@ const stateWith = (
 ): DashboardFiltersState => ({
     ...initialDashboardFiltersState,
     dashboardFilters: filtersWith(category, [saved]),
-    originalDashboardFilters: filtersWith(category, [saved]),
     temporaryFilters: filtersWith(category, [saved]),
     ...overrides,
 });
@@ -59,7 +58,6 @@ describe('dashboardFiltersReducer', () => {
         it.each([
             ['setDashboardFilters', 'dashboardFilters'],
             ['setTemporaryFilters', 'temporaryFilters'],
-            ['setOriginalDashboardFilters', 'originalDashboardFilters'],
         ] as const)('%s sets %s', (action, key) => {
             const next = reducer(
                 initialDashboardFiltersState,
@@ -192,6 +190,7 @@ describe('dashboardFiltersReducer', () => {
                         isTemporary: testCase.isTemporary,
                         isInEditMode: testCase.isInEditMode,
                         isFilterSaved: testCase.isFilterSaved,
+                        originalFilter: saved,
                         category,
                     }),
                 );
@@ -225,9 +224,7 @@ describe('dashboardFiltersReducer', () => {
         });
 
         it('does not add an override when the value did not change', () => {
-            const state = stateWith('dimensions', {
-                originalDashboardFilters: filtersWith('dimensions', []),
-            });
+            const state = stateWith('dimensions');
             const next = reducer(
                 state,
                 actions.updateFilter({
@@ -236,6 +233,7 @@ describe('dashboardFiltersReducer', () => {
                     isTemporary: false,
                     isInEditMode: false,
                     isFilterSaved: true,
+                    originalFilter: undefined,
                     category: 'dimensions',
                 }),
             );

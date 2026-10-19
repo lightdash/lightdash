@@ -340,12 +340,6 @@ const DashboardFiltersSync: FC<Props> = ({
                 ),
             );
         }
-
-        dispatch(
-            dashboardFiltersActions.setOriginalDashboardFilters(
-                currentDashboard.filters,
-            ),
-        );
     }, [
         dashboard,
         embedDashboard,

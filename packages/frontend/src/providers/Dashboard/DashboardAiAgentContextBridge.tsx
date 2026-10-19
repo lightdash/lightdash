@@ -25,7 +25,6 @@ import {
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import {
-    selectOriginalDashboardFilters,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -78,9 +77,7 @@ const DashboardAiAgentContextBridge = () => {
     );
     const activeTab = useDashboardContext((c) => c.activeTab);
     const allFilters = useDashboardAllFilters();
-    const originalDashboardFilters = useDashboardSelector(
-        selectOriginalDashboardFilters,
-    );
+    const originalDashboardFilters = dashboard?.filters ?? emptyFilters;
     const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -94,9 +91,6 @@ const DashboardAiAgentContextBridge = () => {
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
-    );
-    const setOriginalDashboardFilters = useDashboardContext(
-        (c) => c.setOriginalDashboardFilters,
     );
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
@@ -328,7 +322,6 @@ const DashboardAiAgentContextBridge = () => {
             setDashboardTiles(freshDashboard.tiles);
             setDashboardTabs(freshDashboard.tabs);
             setDashboardFilters(freshDashboard.filters);
-            setOriginalDashboardFilters(freshDashboard.filters);
             setDashboardTemporaryFilters(emptyFilters);
 
             await Promise.all([
@@ -367,7 +360,6 @@ const DashboardAiAgentContextBridge = () => {
             setDashboardTabs,
             setDashboardTemporaryFilters,
             setDashboardTiles,
-            setOriginalDashboardFilters,
         ],
     );
 

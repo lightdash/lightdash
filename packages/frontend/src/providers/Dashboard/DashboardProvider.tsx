@@ -56,7 +56,6 @@ import {
     selectHasParameterOrderChanged,
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
-    selectOriginalDashboardFilters,
     selectRawTemporaryFilters,
     selectSavedParameters,
     type TemporaryFilterLocks,
@@ -1029,23 +1028,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [store],
     );
 
-    const setOriginalDashboardFilters = useCallback<
-        React.Dispatch<React.SetStateAction<DashboardFilters>>
-    >(
-        (value) => {
-            store.dispatch(
-                dashboardFiltersActions.setOriginalDashboardFilters(
-                    typeof value === 'function'
-                        ? value(
-                              selectOriginalDashboardFilters(store.getState()),
-                          )
-                        : value,
-                ),
-            );
-        },
-        [store],
-    );
-
     const setHaveFiltersChanged = useCallback<
         React.Dispatch<React.SetStateAction<boolean>>
     >(
@@ -1076,6 +1058,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const savedDimensionFilters =
         dashboard?.filters?.dimensions || embedDashboard?.filters?.dimensions;
+    const savedFilters = (dashboard || embedDashboard)?.filters;
     const updateDimensionDashboardFilter = useCallback(
         (
             filter: DashboardFilterRule,
@@ -1092,11 +1075,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     isFilterSaved: (savedDimensionFilters || []).some(
                         ({ id }) => id === filter.id,
                     ),
+                    originalFilter: savedFilters?.dimensions[index],
                     category: 'dimensions',
                 }),
             );
         },
-        [store, savedDimensionFilters],
+        [store, savedDimensionFilters, savedFilters],
     );
 
     const addMetricDashboardFilter = useCallback(
@@ -1130,11 +1114,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     isFilterSaved: (savedMetricFilters || []).some(
                         ({ id }) => id === filter.id,
                     ),
+                    originalFilter: savedFilters?.metrics[index],
                     category: 'metrics',
                 }),
             );
         },
-        [store, savedMetricFilters],
+        [store, savedMetricFilters, savedFilters],
     );
 
     const removeMetricDashboardFilter = useCallback(
@@ -1216,7 +1201,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         removeMetricDashboardFilter,
         resetDashboardFilters,
         setDashboardFilters,
-        setOriginalDashboardFilters,
         setHaveFiltersChanged,
         allFilterableFieldsMap,
         allFilterableMetricsMap,

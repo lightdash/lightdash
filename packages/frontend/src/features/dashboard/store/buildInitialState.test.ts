@@ -168,15 +168,13 @@ describe('createDashboardStore', () => {
 
         store.dispatch(dashboardFiltersActions.setDashboardFilters(filters));
         store.dispatch(
-            dashboardFiltersActions.setOriginalDashboardFilters(filters),
-        );
-        store.dispatch(
             dashboardFiltersActions.updateFilter({
                 filter: updated,
                 index: 0,
                 isTemporary: false,
                 isInEditMode: false,
                 isFilterSaved: true,
+                originalFilter: filters.dimensions[0],
                 category: 'dimensions',
             }),
         );
@@ -202,6 +200,8 @@ describe('createDashboardStore', () => {
             definitions.status.options,
         ];
         owned.forEach((value) => expect(Object.isFrozen(value)).toBe(false));
-        expect(store.getState().filters.originalDashboardFilters).toBe(filters);
+        expect(store.getState().filters.dashboardFilters.dimensions[0]).toBe(
+            updated,
+        );
     });
 });
