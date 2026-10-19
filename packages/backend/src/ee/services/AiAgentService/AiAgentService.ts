@@ -361,6 +361,7 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
+import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
@@ -17222,20 +17223,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     },
 
                     listThreadComposerQueryNodes: (threadUuid) =>
-                        this.aiAgentModel.listComposerQueryNodes({
-                            scopeType: 'thread',
-                            scopeUuid: threadUuid,
-                        }),
+                        this.aiAgentModel.listComposerQueryNodes(
+                            threadComposerQueryScope(threadUuid),
+                        ),
                     registerThreadComposerQueryNodes: ({
                         threadUuid,
                         toolCallId,
                         nodes,
                     }) =>
                         this.aiAgentModel.registerComposerQueryNodes({
-                            scope: {
-                                scopeType: 'thread',
-                                scopeUuid: threadUuid,
-                            },
+                            scope: threadComposerQueryScope(threadUuid),
                             toolCallId,
                             nodes,
                         }),

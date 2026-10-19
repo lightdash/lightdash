@@ -267,7 +267,9 @@ import {
 } from '../database/entities/aiEvals';
 import {
     ComposerQueryNodesTableName,
-    type ComposerQueryNodeScopeType,
+    THREAD_COMPOSER_QUERY_SCOPE_TYPE,
+    threadComposerQueryScope,
+    type ComposerQueryNodeScope,
 } from '../database/entities/composerQueryNodes';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import {
@@ -629,11 +631,6 @@ const getTerminalWritebackFallback = (
         default:
             return null;
     }
-};
-
-export type ComposerQueryNodeScope = {
-    scopeType: ComposerQueryNodeScopeType;
-    scopeUuid: string;
 };
 
 export class AiAgentModel {
@@ -11356,8 +11353,11 @@ export class AiAgentModel {
                     (scope_type, scope_uuid, node_id, definition, tool_call_id, created_at)
                  SELECT scope_type, :targetThreadUuid, node_id, definition, tool_call_id, created_at
                  FROM ${ComposerQueryNodesTableName}
-                 WHERE scope_type = 'thread' AND scope_uuid = :sourceThreadUuid`,
-                { targetThreadUuid: newThreadUuid, sourceThreadUuid },
+                 WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
+                {
+                    targetThreadUuid: newThreadUuid,
+                    ...threadComposerQueryScope(sourceThreadUuid),
+                },
             );
 
             // Clone thread artifacts and get mapping
@@ -11671,7 +11671,7 @@ export class AiAgentModel {
             .delete();
 
         await trx(ComposerQueryNodesTableName)
-            .where('scope_type', 'thread')
+            .where('scope_type', THREAD_COMPOSER_QUERY_SCOPE_TYPE)
             .whereIn('scope_uuid', deletedThreadUuids)
             .delete();
 
