@@ -13142,7 +13142,7 @@ describe('ProjectService', () => {
                 result.itemsMap[
                     getItemId({ table: MERGE_TABLE_NAME, name: 'unformatted' })
                 ],
-            ).not.toHaveProperty('formatOptions');
+            ).toEqual(expect.objectContaining({ formatOptions: undefined }));
         });
 
         test('refuses an oversized merge formula before parsing it', async () => {

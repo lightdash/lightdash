@@ -10247,9 +10247,7 @@ export class ProjectService
                             type: MetricType.NUMBER,
                         },
                     }),
-                    ...(calculation.format
-                        ? { formatOptions: calculation.format }
-                        : {}),
+                    formatOptions: calculation.format,
                 },
                 origin: { kind: 'tableCalculation' },
             }));
