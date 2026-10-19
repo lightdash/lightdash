@@ -15,6 +15,7 @@ import {
     convertExplores,
     createVirtualView,
     CustomDimensionType,
+    CustomFormatType,
     CustomSqlQueryForbiddenError,
     DatabricksAuthenticationType,
     DatabricksTokenError,
@@ -49,6 +50,7 @@ import {
     JobStepType,
     JobType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    MERGE_TABLE_NAME,
     MergeJoinType,
     MergeQueryErrorKind,
     MetricQuery,
@@ -13101,6 +13103,46 @@ describe('ProjectService', () => {
             expect(result.coreSql).toContain(
                 '("c0_0" / NULLIF("c1_0", 0)) AS "cross_source_ratio"',
             );
+        });
+
+        test('carries a merge calculation format onto its merged field', async () => {
+            const format = {
+                type: CustomFormatType.PERCENT,
+                round: 1,
+            };
+            const result = await service.compileMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery: mergeQuery({
+                    tableCalculations: [
+                        {
+                            name: 'share',
+                            displayName: 'Share',
+                            sql: '',
+                            formula: '=a_a_met1 / b_a_met1',
+                            format,
+                        },
+                        {
+                            name: 'unformatted',
+                            displayName: 'Unformatted',
+                            sql: '',
+                            formula: '=a_a_met1',
+                        },
+                    ],
+                }),
+            });
+
+            expect(result.errors).toEqual([]);
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'share' })
+                ],
+            ).toEqual(expect.objectContaining({ formatOptions: format }));
+            expect(
+                result.itemsMap[
+                    getItemId({ table: MERGE_TABLE_NAME, name: 'unformatted' })
+                ],
+            ).not.toHaveProperty('formatOptions');
         });
 
         test('refuses an oversized merge formula before parsing it', async () => {

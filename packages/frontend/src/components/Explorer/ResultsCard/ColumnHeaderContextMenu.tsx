@@ -41,6 +41,7 @@ import {
 } from '../../../features/explorer/store';
 import {
     DeleteMergeTableCalculationModal,
+    MergeTableCalculationFormatModal,
     MergeTableCalculationModal,
 } from '../../../features/mergeQuery/components/MergeTableCalculationModal';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
@@ -65,6 +66,7 @@ import QuickCalculationMenuOptions from './QuickCalculations';
 interface ContextMenuProps extends HeaderProps {
     onToggleCalculationEditModal: (value: boolean) => void;
     onToggleCalculationDeleteModal: (value: boolean) => void;
+    onToggleMergeCalculationFormatModal: (value: boolean) => void;
     onQuickCalculationCreated: (tableCalculation: TableCalculation) => void;
     mergeTableCalculation?: MergeTableCalculation;
 }
@@ -73,6 +75,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     header,
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
+    onToggleMergeCalculationFormatModal,
     onQuickCalculationCreated,
     mergeTableCalculation,
 }) => {
@@ -141,6 +144,13 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     onClick={() => onToggleCalculationEditModal(true)}
                 >
                     Edit calculation
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Label>Format</Menu.Label>
+                <Menu.Item
+                    onClick={() => onToggleMergeCalculationFormatModal(true)}
+                >
+                    Edit format
                 </Menu.Item>
                 <Menu.Divider />
                 <ColumnHeaderSortMenuOptions
@@ -492,6 +502,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
 const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const [showUpdate, setShowUpdate] = useState(false);
     const [showDelete, setShowDelete] = useState(false);
+    const [showMergeFormat, setShowMergeFormat] = useState(false);
     const [quickCalcToEdit, setQuickCalcToEdit] =
         useState<TableCalculation | null>(null);
 
@@ -532,6 +543,9 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 header={header}
                                 onToggleCalculationEditModal={setShowUpdate}
                                 onToggleCalculationDeleteModal={setShowDelete}
+                                onToggleMergeCalculationFormatModal={
+                                    setShowMergeFormat
+                                }
                                 onQuickCalculationCreated={setQuickCalcToEdit}
                                 mergeTableCalculation={mergeTableCalculation}
                             />
@@ -566,6 +580,13 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                             onClose={() => setShowDelete(false)}
                         />
                     ))}
+
+                {showMergeFormat && mergeTableCalculation && (
+                    <MergeTableCalculationFormatModal
+                        tableCalculation={mergeTableCalculation}
+                        onClose={() => setShowMergeFormat(false)}
+                    />
+                )}
 
                 {quickCalcToEdit && (
                     <UpdateTableCalculationModal

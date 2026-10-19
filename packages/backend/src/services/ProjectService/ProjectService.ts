@@ -10235,17 +10235,22 @@ export class ProjectService
         const calculationEntries: MergeItemEntry[] =
             mergeQuery.tableCalculations.map((calculation) => ({
                 column: calculation.name,
-                item: mergedItem({
-                    table: MERGE_TABLE_NAME,
-                    tableLabel: 'Merged',
-                    name: calculation.name,
-                    label: calculation.displayName,
-                    origin: undefined,
-                    fallback: {
-                        fieldType: FieldType.METRIC,
-                        type: MetricType.NUMBER,
-                    },
-                }),
+                item: {
+                    ...mergedItem({
+                        table: MERGE_TABLE_NAME,
+                        tableLabel: 'Merged',
+                        name: calculation.name,
+                        label: calculation.displayName,
+                        origin: undefined,
+                        fallback: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.NUMBER,
+                        },
+                    }),
+                    ...(calculation.format
+                        ? { formatOptions: calculation.format }
+                        : {}),
+                },
                 origin: { kind: 'tableCalculation' },
             }));
 

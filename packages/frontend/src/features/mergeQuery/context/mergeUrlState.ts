@@ -1,6 +1,7 @@
 import {
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
+    type CustomFormat,
     type Filters,
     type MergeTableCalculation,
 } from '@lightdash/common';
@@ -183,7 +184,12 @@ const parseTableCalculations = (
             (calculation.formula !== undefined &&
                 (typeof calculation.formula !== 'string' ||
                     calculation.formula.length >
-                        MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH))
+                        MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH)) ||
+            (calculation.format !== undefined &&
+                (calculation.format === null ||
+                    typeof calculation.format !== 'object' ||
+                    typeof (calculation.format as Record<string, unknown>)
+                        .type !== 'string'))
         ) {
             return [];
         }
@@ -195,6 +201,9 @@ const parseTableCalculations = (
                 sql: calculation.sql,
                 ...(typeof calculation.formula === 'string'
                     ? { formula: calculation.formula }
+                    : {}),
+                ...(calculation.format !== undefined
+                    ? { format: calculation.format as CustomFormat }
                     : {}),
             },
         ];
