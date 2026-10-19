@@ -1,14 +1,10 @@
-import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { promises as fs } from 'fs';
 import { createServer, type IncomingHttpHeaders, type Server } from 'http';
 import * as yaml from 'js-yaml';
 import path from 'path';
-import {
-    clearTimeout as clearRealTimeout,
-    setTimeout as realSetTimeout,
-} from 'timers';
 import type { Config } from '../../config';
+import { compiledCliEntry, runCliProcess } from '../../testing/cliProcess';
 
 export type RecordedRequest = {
     method: string;
@@ -167,11 +163,13 @@ export const request = (
 
 export const runOrdinaryCli = async (home: string, args: string[]) => {
     const entry = path.join(home, 'ordinary-entry.cjs');
-    const analytics = path.resolve(__dirname, '../../analytics/analytics.ts');
-    const index = path.resolve(__dirname, '../../index.ts');
+    const analytics = path.join(
+        path.dirname(compiledCliEntry),
+        'analytics/analytics.js',
+    );
     await fs.writeFile(
         entry,
-        `const { LightdashAnalytics } = require(${JSON.stringify(analytics)}); LightdashAnalytics.track = async () => {}; LightdashAnalytics.identify = async () => {}; require(${JSON.stringify(index)});`,
+        `const { LightdashAnalytics } = require(${JSON.stringify(analytics)}); LightdashAnalytics.track = async () => {}; LightdashAnalytics.identify = async () => {}; require(${JSON.stringify(compiledCliEntry)});`,
     );
     const env = {
         ...process.env,
@@ -180,36 +178,5 @@ export const runOrdinaryCli = async (home: string, args: string[]) => {
         FORCE_COLOR: '0',
         CI: 'true',
     };
-    const child = spawn(process.execPath, ['--import', 'tsx', entry, ...args], {
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let timer: ReturnType<typeof realSetTimeout> | undefined;
-    try {
-        return await new Promise<{
-            code: number | null;
-            stdout: string;
-            stderr: string;
-        }>((resolve, reject) => {
-            timer = realSetTimeout(
-                () =>
-                    reject(new Error('Ordinary CLI child timed out after 20s')),
-                20_000,
-            );
-            let stdout = '';
-            let stderr = '';
-            child.stdout.on('data', (chunk) => {
-                stdout += String(chunk);
-            });
-            child.stderr.on('data', (chunk) => {
-                stderr += String(chunk);
-            });
-            child.on('error', reject);
-            child.on('close', (code) => resolve({ code, stdout, stderr }));
-        });
-    } finally {
-        clearRealTimeout(timer);
-        if (child.exitCode === null && child.signalCode === null)
-            child.kill('SIGKILL');
-    }
+    return runCliProcess({ args, env, entry, timeoutMs: 20_000 });
 };

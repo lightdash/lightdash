@@ -3,7 +3,8 @@ const https = require('https');
 const { Command, program } = require('commander');
 const { createRequire } = require('module');
 
-const requireCli = createRequire(__filename);
+// The entry under test is src/index.ts or dist/index.js; share its globalState instance.
+const requireCli = createRequire(process.argv[1]);
 program.hook('preAction', () =>
     requireCli('./globalState').default.setVerbose(true),
 );
