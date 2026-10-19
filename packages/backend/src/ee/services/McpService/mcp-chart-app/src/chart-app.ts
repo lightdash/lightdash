@@ -243,6 +243,8 @@ type ChartToolResult = {
 };
 
 const CUSTOM_CHART_RENDER_TIMEOUT_MS = 10_000;
+// Covers a stalled bundle fetch, and then a frame whose load never fires
+const CUSTOM_CHART_LOAD_TIMEOUT_MS = 20_000;
 
 let teardownCustomChart: (() => void) | null = null;
 let postToCustomChart: ((message: CustomChartHostMessage) => void) | null =
@@ -313,9 +315,9 @@ function renderCustomChart(
                 assertUnreachable(action, 'Unknown render deadline action');
         }
     };
-    const startDeadline = () => {
+    const startDeadline = (ms = CUSTOM_CHART_RENDER_TIMEOUT_MS) => {
         stopDeadline();
-        timeout = setTimeout(onDeadline, CUSTOM_CHART_RENDER_TIMEOUT_MS);
+        timeout = setTimeout(onDeadline, ms);
     };
     const onVisibilityChange = () => {
         if (document.visibilityState !== 'hidden') startDeadline();
@@ -348,6 +350,7 @@ function renderCustomChart(
     iframe.addEventListener('load', onLoad);
     window.addEventListener('message', onMessage);
     customChartContainer.appendChild(iframe);
+    startDeadline(CUSTOM_CHART_LOAD_TIMEOUT_MS);
     postToCustomChart = post;
     teardownCustomChart = () => {
         stopDeadline();
@@ -380,12 +383,23 @@ function loadCustomChart(
     customChartContainer.style.display = 'block';
 
     const controller = new AbortController();
-    teardownCustomChart = () => controller.abort();
+    let superseded = false;
+    // A timed-out fetch rejects, so it lands on the unavailable path below.
+    const fetchTimeout = setTimeout(
+        () => controller.abort(),
+        CUSTOM_CHART_LOAD_TIMEOUT_MS,
+    );
+    teardownCustomChart = () => {
+        superseded = true;
+        clearTimeout(fetchTimeout);
+        controller.abort();
+    };
     void fetchMcpCustomChartFrameHtml(customChartType, {
         fetchFn: (url, init) => fetch(url, init),
         signal: controller.signal,
     }).then((result) => {
-        if (controller.signal.aborted) return;
+        clearTimeout(fetchTimeout);
+        if (superseded) return;
         switch (result.kind) {
             case 'html':
                 renderCustomChart(result.html, customChartType, onFailure);
