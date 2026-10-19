@@ -1,3 +1,10 @@
+# [2.615.0](https://github.com/lightdash/lightdash/compare/2.614.1...2.615.0) (2026-10-19)
+
+
+### Features
+
+* **cli:** --skip-app-access uploads data apps without their manifest access block ([#31170](https://github.com/lightdash/lightdash/issues/31170)) ([eed2d90](https://github.com/lightdash/lightdash/commit/eed2d90013fb63d4b40bc9f80f9a4d80ec2a1056)), closes [#31169](https://github.com/lightdash/lightdash/issues/31169)
+
 ## [2.614.1](https://github.com/lightdash/lightdash/compare/2.614.0...2.614.1) (2026-10-19)
 
 
