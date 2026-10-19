@@ -3,6 +3,7 @@ import {
     createToolComposerQueriesArgsSchema,
     getComposerVizPlan,
     getSourceQueryResultReferences,
+    getSqlApprovalSql,
     getToolComposerQueriesDescription,
     isSlackPrompt,
     QuerySourceType,
@@ -25,10 +26,14 @@ import {
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
+    IsThreadSqlAutoApprovedFn,
+    ListSqlApprovalDecisionsFn,
     ListThreadComposerPipelinesFn,
     RecordSqlApprovalFn,
     RunComposerQueriesFn,
+    StoreToolResultsFn,
     UpdateProgressFn,
+    UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { type AgentContext } from '../utils/AgentContext';
@@ -39,7 +44,13 @@ import type {
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
-import { type TrackSqlApprovalTimeoutFn } from './sqlApprovals';
+import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
+import {
+    COMPOSER_SQL_REJECTED_RESULT,
+    getSqlApprovalHeading,
+    SqlNotApprovedError,
+    type TrackSqlApprovalTimeoutFn,
+} from './sqlApprovals';
 
 type Dependencies = {
     agentContext: AgentContext;
@@ -48,9 +59,14 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
+    updateSlackMessage: UpdateSlackMessageFn;
+    siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
+    storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerPipelines: ListThreadComposerPipelinesFn;
     maxQueryLimit: number;
@@ -59,11 +75,24 @@ type Dependencies = {
     enablePythonNodes: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
+    useSlackStreamCard?: boolean;
 };
 
 const toolDefinition = runComposerQueriesToolDefinition.for('agent');
 
 const PREVIEW_ROW_LIMIT = 50;
+
+const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
+    slackText: 'SQL execution',
+    pendingProgress: 'Awaiting approval to run SQL...',
+    // The tool reports its own progress once approved.
+    approvedProgress: null,
+    rejectedResult: COMPOSER_SQL_REJECTED_RESULT,
+    timeoutResult:
+        'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
+    previousTimeoutResult:
+        'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+};
 
 type ComposerQueriesSuccessMetadata = {
     status: 'success';
@@ -138,9 +167,14 @@ export const getRunComposerQueries = ({
     updateProgress,
     runComposerQueries,
     getPrompt,
+    updateSlackMessage,
+    siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    isThreadSqlAutoApproved,
+    listSqlApprovalDecisions,
     trackSqlApprovalTimeout,
+    storeToolResults,
     createOrUpdateArtifact,
     listThreadComposerPipelines,
     maxQueryLimit,
@@ -149,8 +183,27 @@ export const getRunComposerQueries = ({
     enablePythonNodes,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
+    useSlackStreamCard = false,
 }: Dependencies) => {
-    let sqlApprovalTimedOut = false;
+    const approvalGate = createSqlApprovalGate(
+        {
+            getPrompt,
+            updateProgress,
+            updateSlackMessage,
+            siteUrl,
+            waitForSqlApproval,
+            recordSqlApproval,
+            isThreadSqlAutoApproved,
+            listSqlApprovalDecisions,
+            trackSqlApprovalTimeout,
+            storeToolResults,
+            autoApproveSql,
+            autoApproveSqlUserUuid,
+            useSlackStreamCard,
+        },
+        'runComposerQueries',
+        COMPOSER_SQL_APPROVAL_COPY,
+    );
 
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
@@ -162,10 +215,30 @@ export const getRunComposerQueries = ({
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
+        // Only sql nodes submitted in this call gate; sql reused from an
+        // earlier version was approved then.
+        needsApproval: (args, { toolCallId }) =>
+            approvalGate.needsNativeApproval({
+                toolCallId,
+                sql: getSqlApprovalSql(args),
+            }),
         execute: async (
-            { title, description, queries: queryNodes, terminalNodeId },
+            args,
             { toolCallId },
         ): Promise<ComposerQueriesOutput> => {
+            const {
+                title,
+                description,
+                queries: queryNodes,
+                terminalNodeId,
+            } = args;
+            const approvalSql = getSqlApprovalSql(args);
+            // Every return routes through persistIfResumed so a resumed call
+            // always stores a result.
+            const { approveSql, renderState, persistIfResumed } =
+                await approvalGate.forToolCall(toolCallId, {
+                    sql: approvalSql,
+                });
             try {
                 const duplicates = queryNodes
                     .map((node) => node.nodeId)
@@ -174,9 +247,11 @@ export const getRunComposerQueries = ({
                             nodeIds.indexOf(nodeId) !== index,
                     );
                 if (duplicates.length > 0) {
-                    return failure(
-                        `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
-                        'error',
+                    return await persistIfResumed(
+                        failure(
+                            `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
+                            'error',
+                        ),
                     );
                 }
 
@@ -200,9 +275,11 @@ export const getRunComposerQueries = ({
                         (node) => node.sourceType === QuerySourceType.PYTHON,
                     )
                 ) {
-                    return failure(
-                        'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
-                        'error',
+                    return await persistIfResumed(
+                        failure(
+                            'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
+                            'error',
+                        ),
                     );
                 }
 
@@ -210,56 +287,31 @@ export const getRunComposerQueries = ({
                     (node) => node.sourceType === QuerySourceType.SQL,
                 );
                 if (sqlNodes.length > 0 && !canRunSql) {
-                    return failure(
-                        'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
-                        'error',
+                    return await persistIfResumed(
+                        failure(
+                            'This pipeline contains "sql" nodes but SQL execution is not enabled for this agent. Rebuild the pipeline without sql nodes (semanticLayer and duckdb nodes are still available).',
+                            'error',
+                        ),
                     );
                 }
                 sqlNodes.forEach((node) => validateSelectOnly(node.sql));
 
-                // Raw warehouse SQL needs the same human approval gate as
-                // runSql; sql reused from an earlier version was approved then.
-                if (
-                    queryNodes.some(
-                        (node) => node.sourceType === QuerySourceType.SQL,
-                    )
-                ) {
-                    if (sqlApprovalTimedOut) {
-                        return failure(
-                            'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
-                            'timeout',
-                        );
-                    }
-                    if (autoApproveSql) {
-                        await recordSqlApproval({
-                            toolCallId,
-                            toolName: 'runComposerQueries',
-                            decidedByUserUuid: autoApproveSqlUserUuid,
-                            source: 'auto_approve',
+                if (approvalSql !== null) {
+                    try {
+                        await approveSql({
+                            sql: approvalSql,
+                            heading:
+                                getSqlApprovalHeading('runComposerQueries'),
                         });
-                    } else {
-                        await updateProgress('Awaiting approval to run SQL...');
-                        const decision = await waitForSqlApproval(toolCallId);
-                        if (decision === 'rejected') {
-                            return failure(
-                                'User rejected this SQL execution. Do not retry the same pipeline; ask the user what they would like instead.',
-                                'rejected',
+                    } catch (e) {
+                        if (e instanceof SqlNotApprovedError) {
+                            return await persistIfResumed(
+                                failure(e.message, e.outcome),
                             );
                         }
-                        if (decision === 'timeout') {
-                            sqlApprovalTimedOut = true;
-                            trackSqlApprovalTimeout({
-                                toolCallId,
-                                toolName: 'runComposerQueries',
-                                promptedUserUuid: prompt.createdByUserUuid,
-                                source: isSlackPrompt(prompt) ? 'slack' : 'web',
-                            });
-                            return failure(
-                                'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
-                                'timeout',
-                            );
-                        }
+                        throw e;
                     }
+                    await renderState({ kind: 'running', sql: approvalSql });
                 }
 
                 await updateProgress('Running composer queries...');
@@ -306,6 +358,16 @@ export const getRunComposerQueries = ({
                           }) ?? '')
                         : '',
                 ]);
+
+                if (approvalSql !== null) {
+                    await renderState({
+                        kind: 'success',
+                        sql: approvalSql,
+                        rowCount: terminal.rowCount,
+                        inlineCsv: '',
+                        truncated: false,
+                    });
+                }
 
                 // Slack renders composer results as a native table, so it skips
                 // viz planning; the artifact backs the thread link.
@@ -425,11 +487,11 @@ export const getRunComposerQueries = ({
 
                 const vizLine = vizNote ? `\n${vizNote}` : '';
                 if (!enableDataAccess || terminal.rowCount === 0) {
-                    return {
+                    return await persistIfResumed({
                         result: `${resultSummary}${vizLine}`,
                         metadata,
                         structuredContent: { ...summary, preview: null },
-                    };
+                    });
                 }
 
                 const previewRows = terminal.rows
@@ -452,7 +514,7 @@ export const getRunComposerQueries = ({
                     ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
                     : '';
 
-                return {
+                return await persistIfResumed({
                     result: `${resultSummary}${truncatedNote}\n${serializeData(
                         previewCsv,
                         'csv',
@@ -462,9 +524,19 @@ export const getRunComposerQueries = ({
                         ...summary,
                         preview: { rows: previewRows, truncated },
                     },
-                };
+                });
             } catch (e) {
-                return toolErrorOutput(e, 'Error running composer queries.');
+                if (approvalSql !== null) {
+                    await renderState({
+                        kind: 'error',
+                        sql: approvalSql,
+                        message:
+                            e instanceof Error ? e.message : 'Unknown error',
+                    }).catch(() => {});
+                }
+                return persistIfResumed(
+                    toolErrorOutput(e, 'Error running composer queries.'),
+                );
             }
         },
     });
