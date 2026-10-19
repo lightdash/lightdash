@@ -42,6 +42,15 @@ export const MULTI_CONNECTION_WAREHOUSE_TYPES = Object.values(
 export const MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES =
     Object.values(WarehouseTypes);
 
+export const isMultiConnectionRolloutEnabled = ({
+    multiConnectionProjectsEnabled,
+    mixedWarehouseConnectionsEnabled,
+}: {
+    multiConnectionProjectsEnabled: boolean;
+    mixedWarehouseConnectionsEnabled: boolean;
+}): boolean =>
+    multiConnectionProjectsEnabled || mixedWarehouseConnectionsEnabled;
+
 export const supportsMultipleConnections = (
     warehouseType: WarehouseTypes | null,
     mixedTypesEnabled: boolean,

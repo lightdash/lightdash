@@ -4,6 +4,7 @@ import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import {
+    ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
@@ -12,44 +13,78 @@ import {
 const account = fromSession(defaultSessionUser, 'session-cookie');
 
 describe('multiple connections gate', () => {
-    it.each([true, false])(
-        'keeps the rollout gate for a Trino primary with mixed types enabled and rollout %s',
-        async (enabled) => {
-            const featureFlagService = {
-                get: vi
-                    .fn<FeatureFlagService['get']>()
-                    .mockImplementation(async ({ featureFlagId }) => ({
-                        id: featureFlagId,
-                        enabled:
-                            featureFlagId ===
-                            FeatureFlags.MixedWarehouseConnections
-                                ? true
-                                : enabled,
-                    })),
-            };
-            const reason = await getMultipleConnectionsBlockReason(
-                {
-                    featureFlagService,
-                    licenseService: {
-                        canHoldMultipleConnections: vi
-                            .fn()
-                            .mockReturnValue(true),
-                    },
+    const flagService = (flags: { multi: boolean; mixed: boolean }) => ({
+        get: vi
+            .fn<FeatureFlagService['get']>()
+            .mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId === FeatureFlags.MixedWarehouseConnections
+                        ? flags.mixed
+                        : flags.multi,
+            })),
+    });
+    const gate = (
+        flags: { multi: boolean; mixed: boolean },
+        licensed: boolean,
+        originalWarehouseType: WarehouseTypes,
+    ) =>
+        getMultipleConnectionsBlockReason(
+            {
+                featureFlagService: flagService(flags),
+                licenseService: {
+                    canHoldMultipleConnections: vi
+                        .fn()
+                        .mockReturnValue(licensed),
                 },
-                account,
-                {
-                    organizationUuid: 'organization-uuid',
-                    originalWarehouseType: WarehouseTypes.TRINO,
-                },
+            },
+            account,
+            { organizationUuid: 'organization-uuid', originalWarehouseType },
+        );
+
+    it.each([WarehouseTypes.POSTGRES, WarehouseTypes.TRINO])(
+        'enables extra connections for a %s primary with only the mixed flag',
+        async (type) => {
+            expect(await gate({ multi: false, mixed: true }, true, type)).toBe(
+                null,
             );
-            expect(reason).toBe(enabled ? null : ROLLOUT_REASON);
-            expect(featureFlagService.get).toHaveBeenCalledWith({
-                user: {
-                    userUuid: account.user.userUuid,
-                    organizationUuid: 'organization-uuid',
-                },
-                featureFlagId: FeatureFlags.MultiConnectionProjects,
-            });
+        },
+    );
+    it('keeps the multi flag alone limited to same-type warehouses', async () => {
+        expect(
+            await gate(
+                { multi: true, mixed: false },
+                true,
+                WarehouseTypes.POSTGRES,
+            ),
+        ).toBe(null);
+        expect(
+            await gate(
+                { multi: true, mixed: false },
+                true,
+                WarehouseTypes.TRINO,
+            ),
+        ).toBe(WAREHOUSE_TYPE_REASON);
+    });
+    it('refuses extra connections when neither flag is enabled', async () => {
+        expect(
+            await gate(
+                { multi: false, mixed: false },
+                true,
+                WarehouseTypes.POSTGRES,
+            ),
+        ).toBe(ROLLOUT_REASON);
+    });
+    it.each([
+        { multi: true, mixed: false },
+        { multi: false, mixed: true },
+        { multi: true, mixed: true },
+    ])(
+        'requires the licence with multi $multi and mixed $mixed',
+        async (flags) => {
+            expect(await gate(flags, false, WarehouseTypes.POSTGRES)).toBe(
+                ENTITLEMENT_REASON,
+            );
         },
     );
     it('refuses a missing original connection before resolving rollout flags', async () => {

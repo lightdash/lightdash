@@ -173,6 +173,18 @@ describe('Enable multiple connections', () => {
             );
         },
     );
+    it('offers the switch with only the mixed flag on', async () => {
+        flag.enabled = false;
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            originalWarehouseType: WarehouseTypes.TRINO,
+        });
+        renderPanel();
+        const button = await screen.findByRole('button', {
+            name: 'Enable multiple connections',
+        });
+        await waitFor(() => expect(button).toHaveProperty('disabled', false));
+    });
     it('keeps a Postgres original available with the mixed flag off', async () => {
         flag.mixedTypesEnabled = false;
         routeApi({ availability: { canSwitch: true, reason: null } });
@@ -252,8 +264,9 @@ describe('Enable multiple connections', () => {
         ).toBeDisabled();
     });
 
-    it('offers nothing while the rollout flag is off', async () => {
+    it('offers nothing while both rollout flags are off', async () => {
         flag.enabled = false;
+        flag.mixedTypesEnabled = false;
         routeApi({ availability: { canSwitch: true, reason: null } });
         renderPanel();
 

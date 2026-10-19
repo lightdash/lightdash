@@ -104,8 +104,9 @@ describe('ConnectionsPanel', () => {
         vi.restoreAllMocks();
     });
 
-    it('renders nothing and calls no API while the rollout flag is off', async () => {
+    it('renders nothing and calls no API while both rollout flags are off', async () => {
         flag.enabled = false;
+        flag.mixedTypesEnabled = false;
         renderPanel();
 
         await new Promise((resolve) => {
@@ -114,6 +115,28 @@ describe('ConnectionsPanel', () => {
         expect(screen.queryByText('Connections')).not.toBeInTheDocument();
         expect(mockApi).not.toHaveBeenCalled();
     });
+
+    it.each([
+        { enabled: true, mixedTypesEnabled: false },
+        { enabled: false, mixedTypesEnabled: true },
+    ])(
+        'loads connections with multi $enabled and mixed $mixedTypesEnabled',
+        async (flags) => {
+            flag.enabled = flags.enabled;
+            flag.mixedTypesEnabled = flags.mixedTypesEnabled;
+            mockApi.mockResolvedValue({
+                connections: [original],
+                capabilities: { canAddConnection: true, reason: null },
+            });
+            renderPanel();
+
+            await waitFor(() =>
+                expect(mockApi).toHaveBeenCalledWith(
+                    expect.objectContaining({ url: listUrl, method: 'GET' }),
+                ),
+            );
+        },
+    );
 
     it('renders nothing and calls no API for a preview project', async () => {
         renderPanel(ProjectType.PREVIEW);

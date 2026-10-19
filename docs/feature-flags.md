@@ -456,8 +456,11 @@ endpoints; it rejects known ambient modes and filters inherited variables.
 allows originals and extras of every user-connectable warehouse type, in any
 mix. With it off, only Postgres, Athena and Snowflake originals can hold extras,
 and extras must use the original type. Trino is refused with the flag off.
-Backend-provisioned DuckDB variants are always refused. The multi-connection rollout flag and
-licence checks still apply.
+Backend-provisioned DuckDB variants are always refused. The flag also passes the
+multi-connection rollout check, so `multi-connection-projects` is not needed as
+well; `isMultiConnectionRolloutEnabled` in
+`packages/common/src/types/warehouseConnections.ts` resolves the two flags for the
+backend gate and the frontend connections panel. The licence check still applies.
 
 Create, credential update and switch requests resolve this flag for the requesting
 user and the project's organisation. User and organisation Console overrides
@@ -466,6 +469,8 @@ apply to the next backend request and frontend flag refetch. The generic ENV
 precedence above applies; ENV changes require an API restart.
 
 Disabling the flag restores the original allowlist for new saves and switches.
+With `multi-connection-projects` also off, it refuses new extra connections and
+switches, as the rollout flag does.
 An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own

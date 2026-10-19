@@ -7,6 +7,7 @@ import {
 } from './projects';
 import {
     canUseExtraConnectionWarehouseType,
+    isMultiConnectionRolloutEnabled,
     isUserConnectableWarehouseConnection,
     MULTI_CONNECTION_WAREHOUSE_TYPES,
     supportsConnectionDatabaseListing,
@@ -84,6 +85,25 @@ describe('supportsMultipleConnections', () => {
     it('requires an original connection', () => {
         expect(supportsMultipleConnections(null, false)).toBe(false);
     });
+});
+
+describe('isMultiConnectionRolloutEnabled', () => {
+    it.each([
+        { multi: false, mixed: false, expected: false },
+        { multi: true, mixed: false, expected: true },
+        { multi: false, mixed: true, expected: true },
+        { multi: true, mixed: true, expected: true },
+    ])(
+        'returns $expected with multi $multi and mixed $mixed',
+        ({ multi, mixed, expected }) => {
+            expect(
+                isMultiConnectionRolloutEnabled({
+                    multiConnectionProjectsEnabled: multi,
+                    mixedWarehouseConnectionsEnabled: mixed,
+                }),
+            ).toBe(expected);
+        },
+    );
 });
 
 describe('isUserConnectableWarehouseConnection', () => {

@@ -6,10 +6,12 @@ can hold connections of different warehouse types when the
 primary with Trino and BigQuery extras. Each explore runs on one connection and
 uses that connection's SQL dialect everywhere.
 
-The flag is off by default and sits on top of `multi-connection-projects` and
-the Enterprise multi-connection licence check. With the flag off, the rules are
-the ones that existed before: only Postgres, Athena and Snowflake projects can
-hold extra connections, and every extra uses the primary's type.
+The flag is off by default. It also turns on the multi-connection rollout, so
+`multi-connection-projects` is not needed as well. The Enterprise
+multi-connection licence check still applies. With the flag off, the rules are
+the ones that existed before: `multi-connection-projects` alone lets only
+Postgres, Athena and Snowflake projects hold extra connections, and every extra
+uses the primary's type.
 
 ## Which types can be mixed
 

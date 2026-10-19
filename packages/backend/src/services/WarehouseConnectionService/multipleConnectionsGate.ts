@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    isMultiConnectionRolloutEnabled,
     isUserConnectableWarehouseConnection,
     supportsMultipleConnections,
     WarehouseTypes,
@@ -51,14 +52,20 @@ export const getMultipleConnectionsBlockReason = async (
     if (!licenseService.canHoldMultipleConnections(project.organizationUuid)) {
         return ENTITLEMENT_REASON;
     }
-    const { enabled } = await featureFlagService.get({
-        user: {
-            userUuid: account.user.userUuid,
-            organizationUuid: project.organizationUuid,
-        },
-        featureFlagId: FeatureFlags.MultiConnectionProjects,
-    });
-    return enabled ? null : ROLLOUT_REASON;
+    const { enabled: multiConnectionProjectsEnabled } =
+        await featureFlagService.get({
+            user: {
+                userUuid: account.user.userUuid,
+                organizationUuid: project.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.MultiConnectionProjects,
+        });
+    return isMultiConnectionRolloutEnabled({
+        multiConnectionProjectsEnabled,
+        mixedWarehouseConnectionsEnabled: mixedTypesEnabled,
+    })
+        ? null
+        : ROLLOUT_REASON;
 };
 
 export const getProvisionedOriginalBlockReason = async (
