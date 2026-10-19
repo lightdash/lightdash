@@ -131,57 +131,46 @@ describe('mcp custom chart render deadline', () => {
         features,
     });
 
-    it('shows the table when the frame never speaks the SDK', () => {
-        expect(afterMessages([])).toBe(true);
-        expect(afterMessages([{ type: 'something-else' }, null])).toBe(true);
-    });
+    const contextRequest = { type: 'lightdash:sdk:viz-context-request' };
 
-    it('keeps a legacy bundle that requested the context up', () => {
-        expect(
-            afterMessages([{ type: 'lightdash:sdk:viz-context-request' }]),
-        ).toBe(false);
-    });
-
-    it('keeps a bundle whose manifest lacks viz-rendered up', () => {
-        expect(
-            afterMessages([
-                manifest(['theme']),
-                { type: 'lightdash:sdk:viz-context-request' },
-            ]),
-        ).toBe(false);
-    });
-
-    it('shows the table when a signalling bundle never acknowledges', () => {
-        expect(
-            afterMessages([
+    it.each([
+        ['a frame that never speaks the SDK', true, []],
+        [
+            'a frame that sends only unrelated messages',
+            true,
+            [{ type: 'something-else' }, null],
+        ],
+        ['a legacy bundle that requested the context', false, [contextRequest]],
+        [
+            'a bundle whose manifest lacks viz-rendered',
+            false,
+            [manifest(['theme']), contextRequest],
+        ],
+        [
+            'a signalling bundle that never acknowledges',
+            true,
+            [manifest(['viz-rendered']), contextRequest],
+        ],
+        [
+            'a signalling bundle that declares the feature late',
+            true,
+            [contextRequest, manifest(['viz-rendered'])],
+        ],
+        [
+            'a signalling bundle that acknowledged its paint',
+            false,
+            [
                 manifest(['viz-rendered']),
-                { type: 'lightdash:sdk:viz-context-request' },
-            ]),
-        ).toBe(true);
-        expect(
-            afterMessages([
-                { type: 'lightdash:sdk:viz-context-request' },
-                manifest(['viz-rendered']),
-            ]),
-        ).toBe(true);
-    });
-
-    it('keeps a signalling bundle that acknowledged its paint up', () => {
-        expect(
-            afterMessages([
-                manifest(['viz-rendered']),
-                { type: 'lightdash:sdk:viz-context-request' },
+                contextRequest,
                 { type: 'lightdash:sdk:viz-rendered', renderId: 'r1' },
-            ]),
-        ).toBe(false);
+            ],
+        ],
+        ['a manifest without features', true, [manifest(undefined)]],
+        ['a manifest with string features', true, [manifest('viz-rendered')]],
+        ['a manifest with non-string features', true, [manifest([1])]],
+    ])('for %s shows the table: %s', (_case, showTable, messages) => {
+        expect(afterMessages(messages)).toBe(showTable);
     });
-
-    it.each([undefined, 'viz-rendered', [1]])(
-        'ignores a manifest with features %j',
-        (features) => {
-            expect(afterMessages([manifest(features)])).toBe(true);
-        },
-    );
 });
 
 describe('mcp custom chart render deadline while hidden', () => {
@@ -191,42 +180,23 @@ describe('mcp custom chart render deadline while hidden', () => {
         rendered: false,
     };
 
-    it('waits for the document to show before falling back', () => {
-        expect(
-            getCustomChartRenderDeadlineAction(unacknowledged, {
-                documentHidden: true,
-            }),
-        ).toBe('wait-for-visible');
-    });
+    const rendered = { ...unacknowledged, rendered: true };
+    const legacy = { ...unacknowledged, supportsRenderSignal: false };
 
-    it('falls back once the document is visible again', () => {
-        expect(
-            getCustomChartRenderDeadlineAction(unacknowledged, {
-                documentHidden: false,
-            }),
-        ).toBe('show-table');
-    });
-
-    it('keeps an acknowledged chart up whether or not it is hidden', () => {
-        const rendered = { ...unacknowledged, rendered: true };
-        expect(
-            getCustomChartRenderDeadlineAction(rendered, {
-                documentHidden: true,
-            }),
-        ).toBe('keep-chart');
-        expect(
-            getCustomChartRenderDeadlineAction(rendered, {
-                documentHidden: false,
-            }),
-        ).toBe('keep-chart');
-    });
-
-    it('keeps a legacy bundle up without waiting', () => {
-        expect(
-            getCustomChartRenderDeadlineAction(
-                { sdkSeen: true, supportsRenderSignal: false, rendered: false },
-                { documentHidden: true },
-            ),
-        ).toBe('keep-chart');
-    });
+    it.each([
+        ['an unacknowledged chart', true, 'wait-for-visible', unacknowledged],
+        ['an unacknowledged chart', false, 'show-table', unacknowledged],
+        ['an acknowledged chart', true, 'keep-chart', rendered],
+        ['an acknowledged chart', false, 'keep-chart', rendered],
+        ['a legacy bundle', true, 'keep-chart', legacy],
+    ] as const)(
+        'for %s with documentHidden=%s returns %s',
+        (_case, documentHidden, action, readiness) => {
+            expect(
+                getCustomChartRenderDeadlineAction(readiness, {
+                    documentHidden,
+                }),
+            ).toBe(action);
+        },
+    );
 });
