@@ -755,6 +755,7 @@ export const AiChartQuickOptions = ({
                     opened={sqlModalOpened}
                     onClose={closeSqlModal}
                     sql={compiledSql}
+                    isFormatted={merge !== null}
                 />
             )}
             <MantineModal
