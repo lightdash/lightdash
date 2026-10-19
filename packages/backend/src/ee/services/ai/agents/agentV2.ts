@@ -3313,27 +3313,22 @@ export const generateAgentResponse = async ({
                     generatedTokenUsage,
                     stepUsage.totalTokens,
                 );
-                if (args.execution.mode === 'deep_research') {
-                    // Hidden phases (planner/investigators, persisted as
-                    // subagent children) each track their own slice; writing
-                    // their totals to the prompt would race across parallel
-                    // investigators. The executor aggregates via onStepUsage
-                    // and seeds the judge with the aggregate.
-                    if (args.execution.parentToolCallId == null) {
-                        await dependencies.updatePrompt({
-                            promptUuid: args.promptUuid,
-                            tokenUsage: generatedTokenUsage,
-                        });
-                    }
-                } else {
-                    void dependencies.updatePrompt({
-                        response: agentContext.responseBlocks.render(
-                            (await answerVerifier?.verify(step.text))?.text ??
-                                step.text,
-                        ),
+                // Hidden phases (planner/investigators, persisted as
+                // subagent children) each track their own slice; writing
+                // their totals to the prompt would race across parallel
+                // investigators. The executor aggregates via onStepUsage
+                // and seeds the judge with the aggregate.
+                if (
+                    args.execution.mode === 'deep_research' &&
+                    args.execution.parentToolCallId == null
+                ) {
+                    await dependencies.updatePrompt({
                         promptUuid: args.promptUuid,
+                        tokenUsage: generatedTokenUsage,
                     });
                 }
+                // Response is persisted once at the end: a step response would
+                // mark the prompt responded while the agent is still running.
             },
             ...telemetry,
         });
