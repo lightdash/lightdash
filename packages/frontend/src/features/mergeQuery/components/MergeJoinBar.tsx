@@ -102,6 +102,9 @@ const JoinTypePicker: FC<{
 
 const compactSourceList = (labels: string[]): string => {
     if (labels.length <= 2) return labels.join(' and ');
+    if (labels.length === 3) {
+        return `${labels[0]}, ${labels[1]} and ${labels[2]}`;
+    }
     return `${labels[0]}, ${labels[1]} and ${labels.length - 2} others`;
 };
 

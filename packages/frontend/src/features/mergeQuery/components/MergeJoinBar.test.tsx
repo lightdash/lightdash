@@ -320,6 +320,38 @@ describe('MergeJoinBar', () => {
         state.merge.mergeResults = undefined;
     });
 
+    it('names every other source when there are only three', () => {
+        state.merge.additionalSources = ['b', 'c', 'd'].map((id) => ({
+            id,
+            exploreName: id === 'b' ? 'customers' : 'payments',
+            dimensions: [],
+            metrics: [],
+        }));
+        state.merge.mergeResults = {
+            results: {
+                rows: [
+                    { a_orders_total: { value: { raw: null, formatted: '' } } },
+                ],
+                hasFetchedAllRows: true,
+                error: null,
+            },
+            fieldOrigins: {
+                a_orders_total: {
+                    kind: 'source',
+                    sourceId: 'a',
+                    sourceFieldId: 'orders_total',
+                },
+            },
+        } as never;
+        renderWithProviders(<MergeJoinBar />);
+        expect(
+            screen.getByText(
+                "Orders's columns are blank on every row: its query returned no rows matching Customers, Payments and Payments on join fields.",
+            ),
+        ).toBeInTheDocument();
+        state.merge.mergeResults = undefined;
+    });
+
     it("lists the other side's recommended fields first and rules out the rest", () => {
         state.setup.getJoinCandidates = (side) =>
             side === 'additional'
