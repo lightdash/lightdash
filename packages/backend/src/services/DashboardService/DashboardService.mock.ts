@@ -74,6 +74,7 @@ export const space: SpaceTable['base'] = {
 
 export const publicSpace: Space = {
     warehouseConnectionUuid: null,
+    effectiveWarehouseConnection: null,
     inheritsFromOrgOrProject: true,
     inheritParentPermissions: true,
     projectMemberAccessRole: null,

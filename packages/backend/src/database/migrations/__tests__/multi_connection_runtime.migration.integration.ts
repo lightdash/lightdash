@@ -39,6 +39,7 @@ import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionIdentityModel } from '../../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
@@ -820,6 +821,8 @@ describe('Multi runtime identity wiring on the real schema', () => {
     describe('SQL chart saves (G10, G11)', () => {
         const savedSqlService = () => {
             const service = new SavedSqlService({
+                spaceModel: new SpaceModel({ database }),
+                featureFlagModel: { get: async () => ({ enabled: false }) },
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() },
                 projectModel,

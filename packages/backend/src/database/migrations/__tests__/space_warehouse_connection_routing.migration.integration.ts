@@ -26,6 +26,7 @@ import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionMod
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -74,6 +75,8 @@ describe('Space warehouse routing on the real schema', () => {
     let spaceModel: SpaceModel;
     let featureFlagModel: FeatureFlagModel;
     let service: RoutingQueryService;
+    let spaceService: SpaceService;
+    let warehouseConnectionModel: WarehouseConnectionModel;
     let internals: RoutingInternals;
     let projectUuid: string;
     let organizationUuid: string;
@@ -120,7 +123,7 @@ describe('Space warehouse routing on the real schema', () => {
                 database,
                 encryptionUtil,
             });
-        const warehouseConnectionModel = new WarehouseConnectionModel({
+        warehouseConnectionModel = new WarehouseConnectionModel({
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel,
@@ -158,6 +161,12 @@ describe('Space warehouse routing on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
+        } as never);
+        spaceService = new SpaceService({
+            featureFlagModel,
+            warehouseConnectionModel,
+            spaceModel,
+            spacePermissionService,
         } as never);
         internals = service as unknown as RoutingInternals;
         vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
@@ -448,6 +457,231 @@ describe('Space warehouse routing on the real schema', () => {
             ).rejects.toBe(admitted);
         } finally {
             preparation.mockRestore();
+        }
+    });
+
+    test('effective bindings identify the closest bound space and its name', async () => {
+        const expected = {
+            warehouseConnectionUuid: extraConnectionUuid,
+            spaceUuid: spaceA,
+            spaceName: 'A',
+        };
+        expect(
+            await spaceModel.getEffectiveWarehouseConnectionBinding({
+                projectUuid,
+                spaceUuid: spaceA,
+            }),
+        ).toEqual(expected);
+        expect(
+            await spaceModel.getEffectiveWarehouseConnectionBinding({
+                projectUuid,
+                spaceUuid: child,
+            }),
+        ).toEqual(expected);
+        expect(
+            await spaceModel.getEffectiveWarehouseConnectionBinding({
+                projectUuid,
+                spaceUuid: spaceB,
+            }),
+        ).toBeNull();
+    });
+
+    test('a viewer sees only the public effective connection metadata', async () => {
+        await database('space_user_access').insert({
+            user_uuid: userUuid,
+            space_uuid: spaceA,
+            space_role: SpaceMemberRole.VIEWER,
+        });
+        const viewer = {
+            ...account.user,
+            role: OrganizationMemberRole.VIEWER,
+            ability: defineUserAbility(
+                {
+                    organizationUuid,
+                    userUuid,
+                    role: OrganizationMemberRole.VIEWER,
+                },
+                [],
+            ),
+        };
+        const expected = {
+            warehouseConnectionUuid: extraConnectionUuid,
+            name: 'Space connection',
+            warehouseType: WarehouseTypes.POSTGRES,
+            inheritedFromSpace: null,
+        };
+        const direct = await spaceService.getSpace(projectUuid, viewer, spaceA);
+        expect(direct.effectiveWarehouseConnection).toEqual(expected);
+        const inherited = await spaceService.getSpace(
+            projectUuid,
+            viewer,
+            child,
+        );
+        expect(inherited.effectiveWarehouseConnection).toEqual({
+            ...expected,
+            inheritedFromSpace: { uuid: spaceA, name: 'A' },
+        });
+        expect(
+            Object.keys(inherited.effectiveWarehouseConnection!).sort(),
+        ).toEqual([
+            'inheritedFromSpace',
+            'name',
+            'warehouseConnectionUuid',
+            'warehouseType',
+        ]);
+        expect(
+            (await spaceService.getSpace(projectUuid, viewer, spaceB))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+        await featureFlagModel.upsertOrganizationOverride(
+            FeatureFlags.SpaceWarehouseConnections,
+            organizationUuid,
+            false,
+        );
+        expect(
+            (await spaceService.getSpace(projectUuid, viewer, child))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+    });
+
+    const catalogCalls = (warehouseConnectionUuid: string) => [
+        () =>
+            service.getConnectionDatabases(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+            ),
+        () =>
+            service.getConnectionTables(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+                'analytics',
+            ),
+        () =>
+            service.getConnectionTableFields(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+                {
+                    databaseName: 'analytics',
+                    schemaName: 'public',
+                    tableName: 'orders',
+                },
+            ),
+        () =>
+            service.refreshConnectionTables(
+                account,
+                projectUuid,
+                warehouseConnectionUuid,
+            ),
+    ];
+
+    test('the connection picker and every catalog path refuse a developer without space edit access', async () => {
+        const connections = await service.getSqlRunnerConnections(
+            account,
+            projectUuid,
+        );
+        expect(
+            connections.find(
+                (c) => c.warehouseConnectionUuid === extraConnectionUuid,
+            )?.canRunSql,
+        ).toBe(false);
+        expect(
+            connections
+                .filter(
+                    (c) => c.warehouseConnectionUuid !== extraConnectionUuid,
+                )
+                .every((c) => c.canRunSql),
+        ).toBe(true);
+        await Promise.all(
+            catalogCalls(extraConnectionUuid).map((call) =>
+                expect(call()).rejects.toBeInstanceOf(ForbiddenError),
+            ),
+        );
+    });
+
+    test('query estimates refuse a developer without space edit access', async () => {
+        await expect(
+            service.estimateAsyncSqlQuery({
+                account,
+                projectUuid,
+                sql: 'SELECT 1',
+                warehouseConnectionUuid: extraConnectionUuid,
+            }),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                'This connection is reserved for a space you cannot edit.',
+            ),
+        );
+    });
+
+    test('a space editor may select the connection and reach every catalog operation', async () => {
+        await database('space_user_access').insert({
+            user_uuid: userUuid,
+            space_uuid: spaceA,
+            space_role: SpaceMemberRole.EDITOR,
+        });
+        expect(
+            (await service.getSqlRunnerConnections(account, projectUuid)).find(
+                (c) => c.warehouseConnectionUuid === extraConnectionUuid,
+            )?.canRunSql,
+        ).toBe(true);
+        const reachedConnection = new Error('Reached connection loading');
+        const getConnection = vi
+            .spyOn(warehouseConnectionModel, 'get')
+            .mockRejectedValue(reachedConnection);
+        try {
+            await Promise.all(
+                catalogCalls(extraConnectionUuid).map((call) =>
+                    expect(call()).rejects.toBe(reachedConnection),
+                ),
+            );
+            expect(getConnection).toHaveBeenCalledTimes(4);
+        } finally {
+            getConnection.mockRestore();
+        }
+    });
+
+    test('a space binding never reserves the original connection', async () => {
+        const [original] = await database('warehouse_connections')
+            .where({ project_uuid: projectUuid, is_original: true })
+            .select('warehouse_connection_uuid');
+        await spaceModel.update(spaceB, {
+            warehouseConnectionUuid: original.warehouse_connection_uuid,
+        });
+        try {
+            expect(
+                await spaceModel.getConnectionBoundSpaces({ projectUuid }),
+            ).toEqual([
+                {
+                    spaceUuid: spaceA,
+                    warehouseConnectionUuid: extraConnectionUuid,
+                },
+            ]);
+            expect(
+                (
+                    await service.getSqlRunnerConnections(account, projectUuid)
+                ).find((c) => c.isOriginal)?.canRunSql,
+            ).toBe(true);
+            const reachedConnection = new Error(
+                'Reached original connection loading',
+            );
+            const getConnection = vi
+                .spyOn(warehouseConnectionModel, 'get')
+                .mockRejectedValue(reachedConnection);
+            try {
+                await Promise.all(
+                    catalogCalls(original.warehouse_connection_uuid).map(
+                        (call) =>
+                            expect(call()).rejects.toBe(reachedConnection),
+                    ),
+                );
+            } finally {
+                getConnection.mockRestore();
+            }
+        } finally {
+            await spaceModel.update(spaceB, { warehouseConnectionUuid: null });
         }
     });
 

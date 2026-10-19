@@ -180,6 +180,7 @@ const newSchedulerPayload = {
 
 describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     const service = new SavedSqlService({
+        spaceModel: {} as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
@@ -608,6 +609,7 @@ describe('SavedSqlService - hasAccess space-move gate', () => {
     };
 
     const service = new SavedSqlService({
+        spaceModel: {} as never,
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: false }),
         },
@@ -778,6 +780,7 @@ describe('SavedSqlService version attribution DTOs', () => {
                 })),
             };
             const service = new SavedSqlService({
+                spaceModel: {} as never,
                 featureFlagModel,
                 lightdashConfig: lightdashConfigMock,
                 analytics: analyticsMock,
@@ -822,6 +825,104 @@ describe('SavedSqlService version attribution DTOs', () => {
             if (kind === 'legacy') {
                 expect(storedClaim.act).not.toHaveProperty('agent_uuid');
             }
+        },
+    );
+});
+
+describe('SavedSqlService space connection reservations', () => {
+    const user = {
+        ...baseUser,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'CustomSql', action: 'manage' },
+            { subject: 'SavedChart', action: ['create', 'update'] },
+        ]),
+    };
+    const featureFlagModel = { get: vi.fn() };
+    const spaceModel = { getConnectionBoundSpaces: vi.fn() };
+    const connectionIdentity = { getSaveWarehouseConnectionUuid: vi.fn() };
+    const service = new SavedSqlService({
+        featureFlagModel,
+        spaceModel,
+        savedSqlModel,
+        projectModel,
+        analytics: analyticsMock,
+        spacePermissionService,
+        warehouseConnectionIdentityModel: connectionIdentity,
+    } as never);
+    const save = (
+        operation: 'create' | 'update',
+        warehouseConnectionUuid: string | null,
+    ) =>
+        operation === 'create'
+            ? service.createSqlChart(user, projectUuid, {
+                  name: 'Chart',
+                  sql: 'SELECT 1',
+                  limit: 10,
+                  config: {},
+                  spaceUuid,
+                  warehouseConnectionUuid,
+              } as never)
+            : service.updateSqlChart(user, projectUuid, savedSqlUuid, {
+                  versionedData: {
+                      sql: 'SELECT 1',
+                      limit: 10,
+                      config: {},
+                      warehouseConnectionUuid,
+                  },
+              } as never);
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        spaceModel.getConnectionBoundSpaces.mockResolvedValue([
+            {
+                spaceUuid: 'restricted-space',
+                warehouseConnectionUuid: 'reserved',
+            },
+        ]);
+        projectModel.getConnectionRoute.mockResolvedValue('multi' as never);
+        connectionIdentity.getSaveWarehouseConnectionUuid.mockImplementation(
+            async (_project, uuid) => uuid,
+        );
+    });
+
+    it.each(['create', 'update'] as const)(
+        'refuses %s with a reserved connection even in an accessible unbound space',
+        async (operation) => {
+            await expect(save(operation, 'reserved')).rejects.toThrow(
+                new ForbiddenError(
+                    'This connection is reserved for a space you cannot edit.',
+                ),
+            );
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(
+                connectionIdentity.getSaveWarehouseConnectionUuid,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'allows %s with an unreserved connection',
+        async (operation) => {
+            await expect(save(operation, 'other')).resolves.toBeDefined();
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'does not apply reservations to a null connection on %s',
+        async (operation) => {
+            await expect(save(operation, null)).resolves.toBeDefined();
+            expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['create', 'update'] as const)(
+        'keeps %s available while the flag is disabled',
+        async (operation) => {
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            await expect(save(operation, 'reserved')).resolves.toBeDefined();
+            expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
         },
     );
 });

@@ -102,6 +102,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    effectiveWarehouseConnection: null,
     inheritsFromOrgOrProject: true,
     childSpaces: [],
     path: 'jaffle_shop',

@@ -119,7 +119,6 @@ import {
     ResultsExpiredError,
     S3Error,
     SchedulerFormat,
-    SpaceMemberRole,
     SqlChart,
     SupportedDbtAdapter,
     TimeFrames,
@@ -8450,56 +8449,6 @@ export class AsyncQueryService extends ProjectService {
             : binding;
     }
 
-    private async assertSpaceConnectionAccess({
-        account,
-        projectUuid,
-        organizationUuid,
-        warehouseConnectionUuid,
-    }: {
-        account: Account;
-        projectUuid: string;
-        organizationUuid: string;
-        warehouseConnectionUuid: string;
-    }): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
-        });
-        if (!enabled) return;
-        const spaceUuids = await this.spaceModel.getSpaceUuidsBoundToConnection(
-            {
-                projectUuid,
-                warehouseConnectionUuid,
-            },
-        );
-        if (spaceUuids.length === 0) return;
-        const contexts = await Promise.all(
-            spaceUuids.map((spaceUuid) =>
-                this.spacePermissionService.resolveAccess(account.user.id, {
-                    type: 'space',
-                    spaceUuid,
-                }),
-            ),
-        );
-        const ability = this.createAuditedAbility(account);
-        if (
-            !contexts.some(
-                (ctx) =>
-                    ability.can('manage', subject('Space', ctx)) ||
-                    ctx.access.some(
-                        (access) =>
-                            access.userUuid === account.user.id &&
-                            (access.role === SpaceMemberRole.EDITOR ||
-                                access.role === SpaceMemberRole.ADMIN),
-                    ),
-            )
-        ) {
-            throw new ForbiddenError(
-                'This connection is reserved for a space you cannot edit.',
-            );
-        }
-    }
-
     async executeAsyncSavedChartQuery({
         account,
         projectUuid,
@@ -10158,8 +10107,9 @@ export class AsyncQueryService extends ProjectService {
             requestedConnectionUuid !== undefined &&
             requestedConnectionUuid !== null
         ) {
-            await this.assertSpaceConnectionAccess({
-                account,
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: this.createAuditedAbility(account),
                 projectUuid,
                 organizationUuid,
                 warehouseConnectionUuid: requestedConnectionUuid,
@@ -10454,6 +10404,29 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError(
                 'SQL Runner is unavailable for managed analytics projects',
             );
+        }
+
+        if (
+            requestedConnectionUuid !== undefined &&
+            requestedConnectionUuid !== null
+        ) {
+            if (
+                (await this.projectModel.getConnectionRoute(projectUuid, {
+                    kind: 'connection',
+                    warehouseConnectionUuid: requestedConnectionUuid,
+                })) !== 'multi'
+            ) {
+                throw new ParameterError(
+                    'A SQL query can name a connection only in a project with multiple connections',
+                );
+            }
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: this.createAuditedAbility(account),
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: requestedConnectionUuid,
+            });
         }
 
         const {

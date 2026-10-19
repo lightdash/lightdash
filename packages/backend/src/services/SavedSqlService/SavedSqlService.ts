@@ -46,6 +46,7 @@ import {
     type SqlChartVersionBinding,
 } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
@@ -53,6 +54,7 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import {
     SpacePermissionService,
     type AccessTarget,
@@ -65,6 +67,7 @@ type SavedSqlServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     savedSqlModel: SavedSqlModel;
+    spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     schedulerModel: SchedulerModel;
     analyticsModel: AnalyticsModel;
@@ -98,8 +101,11 @@ export class SavedSqlService
 
     private readonly warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.featureFlagModel = args.featureFlagModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -566,6 +572,19 @@ export class SavedSqlService
             },
         );
 
+        if (
+            sqlChart.warehouseConnectionUuid !== undefined &&
+            sqlChart.warehouseConnectionUuid !== null
+        ) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: sqlChart.warehouseConnectionUuid,
+            });
+        }
+
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
@@ -641,6 +660,20 @@ export class SavedSqlService
                         : undefined,
             },
         );
+
+        if (
+            sqlChart.versionedData?.warehouseConnectionUuid !== undefined &&
+            sqlChart.versionedData?.warehouseConnectionUuid !== null
+        ) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid:
+                    sqlChart.versionedData?.warehouseConnectionUuid,
+            });
+        }
 
         const updatedChart = await this.savedSqlModel.update(
             {

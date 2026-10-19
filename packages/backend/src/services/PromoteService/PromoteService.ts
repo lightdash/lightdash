@@ -2186,6 +2186,7 @@ export class PromoteService extends BaseService {
                 | 'groupsAccess'
                 | 'childSpaces'
                 | 'inheritsFromOrgOrProject'
+                | 'effectiveWarehouseConnection'
             >
         >();
 

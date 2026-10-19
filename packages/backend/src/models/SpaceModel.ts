@@ -1350,6 +1350,7 @@ export class SpaceModel {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >
     > {
         const [row] = await this.database(SpaceTableName)
@@ -1954,18 +1955,36 @@ export class SpaceModel {
         }));
     }
 
-    async getEffectiveWarehouseConnectionUuid({
+    async getEffectiveWarehouseConnectionUuid(args: {
+        projectUuid: string;
+        spaceUuid: string;
+    }): Promise<string | null> {
+        return (
+            (await this.getEffectiveWarehouseConnectionBinding(args))
+                ?.warehouseConnectionUuid ?? null
+        );
+    }
+
+    async getEffectiveWarehouseConnectionBinding({
         projectUuid,
         spaceUuid,
     }: {
         projectUuid: string;
         spaceUuid: string;
-    }): Promise<string | null> {
+    }): Promise<{
+        warehouseConnectionUuid: string;
+        spaceUuid: string;
+        spaceName: string;
+    } | null> {
         const result = await this.database.raw<{
-            rows: { warehouse_connection_uuid: string }[];
+            rows: {
+                warehouse_connection_uuid: string;
+                space_uuid: string;
+                name: string;
+            }[];
         }>(
             `WITH RECURSIVE ancestors AS (
-                SELECT s.space_uuid, s.parent_space_uuid,
+                SELECT s.space_uuid, s.name, s.parent_space_uuid,
                     s.warehouse_connection_uuid, s.project_id, 0 AS depth,
                     ARRAY[s.space_uuid] AS visited
                 FROM spaces s
@@ -1973,7 +1992,7 @@ export class SpaceModel {
                 WHERE s.space_uuid = ? AND p.project_uuid = ?
                     AND s.deleted_at IS NULL
                 UNION ALL
-                SELECT s.space_uuid, s.parent_space_uuid,
+                SELECT s.space_uuid, s.name, s.parent_space_uuid,
                     s.warehouse_connection_uuid, s.project_id, a.depth + 1,
                     a.visited || s.space_uuid
                 FROM spaces s
@@ -1982,28 +2001,46 @@ export class SpaceModel {
                 WHERE s.deleted_at IS NULL AND a.warehouse_connection_uuid IS NULL
                     AND NOT s.space_uuid = ANY(a.visited)
             )
-            SELECT warehouse_connection_uuid FROM ancestors
+            SELECT warehouse_connection_uuid, space_uuid, name FROM ancestors
             WHERE warehouse_connection_uuid IS NOT NULL
             ORDER BY depth LIMIT 1`,
             [spaceUuid, projectUuid],
         );
-        return result.rows[0]?.warehouse_connection_uuid ?? null;
+        const binding = result.rows[0];
+        return binding
+            ? {
+                  warehouseConnectionUuid: binding.warehouse_connection_uuid,
+                  spaceUuid: binding.space_uuid,
+                  spaceName: binding.name,
+              }
+            : null;
     }
 
-    async getSpaceUuidsBoundToConnection({
+    async getConnectionBoundSpaces({
         projectUuid,
-        warehouseConnectionUuid,
     }: {
         projectUuid: string;
-        warehouseConnectionUuid: string;
-    }): Promise<string[]> {
-        const spaces = await this.database(SpaceTableName)
+    }): Promise<{ spaceUuid: string; warehouseConnectionUuid: string }[]> {
+        return this.database(SpaceTableName)
             .join(ProjectTableName, 'projects.project_id', 'spaces.project_id')
+            .join('warehouse_connections', function joinConnection() {
+                this.on(
+                    'warehouse_connections.warehouse_connection_uuid',
+                    'spaces.warehouse_connection_uuid',
+                ).andOn(
+                    'warehouse_connections.project_uuid',
+                    'projects.project_uuid',
+                );
+            })
             .where('projects.project_uuid', projectUuid)
-            .where('spaces.warehouse_connection_uuid', warehouseConnectionUuid)
+            .where('warehouse_connections.is_original', false)
+            .whereNotNull('spaces.warehouse_connection_uuid')
             .whereNull('spaces.deleted_at')
-            .select('spaces.space_uuid');
-        return spaces.map((space) => space.space_uuid);
+            .select({
+                spaceUuid: 'spaces.space_uuid',
+                warehouseConnectionUuid:
+                    'warehouse_connections.warehouse_connection_uuid',
+            });
     }
 
     async getSpaceSummary(
@@ -2206,6 +2243,7 @@ export class SpaceModel {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >
     > {
         if (trx === undefined) {

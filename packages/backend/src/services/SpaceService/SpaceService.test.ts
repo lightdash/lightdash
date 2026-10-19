@@ -8,6 +8,7 @@ import {
     ParameterError,
     ProjectMemberRole,
     SpaceMemberRole,
+    WarehouseTypes,
     type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -2367,7 +2368,10 @@ describe('Space warehouse connection updates', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         can.mockResolvedValue(true);
-        getProject.mockResolvedValue({ projectUuid: 'project' });
+        getProject.mockResolvedValue({
+            projectUuid: 'project',
+            originalWarehouseType: WarehouseTypes.POSTGRES,
+        });
         model.getSpaceSummary.mockResolvedValue({
             uuid: 'space',
             name: 'Space',
@@ -2378,7 +2382,9 @@ describe('Space warehouse connection updates', () => {
         });
         update.mockResolvedValue(undefined);
         getFlag.mockResolvedValue({ enabled: true });
-        getConnection.mockResolvedValue({});
+        getConnection.mockResolvedValue({
+            warehouseType: WarehouseTypes.POSTGRES,
+        });
         user.ability.update([
             {
                 action: 'manage',
@@ -2421,6 +2427,23 @@ describe('Space warehouse connection updates', () => {
         expect(update).not.toHaveBeenCalled();
     });
 
+    it('refuses a connection with a different warehouse type', async () => {
+        getConnection.mockResolvedValue({
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        await expect(
+            service.updateSpace(user, 'space', {
+                name: 'Space',
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).rejects.toThrow(
+            new ParameterError(
+                'A space can only use a connection of the same warehouse type as the project connection',
+            ),
+        );
+        expect(update).not.toHaveBeenCalled();
+    });
+
     it('refuses a connection outside the project', async () => {
         getConnection.mockRejectedValue(
             new NotFoundError('Connection not found'),
@@ -2451,7 +2474,10 @@ describe('Space warehouse connection updates', () => {
                 expect(getConnection).not.toHaveBeenCalled();
             else
                 expect(getConnection).toHaveBeenCalledWith(
-                    { projectUuid: 'project' },
+                    {
+                        projectUuid: 'project',
+                        originalWarehouseType: WarehouseTypes.POSTGRES,
+                    },
                     warehouseConnectionUuid,
                 );
         },
@@ -2464,5 +2490,152 @@ describe('Space warehouse connection updates', () => {
         ).rejects.toBe(completed);
         expect(getFlag).not.toHaveBeenCalled();
         expect(update).toHaveBeenCalledOnce();
+    });
+});
+
+describe('Space effective warehouse connection metadata', () => {
+    const user = createTestUser({
+        organizationUuid: 'org',
+        projectUuid: 'project',
+    }) as SessionUser;
+    const featureFlagModel = { get: vi.fn() };
+    const spaceModel = {
+        get: vi.fn().mockResolvedValue({
+            uuid: 'space',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+        }),
+        getSpaceBreadcrumbs: vi.fn().mockResolvedValue([]),
+        getSpaceQueries: vi.fn().mockResolvedValue([]),
+        getSpaceDashboards: vi.fn().mockResolvedValue([]),
+        find: vi.fn().mockResolvedValue([]),
+        getEffectiveWarehouseConnectionBinding: vi.fn(),
+    };
+    const warehouseConnectionModel = { getProject: vi.fn(), list: vi.fn() };
+    const spacePermissionService = {
+        can: vi.fn(),
+        resolveAccess: vi.fn(),
+        getGroupAccess: vi.fn(),
+        getAccessibleSpaceUuids: vi.fn(),
+        mergeAdminAccess: vi.fn(),
+        getUserMetadataByUuids: vi.fn(),
+    };
+    const service = new SpaceService({
+        featureFlagModel,
+        spaceModel,
+        warehouseConnectionModel,
+        spacePermissionService,
+    } as never);
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        spaceModel.get.mockResolvedValue({
+            uuid: 'space',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+        });
+        spaceModel.getSpaceBreadcrumbs.mockResolvedValue([]);
+        spaceModel.getSpaceQueries.mockResolvedValue([]);
+        spaceModel.getSpaceDashboards.mockResolvedValue([]);
+        spaceModel.find.mockResolvedValue([]);
+        spacePermissionService.can.mockResolvedValue(true);
+        spacePermissionService.resolveAccess.mockResolvedValue({
+            inheritsFromOrgOrProject: false,
+        });
+        spacePermissionService.getGroupAccess.mockResolvedValue([]);
+        spacePermissionService.getAccessibleSpaceUuids.mockResolvedValue([]);
+        spacePermissionService.mergeAdminAccess.mockReturnValue([]);
+        spacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
+
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        spaceModel.getEffectiveWarehouseConnectionBinding.mockResolvedValue({
+            warehouseConnectionUuid: 'connection',
+            spaceUuid: 'parent',
+            spaceName: 'Parent',
+        });
+        warehouseConnectionModel.getProject.mockResolvedValue({
+            connectionMode: 'multi',
+        });
+        warehouseConnectionModel.list.mockResolvedValue([
+            {
+                warehouseConnectionUuid: 'connection',
+                name: 'Team warehouse',
+                warehouseType: WarehouseTypes.POSTGRES,
+                host: 'private-host',
+                password: 'private-password',
+            },
+        ]);
+    });
+
+    it('returns null while disabled without resolving a binding or reading connections', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+        expect(
+            spaceModel.getEffectiveWarehouseConnectionBinding,
+        ).not.toHaveBeenCalled();
+        expect(warehouseConnectionModel.getProject).not.toHaveBeenCalled();
+        expect(warehouseConnectionModel.list).not.toHaveBeenCalled();
+    });
+
+    it('returns inherited metadata without credential details', async () => {
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toEqual({
+            warehouseConnectionUuid: 'connection',
+            name: 'Team warehouse',
+            warehouseType: WarehouseTypes.POSTGRES,
+            inheritedFromSpace: { uuid: 'parent', name: 'Parent' },
+        });
+    });
+
+    it('returns a direct binding with no source space', async () => {
+        spaceModel.getEffectiveWarehouseConnectionBinding.mockResolvedValue({
+            warehouseConnectionUuid: 'connection',
+            spaceUuid: 'space',
+            spaceName: 'Space',
+        });
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toEqual({
+            warehouseConnectionUuid: 'connection',
+            name: 'Team warehouse',
+            warehouseType: WarehouseTypes.POSTGRES,
+            inheritedFromSpace: null,
+        });
+    });
+
+    it('returns null when no space binds a connection', async () => {
+        spaceModel.getEffectiveWarehouseConnectionBinding.mockResolvedValue(
+            null,
+        );
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+        expect(warehouseConnectionModel.getProject).not.toHaveBeenCalled();
+    });
+
+    it('returns null when the bound connection is missing', async () => {
+        warehouseConnectionModel.list.mockResolvedValue([]);
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+    });
+
+    it('returns null for a single connection project without listing connections', async () => {
+        warehouseConnectionModel.getProject.mockResolvedValue({
+            connectionMode: 'single',
+        });
+        expect(
+            (await service.getSpace('project', user, 'space'))
+                .effectiveWarehouseConnection,
+        ).toBeNull();
+        expect(warehouseConnectionModel.list).not.toHaveBeenCalled();
     });
 });

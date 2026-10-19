@@ -216,8 +216,52 @@ export class SpaceService
             this.spaceModel.find({ parentSpaceUuid: spaceUuid }),
         ]);
 
+        let effectiveWarehouseConnection: Space['effectiveWarehouseConnection'] =
+            null;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: space.organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (enabled) {
+            const binding =
+                await this.spaceModel.getEffectiveWarehouseConnectionBinding({
+                    projectUuid: space.projectUuid,
+                    spaceUuid,
+                });
+            if (binding !== null) {
+                const project = await this.warehouseConnectionModel.getProject(
+                    space.projectUuid,
+                );
+                if (project.connectionMode === 'multi') {
+                    const connections =
+                        await this.warehouseConnectionModel.list(project);
+                    const connection = connections.find(
+                        ({ warehouseConnectionUuid }) =>
+                            warehouseConnectionUuid ===
+                            binding.warehouseConnectionUuid,
+                    );
+                    if (connection) {
+                        effectiveWarehouseConnection = {
+                            warehouseConnectionUuid:
+                                connection.warehouseConnectionUuid,
+                            name: connection.name,
+                            warehouseType: connection.warehouseType,
+                            inheritedFromSpace:
+                                binding.spaceUuid === spaceUuid
+                                    ? null
+                                    : {
+                                          uuid: binding.spaceUuid,
+                                          name: binding.spaceName,
+                                      },
+                        };
+                    }
+                }
+            }
+        }
+
         return {
             ...space,
+            effectiveWarehouseConnection,
             inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
             queries,
             dashboards,
@@ -482,10 +526,18 @@ export class SpaceService
                     space.projectUuid,
                 );
                 try {
-                    await this.warehouseConnectionModel.get(
+                    const connection = await this.warehouseConnectionModel.get(
                         project,
                         updateSpace.warehouseConnectionUuid,
                     );
+                    if (
+                        connection.warehouseType !==
+                        project.originalWarehouseType
+                    ) {
+                        throw new ParameterError(
+                            'A space can only use a connection of the same warehouse type as the project connection',
+                        );
+                    }
                 } catch (error) {
                     if (!(error instanceof NotFoundError)) throw error;
                     throw new ParameterError(

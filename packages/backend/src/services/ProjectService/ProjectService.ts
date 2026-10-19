@@ -500,6 +500,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -956,6 +957,8 @@ export class ProjectService
 
     private readonly getAgentConnectionGrantService: ProjectServiceArguments['getAgentConnectionGrantService'];
 
+    protected readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor({
         getAgentConnectionGrantService,
         refreshTokenRotation,
@@ -1125,6 +1128,11 @@ export class ProjectService
         this.adminNotificationService = adminNotificationService;
         this.permissionsService = permissionsService;
         this.spacePermissionService = spacePermissionService;
+        this.spaceConnectionReservation = new SpaceConnectionReservation({
+            featureFlagModel,
+            spaceModel,
+            spacePermissionService,
+        });
         this.directAccessService = directAccessService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
@@ -14524,6 +14532,13 @@ export class ProjectService
         ) {
             throw new SingleConnectionProjectError();
         }
+        await this.spaceConnectionReservation.assertCanUseConnection({
+            userUuid: account.user.id,
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            warehouseConnectionUuid,
+        });
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const connection = await this.warehouseConnectionModel.get(
@@ -14627,12 +14642,20 @@ export class ProjectService
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const connections = await this.warehouseConnectionModel.list(project);
+        const reserved =
+            await this.spaceConnectionReservation.getReservedConnectionUuids({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+            });
         return connections.map(
             ({ warehouseConnectionUuid, name, isOriginal, warehouseType }) => ({
                 warehouseConnectionUuid,
                 name,
                 isOriginal,
                 warehouseType,
+                canRunSql: !reserved.has(warehouseConnectionUuid),
             }),
         );
     }

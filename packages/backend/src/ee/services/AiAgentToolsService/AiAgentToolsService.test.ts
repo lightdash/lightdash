@@ -2452,6 +2452,7 @@ describe('AiAgentToolsService', () => {
                 space: { uuid: sqlChartSpaceUuid },
             };
             return new SavedSqlService({
+                spaceModel: {} as never,
                 savedSqlModel: {
                     getBySlug: vi.fn().mockResolvedValue(sqlChartRow),
                     getByUuid: vi.fn().mockResolvedValue(sqlChartRow),

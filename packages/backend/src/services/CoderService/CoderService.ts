@@ -5353,6 +5353,7 @@ export class CoderService extends BaseService {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >[] = [];
 
         for await (const currentPath of remainingPath) {

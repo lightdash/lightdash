@@ -13081,6 +13081,7 @@ describe('AsyncQueryService', () => {
         };
         const sqlChart = {
             savedSqlUuid: 'savedSqlUuid',
+            space: { uuid: 'spaceUuid' },
             sql: 'select 1',
             config: {},
             limit: 10,
