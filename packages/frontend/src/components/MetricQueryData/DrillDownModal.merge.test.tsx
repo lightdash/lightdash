@@ -223,4 +223,41 @@ describe('drill-down modal on a merged result', () => {
             ]);
         },
     );
+
+    it('refuses a merged column no source owns', () => {
+        const closeDrillDownModal = vi.fn();
+        const ratio: CompiledMetric = {
+            ...count,
+            table: 'merge',
+            name: 'merge_ratio',
+        };
+        merge = {
+            ...merge,
+            mergeResults: {
+                fieldOrigins: {
+                    ...merge.mergeResults.fieldOrigins,
+                    merge_merge_ratio: { kind: 'tableCalculation' },
+                },
+            },
+        };
+        renderWithProviders(
+            <Context.Provider
+                value={{
+                    ...metricQueryData,
+                    closeDrillDownModal,
+                    drillDownConfig: {
+                        item: ratio,
+                        fieldValues: {
+                            merge_merge_ratio: { raw: 3, formatted: '3' },
+                        },
+                    },
+                }}
+            >
+                <DrillDownModal />
+            </Context.Provider>,
+        );
+
+        expect(closeDrillDownModal).toHaveBeenCalled();
+        expect(screen.queryByText('Open in new tab')).not.toBeInTheDocument();
+    });
 });

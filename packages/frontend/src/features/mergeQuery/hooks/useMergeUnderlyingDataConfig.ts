@@ -98,7 +98,7 @@ const withJoinKeyDimensions = (
     };
 };
 
-/** Routes a merged-row drill to the source that owns the clicked column. */
+/** Routes a merged-row drill to the source that owns the clicked column; undefined when no source does. */
 export const useMergeDrillDownConfig = (
     config: DrillDownConfig | undefined,
 ): DrillDownConfig | undefined => {
@@ -114,7 +114,7 @@ export const useMergeDrillDownConfig = (
                   { ...config, ...sourceConfig },
                   fieldOrigins,
               )
-            : config;
+            : undefined;
     }, [config, fieldOrigins, resolve]);
 };
 
