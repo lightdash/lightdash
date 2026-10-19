@@ -2384,7 +2384,10 @@ export class AppModel {
      * legitimately for the milliseconds between its insert and its job's
      * insert; anything older with no job (or only an exhausted one) was
      * orphaned by a failed request and would otherwise hold a build slot
-     * forever. Queued-but-waiting builds have a live job and are left alone.
+     * forever. A job is live when it is locked by a worker or has attempts
+     * remaining: graphile-worker bumps `attempts` at lock time, so a job on
+     * its final attempt has attempts == max_attempts while it runs. Queued-
+     * but-waiting builds have a live job and are left alone.
      */
     async failOrphanedPendingVersions(threshold: string): Promise<number> {
         const result = await this.database.raw<{ rowCount: number }>(
@@ -2399,7 +2402,7 @@ export class AppModel {
                    SELECT 1
                    FROM graphile_worker.jobs j
                    WHERE j.task_identifier IN ('appGeneratePipeline', 'appBuildFromSource')
-                     AND j.attempts < j.max_attempts
+                     AND (j.locked_at IS NOT NULL OR j.attempts < j.max_attempts)
                      AND (j.payload->>'appUuid')::uuid = v.app_id
                      AND (j.payload->>'version')::int = v.version
                )`,

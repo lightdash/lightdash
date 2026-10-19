@@ -481,7 +481,19 @@ describe('AppModel.failOrphanedPendingVersions', () => {
         );
         expect(query.sql).toMatch(/NOT EXISTS/);
         expect(query.sql).toMatch(/graphile_worker\.jobs/);
-        expect(query.sql).toMatch(/j\.attempts < j\.max_attempts/);
+        expect(query.sql).toMatch(
+            /task_identifier IN \('appGeneratePipeline', 'appBuildFromSource'\)/,
+        );
+        expect(query.sql).toMatch(
+            /\(j\.payload->>'appUuid'\)::uuid = v\.app_id/,
+        );
+        expect(query.sql).toMatch(
+            /\(j\.payload->>'version'\)::int = v\.version/,
+        );
+        // A locked job is live even on its final attempt (attempts is bumped at lock time)
+        expect(query.sql).toMatch(
+            /\(j\.locked_at IS NOT NULL OR j\.attempts < j\.max_attempts\)/,
+        );
         expect(query.bindings).toEqual([
             'No build job was queued for this version; released by the stale-version sweep.',
             'Build never started',
