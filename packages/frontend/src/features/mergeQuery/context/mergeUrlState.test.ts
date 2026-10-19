@@ -95,6 +95,14 @@ describe('merge url state', () => {
             parseMergeState(
                 JSON.stringify({
                     ...serialized,
+                    t: [{ ...calculation, format: { type: 'bogus' } }],
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
                     t: [
                         {
                             ...calculation,

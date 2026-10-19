@@ -1,4 +1,5 @@
 import {
+    CustomFormatType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
     type CustomFormat,
@@ -188,8 +189,9 @@ const parseTableCalculations = (
             (calculation.format !== undefined &&
                 (calculation.format === null ||
                     typeof calculation.format !== 'object' ||
-                    typeof (calculation.format as Record<string, unknown>)
-                        .type !== 'string'))
+                    !Object.values<unknown>(CustomFormatType).includes(
+                        (calculation.format as Record<string, unknown>).type,
+                    )))
         ) {
             return [];
         }
