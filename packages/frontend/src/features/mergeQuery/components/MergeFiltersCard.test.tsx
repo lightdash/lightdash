@@ -24,13 +24,22 @@ vi.mock('../../../hooks/useProject', () => ({
         },
     }),
 }));
+const merge = vi.hoisted(() => ({
+    primarySourceName: null,
+    additionalSources: [
+        {
+            id: 'second',
+            exploreName: 'payments',
+            dimensions: [],
+            metrics: [],
+            filters: {},
+        },
+    ],
+    joinParts: [],
+}));
 vi.mock('../context/useMerge', () => ({
-    useMerge: () => ({
-        additionalSources: [
-            { id: 'second', exploreName: 'payments', filters: {} },
-        ],
-        joinParts: [],
-    }),
+    useMerge: () => merge,
+    useMergeSafe: () => merge,
 }));
 vi.mock('../../explorer/store', () => ({
     explorerActions: {},
@@ -41,7 +50,12 @@ vi.mock('../../explorer/store', () => ({
     selectIsFiltersExpanded: () => true,
     selectIsEditMode: () => true,
     selectParameters: () => ({}),
-    selectMetricQuery: () => ({}),
+    selectMetricQuery: () => ({
+        exploreName: 'orders',
+        filters: {},
+        tableCalculations: [],
+        limit: 500,
+    }),
     selectAdditionalMetrics: () => [],
     selectCustomDimensions: () => [],
     selectTableCalculations: () => [],

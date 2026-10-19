@@ -269,6 +269,7 @@ vi.mock('../components/Explorer/ExploreSideBar', () => ({
 vi.mock('../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined, error: null }),
     useExploreByProjectUuid: () => ({ data: undefined, error: null }),
+    useExploreQueries: (names: unknown[]) => names.map(() => undefined),
 }));
 
 vi.mock('../hooks/useExplorerQueryEffects', () => ({

@@ -15,7 +15,7 @@ import {
     IconPlus,
     IconX,
 } from '@tabler/icons-react';
-import { useId, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -26,7 +26,6 @@ import { useMergeSetup } from '../hooks/useMergeSetup';
 import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
 import { getMergeSourcesWithoutValues } from '../utils/getMergeSourcesWithoutValues';
 import styles from './MergeJoinBar.module.css';
-import { getJoinClauseLabel } from './mergeJoinLabels';
 
 /** Guidance as a line of text. A coloured box for every hint is a lot to read. */
 const Note: FC<{ tone: 'muted' | 'warn'; children: ReactNode }> = ({
@@ -65,55 +64,6 @@ const SourceLabel: FC<{ label: string }> = ({ label }) => (
     </Group>
 );
 
-const JoinTypeDiagram: FC<{ type: MergeJoinType }> = ({ type }) => {
-    const clipId = useId();
-
-    return (
-        <svg aria-hidden className={styles.joinTypeDiagram} viewBox="0 0 48 28">
-            <defs>
-                <clipPath id={clipId}>
-                    <circle cx="18" cy="14" r="10" />
-                </clipPath>
-            </defs>
-            {type === MergeJoinType.LEFT ? (
-                <circle
-                    className={styles.retainedRegion}
-                    cx="18"
-                    cy="14"
-                    r="10"
-                />
-            ) : null}
-            {type === MergeJoinType.FULL ? (
-                <>
-                    <circle
-                        className={styles.retainedRegion}
-                        cx="18"
-                        cy="14"
-                        r="10"
-                    />
-                    <circle
-                        className={styles.retainedRegion}
-                        cx="30"
-                        cy="14"
-                        r="10"
-                    />
-                </>
-            ) : null}
-            {type === MergeJoinType.INNER ? (
-                <circle
-                    className={styles.retainedRegion}
-                    cx="30"
-                    cy="14"
-                    r="10"
-                    clipPath={`url(#${clipId})`}
-                />
-            ) : null}
-            <circle className={styles.circleOutline} cx="18" cy="14" r="10" />
-            <circle className={styles.circleOutline} cx="30" cy="14" r="10" />
-        </svg>
-    );
-};
-
 const JoinTypePicker: FC<{
     value: MergeJoinType;
     options: JoinTypeOption[];
@@ -139,7 +89,6 @@ const JoinTypePicker: FC<{
                         gap={6}
                         wrap="nowrap"
                     >
-                        <JoinTypeDiagram type={option.value} />
                         <Text span size="xs" fw={600} truncate>
                             {option.label}
                         </Text>
@@ -149,6 +98,11 @@ const JoinTypePicker: FC<{
         </SimpleGrid>
     </Radio.Group>
 );
+
+const compactSourceList = (labels: string[]): string => {
+    if (labels.length <= 2) return labels.join(' and ');
+    return `${labels[0]}, ${labels[1]} and ${labels.length - 2} others`;
+};
 
 /**
  * The merge relationship, as a persistent bar under the sidebar tabs.
@@ -163,11 +117,10 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
-    const { handleByName } = useMergeSourceNames();
+    const { handleByName, nameByHandle } = useMergeSourceNames();
     const {
         isMerging,
         readOnly,
-        additionalSources,
         joinType,
         repeatValuesSourceIds,
         setJoinField,
@@ -176,25 +129,39 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         setJoinType,
         setRepeatValues,
     } = mergeContext ?? EMPTY_MERGE;
-    const additionalSource = additionalSources[0];
-    const additionalSourceId = additionalSource?.id;
     const { runErrors, mergeResults } = mergeContext ?? {};
 
     const {
+        first,
+        sourceSetups,
+        relationshipSummary,
         effectiveParts,
         labelFor,
         fanOut,
         joinKeyErrors,
         joinFieldLabel,
-        availablePrimaryJoinItems,
-        availableAdditionalJoinItems,
-        getJoinCandidates,
-        suggestedAvailablePair,
         primaryExploreLabel,
-        additionalExploreLabel,
         isIncomplete,
         blockingReason,
     } = useMergeSetup();
+    const configuredSourceSetups = sourceSetups.filter(
+        (setup) => setup.additionalSource.exploreName,
+    );
+    const configuredLabelCounts = configuredSourceSetups.reduce<
+        Record<string, number>
+    >((counts, setup) => {
+        const label = setup.additionalExploreLabel ?? setup.additionalSourceId;
+        counts[label] = (counts[label] ?? 0) + 1;
+        return counts;
+    }, {});
+    const displayLabelForSetup = (
+        setup: (typeof configuredSourceSetups)[number],
+    ) => {
+        const label = setup.additionalExploreLabel ?? setup.additionalSourceId;
+        return configuredLabelCounts[label] > 1
+            ? `${label} · ${nameByHandle[setup.additionalSourceId] ?? setup.additionalSourceId}`
+            : label;
+    };
 
     // Expanded while the merge is incomplete — there is nothing to summarise
     // yet — and by explicit choice afterwards.
@@ -203,7 +170,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     );
     const expanded =
         !readOnly &&
-        !!additionalSource?.exploreName &&
+        configuredSourceSetups.length > 0 &&
         (guided || (editingOverride ?? isIncomplete));
 
     // A side that contributed nothing reads as a mistake unless the card
@@ -222,25 +189,31 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
     if (!mergeContext || !tableName || mergeFlag?.enabled !== true) return null;
     if (!isMerging) return null;
-    if (!additionalSource?.exploreName || !additionalSourceId) return null;
+    if (configuredSourceSetups.length === 0) return null;
 
     const thisQuery = primaryExploreLabel || 'this query';
-    const otherQuery = additionalExploreLabel || 'the other query';
+    const sourceLabels: Record<string, string> = Object.fromEntries([
+        [PRIMARY_SOURCE_ID, thisQuery],
+        ...sourceSetups.map((setup) => [
+            setup.additionalSourceId,
+            displayLabelForSetup(setup),
+        ]),
+    ]);
     const keepOptions: JoinTypeOption[] = [
         {
             value: MergeJoinType.INNER,
-            label: 'Inner',
-            help: `Inner join · Only the ${joinFieldLabel} values in both ${thisQuery} and ${otherQuery}. Everything unmatched is dropped.`,
+            label: 'Matches only',
+            help: `Only ${joinFieldLabel} values found in every source. Everything unmatched is dropped.`,
         },
         {
             value: MergeJoinType.LEFT,
-            label: 'Left',
-            help: `Left join · Only the ${joinFieldLabel} values in ${thisQuery}. Anything found solely in ${otherQuery} is dropped.`,
+            label: `From ${thisQuery}`,
+            help: `Only ${joinFieldLabel} values in ${thisQuery}. Anything found solely in another source is dropped.`,
         },
         {
             value: MergeJoinType.FULL,
-            label: 'Full outer',
-            help: `Full outer join · Every ${joinFieldLabel} from either query. Where one side has no match, its columns are blank.`,
+            label: 'All rows',
+            help: `Every ${joinFieldLabel} from any source. Where a source has no match, its columns are blank.`,
         },
     ];
     const activeKeep =
@@ -248,31 +221,24 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
         keepOptions[0];
     const mergeError = mergeResults?.results.error ?? null;
 
+    const sourceCount = 1 + configuredSourceSetups.length;
+    const primaryKeySummary = effectiveParts
+        .map((part) => {
+            const fieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+            return fieldId ? labelFor(fieldId) : '?';
+        })
+        .join(' + ');
     const summary = isIncomplete ? (
         <>
-            match <b>{thisQuery}</b> and <b>{otherQuery}</b> on a shared field
+            <b>{sourceCount} sources</b> · finish matching every source
+        </>
+    ) : sourceCount === 2 ? (
+        <>
+            joined on <b>{relationshipSummary}</b> · <b>{activeKeep.label}</b>
         </>
     ) : (
         <>
-            joined on{' '}
-            <b>
-                {effectiveParts
-                    .map((part) => {
-                        const primaryFieldId =
-                            part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-                        const additionalFieldId =
-                            part.fieldIdBySourceId[additionalSourceId];
-                        return getJoinClauseLabel(
-                            thisQuery,
-                            primaryFieldId ? labelFor(primaryFieldId) : '?',
-                            otherQuery,
-                            additionalFieldId
-                                ? labelFor(additionalFieldId)
-                                : '?',
-                        );
-                    })
-                    .join(' AND ')}
-            </b>{' '}
+            <b>{sourceCount} sources</b> · joined on <b>{primaryKeySummary}</b>{' '}
             · <b>{activeKeep.label}</b>
         </>
     );
@@ -303,18 +269,18 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
                 {expanded && (
                     <Box className={styles.editor} data-guided={guided}>
-                        <Text size="xs" fw={600}>
-                            Join conditions
-                        </Text>
+                        <Box>
+                            <Text size="xs" fw={600}>
+                                Match every source
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                                Choose the shared key once, then map the same
+                                real-world field in each source.
+                            </Text>
+                        </Box>
                         {effectiveParts.map((part, index) => {
-                            const primaryCandidates = getJoinCandidates(
-                                'primary',
-                                part.fieldIdBySourceId[additionalSourceId],
-                            );
-                            const additionalCandidates = getJoinCandidates(
-                                'additional',
-                                part.fieldIdBySourceId[PRIMARY_SOURCE_ID],
-                            );
+                            const primaryFieldId =
+                                part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
                             return (
                                 // eslint-disable-next-line react/no-array-index-key
                                 <Box className={styles.pair} key={index}>
@@ -330,160 +296,14 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                             </Text>
                                         </Box>
                                     ) : null}
-                                    {index === 0 &&
-                                        !part.fieldIdBySourceId[
-                                            PRIMARY_SOURCE_ID
-                                        ] &&
-                                        !part.fieldIdBySourceId[
-                                            additionalSourceId
-                                        ] &&
-                                        suggestedAvailablePair && (
-                                            <Box className={styles.suggestion}>
-                                                <Text size="xs" c="dimmed">
-                                                    Suggested:{' '}
-                                                    <Text
-                                                        span
-                                                        inherit
-                                                        fw={600}
-                                                        c="gray.7"
-                                                    >
-                                                        {getJoinClauseLabel(
-                                                            thisQuery,
-                                                            labelFor(
-                                                                suggestedAvailablePair[
-                                                                    PRIMARY_SOURCE_ID
-                                                                ],
-                                                            ),
-                                                            otherQuery,
-                                                            labelFor(
-                                                                suggestedAvailablePair[
-                                                                    additionalSourceId
-                                                                ],
-                                                            ),
-                                                        )}
-                                                    </Text>
-                                                </Text>
-                                                <Anchor
-                                                    component="button"
-                                                    type="button"
-                                                    size="xs"
-                                                    fw={600}
-                                                    onClick={() => {
-                                                        const primaryField =
-                                                            suggestedAvailablePair[
-                                                                PRIMARY_SOURCE_ID
-                                                            ];
-                                                        const additionalField =
-                                                            suggestedAvailablePair[
-                                                                additionalSourceId
-                                                            ];
-                                                        if (
-                                                            !primaryField ||
-                                                            !additionalField
-                                                        )
-                                                            return;
-                                                        setJoinField(
-                                                            index,
-                                                            PRIMARY_SOURCE_ID,
-                                                            primaryField,
-                                                        );
-                                                        setJoinField(
-                                                            index,
-                                                            additionalSourceId,
-                                                            additionalField,
-                                                        );
-                                                    }}
-                                                >
-                                                    Use suggestion
-                                                </Anchor>
-                                            </Box>
-                                        )}
-                                    <Box className={styles.pairFields}>
-                                        <Stack
-                                            gap={4}
-                                            className={styles.fieldSide}
-                                        >
-                                            <SourceLabel label={thisQuery} />
-                                            <FieldSelect
-                                                aria-label={`${thisQuery} join field`}
-                                                size="xs"
-                                                placeholder="Choose a field"
-                                                hasGrouping
-                                                items={
-                                                    availablePrimaryJoinItems
-                                                }
-                                                suggestedItems={
-                                                    primaryCandidates.suggested
-                                                }
-                                                inactiveItemIds={primaryCandidates.incompatible.map(
-                                                    getItemId,
-                                                )}
-                                                item={availablePrimaryJoinItems.find(
-                                                    (candidate) =>
-                                                        getItemId(candidate) ===
-                                                        part.fieldIdBySourceId[
-                                                            PRIMARY_SOURCE_ID
-                                                        ],
-                                                )}
-                                                onChange={(value) =>
-                                                    setJoinField(
-                                                        index,
-                                                        PRIMARY_SOURCE_ID,
-                                                        value
-                                                            ? getItemId(value)
-                                                            : null,
-                                                    )
-                                                }
-                                            />
-                                        </Stack>
-                                        <Text
-                                            className={styles.operator}
-                                            aria-hidden
-                                            size="sm"
-                                            fw={600}
-                                        >
-                                            =
+                                    <Box className={styles.conditionHeader}>
+                                        <Text size="xs" fw={600}>
+                                            {effectiveParts.length > 1
+                                                ? `Key ${index + 1}`
+                                                : 'Shared key'}
                                         </Text>
-                                        <Stack
-                                            gap={4}
-                                            className={styles.fieldSide}
-                                        >
-                                            <SourceLabel label={otherQuery} />
-                                            <FieldSelect
-                                                aria-label={`${otherQuery} join field`}
-                                                size="xs"
-                                                placeholder="Choose a field"
-                                                hasGrouping
-                                                items={
-                                                    availableAdditionalJoinItems
-                                                }
-                                                suggestedItems={
-                                                    additionalCandidates.suggested
-                                                }
-                                                inactiveItemIds={additionalCandidates.incompatible.map(
-                                                    getItemId,
-                                                )}
-                                                item={availableAdditionalJoinItems.find(
-                                                    (candidate) =>
-                                                        getItemId(candidate) ===
-                                                        part.fieldIdBySourceId[
-                                                            additionalSourceId
-                                                        ],
-                                                )}
-                                                onChange={(value) =>
-                                                    setJoinField(
-                                                        index,
-                                                        additionalSourceId,
-                                                        value
-                                                            ? getItemId(value)
-                                                            : null,
-                                                    )
-                                                }
-                                            />
-                                        </Stack>
-                                        {effectiveParts.length > 1 ? (
+                                        {effectiveParts.length > 1 && (
                                             <ActionIcon
-                                                className={styles.removeKey}
                                                 size="sm"
                                                 onClick={() =>
                                                     removeJoinPart(index)
@@ -495,15 +315,120 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                     size={14}
                                                 />
                                             </ActionIcon>
-                                        ) : (
-                                            <Box
-                                                aria-hidden
-                                                className={
-                                                    styles.removeKeySpacer
-                                                }
-                                            />
                                         )}
                                     </Box>
+                                    <Stack gap={4}>
+                                        <SourceLabel
+                                            label={`${thisQuery} (first source)`}
+                                        />
+                                        <FieldSelect
+                                            aria-label={`${thisQuery} join field`}
+                                            size="xs"
+                                            placeholder="Choose a shared field"
+                                            hasGrouping
+                                            items={
+                                                first.availablePrimaryJoinItems
+                                            }
+                                            item={first.availablePrimaryJoinItems.find(
+                                                (candidate) =>
+                                                    getItemId(candidate) ===
+                                                    primaryFieldId,
+                                            )}
+                                            onChange={(value) =>
+                                                setJoinField(
+                                                    index,
+                                                    PRIMARY_SOURCE_ID,
+                                                    value
+                                                        ? getItemId(value)
+                                                        : null,
+                                                )
+                                            }
+                                        />
+                                    </Stack>
+                                    <Stack
+                                        className={styles.sourceMappings}
+                                        gap={6}
+                                    >
+                                        {configuredSourceSetups.map((setup) => {
+                                            const sourceId =
+                                                setup.additionalSourceId;
+                                            const sourceLabel =
+                                                displayLabelForSetup(setup);
+                                            const fieldId =
+                                                part.fieldIdBySourceId[
+                                                    sourceId
+                                                ];
+                                            const candidates =
+                                                setup.getJoinCandidates(
+                                                    'additional',
+                                                    primaryFieldId,
+                                                );
+
+                                            return (
+                                                <Box
+                                                    className={
+                                                        styles.sourceMapping
+                                                    }
+                                                    data-incomplete={!fieldId}
+                                                    key={sourceId}
+                                                >
+                                                    <Text
+                                                        className={
+                                                            styles.mappingOperator
+                                                        }
+                                                        aria-hidden
+                                                        size="sm"
+                                                        fw={600}
+                                                    >
+                                                        =
+                                                    </Text>
+                                                    <Stack
+                                                        gap={4}
+                                                        className={
+                                                            styles.mappingField
+                                                        }
+                                                    >
+                                                        <SourceLabel
+                                                            label={sourceLabel}
+                                                        />
+                                                        <FieldSelect
+                                                            aria-label={`${sourceLabel} join field`}
+                                                            size="xs"
+                                                            placeholder="Choose its matching field"
+                                                            hasGrouping
+                                                            items={
+                                                                setup.availableAdditionalJoinItems
+                                                            }
+                                                            suggestedItems={
+                                                                candidates.suggested
+                                                            }
+                                                            inactiveItemIds={candidates.incompatible.map(
+                                                                getItemId,
+                                                            )}
+                                                            item={setup.availableAdditionalJoinItems.find(
+                                                                (candidate) =>
+                                                                    getItemId(
+                                                                        candidate,
+                                                                    ) ===
+                                                                    fieldId,
+                                                            )}
+                                                            onChange={(value) =>
+                                                                setJoinField(
+                                                                    index,
+                                                                    sourceId,
+                                                                    value
+                                                                        ? getItemId(
+                                                                              value,
+                                                                          )
+                                                                        : null,
+                                                                )
+                                                            }
+                                                        />
+                                                    </Stack>
+                                                </Box>
+                                            );
+                                        })}
+                                    </Stack>
                                 </Box>
                             );
                         })}
@@ -544,16 +469,19 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             )}
 
             {joinKeyErrors.map((error) => (
-                <Note key={error.kind} tone="warn">
+                <Note key={error.message} tone="warn">
                     {error.message}
                 </Note>
             ))}
 
             {sourcesWithoutValues.map((sourceId) => {
-                // Results name sources as they ran
-                const isPrimary = handleByName[sourceId] === PRIMARY_SOURCE_ID;
-                const emptyLabel = isPrimary ? thisQuery : otherQuery;
-                const otherLabel = isPrimary ? otherQuery : thisQuery;
+                const sourceHandle = handleByName[sourceId] ?? sourceId;
+                const emptyLabel = sourceLabels[sourceHandle] ?? sourceId;
+                const otherLabel = compactSourceList(
+                    Object.entries(sourceLabels)
+                        .filter(([id]) => id !== sourceHandle)
+                        .map(([, label]) => label),
+                );
                 return (
                     <Note key={`empty-${sourceId}`} tone="muted">
                         {emptyLabel}'s columns are blank on every row: its query
@@ -565,18 +493,13 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
 
             {!isIncomplete &&
                 fanOut.map(({ sourceId, fields }) => {
-                    const splitLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? primaryExploreLabel
-                            : additionalExploreLabel;
-                    const otherSourceId =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalSourceId
-                            : PRIMARY_SOURCE_ID;
-                    const otherLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalExploreLabel
-                            : primaryExploreLabel;
+                    const splitLabel = sourceLabels[sourceId];
+                    const otherSourceIds = Object.keys(sourceLabels).filter(
+                        (id) => id !== sourceId,
+                    );
+                    const otherLabel = compactSourceList(
+                        otherSourceIds.map((id) => sourceLabels[id]),
+                    );
                     return (
                         <Note key={sourceId} tone="warn">
                             {splitLabel} is split by{' '}
@@ -584,9 +507,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                             {otherLabel} does not have. Merging would repeat{' '}
                             {otherLabel}'s rows once per value. Remove{' '}
                             {fields.length === 1 ? 'it' : 'them'}, select{' '}
-                            {fields.length === 1 ? 'it' : 'them'} on both
-                            queries and join on{' '}
-                            {fields.length === 1 ? 'it' : 'them'}, or{' '}
+                            {fields.length === 1 ? 'it' : 'them'} on all queries
+                            and join on {fields.length === 1 ? 'it' : 'them'},
+                            or{' '}
                             {!readOnly && (
                                 <Anchor
                                     component="button"
@@ -594,7 +517,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                     size="xs"
                                     fw={600}
                                     onClick={() =>
-                                        setRepeatValues(otherSourceId, true)
+                                        otherSourceIds.forEach((id) =>
+                                            setRepeatValues(id, true),
+                                        )
                                     }
                                 >
                                     repeat {otherLabel}'s values on every{' '}
@@ -609,20 +534,14 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
             {/* Repeating is a lookup the user asked for; saying so keeps a
                 repeated metric from reading as a per-row measurement. */}
             {repeatValuesSourceIds
-                .filter(
-                    (sourceId) =>
-                        sourceId === PRIMARY_SOURCE_ID ||
-                        sourceId === additionalSourceId,
-                )
+                .filter((sourceId) => sourceId in sourceLabels)
                 .map((sourceId) => {
-                    const repeatingLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? primaryExploreLabel
-                            : additionalExploreLabel;
-                    const otherLabel =
-                        sourceId === PRIMARY_SOURCE_ID
-                            ? additionalExploreLabel
-                            : primaryExploreLabel;
+                    const repeatingLabel = sourceLabels[sourceId];
+                    const otherLabel = compactSourceList(
+                        Object.entries(sourceLabels)
+                            .filter(([id]) => id !== sourceId)
+                            .map(([, label]) => label),
+                    );
                     return (
                         <Note key={`repeat-${sourceId}`} tone="muted">
                             {repeatingLabel}'s values repeat on every{' '}

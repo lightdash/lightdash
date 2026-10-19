@@ -266,7 +266,7 @@ describe('merge url state', () => {
                 JSON.stringify({
                     s: [
                         { i: 'b', e: null, d: [], m: [], w: {} },
-                        { i: 'c', e: null, d: [], m: [], w: {} },
+                        { i: 'b', e: null, d: [], m: [], w: {} },
                     ],
                 }),
             ),

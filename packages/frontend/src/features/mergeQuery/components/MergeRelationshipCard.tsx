@@ -6,42 +6,35 @@ import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import { MergeJoinBar } from './MergeJoinBar';
-import { getJoinClauseLabel } from './mergeJoinLabels';
 
 const MergeRelationshipCardContent: FC = () => {
     const {
         effectiveParts,
         labelFor,
+        relationshipSummary,
+        sourceLabels,
         primaryExploreLabel,
-        additionalExploreLabel,
-        additionalSourceId,
         isIncomplete,
         setupStep,
     } = useMergeSetup();
     const merge = useMergeSafe();
     const [isOpen, setIsOpen] = useState(true);
-    const primaryLabel = primaryExploreLabel ?? 'First data';
-    const additionalLabel = additionalExploreLabel ?? 'Combined data';
     const joinTypeLabel =
         merge?.joinType === MergeJoinType.LEFT
-            ? 'Left'
+            ? `From ${primaryExploreLabel ?? 'first source'}`
             : merge?.joinType === MergeJoinType.INNER
-              ? 'Inner'
-              : 'Full outer';
-    const relationshipSummary = effectiveParts
-        .map((part) => {
-            const primaryFieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-            const additionalFieldId =
-                part.fieldIdBySourceId[additionalSourceId];
-            return getJoinClauseLabel(
-                primaryLabel,
-                primaryFieldId ? labelFor(primaryFieldId) : '?',
-                additionalLabel,
-                additionalFieldId ? labelFor(additionalFieldId) : '?',
-            );
-        })
-        .join(' AND ');
-    const badgeLabel = setupStep ?? `${relationshipSummary} · ${joinTypeLabel}`;
+              ? 'Matches only'
+              : 'All rows';
+    const primaryKeySummary = effectiveParts
+        .map((part) => part.fieldIdBySourceId[PRIMARY_SOURCE_ID])
+        .filter((fieldId): fieldId is string => !!fieldId)
+        .map(labelFor)
+        .join(' + ');
+    const relationshipLabel =
+        sourceLabels.length > 2
+            ? `${sourceLabels.length} sources · ${primaryKeySummary} · ${joinTypeLabel}`
+            : `${relationshipSummary} · ${joinTypeLabel}`;
+    const badgeLabel = setupStep ?? relationshipLabel;
 
     return (
         <CollapsableCard
@@ -74,7 +67,7 @@ export const MergeRelationshipCard: FC = () => {
     if (
         !merge?.isMerging ||
         merge.readOnly ||
-        !merge.additionalSources[0]?.exploreName
+        !merge.additionalSources.some((source) => source.exploreName)
     ) {
         return null;
     }
