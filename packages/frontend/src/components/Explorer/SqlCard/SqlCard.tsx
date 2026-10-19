@@ -87,23 +87,27 @@ const SqlCard: FC<SqlCardProps> = memo((props) => {
     const merge = useMergeCompiledSql();
 
     const hasPivotQuery = !merge.isMergeActive && !!data?.pivotQuery;
-    const selectedSql = merge.isMergeActive
-        ? merge.data && getMergeCompiledSqlText(merge.data)
-        : selectedView === 'pivotQuery'
-          ? data?.pivotQuery
-          : data?.query;
+    const selectedSql =
+        selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
 
     const { warehouseType } = useExploreWarehouseConnection(
         unsavedChartVersionTableName,
         projectUuid,
     );
-    const formattedSql = useMemo(
-        () =>
-            selectedSql
-                ? formatSql(selectedSql, warehouseType ?? undefined)
-                : '',
-        [selectedSql, warehouseType],
-    );
+    const formattedSql = useMemo(() => {
+        if (merge.isMergeActive) {
+            if (!merge.data) return '';
+            return (
+                getMergeCompiledSqlText(
+                    merge.data,
+                    warehouseType ?? undefined,
+                ) ?? ''
+            );
+        }
+        return selectedSql
+            ? formatSql(selectedSql, warehouseType ?? undefined)
+            : '';
+    }, [merge.isMergeActive, merge.data, selectedSql, warehouseType]);
 
     return (
         <CollapsableCard

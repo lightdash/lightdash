@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { getTotalFilterRules } from '../utils/filters';
 import { getItemId } from '../utils/item';
+import { formatSql } from '../utils/sqlDialect';
 import { SupportedDbtAdapter } from './dbt';
 import {
     DimensionType,
@@ -21,6 +22,7 @@ import {
 } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
+import { WarehouseTypes } from './projects';
 import { type TimeFrames } from './timeFrames';
 
 /**
@@ -821,22 +823,28 @@ export const getMergeSourceTableLabel = (sourceIndex: number): string =>
 
 /**
  * The SQL a compiled merge runs, as one readable text: each leg under a
- * comment naming its source, then the join. Null when the merge did not
- * compile.
+ * comment naming its source, then the join. Each section is formatted in
+ * its own dialect: legs in the warehouse's, the join in DuckDB's. Legs stay
+ * as compiled when the warehouse is unknown, since the generic dialect can
+ * break warehouse syntax such as `->>`. Null when the merge did not compile.
  */
 export const getMergeCompiledSqlText = (
     compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
+    warehouseType: WarehouseTypes | undefined,
 ): string | null => {
     if (compiled.sql === null) return null;
     const legs = compiled.legs.map((leg, index) => {
         const label = `${getMergeSourceTableLabel(index)} ("${leg.sourceId}")`;
-        return leg.sql === null
-            ? `-- ${label}: existing results, nothing runs`
-            : `-- ${label}: runs on the warehouse\n${leg.sql}`;
+        if (leg.sql === null)
+            return `-- ${label}: existing results, nothing runs`;
+        const legSql = warehouseType
+            ? formatSql(leg.sql, warehouseType)
+            : leg.sql;
+        return `-- ${label}: runs on the warehouse\n${legSql}`;
     });
     return [
         ...legs,
-        `-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...\n${compiled.sql}`,
+        `-- Merge: runs on the compose engine over the results above, read as merge_source_0, merge_source_1, ...\n${formatSql(compiled.sql, WarehouseTypes.DUCKDB)}`,
     ].join('\n\n');
 };
 
