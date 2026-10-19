@@ -47,21 +47,6 @@ vi.mock('../context/useMerge', () => ({
 vi.mock('../hooks/useMergeSetup', () => ({
     useMergeSetup: () => ({
         sourceLabels: ['Orders', 'Payments'],
-        filtersBySourceId: Object.fromEntries([
-            ['a', {}],
-            ...merge.additionalSources.map((source) => [
-                source.id,
-                source.filters,
-            ]),
-        ]),
-        effectiveParts: [
-            {
-                fieldIdBySourceId: {
-                    a: 'orders_order_date_month',
-                    second: 'payments_order_date_month',
-                },
-            },
-        ],
         sourceSetups: merge.additionalSources.map((source) => ({
             additionalSourceId: source.id,
             additionalSource: source,
@@ -198,7 +183,8 @@ describe('MergeFiltersCard', () => {
         );
     });
 
-    it('shares a join-field filter with the first source when the key is the default', async () => {
+    // As on main: join-field filters are shared over chosen join fields only
+    it('keeps a join-field filter on its own source while the key is a default', async () => {
         flag.enabled = true;
         renderCard();
         await userEvent.click(
@@ -207,15 +193,17 @@ describe('MergeFiltersCard', () => {
             })[1],
         );
         expect(dispatch).toHaveBeenLastCalledWith(
+            expect.objectContaining({ payload: {} }),
+        );
+        expect(merge.setSourceFilters).toHaveBeenLastCalledWith(
+            'second',
             expect.objectContaining({
-                payload: expect.objectContaining({
-                    dimensions: expect.objectContaining({
-                        and: [
-                            expect.objectContaining({
-                                target: { fieldId: 'orders_order_date_month' },
-                            }),
-                        ],
-                    }),
+                dimensions: expect.objectContaining({
+                    and: [
+                        expect.objectContaining({
+                            target: { fieldId: 'payments_order_date_month' },
+                        }),
+                    ],
                 }),
             }),
         );

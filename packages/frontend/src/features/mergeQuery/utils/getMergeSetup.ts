@@ -25,7 +25,6 @@ import {
 import { type MergeEditorSource, type MergeJoinPart } from '../context/context';
 import { getMergePairSetup } from './getMergePairSetup';
 import { type MergeSourceNames } from './getMergeSourceNames';
-import { deriveSharedJoinFilters } from './syncMergeJoinFilters';
 
 export const getMergeJoinTypeLabel = (
     joinType: MergeJoinType,
@@ -87,7 +86,7 @@ export const getMergeSetup = ({
                 ],
         },
     }));
-    const pairSetups = additionalSources.map((source, index) =>
+    const sourceSetups = additionalSources.map((source, index) =>
         getMergePairSetup({
             metricQuery,
             tableName,
@@ -105,31 +104,13 @@ export const getMergeSetup = ({
         ...part,
         fieldIdBySourceId: Object.fromEntries([
             [PRIMARY_SOURCE_ID, part.fieldIdBySourceId[PRIMARY_SOURCE_ID]],
-            ...pairSetups.map((setup) => [
+            ...sourceSetups.map((setup) => [
                 setup.additionalSourceId,
                 setup.effectiveParts[index].fieldIdBySourceId[
                     setup.additionalSourceId
                 ],
             ]),
         ]),
-    }));
-    const filtersBySourceId = deriveSharedJoinFilters({
-        filtersBySourceId: Object.fromEntries([
-            [PRIMARY_SOURCE_ID, metricQuery.filters],
-            ...pairSetups.map((setup) => [
-                setup.additionalSourceId,
-                setup.additionalMetricQuery.filters,
-            ]),
-        ]),
-        joinParts,
-        effectiveParts,
-    });
-    const sourceSetups = pairSetups.map((setup) => ({
-        ...setup,
-        additionalMetricQuery: {
-            ...setup.additionalMetricQuery,
-            filters: filtersBySourceId[setup.additionalSourceId],
-        },
     }));
     const editorSources = [
         { id: PRIMARY_SOURCE_ID, metricQuery },
@@ -333,8 +314,6 @@ export const getMergeSetup = ({
         sourceLabels: labels,
         labelFor,
         effectiveParts,
-        /** Each source's filters as they run, keyed by editor handle. */
-        filtersBySourceId,
         mergeQuery,
         fanOut,
         joinKeyErrors,

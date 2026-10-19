@@ -25,19 +25,6 @@ vi.mock('../context/useMerge', () => ({
         setFocus: vi.fn(),
     }),
 }));
-vi.mock('./useMergeSetup', () => ({
-    useMergeSetup: () => ({
-        filtersBySourceId: { a: {}, b: {} },
-        effectiveParts: [
-            {
-                fieldIdBySourceId: {
-                    a: 'orders_customer_id',
-                    b: 'subscriptions_customer_id',
-                },
-            },
-        ],
-    }),
-}));
 vi.mock('../../explorer/store', () => ({
     explorerActions: {
         setFilters: (payload: unknown) => ({ type: 'setFilters', payload }),
@@ -99,18 +86,16 @@ describe('addMergeSourceFilter', () => {
 });
 
 describe('useMergeSourceFilter', () => {
-    it('shares a join-field filter over the key in effect', () => {
+    // As on main: the filter is shared over chosen join fields only
+    it('keeps a join-field filter on its own source while the key is a default', () => {
         window.scrollTo = vi.fn();
         const { result } = renderHook(() => useMergeSourceFilter());
 
         result.current('b', field('subscriptions', 'customer_id'));
 
-        expect(fieldIds(mocks.dispatch.mock.calls[0][0].payload)).toEqual([
-            'orders_customer_id',
+        expect(mocks.dispatch).not.toHaveBeenCalled();
+        expect(fieldIds(mocks.setSourceFilters.mock.calls[0][1])).toEqual([
+            'subscriptions_customer_id',
         ]);
-        expect(mocks.setSourceFilters).toHaveBeenCalledWith(
-            'b',
-            expect.anything(),
-        );
     });
 });

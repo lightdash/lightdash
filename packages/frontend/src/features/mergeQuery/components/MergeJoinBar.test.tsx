@@ -17,7 +17,6 @@ type TestItem = {
 const state = vi.hoisted(() => ({
     dispatch: vi.fn(),
     setSourceFilters: vi.fn(),
-    filtersBySourceId: {} as Record<string, Filters>,
     setJoinField: vi.fn(),
     addJoinPart: vi.fn(),
     removeJoinPart: vi.fn(),
@@ -150,7 +149,6 @@ vi.mock('../hooks/useMergeSetup', () => ({
                   )
                 : `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.a ?? '')} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.b ?? '')}`,
         joinTypeLabel: 'All rows',
-        filtersBySourceId: state.filtersBySourceId,
     }),
 }));
 
@@ -247,7 +245,6 @@ const resetState = () => {
     });
     state.setup.isIncomplete = false;
     state.setup.suggestedJoinFields = {};
-    state.filtersBySourceId = {};
 };
 
 describe('MergeJoinBar', () => {
@@ -272,14 +269,10 @@ describe('MergeJoinBar', () => {
                 ],
             },
         });
-        state.filtersBySourceId = {
-            [PRIMARY_SOURCE_ID]: filterOn('orders_customer_id'),
-            b: filterOn('customers_id'),
-        };
         state.merge.additionalSources = [
             {
                 ...state.merge.additionalSources[0],
-                filters: state.filtersBySourceId.b,
+                filters: filterOn('customers_id'),
             },
         ];
         renderWithProviders(<MergeJoinBar guided />);

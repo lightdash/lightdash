@@ -4,7 +4,6 @@ import {
     type FilterRule,
     type Filters,
 } from '@lightdash/common';
-import { PRIMARY_SOURCE_ID } from '../constants';
 import { type MergeJoinPart } from '../context/context';
 
 export type FiltersBySourceId = Record<string, Filters>;
@@ -104,74 +103,4 @@ export const syncMergeJoinFilters = ({
             ];
         }),
     );
-};
-
-const hasRuleOn = (
-    group: FilterGroup | undefined,
-    fieldIds: Set<string>,
-): boolean =>
-    !!group &&
-    itemsOf(group).some((item): boolean =>
-        'and' in item || 'or' in item
-            ? hasRuleOn(item, fieldIds)
-            : fieldIds.has(fieldIdOf(item) ?? ''),
-    );
-
-/**
- * A source whose join field is filled in by default, and has no filter on
- * it yet, takes the first source's join-key filters on it. Stored filters
- * are never changed: a chosen field, or a default field that already has a
- * filter, runs with what is stored, so a saved chart runs as it was saved.
- */
-export const deriveSharedJoinFilters = ({
-    filtersBySourceId,
-    joinParts,
-    effectiveParts,
-}: {
-    filtersBySourceId: FiltersBySourceId;
-    /** The fields chosen; null where the effective field is a default. */
-    joinParts: MergeJoinPart[];
-    effectiveParts: MergeJoinPart[];
-}): FiltersBySourceId => {
-    const primary = filtersBySourceId[PRIMARY_SOURCE_ID];
-    if (!primary) return filtersBySourceId;
-    let changed = false;
-    const next = Object.fromEntries(
-        Object.entries(filtersBySourceId).map(([sourceId, filters]) => {
-            if (sourceId === PRIMARY_SOURCE_ID) return [sourceId, filters];
-            const parts = effectiveParts.flatMap((part, index) => {
-                const fieldId = part.fieldIdBySourceId[sourceId];
-                const primaryFieldId =
-                    part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-                return fieldId &&
-                    primaryFieldId &&
-                    !joinParts[index]?.fieldIdBySourceId[sourceId] &&
-                    !hasRuleOn(filters.dimensions, new Set([fieldId])) &&
-                    hasRuleOn(primary.dimensions, new Set([primaryFieldId]))
-                    ? [
-                          {
-                              fieldIdBySourceId: {
-                                  [PRIMARY_SOURCE_ID]: primaryFieldId,
-                                  [sourceId]: fieldId,
-                              },
-                          },
-                      ]
-                    : [];
-            });
-            if (parts.length === 0) return [sourceId, filters];
-            changed = true;
-            return [
-                sourceId,
-                syncMergeJoinFilters({
-                    changedSourceId: PRIMARY_SOURCE_ID,
-                    filtersBySourceId: {
-                        [PRIMARY_SOURCE_ID]: primary,
-                        [sourceId]: filters,
-                    },
-                    joinParts: parts,
-                })[sourceId],
-            ];
-        }),
-    );
-    return changed ? next : filtersBySourceId;
 };

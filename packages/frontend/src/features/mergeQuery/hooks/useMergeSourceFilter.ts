@@ -19,7 +19,6 @@ import {
     syncMergeJoinFilters,
     type FiltersBySourceId,
 } from '../utils/syncMergeJoinFilters';
-import { useMergeSetup } from './useMergeSetup';
 
 export const addMergeSourceFilter = ({
     sourceId,
@@ -52,8 +51,6 @@ export const useMergeSourceFilter = () => {
     const merge = useMerge();
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
-    const { effectiveParts, filtersBySourceId: sourceFilters } =
-        useMergeSetup();
 
     return useCallback(
         (sourceId: string, field: FilterableField) => {
@@ -63,15 +60,14 @@ export const useMergeSourceFilter = () => {
                     [PRIMARY_SOURCE_ID, primaryFiltersBefore],
                     ...merge.additionalSources.map((source) => [
                         source.id,
-                        sourceFilters[source.id] ?? source.filters,
+                        source.filters,
                     ]),
                 ]);
             const nextFilters = addMergeSourceFilter({
                 sourceId,
                 field,
                 filtersBySourceId,
-                // The key in effect, as the filters card shares it
-                joinParts: effectiveParts,
+                joinParts: merge.joinParts,
             });
 
             const nextPrimary = nextFilters[PRIMARY_SOURCE_ID];
@@ -95,6 +91,6 @@ export const useMergeSourceFilter = () => {
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
-        [dispatch, merge, store, effectiveParts, sourceFilters],
+        [dispatch, merge, store],
     );
 };

@@ -1,7 +1,6 @@
 import {
     DimensionType,
     FilterOperator,
-    getTotalFilterRules,
     FieldType,
     MergeJoinType,
     MetricType,
@@ -10,13 +9,13 @@ import {
     buildSavedMergeDefinition,
     isMergeMetricSource,
     type Explore,
-    type Filters,
     type MetricQuery,
 } from '@lightdash/common';
 import { emptyMergeSource, PRIMARY_SOURCE_ID } from '../constants';
-import { type MergeEditorSource, type MergeJoinPart } from '../context/context';
+import { type MergeEditorSource } from '../context/context';
 import { parseMergeState, serializeMergeState } from '../context/mergeUrlState';
 import { restoreSavedMerge } from '../context/restoreSavedMerge';
+import { getMergeChangeSinceRun } from './getMergeChangeSinceRun';
 import { getMergeSetup } from './getMergeSetup';
 import { getMergeSourceNames } from './getMergeSourceNames';
 
@@ -391,84 +390,50 @@ describe('join field suggestion per source', () => {
         ]);
     });
 
-    describe('shared join-key filters', () => {
-        const dateFilter = (fieldId: string): Filters => ({
+    // As on main: a key change never filters another source
+    it('leaves a defaulted source unfiltered when the first source keys on its own filtered field', () => {
+        const input = fixture(2);
+        input.metricQuery.filters = {
             dimensions: {
                 id: 'root',
                 and: [
                     {
-                        id: 'shared',
-                        target: { fieldId },
-                        operator: FilterOperator.IN_BETWEEN,
-                        values: ['2025-01-01', '2025-02-28'],
+                        id: 'team',
+                        target: { fieldId: 'domain_0_team' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['north'],
                     },
                 ],
             },
-        });
-        const filteredFields = (
-            setup: ReturnType<typeof getMergeSetup>,
-            index: number,
-        ) =>
-            required(setup.mergeQuery)
-                .sources.filter(isMergeMetricSource)
-                .map((source) =>
-                    getTotalFilterRules(source.metricQuery.filters).map(
-                        (rule) => rule.target.fieldId,
-                    ),
-                )[index];
-        const dateKeyed = () => {
-            const input = fixture(3);
-            input.metricQuery.filters = dateFilter('domain_0_date');
-            input.additionalSources[0].filters = dateFilter('domain_1_date');
-            input.joinParts = [input.joinParts[0]];
-            input.repeatValuesSourceIds = ['b', 'source_2'];
-            return input;
         };
-
-        it('gives a source whose join field is filled in by default the shared filter', () => {
-            const input = dateKeyed();
-            const joinParts: MergeJoinPart[] = [
-                {
-                    fieldIdBySourceId: {
-                        ...input.joinParts[0].fieldIdBySourceId,
-                        source_2: null,
+        const keyedOn = (field: 'date' | 'team') =>
+            getMergeSetup({
+                ...input,
+                joinParts: [
+                    {
+                        fieldIdBySourceId: {
+                            [PRIMARY_SOURCE_ID]: `domain_0_${field}`,
+                            b: null,
+                        },
                     },
-                },
-            ];
+                ],
+            });
 
-            const setup = getMergeSetup({ ...input, joinParts });
+        const ran = keyedOn('date');
+        const wanted = keyedOn('team');
 
-            expect(setup.effectiveParts[0].fieldIdBySourceId.source_2).toBe(
-                'domain_2_date',
-            );
-            expect(filteredFields(setup, 2)).toEqual(['domain_2_date']);
-            expect(filteredFields(setup, 1)).toEqual(['domain_1_date']);
-        });
-
-        // As on main: changing a chosen join field leaves every filter as it was
-        it('keeps every filter when a chosen join field changes', () => {
-            const input = dateKeyed();
-            const before = getMergeSetup(input);
-            const joinParts: MergeJoinPart[] = [
-                {
-                    fieldIdBySourceId: {
-                        ...input.joinParts[0].fieldIdBySourceId,
-                        b: 'domain_1_team',
-                    },
-                },
-            ];
-
-            const after = getMergeSetup({ ...input, joinParts });
-
-            expect(required(after.mergeQuery).sources).toEqual(
-                required(before.mergeQuery).sources,
-            );
-        });
-
-        it('leaves a chosen join field with its own filters, as a saved chart stores them', () => {
-            const setup = getMergeSetup(dateKeyed());
-
-            expect(filteredFields(setup, 2)).toEqual([]);
-        });
+        expect(wanted.effectiveParts[0].fieldIdBySourceId.b).toBe(
+            'domain_1_team',
+        );
+        const [, source] = required(wanted.mergeQuery).sources;
+        expect(
+            isMergeMetricSource(source) && source.metricQuery.filters,
+        ).toEqual({});
+        expect(
+            getMergeChangeSinceRun(
+                required(ran.mergeQuery),
+                required(wanted.mergeQuery),
+            ),
+        ).toBe('join');
     });
 });
