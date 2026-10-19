@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     convertItemTypeToDimensionType,
+    getItemId,
+    getItemLabel,
     getItemLabelWithoutTableName,
     getUnaccountedDimensions,
     isCustomDimension,
@@ -277,6 +279,32 @@ export const getMergeSetup = ({
         sourceSetups: sourceSetups.map((setup, index) => ({
             ...setup,
             label: labels[index + 1],
+            // Per key part: the top-ranked field for a source not yet mapped
+            suggestedJoinFields: setup.effectiveParts.map((part) => {
+                const primaryFieldId =
+                    part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
+                if (
+                    !primaryFieldId ||
+                    part.fieldIdBySourceId[setup.additionalSourceId]
+                ) {
+                    return null;
+                }
+                const [top] = setup.getJoinCandidates(
+                    'additional',
+                    primaryFieldId,
+                ).suggested;
+                if (!top) return null;
+                // A joined table's field is named with its table, as in the picker
+                const fromJoinedTable =
+                    isDimension(top) &&
+                    top.table !== additionalExplores[index]?.baseTable;
+                return {
+                    fieldId: getItemId(top),
+                    label: fromJoinedTable
+                        ? getItemLabel(top)
+                        : getItemLabelWithoutTableName(top),
+                };
+            }),
         })),
         keySummary,
         joinTypeLabel: getMergeJoinTypeLabel(

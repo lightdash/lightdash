@@ -337,6 +337,10 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                     'additional',
                                                     primaryFieldId,
                                                 );
+                                            const suggestion =
+                                                setup.suggestedJoinFields[
+                                                    index
+                                                ] ?? null;
 
                                             return (
                                                 <Box
@@ -398,6 +402,27 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                                                 )
                                                             }
                                                         />
+                                                        {suggestion && (
+                                                            <Anchor
+                                                                component="button"
+                                                                type="button"
+                                                                size="xs"
+                                                                fw={600}
+                                                                ta="left"
+                                                                onClick={() =>
+                                                                    setJoinField(
+                                                                        index,
+                                                                        sourceId,
+                                                                        suggestion.fieldId,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Use{' '}
+                                                                {
+                                                                    suggestion.label
+                                                                }
+                                                            </Anchor>
+                                                        )}
                                                     </Stack>
                                                 </Box>
                                             );

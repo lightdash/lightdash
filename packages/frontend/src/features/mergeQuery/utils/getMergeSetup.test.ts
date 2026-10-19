@@ -258,3 +258,132 @@ describe('multi-source merge setup', () => {
         ).toEqual({ a: 'orders', b: 'payments_2', source_2: 'payments' });
     });
 });
+
+describe('join field suggestion per source', () => {
+    const unmapped = (
+        input: ReturnType<typeof fixture>,
+        partIndex: number,
+    ): Parameters<typeof getMergeSetup>[0] => ({
+        ...input,
+        joinParts: input.joinParts.map((part, index) =>
+            index === partIndex
+                ? {
+                      ...part,
+                      fieldIdBySourceId: {
+                          ...part.fieldIdBySourceId,
+                          b: null,
+                      },
+                  }
+                : part,
+        ),
+    });
+
+    it('suggests the top-ranked field when several match', () => {
+        const base = fixture(3);
+        const [paymentsExplore, ...rest] = base.additionalExplores;
+        const table = paymentsExplore.tables.domain_1;
+        const withAlias: Explore = {
+            ...paymentsExplore,
+            tables: {
+                domain_1: {
+                    ...table,
+                    dimensions: {
+                        ...table.dimensions,
+                        domain_1_team_alias: {
+                            ...table.dimensions.domain_1_team,
+                            name: 'team_alias',
+                        },
+                    },
+                },
+            },
+        };
+        const setup = getMergeSetup({
+            ...unmapped(base, 1),
+            additionalExplores: [withAlias, ...rest],
+        });
+        expect(setup.sourceSetups[0].suggestedJoinFields).toEqual([
+            null,
+            { fieldId: 'domain_1_team', label: 'team' },
+        ]);
+    });
+
+    it("prefers the explore's own field over an equally ranked joined one", () => {
+        const base = fixture(3);
+        const [paymentsExplore, ...rest] = base.additionalExplores;
+        const table = paymentsExplore.tables.domain_1;
+        const withJoined: Explore = {
+            ...paymentsExplore,
+            tables: {
+                teams: {
+                    ...table,
+                    name: 'teams',
+                    dimensions: {
+                        teams_team: {
+                            ...table.dimensions.domain_1_team,
+                            table: 'teams',
+                            tableLabel: 'Teams',
+                        },
+                    },
+                    metrics: {},
+                },
+                domain_1: table,
+            },
+        };
+        const setup = getMergeSetup({
+            ...unmapped(base, 1),
+            additionalExplores: [withJoined, ...rest],
+        });
+        expect(setup.sourceSetups[0].suggestedJoinFields[1]).toEqual({
+            fieldId: 'domain_1_team',
+            label: 'team',
+        });
+    });
+
+    it("names a joined table's field with its table", () => {
+        const base = fixture(3);
+        const [paymentsExplore, ...rest] = base.additionalExplores;
+        const table = paymentsExplore.tables.domain_1;
+        const joined: Explore = {
+            ...paymentsExplore,
+            tables: {
+                domain_1: {
+                    ...table,
+                    dimensions: {
+                        ...table.dimensions,
+                        domain_1_team: {
+                            ...table.dimensions.domain_1_team,
+                            table: 'teams',
+                            tableLabel: 'Teams',
+                        },
+                    },
+                },
+            },
+        };
+        const setup = getMergeSetup({
+            ...unmapped(base, 1),
+            additionalExplores: [joined, ...rest],
+        });
+        expect(setup.sourceSetups[0].suggestedJoinFields[1]).toEqual({
+            fieldId: 'teams_team',
+            label: 'Teams team',
+        });
+    });
+
+    it('suggests nothing when the only candidate is already filled in', () => {
+        const setup = getMergeSetup(unmapped(fixture(3), 0));
+        expect(setup.effectiveParts[0].fieldIdBySourceId.b).toBe(
+            'domain_1_date',
+        );
+        expect(setup.sourceSetups[0].suggestedJoinFields).toEqual([null, null]);
+    });
+
+    it('suggests nothing for sources already mapped', () => {
+        const setup = getMergeSetup(fixture(3));
+        expect(
+            setup.sourceSetups.map((source) => source.suggestedJoinFields),
+        ).toEqual([
+            [null, null],
+            [null, null],
+        ]);
+    });
+});

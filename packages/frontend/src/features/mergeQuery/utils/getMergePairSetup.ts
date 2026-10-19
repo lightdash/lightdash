@@ -124,14 +124,20 @@ export const getMergePairSetup = ({
                 ? [item]
                 : [],
     );
-    const availableAdditionalJoinItems = Object.entries(
-        additionalItemMap,
-    ).flatMap(([id, item]) =>
-        isDimension(item) ||
-        (isCustomDimension(item) && additionalSource.dimensions.includes(id))
-            ? [item]
-            : [],
-    );
+    // Root table first, so an equally ranked field of the explore itself wins
+    const availableAdditionalJoinItems = Object.entries(additionalItemMap)
+        .flatMap(([id, item]) =>
+            isDimension(item) ||
+            (isCustomDimension(item) &&
+                additionalSource.dimensions.includes(id))
+                ? [item]
+                : [],
+        )
+        .sort(
+            (a, b) =>
+                Number(b.table === additionalExplore?.baseTable) -
+                Number(a.table === additionalExplore?.baseTable),
+        );
     // The field chosen on one side ranks the other side's candidates: the
     // validator's type and grain rules rule fields out, a shared name or
     // label recommends them.

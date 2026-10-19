@@ -75,6 +75,10 @@ const state = vi.hoisted(() => ({
         additionalSourceId: 'b',
         isIncomplete: false,
         blockingReason: null,
+        suggestedJoinFields: {} as Record<
+            string,
+            Array<{ fieldId: string; label: string } | null>
+        >,
     },
 }));
 
@@ -119,6 +123,8 @@ vi.mock('../hooks/useMergeSetup', () => ({
             availableAdditionalJoinItems:
                 state.setup.availableAdditionalJoinItems,
             getJoinCandidates: state.setup.getJoinCandidates,
+            suggestedJoinFields:
+                state.setup.suggestedJoinFields[source.id] ?? [],
         })),
         sourceLabels: [
             state.setup.primaryExploreLabel,
@@ -230,6 +236,7 @@ const resetState = () => {
         incompatible: [],
     });
     state.setup.isIncomplete = false;
+    state.setup.suggestedJoinFields = {};
 };
 
 describe('MergeJoinBar', () => {
@@ -334,6 +341,32 @@ describe('MergeJoinBar', () => {
             'ID',
         ]);
         expect(options.map((option) => option.disabled)).toEqual([false, true]);
+    });
+
+    it('maps a source to its suggested field in one click', async () => {
+        const user = userEvent.setup();
+        state.setup.effectiveParts = [
+            {
+                fieldIdBySourceId: {
+                    [PRIMARY_SOURCE_ID]: 'orders_account_id',
+                    b: null,
+                },
+            },
+        ];
+        state.setup.suggestedJoinFields = {
+            b: [{ fieldId: 'customers_account_key', label: 'Account key' }],
+        };
+
+        renderWithProviders(<MergeJoinBar guided />);
+        await user.click(
+            screen.getByRole('button', { name: 'Use Account key' }),
+        );
+
+        expect(state.setJoinField).toHaveBeenCalledWith(
+            0,
+            'b',
+            'customers_account_key',
+        );
     });
 
     it('shows AND between clauses and keeps remove actions visible', async () => {
