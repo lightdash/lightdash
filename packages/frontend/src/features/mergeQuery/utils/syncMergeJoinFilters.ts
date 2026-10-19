@@ -106,77 +106,22 @@ export const syncMergeJoinFilters = ({
     );
 };
 
-const ruleIdsOn = (
+const hasRuleOn = (
     group: FilterGroup | undefined,
     fieldIds: Set<string>,
-): string[] =>
-    group
-        ? itemsOf(group).flatMap((item): string[] => {
-              if ('and' in item || 'or' in item) {
-                  return ruleIdsOn(item, fieldIds);
-              }
-              return fieldIds.has(fieldIdOf(item) ?? '') ? [item.id] : [];
-          })
-        : [];
-
-const mapRules = (
-    filters: Filters,
-    transformRule: (rule: FilterRule) => FilterRule | null,
-): Filters => ({
-    ...filters,
-    dimensions: transformGroup(filters.dimensions, transformRule),
-});
-
-/** The filters without their rules on the given fields. */
-export const withoutRulesOn = (
-    filters: Filters,
-    fieldIds: Set<string>,
-): Filters =>
-    mapRules(filters, (rule) =>
-        fieldIds.has(fieldIdOf(rule) ?? '') ? null : rule,
+): boolean =>
+    !!group &&
+    itemsOf(group).some((item): boolean =>
+        'and' in item || 'or' in item
+            ? hasRuleOn(item, fieldIds)
+            : fieldIds.has(fieldIdOf(item) ?? ''),
     );
-
-const fieldsOf = (parts: MergeJoinPart[], sourceId: string) =>
-    new Set(
-        parts.flatMap(({ fieldIdBySourceId }) => {
-            const fieldId = fieldIdBySourceId[sourceId];
-            return fieldId ? [fieldId] : [];
-        }),
-    );
-
-/** The reference's join-key rules on the target's key fields, replacing earlier copies anywhere. */
-const shareKeyRules = ({
-    reference,
-    target,
-    referenceId,
-    targetId,
-    parts,
-}: {
-    reference: Filters;
-    target: Filters;
-    referenceId: string;
-    targetId: string;
-    parts: MergeJoinPart[];
-}): Filters => {
-    const copies = new Set(
-        ruleIdsOn(reference.dimensions, fieldsOf(parts, referenceId)),
-    );
-    return syncMergeJoinFilters({
-        changedSourceId: referenceId,
-        filtersBySourceId: {
-            [referenceId]: reference,
-            [targetId]: mapRules(target, (rule) =>
-                copies.has(rule.id) ? null : rule,
-            ),
-        },
-        joinParts: parts,
-    })[targetId];
-};
 
 /**
- * A source whose join field is filled in by default takes the first
- * source's join-key filters on it. A chosen field keeps the filters stored
- * with it, so a saved chart runs as it was saved.
+ * A source whose join field is filled in by default, and has no filter on
+ * it yet, takes the first source's join-key filters on it. Stored filters
+ * are never changed: a chosen field, or a default field that already has a
+ * filter, runs with what is stored, so a saved chart runs as it was saved.
  */
 export const deriveSharedJoinFilters = ({
     filtersBySourceId,
@@ -200,7 +145,9 @@ export const deriveSharedJoinFilters = ({
                     part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
                 return fieldId &&
                     primaryFieldId &&
-                    !joinParts[index]?.fieldIdBySourceId[sourceId]
+                    !joinParts[index]?.fieldIdBySourceId[sourceId] &&
+                    !hasRuleOn(filters.dimensions, new Set([fieldId])) &&
+                    hasRuleOn(primary.dimensions, new Set([primaryFieldId]))
                     ? [
                           {
                               fieldIdBySourceId: {
@@ -211,94 +158,20 @@ export const deriveSharedJoinFilters = ({
                       ]
                     : [];
             });
-            const isShared =
-                ruleIdsOn(
-                    primary.dimensions,
-                    fieldsOf(parts, PRIMARY_SOURCE_ID),
-                ).length > 0 ||
-                ruleIdsOn(filters.dimensions, fieldsOf(parts, sourceId))
-                    .length > 0;
-            if (parts.length === 0 || !isShared) return [sourceId, filters];
+            if (parts.length === 0) return [sourceId, filters];
             changed = true;
             return [
                 sourceId,
-                shareKeyRules({
-                    reference: primary,
-                    target: filters,
-                    referenceId: PRIMARY_SOURCE_ID,
-                    targetId: sourceId,
-                    parts,
-                }),
+                syncMergeJoinFilters({
+                    changedSourceId: PRIMARY_SOURCE_ID,
+                    filtersBySourceId: {
+                        [PRIMARY_SOURCE_ID]: primary,
+                        [sourceId]: filters,
+                    },
+                    joinParts: parts,
+                })[sourceId],
             ];
         }),
     );
     return changed ? next : filtersBySourceId;
-};
-
-/**
- * Filters after one source's join field changes: the join-key filters move
- * with it, taken from another source on the same key part when one shares
- * any, otherwise its own rules move to the new field.
- */
-export const moveJoinFieldFilters = ({
-    filtersBySourceId,
-    effectiveParts,
-    index,
-    sourceId,
-    fieldId,
-}: {
-    filtersBySourceId: FiltersBySourceId;
-    effectiveParts: MergeJoinPart[];
-    index: number;
-    sourceId: string;
-    fieldId: string | null;
-}): FiltersBySourceId => {
-    const part = effectiveParts[index];
-    const target = filtersBySourceId[sourceId];
-    const left = part?.fieldIdBySourceId[sourceId] ?? null;
-    if (!part || !target || !fieldId || left === fieldId) {
-        return filtersBySourceId;
-    }
-    const referenceId = Object.keys(filtersBySourceId).find(
-        (id) => id !== sourceId && part.fieldIdBySourceId[id],
-    );
-    const referenceFieldId = referenceId
-        ? part.fieldIdBySourceId[referenceId]
-        : null;
-    const sharesRules =
-        !!referenceId &&
-        !!referenceFieldId &&
-        ruleIdsOn(
-            filtersBySourceId[referenceId].dimensions,
-            new Set([referenceFieldId]),
-        ).length > 0;
-    if (!referenceId || !referenceFieldId || !sharesRules) {
-        return {
-            ...filtersBySourceId,
-            [sourceId]: mapRules(target, (rule) =>
-                left && fieldIdOf(rule) === left
-                    ? { ...rule, target: { fieldId } }
-                    : rule,
-            ),
-        };
-    }
-    return {
-        ...filtersBySourceId,
-        [sourceId]: shareKeyRules({
-            reference: filtersBySourceId[referenceId],
-            target: mapRules(target, (rule) =>
-                left && fieldIdOf(rule) === left ? null : rule,
-            ),
-            referenceId,
-            targetId: sourceId,
-            parts: [
-                {
-                    fieldIdBySourceId: {
-                        [referenceId]: referenceFieldId,
-                        [sourceId]: fieldId,
-                    },
-                },
-            ],
-        }),
-    };
 };

@@ -1,62 +1,41 @@
-import { type Filters } from '@lightdash/common';
 import { useCallback } from 'react';
-import { explorerActions, useExplorerDispatch } from '../../explorer/store';
-import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
-import { moveJoinFieldFilters } from '../utils/syncMergeJoinFilters';
 import { useMergeSetup } from './useMergeSetup';
 
 /**
- * Join key edits that keep the shared join-key filters in step, in the same
- * update as the key, so the merge never runs with a key and a stale filter.
+ * Join key edits that keep every source's filters as they run. A filter a
+ * default join field took is derived, not stored, so it is stored before the
+ * edit can take that default away; nothing moves between fields.
  */
 export const useMergeJoinKeyActions = () => {
     const merge = useMergeSafe();
-    const dispatch = useExplorerDispatch();
-    const { effectiveParts, filtersBySourceId } = useMergeSetup();
+    const { filtersBySourceId } = useMergeSetup();
 
-    const storeFilters = useCallback(
-        (next: Record<string, Filters>) => {
-            if (!merge) return;
-            if (
-                next[PRIMARY_SOURCE_ID] !== filtersBySourceId[PRIMARY_SOURCE_ID]
-            ) {
-                dispatch(explorerActions.setFilters(next[PRIMARY_SOURCE_ID]));
+    const storeRunningFilters = useCallback(() => {
+        merge?.additionalSources.forEach((source) => {
+            const running = filtersBySourceId[source.id];
+            if (running && running !== source.filters) {
+                merge.setSourceFilters(source.id, running);
             }
-            merge.additionalSources.forEach((source) => {
-                if (next[source.id] && next[source.id] !== source.filters) {
-                    merge.setSourceFilters(source.id, next[source.id]);
-                }
-            });
-        },
-        [dispatch, merge, filtersBySourceId],
-    );
+        });
+    }, [merge, filtersBySourceId]);
 
     const setJoinField = useCallback(
         (index: number, sourceId: string, fieldId: string | null) => {
             if (!merge) return;
-            storeFilters(
-                moveJoinFieldFilters({
-                    filtersBySourceId,
-                    effectiveParts,
-                    index,
-                    sourceId,
-                    fieldId,
-                }),
-            );
+            storeRunningFilters();
             merge.setJoinField(index, sourceId, fieldId);
         },
-        [storeFilters, filtersBySourceId, effectiveParts, merge],
+        [merge, storeRunningFilters],
     );
 
-    // Filters a default gave stay with each source once the part is gone
     const removeJoinPart = useCallback(
         (index: number) => {
             if (!merge) return;
-            storeFilters(filtersBySourceId);
+            storeRunningFilters();
             merge.removeJoinPart(index);
         },
-        [storeFilters, filtersBySourceId, merge],
+        [merge, storeRunningFilters],
     );
 
     return { setJoinField, removeJoinPart };

@@ -445,6 +445,26 @@ describe('join field suggestion per source', () => {
             expect(filteredFields(setup, 1)).toEqual(['domain_1_date']);
         });
 
+        // As on main: changing a chosen join field leaves every filter as it was
+        it('keeps every filter when a chosen join field changes', () => {
+            const input = dateKeyed();
+            const before = getMergeSetup(input);
+            const joinParts: MergeJoinPart[] = [
+                {
+                    fieldIdBySourceId: {
+                        ...input.joinParts[0].fieldIdBySourceId,
+                        b: 'domain_1_team',
+                    },
+                },
+            ];
+
+            const after = getMergeSetup({ ...input, joinParts });
+
+            expect(required(after.mergeQuery).sources).toEqual(
+                required(before.mergeQuery).sources,
+            );
+        });
+
         it('leaves a chosen join field with its own filters, as a saved chart stores them', () => {
             const setup = getMergeSetup(dateKeyed());
 

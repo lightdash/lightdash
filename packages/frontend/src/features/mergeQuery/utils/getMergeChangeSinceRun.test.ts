@@ -1,7 +1,6 @@
 import {
     FilterOperator,
     MergeJoinType,
-    type Filters,
     type MergeQuery,
 } from '@lightdash/common';
 import { getMergeChangeSinceRun } from './getMergeChangeSinceRun';
@@ -94,85 +93,51 @@ describe('getMergeChangeSinceRun', () => {
         ).toBe('sources');
     });
 
-    describe('a join field change that moves the shared key filter', () => {
-        const filterOn = (fieldId: string): Filters => ({
-            dimensions: {
-                id: 'root',
-                and: [
-                    {
-                        id: 'shared',
-                        target: { fieldId },
-                        operator: FilterOperator.IN_BETWEEN,
-                        values: ['2025-01-01', '2025-02-28'],
+    // As on main: a key change never touches a filter, so it only re-runs the join
+    it('reports a join change for a new join field when both sources are filtered', () => {
+        const filtered = (
+            id: string,
+            exploreName: string,
+            fieldId: string,
+        ): MergeQuery['sources'][number] => ({
+            id,
+            metricQuery: {
+                ...metricQuery(exploreName, [fieldId]),
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'shared',
+                                target: { fieldId },
+                                operator: FilterOperator.IN_BETWEEN,
+                                values: ['2025-01-01', '2025-02-28'],
+                            },
+                        ],
                     },
-                ],
+                },
             },
         });
-        const withFilters = (
-            query: MergeQuery,
-            filters: [Filters, Filters],
-            fields: [string, string],
-        ): MergeQuery => ({
-            ...query,
+        const filteredRan: MergeQuery = {
+            ...ran,
             sources: [
-                {
-                    id: 'a',
-                    metricQuery: {
-                        ...metricQuery('orders', ['orders_month']),
-                        filters: filters[0],
-                    },
-                },
-                {
-                    id: 'b',
-                    metricQuery: {
-                        ...metricQuery('payments', ['payments_month']),
-                        filters: filters[1],
-                    },
-                },
+                filtered('a', 'orders', 'orders_month'),
+                filtered('b', 'payments', 'payments_month'),
             ],
-            joinKey: [
-                {
-                    name: 'join_key_0',
-                    fieldIdBySourceId: { a: fields[0], b: fields[1] },
-                },
-            ],
-        });
-        const filteredRan = withFilters(
-            ran,
-            [filterOn('orders_month'), filterOn('payments_month')],
-            ['orders_month', 'payments_month'],
-        );
-
-        it('reports a join change when the filter moved with the key', () => {
-            expect(
-                getMergeChangeSinceRun(
-                    filteredRan,
-                    withFilters(
-                        ran,
-                        [
-                            filterOn('orders_month'),
-                            filterOn('payments_created'),
-                        ],
-                        ['orders_month', 'payments_created'],
-                    ),
-                ),
-            ).toBe('join');
-        });
-
-        it('reports a source change when the key filter is edited without a key change', () => {
-            expect(
-                getMergeChangeSinceRun(
-                    filteredRan,
-                    withFilters(
-                        ran,
-                        [
-                            filterOn('orders_created'),
-                            filterOn('payments_month'),
-                        ],
-                        ['orders_month', 'payments_month'],
-                    ),
-                ),
-            ).toBe('sources');
-        });
+        };
+        expect(
+            getMergeChangeSinceRun(filteredRan, {
+                ...filteredRan,
+                joinKey: [
+                    {
+                        name: 'join_key_0',
+                        fieldIdBySourceId: {
+                            a: 'orders_month',
+                            b: 'payments_created_month',
+                        },
+                    },
+                ],
+            }),
+        ).toBe('join');
     });
 });

@@ -1,5 +1,4 @@
 import {
-    FilterOperator,
     MergeJoinType,
     MergeQueryErrorKind,
     type MergeQuery,
@@ -287,60 +286,6 @@ describe('MergeAutoRun', () => {
             render(<MergeAutoRun />);
 
             expect(state.setup.handleRun).not.toHaveBeenCalled();
-        });
-
-        it('re-runs once when a join field change moves the shared key filter', () => {
-            const filterOn = (fieldId: string) => ({
-                dimensions: {
-                    id: 'root',
-                    and: [
-                        {
-                            id: 'shared',
-                            target: { fieldId },
-                            operator: FilterOperator.IN_BETWEEN,
-                            values: ['2025-01-01', '2025-02-28'],
-                        },
-                    ],
-                },
-            });
-            const keyedOn = (bField: string): MergeQuery => ({
-                ...ranMerge,
-                sources: [
-                    {
-                        id: 'a',
-                        metricQuery: {
-                            ...metricQuery,
-                            filters: filterOn('orders_month'),
-                        },
-                    },
-                    {
-                        id: 'b',
-                        metricQuery: {
-                            ...metricQuery,
-                            exploreName: 'p',
-                            filters: filterOn(bField),
-                        },
-                    },
-                ],
-                joinKey: [
-                    {
-                        name: 'join_key_0',
-                        fieldIdBySourceId: { a: 'orders_month', b: bField },
-                    },
-                ],
-            });
-            const ran = keyedOn('p_month');
-            const wanted = keyedOn('p_created_month');
-            state.merge.mergeResults = ranWith(ran);
-            state.merge.lastRunMergeQuery = ran;
-            state.setup.mergeQuery = wanted;
-
-            const { rerender } = render(<MergeAutoRun />);
-            state.merge.lastRunMergeQuery = wanted;
-            state.merge.mergeResults = ranWith(wanted);
-            rerender(<MergeAutoRun />);
-
-            expect(state.setup.handleRun).toHaveBeenCalledTimes(1);
         });
 
         // The refused submission is the last run, so the same edit is not

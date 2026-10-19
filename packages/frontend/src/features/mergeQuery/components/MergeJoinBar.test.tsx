@@ -1,4 +1,4 @@
-import { MergeJoinType } from '@lightdash/common';
+import { FilterOperator, MergeJoinType, type Filters } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ChangeEvent } from 'react';
@@ -16,6 +16,8 @@ type TestItem = {
 
 const state = vi.hoisted(() => ({
     dispatch: vi.fn(),
+    setSourceFilters: vi.fn(),
+    filtersBySourceId: {} as Record<string, Filters>,
     setJoinField: vi.fn(),
     addJoinPart: vi.fn(),
     removeJoinPart: vi.fn(),
@@ -32,7 +34,13 @@ const state = vi.hoisted(() => ({
                 dimensions: [],
                 metrics: [],
             },
-        ],
+        ] as Array<{
+            id: string;
+            exploreName: string;
+            dimensions: string[];
+            metrics: string[];
+            filters?: Filters;
+        }>,
         joinType: 'full',
         repeatValuesSourceIds: [] as string[],
         mergeResults: undefined,
@@ -102,6 +110,7 @@ vi.mock('../context/useMerge', () => ({
     useMergeSafe: () => ({
         ...state.merge,
         setJoinField: state.setJoinField,
+        setSourceFilters: state.setSourceFilters,
         addJoinPart: state.addJoinPart,
         removeJoinPart: state.removeJoinPart,
         setJoinType: state.setJoinType,
@@ -141,7 +150,7 @@ vi.mock('../hooks/useMergeSetup', () => ({
                   )
                 : `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.a ?? '')} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.b ?? '')}`,
         joinTypeLabel: 'All rows',
-        filtersBySourceId: {},
+        filtersBySourceId: state.filtersBySourceId,
     }),
 }));
 
@@ -238,12 +247,55 @@ const resetState = () => {
     });
     state.setup.isIncomplete = false;
     state.setup.suggestedJoinFields = {};
+    state.filtersBySourceId = {};
 };
 
 describe('MergeJoinBar', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         resetState();
+    });
+
+    // As on main: a key change leaves every source's filters as they are
+    it('changes a join field without touching any filters', async () => {
+        const user = userEvent.setup();
+        const filterOn = (fieldId: string): Filters => ({
+            dimensions: {
+                id: 'root',
+                and: [
+                    {
+                        id: 'shared',
+                        target: { fieldId },
+                        operator: FilterOperator.EQUALS,
+                        values: ['42'],
+                    },
+                ],
+            },
+        });
+        state.filtersBySourceId = {
+            [PRIMARY_SOURCE_ID]: filterOn('orders_customer_id'),
+            b: filterOn('customers_id'),
+        };
+        state.merge.additionalSources = [
+            {
+                ...state.merge.additionalSources[0],
+                filters: state.filtersBySourceId.b,
+            },
+        ];
+        renderWithProviders(<MergeJoinBar guided />);
+
+        await user.selectOptions(
+            screen.getByRole('combobox', { name: 'Customers join field' }),
+            'customers_account_key',
+        );
+
+        expect(state.setJoinField).toHaveBeenCalledWith(
+            0,
+            'b',
+            'customers_account_key',
+        );
+        expect(state.setSourceFilters).not.toHaveBeenCalled();
+        expect(state.dispatch).not.toHaveBeenCalled();
     });
 
     it('shows source-qualified fields and updates the correct side', async () => {
