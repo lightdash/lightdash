@@ -28356,3 +28356,110 @@ describe('fresh execution producer to result reader', () => {
         );
     });
 });
+
+describe('late query status writes', () => {
+    const queryUuid = 'late-write-query';
+
+    const setup = (initialStatus: QueryHistoryStatus) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const row = { status: initialStatus };
+        // Single-row stand-in that applies the status guard from the model's WHERE
+        tracker.on.update('query_history').response(({ sql, bindings }) => {
+            const guard = bindings.slice(
+                bindings.indexOf(sessionAccount.user.id) + 1,
+            );
+            const allowed = sql.includes('not "status" =')
+                ? !guard.includes(row.status)
+                : guard.length === 0 || guard.includes(row.status);
+            if (!allowed) return 0;
+            row.status = bindings[0] as QueryHistoryStatus;
+            return 1;
+        });
+        const model = new QueryHistoryModel({ database });
+        Object.assign(service.queryHistoryModel, {
+            get: vi.fn(async () => ({
+                queryUuid,
+                projectUuid,
+                status: row.status,
+                context: QueryExecutionContext.SQL_RUNNER,
+                createdAt: new Date(),
+                metricQuery: metricQueryMock,
+            })),
+            update: model.update.bind(model),
+            updateStatusToError: model.updateStatusToError.bind(model),
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        return { service, row, prometheusMetrics, tracker, database };
+    };
+
+    test('cancelling a query that already finished leaves it ready', async () => {
+        const { service, row, prometheusMetrics, tracker, database } = setup(
+            QueryHistoryStatus.READY,
+        );
+        try {
+            await service.cancelAsyncQuery({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid,
+            });
+            expect(tracker.history.update).toHaveLength(1);
+            expect(row.status).toBe(QueryHistoryStatus.READY);
+            expect(
+                prometheusMetrics.incrementQueryStatus,
+            ).not.toHaveBeenCalled();
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+
+    test('an error after a cancel keeps the query cancelled', async () => {
+        const { service, row, prometheusMetrics, tracker, database } = setup(
+            QueryHistoryStatus.EXECUTING,
+        );
+        try {
+            await service.cancelAsyncQuery({
+                account: sessionAccount,
+                projectUuid,
+                queryUuid,
+            });
+            expect(row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(prometheusMetrics.incrementQueryStatus).toHaveBeenCalledWith(
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+
+            await service['markAsyncQueryErrored']({
+                queryUuid,
+                projectUuid,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isPreviewProject: false,
+                onboardingFlow: 'legacy',
+                queryTags: {
+                    query_context: QueryExecutionContext.SQL_RUNNER,
+                },
+                queryCreatedAt: new Date(),
+                queryUsage: undefined,
+                errorMessage: 'canceling statement due to user request',
+                executionSource: 'warehouse',
+                warehouseType: null,
+                inheritedFromProjectUuid: null,
+            });
+            expect(tracker.history.update).toHaveLength(2);
+            expect(row.status).toBe(QueryHistoryStatus.CANCELLED);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
