@@ -3122,17 +3122,37 @@ export class AppGenerateService extends BaseService {
      * Heartbeat: every status_message / status transition bumps
      * status_updated_at (see AppModel.updateStatusMessage etc.), including
      * Claude's per-tool-call progress updates.
+     *
+     * Also fails `pending` versions older than ORPHAN_THRESHOLD that have no
+     * live build job (orphaned by a failed request) so they stop counting
+     * against the per-project build cap.
      */
     async sweepStaleLocks(): Promise<void> {
         const STALE_THRESHOLD = '5 minutes';
-        const rowCount = await this.appModel.releaseStaleLocks(
-            APP_VERSION_TERMINAL_STATUSES,
-            STALE_THRESHOLD,
-        );
-        if (rowCount > 0) {
+        const ORPHAN_THRESHOLD = '10 minutes';
+        // Run both even if one throws: each guards a different leak.
+        const [locks, orphans] = await Promise.allSettled([
+            this.appModel.releaseStaleLocks(
+                APP_VERSION_TERMINAL_STATUSES,
+                STALE_THRESHOLD,
+            ),
+            this.appModel.failOrphanedPendingVersions(ORPHAN_THRESHOLD),
+        ]);
+        if (locks.status === 'fulfilled' && locks.value > 0) {
             this.logger.info(
-                `Released ${rowCount} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
+                `Released ${locks.value} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
             );
+        }
+        if (orphans.status === 'fulfilled' && orphans.value > 0) {
+            this.logger.warn(
+                `Failed ${orphans.value} pending app version(s) with no build job (older than ${ORPHAN_THRESHOLD})`,
+            );
+        }
+        const failure = [locks, orphans].find(
+            (r): r is PromiseRejectedResult => r.status === 'rejected',
+        );
+        if (failure) {
+            throw failure.reason;
         }
     }
 
