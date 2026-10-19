@@ -267,15 +267,7 @@ export const hasCustomSql = (
 ): boolean =>
     (metricQuery.tableCalculations ?? []).some(isSqlTableCalculation) ||
     (metricQuery.customDimensions ?? []).some(isCustomSqlDimension) ||
-    (metricQuery.additionalMetrics ?? []).some((metric) => {
-        if (!metric.sql || isPeriodOverPeriodAdditionalMetric(metric))
-            return false;
-        const baseFieldName = metric.baseDimensionName ?? metric.baseMetricName;
-        return (
-            !baseFieldName ||
-            metric.sql.trim() !== `\${${metric.table}.${baseFieldName}}`
-        );
-    });
+    (metricQuery.additionalMetrics ?? []).length > 0;
 
 export const countCustomDimensionsInMetricQuery = (
     metricQuery: MetricQuery,
