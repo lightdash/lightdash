@@ -1,7 +1,10 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
+    openAnalysisPanel,
     openPanel,
     type LauncherDockItem,
 } from '../../store/aiAgentLauncherSlice';
@@ -17,6 +20,7 @@ import {
     getLauncherAgentUuid,
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
+import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
 import { useLauncherDock } from './useLauncherDock';
 
 type Props = {
@@ -41,6 +45,10 @@ export const LauncherDock: FC<Props> = ({
     const isPanelOpen = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.mode === 'panel-open',
     );
+    const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    const analysisAdapter = useLauncherAnalysisAdapter(projectUuid);
+    const showAnalysisTab =
+        analysisAdapter?.availability.status === 'available';
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );
@@ -114,18 +122,34 @@ export const LauncherDock: FC<Props> = ({
                     key={item.threadId}
                     item={item}
                     agent={agentsByUuid.get(item.agentUuid)!}
-                    isActive={isPanelOpen && item.threadId === activeThreadId}
+                    isActive={
+                        isPanelOpen &&
+                        view === 'chat' &&
+                        item.threadId === activeThreadId
+                    }
                     onSelect={handleSelect}
                     onClose={handleClose}
                 />
             ))}
+            {showAnalysisTab && (
+                <Box
+                    component="button"
+                    type="button"
+                    title="AI analysis"
+                    aria-label="AI analysis"
+                    className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && view === 'analysis' ? styles.dockTabActive : ''}`}
+                    onClick={() => dispatch(openAnalysisPanel())}
+                >
+                    <MantineIcon icon={IconSparkles} size={16} />
+                </Box>
+            )}
             {selectedAgent && (
                 <Box
                     component="button"
                     type="button"
                     title="Ask AI Agent"
                     aria-label="Ask AI Agent"
-                    className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && !activeThreadId ? styles.dockTabActive : ''}`}
+                    className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && view === 'chat' && !activeThreadId ? styles.dockTabActive : ''}`}
                     onClick={handleNewThread}
                 >
                     <AiAgentIcon size={16} />

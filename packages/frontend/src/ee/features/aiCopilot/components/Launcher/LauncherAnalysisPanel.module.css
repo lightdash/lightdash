@@ -1,0 +1,64 @@
+.scroll {
+    flex: 1;
+    min-height: 0;
+}
+
+.card {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: 10px;
+}
+
+.cardHighlightable {
+    composes: card;
+    cursor: default;
+}
+
+.cardHighlightable:hover {
+    border-color: var(--mantine-color-indigo-5);
+    background-color: var(--mantine-color-indigo-light);
+}
+
+.investigateButton {
+    opacity: 0;
+    transition: opacity 100ms ease;
+}
+
+.card:hover .investigateButton,
+.card:focus-within .investigateButton {
+    opacity: 1;
+}
+
+.severityDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    margin-top: 5px;
+}
+
+.severityHigh {
+    background-color: var(--mantine-color-red-6);
+}
+
+.severityMedium {
+    background-color: var(--mantine-color-yellow-6);
+}
+
+.severityPositive {
+    background-color: var(--mantine-color-green-6);
+}
+
+.severityInfo {
+    background-color: var(--mantine-color-ldGray-5);
+}
+
+.clampedMarkdown {
+    max-height: 4.2em;
+    overflow: hidden;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+}

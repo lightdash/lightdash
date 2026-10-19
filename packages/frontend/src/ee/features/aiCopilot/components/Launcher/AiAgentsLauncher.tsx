@@ -26,6 +26,8 @@ import {
     getLauncherPanelAgent,
     isLauncherAgentAvailable,
 } from './launcherAgentSelection';
+import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
+import { LauncherAnalysisPanel } from './LauncherAnalysisPanel';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
 import { LauncherPanelSizeContext } from './LauncherPanelSizeContext';
@@ -69,6 +71,8 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
+    const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    const analysisAdapter = useLauncherAnalysisAdapter(activeProjectUuid);
     const activeThreadId = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.activeThreadId,
     );
@@ -161,9 +165,15 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             : activeThreadBelongsToProject && activeAgentBelongsToProject
               ? activeThreadId
               : null;
-    const isPanelOpenSafe =
+    const isChatPanelOpen =
         mode === 'panel-open' &&
+        view === 'chat' &&
         (safeActiveThreadId !== null || safeActiveAgentUuid !== null);
+    const isAnalysisPanelOpen =
+        mode === 'panel-open' &&
+        view === 'analysis' &&
+        analysisAdapter !== null;
+    const isPanelOpenSafe = isChatPanelOpen || isAnalysisPanelOpen;
     // A preview renders only where its thread is on screen.
     const activeSavedChartPreview =
         savedChartPreview !== null &&
@@ -201,6 +211,13 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
     }
     const transitionDocumentPreview =
         activeDocumentPreview ?? lastDocumentPreviewRef.current;
+    // Keep the exiting analysis panel rendered while it slides away.
+    const lastAnalysisAdapterRef = useRef(analysisAdapter);
+    if (analysisAdapter) {
+        lastAnalysisAdapterRef.current = analysisAdapter;
+    }
+    const transitionAnalysisAdapter =
+        analysisAdapter ?? lastAnalysisAdapterRef.current;
     const isContentPage =
         currentDashboard?.projectUuid === activeProjectUuid ||
         currentDataApp?.projectUuid === activeProjectUuid ||
@@ -237,7 +254,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             {transitionSavedChartPreview && (
                 <Transition
                     mounted={
-                        isPanelOpenSafe && activeSavedChartPreview !== null
+                        isChatPanelOpen && activeSavedChartPreview !== null
                     }
                     transition="slide-up"
                     duration={180}
@@ -257,7 +274,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             )}
             {transitionDataAppPreview && (
                 <Transition
-                    mounted={isPanelOpenSafe && activeDataAppPreview !== null}
+                    mounted={isChatPanelOpen && activeDataAppPreview !== null}
                     transition="slide-up"
                     duration={180}
                     timingFunction="ease"
@@ -277,7 +294,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
             )}
             {transitionDocumentPreview && (
                 <Transition
-                    mounted={isPanelOpenSafe && activeDocumentPreview !== null}
+                    mounted={isChatPanelOpen && activeDocumentPreview !== null}
                     transition="slide-up"
                     duration={180}
                     timingFunction="ease"
@@ -295,7 +312,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                 </Transition>
             )}
             <Transition
-                mounted={isPanelOpenSafe}
+                mounted={isChatPanelOpen}
                 transition="slide-up"
                 duration={180}
                 timingFunction="ease"
@@ -314,6 +331,25 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
                     </LauncherPanelSizeContext.Provider>
                 )}
             </Transition>
+            {transitionAnalysisAdapter && (
+                <Transition
+                    mounted={isAnalysisPanelOpen}
+                    transition="slide-up"
+                    duration={180}
+                    timingFunction="ease"
+                >
+                    {(transitionStyle) => (
+                        <LauncherPanelSizeContext.Provider
+                            value={panelSize.context}
+                        >
+                            <LauncherAnalysisPanel
+                                adapter={transitionAnalysisAdapter}
+                                style={transitionStyle}
+                            />
+                        </LauncherPanelSizeContext.Provider>
+                    )}
+                </Transition>
+            )}
         </Box>
     );
 };
