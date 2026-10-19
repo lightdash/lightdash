@@ -1532,10 +1532,7 @@ export class AsyncQueryService extends ProjectService {
         await this.cancelMergeLegs(account, projectUuid, queryUuid);
     }
 
-    /**
-     * Cancels the legs a merge ran that are still running, under the same
-     * account. A leg another running query also reads is left to finish.
-     */
+    /** Cancels a merge's running legs; a leg another running query reads is left to finish. */
     private async cancelMergeLegs(
         account: Account,
         projectUuid: string,
