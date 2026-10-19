@@ -1,3 +1,10 @@
+## [2.606.2](https://github.com/lightdash/lightdash/compare/2.606.1...2.606.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **ai-agents:** deliver Slack chart images without the fast-decisions client ([#31139](https://github.com/lightdash/lightdash/issues/31139)) ([1525123](https://github.com/lightdash/lightdash/commit/152512315d90dda1b7f70322ed3ab1f2df2f5f8e))
+
 ## [2.606.1](https://github.com/lightdash/lightdash/compare/2.606.0...2.606.1) (2026-10-19)
 
 
