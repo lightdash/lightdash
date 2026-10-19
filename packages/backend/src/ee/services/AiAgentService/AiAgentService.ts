@@ -88,9 +88,7 @@ import {
     dataAppRestoreContextKey,
     dataAppVizSchema,
     DbtProjectType,
-    deriveDataAppVizPivotConfig,
-    deriveDataAppVizPivotConfiguration,
-    derivePivotConfigurationFromChart,
+    deriveAiChartPivotConfiguration,
     describeAiAgentSkillPlaceholders,
     designContextKey,
     DownloadFileType,
@@ -113,13 +111,11 @@ import {
     getErrorMessage,
     getFields,
     getGenerateDataAppBuildOutcome,
-    getGroupByDimensions,
     getItemId,
     getItemLabelWithoutTableName,
     getItemMap,
     getSlackAiEchartsConfig,
     getValidAiQueryLimit,
-    getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
@@ -3965,16 +3961,15 @@ export class AiAgentService extends BaseService {
         if (!schemaFields) {
             return undefined;
         }
-        const pivotConfig = deriveDataAppVizPivotConfig(
-            schemaFields,
-            customChartConfig.fieldMapping,
-        );
-        return deriveDataAppVizPivotConfiguration(
-            customChartConfig.fieldMapping,
-            pivotConfig,
+        return deriveAiChartPivotConfiguration({
+            source: {
+                type: 'customChartType',
+                chart: customChartConfig,
+                schemaFields,
+            },
             metricQuery,
-            fields,
-        );
+            fieldsMap: fields,
+        });
     }
 
     private async getArtifactQuerySurface(
@@ -4031,32 +4026,29 @@ export class AiAgentService extends BaseService {
             additionalMetrics: populatedCustomMetrics,
         };
         const fields = getItemMap(explore);
-        const webAiChartConfig = getWebAiChartConfig({
+        const parsedVizConfig = parseVizConfig(
             vizConfig,
-            metricQuery: metricQueryWithCustomMetrics,
-            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-            fieldsMap: fields,
-        });
-        const groupByDimensions = getGroupByDimensions(webAiChartConfig);
-        let pivotConfiguration: PivotConfiguration | undefined;
-        if (customChartType) {
-            pivotConfiguration =
-                await this.deriveCustomChartTypePivotConfiguration(
-                    projectUuid,
-                    customChartType,
-                    metricQueryWithCustomMetrics,
-                    fields,
-                );
-        } else if (groupByDimensions?.length) {
-            pivotConfiguration = derivePivotConfigurationFromChart(
-                {
-                    chartConfig: webAiChartConfig.echartsConfig,
-                    pivotConfig: { columns: groupByDimensions },
-                },
-                metricQueryWithCustomMetrics,
-                fields,
-            );
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        if (!parsedVizConfig) {
+            throw new Error('Invalid viz config');
         }
+        const pivotConfiguration: PivotConfiguration | undefined =
+            customChartType
+                ? await this.deriveCustomChartTypePivotConfiguration(
+                      projectUuid,
+                      customChartType,
+                      metricQueryWithCustomMetrics,
+                      fields,
+                  )
+                : deriveAiChartPivotConfiguration({
+                      source: {
+                          type: 'builtin',
+                          queryTool: parsedVizConfig.vizTool,
+                      },
+                      metricQuery: metricQueryWithCustomMetrics,
+                      fieldsMap: fields,
+                  });
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {

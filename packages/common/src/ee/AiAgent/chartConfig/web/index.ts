@@ -3,6 +3,7 @@ export { getWebAiChartConfig } from './getWebAiChartConfig';
 export { getRunQueryChartConfig } from './runQueryTool/getRunQueryChartConfig';
 
 // shared utils
+export { deriveAiChartPivotConfiguration } from './shared/deriveAiChartPivotConfiguration';
 export { getAvailableChartTypes } from './shared/getAvailableChartTypes';
 export { getGroupByDimensions } from './shared/getGroupByDimensions';
 
