@@ -1,3 +1,10 @@
+# [2.612.0](https://github.com/lightdash/lightdash/compare/2.611.0...2.612.0) (2026-10-19)
+
+
+### Features
+
+* **ai:** add Analysis panel mode to the AI launcher ([#31176](https://github.com/lightdash/lightdash/issues/31176)) ([2d6f1df](https://github.com/lightdash/lightdash/commit/2d6f1dfc56f285e97fe945cda6f27d2ba2e0e4df))
+
 # [2.611.0](https://github.com/lightdash/lightdash/compare/2.610.2...2.611.0) (2026-10-19)
 
 
