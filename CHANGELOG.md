@@ -1,3 +1,10 @@
+## [2.605.5](https://github.com/lightdash/lightdash/compare/2.605.4...2.605.5) (2026-10-19)
+
+
+### Bug Fixes
+
+* **sdk:** give each SDK component its own API client ([#30827](https://github.com/lightdash/lightdash/issues/30827)) ([440ce44](https://github.com/lightdash/lightdash/commit/440ce44dbbc31e07ed26cac5c06f4cf30b2b15b8))
+
 ## [2.605.4](https://github.com/lightdash/lightdash/compare/2.605.3...2.605.4) (2026-10-19)
 
 
