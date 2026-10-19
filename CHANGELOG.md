@@ -1,3 +1,10 @@
+## [2.606.7](https://github.com/lightdash/lightdash/compare/2.606.6...2.606.7) (2026-10-19)
+
+
+### Bug Fixes
+
+* **sql-runner:** full-width tables divider and hover-only copy path icon ([#31150](https://github.com/lightdash/lightdash/issues/31150)) ([3fbc711](https://github.com/lightdash/lightdash/commit/3fbc711b2568cea3a4e7aea539e7d8796602dacf))
+
 ## [2.606.6](https://github.com/lightdash/lightdash/compare/2.606.5...2.606.6) (2026-10-19)
 
 
