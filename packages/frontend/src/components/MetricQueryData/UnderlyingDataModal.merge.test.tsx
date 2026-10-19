@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { Context, type MetricQueryDataContext } from './context';
 import UnderlyingDataModal from './UnderlyingDataModal';
@@ -142,22 +142,28 @@ const metricQueryData: MetricQueryDataContext = {
     closeDrillDownModal: vi.fn(),
 };
 
+const renderModal = (context: MetricQueryDataContext) =>
+    renderWithProviders(
+        <MemoryRouter>
+            <Context.Provider value={context}>
+                <UnderlyingDataModal />
+            </Context.Provider>
+        </MemoryRouter>,
+    );
+
 describe('underlying data modal on a merged result', () => {
-    it('runs the owning source and scopes underlying data to it', async () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
         lightdashApi.mockResolvedValue({ queryUuid: 'source-query' });
         useUnderlyingDataResults.mockReturnValue({
             data: undefined,
             error: null,
             isInitialLoading: false,
         });
+    });
 
-        renderWithProviders(
-            <MemoryRouter>
-                <Context.Provider value={metricQueryData}>
-                    <UnderlyingDataModal />
-                </Context.Provider>
-            </MemoryRouter>,
-        );
+    it('runs the owning source and scopes underlying data to it', async () => {
+        renderModal(metricQueryData);
 
         await waitFor(() =>
             expect(useUnderlyingDataResults).toHaveBeenCalledWith(
@@ -187,5 +193,43 @@ describe('underlying data modal on a merged result', () => {
             context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
             query: { exploreName: 'orders', metrics: ['orders_count'] },
         });
+    });
+
+    it('scopes a pivoted cell to its pivot value in the owning source', async () => {
+        renderModal({
+            ...metricQueryData,
+            underlyingDataConfig: {
+                item: mergedCount,
+                value: { raw: 3, formatted: '3' },
+                fieldValues: {},
+                pivotReference: {
+                    field: 'orders_2_orders_count',
+                    pivotValues: [
+                        { field: 'merge_orders_status', value: 'completed' },
+                    ],
+                },
+            },
+        });
+
+        await waitFor(() =>
+            expect(useUnderlyingDataResults).toHaveBeenCalledWith(
+                {
+                    dimensions: {
+                        id: expect.any(String),
+                        and: [
+                            expect.objectContaining({
+                                target: { fieldId: 'orders_status' },
+                                values: ['completed'],
+                            }),
+                        ],
+                    },
+                },
+                'source-query',
+                'orders_count',
+                undefined,
+                undefined,
+                [],
+            ),
+        );
     });
 });
