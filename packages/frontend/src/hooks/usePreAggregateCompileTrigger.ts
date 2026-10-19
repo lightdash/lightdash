@@ -4,10 +4,12 @@ import {
     type ApiSetPreAggregateCompileTriggerResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 const setPreAggregateCompileTrigger = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: ApiSetPreAggregateCompileTriggerBody,
 ) =>
@@ -41,27 +43,32 @@ const describeChange = (
 export const useSetPreAggregateCompileTrigger = (projectUuid: string) => {
     const { showToastApiError, showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
+    const lightdashApi = useLightdashApi();
 
     return useMutation<
         ApiSetPreAggregateCompileTriggerResponse['results'],
         ApiError,
         ApiSetPreAggregateCompileTriggerBody
-    >((body) => setPreAggregateCompileTrigger(projectUuid, body), {
-        mutationKey: ['setPreAggregateCompileTrigger', projectUuid],
-        onSuccess: async (data, body) => {
-            await queryClient.invalidateQueries({
-                queryKey: ['preAggregateMaterializations', projectUuid],
-            });
-            showToastSuccess({
-                title: 'Compile trigger updated',
-                subtitle: describeChange(body, data.updatedCount),
-            });
+    >(
+        (body) =>
+            setPreAggregateCompileTrigger(lightdashApi, projectUuid, body),
+        {
+            mutationKey: ['setPreAggregateCompileTrigger', projectUuid],
+            onSuccess: async (data, body) => {
+                await queryClient.invalidateQueries({
+                    queryKey: ['preAggregateMaterializations', projectUuid],
+                });
+                showToastSuccess({
+                    title: 'Compile trigger updated',
+                    subtitle: describeChange(body, data.updatedCount),
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update compile trigger',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update compile trigger',
-                apiError: error,
-            });
-        },
-    });
+    );
 };

@@ -4127,8 +4127,23 @@ export class ProjectModel {
                                     'Cached explore staging name set mismatch',
                                 );
                             }
+                            // Explores that survive a compile keep their uuid so rows
+                            // that reference them (pre-aggregate registry and
+                            // materializations, changes) are not cascade-deleted.
                             await trx(CachedExploreTableName)
                                 .where('project_uuid', projectUuid)
+                                .whereNotExists(
+                                    trx(CachedExploreStagingTableName)
+                                        .select(trx.raw('1'))
+                                        .where({
+                                            save_uuid: saveUuid,
+                                            project_uuid: projectUuid,
+                                        })
+                                        .whereRaw('??.name = ??.name', [
+                                            CachedExploreStagingTableName,
+                                            CachedExploreTableName,
+                                        ]),
+                                )
                                 .delete();
                             const promotedResult = await trx.raw<{
                                 rows: {
@@ -4140,6 +4155,10 @@ export class ProjectModel {
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM ??
                                  WHERE save_uuid = ? AND project_uuid = ?
+                                 ON CONFLICT (name, project_uuid) DO UPDATE
+                                 SET table_names = EXCLUDED.table_names,
+                                     explore = EXCLUDED.explore,
+                                     warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name, cached_explore_uuid`,
                                 [
                                     CachedExploreTableName,

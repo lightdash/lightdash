@@ -47,7 +47,12 @@ _Avoid_: rebuild, re-run, sync
 **Trigger**:
 What initiated a materialization: compile (dbt project compiled), cron
 (scheduled refresh), or manual (user-requested refresh). Not a scheduler
-delivery trigger or DB trigger.
+delivery trigger or DB trigger. A definition opts out of the compile
+trigger with `refresh.on_compile: false` in YAML, or through the page
+override (`materialize_on_compile_override`, which wins over YAML until
+cleared); the registry still syncs on every compile, and an opted-out
+definition with no active materialization is built once so it is never
+dead until its first cron run.
 
 **Source explore**:
 The explore a pre-aggregate is defined on and summarizes.
