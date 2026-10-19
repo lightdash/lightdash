@@ -15,6 +15,7 @@ import {
     type SavedChartDAO,
     type SavedMergeDefinition,
 } from '@lightdash/common';
+import { extractColumnRefs, parse } from '@lightdash/formula';
 import {
     useCallback,
     useEffect,
@@ -34,13 +35,45 @@ import {
     PRIMARY_SOURCE_ID,
 } from '../constants';
 import { executeMergeQuery } from '../hooks/useMergeQuery';
-import { MergeContext, type MergeFocus, type MergeJoinPart } from './context';
+import {
+    MergeContext,
+    type MergeEditorSource,
+    type MergeFocus,
+    type MergeJoinPart,
+} from './context';
 import {
     MERGE_URL_PARAM,
     parseMergeState,
     serializeMergeState,
 } from './mergeUrlState';
 import { restoreSavedMerge } from './restoreSavedMerge';
+
+/** Formulas reference merged ids (`<source name>_<column>`); legacy SQL uses `${source.column}`. */
+const referencesSource = (
+    calculation: MergeTableCalculation,
+    sourceName: string,
+    source: MergeEditorSource,
+): boolean => {
+    if (!calculation.formula) {
+        return Array.from(
+            calculation.sql.matchAll(mergeCalculationReferencePattern),
+        ).some(([, reference]) => reference.startsWith(`${sourceName}.`));
+    }
+    const columns = new Set(
+        [
+            ...source.dimensions,
+            ...source.metrics,
+            ...(source.tableCalculations ?? []).map(({ name }) => name),
+        ].map((name) => getItemId({ table: sourceName, name })),
+    );
+    try {
+        return extractColumnRefs(parse(calculation.formula)).some((reference) =>
+            columns.has(reference),
+        );
+    } catch {
+        return false;
+    }
+};
 
 /**
  * Merge state lives above the explorer page because the field picker and the
@@ -194,17 +227,20 @@ export const MergeProvider: FC<
                     : current.filter((id) => id !== sourceId),
             );
             const removedSourceName = namesByHandle?.[sourceId];
+            const removedSource = additionalSources.find(
+                (source) => source.id === sourceId,
+            );
             setTableCalculations((current) =>
-                additionalSources.length <= 1 || !removedSourceName
+                additionalSources.length <= 1 ||
+                !removedSourceName ||
+                !removedSource
                     ? []
                     : current.filter(
                           (calculation) =>
-                              !Array.from(
-                                  calculation.sql.matchAll(
-                                      mergeCalculationReferencePattern,
-                                  ),
-                              ).some(([, reference]) =>
-                                  reference.startsWith(`${removedSourceName}.`),
+                              !referencesSource(
+                                  calculation,
+                                  removedSourceName,
+                                  removedSource,
                               ),
                       ),
             );
@@ -222,7 +258,7 @@ export const MergeProvider: FC<
                 lastRunMergeQuery: null,
             });
         },
-        [additionalSources.length],
+        [additionalSources],
     );
 
     const setSourceExplore = useCallback(

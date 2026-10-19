@@ -372,6 +372,48 @@ describe('MergeProvider', () => {
         expect(result.current.additionalSources).toHaveLength(2);
     });
 
+    it('drops only formula calculations that reference a removed middle source', () => {
+        const { result } = renderHook(() => useMerge(), { wrapper });
+        act(() => {
+            result.current.addSource('b');
+            result.current.addSource('c');
+            result.current.addSource('d');
+        });
+        act(() => {
+            ['b', 'c', 'd'].forEach((id) => {
+                result.current.setSourceExplore(id, 'payments');
+            });
+        });
+        act(() => {
+            ['b', 'c', 'd'].forEach((id) => {
+                result.current.toggleSourceField(id, 'payments_total', false);
+            });
+            result.current.addTableCalculation({
+                name: 'keep_sum',
+                displayName: 'Keep sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_3_payments_total',
+            });
+            result.current.addTableCalculation({
+                name: 'remove_sum',
+                displayName: 'Remove sum',
+                sql: '',
+                formula: '=payments_payments_total + payments_2_payments_total',
+            });
+        });
+        act(() =>
+            result.current.removeSource('c', {
+                a: 'orders',
+                b: 'payments',
+                c: 'payments_2',
+                d: 'payments_3',
+            }),
+        );
+        expect(
+            result.current.tableCalculations.map(({ name }) => name),
+        ).toEqual(['keep_sum']);
+    });
+
     it('keeps the parameter values used by the merged run', async () => {
         executeMergeQuery.mockResolvedValueOnce({
             outcome: 'started',
