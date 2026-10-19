@@ -1,0 +1,23 @@
+import { type ThreadComposerQueryNode } from '@lightdash/common';
+import { Knex } from 'knex';
+
+export const ComposerQueryNodesTableName = 'composer_query_nodes';
+
+export type ComposerQueryNodeScopeType = 'thread';
+
+/** A node definition registered in a scope, unique by node id. */
+export type DbComposerQueryNode = {
+    composer_query_node_uuid: string;
+    scope_type: ComposerQueryNodeScopeType;
+    scope_uuid: string;
+    node_id: string;
+    definition: ThreadComposerQueryNode;
+    tool_call_id: string;
+    created_at: Date;
+};
+
+export type ComposerQueryNodesTable = Knex.CompositeTableType<
+    DbComposerQueryNode,
+    Omit<DbComposerQueryNode, 'composer_query_node_uuid' | 'created_at'>,
+    never
+>;

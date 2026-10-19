@@ -76,6 +76,7 @@ import {
     elementReferenceToWireString,
     generateSlug,
     getAppDisplayName,
+    getComposerNodeConflictMessage,
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
@@ -84,6 +85,7 @@ import {
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
     isAiWritebackRunInProgress,
+    isSameComposerNodeDefinition,
     isThreadPrompt,
     isToolDataAppBuildResult,
     isToolEditDbtProjectResult,
@@ -112,6 +114,7 @@ import {
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type ServedSkillMetadata,
+    type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
     type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
@@ -262,6 +265,10 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import {
+    ComposerQueryNodesTableName,
+    type ComposerQueryNodeScopeType,
+} from '../database/entities/composerQueryNodes';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import {
     isNativeSqlApprovalToolCall,
@@ -622,6 +629,11 @@ const getTerminalWritebackFallback = (
         default:
             return null;
     }
+};
+
+export type ComposerQueryNodeScope = {
+    scopeType: ComposerQueryNodeScopeType;
+    scopeUuid: string;
 };
 
 export class AiAgentModel {
@@ -9776,6 +9788,63 @@ export class AiAgentModel {
         return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
     }
 
+    async listComposerQueryNodes(
+        scope: ComposerQueryNodeScope,
+    ): Promise<ThreadComposerQueryNode[]> {
+        const rows = await this.database(ComposerQueryNodesTableName)
+            .select('definition')
+            .where({ scope_type: scope.scopeType, scope_uuid: scope.scopeUuid })
+            .orderBy('created_at', 'asc')
+            .orderBy('node_id', 'asc');
+        return rows.map((row) => row.definition);
+    }
+
+    /** Identical definitions are a no-op; a different one under a registered node id throws. */
+    async registerComposerQueryNodes({
+        scope,
+        toolCallId,
+        nodes,
+    }: {
+        scope: ComposerQueryNodeScope;
+        toolCallId: string;
+        nodes: ThreadComposerQueryNode[];
+    }): Promise<void> {
+        if (nodes.length === 0) return;
+        const submitted = new Map(nodes.map((node) => [node.nodeId, node]));
+        await this.database.transaction(async (trx) => {
+            await trx(ComposerQueryNodesTableName)
+                .insert(
+                    nodes.map((node) => ({
+                        scope_type: scope.scopeType,
+                        scope_uuid: scope.scopeUuid,
+                        node_id: node.nodeId,
+                        definition: node,
+                        tool_call_id: toolCallId,
+                    })),
+                )
+                .onConflict(['scope_type', 'scope_uuid', 'node_id'])
+                .ignore();
+            const registered = await trx(ComposerQueryNodesTableName)
+                .select('node_id', 'definition')
+                .where({
+                    scope_type: scope.scopeType,
+                    scope_uuid: scope.scopeUuid,
+                })
+                .whereIn('node_id', [...submitted.keys()]);
+            registered.forEach((row) => {
+                const node = submitted.get(row.node_id);
+                if (
+                    node &&
+                    !isSameComposerNodeDefinition(row.definition, node)
+                ) {
+                    throw new ParameterError(
+                        getComposerNodeConflictMessage(row.definition),
+                    );
+                }
+            });
+        });
+    }
+
     async findArtifactVersionsByPromptUuid(
         promptUuid: string,
         { db }: { db: Knex } = { db: this.database },
@@ -11282,6 +11351,15 @@ export class AiAgentModel {
                     });
             }
 
+            await trx.raw(
+                `INSERT INTO ${ComposerQueryNodesTableName}
+                    (scope_type, scope_uuid, node_id, definition, tool_call_id, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, tool_call_id, created_at
+                 FROM ${ComposerQueryNodesTableName}
+                 WHERE scope_type = 'thread' AND scope_uuid = :sourceThreadUuid`,
+                { targetThreadUuid: newThreadUuid, sourceThreadUuid },
+            );
+
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({
                 sourceThreadUuid,
@@ -11562,7 +11640,8 @@ export class AiAgentModel {
     /**
      * Removes the derived rows the FK graph does not cascade — memories
      * distilled from a thread, runSql approval decisions (keyed by tool call
-     * id), and pinned-context references — then the threads themselves.
+     * id), pinned-context references and thread composer query nodes — then
+     * the threads themselves.
      * Everything else is covered by ON DELETE CASCADE.
      */
     private static async deleteThreadsCascade(
@@ -11589,6 +11668,11 @@ export class AiAgentModel {
         await trx(AiPromptContextTableName)
             .where('entity_type', 'thread')
             .whereIn('entity_uuid', deletedThreadUuids)
+            .delete();
+
+        await trx(ComposerQueryNodesTableName)
+            .where('scope_type', 'thread')
+            .whereIn('scope_uuid', deletedThreadUuids)
             .delete();
 
         const deletedMemoriesCount = await trx(AiAgentMemoryTableName)

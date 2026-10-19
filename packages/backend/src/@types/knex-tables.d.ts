@@ -660,6 +660,10 @@ import {
     AiThreadFileTableName,
 } from '../ee/database/entities/aiThreadFile';
 import {
+    ComposerQueryNodesTable,
+    ComposerQueryNodesTableName,
+} from '../ee/database/entities/composerQueryNodes';
+import {
     DataAppAnalysesTable,
     DataAppAnalysesTableName,
     DataAppAnalysisDailyCountersTable,
@@ -896,6 +900,7 @@ declare module 'knex/types/tables' {
         [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
+        [ComposerQueryNodesTableName]: ComposerQueryNodesTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
