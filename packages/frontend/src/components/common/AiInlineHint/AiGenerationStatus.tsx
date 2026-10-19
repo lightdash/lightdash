@@ -1,7 +1,5 @@
 import { Group, Loader, Text } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../MantineIcon';
 import classes from './AiInlineHint.module.css';
 
 type Props = {
@@ -28,12 +26,9 @@ export const AiGenerationStatus: FC<Props> = ({
             </Group>
         )}
         {provenancePrompt && (
-            <Group gap={6} wrap="nowrap" className={classes.provenance}>
-                <MantineIcon icon={IconSparkles} size="xs" />
-                <Text span inherit>
-                    Generated from &ldquo;{provenancePrompt}&rdquo;
-                </Text>
-            </Group>
+            <Text className={classes.provenance}>
+                Generated from &ldquo;{provenancePrompt}&rdquo;
+            </Text>
         )}
     </>
 );
