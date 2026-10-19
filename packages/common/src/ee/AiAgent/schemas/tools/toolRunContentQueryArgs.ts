@@ -12,9 +12,18 @@ Use this to verify generated or edited chart content before presenting it as com
 
 Input modes:
 - metricQuery: run an unsaved chart-as-code metricQuery with a tableName.
-- chart: run a saved chart by chartSlug.
-- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters.
+- chart: run a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
+- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters. chartType works the same.
 - sql: run a raw SELECT to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.`;
+
+// Slugs are unique per chart type, so the type picks which chart a slug names.
+const savedChartTypeSchema = () =>
+    z
+        .enum(['chart', 'sql_chart'])
+        .nullable()
+        .describe(
+            'Content type of the saved chart, as in readContent: "chart" (explore chart) or "sql_chart". Null means "chart".',
+        );
 
 export const toolRunContentQueryArgsSchema = createToolSchema()
     .extend({
@@ -33,6 +42,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
             }),
             z.object({
                 type: z.literal('chart'),
+                chartType: savedChartTypeSchema(),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
                 limit: z.coerce
                     .number()
@@ -41,6 +51,7 @@ export const toolRunContentQueryArgsSchema = createToolSchema()
             }),
             z.object({
                 type: z.literal('dashboardChart'),
+                chartType: savedChartTypeSchema(),
                 chartSlug: z.string().describe('Slug of the saved chart.'),
                 dashboardSlug: z
                     .string()
@@ -77,6 +88,17 @@ const savedChartStructureSchema = z.object({
     dimensions: z.array(z.string()).describe('Dimension field ids.'),
     metrics: z.array(z.string()).describe('Metric field ids.'),
 });
+
+const savedSqlChartSchema = () =>
+    z
+        .object({
+            chartUuid: z.string(),
+            slug: z.string(),
+            name: z.string(),
+            sql: z.string(),
+        })
+        .nullable()
+        .describe('The saved SQL chart that was run; null for other sources.');
 
 const savedChartSpecSchema = savedChartStructureSchema.extend({
     filters: z
@@ -124,8 +146,9 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
             chart: savedChartSpecSchema
                 .nullable()
                 .describe(
-                    'The saved chart that was run; null when an unsaved metricQuery or SQL was run.',
+                    'The saved explore chart that was run; null for an unsaved metricQuery, SQL or a saved SQL chart.',
                 ),
+            sqlChart: savedSqlChartSchema(),
             rowCount: z
                 .number()
                 .int()
@@ -146,7 +169,7 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
                     }),
                 )
                 .describe(
-                    'Ordered columns: `fieldId` keys saved chart rows and is null for an unsaved metricQuery or SQL; `label` is the CSV header shown to the model.',
+                    'Ordered columns: `fieldId` keys saved explore chart rows and is null otherwise; `label` is the CSV header shown to the model.',
                 ),
             rows: z
                 .union([
@@ -154,7 +177,7 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
                     z.array(z.array(z.unknown())),
                 ])
                 .describe(
-                    'Raw typed values of the rows rendered in the CSV: keyed by field id for saved charts, or cell arrays in column order for an unsaved metricQuery or SQL.',
+                    'Raw typed values of the rows rendered in the CSV: keyed by field id for saved explore charts, or cell arrays in column order otherwise.',
                 ),
             review: z.string().nullable(),
             truncationNote: z.string().nullable(),
@@ -174,8 +197,9 @@ export const toolRunContentQueryStructuredContentSchema = z.discriminatedUnion(
             chart: savedChartStructureSchema
                 .nullable()
                 .describe(
-                    'Structure of the saved chart; null when an unsaved metricQuery or SQL was run instead.',
+                    'Structure of the saved explore chart; null for other sources.',
                 ),
+            sqlChart: savedSqlChartSchema(),
         }),
     ],
 );
