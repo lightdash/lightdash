@@ -129,7 +129,7 @@ export const lightdashTheme = {
             },
         },
         axisLabel: {
-            show: false,
+            show: true,
             color: '#333',
         },
         splitLine: {
