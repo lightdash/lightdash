@@ -51,10 +51,24 @@ const result = (
 
 const resolve = (response: string, toolResults: TurnToolResult[]) =>
     resolveComposerPresentations({
+        channel: 'web',
         response,
         promptUuid: 'prompt-uuid',
         toolResults,
     });
+
+const resolveSlack = (response: string, toolResults: TurnToolResult[]) =>
+    resolveComposerPresentations({
+        channel: 'slack',
+        response,
+        promptUuid: 'prompt-uuid',
+        toolResults,
+    });
+
+const slackPresentedNodes = (response: string, toolResults: TurnToolResult[]) =>
+    resolveSlack(response, toolResults).presented.map(
+        (metadata) => metadata.terminalNodeId,
+    );
 
 const presentedNodes = (response: string, toolResults: TurnToolResult[]) =>
     resolve(response, toolResults).presented.map(
@@ -300,5 +314,69 @@ describe('buildComposerPresentations', () => {
 
     it('skips a node missing from the thread', async () => {
         expect(await build([success('missing')], null)).toEqual([]);
+    });
+});
+
+describe('resolveComposerPresentations in Slack', () => {
+    it('resolves a table marker to the composer result of this turn', () => {
+        const metadata = success('revenue', { title: 'Revenue' });
+        expect(
+            resolveSlack(
+                'Revenue grew.\n<slack-table queryUuid="query-revenue"/>',
+                [result(metadata)],
+            ),
+        ).toEqual({ presented: [metadata], response: 'Revenue grew.' });
+    });
+
+    it('presents several results in answer order and collapses duplicates', () => {
+        expect(
+            slackPresentedNodes(
+                '<slack-table queryUuid="query-b"/>\n<slack-table queryUuid="query-a"/>\n<slack-table queryUuid="query-b"/>',
+                [result(success('a')), result(success('b'))],
+            ),
+        ).toEqual(['b', 'a']);
+    });
+
+    it.each([
+        [
+            'a runQuery execution',
+            [result(success('revenue'), { toolName: 'runQuery' })],
+        ],
+        ['an unknown execution', [result(success('other'))]],
+        [
+            "an earlier turn's execution",
+            [result(success('revenue'), { promptUuid: 'earlier-prompt' })],
+        ],
+    ])('ignores a table marker naming %s', (_, toolResults) => {
+        expect(
+            resolveSlack(
+                'Done.\n<slack-table queryUuid="query-revenue"/>',
+                toolResults,
+            ),
+        ).toEqual({ presented: [], response: 'Done.' });
+    });
+
+    it('leaves web markers alone', () => {
+        expect(
+            resolveSlack('Done <show node="revenue"/>', [
+                result(success('revenue')),
+            ]),
+        ).toEqual({
+            presented: [],
+            response: 'Done <show node="revenue"/>',
+        });
+    });
+});
+
+describe('resolveComposerPresentations on web', () => {
+    it('leaves Slack markers alone', () => {
+        expect(
+            resolve('Done <slack-table queryUuid="query-revenue"/>', [
+                result(success('revenue')),
+            ]),
+        ).toEqual({
+            presented: [],
+            response: 'Done <slack-table queryUuid="query-revenue"/>',
+        });
     });
 });

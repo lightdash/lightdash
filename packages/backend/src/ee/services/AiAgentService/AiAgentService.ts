@@ -17182,31 +17182,22 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
                         const composerPresentation =
-                            !isSlackPrompt(prompt) &&
                             update.response !== undefined
                                 ? resolveComposerPresentations({
+                                      channel: isSlackPrompt(prompt)
+                                          ? 'slack'
+                                          : 'web',
                                       response: update.response,
                                       promptUuid: prompt.promptUuid,
                                       toolResults: turnToolResults,
                                   })
                                 : null;
-                        let visibleUpdate = update;
-                        if (composerPresentation) {
-                            visibleUpdate = {
-                                ...update,
-                                response: composerPresentation.response,
-                            };
-                        } else if (
-                            isSlackPrompt(prompt) &&
-                            update.response !== undefined
-                        ) {
-                            visibleUpdate = {
-                                ...update,
-                                response: stripSlackVisualizationSelection(
-                                    update.response,
-                                ),
-                            };
-                        }
+                        const visibleUpdate = composerPresentation
+                            ? {
+                                  ...update,
+                                  response: composerPresentation.response,
+                              }
+                            : update;
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17228,7 +17219,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     user,
                                     prompt,
                                     presented: composerPresentation.presented,
-                                    planViz: planComposerViz,
+                                    planViz: isSlackPrompt(prompt)
+                                        ? null
+                                        : planComposerViz,
                                     enableDataAccess: args.enableDataAccess,
                                     onArtifactReady: (artifact) => {
                                         if (decisions) {
