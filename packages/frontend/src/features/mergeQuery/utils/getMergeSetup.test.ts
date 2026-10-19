@@ -69,6 +69,10 @@ const explore = (name: string, grain = TimeFrames.WEEK): Explore => ({
         },
     },
 });
+const required = <T>(value: T | null): T => {
+    if (value === null) throw new Error('Expected a value');
+    return value;
+};
 const fixture = (count = 3) => {
     const names = Array.from(
         { length: count },
@@ -126,10 +130,10 @@ describe('multi-source merge setup', () => {
             expect(setup.mergeQuery?.sources).toHaveLength(count);
             expect(setup.mergeQuery?.joinKey).toHaveLength(2);
             const saved = buildSavedMergeDefinition({
-                mergeQuery: setup.mergeQuery!,
+                mergeQuery: required(setup.mergeQuery),
                 chartSourceId: input.tableName,
             });
-            const restored = restoreSavedMerge(saved)!;
+            const restored = required(restoreSavedMerge(saved));
             expect(restored.additionalSources).toHaveLength(count - 1);
             expect(parseMergeState(serializeMergeState(restored))).toEqual(
                 restored,
@@ -192,12 +196,14 @@ describe('multi-source merge setup', () => {
         ];
         const setup = getMergeSetup({ ...input, tableCalculations });
         const saved = buildSavedMergeDefinition({
-            mergeQuery: setup.mergeQuery!,
+            mergeQuery: required(setup.mergeQuery),
             chartSourceId: input.tableName,
         });
-        const restored = parseMergeState(
-            serializeMergeState(restoreSavedMerge(saved)!),
-        )!;
+        const restored = required(
+            parseMergeState(
+                serializeMergeState(required(restoreSavedMerge(saved))),
+            ),
+        );
         expect(
             getMergeSetup({ ...input, ...restored }).mergeQuery
                 ?.tableCalculations,
@@ -213,6 +219,9 @@ describe('multi-source merge setup', () => {
             metrics: ['domain_1_count'],
         };
         input.additionalExplores[1] = explore('domain_1');
+        input.joinParts.forEach((part) => {
+            part.fieldIdBySourceId.source_2 = part.fieldIdBySourceId.b;
+        });
         input.sourceNames = getMergeSourceNames({
             tableName: input.tableName,
             primarySourceName: null,
