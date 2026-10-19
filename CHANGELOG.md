@@ -1,3 +1,10 @@
+## [2.614.1](https://github.com/lightdash/lightdash/compare/2.614.0...2.614.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **data-apps:** explain an upload rejected by its manifest access block ([#31169](https://github.com/lightdash/lightdash/issues/31169)) ([e545108](https://github.com/lightdash/lightdash/commit/e5451081b1499d77635756bd121a574394bca879)), closes [#31154](https://github.com/lightdash/lightdash/issues/31154) [#31156](https://github.com/lightdash/lightdash/issues/31156)
+
 # [2.614.0](https://github.com/lightdash/lightdash/compare/2.613.0...2.614.0) (2026-10-19)
 
 
