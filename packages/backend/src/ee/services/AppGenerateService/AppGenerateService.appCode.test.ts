@@ -559,6 +559,36 @@ describe('AppGenerateService.importAppCode', () => {
         );
     });
 
+    it('append mode: authorizes the access policy after the space move, against the new location', async () => {
+        const { service, appModel, coderService } = buildService();
+        appModel.findApp.mockResolvedValue({
+            ...makeExistingApp(),
+            space_uuid: 'old-space-uuid',
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+        coderService.prepareDirectAccessReplace.mockResolvedValue([]);
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: makeCode(undefined, {
+                spaceSlug: 'sales/q3-reports',
+                access: { users: [], groups: [] },
+            }),
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.moveToSpace).toHaveBeenCalledOnce();
+        expect(
+            coderService.assertCanApplyDirectAccessPolicy,
+        ).toHaveBeenCalledOnce();
+        const [moveOrder] = appModel.moveToSpace.mock.invocationCallOrder;
+        const [preflightOrder] =
+            coderService.assertCanApplyDirectAccessPolicy.mock
+                .invocationCallOrder;
+        const [createOrder] = appModel.createVersion.mock.invocationCallOrder;
+        expect(moveOrder).toBeLessThan(preflightOrder);
+        expect(preflightOrder).toBeLessThan(createOrder);
+    });
+
     it('append mode: does not create a version when the uploader cannot manage the access policy', async () => {
         const { service, appModel, coderService, schedulerClient } =
             buildService();

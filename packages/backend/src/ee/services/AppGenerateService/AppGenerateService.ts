@@ -14263,18 +14263,6 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 organizationUuid: existingApp.organization_uuid,
             });
-            // Authorize the declared access policy before any write. The
-            // apply below runs after the version row exists; a 403 there
-            // used to orphan a pending version that still counted against
-            // the build cap.
-            if (directAccessAssignments !== null) {
-                await this.coderService.assertCanApplyDirectAccessPolicy(
-                    user,
-                    projectUuid,
-                    DirectAccessResourceType.APP,
-                    existingApp.app_id,
-                );
-            }
             await this.updateAppMetadataIfChanged(
                 existingApp,
                 code.manifest,
@@ -14320,6 +14308,20 @@ export class AppGenerateService extends BaseService {
                         targetSpaceUuid: manifestSpaceUuid,
                     });
                 }
+            }
+            // Authorize the declared access policy before the version row
+            // is written. The apply below runs after the row exists; a 403
+            // there used to orphan a pending version that still counted
+            // against the build cap. This runs after the space move on
+            // purpose: the policy is evaluated against the app's new
+            // location, exactly as the apply is.
+            if (directAccessAssignments !== null) {
+                await this.coderService.assertCanApplyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    existingApp.app_id,
+                );
             }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
