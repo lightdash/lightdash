@@ -8767,6 +8767,9 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "enableSqlMode": {
                         "type": "boolean"
                     },
@@ -12964,6 +12967,108 @@
                 "format": "uuid",
                 "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
                 "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
+            "ReleaseHighlight": {
+                "properties": {
+                    "requestedByYourOrganization": {
+                        "type": "boolean"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "benefit": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "requestedByYourOrganization",
+                    "version",
+                    "url",
+                    "benefit",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "ReleaseHighlightsResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "generatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "highlights": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ReleaseHighlight"
+                                },
+                                "type": "array"
+                            },
+                            "toVersion": {
+                                "type": "string"
+                            },
+                            "fromVersion": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ready"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "generatedAt",
+                            "highlights",
+                            "toVersion",
+                            "fromVersion",
+                            "status"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "not_self_hosted",
+                                    "update_check_disabled",
+                                    "up_to_date",
+                                    "ai_not_configured",
+                                    "source_unavailable",
+                                    "no_features",
+                                    "generation_failed",
+                                    "rate_limited"
+                                ]
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiReleaseHighlights": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ReleaseHighlightsResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "HomepageCollectionItemRef": {
                 "properties": {
@@ -23071,6 +23176,21 @@
                 "required": ["connectionSlug", "alias"],
                 "type": "object"
             },
+            "DataAppManifestRegistryProvenance": {
+                "properties": {
+                    "url": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "version", "slug"],
+                "type": "object"
+            },
             "DataAppManifest": {
                 "properties": {
                     "scaffoldingVersion": {
@@ -23078,6 +23198,9 @@
                     },
                     "downloadedAt": {
                         "type": "string"
+                    },
+                    "registry": {
+                        "$ref": "#/components/schemas/DataAppManifestRegistryProvenance"
                     },
                     "access": {
                         "$ref": "#/components/schemas/ContentAsCodeDirectAccess"
@@ -25085,16 +25208,13 @@
                     }
                 ]
             },
-            "GenerateTableCalculationRequest": {
+            "Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__": {
                 "properties": {
-                    "currentSql": {
+                    "tableName": {
                         "type": "string"
                     },
-                    "existingTableCalculations": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
+                    "prompt": {
+                        "type": "string"
                     },
                     "fieldsContext": {
                         "items": {
@@ -25102,15 +25222,23 @@
                         },
                         "type": "array"
                     },
-                    "tableName": {
-                        "type": "string"
+                    "existingTableCalculations": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
-                    "prompt": {
+                    "currentSql": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldsContext", "tableName", "prompt"],
-                "type": "object"
+                "required": ["tableName", "prompt", "fieldsContext"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_GenerateTableCalculationRequest.exploreName_": {
+                "$ref": "#/components/schemas/Pick_GenerateTableCalculationRequest.Exclude_keyofGenerateTableCalculationRequest.exploreName__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "GeneratedCustomDimension": {
                 "properties": {
@@ -25157,9 +25285,12 @@
                     }
                 ]
             },
-            "GenerateCustomDimensionRequest": {
+            "Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__": {
                 "properties": {
-                    "currentSql": {
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "prompt": {
                         "type": "string"
                     },
                     "fieldsContext": {
@@ -25168,15 +25299,17 @@
                         },
                         "type": "array"
                     },
-                    "tableName": {
-                        "type": "string"
-                    },
-                    "prompt": {
+                    "currentSql": {
                         "type": "string"
                     }
                 },
-                "required": ["fieldsContext", "tableName", "prompt"],
-                "type": "object"
+                "required": ["tableName", "prompt", "fieldsContext"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_GenerateCustomDimensionRequest.exploreName_": {
+                "$ref": "#/components/schemas/Pick_GenerateCustomDimensionRequest.Exclude_keyofGenerateCustomDimensionRequest.exploreName__",
+                "description": "Construct a type with the properties of T except for those in type K."
             },
             "GeneratedFormulaTableCalculation": {
                 "properties": {
@@ -28518,6 +28651,98 @@
                 "type": "object",
                 "description": "Merge execution request for the compose endpoint, which accepts the full\nMergeQuerySource union (including references to existing query results).\nA separate endpoint keeps the original merge-query contract untouched for\nexisting clients while compose-only capabilities evolve on their own path."
             },
+            "QueryCostEstimate": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["unavailable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "requiresConfirmation": {
+                                "type": "boolean"
+                            },
+                            "confirmEstimatedBytesAbove": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "totalBytesProcessed": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["estimated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "requiresConfirmation",
+                            "confirmEstimatedBytesAbove",
+                            "totalBytesProcessed",
+                            "status"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiQueryCostEstimateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/QueryCostEstimate"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncMetricQueryRequestParams": {
+                "properties": {
+                    "usePreAggregateCache": {
+                        "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "query": {
+                        "$ref": "#/components/schemas/Omit_MetricQueryRequest.csvLimit_"
+                    }
+                },
+                "required": ["query"],
+                "type": "object"
+            },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
                     "labelFieldId": {
@@ -28593,6 +28818,26 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "EstimateAsyncSqlQueryRequestParams": {
+                "properties": {
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql"],
                 "type": "object"
             },
             "ExecuteAsyncSqlChartByUuidRequestParams": {
@@ -28845,7 +29090,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -28924,6 +29169,32 @@
                         },
                         "type": "array"
                     },
+                    "userAccessDetails": {
+                        "items": {
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "lastName": {
+                                    "type": "string"
+                                },
+                                "firstName": {
+                                    "type": "string"
+                                },
+                                "userUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "email",
+                                "lastName",
+                                "firstName",
+                                "userUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -28943,6 +29214,9 @@
                         "type": "boolean"
                     },
                     "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
                     "adminOnly": {
@@ -28982,12 +29256,14 @@
                     "integrations",
                     "instruction",
                     "groupAccess",
+                    "userAccessDetails",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -28997,7 +29273,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -29704,7 +29980,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -29783,6 +30059,32 @@
                         },
                         "type": "array"
                     },
+                    "userAccessDetails": {
+                        "items": {
+                            "properties": {
+                                "email": {
+                                    "type": "string"
+                                },
+                                "lastName": {
+                                    "type": "string"
+                                },
+                                "firstName": {
+                                    "type": "string"
+                                },
+                                "userUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "email",
+                                "lastName",
+                                "firstName",
+                                "userUuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "spaceAccess": {
                         "items": {
                             "type": "string"
@@ -29802,6 +30104,9 @@
                         "type": "boolean"
                     },
                     "enableSqlMode": {
+                        "type": "boolean"
+                    },
+                    "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
                     "adminOnly": {
@@ -29841,12 +30146,14 @@
                     "integrations",
                     "instruction",
                     "groupAccess",
+                    "userAccessDetails",
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -29856,7 +30163,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -30720,6 +31027,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
+                            },
                             "enableSqlMode": {
                                 "type": "boolean"
                             },
@@ -30848,6 +31158,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "enableSqlAutoApproval": {
+                                "type": "boolean"
                             },
                             "enableSqlMode": {
                                 "type": "boolean"
@@ -36081,7 +36394,7 @@
                     },
                     "autoApproveSql": {
                         "type": "boolean",
-                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false — normal chat still asks the user to approve SQL."
+                        "description": "Skips the SQL human-approval gate for this stream. Used by the review\nremediation workspace so Continue PR turns run frictionlessly. Defaults\nto false; the agent-level `enableSqlAutoApproval` setting also skips the gate."
                     },
                     "enableFastDecisions": {
                         "type": "boolean",
@@ -38228,6 +38541,31 @@
                 "enum": ["sso", "private_key", "adc"],
                 "type": "string"
             },
+            "BigqueryMaximumBytesBilledByRole": {
+                "properties": {
+                    "viewer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "interactive_viewer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "editor": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "developer": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "admin": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object"
+            },
             "Pick_CreateBigqueryCredentials.Exclude_keyofCreateBigqueryCredentials.SensitiveCredentialsFieldNames__": {
                 "properties": {
                     "type": {
@@ -38284,6 +38622,27 @@
                     "maximumBytesBilled": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "maximumBytesBilledByRole": {
+                        "$ref": "#/components/schemas/BigqueryMaximumBytesBilledByRole"
+                    },
+                    "agentMaximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
                     },
                     "executionProject": {
                         "type": "string"
@@ -39296,6 +39655,27 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "agentMaximumEstimatedBytes": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Refuse AI agent queries whose dry-run estimate is above this."
+                    },
+                    "confirmEstimatedBytesAbove": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Ask users to confirm before running a query estimated above this."
+                    },
+                    "estimateQueryBytes": {
+                        "type": "boolean",
+                        "description": "Show a dry-run bytes estimate in the explorer and SQL runner."
+                    },
+                    "agentMaximumBytesBilled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maximumBytesBilledByRole": {
+                        "$ref": "#/components/schemas/BigqueryMaximumBytesBilledByRole"
                     },
                     "maximumBytesBilled": {
                         "type": "number",
@@ -45300,7 +45680,7 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
-            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_": {
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -45355,6 +45735,9 @@
                     "enableSqlMode": {
                         "type": "boolean"
                     },
+                    "enableSqlAutoApproval": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -45379,6 +45762,7 @@
                     "enableContentTools",
                     "enableUserContext",
                     "enableSqlMode",
+                    "enableSqlAutoApproval",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -45386,7 +45770,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentThreadDumpAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-adminOnly-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_"
             },
             "ServedSkillMetadata": {
                 "properties": {
@@ -60279,10 +60663,15 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
+                    },
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
                     },
                     "corsAllowedDomains": {
                         "items": {
@@ -60362,6 +60751,7 @@
                     }
                 },
                 "required": [
+                    "dataAppCapturesEnabled",
                     "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
                     "csvCellsLimit",
@@ -60475,7 +60865,12 @@
                     "dataAppAutomaticThumbnailsEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`."
+                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
                     }
                 },
                 "type": "object",
@@ -60770,6 +61165,10 @@
                         "type": "object",
                         "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port\nand is returned to every org member; `host`/`port` are the infra endpoint\nclients connect to and are only populated for org admins (null otherwise)."
                     },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -60855,6 +61254,10 @@
                     "colorPaletteUuid": {
                         "type": "string",
                         "description": "The active color palette uuid for all projects in the organization"
+                    },
+                    "dataAppCapturesEnabled": {
+                        "type": "boolean",
+                        "description": "Effective value of the org's \"allow screenshots and attachments in data\napp builds\" switch (the org setting capped by the instance env). Returned\nto every org member on the authenticated `GET /org` response so the\nbuilder can hide the capture affordances for non-admins too; the backend\nenforces it regardless. Absent on older servers — treat as `true`."
                     },
                     "chartColors": {
                         "items": {
@@ -64406,6 +64809,31 @@
                     "warehouseConnectionUuid": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "warehouseConnection": {
+                        "properties": {
+                            "startOfWeek": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WeekDay"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "warehouseConnectionUuid": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "startOfWeek",
+                            "warehouseType",
+                            "warehouseConnectionUuid"
+                        ],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -64416,7 +64844,8 @@
                     "baseTable",
                     "tables",
                     "targetDatabase",
-                    "warehouseConnectionUuid"
+                    "warehouseConnectionUuid",
+                    "warehouseConnection"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -72862,7 +73291,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.580.0",
+        "version": "2.606.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -80942,6 +81371,57 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/query/metric-query/estimate": {
+            "post": {
+                "operationId": "estimateAsyncMetricQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a metric query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate metric query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncMetricQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/projects/{projectUuid}/query/field-values": {
             "post": {
                 "operationId": "executeAsyncFieldValueSearch",
@@ -81191,6 +81671,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSqlQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/sql/estimate": {
+            "post": {
+                "operationId": "estimateAsyncSqlQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiQueryCostEstimateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Estimates the bytes a SQL runner query would process with a free warehouse dry run, without running it. Only BigQuery connections with query estimates enabled return an estimate.",
+                "summary": "Estimate SQL query",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EstimateAsyncSqlQueryRequestParams"
                             }
                         }
                     }
@@ -103351,6 +103882,26 @@
                         "schema": {
                             "type": "boolean"
                         }
+                    },
+                    {
+                        "description": "column to sort by (name sorts by full name, falling back to email)",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
                     }
                 ]
             }
@@ -103908,6 +104459,26 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "description": "column to sort by",
+                        "in": "query",
+                        "name": "sortBy",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["name"]
+                        }
+                    },
+                    {
+                        "description": "sort direction (asc or desc)",
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
                         }
                     }
                 ]
