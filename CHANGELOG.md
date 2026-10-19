@@ -1,3 +1,15 @@
+## [2.606.8](https://github.com/lightdash/lightdash/compare/2.606.7...2.606.8) (2026-10-19)
+
+
+### Bug Fixes
+
+* page scheduler logs in SQL instead of loading every 7-day row ([#31149](https://github.com/lightdash/lightdash/issues/31149)) ([e8aa85c](https://github.com/lightdash/lightdash/commit/e8aa85c273d00c2a73122b2c50515c8aae3f38db))
+
+
+### Performance Improvements
+
+* **cli:** run process tests against the compiled CLI instead of tsx per spawn ([#31148](https://github.com/lightdash/lightdash/issues/31148)) ([3600cc7](https://github.com/lightdash/lightdash/commit/3600cc72bf5a9288df75ba443f7efbedcc17fa8c))
+
 ## [2.606.7](https://github.com/lightdash/lightdash/compare/2.606.6...2.606.7) (2026-10-19)
 
 
