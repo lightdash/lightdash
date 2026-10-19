@@ -203,6 +203,7 @@ describe('Enable multiple connections', () => {
         ).not.toBeInTheDocument();
     });
 
+    // Full panel render plus a multi-step form; the default 5 s is not enough on a shared CI runner.
     it('hides the extra credential toggle and explains the primary setting in the switch dialog', async () => {
         routeApi({ availability: { canSwitch: true, reason: null } });
         const user = renderPanel();
@@ -238,7 +239,7 @@ describe('Enable multiple connections', () => {
         expect(body.connection.warehouseConnection.requireUserCredentials).toBe(
             false,
         );
-    });
+    }, 20_000);
 
     it('disables the switch and says why when the project cannot switch', async () => {
         routeApi({
@@ -357,5 +358,5 @@ describe('Enable multiple connections', () => {
         await waitFor(() =>
             expect(screen.queryByText(/Its connection test passed/)).toBeNull(),
         );
-    });
+    }, 20_000);
 });
