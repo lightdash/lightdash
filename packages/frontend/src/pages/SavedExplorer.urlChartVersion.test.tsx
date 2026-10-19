@@ -13,6 +13,7 @@ import {
     stopStreaming,
     type StreamPart,
 } from '../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
+import { resetHandledAgentToolCallIds } from '../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { renderWithProviders } from '../testing/testUtils';
 import SavedExplorer from './SavedExplorer';
 
@@ -272,6 +273,7 @@ const publishAgentEdit = (complete = false) => {
 
 describe('SavedExplorer', () => {
     beforeEach(() => {
+        resetHandledAgentToolCallIds();
         currentSavedChart = savedChart;
         agentStore = createAgentStore();
         agentStore.dispatch(
@@ -331,6 +333,63 @@ describe('SavedExplorer', () => {
             );
         },
     );
+
+    describe('across remounts', () => {
+        const savedChartFetchCount = () =>
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(
+                    ([{ url, method }]) =>
+                        method === 'GET' && url.includes('/saved/'),
+                ).length;
+
+        const remountAndCountFetches = async () => {
+            vi.mocked(lightdashApi).mockClear();
+            renderWithProviders(savedExplorerRouter('', 'view'));
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    'big_number',
+                ),
+            );
+            await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+            return savedChartFetchCount();
+        };
+
+        const editedChart = {
+            ...savedChart,
+            chartConfig: { type: ChartType.BIG_NUMBER, config: {} },
+        } as SavedChart;
+
+        it('does not refetch for a handled edit after remounting', async () => {
+            const view = renderWithProviders(savedExplorerRouter('', 'view'));
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    'cartesian',
+                ),
+            );
+            currentSavedChart = editedChart;
+            publishAgentEdit(true);
+            await waitFor(() =>
+                expect(screen.getByTestId('session')).toHaveTextContent(
+                    'big_number',
+                ),
+            );
+            view.unmount();
+
+            expect(await remountAndCountFetches()).toBe(1);
+        });
+
+        it('refetches once for an edit that completed before mount', async () => {
+            currentSavedChart = editedChart;
+            publishAgentEdit(true);
+            vi.mocked(lightdashApi).mockClear();
+            const view = renderWithProviders(savedExplorerRouter('', 'view'));
+            await waitFor(() => expect(savedChartFetchCount()).toBe(2));
+            view.unmount();
+
+            expect(await remountAndCountFetches()).toBe(1);
+        });
+    });
 
     it('refreshes an existing saved merge after the agent changes its sources and join', async () => {
         const merge = {

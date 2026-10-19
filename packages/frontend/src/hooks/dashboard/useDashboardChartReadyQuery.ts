@@ -368,11 +368,7 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid &&
-            dashboardUuid &&
-            chartQuery.data &&
-            !chartQuery.isFetching &&
-            explore,
+            chartUuid && dashboardUuid && chartQuery.data && explore,
         ),
         ...retryConfig,
         refetchOnMount: false,

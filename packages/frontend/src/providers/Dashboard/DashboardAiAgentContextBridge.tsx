@@ -22,6 +22,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../ee/features/aiCopilot/store/hooks';
+import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -95,7 +96,6 @@ const DashboardAiAgentContextBridge = () => {
 
     const activeThreadParts = useAiAgentProjectStreamParts(projectUuid);
 
-    const handledToolCallIdsRef = useRef<Set<string>>(new Set());
     const pendingChartToFocusRef = useRef<DashboardAiAgentChartRef | null>(
         null,
     );
@@ -368,18 +368,26 @@ const DashboardAiAgentContextBridge = () => {
     );
 
     useEffect(() => {
-        if (!currentDashboardSlug || !projectUuid || !dashboardUuidOrSlug)
+        if (
+            !currentDashboardSlug ||
+            !currentDashboardUuid ||
+            !projectUuid ||
+            !dashboardUuidOrSlug
+        )
             return;
 
+        const handledToolCallIds = getHandledAgentToolCallIds(
+            `dashboard:${currentDashboardUuid}`,
+        );
         const plan = planDashboardAiAgentChanges({
             parts: activeThreadParts,
-            handledToolCallIds: handledToolCallIdsRef.current,
+            handledToolCallIds,
             currentDashboardSlug,
             pendingChartToFocus: pendingChartToFocusRef.current,
         });
 
         for (const toolCallId of plan.handledToolCallIds) {
-            handledToolCallIdsRef.current.add(toolCallId);
+            handledToolCallIds.add(toolCallId);
         }
         pendingChartToFocusRef.current = plan.pendingChartToFocus;
 
@@ -408,6 +416,7 @@ const DashboardAiAgentContextBridge = () => {
     }, [
         activeThreadParts,
         currentDashboardSlug,
+        currentDashboardUuid,
         dashboardUuidOrSlug,
         projectUuid,
         refreshChartTiles,

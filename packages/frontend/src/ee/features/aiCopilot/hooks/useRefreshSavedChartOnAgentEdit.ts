@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { getHandledAgentToolCallIds } from '../streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../streaming/useAiAgentThreadStreamQuery';
 
 export const useRefreshSavedChartOnAgentEdit = ({
@@ -13,10 +14,10 @@ export const useRefreshSavedChartOnAgentEdit = ({
 }) => {
     const queryClient = useQueryClient();
     const parts = useAiAgentProjectStreamParts(projectUuid);
-    const handledToolCallIds = useRef(new Set<string>());
 
     useEffect(() => {
         if (!projectUuid || !chartUuid) return;
+        const handledToolCallIds = getHandledAgentToolCallIds('savedChart');
 
         for (const part of parts) {
             if (
@@ -26,11 +27,11 @@ export const useRefreshSavedChartOnAgentEdit = ({
                 part.isPreliminary !== false ||
                 part.toolResult?.metadata.status !== 'success' ||
                 part.toolResult.metadata.uuid !== chartUuid ||
-                handledToolCallIds.current.has(part.toolCallId)
+                handledToolCallIds.has(part.toolCallId)
             ) {
                 continue;
             }
-            handledToolCallIds.current.add(part.toolCallId);
+            handledToolCallIds.add(part.toolCallId);
 
             const identifiers = new Set([
                 chartUuid,

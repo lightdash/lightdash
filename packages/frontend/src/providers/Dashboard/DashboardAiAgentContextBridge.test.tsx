@@ -20,6 +20,7 @@ import {
     stopStreaming,
     type StreamPart,
 } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
+import { resetHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useDashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import { mockSavedChartResponse } from '../../testing/savedChartResponse.mock';
 import AppProvider from '../App/AppProvider';
@@ -153,6 +154,7 @@ let publishedChart = chart;
 let publishedDashboard = dashboard;
 
 beforeEach(() => {
+    resetHandledAgentToolCallIds();
     savedChart = chart;
     savedDashboard = dashboard;
     publishedChart = chart;
@@ -183,17 +185,14 @@ beforeEach(() => {
     }) as typeof lightdashApi);
 });
 
-const renderDashboard = (
-    identifier = dashboard.slug,
-    includeUnpublishedDraft = true,
-) => {
-    const agentStore = configureStore({
+const createAgentStore = () => {
+    const store = configureStore({
         reducer: {
             aiAgentLauncher: aiAgentLauncherSlice.reducer,
             aiAgentThreadStream: aiAgentThreadStreamSlice.reducer,
         },
     });
-    agentStore.dispatch(
+    store.dispatch(
         startStreaming({
             threadUuid: 'thread',
             messageUuid: 'message',
@@ -202,6 +201,14 @@ const renderDashboard = (
             autoApproveSql: false,
         }),
     );
+    return store;
+};
+
+const renderDashboard = (
+    identifier = dashboard.slug,
+    includeUnpublishedDraft = true,
+    agentStore = createAgentStore(),
+) => {
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -433,4 +440,105 @@ describe('agent dashboard chart refresh', () => {
             ).toMatchObject({ chartConfig: { type: ChartType.CARTESIAN } });
         },
     );
+
+    describe('across remounts', () => {
+        const dashboardFetchCount = () =>
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([{ url }]) =>
+                    url.startsWith(`/projects/${projectUuid}/dashboards/`),
+                ).length;
+
+        const completeDashboardEdit = (
+            agentStore: ReturnType<typeof createAgentStore>,
+        ) => {
+            agentStore.dispatch(
+                setParts({ threadUuid: 'thread', parts: [editDashboardPart] }),
+            );
+            agentStore.dispatch(stopStreaming({ threadUuid: 'thread' }));
+        };
+
+        it('does not replay a handled edit after remounting', async () => {
+            const agentStore = createAgentStore();
+            const first = renderDashboard(dashboard.slug, true, agentStore);
+            await waitFor(() =>
+                expect(first.result.current.dashboard).toBeDefined(),
+            );
+            savedDashboard = { ...dashboard, name: 'Edited dashboard' };
+            act(() => completeDashboardEdit(agentStore));
+            await waitFor(() =>
+                expect(first.result.current.dashboard?.name).toBe(
+                    'Edited dashboard',
+                ),
+            );
+            first.unmount();
+            vi.mocked(lightdashApi).mockClear();
+
+            const second = renderDashboard(dashboard.slug, true, agentStore);
+            await waitFor(() =>
+                expect(second.result.current.data).toBeDefined(),
+            );
+            expect(dashboardFetchCount()).toBe(1);
+        });
+
+        it('applies an edit that completed before mount once', async () => {
+            const agentStore = createAgentStore();
+            completeDashboardEdit(agentStore);
+            vi.mocked(lightdashApi).mockClear();
+
+            const first = renderDashboard(dashboard.slug, true, agentStore);
+            await waitFor(() => expect(dashboardFetchCount()).toBe(2));
+            await waitFor(() =>
+                expect(first.result.current.data).toBeDefined(),
+            );
+            first.unmount();
+            vi.mocked(lightdashApi).mockClear();
+
+            const second = renderDashboard(dashboard.slug, true, agentStore);
+            await waitFor(() =>
+                expect(second.result.current.data).toBeDefined(),
+            );
+            expect(dashboardFetchCount()).toBe(1);
+        });
+    });
+
+    it('does not rerun tile results when only chart metadata is refetched', async () => {
+        const { result, client } = renderDashboard();
+        client.setQueryDefaults(['dashboard_chart_ready_query'], {
+            staleTime: 0,
+        });
+        await waitFor(() => expect(result.current.data).toBeDefined());
+        vi.mocked(lightdashApi).mockClear();
+
+        let resolveRenamed: (value: SavedChart) => void = () => {};
+        vi.mocked(lightdashApi).mockImplementationOnce(
+            (() =>
+                new Promise<SavedChart>((resolve) => {
+                    resolveRenamed = resolve;
+                })) as typeof lightdashApi,
+        );
+        const queryKey = ['saved_query', chart.uuid, projectUuid, true];
+        let refetch: Promise<void> = Promise.resolve();
+        act(() => {
+            refetch = client.refetchQueries({ queryKey, exact: true });
+        });
+        await waitFor(() =>
+            expect(client.isFetching({ queryKey, exact: true })).toBe(1),
+        );
+        await act(async () => {
+            resolveRenamed({ ...chart, name: 'Renamed orders' });
+            await refetch;
+        });
+        // Let the observer notify and the tile re-render.
+        await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.some(
+                    ([{ url }]) =>
+                        url ===
+                        `/projects/${projectUuid}/query/dashboard-chart`,
+                ),
+        ).toBe(false);
+    });
 });
