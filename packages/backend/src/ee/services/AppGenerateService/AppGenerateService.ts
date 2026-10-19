@@ -14263,6 +14263,18 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 organizationUuid: existingApp.organization_uuid,
             });
+            // Authorize the declared access policy before any write. The
+            // apply below runs after the version row exists; a 403 there
+            // used to orphan a pending version that still counted against
+            // the build cap.
+            if (directAccessAssignments !== null) {
+                await this.coderService.assertCanApplyDirectAccessPolicy(
+                    user,
+                    projectUuid,
+                    DirectAccessResourceType.APP,
+                    existingApp.app_id,
+                );
+            }
             await this.updateAppMetadataIfChanged(
                 existingApp,
                 code.manifest,
