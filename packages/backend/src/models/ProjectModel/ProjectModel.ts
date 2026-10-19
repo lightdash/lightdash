@@ -4911,6 +4911,30 @@ export class ProjectModel {
         }));
     }
 
+    static getDefaultUserSpaceFallbackNames(user: {
+        userUuid: string;
+        email?: string;
+    }): string[] {
+        const emailLocalPart = user.email?.split('@')[0]?.trim();
+        return [
+            ...(emailLocalPart ? [emailLocalPart] : []),
+            `User ${user.userUuid.slice(0, 8)}`,
+        ];
+    }
+
+    static getDefaultUserSpaceName(user: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+        email?: string;
+    }): string {
+        const fullName =
+            `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+        return (
+            fullName || ProjectModel.getDefaultUserSpaceFallbackNames(user)[0]
+        );
+    }
+
     async ensureDefaultUserSpace(
         projectId: number,
         parentSpaceUuid: string,
@@ -4920,21 +4944,33 @@ export class ProjectModel {
             userUuid: string;
             firstName: string;
             lastName: string;
+            email?: string;
         },
     ): Promise<void> {
+        const spaceName = ProjectModel.getDefaultUserSpaceName(user);
+
         const existing = await this.database(SpaceTableName)
             .where('is_default_user_space', true)
             .where('created_by_user_id', user.userId)
             .where('project_id', projectId)
             .whereNull('deleted_at')
-            .first('space_uuid');
+            .first('space_uuid', 'name');
 
-        if (existing) return;
-
-        const spaceName =
-            user.firstName || user.lastName
-                ? `${user.firstName} ${user.lastName}`.trim()
-                : `User ${user.userUuid.slice(0, 8)}`;
+        if (existing) {
+            // Only replace names we generated, so manual renames are kept.
+            // Slug and path stay as-is to avoid breaking links and child paths.
+            const hasGeneratedName =
+                ProjectModel.getDefaultUserSpaceFallbackNames(user).includes(
+                    existing.name,
+                );
+            if (hasGeneratedName && existing.name !== spaceName) {
+                await this.database(SpaceTableName)
+                    .where('space_uuid', existing.space_uuid)
+                    .where('name', existing.name)
+                    .update({ name: spaceName });
+            }
+            return;
+        }
 
         await this.database.transaction(async (trx) => {
             const baseSlug = generateSlug(spaceName);

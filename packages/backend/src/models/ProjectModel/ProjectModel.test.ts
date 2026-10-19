@@ -3360,7 +3360,99 @@ describe('ProjectModel', () => {
             );
         });
 
-        test('should use UUID fallback when user has no name', async () => {
+        const mockNewSpaceInsert = () => {
+            // 1. No existing default space
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce(undefined);
+            // 2. Slug uniqueness check
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce([]);
+            // 3. Insert the user space
+            tracker.on
+                .insert(matchSql(SpaceTableName))
+                .response([{ space_uuid: 'new-space-uuid' }]);
+            // 4. Grant ADMIN access
+            tracker.on.insert(matchSql(SpaceUserAccessTableName)).response([]);
+        };
+
+        test('should use email local part when user has no name', async () => {
+            mockNewSpaceInsert();
+
+            await model.ensureDefaultUserSpace(1, parentSpaceUuid, parentPath, {
+                userId: 43,
+                userUuid: 'abcdef12-0000-0000-0000-000000000000',
+                firstName: '',
+                lastName: '',
+                email: 'jane.doe@example.com',
+            });
+
+            expect(tracker.history.insert[0].bindings).toEqual(
+                expect.arrayContaining(['jane.doe']),
+            );
+        });
+
+        test('should rename a generated fallback name once the user has a name', async () => {
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce({
+                space_uuid: 'existing-space-uuid',
+                name: 'User user-uui',
+            });
+            tracker.on.update(matchSql(SpaceTableName)).response(1);
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                testUser,
+            );
+
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toEqual(
+                expect.arrayContaining([
+                    'Jane Doe',
+                    'existing-space-uuid',
+                    'User user-uui',
+                ]),
+            );
+        });
+
+        test('should replace the legacy UUID fallback with the email local part', async () => {
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce({
+                space_uuid: 'existing-space-uuid',
+                name: 'User abcdef12',
+            });
+            tracker.on.update(matchSql(SpaceTableName)).response(1);
+
+            await model.ensureDefaultUserSpace(1, parentSpaceUuid, parentPath, {
+                userId: 43,
+                userUuid: 'abcdef12-0000-0000-0000-000000000000',
+                firstName: '',
+                lastName: '',
+                email: 'jane.doe@example.com',
+            });
+
+            expect(tracker.history.update).toHaveLength(1);
+            expect(tracker.history.update[0].bindings).toEqual(
+                expect.arrayContaining(['jane.doe']),
+            );
+        });
+
+        test('should keep a manually renamed space name', async () => {
+            tracker.on.select(matchSql(SpaceTableName)).responseOnce({
+                space_uuid: 'existing-space-uuid',
+                name: 'Finance scratchpad',
+            });
+
+            await model.ensureDefaultUserSpace(
+                1,
+                parentSpaceUuid,
+                parentPath,
+                testUser,
+            );
+
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        test('should use UUID fallback when user has no name or email', async () => {
             const namelessUser = {
                 userId: 43,
                 userUuid: 'abcdef12-0000-0000-0000-000000000000',
