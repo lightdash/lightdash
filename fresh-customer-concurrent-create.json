@@ -1,0 +1,27 @@
+{
+  "before": {
+    "status": "ok",
+    "results": {
+      "project": null
+    }
+  },
+  "creates": [
+    {
+      "status": "ok",
+      "results": {
+        "projectUuid": "e7c4a151-04bc-490c-a53f-ba59d0aab353",
+        "url": "/projects/lightdash-analytics/tables",
+        "created": true
+      }
+    },
+    {
+      "status": "ok",
+      "results": {
+        "projectUuid": "e7c4a151-04bc-490c-a53f-ba59d0aab353",
+        "url": "/projects/lightdash-analytics/tables",
+        "created": false
+      }
+    }
+  ],
+  "organizationUuid": "f0984684-19cf-41eb-9a99-1f6a24e18739"
+}

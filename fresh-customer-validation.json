@@ -1,0 +1,33 @@
+[
+  {
+    "kind": "empty",
+    "initialFileCount": 0,
+    "projectUuid": "a3eaba08-88cc-479f-8d66-6c1f8ea4c60b",
+    "queryTotal": 0,
+    "sourceFileCount": 0,
+    "dimensionSnapshotCount": 6,
+    "userActivityRaw": null,
+    "fixtureRawFiles": []
+  },
+  {
+    "kind": "raw-only",
+    "initialFileCount": 0,
+    "projectUuid": "e7c4a151-04bc-490c-a53f-ba59d0aab353",
+    "queryTotal": 4,
+    "sourceFileCount": 1,
+    "dimensionSnapshotCount": 6,
+    "userActivityRaw": "4",
+    "fixtureRawFiles": [
+      {
+        "count": 4,
+        "dt": "2026-10-18",
+        "retained": false
+      },
+      {
+        "count": 2,
+        "dt": "2026-10-19",
+        "retained": true
+      }
+    ]
+  }
+]
