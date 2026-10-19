@@ -672,6 +672,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiService: ({ repository, context, models }) =>
                 new AiService({
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectService: repository.getProjectService(),

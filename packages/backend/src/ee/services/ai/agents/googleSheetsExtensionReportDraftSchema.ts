@@ -194,6 +194,7 @@ export const validateGoogleSheetsExtensionReportDraft = (
     input: GoogleSheetsExtensionReportDraftSettings,
     metadata: GoogleSheetsExtensionReportMetadata,
     current: GoogleSheetsExtensionReportDraftSettings | null,
+    maxLimit: number,
 ): GoogleSheetsExtensionReportDraftSettings => {
     const parsed =
         googleSheetsExtensionReportDraftSettingsSchema.safeParse(input);
@@ -238,8 +239,8 @@ export const validateGoogleSheetsExtensionReportDraft = (
         errors.push('The draft needs at least one field.');
     if (report.columns.length && !report.values.length)
         errors.push('Pivoting needs at least one metric.');
-    if (report.limit < 1 || report.limit > 5000)
-        errors.push('The row limit must be between 1 and 5000.');
+    if (report.limit < 1 || report.limit > maxLimit)
+        errors.push(`The row limit must be between 1 and ${maxLimit}.`);
 
     metadata.modelFilters
         .filter((filter) => filter.required)
