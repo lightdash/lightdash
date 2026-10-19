@@ -2552,6 +2552,14 @@ describe('AiAgentToolsService', () => {
                 [{ op: 'add', path: '/parameters', value: { region: 'EMEA' } }],
             ],
             [
+                'moves it to another space while changing tableName',
+                mergedChart,
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/tableName', value: 'customers' },
+                ],
+            ],
+            [
                 'changes a field outside the presentation allowlist',
                 mergedChart,
                 [{ op: 'add', path: '/futureSetting', value: true }],
@@ -2599,6 +2607,13 @@ describe('AiAgentToolsService', () => {
                             },
                         },
                     },
+                ],
+            ],
+            [
+                'moves it to another space and re-slugs it',
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/slug', value: 'merged-orders' },
                 ],
             ],
             [

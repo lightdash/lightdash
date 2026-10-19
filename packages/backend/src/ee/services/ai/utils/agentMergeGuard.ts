@@ -23,6 +23,8 @@ const PRESENTATION_FIELDS = [
     'chartConfig',
     'tableConfig',
     'pivotConfig',
+    'slug',
+    'spaceSlug',
 ] as const;
 
 type FormatOverrides = Record<string, object> | undefined;
