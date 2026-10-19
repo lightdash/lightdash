@@ -1,7 +1,7 @@
-import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
+import { runCliProcess } from './testing/cliProcess';
 
 it('preserves main stdout, stderr and exit code for three ordinary command errors', async () => {
     const baseline = JSON.parse(
@@ -22,7 +22,6 @@ it('preserves main stdout, stderr and exit code for three ordinary command error
                     CLI_ERROR_CASE: kind,
                     FORCE_COLOR: '0',
                     NO_COLOR: '1',
-                    TSX_DISABLE_CACHE: '1',
                 };
                 for (const name of [
                     'LIGHTDASH_AGENT_CONNECTION',
@@ -31,36 +30,10 @@ it('preserves main stdout, stderr and exit code for three ordinary command error
                     'LIGHTDASH_PROXY_AUTHORIZATION',
                 ])
                     delete env[name as keyof typeof env];
-                const result = await new Promise<{
-                    stdout: string;
-                    stderr: string;
-                    code: number | null;
-                }>((resolve, reject) => {
-                    const child = spawn(
-                        process.execPath,
-                        [
-                            '--require',
-                            path.join(__dirname, 'ordinaryError.fixture.cjs'),
-                            '--import',
-                            'tsx',
-                            path.join(__dirname, 'index.ts'),
-                            'config',
-                            'list-projects',
-                        ],
-                        { env, stdio: ['ignore', 'pipe', 'pipe'] },
-                    );
-                    let stdout = '';
-                    let stderr = '';
-                    child.stdout.on('data', (data) => {
-                        stdout += String(data);
-                    });
-                    child.stderr.on('data', (data) => {
-                        stderr += String(data);
-                    });
-                    child.on('error', reject);
-                    child.on('close', (code) =>
-                        resolve({ stdout, stderr, code }),
-                    );
+                const result = await runCliProcess({
+                    args: ['config', 'list-projects'],
+                    env,
+                    preload: path.join(__dirname, 'ordinaryError.fixture.cjs'),
                 });
                 const normalize = (value: string) =>
                     value

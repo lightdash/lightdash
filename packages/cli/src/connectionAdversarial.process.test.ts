@@ -1,5 +1,4 @@
 import { AgentCapability, DOCUMENT_SCHEMA_VERSION } from '@lightdash/common';
-import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { createServer, get } from 'http';
 import * as yaml from 'js-yaml';
@@ -8,6 +7,7 @@ import path from 'path';
 import { slotFixture } from './agentConnections/fixtures';
 import { type AgentConnectionSlot } from './agentConnections/schema';
 import { AgentConnectionStore } from './agentConnections/store';
+import { runCliProcess } from './testing/cliProcess';
 
 const project = '44444444-4444-4444-8444-444444444444';
 const statuses = [
@@ -500,47 +500,19 @@ const runCell = async (
             CLI_TEST_PROJECT: project,
             FORCE_COLOR: '0',
             NO_COLOR: '1',
-            TSX_DISABLE_CACHE: '1',
         };
         delete env.LIGHTDASH_AGENT_CONNECTION;
         delete env.LIGHTDASH_PROXY_AUTHORIZATION;
         if (command.selected) env.LIGHTDASH_AGENT_CONNECTION = slot.name;
-        const result = await new Promise<{
-            stdout: string;
-            stderr: string;
-            code: number | null;
-        }>((resolve, reject) => {
-            const child = spawn(
-                process.execPath,
-                [
-                    '--require',
-                    path.join(__dirname, 'connectionAdversarial.fixture.cjs'),
-                    '--import',
-                    require.resolve('tsx'),
-                    path.join(__dirname, 'index.ts'),
-                    '--non-interactive',
-                    ...command.args,
-                    ...(command.name.includes('revoke') ? [] : ['--verbose']),
-                ],
-                { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] },
-            );
-            let stdout = '';
-            let stderr = '';
-            const timeout = setTimeout(() => {
-                child.kill('SIGKILL');
-                reject(new Error(`Child timed out: ${command.name}`));
-            }, 30_000);
-            child.stdout.on('data', (data) => {
-                stdout += String(data);
-            });
-            child.stderr.on('data', (data) => {
-                stderr += String(data);
-            });
-            child.on('error', reject);
-            child.on('close', (code) => {
-                clearTimeout(timeout);
-                resolve({ stdout, stderr, code });
-            });
+        const result = await runCliProcess({
+            args: [
+                '--non-interactive',
+                ...command.args,
+                ...(command.name.includes('revoke') ? [] : ['--verbose']),
+            ],
+            cwd,
+            env,
+            preload: path.join(__dirname, 'connectionAdversarial.fixture.cjs'),
         });
         expect(targets > 0 ? null : { calls, result }).toBeNull();
         let expectedCode = ordinaryAnalytics ? 0 : 1;
@@ -658,13 +630,13 @@ const runCell = async (
     }
 };
 describe.each(commands)('$name', (command) => {
-    it.each(responses)(
+    it.concurrent.each(responses)(
         'omits error text for $status $contentType $shape in the real CLI',
         async (response) => runCell(command, response),
         45_000,
     );
 });
-it(
+it.concurrent(
     'omits an unknown identifier-shaped error code in a real request',
     async () =>
         runCell(
@@ -676,7 +648,7 @@ it(
     45_000,
 );
 
-it.each(['query-error', 'query-status', 'query-id'] as const)(
+it.concurrent.each(['query-error', 'query-status', 'query-id'] as const)(
     'contains a successful envelope with %s',
     async (shape) => {
         const command = commands.find((entry) => entry.name === 'sql')!;
@@ -693,7 +665,7 @@ it.each(['query-error', 'query-status', 'query-id'] as const)(
     },
     45_000,
 );
-it(
+it.concurrent(
     'contains a successful envelope with an invalid server version',
     async () =>
         runCell(commands.find((entry) => entry.name === 'safe-read')!, {
@@ -703,7 +675,7 @@ it(
         }),
     45_000,
 );
-it(
+it.concurrent(
     'never prints server-supplied warehouse links in a successful status response',
     async () =>
         runCell(
@@ -716,7 +688,7 @@ it(
     45_000,
 );
 
-it(
+it.concurrent(
     'captures a real ordinary analytics request as a positive sink control',
     async () =>
         runCell(
@@ -731,7 +703,7 @@ it(
         ),
     45_000,
 );
-it.each(commands)(
+it.concurrent.each(commands)(
     'contains an aborted HTTP 200 body for $name',
     async (command) =>
         runCell(command, {
@@ -1176,7 +1148,7 @@ const extendedCells: ExtendedCell[] = [
     },
 ];
 describe.each(extendedCells)('extended $name', (cell) => {
-    it.each(['envelope', 'success'] as const)(
+    it.concurrent.each(['envelope', 'success'] as const)(
         'reaches the formatter for %s',
         async (shape) =>
             runCell(

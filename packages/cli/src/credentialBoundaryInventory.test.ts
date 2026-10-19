@@ -15,7 +15,8 @@ const sources = async () => {
                     entry.name.endsWith('.ts') &&
                     !entry.name.endsWith('.test.ts') &&
                     !entry.name.endsWith('.d.ts') &&
-                    !entry.name.endsWith('.mocks.ts'),
+                    !entry.name.endsWith('.mocks.ts') &&
+                    entry.parentPath !== path.join(sourceRoot, 'testing'),
             )
             .map(async (entry) => {
                 const file = path.join(entry.parentPath, entry.name);
