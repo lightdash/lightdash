@@ -260,7 +260,12 @@ export class WarehouseConnectionModel {
             .where('project_uuid', project.projectUuid)
             .where('warehouse_connection_uuid', warehouseConnectionUuid)
             .first();
-        if (!row || row.is_original || row.encrypted_credentials === null) {
+        if (
+            !row ||
+            row.is_original ||
+            row.organization_warehouse_credentials_uuid !== null ||
+            row.encrypted_credentials === null
+        ) {
             throw new RefreshTokenSourceChangedError();
         }
         try {
