@@ -1,3 +1,16 @@
+# [2.607.0](https://github.com/lightdash/lightdash/compare/2.606.8...2.607.0) (2026-10-19)
+
+
+### Bug Fixes
+
+* **merge-queries:** cancelling a merge cancels its source queries and the join ([#31135](https://github.com/lightdash/lightdash/issues/31135)) ([b7b0a08](https://github.com/lightdash/lightdash/commit/b7b0a081046334763494257a3c3209ac0805b478))
+* **merge-queries:** format the compose join in the SQL card ([#31133](https://github.com/lightdash/lightdash/issues/31133)) ([8460acb](https://github.com/lightdash/lightdash/commit/8460acbc86b65788da3bd8fb1fad55604d658e0c))
+
+
+### Features
+
+* **merge-queries:** format merge table calculations ([#31134](https://github.com/lightdash/lightdash/issues/31134)) ([1c92f33](https://github.com/lightdash/lightdash/commit/1c92f33ee1901eb71eb512e1bd9797ecf5fe6073)), closes [#30992](https://github.com/lightdash/lightdash/issues/30992)
+
 ## [2.606.8](https://github.com/lightdash/lightdash/compare/2.606.7...2.606.8) (2026-10-19)
 
 

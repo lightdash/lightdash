@@ -3134,6 +3134,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                format: { ref: 'CustomFormat' },
                 formula: { dataType: 'string' },
                 sql: { dataType: 'string', required: true },
                 displayName: { dataType: 'string', required: true },

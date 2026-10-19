@@ -2949,6 +2949,10 @@
             },
             "MergeTableCalculation": {
                 "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "How the calculation's values are displayed."
+                    },
                     "formula": {
                         "type": "string",
                         "description": "Spreadsheet-like formula over merged field ids."
@@ -73309,7 +73313,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.606.8",
+        "version": "2.607.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
