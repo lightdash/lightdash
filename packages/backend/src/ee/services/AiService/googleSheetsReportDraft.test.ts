@@ -1,3 +1,7 @@
+import {
+    PROJECT_TIMEZONE_SETTING,
+    USER_TIMEZONE_SETTING,
+} from '@lightdash/common';
 import { generateText } from 'ai';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -59,6 +63,9 @@ const setup = (queryLimit: number | null) => {
                 organizationUuid: defaultSessionUser.organizationUuid,
             }),
             getExplore: vi.fn().mockResolvedValue(validExplore),
+            getQueryTimezoneForProject: vi
+                .fn()
+                .mockResolvedValue('America/Los_Angeles'),
         },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
@@ -134,3 +141,42 @@ it('rejects a correction that still exceeds the org limit', async () => {
     ).rejects.toThrow('after a correction attempt');
     expect(generateText).toHaveBeenCalledTimes(2);
 });
+
+it.each([
+    [
+        PROJECT_TIMEZONE_SETTING,
+        'Asia/Tokyo',
+        'America/Los_Angeles',
+        '2025-12-31',
+    ],
+    [USER_TIMEZONE_SETTING, 'Asia/Tokyo', 'Asia/Tokyo', '2026-01-01'],
+    [USER_TIMEZONE_SETTING, null, 'America/Los_Angeles', '2025-12-31'],
+    ['Europe/Paris', 'Asia/Tokyo', 'Europe/Paris', '2026-01-01'],
+] as const)(
+    'resolves %s with user timezone %s for the draft date context',
+    async (setting, userTimezone, expectedTimezone, expectedToday) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-01-01T00:30:00Z'));
+        try {
+            const { service } = setup(null);
+            vi.mocked(generateText).mockResolvedValue(response(500));
+            const payload = { ...request(500), timezone: setting };
+            const result =
+                await service.generateGoogleSheetsExtensionReportDraft(
+                    { ...defaultSessionUser, timezone: userTimezone },
+                    'project',
+                    payload,
+                );
+            expect(result.status).toBe('ready');
+            const messages = vi.mocked(generateText).mock.calls[0][0].messages!;
+            const context = JSON.parse(messages[1].content as string);
+            expect(context).toMatchObject({
+                timezone: expectedTimezone,
+                today: expectedToday,
+            });
+            expect(payload.timezone).toBe(setting);
+        } finally {
+            vi.useRealTimers();
+        }
+    },
+);
