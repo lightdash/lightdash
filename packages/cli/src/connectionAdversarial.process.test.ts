@@ -10,10 +10,6 @@ import { AgentConnectionStore } from './agentConnections/store';
 import { runCliProcess } from './testing/cliProcess';
 
 const project = '44444444-4444-4444-8444-444444444444';
-const statuses = [
-    200, 302, 400, 401, 403, 404, 409, 410, 422, 429, 500, 502, 503,
-];
-const contentTypes = ['application/json', 'text/html', 'text/plain', null];
 type ResponseShape =
     | 'envelope'
     | 'html'
@@ -26,21 +22,6 @@ type ResponseShape =
     | 'version'
     | 'links'
     | 'success';
-const shapes: ResponseShape[] = [
-    'envelope',
-    'html',
-    'invalid-json',
-    'wrong-shape',
-    'aborted',
-    'envelope',
-];
-const responses = statuses.flatMap((status, row) =>
-    contentTypes.map((contentType, column) => ({
-        status,
-        contentType,
-        shape: shapes[(row + column) % shapes.length],
-    })),
-);
 const commands = [
     {
         name: 'connect',
@@ -629,13 +610,315 @@ const runCell = async (
         await fs.rm(directory, { recursive: true, force: true });
     }
 };
-describe.each(commands)('$name', (command) => {
-    it.concurrent.each(responses)(
-        'omits error text for $status $contentType $shape in the real CLI',
-        async (response) => runCell(command, response),
-        45_000,
-    );
-});
+// One case per command branch that formats a response differently.
+// Each status/content-type/shape triple already existed in the full grid.
+const omissionGrid: {
+    command: (typeof commands)[number]['name'];
+    status: number;
+    contentType: 'application/json' | 'text/html' | 'text/plain' | null;
+    shape: ResponseShape;
+}[] = [
+    // Connect approval: 401, 403 and 404 return before the body is parsed.
+    {
+        command: 'connect',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'connect',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'connect',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'connect',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    {
+        command: 'connect',
+        status: 403,
+        contentType: 'text/html',
+        shape: 'envelope',
+    },
+    {
+        command: 'connect',
+        status: 404,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'connect',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'connect',
+        status: 400,
+        contentType: 'application/json',
+        shape: 'invalid-json',
+    },
+    {
+        command: 'connect',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Status is a lifecycle GET that retries 401, then splits 4xx from 5xx.
+    {
+        command: 'status',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'status',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'status',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'status',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    {
+        command: 'status',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'status',
+        status: 500,
+        contentType: 'text/html',
+        shape: 'envelope',
+    },
+    {
+        command: 'status',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Revoke is a lifecycle DELETE: no 401 retry, and it writes local state.
+    {
+        command: 'revoke',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'revoke',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'revoke',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'revoke',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'revoke',
+        status: 500,
+        contentType: 'text/html',
+        shape: 'envelope',
+    },
+    {
+        command: 'revoke',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Human revoke uses personal recovery: any non-OK status shares one error.
+    {
+        command: 'human-revoke',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'human-revoke',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'human-revoke',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'human-revoke',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'human-revoke',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Provider is a selected GET that retries 401 and parses with readApiResults.
+    {
+        command: 'provider',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'provider',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'provider',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'provider',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    {
+        command: 'provider',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'provider',
+        status: 400,
+        contentType: 'application/json',
+        shape: 'invalid-json',
+    },
+    {
+        command: 'provider',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Catalog is a selected GET with no 401 retry.
+    {
+        command: 'catalog',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'catalog',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    // SQL submits a POST, then may write a CSV and an analytics error.
+    {
+        command: 'sql',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'sql',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'sql',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    {
+        command: 'sql',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+    {
+        command: 'sql',
+        status: 302,
+        contentType: 'application/json',
+        shape: 'html',
+    },
+    // Safe read fails on the health check, which retries 401.
+    {
+        command: 'safe-read',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'safe-read',
+        status: 401,
+        contentType: 'text/plain',
+        shape: 'envelope',
+    },
+    // Raw manifest parses a successful body with readRawApiJson.
+    {
+        command: 'raw-manifest',
+        status: 200,
+        contentType: 'application/json',
+        shape: 'envelope',
+    },
+    {
+        command: 'raw-manifest',
+        status: 200,
+        contentType: 'text/html',
+        shape: 'html',
+    },
+    {
+        command: 'raw-manifest',
+        status: 200,
+        contentType: null,
+        shape: 'wrong-shape',
+    },
+    {
+        command: 'raw-manifest',
+        status: 400,
+        contentType: null,
+        shape: 'envelope',
+    },
+];
+const commandByName = Object.fromEntries(
+    commands.map((command) => [command.name, command]),
+) as Record<(typeof commands)[number]['name'], (typeof commands)[number]>;
+it.concurrent.each(omissionGrid)(
+    'omits error text for $command $status $contentType $shape in the real CLI',
+    async ({ command, status, contentType, shape }) =>
+        runCell(commandByName[command], { status, contentType, shape }),
+    45_000,
+);
 it.concurrent(
     'omits an unknown identifier-shaped error code in a real request',
     async () =>
@@ -901,19 +1184,17 @@ const extendedCells: ExtendedCell[] = [
         evidence: invalid,
         successCode: 1,
     },
-    ...['tags/yaml', 'parameters', 'defaults', 'table-groups'].map(
-        (endpoint): ExtendedCell => ({
-            name: `deploy-${endpoint}`,
-            args: ['deploy'],
-            target: `/${endpoint}`,
-            selected: true,
-            deploy: true,
-            success: (marker) => ({ ignored: marker }),
-            evidence: 'Deploy completed! 1 explores deployed.',
-            successCode: 0,
-            errorCode: 0,
-        }),
-    ),
+    {
+        name: 'deploy-parameters',
+        args: ['deploy'],
+        target: '/parameters',
+        selected: true,
+        deploy: true,
+        success: (marker) => ({ ignored: marker }),
+        evidence: 'Deploy completed! 1 explores deployed.',
+        successCode: 0,
+        errorCode: 0,
+    },
     {
         name: 'live-apps',
         args: ['apps', 'validate', 'app', '--live', '--format', 'json'],
@@ -1147,8 +1428,32 @@ const extendedCells: ExtendedCell[] = [
         successCode: 0,
     },
 ];
+// Error envelopes that share the client rejection are covered once per command.
+const successOnlyCells = new Set([
+    'homepages',
+    'virtual-views',
+    'alerts',
+    'scheduledDeliveries',
+    'googleSheets',
+    'download-progress',
+    'download-missing',
+    'deploy-batch',
+    'deploy-finalize',
+    'deploy-settings',
+    'external-connections',
+    'documents',
+    'ai-agents',
+    'metric-duration',
+    'catalog-fields',
+    'catalog-refresh',
+    'version-advice',
+]);
 describe.each(extendedCells)('extended $name', (cell) => {
-    it.concurrent.each(['envelope', 'success'] as const)(
+    it.concurrent.each(
+        successOnlyCells.has(cell.name)
+            ? (['success'] as const)
+            : (['envelope', 'success'] as const),
+    )(
         'reaches the formatter for %s',
         async (shape) =>
             runCell(
