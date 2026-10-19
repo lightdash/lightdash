@@ -19,6 +19,7 @@ import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import useEmbedDrillDownExplore from '../../ee/providers/Embed/useEmbedDrillDownExplore';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
+import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useMergeDrillDownConfig } from '../../features/mergeQuery/hooks/useMergeUnderlyingDataConfig';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -95,9 +96,12 @@ const getDrillDownExplore = ({
         projectUuid,
         createSavedChartVersion,
     );
+    // The drill is a new single-source chart, not the merge open on this page
+    const params = new URLSearchParams(search);
+    params.delete(MERGE_URL_PARAM);
     return {
         chart: createSavedChartVersion,
-        url: `${pathname}?${search}`,
+        url: `${pathname}?${params}`,
     };
 };
 

@@ -16,6 +16,7 @@ import { Box, Button, Divider, Group, Popover } from '@mantine/core';
 import { IconShare2, IconStack, IconTelescope } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { MERGE_URL_PARAM } from '../../features/mergeQuery/context/mergeUrlState';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import { useMergeUnderlyingDataConfig } from '../../features/mergeQuery/hooks/useMergeUnderlyingDataConfig';
 import { useOrganization } from '../../hooks/organization/useOrganization';
@@ -202,11 +203,15 @@ const UnderlyingDataModalContent: FC<{
                 config: { layout: {}, eChartsConfig: {} },
             },
         };
-        return getExplorerUrlFromCreateSavedChartVersion(
+        const url = getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
             createSavedChartVersion,
             true,
         );
+        // Underlying rows are a new single-source chart, not the merge open on this page
+        const params = new URLSearchParams(url.search);
+        params.delete(MERGE_URL_PARAM);
+        return { pathname: url.pathname, search: params.toString() };
     }, [resultsData, projectUuid]);
 
     const navigate = useNavigate();

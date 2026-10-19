@@ -260,4 +260,12 @@ describe('drill-down modal on a merged result', () => {
         expect(closeDrillDownModal).toHaveBeenCalled();
         expect(screen.queryByText('Open in new tab')).not.toBeInTheDocument();
     });
+
+    it('does not carry the open merge into the drilled chart', async () => {
+        window.history.replaceState(null, '', '/?merge=%7B%7D&fromSpace=s');
+
+        const params = await drillByStatus(metricQueryData);
+        expect(params.get('merge')).toBeNull();
+        expect(params.get('fromSpace')).toBe('s');
+    });
 });
