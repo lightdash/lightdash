@@ -10,6 +10,7 @@ import {
     getDeepestPaths,
     getDocumentSavedChartLinks,
     getErrorMessage,
+    hasCustomSql,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
     isSubPath,
@@ -1000,6 +1001,35 @@ export class PromoteService extends BaseService {
             organizationUuid: user.organizationUuid ?? null,
         });
         const { charts } = promotionChanges;
+
+        await Promise.all(
+            charts
+                .filter(
+                    ({ action, data }) =>
+                        (action === PromotionAction.CREATE ||
+                            action === PromotionAction.UPDATE) &&
+                        hasCustomSql(data.metricQuery),
+                )
+                .map(async ({ data }) => {
+                    await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: this.createAuditedAbility(user),
+                            organizationUuid: data.organizationUuid,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: async () =>
+                                promotedDashboardUuid &&
+                                isChartWithinDashboard(data)
+                                    ? (
+                                          await this.dashboardModel.getByIdOrSlug(
+                                              promotedDashboardUuid,
+                                          )
+                                      ).spaceUuid
+                                    : data.spaceUuid,
+                        },
+                    );
+                }),
+        );
 
         const existingCharts = charts.filter(
             (change) => change.action === PromotionAction.NO_CHANGES,

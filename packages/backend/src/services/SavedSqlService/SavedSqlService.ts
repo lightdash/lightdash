@@ -838,6 +838,15 @@ export class SavedSqlService
             }
         }
 
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: this.createAuditedAbility(user),
+            organizationUuid,
+            projectUuid,
+            spaceUuid: savedChart.space.uuid,
+            warehouseConnectionUuid: savedChart.warehouseConnectionUuid,
+        });
+
         await this.savedSqlModel.restore(savedSqlUuid);
 
         this.analytics.track({

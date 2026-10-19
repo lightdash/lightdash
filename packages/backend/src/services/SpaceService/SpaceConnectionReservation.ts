@@ -20,7 +20,9 @@ type SpaceConnectionReservationArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     spaceModel: Pick<
         SpaceModel,
-        'getConnectionBoundSpaces' | 'getEffectiveWarehouseConnectionUuid'
+        | 'getConnectionBoundSpaces'
+        | 'getEffectiveWarehouseConnectionUuid'
+        | 'getEffectiveWarehouseConnectionBinding'
     >;
     spacePermissionService: Pick<SpacePermissionService, 'resolveAccessBatch'>;
 };
@@ -36,26 +38,40 @@ export class SpaceConnectionReservation {
         organizationUuid,
         projectUuid,
         requireSqlRunner = true,
-    }: ReservationContext & { requireSqlRunner?: boolean }): Promise<
-        Set<string>
-    > {
+        additionalBoundSpaces = [],
+    }: ReservationContext & {
+        requireSqlRunner?: boolean;
+        additionalBoundSpaces?: {
+            spaceUuid: string;
+            warehouseConnectionUuid: string;
+        }[];
+    }): Promise<Set<string>> {
         const { enabled } = await this.dependencies.featureFlagModel.get({
             user: { organizationUuid },
             featureFlagId: FeatureFlags.SpaceWarehouseConnections,
         });
         if (!enabled) return new Set();
-        const spaces =
-            await this.dependencies.spaceModel.getConnectionBoundSpaces({
+        const spaces = [
+            ...(await this.dependencies.spaceModel.getConnectionBoundSpaces({
                 projectUuid,
-            });
+            })),
+            ...additionalBoundSpaces,
+        ];
         if (spaces.length === 0) return new Set();
+        const targets = [
+            ...new Set(spaces.map(({ spaceUuid }) => spaceUuid)),
+        ].map((spaceUuid) => ({ type: 'space' as const, spaceUuid }));
         const results =
-            await this.dependencies.spacePermissionService.resolveAccessBatch(
-                userUuid,
-                [...new Set(spaces.map(({ spaceUuid }) => spaceUuid))].map(
-                    (spaceUuid) => ({ type: 'space', spaceUuid }),
-                ),
-            );
+            additionalBoundSpaces.length > 0
+                ? await this.dependencies.spacePermissionService.resolveAccessBatch(
+                      userUuid,
+                      targets,
+                      { includeDeletedSpaces: true },
+                  )
+                : await this.dependencies.spacePermissionService.resolveAccessBatch(
+                      userUuid,
+                      targets,
+                  );
         const editableSpaces = new Set(
             results
                 .filter(
@@ -142,18 +158,58 @@ export class SpaceConnectionReservation {
     async assertCanAuthorSqlInSpace({
         spaceUuid,
         warehouseConnectionUuid,
+        includeDeletedSpaces = false,
         ...context
     }: ReservationContext & {
-        spaceUuid: string;
+        spaceUuid: string | (() => Promise<string>);
         warehouseConnectionUuid?: string | null;
+        includeDeletedSpaces?: boolean;
     }): Promise<void> {
+        if (includeDeletedSpaces) {
+            const { enabled } = await this.dependencies.featureFlagModel.get({
+                user: { organizationUuid: context.organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+            if (!enabled) return;
+            const binding =
+                await this.dependencies.spaceModel.getEffectiveWarehouseConnectionBinding(
+                    {
+                        projectUuid: context.projectUuid,
+                        spaceUuid:
+                            typeof spaceUuid === 'string'
+                                ? spaceUuid
+                                : await spaceUuid(),
+                        includeDeleted: true,
+                    },
+                );
+            if (binding?.isOriginal) return;
+            const reserved = await this.getReservedConnectionUuids({
+                ...context,
+                additionalBoundSpaces: binding ? [binding] : [],
+            });
+            if (
+                reserved.has(
+                    binding?.warehouseConnectionUuid ??
+                        warehouseConnectionUuid ??
+                        '',
+                )
+            ) {
+                throw new ForbiddenError(
+                    'This connection is reserved for a space you cannot edit.',
+                );
+            }
+            return;
+        }
         const reserved = await this.getReservedConnectionUuids(context);
         if (reserved.size === 0) return;
         const effectiveConnectionUuid =
             (await this.dependencies.spaceModel.getEffectiveWarehouseConnectionUuid(
                 {
                     projectUuid: context.projectUuid,
-                    spaceUuid,
+                    spaceUuid:
+                        typeof spaceUuid === 'string'
+                            ? spaceUuid
+                            : await spaceUuid(),
                 },
             )) ?? warehouseConnectionUuid;
         if (effectiveConnectionUuid && reserved.has(effectiveConnectionUuid)) {

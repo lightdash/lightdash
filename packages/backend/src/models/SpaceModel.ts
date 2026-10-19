@@ -1968,19 +1968,23 @@ export class SpaceModel {
     async getEffectiveWarehouseConnectionBinding({
         projectUuid,
         spaceUuid,
+        includeDeleted = false,
     }: {
         projectUuid: string;
         spaceUuid: string;
+        includeDeleted?: boolean;
     }): Promise<{
         warehouseConnectionUuid: string;
         spaceUuid: string;
         spaceName: string;
+        isOriginal?: boolean;
     } | null> {
         const result = await this.database.raw<{
             rows: {
                 warehouse_connection_uuid: string;
                 space_uuid: string;
                 name: string;
+                is_original: boolean;
             }[];
         }>(
             `WITH RECURSIVE ancestors AS (
@@ -1990,7 +1994,7 @@ export class SpaceModel {
                 FROM spaces s
                 JOIN projects p ON p.project_id = s.project_id
                 WHERE s.space_uuid = ? AND p.project_uuid = ?
-                    AND s.deleted_at IS NULL
+                    AND (? OR s.deleted_at IS NULL)
                 UNION ALL
                 SELECT s.space_uuid, s.name, s.parent_space_uuid,
                     s.warehouse_connection_uuid, s.project_id, a.depth + 1,
@@ -1998,13 +2002,21 @@ export class SpaceModel {
                 FROM spaces s
                 JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
                     AND s.project_id = a.project_id
-                WHERE s.deleted_at IS NULL AND a.warehouse_connection_uuid IS NULL
+                WHERE (? OR s.deleted_at IS NULL) AND a.warehouse_connection_uuid IS NULL
                     AND NOT s.space_uuid = ANY(a.visited)
             )
-            SELECT warehouse_connection_uuid, space_uuid, name FROM ancestors
-            WHERE warehouse_connection_uuid IS NOT NULL
+            SELECT a.warehouse_connection_uuid, a.space_uuid, a.name, w.is_original FROM ancestors a
+            JOIN warehouse_connections w ON w.warehouse_connection_uuid = a.warehouse_connection_uuid
+                AND w.project_uuid = ?
+            WHERE a.warehouse_connection_uuid IS NOT NULL
             ORDER BY depth LIMIT 1`,
-            [spaceUuid, projectUuid],
+            [
+                spaceUuid,
+                projectUuid,
+                includeDeleted,
+                includeDeleted,
+                projectUuid,
+            ],
         );
         const binding = result.rows[0];
         return binding
@@ -2012,8 +2024,76 @@ export class SpaceModel {
                   warehouseConnectionUuid: binding.warehouse_connection_uuid,
                   spaceUuid: binding.space_uuid,
                   spaceName: binding.name,
+                  ...(includeDeleted
+                      ? { isOriginal: binding.is_original }
+                      : {}),
               }
             : null;
+    }
+
+    async getSqlChartSpaceUuid(
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<string> {
+        const chart = await this.database(SavedSqlTableName)
+            .leftJoin(
+                'dashboards',
+                'dashboards.dashboard_uuid',
+                'saved_sql.dashboard_uuid',
+            )
+            .leftJoin('spaces', 'spaces.space_id', 'dashboards.space_id')
+            .where('saved_sql.project_uuid', projectUuid)
+            .where('saved_sql.saved_sql_uuid', savedSqlUuid)
+            .select(
+                this.database.raw(
+                    'COALESCE(saved_sql.space_uuid, spaces.space_uuid) AS space_uuid',
+                ),
+            )
+            .first();
+        if (!chart?.space_uuid)
+            throw new NotFoundError('SQL chart space not found');
+        return chart.space_uuid;
+    }
+
+    async getSqlChartsForSpaceRestore(spaceUuid: string): Promise<
+        {
+            spaceUuid: string;
+            warehouseConnectionUuid: string | null;
+        }[]
+    > {
+        const { rows } = await this.database.raw<{
+            rows: {
+                spaceUuid: string;
+                warehouseConnectionUuid: string | null;
+            }[];
+        }>(
+            `WITH RECURSIVE restoring_spaces AS (
+                SELECT space_uuid, space_id, deleted_by_user_uuid FROM spaces
+                WHERE space_uuid = ?
+                UNION ALL
+                SELECT s.space_uuid, s.space_id, s.deleted_by_user_uuid
+                FROM spaces s
+                JOIN restoring_spaces p ON s.parent_space_uuid = p.space_uuid
+                WHERE s.deleted_at IS NOT NULL
+                    AND s.deleted_by_user_uuid = p.deleted_by_user_uuid
+            )
+            SELECT DISTINCT s.space_uuid AS "spaceUuid",
+                v.warehouse_connection_uuid AS "warehouseConnectionUuid"
+            FROM saved_sql c
+            LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
+            JOIN restoring_spaces s ON c.space_uuid = s.space_uuid OR d.space_id = s.space_id
+            JOIN saved_sql_versions v ON v.saved_sql_uuid = c.saved_sql_uuid
+            WHERE c.deleted_at IS NULL
+                AND (c.dashboard_uuid IS NULL OR d.deleted_at IS NULL
+                    OR d.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND v.saved_sql_version_uuid = (
+                SELECT saved_sql_version_uuid FROM saved_sql_versions
+                WHERE saved_sql_uuid = c.saved_sql_uuid
+                ORDER BY created_at DESC, saved_sql_version_uuid DESC LIMIT 1
+            )`,
+            [spaceUuid],
+        );
+        return rows;
     }
 
     async getConnectionBoundSpaces({
@@ -2024,28 +2104,14 @@ export class SpaceModel {
         const result = await this.database.raw<{
             rows: { spaceUuid: string; warehouseConnectionUuid: string }[];
         }>(
-            `WITH RECURSIVE bound_spaces AS (
-                SELECT s.space_uuid, s.project_id, s.warehouse_connection_uuid,
-                    0 AS depth, ARRAY[s.space_uuid] AS visited
-                FROM spaces s
-                JOIN projects p ON p.project_id = s.project_id
-                WHERE p.project_uuid = ? AND s.deleted_at IS NULL
-                    AND s.warehouse_connection_uuid IS NOT NULL
-                UNION ALL
-                SELECT s.space_uuid, s.project_id, b.warehouse_connection_uuid,
-                    b.depth + 1, b.visited || s.space_uuid
-                FROM spaces s
-                JOIN bound_spaces b ON s.parent_space_uuid = b.space_uuid
-                    AND s.project_id = b.project_id
-                WHERE s.deleted_at IS NULL AND s.warehouse_connection_uuid IS NULL
-                    AND NOT s.space_uuid = ANY(b.visited)
-            )
-            SELECT b.space_uuid AS "spaceUuid",
-                b.warehouse_connection_uuid AS "warehouseConnectionUuid"
-            FROM bound_spaces b
+            `SELECT s.space_uuid AS "spaceUuid",
+                s.warehouse_connection_uuid AS "warehouseConnectionUuid"
+            FROM spaces s
+            JOIN projects p ON p.project_id = s.project_id
             JOIN warehouse_connections w
-                ON w.warehouse_connection_uuid = b.warehouse_connection_uuid
-            WHERE w.project_uuid = ? AND NOT w.is_original`,
+                ON w.warehouse_connection_uuid = s.warehouse_connection_uuid
+            WHERE p.project_uuid = ? AND s.deleted_at IS NULL
+                AND w.project_uuid = ? AND NOT w.is_original`,
             [projectUuid, projectUuid],
         );
         return result.rows;

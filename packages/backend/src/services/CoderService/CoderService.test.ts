@@ -2543,7 +2543,10 @@ describe('CoderService.upsertChart custom chart type pins', () => {
         config: { dataAppVizUuid: vizUuid, dataAppVizVersion: 2 },
     };
 
-    const upload = async (requestedVersion?: number) => {
+    const upload = async (requestedVersion?: number, customSql = false) => {
+        const assertCanAuthorSqlInSpace = vi.fn(
+            async (_args: { spaceUuid: () => Promise<string> }) => undefined,
+        );
         const currentChart = {
             uuid: chartUuid,
             slug: 'orders',
@@ -2569,6 +2572,7 @@ describe('CoderService.upsertChart custom chart type pins', () => {
             async (_user: AnyType, changes: AnyType) => changes,
         );
         const service = Object.assign(Object.create(CoderService.prototype), {
+            spaceConnectionReservation: { assertCanAuthorSqlInSpace },
             resolveSyncEnabled: vi.fn(async () => false),
             projectModel: {
                 get: vi.fn(async () => ({
@@ -2646,12 +2650,42 @@ describe('CoderService.upsertChart custom chart type pins', () => {
                             : { dataAppVizVersion: requestedVersion }),
                     },
                 },
-                metricQuery: { exploreName: 'orders', filters: {} },
+                metricQuery: {
+                    exploreName: 'orders',
+                    filters: {},
+                    ...(customSql
+                        ? {
+                              tableCalculations: [
+                                  {
+                                      name: 'custom',
+                                      sql: 'SELECT secret FROM private_table',
+                                  },
+                              ],
+                          }
+                        : {}),
+                },
             } as AnyType,
         );
 
-        return { getChartChanges, upsertCharts };
+        return { getChartChanges, upsertCharts, assertCanAuthorSqlInSpace };
     };
+
+    it('checks custom SQL against the destination space before the upload', async () => {
+        const { assertCanAuthorSqlInSpace } = await upload(undefined, true);
+        expect(assertCanAuthorSqlInSpace).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'organization-uuid',
+            }),
+        );
+        const { spaceUuid } = assertCanAuthorSqlInSpace.mock.calls[0][0];
+        expect(await spaceUuid()).toBe('space-uuid');
+    });
+
+    it('does no reservation checks for an upload without custom SQL', async () => {
+        const { assertCanAuthorSqlInSpace } = await upload();
+        expect(assertCanAuthorSqlInSpace).not.toHaveBeenCalled();
+    });
 
     it('updates an existing chart when an omitted legacy pin resolves to a newer ready version', async () => {
         const { upsertCharts } = await upload();

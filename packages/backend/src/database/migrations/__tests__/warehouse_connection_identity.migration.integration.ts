@@ -1015,6 +1015,9 @@ describe('Multi runtime identity on the real schema', () => {
                 'external_source',
                 upstream.extraUuid,
             );
+            await database('spaces')
+                .where('space_uuid', upstream.spaceUuid)
+                .update({ warehouse_connection_uuid: upstream.extraUuid });
             const previewExtra = map.remap(upstream.extraUuid);
 
             await projectModel.duplicateContent(
@@ -1023,6 +1026,17 @@ describe('Multi runtime identity on the real schema', () => {
                 [{ uuid: upstream.spaceUuid }],
                 map,
             );
+
+            expect(
+                await database('spaces')
+                    .where(
+                        'project_id',
+                        database('projects')
+                            .select('project_id')
+                            .where('project_uuid', previewUuid),
+                    )
+                    .pluck('warehouse_connection_uuid'),
+            ).toEqual([previewExtra]);
 
             expect(await previewSqlChartBindings(previewUuid)).toEqual([
                 {
@@ -1040,6 +1054,35 @@ describe('Multi runtime identity on the real schema', () => {
                 { name: 'original_view', warehouse_connection_uuid: null },
             ]);
         });
+
+        test.each([true, false])(
+            'a space binding without a copied connection is cleared, map=%s',
+            async (withMap) => {
+                const upstream = await createMultiProject();
+                const previewUuid = await createPreviewOf(upstream);
+                await database('spaces')
+                    .where('space_uuid', upstream.spaceUuid)
+                    .update({ warehouse_connection_uuid: upstream.extraUuid });
+                await projectModel.duplicateContent(
+                    upstream.projectUuid,
+                    previewUuid,
+                    [{ uuid: upstream.spaceUuid }],
+                    withMap
+                        ? new WarehouseConnectionMap(new Map(), new Map())
+                        : null,
+                );
+                expect(
+                    await database('spaces')
+                        .where(
+                            'project_id',
+                            database('projects')
+                                .select('project_id')
+                                .where('project_uuid', previewUuid),
+                        )
+                        .pluck('warehouse_connection_uuid'),
+                ).toEqual([null]);
+            },
+        );
 
         test('an unmapped binding throws and copies nothing', async () => {
             const upstream = await createMultiProject();

@@ -3049,3 +3049,62 @@ describe('SQL chart promotion connection reservations', () => {
         },
     );
 });
+
+describe('Custom SQL chart promotion reservations', () => {
+    test.each([PromotionAction.CREATE, PromotionAction.UPDATE])(
+        'refuses %s before chart writes',
+        async (action) => {
+            const create = vi.fn();
+            const update = vi.fn();
+            const service = new PromoteService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                spaceModel: {
+                    getEffectiveWarehouseConnectionUuid: vi
+                        .fn()
+                        .mockResolvedValue('reserved'),
+                    getConnectionBoundSpaces: vi.fn().mockResolvedValue([
+                        {
+                            spaceUuid: 'bound',
+                            warehouseConnectionUuid: 'reserved',
+                        },
+                    ]),
+                },
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue([]),
+                },
+                savedChartModel: { create, updateInTransaction: update },
+            } as never);
+            await expect(
+                service.upsertCharts(user, {
+                    charts: [
+                        {
+                            action,
+                            data: {
+                                ...promotedChart,
+                                organizationUuid: 'org',
+                                projectUuid: 'project',
+                                spaceUuid: 'child',
+                                metricQuery: {
+                                    tableCalculations: [
+                                        {
+                                            name: 'custom',
+                                            sql: 'SELECT secret FROM private_table',
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as never),
+            ).rejects.toThrow(
+                'This connection is reserved for a space you cannot edit.',
+            );
+            expect(create).not.toHaveBeenCalled();
+            expect(update).not.toHaveBeenCalled();
+        },
+    );
+});

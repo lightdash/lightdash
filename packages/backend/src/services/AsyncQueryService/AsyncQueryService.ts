@@ -14889,6 +14889,27 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }> {
+        let connectionBinding: ConnectionBinding = {
+            kind: 'explore',
+            exploreName: explore.name,
+        };
+        if (queryTags.chart_uuid) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+            if (enabled) {
+                const chart = await this.savedChartModel.getSummary(
+                    queryTags.chart_uuid,
+                );
+                connectionBinding = await this.withSpaceBinding({
+                    projectUuid,
+                    organizationUuid,
+                    spaceUuid: chart.spaceUuid,
+                    binding: connectionBinding,
+                });
+            }
+        }
         const {
             warehouseCredentials,
             warehouseConnectionUuid,
@@ -14896,7 +14917,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
+            binding: connectionBinding,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -14932,7 +14953,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             explore,
             context,
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {

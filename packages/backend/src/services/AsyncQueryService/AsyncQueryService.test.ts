@@ -13172,6 +13172,71 @@ describe('AsyncQueryService', () => {
             return { service, execute };
         };
 
+        test.each([true, false])(
+            'legacy saved-chart totals use space routing with enabled=%s',
+            async (enabled) => {
+                const { service } = buildService();
+                const internal = service as AnyType;
+                vi.mocked(service.featureFlagModel.get).mockImplementation(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            enabled &&
+                            featureFlagId ===
+                                FeatureFlags.SpaceWarehouseConnections,
+                    }),
+                );
+                const getSummary = vi.fn().mockResolvedValue(savedChart);
+                internal.savedChartModel.getSummary = getSummary;
+                const effective = vi.fn().mockResolvedValue('space-connection');
+                service.spaceModel.getEffectiveWarehouseConnectionUuid =
+                    effective;
+                const routing = vi.spyOn(
+                    internal,
+                    'getPreAggregationRoutingDecision',
+                );
+                const reachedExecution = new Error('Prepared legacy totals');
+                internal.executePreparedAsyncQuery = vi
+                    .fn()
+                    .mockRejectedValue(reachedExecution);
+                await expect(
+                    internal.executeMetricQueryAndGetResultsForTotals({
+                        account: viewer,
+                        projectUuid,
+                        organizationUuid: projectSummary.organizationUuid,
+                        metricQuery: metricQueryMock,
+                        explore: validExplore,
+                        context: QueryExecutionContext.CALCULATE_TOTAL,
+                        queryTags: { chart_uuid: savedChart.uuid },
+                    }),
+                ).rejects.toBe(reachedExecution);
+                expect(
+                    internal.getWarehouseCredentialsWithConnection,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        binding: enabled
+                            ? {
+                                  kind: 'space',
+                                  spaceUuid: savedChart.spaceUuid,
+                                  fallback: {
+                                      kind: 'explore',
+                                      exploreName: validExplore.name,
+                                  },
+                              }
+                            : {
+                                  kind: 'explore',
+                                  exploreName: validExplore.name,
+                              },
+                    }),
+                );
+                expect(routing).toHaveBeenCalledWith(
+                    expect.objectContaining({ forceWarehouse: enabled }),
+                );
+                expect(getSummary).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                expect(effective).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            },
+        );
+
         test.each(
             (['saved', 'dashboard'] as const).flatMap((entry) =>
                 [true, false].flatMap((enabled) =>

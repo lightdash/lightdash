@@ -54,6 +54,7 @@ describe('SpaceConnectionReservation', () => {
     const spaceModel = {
         getConnectionBoundSpaces: vi.fn(),
         getEffectiveWarehouseConnectionUuid: vi.fn(),
+        getEffectiveWarehouseConnectionBinding: vi.fn(),
     };
     const spacePermissionService = { resolveAccessBatch: vi.fn() };
     const reservation = new SpaceConnectionReservation({

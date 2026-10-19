@@ -2091,6 +2091,9 @@ describe('Space cascade audit for Documents', () => {
             }),
         };
         const service = new SpaceService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
             warehouseConnectionModel: {} as never,
             analytics: analyticsMock,
             spaceModel,
@@ -2637,5 +2640,79 @@ describe('Space effective warehouse connection metadata', () => {
                 .effectiveWarehouseConnection,
         ).toBeNull();
         expect(warehouseConnectionModel.list).not.toHaveBeenCalled();
+    });
+});
+
+describe('Space SQL restore reservations', () => {
+    const setup = (enabled = true) => {
+        const user = createTestUser({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        }) as SessionUser;
+        const spaceModel = {
+            getSpaceSummary: vi.fn().mockResolvedValue({
+                name: 'Child',
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                deletedBy: null,
+            }),
+            getSqlChartsForSpaceRestore: vi.fn().mockResolvedValue([
+                {
+                    spaceUuid: 'deleted-child',
+                    warehouseConnectionUuid: null,
+                },
+            ]),
+            getEffectiveWarehouseConnectionBinding: vi.fn().mockResolvedValue({
+                spaceUuid: 'bound-parent',
+                warehouseConnectionUuid: 'reserved',
+                spaceName: 'Parent',
+            }),
+            getConnectionBoundSpaces: vi.fn().mockResolvedValue([
+                {
+                    spaceUuid: 'bound-parent',
+                    warehouseConnectionUuid: 'reserved',
+                },
+            ]),
+            restore: vi.fn().mockResolvedValue([]),
+        };
+        const spacePermissionService = {
+            resolveAccessBatch: vi.fn().mockResolvedValue([]),
+        };
+        const service = new SpaceService({
+            analytics: analyticsMock,
+            featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+            spaceModel,
+            spacePermissionService,
+        } as never);
+        return { user, service, spaceModel };
+    };
+
+    it('refuses a space restore before it exposes SQL charts under a reserved parent', async () => {
+        const { user, service, spaceModel } = setup();
+        await expect(
+            service.restore(user, 'deleted-child', { bypassPermissions: true }),
+        ).rejects.toThrow(
+            'This connection is reserved for a space you cannot edit.',
+        );
+        expect(spaceModel.restore).not.toHaveBeenCalled();
+    });
+
+    it('checks a binding restored along with the space', async () => {
+        const { user, service, spaceModel } = setup();
+        spaceModel.getConnectionBoundSpaces.mockResolvedValue([]);
+        await expect(
+            service.restore(user, 'deleted-child', { bypassPermissions: true }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(spaceModel.restore).not.toHaveBeenCalled();
+    });
+
+    it('does no SQL or reservation lookups while disabled', async () => {
+        const { user, service, spaceModel } = setup(false);
+        await service.restore(user, 'deleted-child', {
+            bypassPermissions: true,
+        });
+        expect(spaceModel.restore).toHaveBeenCalledWith('deleted-child');
+        expect(spaceModel.getSqlChartsForSpaceRestore).not.toHaveBeenCalled();
+        expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
     });
 });

@@ -122,6 +122,9 @@ const buildService = (
         softDelete: vi.fn().mockResolvedValue(chart),
     };
     const service = new SavedChartService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         analytics: analyticsMock,
         lightdashConfig: {
             ...lightdashConfigMock,

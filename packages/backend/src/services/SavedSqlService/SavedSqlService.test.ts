@@ -132,6 +132,7 @@ const savedSqlModel = {
         savedSqlVersionUuid: null,
     })),
     softDelete: vi.fn(async () => undefined),
+    restore: vi.fn(async () => undefined),
     moveToSpace: vi.fn(async () => undefined),
 };
 const schedulerModel = {
@@ -1004,6 +1005,38 @@ describe('SavedSqlService space connection reservations', () => {
             targetSpaceUuid: 'restricted-space',
         });
         expect(savedSqlModel.getByUuid).toHaveBeenCalledTimes(1);
+        expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
+        expect(
+            spaceModel.getEffectiveWarehouseConnectionUuid,
+        ).not.toHaveBeenCalled();
+    });
+    it('refuses restoring a SQL chart with a stored reserved connection', async () => {
+        savedSqlModel.getByUuid.mockResolvedValueOnce({
+            ...sqlChart,
+            warehouseConnectionUuid: 'reserved',
+        } as never);
+        await expect(
+            service.restore(user, savedSqlUuid, { bypassPermissions: true }),
+        ).rejects.toThrow(
+            'This connection is reserved for a space you cannot edit.',
+        );
+        expect(savedSqlModel.restore).not.toHaveBeenCalled();
+    });
+
+    it('refuses restoring a SQL chart into an inherited reserved connection', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'reserved',
+        );
+        await expect(
+            service.restore(user, savedSqlUuid, { bypassPermissions: true }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(savedSqlModel.restore).not.toHaveBeenCalled();
+    });
+
+    it('restores SQL charts without reservation lookups while disabled', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await service.restore(user, savedSqlUuid, { bypassPermissions: true });
+        expect(savedSqlModel.restore).toHaveBeenCalledWith(savedSqlUuid);
         expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
         expect(
             spaceModel.getEffectiveWarehouseConnectionUuid,

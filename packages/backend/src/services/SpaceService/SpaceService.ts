@@ -1087,6 +1087,29 @@ export class SpaceService
             }
         }
 
+        const { enabled: spaceConnectionsEnabled } =
+            await this.featureFlagModel.get({
+                user: { organizationUuid: space.organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+        if (spaceConnectionsEnabled) {
+            const sqlCharts =
+                await this.spaceModel.getSqlChartsForSpaceRestore(spaceUuid);
+            await Promise.all(
+                sqlCharts.map((chart) =>
+                    this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                        userUuid: user.userUuid,
+                        ability: this.createAuditedAbility(user),
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                        spaceUuid: chart.spaceUuid,
+                        warehouseConnectionUuid: chart.warehouseConnectionUuid,
+                        includeDeletedSpaces: true,
+                    }),
+                ),
+            );
+        }
+
         const restoredDocuments = await this.spaceModel.restore(spaceUuid);
         this.logCascadedDocuments(user, 'manage', 'DeletedContent', {
             organizationUuid: space.organizationUuid,

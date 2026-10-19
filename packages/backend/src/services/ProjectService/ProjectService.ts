@@ -128,6 +128,7 @@ import {
     getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
+    hasCustomSql,
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
@@ -9029,13 +9030,7 @@ export class ProjectService
             isCustomSqlDimension,
         );
         const additionalMetrics = metricQuery.additionalMetrics ?? [];
-        if (
-            sqlTableCalculations.length === 0 &&
-            sqlCustomDimensions.length === 0 &&
-            additionalMetrics.length === 0
-        ) {
-            return;
-        }
+        if (!hasCustomSql(metricQuery)) return;
 
         const unmodelledAdditionalMetrics =
             await this.assertAgentCustomSqlAuthorizedForQuery({
@@ -11819,6 +11814,37 @@ export class ProjectService
         );
     }
 
+    private async withSqlChartSpaceBinding({
+        projectUuid,
+        organizationUuid,
+        sqlChartUuid,
+        binding,
+    }: {
+        projectUuid: string;
+        organizationUuid: string;
+        sqlChartUuid?: string;
+        binding: ConnectionBinding;
+    }): Promise<ConnectionBinding> {
+        if (!sqlChartUuid) return binding;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return binding;
+        const spaceUuid = await this.spaceModel.getSqlChartSpaceUuid(
+            projectUuid,
+            sqlChartUuid,
+        );
+        const connectionUuid =
+            await this.spaceModel.getEffectiveWarehouseConnectionUuid({
+                projectUuid,
+                spaceUuid,
+            });
+        return connectionUuid !== null
+            ? { kind: 'space', spaceUuid, fallback: binding }
+            : binding;
+    }
+
     // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
@@ -11837,12 +11863,18 @@ export class ProjectService
             await this.projectModel.getSummary(projectUuid);
 
         const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
+        const binding = await this.withSqlChartSpaceBinding({
+            projectUuid,
+            organizationUuid,
+            sqlChartUuid,
+            binding: { kind: 'connection', warehouseConnectionUuid: null },
+        });
 
         return this.warehouseClientFactory.withWarehouseClient(
             {
                 kind: 'binding',
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding,
             },
             connectionContextFromUser(
                 { userUuid, isRegisteredUser: true },
@@ -11987,9 +12019,14 @@ export class ProjectService
             {
                 kind: 'binding',
                 projectUuid,
-                binding: sqlChartUuid
-                    ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
-                    : { kind: 'connection', warehouseConnectionUuid: null },
+                binding: await this.withSqlChartSpaceBinding({
+                    projectUuid,
+                    organizationUuid,
+                    sqlChartUuid,
+                    binding: sqlChartUuid
+                        ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                        : { kind: 'connection', warehouseConnectionUuid: null },
+                }),
             },
             connectionContextFromUser(
                 { userUuid, isRegisteredUser: true },

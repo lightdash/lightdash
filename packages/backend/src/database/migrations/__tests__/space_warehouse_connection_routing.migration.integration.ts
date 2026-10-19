@@ -20,6 +20,7 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { SpacePermissionModel } from '../../../models/SpacePermissionModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -74,6 +75,7 @@ describe('Space warehouse routing on the real schema', () => {
     let migrated: MigratedDatabase;
     let database: Knex;
     let spaceModel: SpaceModel;
+    let savedSqlModel: SavedSqlModel;
     let featureFlagModel: FeatureFlagModel;
     let service: RoutingQueryService;
     let spaceService: SpaceService;
@@ -114,6 +116,10 @@ describe('Space warehouse routing on the real schema', () => {
             lightdashConfig: config,
         });
         spaceModel = new SpaceModel({ database });
+        savedSqlModel = new SavedSqlModel({
+            database,
+            lightdashConfig: config,
+        });
         const projectModel = new ProjectModel({
             database,
             lightdashConfig: config,
@@ -755,7 +761,7 @@ describe('Space warehouse routing on the real schema', () => {
         }
     });
 
-    test('an editor of an inheriting child may use the parent connection', async () => {
+    test('an editor of only an inheriting child cannot use the parent connection', async () => {
         await database('space_user_access').insert({
             user_uuid: userUuid,
             space_uuid: child,
@@ -765,7 +771,7 @@ describe('Space warehouse routing on the real schema', () => {
             (await service.getSqlRunnerConnections(account, projectUuid)).find(
                 (c) => c.warehouseConnectionUuid === extraConnectionUuid,
             )?.canRunSql,
-        ).toBe(true);
+        ).toBe(false);
     });
 
     test('an editor of a child with an override cannot use the parent connection', async () => {
@@ -815,10 +821,6 @@ describe('Space warehouse routing on the real schema', () => {
                     spaceUuid: spaceA,
                     warehouseConnectionUuid: extraConnectionUuid,
                 },
-                {
-                    spaceUuid: child,
-                    warehouseConnectionUuid: extraConnectionUuid,
-                },
             ]);
             expect(
                 (
@@ -843,6 +845,114 @@ describe('Space warehouse routing on the real schema', () => {
             }
         } finally {
             await spaceModel.update(spaceB, { warehouseConnectionUuid: null });
+        }
+    });
+
+    test('a deleted child cannot expose SQL charts on its inherited reserved connection', async () => {
+        const { savedSqlUuid } = await savedSqlModel.create(
+            userUuid,
+            projectUuid,
+            {
+                name: 'Restored SQL',
+                sql: 'SELECT 1',
+                limit: 10,
+                spaceUuid: child,
+                config: {
+                    type: ChartKind.TABLE,
+                    columns: {},
+                    metadata: { version: 1 },
+                },
+            } as never,
+        );
+        try {
+            expect(
+                await spaceModel.getSqlChartSpaceUuid(
+                    projectUuid,
+                    savedSqlUuid,
+                ),
+            ).toBe(child);
+            await database('spaces').where('space_uuid', child).update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            });
+            expect(await spaceModel.getSqlChartsForSpaceRestore(child)).toEqual(
+                [{ spaceUuid: child, warehouseConnectionUuid: null }],
+            );
+            await expect(
+                spaceService.restore(
+                    {
+                        ...defaultSessionUser,
+                        userUuid,
+                        organizationUuid,
+                        ability: account.user.ability,
+                    },
+                    child,
+                    { bypassPermissions: true },
+                ),
+            ).rejects.toThrow(
+                'This connection is reserved for a space you cannot edit.',
+            );
+            expect(
+                (await database('spaces').where('space_uuid', child).first())
+                    ?.deleted_at,
+            ).not.toBeNull();
+        } finally {
+            await database('spaces')
+                .where('space_uuid', child)
+                .update({ deleted_at: null, deleted_by_user_uuid: null });
+            await database('saved_sql')
+                .where('saved_sql_uuid', savedSqlUuid)
+                .delete();
+        }
+    });
+
+    test('a bound-space editor with SqlRunner can restore its SQL charts with the binding', async () => {
+        const { savedSqlUuid } = await savedSqlModel.create(
+            userUuid,
+            projectUuid,
+            {
+                name: 'Bound restore SQL',
+                sql: 'SELECT 1',
+                limit: 10,
+                spaceUuid: spaceA,
+                config: {
+                    type: ChartKind.TABLE,
+                    columns: {},
+                    metadata: { version: 1 },
+                },
+            } as never,
+        );
+        try {
+            await database('space_user_access').insert({
+                user_uuid: userUuid,
+                space_uuid: spaceA,
+                space_role: SpaceMemberRole.EDITOR,
+            });
+            await database('spaces').where('space_uuid', spaceA).update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            });
+            await spaceService.restore(
+                {
+                    ...defaultSessionUser,
+                    userUuid,
+                    organizationUuid,
+                    ability: account.user.ability,
+                },
+                spaceA,
+                { bypassPermissions: true },
+            );
+            expect(
+                (await database('spaces').where('space_uuid', spaceA).first())
+                    ?.deleted_at,
+            ).toBeNull();
+        } finally {
+            await database('spaces')
+                .where('space_uuid', spaceA)
+                .update({ deleted_at: null, deleted_by_user_uuid: null });
+            await database('saved_sql')
+                .where('saved_sql_uuid', savedSqlUuid)
+                .delete();
         }
     });
 

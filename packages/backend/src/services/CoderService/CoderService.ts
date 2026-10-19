@@ -58,6 +58,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     hasChartsInDashboard,
+    hasCustomSql,
     isChartScheduler,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -4335,6 +4336,24 @@ export class CoderService extends BaseService {
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid ?? null,
             });
+            if (hasCustomSql(metricQuery)) {
+                await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                    {
+                        userUuid: user.userUuid,
+                        ability: auditedAbility,
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        spaceUuid: async () =>
+                            createChart.dashboardUuid
+                                ? (
+                                      await this.dashboardModel.getByIdOrSlug(
+                                          createChart.dashboardUuid,
+                                      )
+                                  ).spaceUuid
+                                : space.uuid,
+                    },
+                );
+            }
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
@@ -4487,6 +4506,23 @@ export class CoderService extends BaseService {
                 spaceUuids: [space.uuid],
                 metadata: { savedChartUuid: chart.uuid },
                 errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
+
+        if (hasCustomSql(metricQuery)) {
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                spaceUuid: async () =>
+                    chart.dashboardUuid
+                        ? (
+                              await this.dashboardModel.getByIdOrSlug(
+                                  chart.dashboardUuid,
+                              )
+                          ).spaceUuid
+                        : space.uuid,
             });
         }
 
