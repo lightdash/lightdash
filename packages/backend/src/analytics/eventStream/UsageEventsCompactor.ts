@@ -217,22 +217,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                     for await (const organization of this.usageDimensionsModel.getOrganizations(
                         organizationUuid,
                     )) {
-                        if (
-                            !organizationUuid ||
-                            organization.organization_uuid === organizationUuid
-                        ) {
-                            const { enabled } = await this.featureFlagModel.get(
-                                {
-                                    featureFlagId:
-                                        FeatureFlags.AnalyticsProject,
-                                    user: {
-                                        organizationUuid:
-                                            organization.organization_uuid,
-                                    },
-                                },
-                            );
-                            if (enabled) organizations.push(organization);
-                        }
+                        const { enabled } = await this.featureFlagModel.get({
+                            featureFlagId: FeatureFlags.AnalyticsProject,
+                            user: {
+                                organizationUuid:
+                                    organization.organization_uuid,
+                            },
+                        });
+                        if (enabled) organizations.push(organization);
                     }
                     const orgIds = organizations.map(
                         (organization) => organization.organization_uuid,

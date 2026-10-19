@@ -117,9 +117,14 @@ const createCompactor = (metrics: MetricsMock) =>
         },
         s3Config,
         usageDimensionsModel: {
-            async *getOrganizations() {
-                for (const [index, id] of listedOrgs.entries())
-                    yield { organization_id: index + 1, organization_uuid: id };
+            async *getOrganizations(organizationUuid?: string) {
+                for (const [index, id] of listedOrgs.entries()) {
+                    if (!organizationUuid || id === organizationUuid)
+                        yield {
+                            organization_id: index + 1,
+                            organization_uuid: id,
+                        };
+                }
             },
             async *getJsonLines() {},
         },
