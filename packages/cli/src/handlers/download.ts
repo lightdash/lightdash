@@ -56,6 +56,7 @@ import {
     type ContentAsCodeSettingsStamp,
     type ContentAsCodeUploadAdvisory,
     type DashboardAsCodeUpsertResult,
+    type DataAppCode,
     type DataAppCodeDownload,
     type LightdashProjectConfig,
     type SpaceAsCode,
@@ -218,6 +219,7 @@ export type DownloadHandlerOptions = {
     languageMap: boolean;
     skipSpaceCreate: boolean;
     skipSpaceAccess?: boolean; // Upload only: preserve destination access policies
+    skipAppAccess?: boolean; // Upload only: drop manifest access blocks so existing app sharing is preserved
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
@@ -3885,6 +3887,20 @@ const getStampedContentPath = (uploadRoot: string): string | undefined => {
     return normalizeContentAsCodePath(relative.split(path.sep).join('/'));
 };
 
+/**
+ * `--skip-app-access`: the bundle without its manifest access block, so the
+ * upload leaves the app's existing sharing untouched. Bundles without a
+ * block are returned as they are.
+ */
+export const withoutManifestAccess = (code: DataAppCode): DataAppCode => {
+    if (code.manifest.access === undefined) {
+        return code;
+    }
+    const manifest = { ...code.manifest };
+    delete manifest.access;
+    return { ...code, manifest };
+};
+
 export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
@@ -4471,7 +4487,23 @@ export const uploadHandler = async (
                 const folderPath = path.join(appsDir, subDir.name);
                 try {
                     // eslint-disable-next-line no-await-in-loop
-                    const code = await readBundleFromDir(folderPath);
+                    const bundle = await readBundleFromDir(folderPath);
+                    // --skip-app-access: applying the manifest's access block
+                    // needs sharing-management rights on the app; drop it so
+                    // the upload leaves the app's existing sharing untouched.
+                    const skipAccess =
+                        options.skipAppAccess === true &&
+                        bundle.manifest.access !== undefined;
+                    const code = skipAccess
+                        ? withoutManifestAccess(bundle)
+                        : bundle;
+                    if (skipAccess) {
+                        GlobalState.log(
+                            styles.warning(
+                                `Skipping the access block in "${subDir.name}" — the app's existing sharing is preserved.`,
+                            ),
+                        );
+                    }
 
                     if (!uploadFilterMatches(uploadFilter, code.manifest)) {
                         const isAutoPushCandidate =
@@ -4764,6 +4796,12 @@ export const uploadHandler = async (
                     } else if (status === 429) {
                         hint =
                             ' — gave up waiting for a free build slot; re-run the upload once builds finish (unchanged apps are skipped)';
+                    } else if (
+                        status === 403 &&
+                        getErrorMessage(appErr).includes('access block')
+                    ) {
+                        hint =
+                            " — remove the access block from lightdash-app.yml, or re-run with --skip-app-access to leave the app's existing sharing untouched";
                     }
                     GlobalState.log(
                         styles.error(

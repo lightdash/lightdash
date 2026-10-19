@@ -10,6 +10,7 @@ import {
     type AnyType,
     type CartesianChartConfig,
     type ChartAsCode,
+    type DataAppCode,
     type DataAppManifest,
     type Series,
     type SpaceAsCode,
@@ -36,6 +37,7 @@ import {
     getExternalConnectionSecretEnvVar,
     testHelpers,
     uploadHandler,
+    withoutManifestAccess,
     type DownloadHandlerOptions,
 } from './download';
 import { logUploadChanges } from './spacesAsCode';
@@ -266,6 +268,45 @@ describe('hasContentFilters', () => {
                 }),
             ),
         ).toBe(false);
+    });
+});
+
+describe('withoutManifestAccess', () => {
+    const bundle = (manifestOverrides: Record<string, unknown>) =>
+        ({
+            manifest: {
+                codeVersion: 1,
+                appUuid: 'app-uuid-1',
+                projectUuid: 'proj-uuid-1',
+                version: 1,
+                name: 'App',
+                description: '',
+                template: null,
+                downloadedAt: '2026-06-25T00:00:00.000Z',
+                ...manifestOverrides,
+            },
+            files: [{ path: 'src/index.tsx', contentBase64: '' }],
+        }) as unknown as DataAppCode;
+
+    it('drops the access block and leaves everything else in place', () => {
+        const withAccess = bundle({
+            slug: 'sales-app',
+            access: {
+                users: [{ email: 'a@example.com', role: 'editor' }],
+                groups: [],
+            },
+        });
+        const result = withoutManifestAccess(withAccess);
+        expect(result.manifest).not.toHaveProperty('access');
+        expect(result.manifest.slug).toBe('sales-app');
+        expect(result.files).toBe(withAccess.files);
+        // The input is not mutated.
+        expect(withAccess.manifest.access).toBeDefined();
+    });
+
+    it('returns a bundle without an access block unchanged', () => {
+        const plain = bundle({ slug: 'sales-app' });
+        expect(withoutManifestAccess(plain)).toBe(plain);
     });
 });
 

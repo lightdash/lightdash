@@ -1291,6 +1291,11 @@ const uploadCommand = program
         false,
     )
     .option(
+        '--skip-app-access',
+        "upload data apps without applying the access block in their manifest (the app's existing sharing is preserved)",
+        false,
+    )
+    .option(
         '--skip-spaces',
         'skip uploading space definitions and access',
         false,
