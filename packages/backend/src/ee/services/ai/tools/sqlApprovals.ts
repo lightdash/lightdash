@@ -26,6 +26,7 @@ type SqlApprovalDecidedProperties =
 export const NATIVE_SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
     'runComposerQueries',
+    'runContentQuery',
     'createContent',
     'editContent',
 ] as const satisfies readonly SqlApprovalToolName[];
@@ -64,6 +65,11 @@ export const getRejectedOutput = (
                 result: COMPOSER_SQL_REJECTED_RESULT,
                 metadata: { status: 'rejected' },
             };
+        case 'runContentQuery':
+            return {
+                result: RUN_SQL_REJECTED_RESULT,
+                metadata: { status: 'error' },
+            };
         case 'createContent':
         case 'editContent':
             return {
@@ -82,6 +88,7 @@ export const getSqlApprovalHeading = (
     switch (toolName) {
         case 'runSql':
         case 'runComposerQueries':
+        case 'runContentQuery':
             return 'Awaiting approval to run SQL';
         case 'createContent':
         case 'editContent':
