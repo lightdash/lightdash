@@ -29,8 +29,9 @@ import {
     useState,
 } from 'react';
 import { useDebounce } from 'react-use';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 import { useSessionTimezone } from './useSessionTimezone';
 
@@ -110,18 +111,21 @@ const stripTileTargetsFromFilters = (
     };
 };
 
-const getEmbedFilterValues = async (options: {
-    embedToken: string;
-    projectId: string;
-    filterId: string;
-    search: string;
-    forceRefresh: boolean;
-    filters: AndFilterGroup | undefined;
-    tableName: string | undefined;
-    fieldId: string | undefined;
-    timezone: string | null;
-    parameters: ParametersValuesMap | undefined;
-}) => {
+const getEmbedFilterValues = async (
+    lightdashApi: LightdashApi,
+    options: {
+        embedToken: string;
+        projectId: string;
+        filterId: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        tableName: string | undefined;
+        fieldId: string | undefined;
+        timezone: string | null;
+        parameters: ParametersValuesMap | undefined;
+    },
+) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
         method: 'POST',
@@ -139,6 +143,7 @@ const getEmbedFilterValues = async (options: {
 };
 
 const getFieldValues = async (
+    lightdashApi: LightdashApi,
     projectId: string,
     table: string | undefined,
     fieldId: string,
@@ -172,6 +177,7 @@ const getFieldValues = async (
 export const MAX_POLL_ATTEMPTS = 95;
 
 export const pollForFieldValueResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
@@ -198,6 +204,7 @@ export const pollForFieldValueResults = async (
             setTimeout(resolve, backoffMs);
         });
         return pollForFieldValueResults(
+            lightdashApi,
             projectUuid,
             queryUuid,
             nextBackoff,
@@ -209,6 +216,7 @@ export const pollForFieldValueResults = async (
 };
 
 export const getFieldValuesAsync = async (
+    lightdashApi: LightdashApi,
     projectId: string,
     table: string | undefined,
     fieldId: string,
@@ -239,6 +247,7 @@ export const getFieldValuesAsync = async (
         });
 
     const queryResult = await pollForFieldValueResults(
+        lightdashApi,
         projectId,
         executeResult.queryUuid,
     );
@@ -314,6 +323,7 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { embedToken, content: embedContent } = useEmbed();
     const sessionTimezone = useSessionTimezone();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
@@ -421,6 +431,7 @@ export const useFieldValues = (
             // the gateway when a cold warehouse scan is slow.
             if (embedToken && embedContent?.type === 'dashboard' && projectId) {
                 return getFieldValuesAsync(
+                    lightdashApi,
                     projectId,
                     tableName,
                     fieldId,
@@ -432,7 +443,7 @@ export const useFieldValues = (
                 );
             }
             if (embedToken && filterId && projectId) {
-                return getEmbedFilterValues({
+                return getEmbedFilterValues(lightdashApi, {
                     embedToken,
                     projectId,
                     filterId,
@@ -447,6 +458,7 @@ export const useFieldValues = (
             }
             if (useAsyncPath) {
                 return getFieldValuesAsync(
+                    lightdashApi,
                     projectId!,
                     tableName,
                     fieldId,
@@ -458,6 +470,7 @@ export const useFieldValues = (
                 );
             }
             return getFieldValues(
+                lightdashApi,
                 projectId!,
                 tableName,
                 fieldId,

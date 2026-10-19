@@ -9,8 +9,8 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
 import { McpGeneralSettingsPage } from '../../ee/features/aiCopilot/components/Admin/settings/McpGeneralSettingsPage';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { AgentIdentitySettingsPage } from './AgentIdentitySettingsPage';
 import {
     agentSettingsIdentityMock,
@@ -19,7 +19,7 @@ import {
 } from './agentSettings.mock';
 import { getAgentSettingsAccess } from './agentSettingsAccess';
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         user: {
@@ -40,7 +40,7 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
 vi.mock('./OrganizationAgentIdentitySection', () => ({
     OrganizationAgentIdentityCard: () => null,
 }));
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 let settings = agentSettingsMcpMock();
 const renderPages = (input: {
     agentIdentityEnabled: boolean;

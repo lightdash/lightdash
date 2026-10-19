@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import { getDashboard } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { getSavedQuery } from '../../../hooks/useSavedQuery';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     type SelectedChart,
     type SelectedDashboard,
@@ -35,6 +36,7 @@ export const useAttachResourceLink = ({
     onSelectChart: (chart: SelectedChart) => void;
     onSelectDashboard: (dashboard: SelectedDashboard) => void;
 }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastError, showToastApiError } = useToaster();
     const [isResolvingLink, setIsResolvingLink] = useState(false);
 
@@ -89,6 +91,7 @@ export const useAttachResourceLink = ({
                     setIsResolvingLink(true);
                     try {
                         const chart = await getSavedQuery(
+                            lightdashApi,
                             link.chartUuidOrSlug,
                             projectUuid,
                         );
@@ -125,6 +128,7 @@ export const useAttachResourceLink = ({
                     setIsResolvingLink(true);
                     try {
                         const dashboard = await getDashboard(
+                            lightdashApi,
                             link.dashboardUuidOrSlug,
                             projectUuid,
                         );
@@ -153,6 +157,7 @@ export const useAttachResourceLink = ({
             onSelectDashboard,
             showToastError,
             showToastApiError,
+            lightdashApi,
         ],
     );
 

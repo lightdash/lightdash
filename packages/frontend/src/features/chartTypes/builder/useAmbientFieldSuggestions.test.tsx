@@ -10,11 +10,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useAmbientFieldSuggestions } from './useAmbientFieldSuggestions';
 import { type LoadedExplore } from './useExplorePreviewData';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
 const accessState = vi.hoisted(() => ({ disabled: false }));
 vi.mock('../../aiAccess/useAiAccessGate', () => ({
@@ -83,8 +84,8 @@ type Props = Parameters<typeof useAmbientFieldSuggestions>[0];
 describe('useAmbientFieldSuggestions', () => {
     beforeEach(() => {
         accessState.disabled = false;
-        vi.mocked(lightdashApi).mockReset();
-        vi.mocked(lightdashApi).mockResolvedValue(answer);
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockResolvedValue(answer);
     });
 
     it('does not fetch or prefetch while disabled, and hides cached picks', async () => {
@@ -101,7 +102,7 @@ describe('useAmbientFieldSuggestions', () => {
             (props: Props) => useAmbientFieldSuggestions(props),
             { wrapper: wrapper(), initialProps: initial },
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
         expect(result.current.picks).toEqual({});
         expect(result.current.pendingFieldNames.size).toBe(0);
 
@@ -109,13 +110,13 @@ describe('useAmbientFieldSuggestions', () => {
         await waitFor(() =>
             expect(Object.keys(result.current.picks)).not.toHaveLength(0),
         );
-        const calls = vi.mocked(lightdashApi).mock.calls.length;
+        const calls = mockedLightdashApi.mock.calls.length;
         accessState.disabled = true;
         rerender({ ...initial, suggestedExploreName: 'another-table' });
         expect(result.current.picks).toEqual({});
         expect(result.current.seed).toEqual({});
         expect(result.current.pendingFieldNames.size).toBe(0);
-        expect(lightdashApi).toHaveBeenCalledTimes(calls);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(calls);
     });
 
     it('asks about the suggested table before it is attached and reuses the answer on attach', async () => {
@@ -133,8 +134,8 @@ describe('useAmbientFieldSuggestions', () => {
             { wrapper: wrapper(), initialProps: initial },
         );
 
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledOnce());
-        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+        await waitFor(() => expect(sharedLightdashApi).toHaveBeenCalledOnce());
+        expect(sharedLightdashApi).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 url: '/ai/p1/chart-type/suggest-fields',
                 body: JSON.stringify({
@@ -155,7 +156,7 @@ describe('useAmbientFieldSuggestions', () => {
                 value: 'orders_total',
             }),
         );
-        expect(lightdashApi).toHaveBeenCalledTimes(1);
+        expect(sharedLightdashApi).toHaveBeenCalledTimes(1);
     });
 
     it('does not ask ahead for the table already attached', async () => {
@@ -172,7 +173,7 @@ describe('useAmbientFieldSuggestions', () => {
             } satisfies Props,
         });
 
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledOnce());
+        await waitFor(() => expect(sharedLightdashApi).toHaveBeenCalledOnce());
     });
 
     it('asks a different table fresh when the author picks it instead', async () => {
@@ -189,7 +190,7 @@ describe('useAmbientFieldSuggestions', () => {
             (props: Props) => useAmbientFieldSuggestions(props),
             { wrapper: wrapper(), initialProps: initial },
         );
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledOnce());
+        await waitFor(() => expect(sharedLightdashApi).toHaveBeenCalledOnce());
 
         rerender({
             ...initial,
@@ -197,8 +198,10 @@ describe('useAmbientFieldSuggestions', () => {
             explore: { ...explore, name: 'customers', label: 'Customers' },
         });
 
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(2));
-        expect(vi.mocked(lightdashApi).mock.calls[1][0].body).toContain(
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(2),
+        );
+        expect(mockedLightdashApi.mock.calls[1][0].body).toContain(
             '"exploreName":"customers"',
         );
     });

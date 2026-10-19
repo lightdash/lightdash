@@ -8,11 +8,11 @@ import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
-import { lightdashApi } from '../../api';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useSavedSqlChartResults } from '../sqlRunner/hooks/useSavedSqlChartResults';
 import DocumentChartVisualization from './DocumentChartVisualization';
 import DocumentSqlChartView from './DocumentSqlChartView';
@@ -103,6 +103,8 @@ const LinkedSavedChart = ({
     attributes,
     actions,
 }: Props) => {
+    const lightdashApi = useLightdashApi();
+
     const savedChart = useSavedQuery({
         uuidOrSlug: attributes.uuid ?? attributes.slug,
         projectUuid,

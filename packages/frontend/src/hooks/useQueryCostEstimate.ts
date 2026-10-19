@@ -8,8 +8,9 @@ import {
 } from '@lightdash/common';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 import { useProject } from './useProject';
 import type { QueryResultsProps } from './useQueryResults';
@@ -52,6 +53,7 @@ export const getMetricQueryEstimateBody = (
 };
 
 const estimateMetricQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: EstimateAsyncMetricQueryRequestParams,
 ) =>
@@ -63,6 +65,7 @@ const estimateMetricQuery = (
     });
 
 const estimateSqlQuery = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: EstimateAsyncSqlQueryRequestParams,
 ) =>
@@ -84,24 +87,26 @@ const sqlEstimateKey = (
 ) => ['query-cost-estimate', 'sql', projectUuid, body];
 
 export const fetchMetricQueryCostEstimate = (
+    lightdashApi: LightdashApi,
     queryClient: QueryClient,
     projectUuid: string,
     body: EstimateAsyncMetricQueryRequestParams,
 ) =>
     queryClient.fetchQuery<QueryCostEstimate, ApiError>({
         queryKey: metricEstimateKey(projectUuid, body),
-        queryFn: () => estimateMetricQuery(projectUuid, body),
+        queryFn: () => estimateMetricQuery(lightdashApi, projectUuid, body),
         staleTime: ESTIMATE_STALE_TIME_MS,
     });
 
 export const fetchSqlQueryCostEstimate = (
+    lightdashApi: LightdashApi,
     queryClient: QueryClient,
     projectUuid: string,
     body: EstimateAsyncSqlQueryRequestParams,
 ) =>
     queryClient.fetchQuery<QueryCostEstimate, ApiError>({
         queryKey: sqlEstimateKey(projectUuid, body),
-        queryFn: () => estimateSqlQuery(projectUuid, body),
+        queryFn: () => estimateSqlQuery(lightdashApi, projectUuid, body),
         staleTime: ESTIMATE_STALE_TIME_MS,
     });
 
@@ -110,10 +115,13 @@ export const useMetricQueryCostEstimate = (
     body: EstimateAsyncMetricQueryRequestParams | null,
     enabled: boolean,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const [debouncedBody] = useDebouncedValue(body, ESTIMATE_DEBOUNCE_MS);
     return useQuery<QueryCostEstimate, ApiError>({
         queryKey: metricEstimateKey(projectUuid ?? '', debouncedBody!),
-        queryFn: () => estimateMetricQuery(projectUuid!, debouncedBody!),
+        queryFn: () =>
+            estimateMetricQuery(lightdashApi, projectUuid!, debouncedBody!),
         enabled: enabled && !!projectUuid && !!debouncedBody,
         staleTime: ESTIMATE_STALE_TIME_MS,
         keepPreviousData: true,
@@ -126,10 +134,13 @@ export const useSqlQueryCostEstimate = (
     body: EstimateAsyncSqlQueryRequestParams | null,
     enabled: boolean,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const [debouncedBody] = useDebouncedValue(body, ESTIMATE_DEBOUNCE_MS);
     return useQuery<QueryCostEstimate, ApiError>({
         queryKey: sqlEstimateKey(projectUuid ?? '', debouncedBody!),
-        queryFn: () => estimateSqlQuery(projectUuid!, debouncedBody!),
+        queryFn: () =>
+            estimateSqlQuery(lightdashApi, projectUuid!, debouncedBody!),
         enabled: enabled && !!projectUuid && !!debouncedBody?.sql.trim().length,
         staleTime: ESTIMATE_STALE_TIME_MS,
         keepPreviousData: true,

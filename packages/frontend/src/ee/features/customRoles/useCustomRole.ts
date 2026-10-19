@@ -6,9 +6,9 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const CACHE_KEY = 'custom-role';
 
@@ -19,6 +19,7 @@ const CACHE_KEY = 'custom-role';
  * @returns Query result and update mutation
  */
 export const useCustomRole = (roleUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     const { data: organization } = useOrganization();

@@ -7,14 +7,16 @@ import {
 } from '@lightdash/common';
 import { useQueries, type UseQueryOptions } from '@tanstack/react-query';
 import { useState } from 'react';
-import { lightdashApi } from '../../api';
 import { isSingleConnectionProject } from '../../hooks/useWarehouseConnections';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { createRequestQueue } from './requestQueue';
 
 export const useApprovalWarehouses = (
     projects: AgentConnectionApprovalProject[],
     enabled: boolean,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const [queue] = useState(createRequestQueue);
     const connections = useQueries({
         queries: projects.map(

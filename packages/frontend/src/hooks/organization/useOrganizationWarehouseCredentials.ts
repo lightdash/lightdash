@@ -10,10 +10,13 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-const getOrganizationWarehouseCredentials = async () =>
+const getOrganizationWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
+) =>
     lightdashApi<OrganizationWarehouseCredentials[]>({
         url: `/org/warehouse-credentials`,
         method: 'GET',
@@ -21,6 +24,7 @@ const getOrganizationWarehouseCredentials = async () =>
     });
 
 const createOrganizationWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
     data: CreateOrganizationWarehouseCredentials,
 ) =>
     lightdashApi<OrganizationWarehouseCredentials>({
@@ -30,13 +34,16 @@ const createOrganizationWarehouseCredentials = async (
         sensitive: true,
     });
 
-const updateOrganizationWarehouseCredentials = async ({
-    uuid,
-    data,
-}: {
-    uuid: string;
-    data: UpdateOrganizationWarehouseCredentials;
-}) =>
+const updateOrganizationWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
+    {
+        uuid,
+        data,
+    }: {
+        uuid: string;
+        data: UpdateOrganizationWarehouseCredentials;
+    },
+) =>
     lightdashApi<OrganizationWarehouseCredentials>({
         url: `/org/warehouse-credentials/${uuid}`,
         method: 'PATCH',
@@ -44,7 +51,10 @@ const updateOrganizationWarehouseCredentials = async ({
         sensitive: true,
     });
 
-const deleteOrganizationWarehouseCredentials = async (uuid: string) =>
+const deleteOrganizationWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/org/warehouse-credentials/${uuid}`,
         method: 'DELETE',
@@ -56,70 +66,86 @@ export const useOrganizationWarehouseCredentials = (
         OrganizationWarehouseCredentials[],
         ApiError
     >,
-) =>
-    useQuery<OrganizationWarehouseCredentials[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<OrganizationWarehouseCredentials[], ApiError>({
         queryKey: ['organization-warehouse-credentials'],
-        queryFn: getOrganizationWarehouseCredentials,
+        queryFn: () => getOrganizationWarehouseCredentials(lightdashApi),
         ...useQueryOptions,
     });
+};
 
 export const useCreateOrganizationWarehouseCredentials = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OrganizationWarehouseCredentials,
         ApiError,
         CreateOrganizationWarehouseCredentials
-    >(createOrganizationWarehouseCredentials, {
-        mutationKey: ['organization-warehouse-credentials', 'create'],
-        onSuccess: async () => {
-            await queryClient.refetchQueries({
-                queryKey: ['organization-warehouse-credentials'],
-            });
-            showToastSuccess({
-                title: 'Warehouse credentials created',
-            });
+    >(
+        (data: CreateOrganizationWarehouseCredentials) =>
+            createOrganizationWarehouseCredentials(lightdashApi, data),
+        {
+            mutationKey: ['organization-warehouse-credentials', 'create'],
+            onSuccess: async () => {
+                await queryClient.refetchQueries({
+                    queryKey: ['organization-warehouse-credentials'],
+                });
+                showToastSuccess({
+                    title: 'Warehouse credentials created',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to create warehouse credentials',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to create warehouse credentials',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useUpdateOrganizationWarehouseCredentials = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         OrganizationWarehouseCredentials,
         ApiError,
         { uuid: string; data: UpdateOrganizationWarehouseCredentials }
-    >(updateOrganizationWarehouseCredentials, {
-        mutationKey: ['organization-warehouse-credentials', 'update'],
-        onSuccess: async () => {
-            await queryClient.refetchQueries({
-                queryKey: ['organization-warehouse-credentials'],
-            });
-            showToastSuccess({
-                title: 'Warehouse credentials updated',
-            });
+    >(
+        (args: {
+            uuid: string;
+            data: UpdateOrganizationWarehouseCredentials;
+        }) => updateOrganizationWarehouseCredentials(lightdashApi, args),
+        {
+            mutationKey: ['organization-warehouse-credentials', 'update'],
+            onSuccess: async () => {
+                await queryClient.refetchQueries({
+                    queryKey: ['organization-warehouse-credentials'],
+                });
+                showToastSuccess({
+                    title: 'Warehouse credentials updated',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update warehouse credentials',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update warehouse credentials',
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useDeleteOrganizationWarehouseCredentials = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>(
-        deleteOrganizationWarehouseCredentials,
+        (uuid: string) =>
+            deleteOrganizationWarehouseCredentials(lightdashApi, uuid),
         {
             mutationKey: ['organization-warehouse-credentials', 'delete'],
             onSuccess: async () => {

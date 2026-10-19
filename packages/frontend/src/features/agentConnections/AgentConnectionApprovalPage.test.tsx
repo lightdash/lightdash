@@ -21,8 +21,8 @@ import {
     useNavigate,
 } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
 import PrivateRoute from '../../components/PrivateRoute';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import LoginLanding from '../users/components/LoginLanding';
 import AgentConnectionApprovalPage from './AgentConnectionApprovalPage';
@@ -33,7 +33,7 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
         data: enabled === undefined ? undefined : { enabled },
     }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('./AgentConnectionApprovalWarehouseStep', () => ({
     AgentConnectionApprovalWarehouseStep: () => null,
 }));
@@ -161,7 +161,7 @@ const loadPage = async () => {
     await screen.findByRole('button', { name: 'Approve' });
     return result;
 };
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 const error = (
     statusCode: number,
     code: string,

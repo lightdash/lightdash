@@ -7,24 +7,27 @@ import {
     type DataAppAnalysisSource,
     type DataAppInvestigation,
 } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { pollJobStatus } from '../../scheduler/hooks/useScheduler';
 
 const analysisBase = (projectUuid: string, appUuid: string) =>
     `/projects/${projectUuid}/apps/${appUuid}/analysis`;
 
-export const detectDataAppAnomalies = ({
-    projectUuid,
-    appUuid,
-    sources,
-    force,
-}: {
-    projectUuid: string;
-    appUuid: string;
-    sources: DataAppAnalysisSource[];
-    /** Run the model even when an analysis of identical rows is stored. */
-    force: boolean;
-}) =>
+export const detectDataAppAnomalies = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+        sources,
+        force,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+        sources: DataAppAnalysisSource[];
+        /** Run the model even when an analysis of identical rows is stored. */
+        force: boolean;
+    },
+) =>
     lightdashApi<ApiDataAppDetectResponse['results']>({
         version: 'v2',
         url: `${analysisBase(projectUuid, appUuid)}/detect`,
@@ -33,15 +36,18 @@ export const detectDataAppAnomalies = ({
     });
 
 /** A stored analysis of exactly these rows, or null. Never runs the model. */
-export const lookupDataAppAnalysis = ({
-    projectUuid,
-    appUuid,
-    sources,
-}: {
-    projectUuid: string;
-    appUuid: string;
-    sources: DataAppAnalysisSource[];
-}) =>
+export const lookupDataAppAnalysis = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+        sources,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+        sources: DataAppAnalysisSource[];
+    },
+) =>
     lightdashApi<ApiDataAppAnalysisLookupResponse['results']>({
         version: 'v2',
         url: `${analysisBase(projectUuid, appUuid)}/lookup`,
@@ -49,15 +55,18 @@ export const lookupDataAppAnalysis = ({
         body: JSON.stringify({ sources }),
     });
 
-const getDataAppAnalysis = ({
-    projectUuid,
-    appUuid,
-    analysisId,
-}: {
-    projectUuid: string;
-    appUuid: string;
-    analysisId: string;
-}) =>
+const getDataAppAnalysis = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+        analysisId,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+        analysisId: string;
+    },
+) =>
     lightdashApi<ApiDataAppAnalysisResponse['results']>({
         version: 'v2',
         url: `${analysisBase(projectUuid, appUuid)}/${analysisId}`,
@@ -69,19 +78,22 @@ const getDataAppAnalysis = ({
  * Queues the investigation, waits for the job, then reads the persisted
  * result. The job's completion details carry the investigation id.
  */
-export const investigateDataAppAnomaly = async ({
-    projectUuid,
-    appUuid,
-    analysisId,
-    anomalyId,
-    agentUuid,
-}: {
-    projectUuid: string;
-    appUuid: string;
-    analysisId: string;
-    anomalyId: string;
-    agentUuid: string;
-}): Promise<DataAppInvestigation> => {
+export const investigateDataAppAnomaly = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+        analysisId,
+        anomalyId,
+        agentUuid,
+    }: {
+        projectUuid: string;
+        appUuid: string;
+        analysisId: string;
+        anomalyId: string;
+        agentUuid: string;
+    },
+): Promise<DataAppInvestigation> => {
     const { jobId } = await lightdashApi<
         ApiDataAppInvestigateResponse['results']
     >({
@@ -90,16 +102,19 @@ export const investigateDataAppAnomaly = async ({
         method: 'POST',
         body: JSON.stringify({ anomalyId, agentUuid }),
     });
-    const details = await pollJobStatus(jobId);
+    const details = await pollJobStatus(lightdashApi, jobId);
     const investigationId = details?.investigationId;
     if (typeof investigationId !== 'string') {
         throw new Error('The investigation finished without a result');
     }
-    const record: DataAppAnalysisRecord = await getDataAppAnalysis({
-        projectUuid,
-        appUuid,
-        analysisId: investigationId,
-    });
+    const record: DataAppAnalysisRecord = await getDataAppAnalysis(
+        lightdashApi,
+        {
+            projectUuid,
+            appUuid,
+            analysisId: investigationId,
+        },
+    );
     if (record.operation !== 'investigate') {
         throw new Error('Unexpected analysis type');
     }

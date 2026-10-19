@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { usePortalTarget } from '../../../../../providers/PortalTarget/usePortalTarget';
 import {
     createMentionMarkdownExtension,
@@ -106,6 +107,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     mentionProjectUuid,
     editable = true,
 }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
     const navigate = useNavigate();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +145,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
               ]
             : []),
         ...(mentionProjectUuid
-            ? [createMentionMarkdownExtension(mentionProjectUuid)]
+            ? [createMentionMarkdownExtension(lightdashApi, mentionProjectUuid)]
             : []),
     ];
 

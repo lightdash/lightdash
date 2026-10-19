@@ -1,4 +1,5 @@
 import { type HomepageResourceItem } from '@lightdash/common';
+import { type LightdashApi } from '../../../../api';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 
 export const hostnameOf = (url: string): string => {
@@ -44,12 +45,17 @@ export const looksLikeUrl = (token: string): boolean =>
     /^[\w-]+(\.[\w-]+)+(\/|$|\?|#|:)/.test(token);
 
 export const resolveResourceUrl = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     rawUrl: string,
 ): Promise<HomepageResourceItem> => {
     const url = normalizeUrl(rawUrl.trim());
     try {
-        const meta = await fetchHomepageLinkMetadata(projectUuid, url);
+        const meta = await fetchHomepageLinkMetadata(
+            lightdashApi,
+            projectUuid,
+            url,
+        );
         const imageUrl = safeImageUrl(meta.imageUrl);
         const title = meta.title ?? hostnameOf(url);
         // Providers without a description echo the title into og:description.

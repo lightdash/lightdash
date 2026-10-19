@@ -6,18 +6,22 @@ import type {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const USER_ONBOARDING_QUERY_KEY = 'user-onboarding';
 
-const getUserOnboarding = () =>
+const getUserOnboarding = (lightdashApi: LightdashApi) =>
     lightdashApi<UserOnboarding>({
         url: '/user/onboarding',
         method: 'GET',
         body: undefined,
     });
 
-const completeUserOnboardingTour = (tour: UserOnboardingTour) =>
+const completeUserOnboardingTour = (
+    lightdashApi: LightdashApi,
+    tour: UserOnboardingTour,
+) =>
     lightdashApi<undefined>({
         url: '/user/onboarding',
         method: 'POST',
@@ -50,18 +54,20 @@ export const useOnboardingTour = ({
     tour,
     enabled = true,
 }: UseOnboardingTourArgs): UseOnboardingTourResult => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const [isDismissed, setIsDismissed] = useState(false);
 
     const { data } = useQuery<UserOnboarding, ApiError>({
         queryKey: [USER_ONBOARDING_QUERY_KEY],
-        queryFn: getUserOnboarding,
+        queryFn: () => getUserOnboarding(lightdashApi),
         enabled,
         staleTime: Infinity,
     });
 
     const { mutate } = useMutation<undefined, ApiError, UserOnboardingTour>({
-        mutationFn: completeUserOnboardingTour,
+        mutationFn: (tour: UserOnboardingTour) =>
+            completeUserOnboardingTour(lightdashApi, tour),
         onSuccess: (_result, completedTour) => {
             queryClient.setQueryData<UserOnboarding>(
                 [USER_ONBOARDING_QUERY_KEY],

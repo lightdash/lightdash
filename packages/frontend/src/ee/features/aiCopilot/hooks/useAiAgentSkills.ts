@@ -12,8 +12,9 @@ import type {
     ApiError,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 /** The organization catalogue and skill details. */
 const SKILL_LIBRARY_KEY = 'aiAgentSkillLibrary';
@@ -24,7 +25,11 @@ const skillsUrl = '/aiAgents/skills';
 const agentSkillsUrl = (projectUuid: string, agentUuid: string) =>
     `/projects/${projectUuid}/aiAgents/${agentUuid}/skills`;
 
-const listAgentSkills = (projectUuid: string, agentUuid: string) =>
+const listAgentSkills = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    agentUuid: string,
+) =>
     lightdashApi<ApiAgentSkillsListingResponse['results']>({
         version: 'v1',
         url: agentSkillsUrl(projectUuid, agentUuid),
@@ -33,6 +38,7 @@ const listAgentSkills = (projectUuid: string, agentUuid: string) =>
     });
 
 const setAgentSkills = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     skillUuids: string[],
@@ -44,7 +50,7 @@ const setAgentSkills = (
         body: JSON.stringify({ skillUuids }),
     });
 
-const listSkills = (projectUuid: string | null) =>
+const listSkills = (lightdashApi: LightdashApi, projectUuid: string | null) =>
     lightdashApi<ApiAiAgentSkillSummaryListResponse['results']>({
         version: 'v1',
         url:
@@ -55,7 +61,7 @@ const listSkills = (projectUuid: string | null) =>
         body: undefined,
     });
 
-const getSkill = (skillUuid: string) =>
+const getSkill = (lightdashApi: LightdashApi, skillUuid: string) =>
     lightdashApi<ApiAiAgentSkillResponse['results']>({
         version: 'v1',
         url: `${skillsUrl}/${skillUuid}`,
@@ -63,7 +69,7 @@ const getSkill = (skillUuid: string) =>
         body: undefined,
     });
 
-const createSkill = (body: ApiCreateAiAgentSkill) =>
+const createSkill = (lightdashApi: LightdashApi, body: ApiCreateAiAgentSkill) =>
     lightdashApi<ApiAiAgentSkillResponse['results']>({
         version: 'v1',
         url: skillsUrl,
@@ -71,7 +77,11 @@ const createSkill = (body: ApiCreateAiAgentSkill) =>
         body: JSON.stringify(body),
     });
 
-const updateSkill = (skillUuid: string, files: AiAgentSkillFiles) =>
+const updateSkill = (
+    lightdashApi: LightdashApi,
+    skillUuid: string,
+    files: AiAgentSkillFiles,
+) =>
     lightdashApi<ApiAiAgentSkillResponse['results']>({
         version: 'v1',
         url: `${skillsUrl}/${skillUuid}`,
@@ -79,7 +89,7 @@ const updateSkill = (skillUuid: string, files: AiAgentSkillFiles) =>
         body: JSON.stringify({ files }),
     });
 
-const validateSkill = (files: AiAgentSkillFiles) =>
+const validateSkill = (lightdashApi: LightdashApi, files: AiAgentSkillFiles) =>
     lightdashApi<ApiAiAgentSkillValidationResponse['results']>({
         version: 'v1',
         url: `${skillsUrl}/validate`,
@@ -92,20 +102,23 @@ export const useAgentSkills = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<AgentSkillsListing, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentSkillsListing, ApiError>({
         queryKey: [AGENT_SKILLS_KEY, projectUuid, agentUuid],
-        queryFn: () => listAgentSkills(projectUuid!, agentUuid!),
+        queryFn: () => listAgentSkills(lightdashApi, projectUuid!, agentUuid!),
         enabled: enabled && !!projectUuid && !!agentUuid,
         staleTime: 30_000,
     });
+};
 
 export const useSetAgentSkills = (projectUuid: string, agentUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<AgentSkillsListing, ApiError, string[]>({
         mutationFn: (skillUuids) =>
-            setAgentSkills(projectUuid, agentUuid, skillUuids),
+            setAgentSkills(lightdashApi, projectUuid, agentUuid, skillUuids),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: [AGENT_SKILLS_KEY, projectUuid, agentUuid],
@@ -126,20 +139,24 @@ export const useSetAgentSkills = (projectUuid: string, agentUuid: string) => {
 export const useAiAgentSkills = (
     projectUuid: string | null,
     enabled: boolean,
-) =>
-    useQuery<AiAgentSkillSummary[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiAgentSkillSummary[], ApiError>({
         queryKey: [SKILL_LIBRARY_KEY, projectUuid],
-        queryFn: () => listSkills(projectUuid),
+        queryFn: () => listSkills(lightdashApi, projectUuid),
         enabled,
         retry: false,
     });
+};
 
-export const useAiAgentSkill = (skillUuid: string | null) =>
-    useQuery<AiAgentSkill, ApiError>({
+export const useAiAgentSkill = (skillUuid: string | null) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AiAgentSkill, ApiError>({
         queryKey: [SKILL_LIBRARY_KEY, 'detail', skillUuid],
-        queryFn: () => getSkill(skillUuid!),
+        queryFn: () => getSkill(lightdashApi, skillUuid!),
         enabled: skillUuid !== null,
     });
+};
 
 const useInvalidateSkills = () => {
     const queryClient = useQueryClient();
@@ -152,10 +169,12 @@ const useInvalidateSkills = () => {
 };
 
 export const useCreateAiAgentSkill = () => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useInvalidateSkills();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<AiAgentSkill, ApiError, ApiCreateAiAgentSkill>({
-        mutationFn: createSkill,
+        mutationFn: (body: ApiCreateAiAgentSkill) =>
+            createSkill(lightdashApi, body),
         onSuccess: async (skill) => {
             await invalidate();
             showToastSuccess({ title: `Skill /${skill.name} created` });
@@ -169,6 +188,7 @@ export const useCreateAiAgentSkill = () => {
 };
 
 export const useUpdateAiAgentSkill = () => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useInvalidateSkills();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
@@ -176,7 +196,8 @@ export const useUpdateAiAgentSkill = () => {
         ApiError,
         { skillUuid: string; files: AiAgentSkillFiles }
     >({
-        mutationFn: ({ skillUuid, files }) => updateSkill(skillUuid, files),
+        mutationFn: ({ skillUuid, files }) =>
+            updateSkill(lightdashApi, skillUuid, files),
         onSuccess: async (skill) => {
             await invalidate();
             showToastSuccess({
@@ -191,7 +212,14 @@ export const useUpdateAiAgentSkill = () => {
     });
 };
 
-export const useValidateAiAgentSkill = () =>
-    useMutation<AiAgentSkillValidationResult, ApiError, AiAgentSkillFiles>({
-        mutationFn: validateSkill,
+export const useValidateAiAgentSkill = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
+        AiAgentSkillValidationResult,
+        ApiError,
+        AiAgentSkillFiles
+    >({
+        mutationFn: (files: AiAgentSkillFiles) =>
+            validateSkill(lightdashApi, files),
     });
+};

@@ -7,11 +7,13 @@ import type {
     ApiUpdateAiAgentMemoryStatusRequest,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from './aiAgentRouting';
 
 const getAiAgentMemory = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     slug: string,
@@ -33,16 +35,23 @@ export const useAiAgentMemory = ({
     agentUuid?: string;
     slug?: string;
     enabled?: boolean;
-}) =>
-    useQuery<ApiAiAgentMemoryResponse['results'], ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentMemoryResponse['results'], ApiError>({
         queryKey: ['aiAgentMemory', projectUuid, slug],
-        queryFn: () => getAiAgentMemory(projectUuid!, agentUuid!, slug!),
+        queryFn: () =>
+            getAiAgentMemory(lightdashApi, projectUuid!, agentUuid!, slug!),
         enabled: enabled && Boolean(projectUuid && agentUuid && slug),
         retry: (failureCount, error) =>
             error.error?.statusCode !== 404 && failureCount < 2,
     });
+};
 
-const getMyAiAgentMemory = (projectUuid: string, slug: string) =>
+const getMyAiAgentMemory = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    slug: string,
+) =>
     lightdashApi<ApiAiAgentMemoryResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgentMemories/${slug}`,
@@ -59,27 +68,32 @@ export const useMyAiAgentMemory = ({
     projectUuid: string | undefined;
     slug: string | undefined;
     enabled?: boolean;
-}) =>
-    useQuery<ApiAiAgentMemoryResponse['results'], ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentMemoryResponse['results'], ApiError>({
         queryKey: ['aiAgentMemory', projectUuid, slug],
-        queryFn: () => getMyAiAgentMemory(projectUuid!, slug!),
+        queryFn: () => getMyAiAgentMemory(lightdashApi, projectUuid!, slug!),
         enabled: enabled && Boolean(projectUuid && slug),
         retry: (failureCount, error) =>
             error.error?.statusCode !== 404 && failureCount < 2,
     });
+};
 
 const MY_AI_AGENT_MEMORIES_QUERY_KEY = 'my-ai-agent-memories';
 
-const promoteAiAgentMemory = ({
-    projectUuid,
-    memoryUuid,
-    reason,
-}: {
-    projectUuid: string;
-    memoryUuid: string;
-    slug: string;
-    reason?: string;
-}) =>
+const promoteAiAgentMemory = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        memoryUuid,
+        reason,
+    }: {
+        projectUuid: string;
+        memoryUuid: string;
+        slug: string;
+        reason?: string;
+    },
+) =>
     lightdashApi<ApiPromoteAiAgentMemoryResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgentMemories/${memoryUuid}/promote`,
@@ -88,6 +102,7 @@ const promoteAiAgentMemory = ({
     });
 
 export const usePromoteAiAgentMemory = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -101,7 +116,12 @@ export const usePromoteAiAgentMemory = () => {
             reason?: string;
         }
     >({
-        mutationFn: promoteAiAgentMemory,
+        mutationFn: (args: {
+            projectUuid: string;
+            memoryUuid: string;
+            slug: string;
+            reason?: string;
+        }) => promoteAiAgentMemory(lightdashApi, args),
         onSuccess: (reviewItem, { projectUuid, slug }) => {
             queryClient.setQueryData<ApiAiAgentMemoryResponse['results']>(
                 ['aiAgentMemory', projectUuid, slug],
@@ -134,7 +154,10 @@ export const usePromoteAiAgentMemory = () => {
 // A user owns few memories per project, so one generous page is enough for v0
 const MY_AI_AGENT_MEMORIES_PAGE_SIZE = 100;
 
-const getMyAiAgentMemories = (projectUuid: string) =>
+const getMyAiAgentMemories = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ApiAiAgentUserMemoriesResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgentMemories?page=1&pageSize=${MY_AI_AGENT_MEMORIES_PAGE_SIZE}`,
@@ -148,10 +171,11 @@ export const useMyAiAgentMemories = ({
 }: {
     projectUuid: string | undefined;
     enabled?: boolean;
-}) =>
-    useQuery<ApiAiAgentUserMemoriesResponse['results'], ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiAgentUserMemoriesResponse['results'], ApiError>({
         queryKey: [MY_AI_AGENT_MEMORIES_QUERY_KEY, projectUuid],
-        queryFn: () => getMyAiAgentMemories(projectUuid!),
+        queryFn: () => getMyAiAgentMemories(lightdashApi, projectUuid!),
         enabled: enabled && Boolean(projectUuid),
         // Feature flags off / no project access are terminal, not transient
         retry: (failureCount, error) =>
@@ -159,17 +183,21 @@ export const useMyAiAgentMemories = ({
             error.error?.statusCode !== 403 &&
             failureCount < 2,
     });
+};
 
-const updateAiAgentMemoryStatus = ({
-    projectUuid,
-    memoryUuid,
-    status,
-}: {
-    projectUuid: string;
-    memoryUuid: string;
-    slug: string;
-    status: AiAgentMemoryEditableStatus;
-}) =>
+const updateAiAgentMemoryStatus = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        memoryUuid,
+        status,
+    }: {
+        projectUuid: string;
+        memoryUuid: string;
+        slug: string;
+        status: AiAgentMemoryEditableStatus;
+    },
+) =>
     lightdashApi<undefined>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgentMemories/${memoryUuid}/status`,
@@ -180,6 +208,7 @@ const updateAiAgentMemoryStatus = ({
     });
 
 export const useUpdateAiAgentMemoryStatus = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -193,7 +222,12 @@ export const useUpdateAiAgentMemoryStatus = () => {
             status: AiAgentMemoryEditableStatus;
         }
     >({
-        mutationFn: updateAiAgentMemoryStatus,
+        mutationFn: (args: {
+            projectUuid: string;
+            memoryUuid: string;
+            slug: string;
+            status: AiAgentMemoryEditableStatus;
+        }) => updateAiAgentMemoryStatus(lightdashApi, args),
         onSuccess: (_data, { projectUuid, slug, status }) => {
             queryClient.setQueryData<ApiAiAgentMemoryResponse['results']>(
                 ['aiAgentMemory', projectUuid, slug],

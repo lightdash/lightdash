@@ -63,6 +63,7 @@ import { useOrganizationDesigns } from '../../../../../features/organizationDesi
 import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -366,6 +367,7 @@ export const AgentChatInput = ({
     threadModelName,
     threadModelWarning = null,
 }: AgentChatInputProps) => {
+    const lightdashApi = useLightdashApi();
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
     const disabled = disabledProp || accessRefused;
@@ -649,7 +651,7 @@ export const AgentChatInput = ({
                         : '',
                 ],
             }),
-            createContentMentionExtension({
+            createContentMentionExtension(lightdashApi, {
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
                 getHidePersonalDataApps: () => hidePersonalDataAppsRef.current,
@@ -666,7 +668,7 @@ export const AgentChatInput = ({
                 },
             }),
         ],
-        [],
+        [lightdashApi],
     );
 
     // An @-mention dropdown with something to select owns Enter — it selects

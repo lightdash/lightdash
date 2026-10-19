@@ -6,11 +6,12 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { useGenerateCustomDimension } from './useGenerateCustomDimension';
 import { useGenerateTableCalculation } from './useGenerateTableCalculation';
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 
 const explore: Explore = {
     name: 'orders',
@@ -40,7 +41,7 @@ const wrapper = ({ children }: PropsWithChildren) => (
 describe('AI generator explore context', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue({});
+        mockedLightdashApi.mockResolvedValue({});
     });
 
     it.each([
@@ -66,14 +67,16 @@ describe('AI generator explore context', () => {
             );
             act(() => result.current.generate('one'));
 
-            await waitFor(() => expect(lightdashApi).toHaveBeenCalledOnce());
-            expect(lightdashApi).toHaveBeenCalledWith(
+            await waitFor(() =>
+                expect(sharedLightdashApi).toHaveBeenCalledOnce(),
+            );
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     url: `/ai/project/${generator}/generate`,
                     body: expect.any(String),
                 }),
             );
-            const request = vi.mocked(lightdashApi).mock.calls[0][0];
+            const request = mockedLightdashApi.mock.calls[0][0];
             expect(request.body).toBe(
                 JSON.stringify({
                     prompt: 'one',

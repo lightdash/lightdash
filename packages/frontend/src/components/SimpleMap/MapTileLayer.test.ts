@@ -2,6 +2,7 @@ import { JWT_HEADER_NAME, MapTileBackground } from '@lightdash/common';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import L from 'leaflet';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sharedLightdashApi } from '../../api';
 import { EMBED_KEY } from '../../ee/providers/Embed/types';
 import { getTileConfig } from '../../hooks/leaflet/useLeafletMapConfig';
 import { useTileFallback } from '../../hooks/leaflet/useTileFallback';
@@ -16,6 +17,7 @@ const coords = Object.assign(L.point(0, 0), { z: 1 });
 const createLayer = () => {
     const layer = new AuthenticatedTileLayer(
         '/map-tiles/light/{z}/{x}/{y}.png',
+        sharedLightdashApi,
         {},
     );
     return layer;

@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../../../api';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { type ComposerNodeStatus } from './composerNodeStatus';
 
 /** A node's status in the current run; error is the failed node's message. */
@@ -54,6 +54,8 @@ export const useComposerRunNodeStatuses = ({
     projectUuid: string;
     nodeQueryUuids: Record<string, string> | null;
 }): Record<string, ComposerRunNodeStatus> => {
+    const lightdashApi = useLightdashApi();
+
     const queryUuids = useMemo(
         () => Object.values(nodeQueryUuids ?? {}),
         [nodeQueryUuids],

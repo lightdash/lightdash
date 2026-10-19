@@ -22,6 +22,7 @@ import {
 } from '../features/explorer/store';
 import { useMergeSafe } from '../features/mergeQuery/context/useMerge';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExploreByProjectUuid } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
@@ -55,6 +56,8 @@ export const useExplorerQueryManager = ({
     projectUuid: explicitProjectUuid,
     savedQueryUuid: explicitSavedQueryUuid,
 }: ExplorerQueryManagerArgs = {}) => {
+    const lightdashApi = useLightdashApi();
+
     // Get state from Redux selectors
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -241,6 +244,7 @@ export const useExplorerQueryManager = ({
         latestCostCheck.current += 1;
         const costCheck = latestCostCheck.current;
         void fetchMetricQueryCostEstimate(
+            lightdashApi,
             queryClient,
             mainQueryArgs.projectUuid,
             estimateBody,
@@ -269,7 +273,13 @@ export const useExplorerQueryManager = ({
                 dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
             });
         return true;
-    }, [currentQueryArgs, confirmEstimatedBytesAbove, queryClient, dispatch]);
+    }, [
+        currentQueryArgs,
+        confirmEstimatedBytesAbove,
+        queryClient,
+        dispatch,
+        lightdashApi,
+    ]);
 
     // Compute loading state
     const isLoading = useMemo(() => {

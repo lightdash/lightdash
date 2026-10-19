@@ -5,9 +5,10 @@ import {
     type WarehouseConnectCodeClaimResult,
 } from '@lightdash/common';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
-const mintWarehouseConnectCode = async () =>
+const mintWarehouseConnectCode = async (lightdashApi: LightdashApi) =>
     lightdashApi<WarehouseConnectCode>({
         url: `/warehouse-connect/code`,
         method: 'POST',
@@ -15,6 +16,7 @@ const mintWarehouseConnectCode = async () =>
     });
 
 const claimWarehouseConnectCode = async (
+    lightdashApi: LightdashApi,
     body: ClaimWarehouseConnectCodeRequest,
 ) =>
     lightdashApi<WarehouseConnectCodeClaimResult>({
@@ -23,16 +25,21 @@ const claimWarehouseConnectCode = async (
         body: JSON.stringify(body),
     });
 
-export const useMintWarehouseConnectCode = () =>
-    useMutation<WarehouseConnectCode, ApiError>(mintWarehouseConnectCode);
+export const useMintWarehouseConnectCode = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<WarehouseConnectCode, ApiError>(() =>
+        mintWarehouseConnectCode(lightdashApi),
+    );
+};
 
 export const useWarehouseConnectCodeClaim = (
     code: string | null,
     enabled: boolean,
-) =>
-    useQuery<WarehouseConnectCodeClaimResult, ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<WarehouseConnectCodeClaimResult, ApiError>(
         ['warehouse-connect-claim', code],
-        () => claimWarehouseConnectCode({ code: code ?? '' }),
+        () => claimWarehouseConnectCode(lightdashApi, { code: code ?? '' }),
         {
             enabled: enabled && !!code,
             refetchInterval: enabled ? 2000 : false,
@@ -40,3 +47,4 @@ export const useWarehouseConnectCodeClaim = (
             retry: false,
         },
     );
+};

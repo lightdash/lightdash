@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { APP_PREVIEW_TOKEN_REFRESH_INTERVAL_MS } from '../../apps/hooks/previewTokenQueryOptions';
 import {
     useDataAppVizPreviewToken,
@@ -11,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     useQuery: vi.fn(),
 }));
 
-vi.mock('../../../api', () => ({ lightdashApi: mocks.lightdashApi }));
+vi.mock('../../../api');
 vi.mock('@tanstack/react-query', () => ({
     useQuery: mocks.useQuery,
     useQueryClient: () => ({}),
@@ -47,7 +48,7 @@ const apiError = (statusCode: number) => ({
 
 describe('useDataAppVizRender', () => {
     beforeEach(() => {
-        mocks.lightdashApi.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.useQuery.mockReset();
         mocks.useQuery.mockImplementation((options) => options);
     });
@@ -73,7 +74,7 @@ describe('useDataAppVizRender', () => {
         ]);
         expect(query.enabled).toBe(true);
         await query.queryFn();
-        expect(mocks.lightdashApi).toHaveBeenCalledWith({
+        expect(mockedLightdashApi).toHaveBeenCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata',
         });
@@ -101,17 +102,17 @@ describe('useDataAppVizRender', () => {
             useDataAppVizRenderMetadata('project-1', 'viz-1', target, 3),
         );
         await (result.current as unknown as CapturedQuery).queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/charts/c4/render-metadata?documentVersionUuid=document-version-2',
         });
 
-        mocks.lightdashApi.mockResolvedValue({ token: 'token-3' });
+        mockedLightdashApi.mockResolvedValue({ token: 'token-3' });
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken('project-1', 'viz-1', 3, target, 3),
         );
         await (tokenResult.current as unknown as CapturedQuery).queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/documents/document-1/charts/c4/versions/3/preview-token?documentVersionUuid=document-version-2',
         });
@@ -127,7 +128,7 @@ describe('useDataAppVizRender', () => {
             useDataAppVizRenderMetadata('project-1', 'viz-1', target),
         );
         await (result.current as unknown as CapturedQuery).queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/charts/chart-1/render-metadata?chartVersionUuid=version-9',
         });
@@ -143,7 +144,7 @@ describe('useDataAppVizRender', () => {
             useDataAppVizRenderMetadata('project-1', 'viz-1', target),
         );
         await (result.current as unknown as CapturedQuery).queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
         });
@@ -158,17 +159,17 @@ describe('useDataAppVizRender', () => {
 
         expect(query.enabled).toBe(true);
         await query.queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata',
         });
 
-        mocks.lightdashApi.mockResolvedValue({ token: 'token-3' });
+        mockedLightdashApi.mockResolvedValue({ token: 'token-3' });
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken('project-1', 'viz-1', 3, target),
         );
         await (tokenResult.current as unknown as CapturedQuery).queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/versions/3/preview-token',
         });
@@ -182,7 +183,7 @@ describe('useDataAppVizRender', () => {
 
         await (result.current as unknown as CapturedQuery).queryFn();
 
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/ee/projects/project-1/apps/visualizations/viz-1/render-metadata?version=2',
         });
@@ -190,7 +191,7 @@ describe('useDataAppVizRender', () => {
 
     it('requests the preview token for the exact version returned by pinned chartless metadata', async () => {
         const target = { isEmbedded: false, savedChartUuid: undefined };
-        mocks.lightdashApi.mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             state: 'ready',
             version: 2,
             latestBuildInProgress: false,
@@ -203,7 +204,7 @@ describe('useDataAppVizRender', () => {
             metadataResult.current as unknown as CapturedQuery
         ).queryFn()) as { version: number };
 
-        mocks.lightdashApi.mockResolvedValueOnce({ token: 'token-2' });
+        mockedLightdashApi.mockResolvedValueOnce({ token: 'token-2' });
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken(
                 'project-1',
@@ -217,7 +218,7 @@ describe('useDataAppVizRender', () => {
             (tokenResult.current as unknown as CapturedQuery).queryFn(),
         ).resolves.toBe('token-2');
 
-        expect(mocks.lightdashApi.mock.calls).toEqual([
+        expect(mockedLightdashApi.mock.calls).toEqual([
             [
                 {
                     method: 'GET',
@@ -245,12 +246,12 @@ describe('useDataAppVizRender', () => {
             metadataResult.current as unknown as CapturedQuery;
 
         await metadataQuery.queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/render-metadata',
         });
 
-        mocks.lightdashApi.mockResolvedValue({ token: 'token-7' });
+        mockedLightdashApi.mockResolvedValue({ token: 'token-7' });
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken('project-1', 'viz-1', 7, target),
         );
@@ -276,7 +277,7 @@ describe('useDataAppVizRender', () => {
             undefined,
             undefined,
         ]);
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/embed/project-1/chart/chart-1/visualizations/viz-1/versions/7/preview-token',
         });
@@ -290,19 +291,19 @@ describe('useDataAppVizRender', () => {
         const metadataQuery = result.current as unknown as CapturedQuery;
         expect(metadataQuery.enabled).toBe(true);
         await metadataQuery.queryFn();
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/embed/project-1/visualizations/viz-1/render-metadata?version=2',
         });
 
-        mocks.lightdashApi.mockResolvedValue({ token: 'token-2' });
+        mockedLightdashApi.mockResolvedValue({ token: 'token-2' });
         const { result: tokenResult } = renderHook(() =>
             useDataAppVizPreviewToken('project-1', 'viz-1', 2, target, 2),
         );
         const tokenQuery = tokenResult.current as unknown as CapturedQuery;
         expect(tokenQuery.enabled).toBe(true);
         await expect(tokenQuery.queryFn()).resolves.toBe('token-2');
-        expect(mocks.lightdashApi).toHaveBeenLastCalledWith({
+        expect(mockedLightdashApi).toHaveBeenLastCalledWith({
             method: 'GET',
             url: '/embed/project-1/visualizations/viz-1/versions/2/preview-token',
         });

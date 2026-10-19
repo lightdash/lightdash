@@ -18,7 +18,6 @@ import {
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
-import { lightdashApi } from '../../../../api';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
@@ -32,6 +31,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { useAiOrganizationSettings } from '../../aiCopilot/hooks/useAiOrganizationSettings';
 import { useProjectAiAgents } from '../../aiCopilot/hooks/useProjectAiAgents';
 import EmbedAllowListForm from './EmbedAllowListForm';
@@ -42,6 +42,7 @@ import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
 import EmbedWriteActionsForm from './EmbedWriteActionsForm';
 
 const useEmbedConfig = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<DecodedEmbed, ApiError>({
         queryKey: ['embed-config', projectUuid],
         enabled: !!projectUuid,
@@ -56,6 +57,7 @@ const useEmbedConfig = (projectUuid: string) => {
 };
 
 const useEmbedConfigCreateMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<DecodedEmbed, ApiError, { dashboardUuids: string[] }>(
@@ -86,6 +88,7 @@ const useEmbedConfigCreateMutation = (projectUuid: string) => {
 };
 
 const useEmbedConfigUpdateMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<null, ApiError, UpdateEmbed>(

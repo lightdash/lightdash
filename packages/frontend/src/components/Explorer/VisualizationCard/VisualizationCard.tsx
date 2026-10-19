@@ -48,6 +48,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
@@ -89,6 +90,7 @@ type Props = {
 };
 
 const VisualizationCard: FC<Props> = memo((props) => {
+    const lightdashApi = useLightdashApi();
     const {
         projectUuid: fallBackUUid,
         renderVisualization,
@@ -300,7 +302,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         customLabels?: Record<string, string>,
     ) => {
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const gsheetResponse = await uploadGsheet({
+            const gsheetResponse = await uploadGsheet(lightdashApi, {
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,

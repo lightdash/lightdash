@@ -33,13 +33,13 @@ import {
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     handleGsheetExport,
@@ -454,6 +454,7 @@ export function useAppSdkBridge({
     onInsightsInUse,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
+    const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
@@ -740,7 +741,8 @@ export function useAppSdkBridge({
                             ability: user.data.ability,
                             projectUuid: projectUuid ?? '',
                             organizationUuid: user.data.organizationUuid ?? '',
-                            getAccessToken: getGdriveAccessToken,
+                            getAccessToken: () =>
+                                getGdriveAccessToken(lightdashApi),
                             triggerLogin: triggerGdriveLogin,
                             lightdashApi: ({ url, method, body }) =>
                                 lightdashApi({
@@ -1395,6 +1397,7 @@ export function useAppSdkBridge({
             onInsightAction,
             onInsightsInUse,
             onMountedQueriesChange,
+            lightdashApi,
         ],
     );
 

@@ -4,10 +4,12 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 
 const checkPreAggregate = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     exploreName: string,
     metricQuery: MetricQuery,
@@ -36,6 +38,7 @@ export const usePreAggregateCheck = ({
     usePreAggregateCache: boolean;
     enabled: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiPreAggregateCheckResponse['results'], ApiError>({
         queryKey: [
             'preAggregateCheck',
@@ -46,6 +49,7 @@ export const usePreAggregateCheck = ({
         ],
         queryFn: () =>
             checkPreAggregate(
+                lightdashApi,
                 projectUuid!,
                 exploreName!,
                 metricQuery!,

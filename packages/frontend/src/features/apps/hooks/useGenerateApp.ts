@@ -12,7 +12,8 @@ import {
     type DataAppTemplate,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GenerateAppParams = {
     projectUuid: string;
@@ -38,23 +39,26 @@ export type GenerateAppParams = {
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
 
-const generateApp = async ({
-    projectUuid,
-    prompt,
-    vizContext,
-    template,
-    creationExperience,
-    fileIds,
-    appUuid,
-    charts,
-    dashboard,
-    clarifications,
-    spaceUuid,
-    claudeModel,
-    codexModel,
-    designUuid,
-    externalConnections,
-}: GenerateAppParams): Promise<GenerateAppResult> => {
+const generateApp = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        prompt,
+        vizContext,
+        template,
+        creationExperience,
+        fileIds,
+        appUuid,
+        charts,
+        dashboard,
+        clarifications,
+        spaceUuid,
+        claudeModel,
+        codexModel,
+        designUuid,
+        externalConnections,
+    }: GenerateAppParams,
+): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/`,
@@ -81,7 +85,10 @@ const generateApp = async ({
     return data;
 };
 
-export const useGenerateApp = () =>
-    useMutation<GenerateAppResult, ApiError, GenerateAppParams>({
-        mutationFn: generateApp,
+export const useGenerateApp = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<GenerateAppResult, ApiError, GenerateAppParams>({
+        mutationFn: (args: GenerateAppParams) =>
+            generateApp(lightdashApi, args),
     });
+};

@@ -22,11 +22,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { v4 as uuid, validate as isUuid } from 'uuid';
-import { lightdashApi } from '../../api';
 import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { ApprovalActionRow } from './ApprovalActionRow';
 import {
     ApprovalCompletion,
@@ -43,6 +43,8 @@ const isTerminal = (failure: ApprovalError | null) =>
             'approval_request_consumed');
 
 const ApprovalReview = ({ requestUuid }: { requestUuid: string }) => {
+    const lightdashApi = useLightdashApi();
+
     const client = useQueryClient();
     const navigate = useNavigate();
     const location = useLocation();

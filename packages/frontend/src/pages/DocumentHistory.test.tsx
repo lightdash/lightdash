@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import DocumentHistoryPage from './DocumentHistory';
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.unmock('@uiw/react-markdown-preview');
-vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../api');
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -149,8 +150,8 @@ const renderPage = (search = '') => {
 
 describe('Document history page', () => {
     beforeEach(() => {
-        mocks.api.mockReset();
-        mocks.api.mockImplementation(respond);
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockImplementation(respond);
         mocks.flag = {
             data: { enabled: true },
             isInitialLoading: false,
@@ -176,7 +177,7 @@ describe('Document history page', () => {
         expect(
             screen.getByRole('button', { name: /^Version 1, saved/ }),
         ).toHaveAttribute('aria-pressed', 'false');
-        expect(mocks.api).not.toHaveBeenCalledWith(
+        expect(mockedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: expect.stringContaining('/versions/'),
             }),
@@ -277,7 +278,7 @@ describe('Document history page', () => {
     test('opens a linked version directly', async () => {
         renderPage('?version=version-1');
         expect(await screen.findByText('Earlier findings')).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/document-uuid/versions/version-1',
             }),
@@ -319,6 +320,6 @@ describe('Document history page', () => {
         };
         renderPage();
         expect(await screen.findByText('Project home')).toBeInTheDocument();
-        expect(mocks.api).not.toHaveBeenCalled();
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
     });
 });

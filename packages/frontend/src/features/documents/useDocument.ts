@@ -6,14 +6,15 @@ import {
     type UuidOrSlug,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 export const useDocument = (
     projectUuid: string,
     documentUuidOrSlug: UuidOrSlug,
     { enabled = true }: { enabled?: boolean } = {},
-) =>
-    useQuery<Document, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<Document, ApiError>({
         queryKey: ['document', projectUuid, documentUuidOrSlug],
         queryFn: ({ signal }) =>
             lightdashApi<Document>({
@@ -25,14 +26,16 @@ export const useDocument = (
         retry: false,
         enabled,
     });
+};
 
 export const useDocumentChartQuery = (
     projectUuid: string,
     documentUuid: string,
     versionUuid: string,
     chartId: string,
-) =>
-    useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         queryKey: [
             'document-chart-query',
             projectUuid,
@@ -50,3 +53,4 @@ export const useDocumentChartQuery = (
         retry: false,
         refetchOnWindowFocus: false,
     });
+};

@@ -14,11 +14,11 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { ApprovalCompletion } from './ApprovalCompletion';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: true } }),
 }));
@@ -67,7 +67,7 @@ const refused = (
         connectUrl: null,
     },
 });
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 let access = ready();
 let multi = false;
 let enumerationError = false;

@@ -16,15 +16,13 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
 const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (id: FeatureFlags) => ({
@@ -37,7 +35,7 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const original: WarehouseConnection = {
     warehouseConnectionUuid: 'original-uuid',

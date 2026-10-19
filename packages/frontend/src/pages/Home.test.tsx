@@ -4,9 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { useCollectionContent } from '../ee/features/homepageBuilder/hooks/useCollectionContent';
 import type * as homepageHooks from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import Home from './Home';
 
 const homepageFlag = vi.hoisted(() => ({
@@ -15,7 +16,7 @@ const homepageFlag = vi.hoisted(() => ({
     projectUuid: 'project-1',
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => homepageFlag.projectUuid,
 }));
@@ -125,7 +126,7 @@ const renderHome = () => {
     return { ...view, client, refresh: () => view.rerender(element()) };
 };
 
-const apiMock = vi.mocked(lightdashApi);
+const apiMock = mockedLightdashApi;
 const requestedUrls = () => apiMock.mock.calls.map(([args]) => args.url);
 
 describe('homepage content loading', () => {
@@ -164,9 +165,7 @@ describe('homepage content loading', () => {
             if (!(url in responses))
                 throw new Error(`Unexpected request: ${url}`);
             if (responses[url] instanceof Error) throw responses[url];
-            return (await responses[url]) as Awaited<
-                ReturnType<typeof lightdashApi>
-            >;
+            return (await responses[url]) as Awaited<ReturnType<LightdashApi>>;
         });
     };
 

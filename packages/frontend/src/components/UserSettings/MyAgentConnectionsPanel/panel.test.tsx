@@ -2,12 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import baseline from './__fixtures__/main-no-connections.json';
 import { MyAgentConnectionsPanel } from './index';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../features/aiAccess/api', () => ({
     useOrganizationAgentIdentitySettings: () => ({ data: { rules: [] } }),
 }));
@@ -21,7 +21,7 @@ vi.mock(
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: true } }),
 }));
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 const normalizeDom = (container: HTMLElement) =>
     container.innerHTML
         .replace(/<style[\s\S]*?<\/style>/g, '')

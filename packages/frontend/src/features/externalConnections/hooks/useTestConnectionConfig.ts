@@ -5,8 +5,9 @@ import {
     type ExternalFetchResponse,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type TestConfigParams = {
     projectUuid: string;
@@ -19,10 +20,10 @@ type TestConfigParams = {
 
 /** Test an unsaved connection config (incl. plaintext secret) before creating
  *  it. Used by the onboarding wizard's test step. */
-const testConnectionConfig = async ({
-    projectUuid,
-    ...body
-}: TestConfigParams): Promise<ExternalFetchResponse> =>
+const testConnectionConfig = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, ...body }: TestConfigParams,
+): Promise<ExternalFetchResponse> =>
     lightdashApi<ExternalFetchResponse>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/external-connections/test-config`,
@@ -31,9 +32,11 @@ const testConnectionConfig = async ({
     });
 
 export const useTestConnectionConfig = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<ExternalFetchResponse, ApiError, TestConfigParams>({
-        mutationFn: testConnectionConfig,
+        mutationFn: (args: TestConfigParams) =>
+            testConnectionConfig(lightdashApi, args),
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Test request failed',

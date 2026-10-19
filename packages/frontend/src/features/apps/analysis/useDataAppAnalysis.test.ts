@@ -66,7 +66,7 @@ describe('useDataAppAnalysis', () => {
         vi.clearAllMocks();
         vi.useFakeTimers();
         vi.mocked(detectDataAppAnomalies).mockImplementation(
-            async ({ appUuid }) => analysis(appUuid),
+            async (_lightdashApi, { appUuid }) => analysis(appUuid),
         );
         vi.mocked(lookupDataAppAnalysis).mockResolvedValue(null);
     });
@@ -165,6 +165,7 @@ describe('useDataAppAnalysis', () => {
         await settle();
         expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
         expect(lookupDataAppAnalysis).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 sources: [
                     { queryUuid: 'q-1', label: 'Orders' },
@@ -215,6 +216,7 @@ describe('useDataAppAnalysis', () => {
             await result.current.analyse();
         });
         expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({ force: true }),
         );
     });
@@ -227,6 +229,7 @@ describe('useDataAppAnalysis', () => {
             await result.current.analyse();
         });
         expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({ force: false }),
         );
     });
@@ -237,6 +240,7 @@ describe('useDataAppAnalysis', () => {
         expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(1);
         expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
         expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({ appUuid: 'app-a', force: false }),
         );
         expect(result.current.state.status).toBe('ready');
@@ -331,6 +335,7 @@ describe('useDataAppAnalysis', () => {
         });
         expect(resolvers).toHaveLength(2);
         expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 sources: [{ queryUuid: 'q-2', label: 'Orders' }],
             }),
@@ -403,7 +408,9 @@ describe('useDataAppAnalysis', () => {
         it('reloads the app once, then analyses the fresh view', async () => {
             vi.mocked(detectDataAppAnomalies)
                 .mockRejectedValueOnce(expired)
-                .mockImplementation(async ({ appUuid }) => analysis(appUuid));
+                .mockImplementation(async (_lightdashApi, { appUuid }) =>
+                    analysis(appUuid),
+                );
             const onSourcesExpired = vi.fn();
             const { result, rerender } = renderHook(
                 ({ queries }: { queries: QueryEvent[] }) =>
@@ -429,6 +436,7 @@ describe('useDataAppAnalysis', () => {
             await settle();
             expect(detectDataAppAnomalies).toHaveBeenCalledTimes(2);
             expect(detectDataAppAnomalies).toHaveBeenLastCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sources: [{ queryUuid: 'q-2', label: 'Orders' }],
                     force: false,

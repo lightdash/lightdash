@@ -20,9 +20,10 @@ import {
     useLocation,
 } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
 import { AbilityContext } from '../../providers/Ability/context';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -31,7 +32,7 @@ import { renderWithProviders } from '../../testing/testUtils';
 import { DashboardChartEditorActionsPortalId } from './constants';
 import DashboardChartEditorModal from './DashboardChartEditorModal';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
 // The Explorer is out of scope here; a probe exposes the store's saved chart
 // so the test can see the rename reach the editing session, and stands in for
@@ -273,7 +274,7 @@ describe('DashboardChartEditorModal header', () => {
             dispatchEvent: vi.fn(),
         }));
         chartOnServer = editChart;
-        vi.mocked(lightdashApi).mockImplementation((async ({
+        mockedLightdashApi.mockImplementation((async ({
             url,
             method,
             body,
@@ -300,7 +301,7 @@ describe('DashboardChartEditorModal header', () => {
                 return chartOnServer;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
     });
 
     afterEach(() => {
@@ -333,7 +334,7 @@ describe('DashboardChartEditorModal header', () => {
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     method: 'PATCH',
                     url: '/saved/chart-uuid',

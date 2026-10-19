@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import {
     resolveExploreWarehouseConnection,
     useExploreWarehouseConnection,
@@ -23,7 +23,7 @@ const exploreConnection: ApiExploreResults['warehouseConnection'] = {
     startOfWeek: WeekDay.SUNDAY,
 };
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('./useQueryError', () => ({ default: () => vi.fn() }));
 const flag = vi.hoisted(() => ({ enabled: true }));
 vi.mock('./useServerOrClientFeatureFlag', () => ({
@@ -145,7 +145,7 @@ describe('useExploreWarehouseConnection', () => {
             startOfWeek: WeekDay.SUNDAY,
         });
         await act(() => queryClient.invalidateQueries(exploreKey));
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 
     it('uses an unsupported formula dialect when the cached explore connection changes', async () => {
@@ -174,7 +174,7 @@ describe('useExploreWarehouseConnection', () => {
                 startOfWeek: null,
             }),
         );
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 
     it('uses the project fallback when no explore is selected', () => {
@@ -188,7 +188,7 @@ describe('useExploreWarehouseConnection', () => {
             warehouseType: WarehouseTypes.POSTGRES,
             startOfWeek: WeekDay.MONDAY,
         });
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 
     it('updates when the explore loads and does not reuse it for another explore or project', async () => {
@@ -205,7 +205,7 @@ describe('useExploreWarehouseConnection', () => {
             },
         );
         expect(result.current.warehouseType).toBe(WarehouseTypes.POSTGRES);
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
 
         act(() => {
             queryClient.setQueryData(exploreKey, {
@@ -221,6 +221,6 @@ describe('useExploreWarehouseConnection', () => {
         expect(result.current.warehouseType).toBe(WarehouseTypes.POSTGRES);
         rerender({ exploreName: 'orders', projectUuid: 'other-project' });
         expect(result.current.warehouseType).toBe(WarehouseTypes.POSTGRES);
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

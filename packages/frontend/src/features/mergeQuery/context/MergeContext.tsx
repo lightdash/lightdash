@@ -26,6 +26,7 @@ import {
 import { useSearchParams } from 'react-router';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../../hooks/useQueryResults';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     DEFAULT_ADDITIONAL_SOURCE_ID,
     emptyMergeSource,
@@ -54,6 +55,7 @@ export const MergeProvider: FC<
         readOnly?: boolean;
     }>
 > = ({ children, savedMerge, readOnly = false }) => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const [searchParams, setSearchParams] = useSearchParams();
     // Restored once, on mount. A link wins over the chart's stored merge, so
@@ -437,7 +439,13 @@ export const MergeProvider: FC<
                 ranMergeQuery: null,
                 lastRunMergeQuery: mergeQuery,
             }));
-            executeMergeQuery(projectUuid, mergeQuery, parameters, savedChart)
+            executeMergeQuery(
+                lightdashApi,
+                projectUuid,
+                mergeQuery,
+                parameters,
+                savedChart,
+            )
                 .then(async (result) => {
                     if (activeRun.current !== runId) return;
                     if (result.outcome === 'refused') {
@@ -466,6 +474,7 @@ export const MergeProvider: FC<
                         if (pivotConfiguration) {
                             try {
                                 unpivoted = await executeMergeQuery(
+                                    lightdashApi,
                                     projectUuid,
                                     mergeQuery,
                                     parameters,
@@ -538,7 +547,7 @@ export const MergeProvider: FC<
                     }));
                 });
         },
-        [projectUuid],
+        [projectUuid, lightdashApi],
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -548,6 +557,7 @@ export const MergeProvider: FC<
             }
             const { mergeQuery, parameters, savedChart } = lastRun.current;
             const result = await executeMergeQuery(
+                lightdashApi,
                 projectUuid,
                 mergeQuery,
                 parameters,
@@ -561,7 +571,7 @@ export const MergeProvider: FC<
             }
             return result.query.queryUuid;
         },
-        [projectUuid],
+        [projectUuid, lightdashApi],
     );
 
     const { started, unpivotedStarted } = runState;
