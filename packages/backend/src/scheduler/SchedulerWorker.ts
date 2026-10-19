@@ -2186,7 +2186,7 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
             },
-            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async () => {
+            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async (payload) => {
                 const { usageEvents } = this.lightdashConfig;
                 if (!usageEvents.enabled || usageEvents.s3 === null) {
                     Logger.debug(
@@ -2200,7 +2200,10 @@ export class SchedulerWorker extends SchedulerTask {
                     usageDimensionsModel: this.usageDimensionsModel,
                     featureFlagModel: this.featureFlagModel,
                 });
-                const summary = await compactor.run();
+                const summary = await compactor.run(
+                    new Date(),
+                    payload.organizationUuid || undefined,
+                );
                 Sentry.getActiveSpan()?.setAttributes({
                     'lightdash.usage_events.partitions_discovered':
                         summary.partitionsDiscovered,

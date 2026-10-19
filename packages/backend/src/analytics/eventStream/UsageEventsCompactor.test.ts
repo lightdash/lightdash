@@ -117,9 +117,14 @@ const createCompactor = (metrics: MetricsMock) =>
         },
         s3Config,
         usageDimensionsModel: {
-            async *getOrganizations() {
-                for (const [index, id] of listedOrgs.entries())
-                    yield { organization_id: index + 1, organization_uuid: id };
+            async *getOrganizations(organizationUuid?: string) {
+                for (const [index, id] of listedOrgs.entries()) {
+                    if (!organizationUuid || id === organizationUuid)
+                        yield {
+                            organization_id: index + 1,
+                            organization_uuid: id,
+                        };
+                }
             },
             async *getJsonLines() {},
         },
@@ -325,6 +330,56 @@ describe('UsageEventsCompactor.run', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.restoreAllMocks();
+    });
+
+    it('scopes raw discovery, dimensions and summaries to the requested organization', async () => {
+        mockListedKeys([
+            rawKey('org-1', 'query_events', '2026-07-01'),
+            rawKey('org-2', 'query_events', '2026-07-01'),
+        ]);
+        const compactor = createCompactor(metrics);
+        expect((await compactor.run(NOW, 'org-2')).partitionsCompacted).toBe(1);
+        expect(s3Mocks.listObjectsV2).toHaveBeenCalledWith(
+            expect.objectContaining({
+                Prefix: 'events/raw/org_id=org-2/',
+            }),
+        );
+        expect(s3Mocks.listObjectsV2).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                Prefix: 'events/raw/org_id=org-1/',
+            }),
+        );
+        expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
+            NOW,
+            ['org-2'],
+        );
+        const refresher = vi.spyOn(UsageDimensionsRefresher.prototype, 'run');
+        expect(refresher).toHaveBeenCalledOnce();
+    });
+
+    it('rechecks eligibility and leaves all storage untouched if the scoped org is disabled', async () => {
+        const compactor = new UsageEventsCompactor({
+            s3Config,
+            prometheusMetrics: null,
+            featureFlagModel: {
+                get: async () => ({ id: 'analytics-project', enabled: false }),
+            },
+            usageDimensionsModel: {
+                async *getOrganizations() {
+                    yield { organization_id: 1, organization_uuid: 'org-1' };
+                },
+                async *getJsonLines() {},
+            },
+        });
+        const summary = await compactor.run(NOW, 'org-1');
+        expect(summary.partitionsCompacted).toBe(0);
+        expect(s3Mocks.listObjectsV2).not.toHaveBeenCalled();
+        expect(s3Mocks.putObject).not.toHaveBeenCalled();
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+        expect(UsageUserActivityBuilder.prototype.runAll).toHaveBeenCalledWith(
+            NOW,
+            [],
+        );
     });
 
     it('never deletes raw files when the compaction write fails', async () => {

@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
+    JobPriority,
     LightdashPage,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerFormat,
     TraceTaskBase,
@@ -62,6 +64,24 @@ const traceProperties: TraceTaskBase = {
 
 // A fixed start-of-day so getDailyDatesFromCron deterministically yields jobs.
 const startingDateTime = new Date(2023, 0, 1);
+
+describe('initial usage processing', () => {
+    it('deduplicates by organization and shares the serial nightly queue without retries', async () => {
+        const client = makeClient(true, vi.fn());
+        await client.scheduleInitialUsageProcessing(traceProperties);
+        expect(graphileAddJob).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            traceProperties,
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `initial-usage-processing:${ORG_UUID}`,
+                jobKeyMode: 'unsafe_dedupe',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
 
 describe('SchedulerClient per-org delivery queue', () => {
     afterEach(() => {
