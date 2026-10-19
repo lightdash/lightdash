@@ -1,3 +1,10 @@
+# [2.611.0](https://github.com/lightdash/lightdash/compare/2.610.2...2.611.0) (2026-10-19)
+
+
+### Features
+
+* **ai:** deterministic seasonality pre-pass for data-app anomaly detection ([#31153](https://github.com/lightdash/lightdash/issues/31153)) ([941d5c7](https://github.com/lightdash/lightdash/commit/941d5c77449b3bccbf1c4ef8dce69a9d60bbc20e))
+
 ## [2.610.2](https://github.com/lightdash/lightdash/compare/2.610.1...2.610.2) (2026-10-19)
 
 
