@@ -5,6 +5,7 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
+import isEqual from 'lodash/isEqual';
 import { hasSavedFilterValueChanged } from '../../dashboardFilters/FilterConfiguration/utils';
 import {
     addSavedFilterOverride,
@@ -104,6 +105,11 @@ const removeAt = <T>(items: T[], index: number): T[] => [
     ...items.slice(0, index),
     ...items.slice(index + 1),
 ];
+
+// Tile queries and the URL send filters as JSON; re-applying an override an
+// edit already applied only adds undefined keys, which JSON drops
+const isSameOnTheWire = (a: DashboardFilters, b: DashboardFilters) =>
+    isEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
 
 // Plain reducer rather than createSlice: Immer would deep-freeze the react-query
 // dashboard objects stored here and break any code that still mutates them.
@@ -239,7 +245,9 @@ export const dashboardFiltersReducer = (
                 overrides,
             );
         }
-        return { ...state, dashboardFilters };
+        return isSameOnTheWire(dashboardFilters, previous)
+            ? state
+            : { ...state, dashboardFilters };
     }
     return state;
 };

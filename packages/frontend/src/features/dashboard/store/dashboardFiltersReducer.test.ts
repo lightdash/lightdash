@@ -401,5 +401,45 @@ describe('dashboardFiltersReducer', () => {
             );
             expect(next.dashboardFilters.metrics[0].values).toEqual([500]);
         });
+
+        it('keeps the state when the override is already applied', () => {
+            const state: DashboardFiltersState = {
+                ...initialDashboardFiltersState,
+                dashboardFilters: filtersWith('dimensions', [
+                    { ...saved, values: ['returned'] },
+                ]),
+            };
+            const next = reducer(
+                state,
+                actions.applySavedFilterOverrides(
+                    filtersWith('dimensions', [
+                        toSavedFilterOverride({
+                            ...saved,
+                            values: ['returned'],
+                        }),
+                    ]),
+                ),
+            );
+            expect(next).toBe(state);
+        });
+
+        it('treats a Date value and its ISO string as the same filter', () => {
+            const date = new Date('2026-01-01T00:00:00.000Z');
+            const state: DashboardFiltersState = {
+                ...initialDashboardFiltersState,
+                dashboardFilters: filtersWith('dimensions', [
+                    { ...saved, values: [date] },
+                ]),
+            };
+            const next = reducer(
+                state,
+                actions.applySavedFilterOverrides(
+                    filtersWith('dimensions', [
+                        { ...saved, values: [date.toISOString()] },
+                    ]),
+                ),
+            );
+            expect(next).toBe(state);
+        });
     });
 });

@@ -384,9 +384,9 @@ const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
-        filterBar: 3,
+        filterBar: 2,
         parameterBar: 0,
-        page: 3,
+        page: 2,
     },
     'add a temporary filter': {
         wholeContextConsumer: 1,
@@ -412,8 +412,8 @@ const BASELINE: Record<string, Counts> = {
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
         tiles: 10 * TILE_COUNT,
-        filterBar: 30,
+        filterBar: 20,
         parameterBar: 0,
-        page: 30,
+        page: 20,
     },
 };
