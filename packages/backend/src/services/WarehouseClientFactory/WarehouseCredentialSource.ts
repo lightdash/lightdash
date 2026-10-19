@@ -30,13 +30,11 @@ export type WarehouseCredentialBase = {
     | {
           kind: 'original';
           warehouseConnectionUuid: null;
-          organizationWarehouseCredentialsUuid: string | null;
       }
     | {
           kind: 'extra';
           warehouseConnectionUuid: string;
           project: WarehouseConnectionProject;
-          organizationWarehouseCredentialsUuid: string | null;
       }
 );
 

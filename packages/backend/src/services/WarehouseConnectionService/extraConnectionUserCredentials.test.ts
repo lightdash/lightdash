@@ -29,39 +29,27 @@ describe('extra connection user credentials', () => {
         expect(
             getExtraConnectionRequireUserCredentials(original, {
                 credentials: { ...original, requireUserCredentials: false },
-                organizationWarehouseCredentialsUuid: null,
             }),
         ).toBe(true);
     });
-    it.each([null, 'organization-credentials-uuid'])(
-        'keeps mixed-type credential requirements for source %s',
-        (organizationWarehouseCredentialsUuid) => {
-            expect(
-                getExtraConnectionRequireUserCredentials(original, {
-                    credentials: extra,
-                    organizationWarehouseCredentialsUuid,
-                }),
-            ).toBe(false);
-            expect(
-                getExtraConnectionRequireUserCredentials(
-                    { ...original, requireUserCredentials: false },
-                    {
-                        credentials: { ...extra, requireUserCredentials: true },
-                        organizationWarehouseCredentialsUuid,
-                    },
-                ),
-            ).toBe(true);
-            expect(
-                getExtraConnectionRequireUserCredentials(original, {
-                    credentials: {
-                        ...extra,
-                        requireUserCredentials: undefined,
-                    },
-                    organizationWarehouseCredentialsUuid,
-                }),
-            ).toBe(false);
-        },
-    );
+    it('keeps mixed-type credential requirements independent of the primary', () => {
+        expect(
+            getExtraConnectionRequireUserCredentials(original, {
+                credentials: extra,
+            }),
+        ).toBe(false);
+        expect(
+            getExtraConnectionRequireUserCredentials(
+                { ...original, requireUserCredentials: false },
+                { credentials: { ...extra, requireUserCredentials: true } },
+            ),
+        ).toBe(true);
+        expect(
+            getExtraConnectionRequireUserCredentials(original, {
+                credentials: { ...extra, requireUserCredentials: undefined },
+            }),
+        ).toBe(false);
+    });
     it('tests Trino shared credentials', () => {
         expect(
             shouldTestExtraCredentials(extra, WarehouseTypes.POSTGRES, true),

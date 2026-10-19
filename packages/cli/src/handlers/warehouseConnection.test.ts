@@ -59,15 +59,6 @@ describe('getWarehouseCredentialsSource', () => {
             getWarehouseCredentialsSource({ warehouseCredentials: false }),
         ).toEqual({ source: 'none' });
     });
-
-    it('prefers organization credentials over profiles', () => {
-        expect(
-            getWarehouseCredentialsSource({
-                organizationCredentials: 'shared-redshift',
-                warehouseCredentials: false,
-            }),
-        ).toEqual({ source: 'organization', name: 'shared-redshift' });
-    });
 });
 
 describe('updateProjectWarehouseConnection', () => {

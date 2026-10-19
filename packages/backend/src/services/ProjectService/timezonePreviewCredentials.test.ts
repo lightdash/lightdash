@@ -3,9 +3,6 @@ import {
     assertIsAccountWithOrg,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
-    defineUserAbility,
-    ForbiddenError,
-    OrganizationMemberRole,
     QueryExecutionContext,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
@@ -25,7 +22,6 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { type OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
@@ -33,7 +29,6 @@ import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshT
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
-import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import {
     buildAccount,
@@ -75,22 +70,6 @@ const account = {
 assertIsAccountWithOrg(account);
 const { organizationUuid } = account.organization;
 
-const organizationCredentialAccount: RegisteredAccount = {
-    ...account,
-    user: {
-        ...account.user,
-        ability: defineUserAbility(
-            {
-                userUuid: account.user.userUuid,
-                organizationUuid,
-                role: OrganizationMemberRole.ADMIN,
-                roleUuid: undefined,
-            },
-            [],
-        ),
-    },
-};
-
 const snowflake = (): CreateSnowflakeCredentials => ({
     type: WarehouseTypes.SNOWFLAKE,
     authenticationType: SnowflakeAuthenticationType.SSO,
@@ -122,13 +101,11 @@ const authCases = [
         name: 'Snowflake SSO',
         credentials: snowflake(),
         token: 'fresh-snowflake',
-        orgId: null,
     },
     {
         name: 'Databricks M2M refresh',
         credentials: databricks(),
         token: 'fresh-databricks',
-        orgId: null,
     },
     {
         name: 'Databricks M2M exchange',
@@ -138,31 +115,18 @@ const authCases = [
             oauthClientSecret: 'client-secret',
         },
         token: 'exchanged-databricks',
-        orgId: null,
     },
     {
         name: 'Databricks U2M',
         credentials: databricks(DatabricksAuthenticationType.OAUTH_U2M),
         token: 'fresh-databricks',
-        orgId: null,
-    },
-    {
-        name: 'organisation Snowflake',
-        credentials: { ...snowflake(), refreshToken: 'org-refresh' },
-        token: 'fresh-snowflake',
-        orgId: 'org-credential-uuid',
     },
 ];
 
-const setup = (
-    credentials: CreateWarehouseCredentials,
-    enabled = true,
-    orgId: string | null = null,
-) => {
+const setup = (credentials: CreateWarehouseCredentials, enabled = true) => {
     const project = {
         ...projectWithSensitiveFields,
         warehouseConnection: credentials,
-        organizationWarehouseCredentialsUuid: orgId,
     };
     const { database } = createDatabase();
     const projectModel = {
@@ -171,9 +135,7 @@ const setup = (
         getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getOwnWarehouseCredentialsForProject: vi.fn(async () => credentials),
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: orgId,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getQueryTimezone: vi.fn(async () => 'Asia/Tokyo'),
         getWarehouseClientFromCredentials: vi.fn<
             ProjectModel['getWarehouseClientFromCredentials']
@@ -190,20 +152,6 @@ const setup = (
                 UserWarehouseCredentialsModel['findDatabricksOauthU2mForHostWithSecrets']
             >(),
         rotateRefreshToken: vi.fn(async () => undefined),
-    };
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi.fn(
-            async (): Promise<{
-                organizationUuid: string;
-                credentials: CreateWarehouseCredentials;
-            }> => ({
-                organizationUuid,
-                credentials: { ...snowflake(), refreshToken: 'org-refresh' },
-            }),
-        ),
-        rotateRefreshToken: vi.fn<
-            OrganizationWarehouseCredentialsModel['rotateRefreshToken']
-        >(async () => true),
     };
     const sshKeyPairModel = {
         find: vi.fn(async () => ({
@@ -227,7 +175,6 @@ const setup = (
         },
         projectModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         sshKeyPairModel,
         featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
@@ -246,7 +193,6 @@ const setup = (
         project,
         projectModel,
         userWarehouseCredentialsModel,
-        organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
         sshKeyPairModel,
         resolve,
@@ -329,11 +275,10 @@ describe('timezone preview credential resolution', () => {
         (storedToken) => {
             it.each(authCases)(
                 'edit queries with refreshed $name and unsaved timezone',
-                async ({ credentials, token, orgId }) => {
+                async ({ credentials, token }) => {
                     const f = setup(
                         { ...credentials, token: storedToken },
                         true,
-                        orgId,
                     );
                     const result = await f.edit();
                     expect(queries).toHaveBeenCalledExactlyOnceWith(
@@ -383,37 +328,14 @@ describe('timezone preview credential resolution', () => {
                     expect(f.project.warehouseConnection.dataTimezone).toBe(
                         'Europe/London',
                     );
-                    if (orgId) {
-                        expect(
-                            f.organizationWarehouseCredentialsModel
-                                .rotateRefreshToken,
-                        ).toHaveBeenCalledExactlyOnceWith(
-                            orgId,
-                            'org-refresh',
-                            'rotated-snowflake',
-                            expect.objectContaining({
-                                raw: expect.any(Function),
-                            }),
-                        );
-                        expect(
-                            f.projectModel.rotateRefreshToken,
-                        ).not.toHaveBeenCalled();
-                        expect(
-                            UserService.generateSnowflakeAccessToken,
-                        ).toHaveBeenCalledExactlyOnceWith(
-                            'org-refresh',
-                            30_000,
-                        );
-                    }
                 },
             );
             it.each(authCases)(
                 'switch off keeps raw $name with no refresh',
-                async ({ credentials, orgId }) => {
+                async ({ credentials }) => {
                     const f = setup(
                         { ...credentials, token: storedToken },
                         false,
-                        orgId,
                     );
                     await expect(f.edit()).rejects.toThrow(
                         'Warehouse rejected stale or missing access token',
@@ -430,10 +352,6 @@ describe('timezone preview credential resolution', () => {
                     });
                     expect(
                         f.projectModel.rotateRefreshToken,
-                    ).not.toHaveBeenCalled();
-                    expect(
-                        f.organizationWarehouseCredentialsModel
-                            .rotateRefreshToken,
                     ).not.toHaveBeenCalled();
                 },
             );
@@ -481,7 +399,7 @@ describe('timezone preview credential resolution', () => {
         ).toBe(cached);
     });
 
-    it.each(authCases.filter(({ orgId }) => !orgId))(
+    it.each(authCases)(
         'create resolves submitted $name once',
         async ({ credentials, token }) => {
             const f = setup(credentials);
@@ -524,7 +442,7 @@ describe('timezone preview credential resolution', () => {
         },
     );
 
-    it.each(authCases.filter(({ orgId }) => !orgId))(
+    it.each(authCases)(
         'create switch off keeps raw $name',
         async ({ credentials }) => {
             const f = setup(credentials, false);
@@ -675,181 +593,17 @@ describe('timezone preview credential resolution', () => {
         );
     });
 
-    it('create denies organisation credentials without permission before reading secrets', async () => {
-        const f = setup({
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-        });
-        await expect(f.create()).rejects.toThrow(ForbiddenError);
-        expect(
-            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).not.toHaveBeenCalled();
-        expectNoRefresh();
-        expect(queries).not.toHaveBeenCalled();
-    });
-
     it('switch off keeps create bypass for an account with only Project abilities', async () => {
         const f = setup(
             {
                 ...snowflake(),
                 token: 'fresh-snowflake',
-                organizationWarehouseCredentialsUuid: 'org-credential-uuid',
             },
             false,
         );
         await f.create();
-        expect(
-            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).not.toHaveBeenCalled();
         expectNoRefresh();
         expect(queries).toHaveBeenCalledTimes(1);
-    });
-
-    it('create reapplies the submitted timezone after resolving organisation credentials', async () => {
-        const f = setup({
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-            dataTimezone: 'America/New_York',
-        });
-        await f.create(organizationCredentialAccount);
-        expect(
-            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).toHaveBeenCalledTimes(2);
-        expect(
-            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).toHaveBeenNthCalledWith(1, 'org-credential-uuid');
-        expect(
-            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).toHaveBeenNthCalledWith(
-            2,
-            'org-credential-uuid',
-            expect.objectContaining({ raw: expect.any(Function) }),
-        );
-        expect(
-            UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenCalledExactlyOnceWith('org-refresh', 30_000);
-        expect(queries).toHaveBeenCalledWith(
-            expect.objectContaining({
-                token: 'fresh-snowflake',
-                dataTimezone: 'America/New_York',
-            }),
-            expect.any(String),
-            expect.any(Object),
-            'America/New_York',
-        );
-    });
-
-    it('create refuses organisation credentials from another organisation before refresh', async () => {
-        const f = setup({
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-        });
-        f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValue(
-            {
-                organizationUuid: 'another-organisation',
-                credentials: { ...snowflake(), refreshToken: 'org-refresh' },
-            },
-        );
-        await expect(f.create(organizationCredentialAccount)).rejects.toThrow(
-            'You do not have permission to use these organization warehouse credentials',
-        );
-        expectNoRefresh();
-        expect(warehouseClientFromCredentials).not.toHaveBeenCalled();
-    });
-
-    it('create saves organisation rotation before the next preview consumes the token', async () => {
-        const storage = organizationCredentialStorage(
-            { ...snowflake(), refreshToken: 'R0' },
-            organizationUuid,
-        );
-        const f = setup({
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-        });
-        f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockImplementation(
-            () =>
-                storage.model.getByUuidWithSensitiveData('org-credential-uuid'),
-        );
-        f.organizationWarehouseCredentialsModel.rotateRefreshToken.mockImplementation(
-            (uuid, previousToken, nextToken) =>
-                storage.model.rotateRefreshToken(
-                    uuid,
-                    previousToken,
-                    nextToken,
-                ),
-        );
-        const consumed = new Set<string>();
-        vi.mocked(UserService.generateSnowflakeAccessToken).mockImplementation(
-            async (token) => {
-                if (consumed.has(token))
-                    throw new Error('Refresh token already consumed');
-                consumed.add(token);
-                return {
-                    accessToken: 'fresh-snowflake',
-                    refreshToken: token === 'R0' ? 'R1' : 'R2',
-                };
-            },
-        );
-        try {
-            await f.create(organizationCredentialAccount);
-            expect
-                .soft(
-                    (
-                        await storage.model.getByUuidWithSensitiveData(
-                            'org-credential-uuid',
-                        )
-                    ).credentials,
-                )
-                .toMatchObject({ refreshToken: 'R1' });
-            expect
-                .soft(storage.rotate)
-                .toHaveBeenCalledExactlyOnceWith(
-                    'org-credential-uuid',
-                    'R0',
-                    'R1',
-                );
-            await f.create(organizationCredentialAccount);
-            expect(
-                UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenNthCalledWith(2, 'R1', 30_000);
-            expect(storage.rotate).toHaveBeenNthCalledWith(
-                2,
-                'org-credential-uuid',
-                'R1',
-                'R2',
-            );
-            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
-            expect(
-                f.userWarehouseCredentialsModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-            expect(queries).toHaveBeenCalledTimes(2);
-        } finally {
-            await storage.database.destroy();
-        }
-    });
-
-    it('connection tests persist organisation rotation through the row lock', async () => {
-        const credentials = {
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-        };
-        const f = setup(credentials);
-        await f.service.testWarehouseConnectionCredentials(
-            organizationCredentialAccount,
-            organizationUuid,
-            credentials,
-        );
-        expect(
-            UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenCalledExactlyOnceWith('org-refresh', 30_000);
-        expect(
-            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'org-credential-uuid',
-            'org-refresh',
-            'rotated-snowflake',
-            expect.objectContaining({ raw: expect.any(Function) }),
-        );
     });
 
     it('create resolves the SSH key reference before opening the tunnel', async () => {

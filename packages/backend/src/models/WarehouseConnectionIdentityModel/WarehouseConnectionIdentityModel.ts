@@ -18,7 +18,6 @@ type DbWarehouseConnectionCopy = {
     name: string;
     warehouse_type: string | null;
     encrypted_credentials: Buffer | null;
-    organization_warehouse_credentials_uuid: string | null;
     list_all_databases: boolean;
     additional_databases: string[];
     created_by_user_uuid: string | null;
@@ -279,7 +278,6 @@ export class WarehouseConnectionIdentityModel {
                         'name',
                         'warehouse_type',
                         'encrypted_credentials',
-                        'organization_warehouse_credentials_uuid',
                         'list_all_databases',
                         'additional_databases',
                         'created_by_user_uuid',
@@ -299,8 +297,6 @@ export class WarehouseConnectionIdentityModel {
                             warehouse_type: connection.warehouse_type,
                             encrypted_credentials:
                                 connection.encrypted_credentials,
-                            organization_warehouse_credentials_uuid:
-                                connection.organization_warehouse_credentials_uuid,
                             list_all_databases: connection.list_all_databases,
                             additional_databases:
                                 connection.additional_databases,
