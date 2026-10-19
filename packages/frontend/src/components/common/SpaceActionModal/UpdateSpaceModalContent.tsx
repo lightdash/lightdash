@@ -24,26 +24,9 @@ const SpaceWarehouseConnectionSelect: FC<Props & { parentLabel: string }> = ({
     projectUuid,
     parentLabel,
 }) => {
-    const { user } = useApp();
-    const { data: spaceWarehouseConnectionsFlag } = useServerFeatureFlag(
-        FeatureFlags.SpaceWarehouseConnections,
-    );
     const { data: warehouseConnections, isEnabled } =
         useWarehouseConnections(projectUuid);
-    const canManageProject = user.data?.ability.can(
-        'manage',
-        subject('Project', {
-            organizationUuid: user.data.organizationUuid,
-            projectUuid,
-        }),
-    );
-
-    const showWarehouseConnection = !!(
-        spaceWarehouseConnectionsFlag?.enabled &&
-        isEnabled &&
-        warehouseConnections &&
-        canManageProject
-    );
+    const showWarehouseConnection = !!(isEnabled && warehouseConnections);
     const { data: parentSpace } = useSpace(
         projectUuid,
         form.values.parentSpaceUuid ?? undefined,
@@ -94,6 +77,17 @@ const SpaceWarehouseConnectionSelect: FC<Props & { parentLabel: string }> = ({
 };
 
 const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
+    const { user } = useApp();
+    const { data: spaceWarehouseConnectionsFlag } = useServerFeatureFlag(
+        FeatureFlags.SpaceWarehouseConnections,
+    );
+    const canManageProject = user.data?.ability.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
     const { data: project } = useProject(projectUuid);
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
@@ -132,11 +126,13 @@ const UpdateSpaceModalContent: FC<Props> = ({ form, projectUuid }) => {
                 parentLabel={parentLabel}
                 disabled={overrideActive}
             />
-            <SpaceWarehouseConnectionSelect
-                form={form}
-                projectUuid={projectUuid}
-                parentLabel={parentLabel}
-            />
+            {spaceWarehouseConnectionsFlag?.enabled && canManageProject && (
+                <SpaceWarehouseConnectionSelect
+                    form={form}
+                    projectUuid={projectUuid}
+                    parentLabel={parentLabel}
+                />
+            )}
         </Stack>
     );
 };

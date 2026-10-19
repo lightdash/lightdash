@@ -16,7 +16,7 @@ import {
     IconLock,
     IconPlus,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type ComponentProps, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import ErrorState from '../components/common/ErrorState';
@@ -49,6 +49,19 @@ import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
+
+const SpaceBreadcrumbs: FC<
+    ComponentProps<typeof PageBreadcrumbs> &
+        ComponentProps<typeof SpaceConnectionBadge>
+> = ({ items, projectUuid, effectiveWarehouseConnection }) => (
+    <Group gap="xs" wrap="nowrap">
+        <PageBreadcrumbs items={items} />
+        <SpaceConnectionBadge
+            projectUuid={projectUuid}
+            effectiveWarehouseConnection={effectiveWarehouseConnection}
+        />
+    </Group>
+);
 
 const Space: FC = () => {
     const projectUuid = useProjectUuid()!;
@@ -185,8 +198,12 @@ const Space: FC = () => {
                 withLargeContent
             >
                 <Stack gap="xxl" w="100%">
-                    <Group gap="xs" wrap="nowrap">
-                        <PageBreadcrumbs
+                    <Group justify="space-between">
+                        <SpaceBreadcrumbs
+                            projectUuid={projectUuid}
+                            effectiveWarehouseConnection={
+                                space.effectiveWarehouseConnection
+                            }
                             items={[
                                 {
                                     title: 'Spaces',
@@ -277,13 +294,7 @@ const Space: FC = () => {
                             ]}
                         />
 
-                        <SpaceConnectionBadge
-                            projectUuid={projectUuid}
-                            effectiveWarehouseConnection={
-                                space.effectiveWarehouseConnection
-                            }
-                        />
-                        <Group gap="xs" ml="auto">
+                        <Group gap="xs">
                             {!isDemo &&
                                 ((contentAuthoringEnabled &&
                                     (userCanCreateDashboards ||

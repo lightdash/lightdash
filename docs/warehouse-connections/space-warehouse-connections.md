@@ -40,6 +40,8 @@ Nothing gives space-level behaviour today.
 | Run SQL on a space-bound connection (SQL runner run and estimate, catalogue, saving a SQL chart that names it) | `manage:SqlRunner` **and** editor or above on at least one space bound to that connection                                                                                                      |
 | Run SQL on an unbound connection                                                                               | unchanged: `manage:SqlRunner`                                                                                                                                                                  |
 
+Editors of a sub-space that inherits the connection can also use it in the SQL runner.
+
 A space-bound connection is therefore reachable from the SQL runner only by people the space admin already trusts to edit that space. A viewer never gets a SQL path to it.
 
 One rule decides this: `SpaceConnectionReservation` (`packages/backend/src/services/SpaceService/SpaceConnectionReservation.ts`). The SQL runner connection list reports it per connection as `canRunSql`, and the same helper refuses SQL runs, estimates, the catalogue (databases, tables, fields, refresh) and SQL chart saves that name a reserved connection. The project's original connection is never reserved, even when a space points at it, so a sub-space can point back at the project default without taking the SQL runner away from everyone else. Agent and MCP SQL tools query the original connection, so the reservation does not reach them.
@@ -74,7 +76,7 @@ Scheduled deliveries and alerts run as their creator through the same resolver, 
 
 ### Caching
 
-The results cache key already includes `warehouseConnectionUuid`, so results from the HR connection are never served to a query that resolved to another connection. Changing a space's connection changes the key for every piece of content in that space, which invalidates by construction. Pre-aggregates and the SQL runner table catalogue are per connection today and need no change.
+The results cache key already includes `warehouseConnectionUuid`, so results from the HR connection are never served to a query that resolved to another connection. Changing a space's connection changes the key for every piece of content in that space, which invalidates by construction. Saved charts with an effective space connection bypass pre-aggregates and run on the warehouse. Totals and unbounded reruns retain the source query's connection. The SQL runner table catalogue remains per connection.
 
 ### Interaction with "Allow raw SQL" (SPK-2490)
 
@@ -116,5 +118,6 @@ What the seam does not give: a per-content "which connection" decision for ad ho
 - **Credentials-as-rows migration (SPK-2659).** When connections move into the credential catalogue, `spaces.warehouse_connection_uuid` keeps pointing at a connection row, so the binding survives.
 - **Content-as-code and promotion** do not carry the space binding yet. Promoting a space to another project leaves the target space unbound.
 - **Agent and MCP.** Agent queries over space content resolve the same way. Agent `run_sql` naming a bound connection follows the SQL runner rule for the person the agent runs as.
-- **Explores on a reserved connection.** An explore whose dbt source runs on a space-bound connection still runs for anyone who can explore. The reservation covers raw SQL only.
+- **Explores on a reserved connection.** An explore whose dbt source runs on a space-bound connection still runs for anyone who can explore. The reservation covers raw SQL only. Custom SQL dimensions, custom SQL metrics and table calculations on such an explore are also not covered.
 - **SQL charts outside the bound space.** Someone who may use a reserved connection can save a SQL chart that names it into another space. People who can view that chart then see its results.
+- Merged charts in a bound space run each source on its explore's connection; the space binding does not reach merge sources yet.

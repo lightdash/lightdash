@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     update: vi.fn(),
     parentSpace: null as Space | null,
     useSpace: vi.fn(),
+    fetchConnections: vi.fn(),
 }));
 
 const space: Space = {
@@ -85,40 +86,43 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     }),
 }));
 vi.mock('../../../hooks/useWarehouseConnections', () => ({
-    useWarehouseConnections: () => ({
-        isEnabled: mocks.multiConnectionEnabled,
-        data: mocks.connectionsLoaded
-            ? {
-                  connections: [
-                      {
-                          warehouseConnectionUuid: 'connection',
-                          projectUuid: 'project',
-                          name: 'Reporting warehouse',
-                          isOriginal: true,
-                          warehouseType: WarehouseTypes.POSTGRES,
-                          organizationWarehouseCredentialsUuid: null,
-                          listAllDatabases: false,
-                          additionalDatabases: [],
-                          createdAt: new Date(),
-                          updatedAt: new Date(),
-                      },
-                      {
-                          warehouseConnectionUuid: 'same-type',
-                          name: 'Other Postgres',
-                          isOriginal: false,
-                          warehouseType: WarehouseTypes.POSTGRES,
-                      },
-                      {
-                          warehouseConnectionUuid: 'different-type',
-                          name: 'Snowflake warehouse',
-                          isOriginal: false,
-                          warehouseType: WarehouseTypes.SNOWFLAKE,
-                      },
-                  ],
-                  capabilities: { canAddConnection: true, reason: null },
-              }
-            : undefined,
-    }),
+    useWarehouseConnections: () => {
+        mocks.fetchConnections();
+        return {
+            isEnabled: mocks.multiConnectionEnabled,
+            data: mocks.connectionsLoaded
+                ? {
+                      connections: [
+                          {
+                              warehouseConnectionUuid: 'connection',
+                              projectUuid: 'project',
+                              name: 'Reporting warehouse',
+                              isOriginal: true,
+                              warehouseType: WarehouseTypes.POSTGRES,
+                              organizationWarehouseCredentialsUuid: null,
+                              listAllDatabases: false,
+                              additionalDatabases: [],
+                              createdAt: new Date(),
+                              updatedAt: new Date(),
+                          },
+                          {
+                              warehouseConnectionUuid: 'same-type',
+                              name: 'Other Postgres',
+                              isOriginal: false,
+                              warehouseType: WarehouseTypes.POSTGRES,
+                          },
+                          {
+                              warehouseConnectionUuid: 'different-type',
+                              name: 'Snowflake warehouse',
+                              isOriginal: false,
+                              warehouseType: WarehouseTypes.SNOWFLAKE,
+                          },
+                      ],
+                      capabilities: { canAddConnection: true, reason: null },
+                  }
+                : undefined,
+        };
+    },
 }));
 vi.mock('../PalettePicker/PalettePicker', () => ({
     PalettePicker: () => null,
@@ -253,14 +257,16 @@ describe('space warehouse connection selection', () => {
         },
     );
 
-    it('does not fetch the parent when the field is hidden', () => {
-        space.parentSpaceUuid = 'parent';
-        mocks.enabled = false;
-        renderContent();
-        expect(mocks.useSpace).toHaveBeenCalledWith('project', 'parent', {
-            enabled: false,
-        });
-    });
+    it.each([{ enabled: false }, { canManage: false }])(
+        'does not fetch admin connections or the parent when hidden: %j',
+        (state) => {
+            space.parentSpaceUuid = 'parent';
+            Object.assign(mocks, state);
+            renderContent();
+            expect(mocks.fetchConnections).not.toHaveBeenCalled();
+            expect(mocks.useSpace).not.toHaveBeenCalled();
+        },
+    );
 
     it('lists only the original warehouse type', async () => {
         renderContent();
