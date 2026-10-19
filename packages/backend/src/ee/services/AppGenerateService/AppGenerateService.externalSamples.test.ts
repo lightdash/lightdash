@@ -39,15 +39,21 @@ type PrivateWithSamples = {
     logger: { info: import('vitest').Mock };
 };
 
+type ExternalConnectionRefs =
+    | Array<{ externalConnectionUuid: string; alias: string }>
+    | undefined;
+
 type PrivateWithLink = {
-    linkExternalConnections: (
+    resolveExternalConnectionResources: (
         user: unknown,
         projectUuid: string,
         appId: string,
-        externalConnections:
-            | Array<{ externalConnectionUuid: string; alias: string }>
-            | undefined,
-    ) => Promise<unknown>;
+        externalConnections: ExternalConnectionRefs,
+    ) => Promise<unknown[]>;
+    linkResolvedExternalConnections: (
+        appId: string,
+        connections: unknown[],
+    ) => Promise<void>;
 };
 
 function buildService() {
@@ -398,7 +404,7 @@ describe('AppGenerateService pipeline external connection samples', () => {
     });
 });
 
-describe('AppGenerateService.linkExternalConnections', () => {
+describe('AppGenerateService external connection linking', () => {
     const sameProjectConn = {
         projectUuid: 'proj-1',
         organizationUuid: 'org-1',
@@ -439,11 +445,26 @@ describe('AppGenerateService.linkExternalConnections', () => {
             can,
             cannot: (action: string, value: unknown) => !can(action, value),
         });
-        return { service: service as unknown as PrivateWithLink, linkToApp };
+        const privateService = service as unknown as PrivateWithLink;
+        const linkExternalConnections = async (
+            projectUuid: string,
+            appId: string,
+            refs: ExternalConnectionRefs,
+        ) =>
+            privateService.linkResolvedExternalConnections(
+                appId,
+                await privateService.resolveExternalConnectionResources(
+                    user,
+                    projectUuid,
+                    appId,
+                    refs,
+                ),
+            );
+        return { linkExternalConnections, linkToApp };
     }
 
     it('throws ForbiddenError and does not link an admin-only connection for a builder', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: false,
             connection: {
                 ...sameProjectConn,
@@ -451,21 +472,25 @@ describe('AppGenerateService.linkExternalConnections', () => {
             },
         });
         await expect(
-            service.linkExternalConnections(user, 'proj-1', 'app-1', ref),
+            linkExternalConnections('proj-1', 'app-1', ref),
         ).rejects.toThrow(ForbiddenError);
         expect(linkToApp).not.toHaveBeenCalled();
     });
 
     it('links an admin-enabled connection for a builder', async () => {
-        const { service, linkToApp } = setup({ canManage: false });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        const { linkExternalConnections, linkToApp } = setup({
+            canManage: false,
+        });
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });
 
     it('rejects an alias outside the safe charset before persisting', async () => {
-        const { service, linkToApp } = setup({ canManage: true });
+        const { linkExternalConnections, linkToApp } = setup({
+            canManage: true,
+        });
         await expect(
-            service.linkExternalConnections(user, 'proj-1', 'app-1', [
+            linkExternalConnections('proj-1', 'app-1', [
                 { externalConnectionUuid: 'c1', alias: '../../etc/passwd' },
             ]),
         ).rejects.toThrow(ParameterError);
@@ -473,23 +498,23 @@ describe('AppGenerateService.linkExternalConnections', () => {
     });
 
     it('links an admin-only connection when the user can manage connections', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: true,
             connection: {
                 ...sameProjectConn,
                 allowDataAppBuilderLinking: false,
             },
         });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });
 
     it('skips (does not link) a connection from another project', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: true,
             connection: { projectUuid: 'other', organizationUuid: 'org-1' },
         });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).not.toHaveBeenCalled();
     });
 });
