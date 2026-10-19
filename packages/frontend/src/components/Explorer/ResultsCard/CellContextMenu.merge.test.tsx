@@ -9,7 +9,11 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import {
+    getCoreRowModel,
+    useReactTable,
+    type Cell,
+} from '@tanstack/react-table';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
@@ -128,7 +132,14 @@ const MergedCellMenu: FC = () => {
             </Menu.Target>
             <Menu.Dropdown>
                 <CellContextMenu
-                    cell={table.getRowModel().rows[0].getVisibleCells()[0]}
+                    cell={
+                        table
+                            .getRowModel()
+                            .rows[0].getVisibleCells()[0] as Cell<
+                            ResultRow,
+                            ResultRow[0]
+                        >
+                    }
                     itemsMap={{ orders_2_orders_count: mergedCount }}
                     onExpand={vi.fn()}
                 />
