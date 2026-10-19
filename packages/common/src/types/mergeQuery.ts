@@ -5,6 +5,7 @@ import { SupportedDbtAdapter } from './dbt';
 import {
     DimensionType,
     type CustomDimension,
+    type CustomFormat,
     type FieldId,
     type ItemsMap,
     type TableCalculation,
@@ -130,6 +131,8 @@ export type MergeTableCalculation = {
     sql: string;
     /** Spreadsheet-like formula over merged field ids. */
     formula?: string;
+    /** How the calculation's values are displayed. */
+    format?: CustomFormat;
 };
 
 /** Bounds parser work for formulas accepted from URLs and API requests. */

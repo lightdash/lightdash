@@ -1,4 +1,5 @@
 import {
+    CustomFormatType,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MergeJoinType,
 } from '@lightdash/common';
@@ -45,7 +46,7 @@ describe('merge url state', () => {
         expect(parseMergeState(serializeMergeState(state))).toEqual(state);
     });
 
-    it('round-trips merge-level formulas', () => {
+    it('round-trips merge-level formulas and their formats', () => {
         const withCalculation: MergeUrlState = {
             ...state,
             tableCalculations: [
@@ -55,6 +56,7 @@ describe('merge url state', () => {
                     sql: '',
                     formula:
                         '=orders_orders_total / subscriptions_subscriptions_total',
+                    format: { type: CustomFormatType.PERCENT, round: 1 },
                 },
             ],
         };
@@ -78,6 +80,22 @@ describe('merge url state', () => {
                 JSON.stringify({
                     ...serialized,
                     t: [{ ...calculation, formula: 1 }],
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
+                    t: [{ ...calculation, format: 'percent' }],
+                }),
+            ),
+        ).toBeNull();
+        expect(
+            parseMergeState(
+                JSON.stringify({
+                    ...serialized,
+                    t: [{ ...calculation, format: { type: 'bogus' } }],
                 }),
             ),
         ).toBeNull();

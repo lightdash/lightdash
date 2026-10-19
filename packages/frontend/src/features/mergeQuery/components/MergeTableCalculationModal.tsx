@@ -1,16 +1,23 @@
 import {
+    CustomFormatType,
     getItemId,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
     MERGE_TABLE_NAME,
+    MetricType,
+    NumberSeparator,
     snakeCaseName,
+    type CustomFormat,
     type MergeTableCalculation,
 } from '@lightdash/common';
 import { extractColumnRefs, parse } from '@lightdash/formula';
 import { Stack, Text, TextInput } from '@mantine/core';
-import { IconCalculator } from '@tabler/icons-react';
+import { useForm } from '@mantine/form';
+import { IconCalculator, IconPencil } from '@tabler/icons-react';
+import omit from 'lodash/omit';
 import { useMemo, useState, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { type FieldSuggestionItem } from '../../../components/common/SuggestionList';
+import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     explorerActions,
     selectSorts,
@@ -20,6 +27,35 @@ import {
 import { FormulaEditor } from '../../tableCalculation/components/FormulaForm/FormulaEditor';
 import { useMerge } from '../context/useMerge';
 import { getMergeTableCalculationSuggestions } from '../utils/getMergeTableCalculationSuggestions';
+
+const useCalculationFormatForm = (format: CustomFormat | undefined) =>
+    useForm<CustomFormat>({
+        initialValues: {
+            type: CustomFormatType.DEFAULT,
+            separator: NumberSeparator.DEFAULT,
+            ...format,
+        },
+    });
+
+// Merge calculations compile to numeric merged fields.
+const MergeCalculationFormatForm: FC<{
+    form: ReturnType<typeof useCalculationFormatForm>;
+}> = ({ form }) => (
+    <FormatForm
+        format={form.values}
+        formatInputProps={form.getInputProps}
+        setFormatFieldValue={form.setFieldValue}
+        itemType={MetricType.NUMBER}
+    />
+);
+
+const withFormat = (
+    calculation: MergeTableCalculation,
+    format: CustomFormat,
+): MergeTableCalculation =>
+    format.type === CustomFormatType.DEFAULT
+        ? omit(calculation, 'format')
+        : { ...calculation, format };
 
 const withFormulaPrefix = (formula: string) =>
     formula.startsWith('=') ? formula : `=${formula}`;
@@ -56,6 +92,7 @@ export const MergeTableCalculationModal: FC<{
     const [formula, setFormula] = useState(tableCalculation?.formula ?? '=');
     const [error, setError] = useState<string | null>(null);
     const [referenceOpened, setReferenceOpened] = useState(false);
+    const formatForm = useCalculationFormatForm(tableCalculation?.format);
 
     const fieldSuggestions = useMemo<FieldSuggestionItem[]>(() => {
         return getMergeTableCalculationSuggestions(merge.mergeResults);
@@ -109,13 +146,16 @@ export const MergeTableCalculationModal: FC<{
                       merge.tableCalculations,
                       tableCalculation,
                   );
-        const calculation: MergeTableCalculation = {
-            name,
-            displayName: displayName.trim(),
-            // Required by the existing public contract. Formula wins at compile.
-            sql: '',
-            formula: withFormulaPrefix(formula.trim()),
-        };
+        const calculation = withFormat(
+            {
+                name,
+                displayName: displayName.trim(),
+                // Required by the existing public contract. Formula wins at compile.
+                sql: '',
+                formula: withFormulaPrefix(formula.trim()),
+            },
+            formatForm.values,
+        );
         if (tableCalculation) {
             merge.updateTableCalculation(tableCalculation.name, calculation);
             if (tableCalculation.name !== calculation.name) {
@@ -192,7 +232,38 @@ export const MergeTableCalculationModal: FC<{
                     error={!displayName.trim() ? 'Name is required' : null}
                     data-testid="merge-table-calculation-name"
                 />
+                <Text size="sm" fw={600}>
+                    Format
+                </Text>
+                <MergeCalculationFormatForm form={formatForm} />
             </Stack>
+        </MantineModal>
+    );
+};
+
+export const MergeTableCalculationFormatModal: FC<{
+    tableCalculation: MergeTableCalculation;
+    onClose: () => void;
+}> = ({ tableCalculation, onClose }) => {
+    const merge = useMerge();
+    const formatForm = useCalculationFormatForm(tableCalculation.format);
+    return (
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Format table calculation"
+            icon={IconPencil}
+            size="xl"
+            onConfirm={() => {
+                merge.updateTableCalculation(
+                    tableCalculation.name,
+                    withFormat(tableCalculation, formatForm.values),
+                );
+                onClose();
+            }}
+            confirmLabel="Save changes"
+        >
+            <MergeCalculationFormatForm form={formatForm} />
         </MantineModal>
     );
 };

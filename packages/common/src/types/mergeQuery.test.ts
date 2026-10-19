@@ -1,5 +1,5 @@
 import { SupportedDbtAdapter } from './dbt';
-import { DimensionType } from './field';
+import { CustomFormatType, DimensionType } from './field';
 import {
     buildMergeQueryFromMergeDefinition,
     buildMergeQueryFromSaved,
@@ -659,7 +659,12 @@ describe('saved merge schemas', () => {
             ],
             joinType: MergeJoinType.FULL,
             tableCalculations: [
-                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+                {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '1',
+                    format: { type: CustomFormatType.PERCENT, round: 1 },
+                },
             ],
             sorts: [
                 { fieldId: 'payments_payments_unique', descending: true },
@@ -695,7 +700,12 @@ describe('saved merge schemas', () => {
             ],
             limit: 250,
             tableCalculations: [
-                { name: 'ratio', displayName: 'Ratio', sql: '1' },
+                {
+                    name: 'ratio',
+                    displayName: 'Ratio',
+                    sql: '1',
+                    format: { type: CustomFormatType.PERCENT, round: 1 },
+                },
             ],
         });
         expect(

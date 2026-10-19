@@ -1,9 +1,14 @@
-import { MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH } from '@lightdash/common';
+import {
+    CustomFormatType,
+    MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
+    NumberSeparator,
+} from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../testing/testUtils';
 import {
     DeleteMergeTableCalculationModal,
+    MergeTableCalculationFormatModal,
     MergeTableCalculationModal,
 } from './MergeTableCalculationModal';
 
@@ -157,6 +162,99 @@ describe('MergeTableCalculationModal', () => {
                 { fieldId: 'orders_count', descending: false },
             ],
         });
+    });
+
+    it('creates a formula with a format', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <MergeTableCalculationModal opened onClose={vi.fn()} />,
+        );
+
+        await user.type(screen.getByRole('textbox', { name: 'Name' }), 'Share');
+        const formula = screen.getByRole('textbox', { name: 'Formula' });
+        await user.clear(formula);
+        await user.type(formula, '=1');
+        await user.click(screen.getByRole('combobox', { name: 'Format type' }));
+        await user.click(
+            await screen.findByRole('option', { name: 'Percent' }),
+        );
+        await user.click(
+            screen.getByRole('button', { name: 'Create formula' }),
+        );
+
+        expect(state.addTableCalculation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'share',
+                format: expect.objectContaining({
+                    type: CustomFormatType.PERCENT,
+                    separator: NumberSeparator.DEFAULT,
+                }),
+            }),
+        );
+    });
+
+    it('keeps an existing format when the formula is edited', async () => {
+        const user = userEvent.setup();
+        const tableCalculation = {
+            name: 'share',
+            displayName: 'Share',
+            sql: '',
+            formula: '=1',
+            format: { type: CustomFormatType.PERCENT, round: 1 },
+        };
+        renderWithProviders(
+            <MergeTableCalculationModal
+                opened
+                onClose={vi.fn()}
+                tableCalculation={tableCalculation}
+            />,
+        );
+
+        const formula = screen.getByRole('textbox', { name: 'Formula' });
+        await user.clear(formula);
+        await user.type(formula, '=2');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(state.updateTableCalculation).toHaveBeenCalledWith('share', {
+            ...tableCalculation,
+            formula: '=2',
+            format: {
+                ...tableCalculation.format,
+                separator: NumberSeparator.DEFAULT,
+            },
+        });
+    });
+
+    it('saves a format from the column menu and clears it on default', async () => {
+        const user = userEvent.setup();
+        const tableCalculation = {
+            name: 'share',
+            displayName: 'Share',
+            sql: '',
+            formula: '=1',
+            format: { type: CustomFormatType.PERCENT, round: 1 },
+        };
+        const onClose = vi.fn();
+        renderWithProviders(
+            <MergeTableCalculationFormatModal
+                tableCalculation={tableCalculation}
+                onClose={onClose}
+            />,
+        );
+
+        await user.click(screen.getByRole('combobox', { name: 'Format type' }));
+        await user.click(
+            await screen.findByRole('option', { name: 'Default' }),
+        );
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        expect(state.updateTableCalculation).toHaveBeenCalledWith('share', {
+            name: 'share',
+            displayName: 'Share',
+            sql: '',
+            formula: '=1',
+        });
+        expect(onClose).toHaveBeenCalledOnce();
     });
 
     it('removes its active sort when deleted', async () => {
