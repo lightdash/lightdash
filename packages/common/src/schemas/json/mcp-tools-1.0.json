@@ -3710,7 +3710,7 @@
                 "readOnlyHint": true,
                 "title": "Render chart"
             },
-            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status \"running\", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3827,39 +3827,81 @@
                 "additionalProperties": false,
                 "properties": {
                     "result": {
-                        "additionalProperties": false,
-                        "description": "Rendered chart result for a completed query.",
-                        "properties": {
-                            "echartsOption": {
-                                "anyOf": [
-                                    {},
-                                    {
-                                        "type": "null"
-                                    }
-                                ]
-                            },
-                            "exploreUrl": {
-                                "anyOf": [
-                                    {
+                        "anyOf": [
+                            {
+                                "additionalProperties": false,
+                                "description": "Rendered chart result for a completed query.",
+                                "properties": {
+                                    "echartsOption": {
+                                        "anyOf": [
+                                            {},
+                                            {
+                                                "type": "null"
+                                            }
+                                        ]
+                                    },
+                                    "exploreUrl": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ]
+                                    },
+                                    "queryUuid": {
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                                         "type": "string"
                                     },
-                                    {
-                                        "type": "null"
+                                    "status": {
+                                        "const": "done",
+                                        "type": "string"
                                     }
-                                ]
+                                },
+                                "required": [
+                                    "status",
+                                    "queryUuid",
+                                    "exploreUrl"
+                                ],
+                                "type": "object"
                             },
-                            "queryUuid": {
-                                "format": "uuid",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                                "type": "string"
-                            },
-                            "status": {
-                                "const": "done",
-                                "type": "string"
+                            {
+                                "additionalProperties": false,
+                                "description": "The chart is not drawn yet because its grouped query is running.",
+                                "properties": {
+                                    "heartbeatAt": {
+                                        "description": "ISO timestamp for when Lightdash last checked this async query and confirmed it is still running.",
+                                        "type": "string"
+                                    },
+                                    "nextPollAfterMs": {
+                                        "description": "Suggested delay before calling render_chart again.",
+                                        "exclusiveMinimum": 0,
+                                        "maximum": 9007199254740991,
+                                        "type": "integer"
+                                    },
+                                    "queryUuid": {
+                                        "description": "The queryUuid render_chart was called with.",
+                                        "format": "uuid",
+                                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                                        "type": "string"
+                                    },
+                                    "status": {
+                                        "const": "running",
+                                        "description": "Present while the grouped query for the chart is still running. Call render_chart again with the same arguments.",
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "status",
+                                    "queryUuid",
+                                    "nextPollAfterMs",
+                                    "heartbeatAt"
+                                ],
+                                "type": "object"
                             }
-                        },
-                        "required": ["status", "queryUuid", "exploreUrl"],
-                        "type": "object"
+                        ]
                     }
                 },
                 "required": ["result"],

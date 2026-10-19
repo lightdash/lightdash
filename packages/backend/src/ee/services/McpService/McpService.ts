@@ -29,6 +29,7 @@ import {
     createToolRunSqlArgsSchema,
     DATA_APP_BUILD_POLL_INTERVAL_MS,
     DATA_APP_VIZ_TEMPLATE,
+    derivePivotConfigurationFromChart,
     editContentToolDefinition,
     Explore,
     FeatureFlags,
@@ -51,9 +52,11 @@ import {
     getLightdashVersionToolDefinition,
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
+    getRunQueryChartConfig,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    getWarehousePivotedResults,
     grepFieldsToolDefinition,
     hashStringToBase36,
     isAiAccessRefusal,
@@ -110,6 +113,10 @@ import {
     UnexpectedServerError,
     UserAttributeValueMap,
     type AiAgentSkill,
+    type ParametersValuesMap,
+    type PivotConfiguration,
+    type PivotValuesColumn,
+    type QueryHistory,
     type RegisteredAccount,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
@@ -217,7 +224,6 @@ import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
 } from '../ai/utils/filterExpressions';
-import { getPivotedResults } from '../ai/utils/getPivotedResults';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -460,6 +466,23 @@ const mcpRunMetricQueryFilterExpressionTool = withProjectScopeInput(
 const mcpRenderChartTool = withProjectScopeInput(
     renderChartToolDefinition.for('mcp'),
 );
+type McpChartPivot = {
+    rows: Record<string, unknown>[];
+    fieldsMap: ItemsMap;
+    valuesColumns: PivotValuesColumn[];
+    parameters: ParametersValuesMap | null;
+    timezone: string | null;
+};
+type McpChartPivotResult =
+    | { status: 'running' }
+    | { status: 'done'; pivot: McpChartPivot };
+// Charts whose builders draw groupBy series from a pivot
+const MCP_PIVOTED_CHART_TYPES: ReadonlyArray<string> = [
+    'bar',
+    'horizontal',
+    'line',
+    'scatter',
+];
 type McpSearchFieldValuesArgs = (
     | ToolSearchFieldValuesArgs
     | ToolSearchFieldValuesExpressionArgs
@@ -1326,6 +1349,103 @@ export class McpService extends BaseService {
         }
     }
 
+    private static getRenderChartRunningResponse(queryUuid: string) {
+        const heartbeatAt = new Date().toISOString();
+
+        return {
+            content: [
+                {
+                    type: 'text' as const,
+                    text: `The chart's grouped query is still running, not failed. Wait ${MCP_QUERY_POLL_INTERVAL_MS} ms, then call render_chart again with the same arguments. Last checked at ${heartbeatAt}.`,
+                },
+            ],
+            structuredContent: {
+                result: {
+                    status: 'running' as const,
+                    queryUuid,
+                    nextPollAfterMs: MCP_QUERY_POLL_INTERVAL_MS,
+                    heartbeatAt,
+                },
+            },
+        };
+    }
+
+    // Runs the chart's source query again with the chart pivot, keeping its parameters and the session's user attribute overrides.
+    private async getPivotedChartResults({
+        ctx,
+        projectUuid,
+        sourceQueryHistory,
+        pivotConfiguration,
+        deadlineMs,
+        signal,
+    }: {
+        ctx: McpProtocolContext;
+        projectUuid: string;
+        sourceQueryHistory: QueryHistory;
+        pivotConfiguration: PivotConfiguration;
+        deadlineMs: number;
+        signal: AbortSignal;
+    }): Promise<McpChartPivotResult> {
+        const { account } = McpService.getAccount(ctx);
+        const parameters =
+            sourceQueryHistory.requestParameters?.parameters ?? null;
+        const { queryUuid } =
+            await this.asyncQueryService.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: sourceQueryHistory.metricQuery,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                userAttributeOverrides:
+                    await this.getUserAttributeOverridesFromContext(ctx),
+                parameters: parameters ?? undefined,
+                pivotConfiguration,
+            });
+        const queryHistory =
+            await this.asyncQueryService.pollQueryHistoryUntilDeadline({
+                account,
+                projectUuid,
+                queryUuid,
+                deadlineMs,
+                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                signal,
+            });
+        if (McpService.isQueryRunningStatus(queryHistory.status)) {
+            return { status: 'running' };
+        }
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                queryHistory.error ??
+                    `Grouped query finished with status ${queryHistory.status}`,
+            );
+        }
+        const results = await this.asyncQueryService.getRawAsyncQueryResults({
+            account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.MCP_RUN_SQL,
+                QuerySurface.MCP,
+            ),
+            projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+        });
+        if (!results.pivotDetails) {
+            throw new ParameterError(
+                'The grouped query returned no series to draw. Call render_chart without chartConfig.groupBy, or with defaultVizType table.',
+            );
+        }
+        return {
+            status: 'done',
+            pivot: {
+                rows: results.rows,
+                fieldsMap: results.fields,
+                valuesColumns: results.pivotDetails.valuesColumns,
+                parameters,
+                timezone: results.displayTimezone,
+            },
+        };
+    }
+
     private async buildRenderChartResponse({
         ctx,
         queryUuid,
@@ -1335,6 +1455,7 @@ export class McpService extends BaseService {
         query,
         rows,
         fields,
+        pivot,
     }: {
         ctx: McpProtocolContext;
         queryUuid: string;
@@ -1344,6 +1465,7 @@ export class McpService extends BaseService {
         query: MetricQuery;
         rows: Record<string, unknown>[];
         fields: ItemsMap;
+        pivot: McpChartPivot | null;
     }) {
         const fieldIds = rows[0] ? Object.keys(rows[0]) : Object.keys(fields);
         const exploreUrl = await this.buildMetricExploreUrl({
@@ -1395,7 +1517,16 @@ export class McpService extends BaseService {
                 rows,
                 fields,
             },
-            getPivotedResults,
+            // Builders only pivot grouped charts, so ungrouped ones get an empty pivot
+            getPivotedResults: getWarehousePivotedResults(
+                pivot ?? {
+                    rows: [],
+                    fieldsMap: fields,
+                    valuesColumns: [],
+                    parameters: null,
+                    timezone: null,
+                },
+            ),
         });
 
         const mcpEchartsOption = echartsOption
@@ -4090,6 +4221,9 @@ export class McpService extends BaseService {
                         const argsWithProject = { ...args, projectUuid };
 
                         try {
+                            const deadlineMs =
+                                Date.now() +
+                                McpService.getMcpQueryWaitMs(extra);
                             const { user, account } =
                                 McpService.getAccount(ctx);
                             const renderTool =
@@ -4158,6 +4292,51 @@ export class McpService extends BaseService {
                                     },
                                 );
 
+                            const groupBy =
+                                renderTool.chartConfig?.groupBy ?? [];
+                            const isGroupedChart =
+                                results.rows.length > 0 &&
+                                groupBy.length > 0 &&
+                                MCP_PIVOTED_CHART_TYPES.includes(
+                                    renderTool.chartConfig?.defaultVizType ??
+                                        'table',
+                                );
+                            const pivotConfiguration = isGroupedChart
+                                ? derivePivotConfigurationFromChart(
+                                      {
+                                          chartConfig: getRunQueryChartConfig({
+                                              queryTool,
+                                              metricQuery:
+                                                  queryHistory.metricQuery,
+                                              fieldsMap: results.fields,
+                                          }),
+                                          pivotConfig: { columns: groupBy },
+                                      },
+                                      queryHistory.metricQuery,
+                                      results.fields,
+                                  )
+                                : undefined;
+                            if (isGroupedChart && !pivotConfiguration) {
+                                throw new ParameterError(
+                                    `chartConfig.groupBy ${groupBy.join(', ')} cannot group this chart. Group by query dimensions other than xAxisDimension, plot at least one metric, or remove groupBy.`,
+                                );
+                            }
+                            const pivotResult = pivotConfiguration
+                                ? await this.getPivotedChartResults({
+                                      ctx,
+                                      projectUuid,
+                                      sourceQueryHistory: queryHistory,
+                                      pivotConfiguration,
+                                      deadlineMs,
+                                      signal: extra.signal,
+                                  })
+                                : null;
+                            if (pivotResult?.status === 'running') {
+                                return McpService.getRenderChartRunningResponse(
+                                    renderTool.queryUuid,
+                                );
+                            }
+
                             return await this.buildRenderChartResponse({
                                 ctx,
                                 queryUuid: renderTool.queryUuid,
@@ -4167,6 +4346,7 @@ export class McpService extends BaseService {
                                 query: queryHistory.metricQuery,
                                 rows: results.rows,
                                 fields: results.fields,
+                                pivot: pivotResult?.pivot ?? null,
                             });
                         } catch (e) {
                             const errorMessage =

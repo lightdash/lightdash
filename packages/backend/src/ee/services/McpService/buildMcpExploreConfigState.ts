@@ -1,5 +1,6 @@
 import {
     getRunQueryChartConfig,
+    isCustomChartTypeSlugChartConfig,
     type CreateSavedChartVersion,
     type ItemsMap,
     type MetricQuery,
@@ -8,7 +9,7 @@ import {
 
 type McpExploreConfigState = Pick<
     CreateSavedChartVersion,
-    'tableName' | 'metricQuery' | 'tableConfig' | 'chartConfig'
+    'tableName' | 'metricQuery' | 'tableConfig' | 'chartConfig' | 'pivotConfig'
 >;
 
 export const buildMcpExploreConfigState = ({
@@ -21,15 +22,22 @@ export const buildMcpExploreConfigState = ({
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
     columnOrder: string[];
-}): McpExploreConfigState => ({
-    tableName: queryTool.queryConfig.exploreName,
-    metricQuery,
-    tableConfig: {
-        columnOrder,
-    },
-    chartConfig: getRunQueryChartConfig({
-        queryTool,
+}): McpExploreConfigState => {
+    const { chartConfig } = queryTool;
+    const groupBy = isCustomChartTypeSlugChartConfig(chartConfig)
+        ? null
+        : (chartConfig?.groupBy ?? null);
+    return {
+        tableName: queryTool.queryConfig.exploreName,
         metricQuery,
-        fieldsMap,
-    }),
-});
+        tableConfig: {
+            columnOrder,
+        },
+        chartConfig: getRunQueryChartConfig({
+            queryTool,
+            metricQuery,
+            fieldsMap,
+        }),
+        pivotConfig: groupBy?.length ? { columns: groupBy } : undefined,
+    };
+};

@@ -570,7 +570,7 @@ export const parsePersistedRunQueryArgs = (
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.
 
-Use when the user wants a visual. If the query is running, call get_query_result first. This tool does not start, poll or rerun queries.
+Use when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status "running", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.
 Pass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the \`queryUuid: <id>\` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.
 
 Supported types: table, bar, horizontal_bar, line, scatter, pie, funnel.

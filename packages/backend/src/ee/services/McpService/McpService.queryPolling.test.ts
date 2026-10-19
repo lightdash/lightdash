@@ -741,6 +741,199 @@ const getTextResult = (result: unknown) => {
 const parseTextResult = (result: unknown) =>
     JSON.parse(getTextResult(result) || '{}') as Record<string, unknown>;
 
+const pivotFields = Object.fromEntries(
+    [
+        ['order_date', 'Order date', FieldType.DIMENSION, DimensionType.DATE],
+        ['status', 'Status', FieldType.DIMENSION, DimensionType.STRING],
+        ['count', 'Count', FieldType.METRIC, MetricType.COUNT],
+        ['revenue', 'Revenue', FieldType.METRIC, MetricType.SUM],
+    ].map(([name, label, fieldType, type]) => [
+        `orders_${name}`,
+        {
+            fieldType,
+            type,
+            name,
+            label,
+            table: 'orders',
+            sql: '',
+            hidden: false,
+        },
+    ]),
+);
+
+const makePivotExplore = () => {
+    const explore = makeExplore();
+    return {
+        ...explore,
+        tables: {
+            orders: {
+                ...explore.tables.orders,
+                dimensions: {
+                    order_date: pivotFields.orders_order_date,
+                    status: pivotFields.orders_status,
+                },
+                metrics: {
+                    count: pivotFields.orders_count,
+                    revenue: pivotFields.orders_revenue,
+                },
+            },
+        },
+    } as unknown as ReturnType<typeof makeExplore>;
+};
+
+const pivotMetricQuery = {
+    dimensions: ['orders_order_date', 'orders_status'],
+    metrics: ['orders_count'],
+    sorts: [{ fieldId: 'orders_order_date', descending: false }],
+};
+
+const longRows = (
+    [
+        ['completed', 1],
+        ['pending', 2],
+    ] as const
+).map(([status, count]) => ({
+    orders_order_date: '2024-01-01',
+    orders_status: status,
+    orders_count: count,
+}));
+
+const makePivotValuesColumn = (referenceField: string, status: string) => ({
+    referenceField,
+    pivotColumnName: `${referenceField}_any_${status}`,
+    aggregation: 'any',
+    pivotValues: [
+        { referenceField: 'orders_status', value: status, formatted: status },
+    ],
+});
+
+const pivotedQueryUuid = '22222222-2222-4222-8222-222222222222';
+
+const makeBarChartConfig = (
+    groupBy: string[] | null,
+    overrides: Record<string, unknown> = {},
+) => ({
+    defaultVizType: 'bar',
+    xAxisDimension: 'orders_order_date',
+    yAxisMetrics: ['orders_count'],
+    groupBy,
+    xAxisType: null,
+    stackBars: null,
+    lineType: null,
+    xAxisLabel: 'Order date',
+    yAxisLabel: 'Count',
+    secondaryYAxisMetric: null,
+    secondaryYAxisLabel: null,
+    ...overrides,
+});
+
+const makePivotSourceQueryHistory = (metrics = pivotMetricQuery.metrics) => ({
+    ...makeQueryHistory(
+        QueryHistoryStatus.READY,
+        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        null,
+        { ...pivotMetricQuery, metrics },
+    ),
+    requestParameters: {
+        context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        parameters: { region: 'EU' },
+    },
+});
+
+// Source query rows are long; the grouped query returns them pivoted by status
+const makePivotRenderService = ({
+    status = QueryHistoryStatus.READY,
+    error = null,
+    metrics = pivotMetricQuery.metrics,
+    pivoted = {
+        rows: [
+            {
+                orders_order_date: '2024-01-01',
+                orders_count_any_completed: 1,
+                orders_count_any_pending: 2,
+            },
+        ],
+        valuesColumns: [
+            makePivotValuesColumn('orders_count', 'completed'),
+            makePivotValuesColumn('orders_count', 'pending'),
+        ],
+    },
+}: {
+    status?: QueryHistoryStatus;
+    error?: string | null;
+    metrics?: string[];
+    pivoted?: {
+        rows: Record<string, unknown>[];
+        valuesColumns: ReturnType<typeof makePivotValuesColumn>[];
+    } | null;
+} = {}) => {
+    const mcp = makeMcpService({ explores: { orders: makePivotExplore() } });
+    const { asyncQueryService } = mcp;
+    asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+        makePivotSourceQueryHistory(metrics),
+    );
+    asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+        queryUuid: pivotedQueryUuid,
+    });
+    asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+        makeQueryHistory(
+            status,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            error,
+        ),
+    );
+    asyncQueryService.getRawAsyncQueryResults.mockImplementation(
+        async (args: { queryUuid: string }) =>
+            args.queryUuid === pivotedQueryUuid
+                ? {
+                      rows: pivoted?.rows ?? [],
+                      fields: pivotFields,
+                      pivotDetails: pivoted
+                          ? { valuesColumns: pivoted.valuesColumns }
+                          : null,
+                      displayTimezone: null,
+                  }
+                : { rows: longRows, fields: pivotFields, pivotDetails: null },
+    );
+    return mcp;
+};
+
+const renderPivotChart = (chartConfig: ReturnType<typeof makeBarChartConfig>) =>
+    getToolCallback(McpToolName.RENDER_CHART)(
+        {
+            queryUuid,
+            title: 'Orders by status',
+            description: 'Orders count by status',
+            chartConfig,
+        },
+        extra,
+    );
+
+const getEchartsSeries = (result: unknown) =>
+    (
+        result as {
+            _meta: {
+                result: {
+                    echartsOption: {
+                        series: {
+                            name: string;
+                            yAxisIndex: number;
+                            encode: { y: string };
+                        }[];
+                    };
+                };
+            };
+        }
+    )._meta.result.echartsOption.series.map(({ name, yAxisIndex, encode }) => [
+        name,
+        yAxisIndex,
+        encode.y,
+    ]);
+
+const getExploreParams = (
+    shareService: ReturnType<typeof makeMcpService>['shareService'],
+) => decodeURIComponent(shareService.createShareUrl.mock.calls[0][2] as string);
+
 describe('MCP catalogue audit', () => {
     it.each([undefined, projectUuid])(
         'preserves flat catalogue metadata for pinnedProjectUuid=%s',
@@ -1613,6 +1806,274 @@ describe('MCP async query polling', () => {
         expect(
             asyncQueryService.executeAsyncMetricQuery,
         ).not.toHaveBeenCalled();
+    });
+
+    it('renders a grouped chart from one warehouse pivoted query', async () => {
+        const { asyncQueryService, service, shareService } =
+            makePivotRenderService();
+        vi.spyOn(
+            service,
+            'getUserAttributeOverridesFromContext',
+        ).mockResolvedValue({ region: ['EU'] });
+
+        const result = await renderPivotChart(
+            makeBarChartConfig(['orders_status']),
+        );
+
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid,
+                metricQuery: makePivotSourceQueryHistory().metricQuery,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                parameters: { region: 'EU' },
+                userAttributeOverrides: { region: ['EU'] },
+                pivotConfiguration: expect.objectContaining({
+                    groupByColumns: [{ reference: 'orders_status' }],
+                    valuesColumns: [
+                        { reference: 'orders_count', aggregation: 'any' },
+                    ],
+                    indexColumn: [
+                        { reference: 'orders_order_date', type: 'time' },
+                    ],
+                }),
+            }),
+        );
+        expect(getEchartsSeries(result)).toEqual([
+            ['completed', 0, 'orders_count_any_completed'],
+            ['pending', 0, 'orders_count_any_pending'],
+        ]);
+        expect(
+            asyncQueryService.pollQueryHistoryUntilDeadline,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                queryUuid: pivotedQueryUuid,
+                signal: extra.signal,
+            }),
+        );
+        expect(result).toMatchObject({
+            _meta: { result: { rows: longRows, fields: pivotFields } },
+        });
+        const exploreParams = getExploreParams(shareService);
+        expect(exploreParams).toContain(
+            '"columnOrder":["orders_order_date","orders_status","orders_count"]',
+        );
+        expect(exploreParams).toContain(
+            '"pivotConfig":{"columns":["orders_status"]}',
+        );
+    });
+
+    it.each([
+        {
+            chart: 'an ungrouped bar chart',
+            chartConfig: makeBarChartConfig(null),
+            echartsOption: expect.objectContaining({
+                series: [
+                    expect.objectContaining({
+                        name: 'Count',
+                        yAxisIndex: 0,
+                        encode: expect.objectContaining({ y: 'orders_count' }),
+                    }),
+                ],
+            }),
+            hasPivotConfig: false,
+        },
+        {
+            chart: 'a grouped table',
+            chartConfig: makeBarChartConfig(['orders_status'], {
+                defaultVizType: 'table',
+            }),
+            echartsOption: null,
+            hasPivotConfig: true,
+        },
+        {
+            chart: 'a grouped pie chart',
+            chartConfig: makeBarChartConfig(['orders_status'], {
+                defaultVizType: 'pie',
+            }),
+            echartsOption: expect.objectContaining({
+                series: expect.any(Array),
+            }),
+            hasPivotConfig: true,
+        },
+    ])(
+        'renders $chart from the original result without a grouped query',
+        async ({ chartConfig, echartsOption, hasPivotConfig }) => {
+            const { asyncQueryService, shareService } =
+                makePivotRenderService();
+
+            const result = await renderPivotChart(chartConfig);
+
+            expect(result).not.toHaveProperty('isError');
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+            expect(result).toMatchObject({
+                _meta: { result: { rows: longRows, echartsOption } },
+            });
+            expect(
+                getExploreParams(shareService).includes('"pivotConfig"'),
+            ).toBe(hasPivotConfig);
+        },
+    );
+
+    it('replies running without an error while the grouped query runs', async () => {
+        const { asyncQueryService } = makePivotRenderService({
+            status: QueryHistoryStatus.QUEUED,
+        });
+
+        const running = await renderPivotChart(
+            makeBarChartConfig(['orders_status']),
+        );
+
+        expect(running).not.toHaveProperty('isError');
+        expect(running).toMatchObject({
+            structuredContent: {
+                result: {
+                    status: 'running',
+                    queryUuid,
+                    nextPollAfterMs: expect.any(Number),
+                },
+            },
+        });
+        expect(getTextResult(running)).toContain(
+            'call render_chart again with the same arguments',
+        );
+        expect(getTextResult(running)).not.toContain(pivotedQueryUuid);
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: pivotedQueryUuid }),
+        );
+    });
+
+    it('draws a grouped secondary axis from its pivoted columns', async () => {
+        const { asyncQueryService } = makePivotRenderService({
+            metrics: ['orders_count', 'orders_revenue'],
+            pivoted: {
+                rows: [
+                    {
+                        orders_order_date: '2024-01-01',
+                        orders_count_any_completed: 1,
+                        orders_revenue_any_completed: 10,
+                    },
+                ],
+                valuesColumns: [
+                    makePivotValuesColumn('orders_count', 'completed'),
+                    makePivotValuesColumn('orders_revenue', 'completed'),
+                ],
+            },
+        });
+
+        const result = await renderPivotChart(
+            makeBarChartConfig(['orders_status'], {
+                secondaryYAxisMetric: 'orders_revenue',
+                secondaryYAxisLabel: 'Revenue',
+            }),
+        );
+
+        expect(
+            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0]
+                .pivotConfiguration.valuesColumns,
+        ).toEqual([
+            { reference: 'orders_count', aggregation: 'any' },
+            { reference: 'orders_revenue', aggregation: 'any' },
+        ]);
+        expect(getEchartsSeries(result)).toEqual([
+            ['[completed] Count', 0, 'orders_count_any_completed'],
+            ['[completed] Revenue', 1, 'orders_revenue_any_completed'],
+        ]);
+    });
+
+    it.each([
+        {
+            failure: 'a groupBy that cannot group the chart',
+            groupBy: ['orders_customer'],
+            render: {},
+            message:
+                'chartConfig.groupBy orders_customer cannot group this chart',
+            groupedQueries: 0,
+        },
+        {
+            failure: 'a grouped result without pivot details',
+            groupBy: ['orders_status'],
+            render: { pivoted: null },
+            message: 'The grouped query returned no series to draw',
+            groupedQueries: 1,
+        },
+        {
+            failure: 'the grouped query error',
+            groupBy: ['orders_status'],
+            render: {
+                status: QueryHistoryStatus.ERROR,
+                error: 'Warehouse rejected the query',
+            },
+            message: 'Warehouse rejected the query',
+            groupedQueries: 1,
+        },
+    ])(
+        'returns $failure instead of drawing the chart ungrouped',
+        async ({ groupBy, render, message, groupedQueries }) => {
+            const { asyncQueryService } = makePivotRenderService(render);
+
+            const result = await renderPivotChart(makeBarChartConfig(groupBy));
+
+            expect(result).toMatchObject({ isError: true });
+            expect(getTextResult(result)).toContain(message);
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledTimes(groupedQueries);
+        },
+    );
+
+    it('runs a grouped run_metric_query without a pivot', async () => {
+        const { asyncQueryService } = makeMcpService({
+            explores: { orders: makePivotExplore() },
+        });
+        asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+            queryUuid,
+        });
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: longRows,
+            fields: pivotFields,
+            pivotDetails: null,
+        });
+
+        const result = await getToolCallback(McpToolName.RUN_METRIC_QUERY)(
+            {
+                title: 'Orders by status',
+                description: 'Orders count by status',
+                queryConfig: {
+                    exploreName: 'orders',
+                    ...pivotMetricQuery,
+                    limit: 10,
+                    customMetrics: null,
+                    tableCalculations: null,
+                    filters: null,
+                },
+                chartConfig: makeBarChartConfig(['orders_status']),
+            },
+            extra,
+        );
+
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(
+            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0]
+                .pivotConfiguration,
+        ).toBeUndefined();
+        expect(result).toMatchObject({
+            structuredContent: { result: { rows: longRows } },
+        });
     });
 
     it('carries the OAuth client id as the MCP result reader identity', async () => {
