@@ -116,7 +116,11 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
-import { initOtelTracing, shutdownOtelTracing } from './tracing/tracing';
+import {
+    getActiveTraceId,
+    initOtelTracing,
+    shutdownOtelTracing,
+} from './tracing/tracing';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -465,6 +469,14 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Lets a caller find the request's trace in their own trace store; the
+        // browser-sent sentry-trace ID is not continued in OTel mode.
+        expressApp.use((_req, res, next) => {
+            const traceId = getActiveTraceId();
+            if (traceId) res.setHeader('x-trace-id', traceId);
+            next();
+        });
+
         // Short-circuit CORS preflights for data-app iframe asset fetches.
         //
         // The data-app preview iframe uses `sandbox="allow-scripts allow-modals"`
