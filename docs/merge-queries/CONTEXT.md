@@ -46,8 +46,8 @@ internal positional aliases the builder uses.
 _Avoid_: combined result, joined table, output set
 
 **Merge table calculation**:
-A calculation evaluated on the merged row, so it can reference fields from both
-sources. Distinct from a source's own table calculations, which are evaluated
+A calculation evaluated on the merged row, so it can reference fields from every
+source. Distinct from a source's own table calculations, which are evaluated
 before the join.
 _Avoid_: post-join calculation, combined calculation
 
@@ -132,8 +132,8 @@ node (there are none in the saved definition)
 
 A merged chart is an ordinary `saved_chart` tile. A tile's dashboard filters
 are pushed into every source that has the field before the join (dimension
-filters as WHERE, metric filters as HAVING), so a join-key filter reaches both
-sides and the join stays aligned; a filter no source has is dropped as it is
+filters as WHERE, metric filters as HAVING), so a join-key filter reaches every
+source and the join stays aligned; a filter no source has is dropped as it is
 for any tile, except one that names a merged output column, which is refused
 because the merge has no post-join filter stage. The tile echo attributes the
 applied filters per source. The chart's own sort rides on the merge as its

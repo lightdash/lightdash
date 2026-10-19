@@ -63,7 +63,7 @@ const DatasetHeader: FC<{
             <ActionIcon
                 className={styles.remove}
                 size="sm"
-                aria-label="Remove combined data"
+                aria-label="Remove source"
                 onClick={onRemove}
             >
                 <MantineIcon icon={IconX} size={14} />
@@ -237,7 +237,7 @@ export const MergeQuerySidebar: FC<{
 
             <Box className={styles.datasets}>
                 <Text className={styles.sourcesLabel}>
-                    Data sources · {merge.additionalSources.length + 1}
+                    Sources · {merge.additionalSources.length + 1}
                 </Text>
                 <Box className={styles.sourceList}>
                     <DatasetHeader
@@ -304,7 +304,7 @@ export const MergeQuerySidebar: FC<{
                     >
                         {unfinishedSource
                             ? 'Finish current source'
-                            : 'Add data source'}
+                            : 'Add source'}
                     </Button>
                 </Box>
 
