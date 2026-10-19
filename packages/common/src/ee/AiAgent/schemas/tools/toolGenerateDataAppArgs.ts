@@ -34,12 +34,17 @@ export const DATA_APP_VIZ_LINE_FORMAT =
 export const DATA_APP_THEME_SLUG_DESCRIPTION =
     'Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.';
 
+/** Shared by the agent generate and iterate tools. */
+export const DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE =
+    'When the app needs an outside API (product analytics, billing, CRM) or the user names a connection, call listDataAppConnections first and pass the matching slugs as externalConnectionSlugs; a connection named only in the brief is not linked.';
+
 export const TOOL_GENERATE_DATA_APP_DESCRIPTION = [
     "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer.",
     'Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools.',
     'This tool always creates a new app: to change an app that already exists, use iterateDataApp instead.',
     'Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards.',
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
+    DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE,
 ].join(' ');
 
 /** Why a scoped session loses sight of a personal app; shared by every MCP build tool. */
@@ -81,6 +86,12 @@ Response shape (MCP CallToolResult):
 Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build.
 `;
 
+export const dataAppBuildWarningsSchema = z
+    .array(z.string())
+    .describe(
+        'Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.',
+    );
+
 /** What a started build reports at the MCP surface; the app uuid stays internal. */
 export const mcpDataAppBuildStartedOutputSchema = z.object({
     slug: z
@@ -93,16 +104,20 @@ export const mcpDataAppBuildStartedOutputSchema = z.object({
         .int()
         .positive()
         .describe('The version of the app this build produces.'),
-    warnings: z
-        .array(z.string())
-        .describe(
-            'Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.',
-        ),
+    warnings: dataAppBuildWarningsSchema,
 });
 
 export type McpDataAppBuildStarted = z.infer<
     typeof mcpDataAppBuildStartedOutputSchema
 >;
+
+export const externalConnectionSlugsInput = z
+    .array(z.string())
+    .nullish()
+    .default(null)
+    .describe(
+        'External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API.',
+    );
 
 export const toolGenerateDataAppArgsSchema = z.object({
     name: z
@@ -141,25 +156,8 @@ export const toolGenerateDataAppArgsSchema = z.object({
         .nullish()
         .default(null)
         .describe(DATA_APP_THEME_SLUG_DESCRIPTION),
+    externalConnectionSlugs: externalConnectionSlugsInput,
 });
-
-export const mcpExternalConnectionSlugsInput = z
-    .array(z.string())
-    .nullish()
-    .default(null)
-    .describe(
-        'External connections to link to the app before the build: slugs from list_data_app_connections. The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API.',
-    );
-
-/** MCP-only: the in-app agent has no tool to list connections. */
-export const mcpGenerateDataAppArgsSchema =
-    toolGenerateDataAppArgsSchema.extend({
-        externalConnectionSlugs: mcpExternalConnectionSlugsInput,
-    });
-
-export type McpGenerateDataAppArgs = z.infer<
-    typeof mcpGenerateDataAppArgsSchema
->;
 
 const versionSchema = z
     .number()
@@ -171,6 +169,8 @@ const pendingBuildSchema = z.object({
         .describe(
             'The build has started and is still running; its outcome replaces this result on a later turn.',
         ),
+    // Optional: pending results persisted before warnings existed lack it.
+    warnings: dataAppBuildWarningsSchema.optional(),
 });
 
 const readyBuildSchema = z.object({

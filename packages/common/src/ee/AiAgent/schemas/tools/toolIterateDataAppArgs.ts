@@ -3,11 +3,13 @@ import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
     DATA_APP_BUILD_POLL_INTERVAL_MS,
+    DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE,
     DATA_APP_THEME_SLUG_DESCRIPTION,
+    dataAppBuildWarningsSchema,
+    externalConnectionSlugsInput,
     isToolGenerateDataAppResult,
     MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
     MCP_DATA_APP_EXTERNAL_CONNECTIONS_GUIDANCE,
-    mcpExternalConnectionSlugsInput,
     toolGenerateDataAppOutputSchema,
     type ToolGenerateDataAppOutput,
 } from './toolGenerateDataAppArgs';
@@ -19,6 +21,7 @@ export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
     'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
     'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
     'When the attached context lists element references for this app (bracketed `[tag "text" @path:line]` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.',
+    DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE,
 ].join(' ');
 
 export const MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION = `Tool: iterate_data_app
@@ -80,15 +83,10 @@ export const toolIterateDataAppArgsSchema = z.object({
         .describe(
             `${DATA_APP_THEME_SLUG_DESCRIPTION} On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.`,
         ),
-});
-
-export const mcpIterateDataAppArgsSchema = toolIterateDataAppArgsSchema.extend({
-    externalConnectionSlugs: mcpExternalConnectionSlugsInput.describe(
-        'External connections to link to the app before the build: slugs from list_data_app_connections. Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.',
+    externalConnectionSlugs: externalConnectionSlugsInput.describe(
+        'External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.',
     ),
 });
-
-export type McpIterateDataAppArgs = z.infer<typeof mcpIterateDataAppArgsSchema>;
 
 export const toolIterateDataAppStructuredContentSchema = z.object({
     status: z
@@ -96,6 +94,8 @@ export const toolIterateDataAppStructuredContentSchema = z.object({
         .describe(
             'The build has started and runs in the background; its outcome lands on this result later.',
         ),
+    // Optional: pending results persisted before warnings existed lack it.
+    warnings: dataAppBuildWarningsSchema.optional(),
 });
 
 // The iterate tool shares the create tool's outcome contract: same pending,

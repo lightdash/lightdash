@@ -6,6 +6,7 @@ import { tool } from 'ai';
 import type { GenerateDataAppFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { withBuildWarnings } from '../utils/withBuildWarnings';
 
 type Dependencies = {
     generateDataApp: GenerateDataAppFn;
@@ -17,18 +18,26 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { name, prompt, template, dashboardSlug, chartSlugs, themeSlug },
+            {
+                name,
+                prompt,
+                template,
+                dashboardSlug,
+                chartSlugs,
+                themeSlug,
+                externalConnectionSlugs,
+            },
             { toolCallId },
         ) => {
             try {
-                const { appUuid, version } = await generateDataApp({
+                const { appUuid, version, warnings } = await generateDataApp({
                     name,
                     prompt,
                     template,
                     dashboardSlug,
                     chartSlugs,
                     themeSlug,
-                    externalConnectionSlugs: null,
+                    externalConnectionSlugs,
                     toolCallId,
                 });
                 const pendingBuild = {
@@ -39,9 +48,12 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                 };
 
                 return {
-                    result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                    result: withBuildWarnings(
+                        'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+                        warnings,
+                    ),
                     metadata: pendingBuild,
-                    structuredContent: { status: 'pending' },
+                    structuredContent: { status: 'pending', warnings },
                 };
             } catch (error) {
                 const { result, structuredContent } = toolErrorOutput(

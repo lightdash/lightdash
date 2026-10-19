@@ -343,6 +343,7 @@ export type AiAgentToolsRuntime = {
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;
+    listDataAppConnections: ListDataAppConnectionsFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -392,6 +393,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     generateDataApp: 'generateDataApp',
     iterateDataApp: 'iterateDataApp',
     listDataAppThemes: 'listDataAppThemes',
+    listDataAppConnections: 'listDataAppConnections',
     validateContent: null,
     listKnowledgeDocuments: 'listKnowledgeDocuments',
     getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
@@ -432,7 +434,6 @@ export type McpAiAgentToolsRuntime = Omit<
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
-    listDataAppConnections: ListDataAppConnectionsFn;
     createCustomChartType: CreateCustomChartTypeFn;
     iterateCustomChartType: IterateCustomChartTypeFn;
     searchCustomChartTypes: SearchCustomChartTypesFn;
@@ -932,6 +933,8 @@ export class AiAgentToolsService extends BaseService {
                     this.iterateDataApp(context, args),
                 ),
             listDataAppThemes: () => this.listDataAppThemes(context),
+            listDataAppConnections: (args) =>
+                this.listDataAppConnections(context, args),
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
                 this.getProjectParameterDefinitions(context),
@@ -1037,8 +1040,6 @@ export class AiAgentToolsService extends BaseService {
             ...runtime,
             getDataAppBuildStatus: (args) =>
                 this.getDataAppBuildStatus(context, args),
-            listDataAppConnections: (args) =>
-                this.listDataAppConnections(context, args),
             createCustomChartType: (args) =>
                 this.withWriteRefusal(context, 'app', 'create', () =>
                     this.createCustomChartType(context, args),

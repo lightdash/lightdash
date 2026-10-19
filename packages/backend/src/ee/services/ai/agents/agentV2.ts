@@ -110,6 +110,7 @@ import {
 } from '../tools/grepFieldsIndex';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
+import { getListDataAppConnections } from '../tools/listDataAppConnections';
 import { getListDataAppThemes } from '../tools/listDataAppThemes';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -2163,6 +2164,12 @@ export const getAgentTools = (
           })
         : null;
 
+    const listDataAppConnections = args.enableGenerateDataApp
+        ? getListDataAppConnections({
+              listDataAppConnections: dependencies.listDataAppConnections,
+          })
+        : null;
+
     const editDbtProject = args.enableAiWriteback
         ? getEditDbtProject({
               editDbtProject: dependencies.editDbtProject,
@@ -2377,6 +2384,7 @@ export const getAgentTools = (
         ...(generateDataApp ? { generateDataApp } : {}),
         ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(listDataAppThemes ? { listDataAppThemes } : {}),
+        ...(listDataAppConnections ? { listDataAppConnections } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),

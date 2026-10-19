@@ -30,6 +30,7 @@ import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
+import { getListDataAppConnections } from './listDataAppConnections';
 import { getListDataAppThemes } from './listDataAppThemes';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -132,6 +133,9 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
         iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
         listDataAppThemes: getListDataAppThemes({ listDataAppThemes: noop }),
+        listDataAppConnections: getListDataAppConnections({
+            listDataAppConnections: noop,
+        }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),

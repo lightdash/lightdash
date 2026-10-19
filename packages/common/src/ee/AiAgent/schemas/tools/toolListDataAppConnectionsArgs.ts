@@ -1,4 +1,14 @@
 import { z } from 'zod';
+import {
+    baseOutputMetadataSchema,
+    structuredToolOutputSchema,
+} from '../outputMetadata';
+
+export const TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = [
+    "List the project's external connections you can link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a linked connection.",
+    'Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection and pass its slug in externalConnectionSlugs to generateDataApp or iterateDataApp.',
+    'Pass appSlug to see which connections an existing app already links. Credentials are never returned.',
+].join(' ');
 
 export const MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `Tool: list_data_app_connections
 
@@ -29,7 +39,7 @@ Response shape (MCP CallToolResult):
 Errors: an unknown appSlug, or an app this caller may not view, returns an error.
 `;
 
-export const mcpListDataAppConnectionsArgsSchema = z.object({
+export const toolListDataAppConnectionsArgsSchema = z.object({
     appSlug: z
         .string()
         .min(1)
@@ -40,8 +50,8 @@ export const mcpListDataAppConnectionsArgsSchema = z.object({
         ),
 });
 
-export type McpListDataAppConnectionsArgs = z.infer<
-    typeof mcpListDataAppConnectionsArgsSchema
+export type ToolListDataAppConnectionsArgs = z.infer<
+    typeof toolListDataAppConnectionsArgsSchema
 >;
 
 export const mcpListDataAppConnectionsStructuredOutputSchema = z.object({
@@ -51,7 +61,7 @@ export const mcpListDataAppConnectionsStructuredOutputSchema = z.object({
                 slug: z
                     .string()
                     .describe(
-                        'Pass in externalConnectionSlugs to generate_data_app or iterate_data_app.',
+                        'Pass in externalConnectionSlugs when starting a data app build.',
                     ),
                 name: z.string().describe("The connection's display name."),
                 authType: z
@@ -74,4 +84,17 @@ export const mcpListDataAppConnectionsStructuredOutputSchema = z.object({
 
 export type McpListDataAppConnectionsOutput = z.infer<
     typeof mcpListDataAppConnectionsStructuredOutputSchema
+>;
+
+export const toolListDataAppConnectionsOutputSchema =
+    structuredToolOutputSchema({
+        metadata: baseOutputMetadataSchema,
+        structuredContent: mcpListDataAppConnectionsStructuredOutputSchema,
+    });
+
+export type ToolListDataAppConnectionsStructuredContent =
+    McpListDataAppConnectionsOutput;
+
+export type ToolListDataAppConnectionsOutput = z.infer<
+    typeof toolListDataAppConnectionsOutputSchema
 >;
