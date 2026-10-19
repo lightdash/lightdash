@@ -14,7 +14,16 @@ import { useMergeSafe } from '../context/useMerge';
 import { getMergeSetup } from '../utils/getMergeSetup';
 import { useMergeSourceNames } from './useMergeSourceNames';
 
-export const useMergeSetup = (sourceId?: string) => {
+/**
+ * Everything derived from the selected sources and their relationship:
+ * the merge to run, whether it can run, and what is stopping it.
+ *
+ * Lives in a hook rather than the setup panel because the run control is not
+ * inside that panel. The explorer's own Run button runs a merge when one is
+ * configured, and both need the same answer to "is this runnable, and what is
+ * it".
+ */
+export const useMergeSetup = () => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -55,13 +64,6 @@ export const useMergeSetup = (sourceId?: string) => {
             mergeContext?.tableCalculations,
         ],
     );
-    const selectedId =
-        sourceId ??
-        (state.focus.kind === 'source' ? state.focus.sourceId : undefined);
-    const selected =
-        setup.sourceSetups.find(
-            (pair) => pair.additionalSourceId === selectedId,
-        ) ?? setup.first;
     const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
     const canRun = mergeFlag?.enabled === true && setup.canRun;
     const handleRun = useCallback(() => {
@@ -69,7 +71,6 @@ export const useMergeSetup = (sourceId?: string) => {
             run?.(setup.mergeQuery, parameters, unsavedChartVersion);
     }, [canRun, setup.mergeQuery, run, parameters, unsavedChartVersion]);
     return {
-        ...selected,
         ...setup,
         isMerging: state.isMerging,
         joinType: state.joinType,
@@ -82,9 +83,5 @@ export const useMergeSetup = (sourceId?: string) => {
         sourceNames,
         canRun,
         handleRun,
-        unaccountedTotal: setup.fanOut.reduce(
-            (total, source) => total + source.fields.length,
-            0,
-        ),
     };
 };

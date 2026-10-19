@@ -41,6 +41,21 @@ vi.mock('../context/useMerge', () => ({
     useMerge: () => merge,
     useMergeSafe: () => merge,
 }));
+vi.mock('../hooks/useMergeSetup', () => ({
+    useMergeSetup: () => ({
+        sourceLabels: ['Orders', 'Payments'],
+        sourceSetups: merge.additionalSources.map((source) => ({
+            additionalSourceId: source.id,
+            additionalSource: source,
+            additionalMetricQuery: {
+                exploreName: source.exploreName,
+                filters: source.filters,
+                tableCalculations: [],
+            },
+            label: 'Payments',
+        })),
+    }),
+}));
 vi.mock('../../explorer/store', () => ({
     explorerActions: {},
     useExplorerDispatch: () => vi.fn(),

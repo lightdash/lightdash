@@ -140,10 +140,6 @@ export const MergeQuerySidebar: FC<{
         [merge.additionalSources, primaryFilters],
     );
     const selectedFields = useMemo<SelectedField[]>(() => {
-        const primaryLabel = mergeSetup.primaryExploreLabel ?? 'First data';
-        const sameLabel =
-            mergeSetup.sourceLabels.filter((label) => label === primaryLabel)
-                .length > 1;
         const selectedPrimary = [
             ...metricQuery.dimensions,
             ...metricQuery.metrics,
@@ -163,9 +159,7 @@ export const MergeQuerySidebar: FC<{
                     fieldId,
                     selectionKey: `${PRIMARY_SOURCE_ID}:${fieldId}`,
                     item,
-                    tableLabel: sameLabel
-                        ? `${primaryLabel} · First`
-                        : primaryLabel,
+                    tableLabel: mergeSetup.sourceLabels[0],
                     isDimension: metricQuery.dimensions.includes(fieldId),
                     onDeselect: onPrimaryFieldChange,
                     onAddFilter: (field: FilterableField) =>
@@ -179,66 +173,51 @@ export const MergeQuerySidebar: FC<{
         });
         const selectedAdditional = mergeSetup.sourceSetups.flatMap(
             (sourceSetup) => {
-                const additionalSource = sourceSetup.additionalSource;
-                const additionalSourceId = additionalSource.id;
-                const additionalSourceLabel =
-                    sourceSetup.additionalExploreLabel ?? 'Combined data';
-                return [
-                    ...(additionalSource?.dimensions ?? []),
-                    ...(additionalSource?.metrics ?? []),
-                ].flatMap((fieldId) => {
-                    const item = sourceSetup.additionalItemMap[fieldId];
-                    if (
-                        !item ||
-                        (!isDimension(item) &&
-                            !isMetric(item) &&
-                            !isCustomDimension(item) &&
-                            !isAdditionalMetric(item))
-                    ) {
-                        return [];
-                    }
-                    return [
-                        {
-                            fieldId,
-                            selectionKey: `${additionalSourceId}:${fieldId}`,
-                            item,
-                            tableLabel:
-                                mergeSetup.sourceLabels.filter(
-                                    (label) => label === additionalSourceLabel,
-                                ).length > 1
-                                    ? `${additionalSourceLabel} · ${mergeSetup.sourceNames.nameByHandle[additionalSourceId]}`
-                                    : additionalSourceLabel,
-                            isDimension:
-                                additionalSource?.dimensions.includes(
-                                    fieldId,
-                                ) ?? false,
-                            onDeselect: (id: string, isDimension: boolean) =>
-                                additionalSourceId &&
-                                merge.toggleSourceField(
-                                    additionalSourceId,
-                                    id,
-                                    isDimension,
-                                ),
-                            onAddFilter: (field: FilterableField) =>
-                                additionalSourceId &&
-                                addSourceFilter(additionalSourceId, field),
-                            isFiltered:
-                                (additionalSourceId
-                                    ? filteredFieldIds[additionalSourceId]?.has(
-                                          fieldId,
-                                      )
-                                    : false) ?? false,
-                            basicActionsOnly: true,
-                        },
-                    ];
-                });
+                const source = sourceSetup.additionalSource;
+                return [...source.dimensions, ...source.metrics].flatMap(
+                    (fieldId) => {
+                        const item = sourceSetup.additionalItemMap[fieldId];
+                        if (
+                            !item ||
+                            (!isDimension(item) &&
+                                !isMetric(item) &&
+                                !isCustomDimension(item) &&
+                                !isAdditionalMetric(item))
+                        ) {
+                            return [];
+                        }
+                        return [
+                            {
+                                fieldId,
+                                selectionKey: `${source.id}:${fieldId}`,
+                                item,
+                                tableLabel: sourceSetup.label,
+                                isDimension:
+                                    source.dimensions.includes(fieldId),
+                                onDeselect: (
+                                    id: string,
+                                    isDimension: boolean,
+                                ) =>
+                                    merge.toggleSourceField(
+                                        source.id,
+                                        id,
+                                        isDimension,
+                                    ),
+                                onAddFilter: (field: FilterableField) =>
+                                    addSourceFilter(source.id, field),
+                                isFiltered:
+                                    filteredFieldIds[source.id]?.has(fieldId) ??
+                                    false,
+                                basicActionsOnly: true,
+                            },
+                        ];
+                    },
+                );
             },
         );
 
         return [...selectedPrimary, ...selectedAdditional];
     }, [
-        additionalSource,
-        additionalSourceId,
         addSourceFilter,
         filteredFieldIds,
         merge,
@@ -262,23 +241,13 @@ export const MergeQuerySidebar: FC<{
                 </Text>
                 <Box className={styles.sourceList}>
                     <DatasetHeader
-                        label={
-                            mergeSetup.primaryExploreLabel ??
-                            primaryExplore.label
-                        }
+                        label={mergeSetup.sourceLabels[0]}
                         description={`${primaryCount} selected · first source`}
                         open={openSourceId === PRIMARY_SOURCE_ID}
                         onClick={() => toggle(PRIMARY_SOURCE_ID)}
                     />
                     {mergeSetup.sourceSetups.map((sourceSetup) => {
                         const source = sourceSetup.additionalSource;
-                        const sourceLabel =
-                            sourceSetup.additionalExploreLabel ??
-                            'Choose data to combine';
-                        const duplicateLabel =
-                            mergeSetup.sourceLabels.filter(
-                                (label) => label === sourceLabel,
-                            ).length > 1;
                         const missingJoin = mergeSetup.effectiveParts.some(
                             (part) => !part.fieldIdBySourceId[source.id],
                         );
@@ -294,11 +263,7 @@ export const MergeQuerySidebar: FC<{
                         return (
                             <DatasetHeader
                                 key={source.id}
-                                label={
-                                    duplicateLabel
-                                        ? `${sourceLabel} · ${mergeSetup.sourceNames.nameByHandle[source.id]}`
-                                        : sourceLabel
-                                }
+                                label={sourceSetup.label}
                                 description={description}
                                 needsAttention={
                                     !source.exploreName ||

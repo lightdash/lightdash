@@ -26,15 +26,14 @@ import {
 } from '../../explorer/store';
 import { PRIMARY_SOURCE_ID } from '../constants';
 import { useMerge } from '../context/useMerge';
-import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
-import { getMergeSourceMetricQuery } from '../utils/getMergeSourceMetricQuery';
+import { useMergeSetup } from '../hooks/useMergeSetup';
 import { syncMergeJoinFilters } from '../utils/syncMergeJoinFilters';
 
 const SourceFilters: FC<{
     query: MetricQuery;
-    sourceName: string;
+    label: string;
     setFilters: (filters: Filters) => void;
-}> = ({ query, sourceName, setFilters }) => {
+}> = ({ query, label, setFilters }) => {
     const projectUuid = useProjectUuid();
     const { startOfWeek } = useExploreWarehouseConnection(
         query.exploreName,
@@ -52,16 +51,11 @@ const SourceFilters: FC<{
         includeHiddenFields: false,
     });
     const count = countTotalFilterRules(query.filters);
-    const exploreLabel = explore?.label ?? query.exploreName;
-    const displayLabel =
-        sourceName === query.exploreName
-            ? exploreLabel
-            : `${exploreLabel} · ${sourceName}`;
     return (
         <Stack gap={0} py="xs">
             <Group justify="space-between" gap="xs" px="sm" mih={24}>
                 <Text size="xs" fw={600}>
-                    {displayLabel}
+                    {label}
                 </Text>
                 <Text size="xs" c="dimmed">
                     {count === 0 ? 'No filters' : `${count} active`}
@@ -94,7 +88,7 @@ const SourceFilters: FC<{
 /** Join-key rules are shared across every source; other filters stay local. */
 export const MergeFiltersCard: FC = () => {
     const merge = useMerge();
-    const sourceNames = useMergeSourceNames();
+    const { sourceLabels, sourceSetups } = useMergeSetup();
     const dispatch = useExplorerDispatch();
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const filterIsOpen = useExplorerSelector(selectIsFiltersExpanded);
@@ -104,17 +98,13 @@ export const MergeFiltersCard: FC = () => {
         if (filterIsOpen) setHasEverOpened(true);
     }, [filterIsOpen]);
     const sources = [
-        {
-            id: PRIMARY_SOURCE_ID,
-            query: metricQuery,
-            sourceName: sourceNames.nameByHandle[PRIMARY_SOURCE_ID],
-        },
-        ...merge.additionalSources
-            .filter((source) => source.exploreName)
-            .map((source) => ({
-                id: source.id,
-                query: getMergeSourceMetricQuery(source, metricQuery.limit),
-                sourceName: sourceNames.nameByHandle[source.id],
+        { id: PRIMARY_SOURCE_ID, query: metricQuery, label: sourceLabels[0] },
+        ...sourceSetups
+            .filter((setup) => setup.additionalSource.exploreName)
+            .map((setup) => ({
+                id: setup.additionalSourceId,
+                query: setup.additionalMetricQuery,
+                label: setup.label,
             })),
     ];
     const total = new Set(
@@ -172,7 +162,7 @@ export const MergeFiltersCard: FC = () => {
                             {index > 0 && <Divider />}
                             <SourceFilters
                                 query={source.query}
-                                sourceName={source.sourceName}
+                                label={source.label}
                                 setFilters={(filters) =>
                                     setFilters(source.id, filters)
                                 }

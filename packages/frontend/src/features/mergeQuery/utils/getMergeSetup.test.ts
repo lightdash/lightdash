@@ -204,6 +204,33 @@ describe('multi-source merge setup', () => {
         ).toEqual(tableCalculations);
     });
 
+    it('labels repeated explores by their source names everywhere', () => {
+        const input = fixture();
+        input.additionalSources[1] = {
+            ...input.additionalSources[1],
+            exploreName: 'domain_1',
+            dimensions: ['domain_1_date', 'domain_1_team'],
+            metrics: ['domain_1_count'],
+        };
+        input.additionalExplores[1] = explore('domain_1');
+        input.sourceNames = getMergeSourceNames({
+            tableName: input.tableName,
+            primarySourceName: null,
+            additionalSources: input.additionalSources,
+        });
+        const setup = getMergeSetup(input);
+        expect(setup.sourceLabels).toEqual([
+            'domain_0',
+            'domain_1 · domain_1',
+            'domain_1 · domain_1_2',
+        ]);
+        expect(setup.sourceSetups.map(({ label }) => label)).toEqual(
+            setup.sourceLabels.slice(1),
+        );
+        expect(setup.keySummary).toBe('date + team');
+        expect(setup.joinTypeLabel).toBe('All rows');
+    });
+
     it('reserves saved source names before naming new sources', () => {
         const additionalSources = [
             { ...emptyMergeSource('b'), exploreName: 'payments' },

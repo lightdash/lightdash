@@ -1,10 +1,12 @@
 import {
+    assertUnreachable,
     convertItemTypeToDimensionType,
     getItemLabelWithoutTableName,
     getUnaccountedDimensions,
     isCustomDimension,
     isDimension,
     isFanOutAccepted,
+    MergeJoinType,
     MergeQueryErrorKind,
     toMergedSorts,
     validateMergeQuery,
@@ -21,6 +23,22 @@ import {
 import { type MergeEditorSource, type MergeJoinPart } from '../context/context';
 import { getMergePairSetup } from './getMergePairSetup';
 import { type MergeSourceNames } from './getMergeSourceNames';
+
+export const getMergeJoinTypeLabel = (
+    joinType: MergeJoinType,
+    firstSourceLabel: string,
+): string => {
+    switch (joinType) {
+        case MergeJoinType.INNER:
+            return 'Matches only';
+        case MergeJoinType.LEFT:
+            return `From ${firstSourceLabel}`;
+        case MergeJoinType.FULL:
+            return 'All rows';
+        default:
+            return assertUnreachable(joinType, 'Unknown join type');
+    }
+};
 
 /** Every source shares one key and join mode; editing focus never changes the query. */
 export const getMergeSetup = ({
@@ -92,9 +110,6 @@ export const getMergeSetup = ({
             ]),
         ]),
     }));
-    const completeParts = effectiveParts.filter((part) =>
-        handles.every((id) => part.fieldIdBySourceId[id]),
-    );
     const editorSources = [
         { id: PRIMARY_SOURCE_ID, metricQuery },
         ...sourceSetups.map((setup) => ({
@@ -105,12 +120,20 @@ export const getMergeSetup = ({
         ...source,
         repeatValues: repeatValuesSourceIds.includes(source.id),
     }));
-    const editorKeys = completeParts.map((part) => ({
-        name: part.name ?? part.fieldIdBySourceId[PRIMARY_SOURCE_ID]!,
-        fieldIdBySourceId: Object.fromEntries(
-            handles.map((id) => [id, part.fieldIdBySourceId[id]!]),
-        ),
-    }));
+    const editorKeys = effectiveParts.flatMap((part) => {
+        const fieldIds = handles.map((id) => part.fieldIdBySourceId[id]);
+        if (!fieldIds.every((fieldId): fieldId is string => !!fieldId)) {
+            return [];
+        }
+        return [
+            {
+                name: part.name ?? fieldIds[0],
+                fieldIdBySourceId: Object.fromEntries(
+                    handles.map((id, index) => [id, fieldIds[index]]),
+                ),
+            },
+        ];
+    });
     const fanOut = editorSources.flatMap((source) => {
         const fields = getUnaccountedDimensions(source, editorKeys);
         return fields.length > 0 && !isFanOutAccepted(editorSources, source.id)
@@ -131,7 +154,7 @@ export const getMergeSetup = ({
         metricQuery.exploreName &&
         additionalSources.length > 0 &&
         additionalSources.every((source) => source.exploreName) &&
-        completeParts.length > 0
+        editorKeys.length > 0
             ? {
                   sources: editorSources.map((source) => ({
                       id: sourceNames.nameByHandle[source.id],
@@ -201,7 +224,7 @@ export const getMergeSetup = ({
             : missingMetric
               ? `Add at least one metric from ${missingMetric.additionalExploreLabel ?? 'the added table'}`
               : effectiveParts.length === 0 ||
-                  completeParts.length !== effectiveParts.length
+                  editorKeys.length !== effectiveParts.length
                 ? 'Pick a field from each query to join on'
                 : null;
     const blockingReason =
@@ -211,32 +234,57 @@ export const getMergeSetup = ({
             : fanOut.length > 0
               ? 'A field is only in one of the queries'
               : null);
-    const labels = [
+    const exploreLabels = [
         first.primaryExploreLabel ?? 'First data',
         ...sourceSetups.map(
             (setup) => setup.additionalExploreLabel ?? 'Choose data to combine',
         ),
     ];
-    const relationshipSummary = effectiveParts
-        .map((part) =>
-            handles
-                .map((id, index) => {
-                    const fieldId = part.fieldIdBySourceId[id];
-                    const item = fieldId ? itemMaps[index][fieldId] : undefined;
-                    return `${labels[index]} · ${item ? getItemLabelWithoutTableName(item) : (fieldId ?? '?')}`;
-                })
-                .join(' = '),
-        )
-        .join(' AND ');
+    // A repeated explore is told apart by the name it runs under
+    const labels = exploreLabels.map((label, index) =>
+        exploreLabels.indexOf(label) !== exploreLabels.lastIndexOf(label)
+            ? `${label} · ${sourceNames.nameByHandle[handles[index]]}`
+            : label,
+    );
+    const labelFor = (fieldId: string) => {
+        const item = itemMaps.map((items) => items[fieldId]).find(Boolean);
+        return item ? getItemLabelWithoutTableName(item) : fieldId;
+    };
+    const fieldLabel = (fieldId: string | null) =>
+        fieldId ? labelFor(fieldId) : '?';
+    const keySummary =
+        handles.length === 2
+            ? effectiveParts
+                  .map((part) =>
+                      handles
+                          .map(
+                              (id, index) =>
+                                  `${labels[index]} · ${fieldLabel(part.fieldIdBySourceId[id])}`,
+                          )
+                          .join(' = '),
+                  )
+                  .join(' AND ')
+            : effectiveParts
+                  .map((part) =>
+                      fieldLabel(part.fieldIdBySourceId[PRIMARY_SOURCE_ID]),
+                  )
+                  .join(' + ');
     return {
-        first,
-        sourceSetups,
-        relationshipSummary,
+        primaryExploreLabel: first.primaryExploreLabel,
+        primaryItemMap: first.primaryItemMap,
+        availablePrimaryJoinItems: first.availablePrimaryJoinItems,
+        joinFieldLabel: first.joinFieldLabel,
+        sourceSetups: sourceSetups.map((setup, index) => ({
+            ...setup,
+            label: labels[index + 1],
+        })),
+        keySummary,
+        joinTypeLabel: getMergeJoinTypeLabel(
+            joinType,
+            first.primaryExploreLabel ?? 'the first source',
+        ),
         sourceLabels: labels,
-        labelFor: (fieldId: string) => {
-            const item = itemMaps.map((items) => items[fieldId]).find(Boolean);
-            return item ? getItemLabelWithoutTableName(item) : fieldId;
-        },
+        labelFor,
         effectiveParts,
         mergeQuery,
         fanOut,

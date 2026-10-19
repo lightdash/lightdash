@@ -24,6 +24,7 @@ import { EMPTY_MERGE, PRIMARY_SOURCE_ID } from '../constants';
 import { useMergeSafe } from '../context/useMerge';
 import { useMergeSetup } from '../hooks/useMergeSetup';
 import { useMergeSourceNames } from '../hooks/useMergeSourceNames';
+import { getMergeJoinTypeLabel } from '../utils/getMergeSetup';
 import { getMergeSourcesWithoutValues } from '../utils/getMergeSourcesWithoutValues';
 import styles from './MergeJoinBar.module.css';
 
@@ -117,7 +118,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const mergeContext = useMergeSafe();
-    const { handleByName, nameByHandle } = useMergeSourceNames();
+    const { handleByName } = useMergeSourceNames();
     const {
         isMerging,
         readOnly,
@@ -132,9 +133,9 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const { runErrors, mergeResults } = mergeContext ?? {};
 
     const {
-        first,
         sourceSetups,
-        relationshipSummary,
+        keySummary,
+        availablePrimaryJoinItems,
         effectiveParts,
         labelFor,
         fanOut,
@@ -147,21 +148,6 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const configuredSourceSetups = sourceSetups.filter(
         (setup) => setup.additionalSource.exploreName,
     );
-    const configuredLabelCounts = configuredSourceSetups.reduce<
-        Record<string, number>
-    >((counts, setup) => {
-        const label = setup.additionalExploreLabel ?? setup.additionalSourceId;
-        counts[label] = (counts[label] ?? 0) + 1;
-        return counts;
-    }, {});
-    const displayLabelForSetup = (
-        setup: (typeof configuredSourceSetups)[number],
-    ) => {
-        const label = setup.additionalExploreLabel ?? setup.additionalSourceId;
-        return configuredLabelCounts[label] > 1
-            ? `${label} · ${nameByHandle[setup.additionalSourceId] ?? setup.additionalSourceId}`
-            : label;
-    };
 
     // Expanded while the merge is incomplete — there is nothing to summarise
     // yet — and by explicit choice afterwards.
@@ -194,25 +180,22 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const thisQuery = primaryExploreLabel || 'this query';
     const sourceLabels: Record<string, string> = Object.fromEntries([
         [PRIMARY_SOURCE_ID, thisQuery],
-        ...sourceSetups.map((setup) => [
-            setup.additionalSourceId,
-            displayLabelForSetup(setup),
-        ]),
+        ...sourceSetups.map((setup) => [setup.additionalSourceId, setup.label]),
     ]);
     const keepOptions: JoinTypeOption[] = [
         {
             value: MergeJoinType.INNER,
-            label: 'Matches only',
+            label: getMergeJoinTypeLabel(MergeJoinType.INNER, thisQuery),
             help: `Only ${joinFieldLabel} values found in every source. Everything unmatched is dropped.`,
         },
         {
             value: MergeJoinType.LEFT,
-            label: `From ${thisQuery}`,
+            label: getMergeJoinTypeLabel(MergeJoinType.LEFT, thisQuery),
             help: `Only ${joinFieldLabel} values in ${thisQuery}. Anything found solely in another source is dropped.`,
         },
         {
             value: MergeJoinType.FULL,
-            label: 'All rows',
+            label: getMergeJoinTypeLabel(MergeJoinType.FULL, thisQuery),
             help: `Every ${joinFieldLabel} from any source. Where a source has no match, its columns are blank.`,
         },
     ];
@@ -222,24 +205,18 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
     const mergeError = mergeResults?.results.error ?? null;
 
     const sourceCount = 1 + configuredSourceSetups.length;
-    const primaryKeySummary = effectiveParts
-        .map((part) => {
-            const fieldId = part.fieldIdBySourceId[PRIMARY_SOURCE_ID];
-            return fieldId ? labelFor(fieldId) : '?';
-        })
-        .join(' + ');
     const summary = isIncomplete ? (
         <>
             <b>{sourceCount} sources</b> · finish matching every source
         </>
-    ) : sourceCount === 2 ? (
-        <>
-            joined on <b>{relationshipSummary}</b> · <b>{activeKeep.label}</b>
-        </>
     ) : (
         <>
-            <b>{sourceCount} sources</b> · joined on <b>{primaryKeySummary}</b>{' '}
-            · <b>{activeKeep.label}</b>
+            {sourceCount > 2 && (
+                <>
+                    <b>{sourceCount} sources</b> ·{' '}
+                </>
+            )}
+            joined on <b>{keySummary}</b> · <b>{activeKeep.label}</b>
         </>
     );
 
@@ -326,10 +303,8 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                             size="xs"
                                             placeholder="Choose a shared field"
                                             hasGrouping
-                                            items={
-                                                first.availablePrimaryJoinItems
-                                            }
-                                            item={first.availablePrimaryJoinItems.find(
+                                            items={availablePrimaryJoinItems}
+                                            item={availablePrimaryJoinItems.find(
                                                 (candidate) =>
                                                     getItemId(candidate) ===
                                                     primaryFieldId,
@@ -352,8 +327,7 @@ export const MergeJoinBar: FC<{ guided?: boolean }> = ({ guided = false }) => {
                                         {configuredSourceSetups.map((setup) => {
                                             const sourceId =
                                                 setup.additionalSourceId;
-                                            const sourceLabel =
-                                                displayLabelForSetup(setup);
+                                            const sourceLabel = setup.label;
                                             const fieldId =
                                                 part.fieldIdBySourceId[
                                                     sourceId

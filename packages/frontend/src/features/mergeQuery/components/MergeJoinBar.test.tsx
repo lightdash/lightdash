@@ -63,7 +63,6 @@ const state = vi.hoisted(() => ({
         additionalJoinItems: [] as TestItem[],
         availablePrimaryJoinItems: [] as TestItem[],
         availableAdditionalJoinItems: [] as TestItem[],
-        suggestedAvailablePair: null as Record<string, string> | null,
         getJoinCandidates: (
             _side: 'primary' | 'additional',
             _counterpartFieldId: string | null,
@@ -110,15 +109,11 @@ vi.mock('../context/useMerge', () => ({
 vi.mock('../hooks/useMergeSetup', () => ({
     useMergeSetup: () => ({
         ...state.setup,
-        additionalSource: state.merge.additionalSources[0],
-        first: {
-            availablePrimaryJoinItems: state.setup.availablePrimaryJoinItems,
-        },
         sourceSetups: state.merge.additionalSources.map((source) => ({
             additionalSourceId: source.id,
             additionalSource: source,
-            additionalExploreLabel:
-                source.id === 'b' || source.exploreName === 'customers'
+            label:
+                source.exploreName === 'customers'
                     ? state.setup.additionalExploreLabel
                     : 'Payments',
             availableAdditionalJoinItems:
@@ -128,17 +123,18 @@ vi.mock('../hooks/useMergeSetup', () => ({
         sourceLabels: [
             state.setup.primaryExploreLabel,
             ...state.merge.additionalSources.map((source) =>
-                source.id === 'b' || source.exploreName === 'customers'
+                source.exploreName === 'customers'
                     ? state.setup.additionalExploreLabel
                     : 'Payments',
             ),
         ],
-        relationshipSummary: state.setup.effectiveParts
-            .map(
-                (part) =>
-                    `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.a!)} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(part.fieldIdBySourceId.b!)}`,
-            )
-            .join(' AND '),
+        keySummary:
+            state.merge.additionalSources.length > 1
+                ? state.setup.labelFor(
+                      state.setup.effectiveParts[0].fieldIdBySourceId.a ?? '',
+                  )
+                : `${state.setup.primaryExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.a ?? '')} = ${state.setup.additionalExploreLabel} · ${state.setup.labelFor(state.setup.effectiveParts[0].fieldIdBySourceId.b ?? '')}`,
+        joinTypeLabel: 'All rows',
     }),
 }));
 
@@ -229,7 +225,6 @@ const resetState = () => {
     state.setup.availableAdditionalJoinItems = additionalItems;
     state.setup.fanOut = [];
     state.merge.repeatValuesSourceIds = [];
-    state.setup.suggestedAvailablePair = null;
     state.setup.getJoinCandidates = () => ({
         suggested: [],
         incompatible: [],
@@ -400,23 +395,6 @@ describe('MergeJoinBar', () => {
             0,
             1,
         );
-    });
-
-    it('disambiguates repeated explores in the shared key mapping', () => {
-        state.merge.additionalSources = [
-            ...state.merge.additionalSources,
-            {
-                id: 'c',
-                exploreName: 'customers',
-                dimensions: [],
-                metrics: [],
-            },
-        ];
-        state.setup.effectiveParts[0].fieldIdBySourceId.c = 'customers_id';
-
-        renderWithProviders(<MergeJoinBar guided />);
-
-        expect(screen.getAllByText(/^Customers · /)).toHaveLength(2);
     });
 
     it('supports clicking and arrow-key navigation between join types', async () => {
