@@ -271,6 +271,63 @@ describe('limited project settings navigation', () => {
     );
 });
 
+describe('managed analytics project settings navigation', () => {
+    it.each(['full', 'limited'] as const)(
+        'keeps only useful analytics project settings with %s access',
+        (type) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Organization',
+                        },
+                        project: {
+                            projectUuid: 'project',
+                            organizationUuid: 'org',
+                            name: 'Analytics',
+                            provisioningSource: 'analytics',
+                        } as Project,
+                        canAccessAnalyticsSettings: true,
+                        health: {
+                            softDelete: { enabled: true },
+                            preAggregates: { enabled: false },
+                        } as SettingsContext['health'],
+                        user: {
+                            ability: new Ability([
+                                { action: 'manage', subject: 'all' },
+                            ]),
+                        } as SettingsContext['user'],
+                        projectSettingsAccess:
+                            type === 'full'
+                                ? { type, defaultPage: 'settings' }
+                                : {
+                                      type,
+                                      pages: ['recentlyDeleted'],
+                                      defaultPage: 'recentlyDeleted',
+                                  },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .find(({ id }) => id === 'current-project')
+                    ?.items.map(({ label }) => label),
+            ).toEqual(
+                type === 'full'
+                    ? ['Project access', 'Recently deleted']
+                    : ['Recently deleted'],
+            );
+            expect(result.current.flatMap(({ items }) => items)).toContainEqual(
+                expect.objectContaining({
+                    label: 'Lightdash analytics',
+                    to: '/generalSettings/lightdashAnalytics',
+                }),
+            );
+        },
+    );
+});
+
 describe('Agent identity settings navigation', () => {
     it.each([
         [true, 'manage', true],
