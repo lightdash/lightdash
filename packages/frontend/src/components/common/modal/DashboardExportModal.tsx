@@ -25,6 +25,11 @@ import {
     IconScreenshot,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import {
+    selectParameterValues,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
 import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
@@ -59,11 +64,11 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType === SchedulerFormat.CSV ||
         exportType === SchedulerFormat.XLSX;
     const exportDashboardContentMutation = useExportDashboardContent();
-    const dashboardFilters = useDashboardContext((c) => c.allFilters);
+    const dashboardFilters = useDashboardAllFilters();
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<

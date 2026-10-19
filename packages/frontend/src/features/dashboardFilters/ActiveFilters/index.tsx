@@ -14,6 +14,10 @@ import { getDashboardFilterField } from '@lightdash/common';
 import { Group, Skeleton, useMantineTheme } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import Filter from './Filter';
 import { moveFilterRule } from './filterOrder';
 import { TemporaryFilters } from './TemporaryFilters';
@@ -64,7 +68,7 @@ const DroppableArea: FC<{ id: string; children: ReactNode }> = ({
     children,
 }) => {
     const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const { colors } = useMantineTheme();
 
     const placeholderStyle = useMemo(() => {
@@ -99,7 +103,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     triggerClassName,
     dropdownClassName,
 }) => {
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );

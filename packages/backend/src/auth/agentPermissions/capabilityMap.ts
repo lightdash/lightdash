@@ -157,9 +157,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentAdminController.backfillReviewLinearIssues': [
         AgentCapability.Administration,
     ],
-    'AiAgentAdminController.captureReviewReplayInputs': [
-        AgentCapability.Administration,
-    ],
     'AiAgentAdminController.createReviewItem': [AgentCapability.Administration],
     'AiAgentAdminController.createReviewItemWriteback': [
         AgentCapability.DbtWriteback,

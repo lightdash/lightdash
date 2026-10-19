@@ -1,8 +1,14 @@
 import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    type DashboardStoreTestValues,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../../testing/testUtils';
 import RequiredFilterCard from './RequiredFilterCard';
 
 const buildRule = (
@@ -38,8 +44,20 @@ vi.mock('./useUpdateDashboardFilterRule', () => ({
     useUpdateDashboardFilterRule: vi.fn(() => updateFilterRule),
 }));
 
+let storeValues: DashboardStoreTestValues = {};
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider
+            store={createDashboardTestStore(storeValues)}
+        >
+            {ui}
+        </DashboardStoreTestProvider>,
+    );
+
 const setDashboardFilters = (dimensions: DashboardFilterRule[]) => {
-    mockDashboardContext.current = {
+    mockDashboardContext.current = {};
+    storeValues = {
         dashboardFilters: {
             dimensions,
             metrics: [],

@@ -9,6 +9,11 @@ import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+} from '../../../../../features/dashboard/store';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
@@ -37,10 +42,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const getUiString = useUiStrings();
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );

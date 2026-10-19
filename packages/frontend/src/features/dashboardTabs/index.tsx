@@ -46,6 +46,12 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+    useDashboardUnmetFilterRequirements,
+} from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -349,7 +355,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -358,9 +364,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
-    const unmetFilterRequirements = useDashboardContext(
-        (c) => c.unmetFilterRequirements,
-    );
+    const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -369,9 +373,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state
     const [isFiltersCollapsed, setIsFiltersCollapsed] =

@@ -23,6 +23,13 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
+import {
+    selectDashboardFilters,
+    selectHaveFiltersChanged,
+    useDashboardSelector,
+    useDashboardTemporaryFilters,
+    useDashboardUnmetFilterRequirements,
+} from '../../../../../features/dashboard/store';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import {
     convertLayoutToBaseCoordinates,
@@ -323,11 +330,9 @@ const EmbedDashboard: FC<{
         (c) => c.setHaveTilesChanged,
     );
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
-    const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const dashboardTemporaryFilters = useDashboardTemporaryFilters();
+    const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
@@ -476,9 +481,7 @@ const EmbedDashboard: FC<{
             setEmbedDashboard(translatedDashboard);
         }
     }, [translatedDashboard, setEmbedDashboard]);
-    const unmetFilterRequirements = useDashboardContext(
-        (c) => c.unmetFilterRequirements,
-    );
+    const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
 
     const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
 

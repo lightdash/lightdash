@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../api';
 import { DashboardChartEditorActionsPortalId } from '../components/DashboardTiles/constants';
 import { AbilityContext } from '../providers/Ability/context';
+import { createDashboardTestStore } from '../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -74,28 +76,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             },
         },
         dashboardError: undefined,
-        dashboardFilters: {
-            dimensions: [],
-            metrics: [],
-            tableCalculations: [],
-        },
-        dashboardTemporaryFilters: {
-            dimensions: [],
-            metrics: [],
-            tableCalculations: [],
-        },
         get dashboardTiles() {
             return [copiedTile];
         },
         dashboardTabs: [],
         dashboardCustomMetrics: [],
-        dashboardParameters: {},
-        dashboardParameterReferences: new Set<string>(),
-        parameterDefinitions: {},
-        parameterValues: {},
-        parameterOrder: [],
-        pinnedParameters: [],
-        missingRequiredParameters: [],
         dateZoomGranularities: [],
         defaultDateZoomGranularity: undefined,
         dateZoomConfig: { controls: [], tileTargets: {} },
@@ -103,15 +88,11 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
         get haveTilesChanged() {
             return state.haveTilesChanged;
         },
-        haveFiltersChanged: false,
         haveTabsChanged: false,
         haveCustomMetricsChanged: false,
-        havePinnedParametersChanged: false,
         haveDateZoomGranularitiesChanged: false,
-        hasParameterOrderChanged: false,
         hasDefaultDateZoomGranularityChanged: false,
         hasDateZoomConfigChanged: false,
-        parametersHaveChanged: false,
         hasTilesThatSupportFilters: false,
         isDateZoomDisabled: false,
         isAddFilterDisabled: false,
@@ -351,9 +332,11 @@ const renderDashboard = (search: string) => {
         },
     );
     renderWithProviders(
-        <AbilityContext.Provider value={manageChartAbility}>
-            <RouterProvider router={router} />
-        </AbilityContext.Provider>,
+        <DashboardStoreTestProvider store={createDashboardTestStore()}>
+            <AbilityContext.Provider value={manageChartAbility}>
+                <RouterProvider router={router} />
+            </AbilityContext.Provider>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: manageChartAbility.rules } },
     );
 };

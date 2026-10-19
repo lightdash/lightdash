@@ -24,6 +24,10 @@ import MantineModal from '../../../components/common/MantineModal';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import classes from './FilterRequirements.module.css';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import { AndSeparator } from './RuleSeparators';
@@ -123,7 +127,7 @@ const FilterRequirementsButton: FC = () => {
     const [draftRuleIds, setDraftRuleIds] = useState<string[]>([]);
 
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const requiredFiltersNote = useDashboardContext(
         (c) => c.requiredFiltersNote,
     );

@@ -3,7 +3,12 @@ import {
     type ParameterDefinitions,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardParameterReferences,
+    selectDashboardParameterDefinitions,
+    selectTileParameterReferences,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 
 export const getActiveTabParameters = ({
     activeTiles,
@@ -39,14 +44,14 @@ export const getActiveTabParameters = ({
 export const useActiveTabParameters = (
     activeTiles: DashboardTile[] | undefined,
 ): ParameterDefinitions => {
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
+    const parameterDefinitions = useDashboardSelector(
+        selectDashboardParameterDefinitions,
     );
-    const dashboardParameterReferences = useDashboardContext(
-        (c) => c.dashboardParameterReferences,
+    const dashboardParameterReferences = useDashboardSelector(
+        selectDashboardParameterReferences,
     );
-    const tileParameterReferences = useDashboardContext(
-        (c) => c.tileParameterReferences,
+    const tileParameterReferences = useDashboardSelector(
+        selectTileParameterReferences,
     );
 
     return useMemo(

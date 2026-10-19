@@ -2,6 +2,11 @@ import { type ParameterDefinitions } from '@lightdash/common';
 import { Box, Group, Text } from '@mantine/core';
 import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import {
+    selectMissingRequiredParameters,
+    selectParameterValues,
+    useDashboardSelector,
+} from '../../../../../features/dashboard/store';
 import FilterGroupSeparator from '../../../../../features/dashboardFilters/FilterGroupSeparator';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
@@ -33,14 +38,14 @@ type Props = {
 
 const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
     const getUiString = useUiStrings();
-    const parameterValues = useDashboardContext((c) => c.parameterValues);
+    const parameterValues = useDashboardSelector(selectParameterValues);
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
-    const missingRequiredParameters = useDashboardContext(
-        (c) => c.missingRequiredParameters,
+    const missingRequiredParameters = useDashboardSelector(
+        selectMissingRequiredParameters,
     );
 
     return (
