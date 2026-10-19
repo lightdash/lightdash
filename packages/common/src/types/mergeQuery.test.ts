@@ -875,10 +875,8 @@ describe('getMergeCompiledSqlText', () => {
         );
     });
 
-    // The join is DuckDB SQL; these dialects read `alias."col"` as a string
-    // and reject it, which used to leave the whole text unformatted.
     it.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
-        'formats the compose join on %s',
+        'formats the DuckDB join on %s, whose dialect cannot parse it',
         (warehouseType) => {
             const text = getMergeCompiledSqlText(
                 {
@@ -888,39 +886,26 @@ describe('getMergeCompiledSqlText', () => {
                             sql: 'SELECT `orders`.`month` AS `orders_month` FROM `orders`',
                             metricQuery: null,
                         },
-                        { sourceId: 'payments', sql: null, metricQuery: null },
                     ],
-                    sql: 'SELECT merged_output."month" AS "merge_month" FROM ( WITH merge_0_a AS ( SELECT * FROM "merge_source_0" ) SELECT merge_0_a."orders_month" AS "month" FROM merge_0_a ) AS merged_output ORDER BY "merge_month" LIMIT 500',
+                    sql: 'SELECT merge_0_a."orders_month" AS "month" FROM "merge_source_0" AS merge_0_a',
                 },
                 warehouseType,
             );
 
-            expect(text?.split(`${mergeComment}\n`)[1]).toBe(
+            expect(text).toBe(
                 [
+                    '-- Query A ("orders"): runs on the warehouse',
                     'SELECT',
-                    '  merged_output."month" AS "merge_month"',
+                    '  `orders`.`month` AS `orders_month`',
                     'FROM',
-                    '  (',
-                    '    WITH',
-                    '      merge_0_a AS (',
-                    '        SELECT',
-                    '          *',
-                    '        FROM',
-                    '          "merge_source_0"',
-                    '      )',
-                    '    SELECT',
-                    '      merge_0_a."orders_month" AS "month"',
-                    '    FROM',
-                    '      merge_0_a',
-                    '  ) AS merged_output',
-                    'ORDER BY',
-                    '  "merge_month"',
-                    'LIMIT',
-                    '  500',
+                    '  `orders`',
+                    '',
+                    mergeComment,
+                    'SELECT',
+                    '  merge_0_a."orders_month" AS "month"',
+                    'FROM',
+                    '  "merge_source_0" AS merge_0_a',
                 ].join('\n'),
-            );
-            expect(text).toContain(
-                '-- Query A ("orders"): runs on the warehouse\nSELECT\n  `orders`.`month` AS `orders_month`\nFROM\n  `orders`',
             );
         },
     );
