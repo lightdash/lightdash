@@ -246,7 +246,15 @@ export const getSystemPromptV2 = (args: {
               enableComposerPythonNodes
                   ? ', python nodes run the algorithm'
                   : ''
-          }, and the terminal node is the table the user sees. Build the pipeline instead of running the queries one by one and combining them in prose.`
+          }, and the terminal node is ${
+              slackChannelId
+                  ? 'the table the user sees'
+                  : 'the result you can present'
+          }. Build the pipeline instead of running the queries one by one and combining them in prose.${
+              slackChannelId
+                  ? ''
+                  : '\n  - Composer results are hidden from the user by default. In your final answer, present the result that answers the question by writing <show node="<nodeId>"/> on its own line, where <nodeId> is the terminal node id of a successful runComposerQueries call in the current turn. Present several only when they add distinct views. Never present diagnostic or superseded results.'
+          }`
         : '';
 
     const customSqlLimitation = canRunSql
