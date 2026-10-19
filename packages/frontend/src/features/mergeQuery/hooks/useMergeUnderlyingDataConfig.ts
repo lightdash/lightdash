@@ -9,7 +9,10 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { type UnderlyingDataConfig } from '../../../components/MetricQueryData/types';
+import {
+    type DrillDownConfig,
+    type UnderlyingDataConfig,
+} from '../../../components/MetricQueryData/types';
 import { useMergeSafe } from '../context/useMerge';
 import {
     useMergeSourceCell,
@@ -61,6 +64,23 @@ const getMergeSourceConfig = (
             : sourceCell.fieldValues,
         pivotReference,
     };
+};
+
+/** Routes a merged-row drill to the source that owns the clicked column. */
+export const useMergeDrillDownConfig = (
+    config: DrillDownConfig | undefined,
+): DrillDownConfig | undefined => {
+    const { resolve } = useMergeSourceCell();
+    const fieldOrigins = useMergeSafe()?.mergeResults?.fieldOrigins;
+    return useMemo(() => {
+        if (!config || config.source || !fieldOrigins) return config;
+        const sourceConfig = getMergeSourceConfig(
+            config,
+            fieldOrigins,
+            resolve,
+        );
+        return sourceConfig ? { ...config, ...sourceConfig } : config;
+    }, [config, fieldOrigins, resolve]);
 };
 
 /** Routes a merged-row underlying data request to the source that owns the clicked column. */
