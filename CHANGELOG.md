@@ -1,3 +1,10 @@
+# [2.606.0](https://github.com/lightdash/lightdash/compare/2.605.5...2.606.0) (2026-10-19)
+
+
+### Features
+
+* process retained usage when creating analytics projects ([#31128](https://github.com/lightdash/lightdash/issues/31128)) ([36cf94d](https://github.com/lightdash/lightdash/commit/36cf94d05e0e77c4ffdc7b5fd13658a9bb2e249a))
+
 ## [2.605.5](https://github.com/lightdash/lightdash/compare/2.605.4...2.605.5) (2026-10-19)
 
 
