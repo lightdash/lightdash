@@ -125,6 +125,32 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('rejects a legacy organization link instead of using stale project credentials', async () => {
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    organization_warehouse_credentials_uuid: 'retired',
+                },
+            ]);
+        await expect(model.getWithSensitiveFields(projectUuid)).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
+    });
+    test('rejects a legacy organization link in the query credential loader', async () => {
+        tracker.on.select(/warehouse_credentials/).response([
+            {
+                ...projectMock,
+                organization_warehouse_credentials_uuid: 'retired',
+            },
+        ]);
+        await expect(
+            model.getWarehouseCredentialsForProjectUncached(projectUuid),
+        ).rejects.toThrow(
+            'Organization warehouse credentials are no longer supported',
+        );
+    });
     test('the project GET strips the stored identity version at the model loader', async () => {
         let stored: CreateWarehouseCredentials;
         try {

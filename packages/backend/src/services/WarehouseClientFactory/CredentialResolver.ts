@@ -12,7 +12,6 @@ import type { WarehouseCredentialResolutionContext } from './WarehouseCredential
 
 export type CredentialOwner =
     | { kind: 'project'; uuid: string }
-    | { kind: 'organization'; uuid: string }
     | { kind: 'user'; uuid: string; purpose: UserWarehouseCredentialPurpose }
     | { kind: 'warehouseConnection'; uuid: string }
     | {

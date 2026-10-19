@@ -6,7 +6,6 @@ import {
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../ProjectModel/ProjectModel';
 import { encryptionUtilMock } from '../ProjectModel/ProjectModel.mock';
 import { WarehouseConnectionModel } from '../WarehouseConnectionModel/WarehouseConnectionModel';
@@ -50,9 +49,7 @@ describe.each([
     const database = vi.fn(() => {
         throw new Error('Must use the lock transaction');
     }) as unknown as Knex;
-    const organizationWarehouseCredentialsModel = {
-        getByUuidWithSensitiveData: vi.fn(),
-    } as unknown as OrganizationWarehouseCredentialsModel;
+
     const projectModel = new ProjectModel({
         database,
         lightdashConfig: lightdashConfigMock,
@@ -61,7 +58,6 @@ describe.each([
     const connectionModel = new WarehouseConnectionModel({
         database,
         encryptionUtil: encryptionUtilMock,
-        organizationWarehouseCredentialsModel,
     });
     const row = {
         encrypted_credentials: Buffer.from(JSON.stringify(credentials)),
@@ -87,9 +83,7 @@ describe.each([
             test('reads its own encrypted token on the held connection', async () => {
                 tracker.on.select(/.*/).response([row]);
                 await expect(read()).resolves.toMatchObject(credentials);
-                expect(
-                    organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-                ).not.toHaveBeenCalled();
+
                 expect(tracker.history.select[0].bindings).toEqual(
                     kind === 'project'
                         ? ['project', 1]
@@ -113,9 +107,6 @@ describe.each([
                     await expect(read()).rejects.toBeInstanceOf(
                         RefreshTokenSourceChangedError,
                     );
-                    expect(
-                        organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-                    ).not.toHaveBeenCalled();
                 },
             );
         },

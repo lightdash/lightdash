@@ -128,7 +128,6 @@ import { MobilePushNotificationReconciler } from './services/MobilePushNotificat
 import { MobilePushNotificationService } from './services/MobilePushNotificationService/MobilePushNotificationService';
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
-import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
@@ -1250,13 +1249,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             analytics: context.lightdashAnalytics,
                         }),
                 }),
-            organizationWarehouseCredentialsService: ({ models, context }) =>
-                new OrganizationWarehouseCredentialsService({
-                    analytics: context.lightdashAnalytics,
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
-                    userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
-                }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
                     dbtSourceRefCatalogModel:
@@ -1307,8 +1299,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     userOAuthGrantsModel: models.getUserOAuthGrantsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: models.getOrganizationModel(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
@@ -1556,8 +1546,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getQuerySourceService(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: models.getOrganizationModel(),
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,

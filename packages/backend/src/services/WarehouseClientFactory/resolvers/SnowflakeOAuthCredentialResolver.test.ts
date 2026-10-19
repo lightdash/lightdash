@@ -93,12 +93,7 @@ const setup = () => {
                 .mockResolvedValue(credentials),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
-        organizationWarehouseCredentialsModel: {
-            getByUuidWithSensitiveData: vi
-                .fn()
-                .mockResolvedValue({ organizationUuid: 'org', credentials }),
-            rotateRefreshToken: vi.fn().mockResolvedValue(true),
-        },
+
         userWarehouseCredentialsModel: {
             getByUuidWithSecrets: vi.fn().mockResolvedValue({ credentials }),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
@@ -215,7 +210,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
 
     test.each([
         'project',
-        'organization',
+
         'user',
         'warehouseConnection',
     ] as const)(
@@ -234,9 +229,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await f.resolver.resolve(input);
             const rotate = {
                 project: f.deps.projectModel.rotateRefreshToken,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .rotateRefreshToken,
+
                 user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
                 warehouseConnection:
                     f.deps.warehouseConnectionModel.rotateRefreshToken,
@@ -399,7 +392,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
     test.each([
         'project',
         'warehouseConnection',
-        'organization',
+
         'user',
     ] as const)(
         'refuses a changed or removed %s source without exchanging or writing',
@@ -410,9 +403,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
                     f.deps.projectModel.getOwnWarehouseCredentialsForProject,
                 warehouseConnection:
                     f.deps.warehouseConnectionModel.getOwnCredentials,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .getByUuidWithSensitiveData,
+
                 user: f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
             };
             const acquired = deferred<void>();
@@ -433,7 +424,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await vi.waitFor(() => expect(f.raw).toHaveBeenCalledTimes(2));
             expect(readers[kind]).not.toHaveBeenCalled();
             readers[kind].mockRejectedValue(
-                kind === 'organization' || kind === 'user'
+                kind === 'user'
                     ? new NotFoundError('Credential removed')
                     : new RefreshTokenSourceChangedError(),
             );
@@ -448,7 +439,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             for (const model of [
                 f.deps.projectModel,
                 f.deps.warehouseConnectionModel,
-                f.deps.organizationWarehouseCredentialsModel,
+
                 f.deps.userWarehouseCredentialsModel,
             ]) {
                 expect(model.rotateRefreshToken).not.toHaveBeenCalled();
@@ -530,7 +521,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         expect(f.exchange).toHaveBeenCalledTimes(1);
     });
 
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         'shares one %s row exchange between concurrent callers',
         async (kind) => {
             const f = setup();
@@ -556,10 +547,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             await start;
             const second = f.resolver.resolve({
                 ...input,
-                projectUuid:
-                    kind === 'organization'
-                        ? 'other-project'
-                        : input.projectUuid,
+                projectUuid: input.projectUuid,
                 connection: { ...input.connection, schema: 'other-schema' },
             });
             await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
@@ -574,23 +562,12 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             expect(results[1].clientCredentials.schema).toBe('other-schema');
             expect(f.exchange).toHaveBeenCalledTimes(1);
             expect(f.transaction).toHaveBeenCalledTimes(1);
-            expect(
-                kind === 'project'
-                    ? f.deps.projectModel.rotateRefreshToken
-                    : f.deps.organizationWarehouseCredentialsModel
-                          .rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'shared-row',
-                'old-refresh',
-                'shared-refresh',
-                { raw: f.raw },
-            );
         },
     );
 });
 
 describe('Snowflake OAuth refresh concurrency', () => {
-    test.each(['project', 'organization'] as const)(
+    test.each(['project'] as const)(
         'shares an exchange and write for concurrent callers on one %s row',
         async (kind) => {
             const f = setup();
@@ -601,11 +578,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
             f.exchange.mockReturnValue(exchanged.promise);
             const firstInput = selection();
             const secondInput = selection();
-            if (kind === 'organization') {
-                firstInput.owner = { kind, uuid: 'shared-org-row' };
-                secondInput.owner = { kind, uuid: 'shared-org-row' };
-                secondInput.projectUuid = 'another-project';
-            }
+
             secondInput.connection = {
                 ...secondInput.connection,
                 warehouse: 'other-warehouse',
@@ -626,10 +599,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
             expect(
                 results.map((result) => result.clientCredentials.warehouse),
             ).toEqual(['warehouse', 'other-warehouse']);
-            const model =
-                kind === 'project'
-                    ? f.deps.projectModel
-                    : f.deps.organizationWarehouseCredentialsModel;
+            const model = f.deps.projectModel;
             expect(model.rotateRefreshToken).toHaveBeenCalledExactlyOnceWith(
                 firstInput.owner!.uuid,
                 'old-refresh',

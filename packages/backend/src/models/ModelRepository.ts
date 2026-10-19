@@ -64,7 +64,6 @@ import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
 import { OrganizationSnowflakeAgentClientModel } from './OrganizationSnowflakeAgentClientModel';
 import { OrganizationSsoModel } from './OrganizationSsoModel';
-import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
@@ -165,7 +164,6 @@ export type ModelManifest = {
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
-    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     pinnedListModel: PinnedListModel;
@@ -744,17 +742,6 @@ export class ModelRepository
         );
     }
 
-    public getOrganizationWarehouseCredentialsModel(): OrganizationWarehouseCredentialsModel {
-        return this.getModel(
-            'organizationWarehouseCredentialsModel',
-            () =>
-                new OrganizationWarehouseCredentialsModel({
-                    database: this.database,
-                    encryptionUtil: this.utils.getEncryptionUtil(),
-                }),
-        );
-    }
-
     public getWarehouseConnectionCompileModel(): WarehouseConnectionCompileModel {
         return this.getModel(
             'warehouseConnectionCompileModel',
@@ -780,8 +767,6 @@ export class ModelRepository
                 new WarehouseConnectionModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
-                    organizationWarehouseCredentialsModel:
-                        this.getOrganizationWarehouseCredentialsModel(),
                 }),
         );
     }
@@ -803,8 +788,6 @@ export class ModelRepository
                 new WarehouseConnectionSwitchModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
-                    organizationWarehouseCredentialsModel:
-                        this.getOrganizationWarehouseCredentialsModel(),
                 }),
         );
     }
