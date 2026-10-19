@@ -183,3 +183,20 @@ export const shouldShowTableOnRenderTimeout = ({
     rendered,
 }: CustomChartRenderReadiness): boolean =>
     !rendered && (!sdkSeen || supportsRenderSignal);
+
+export type CustomChartRenderDeadlineAction =
+    | 'show-table'
+    | 'keep-chart'
+    | 'wait-for-visible';
+
+/**
+ * The paint acknowledgement runs on animation frames, which browsers pause
+ * in hidden documents, so a hidden chart waits to be seen before it is judged.
+ */
+export const getCustomChartRenderDeadlineAction = (
+    readiness: CustomChartRenderReadiness,
+    { documentHidden }: { documentHidden: boolean },
+): CustomChartRenderDeadlineAction => {
+    if (!shouldShowTableOnRenderTimeout(readiness)) return 'keep-chart';
+    return documentHidden ? 'wait-for-visible' : 'show-table';
+};

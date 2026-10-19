@@ -3,6 +3,7 @@ import {
     CUSTOM_CHART_REQUEST_UNAVAILABLE_ERROR,
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
+    getCustomChartRenderDeadlineAction,
     handleCustomChartFrameMessage,
     INITIAL_CUSTOM_CHART_RENDER_READINESS,
     shouldShowTableOnRenderTimeout,
@@ -181,4 +182,51 @@ describe('mcp custom chart render deadline', () => {
             expect(afterMessages([manifest(features)])).toBe(true);
         },
     );
+});
+
+describe('mcp custom chart render deadline while hidden', () => {
+    const unacknowledged = {
+        sdkSeen: true,
+        supportsRenderSignal: true,
+        rendered: false,
+    };
+
+    it('waits for the document to show before falling back', () => {
+        expect(
+            getCustomChartRenderDeadlineAction(unacknowledged, {
+                documentHidden: true,
+            }),
+        ).toBe('wait-for-visible');
+    });
+
+    it('falls back once the document is visible again', () => {
+        expect(
+            getCustomChartRenderDeadlineAction(unacknowledged, {
+                documentHidden: false,
+            }),
+        ).toBe('show-table');
+    });
+
+    it('keeps an acknowledged chart up whether or not it is hidden', () => {
+        const rendered = { ...unacknowledged, rendered: true };
+        expect(
+            getCustomChartRenderDeadlineAction(rendered, {
+                documentHidden: true,
+            }),
+        ).toBe('keep-chart');
+        expect(
+            getCustomChartRenderDeadlineAction(rendered, {
+                documentHidden: false,
+            }),
+        ).toBe('keep-chart');
+    });
+
+    it('keeps a legacy bundle up without waiting', () => {
+        expect(
+            getCustomChartRenderDeadlineAction(
+                { sdkSeen: true, supportsRenderSignal: false, rendered: false },
+                { documentHidden: true },
+            ),
+        ).toBe('keep-chart');
+    });
 });

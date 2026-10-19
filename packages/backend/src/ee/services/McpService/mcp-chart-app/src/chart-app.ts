@@ -15,10 +15,10 @@ import { fetchMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
 import {
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
+    getCustomChartRenderDeadlineAction,
     getCustomChartThemeMessage,
     handleCustomChartFrameMessage,
     INITIAL_CUSTOM_CHART_RENDER_READINESS,
-    shouldShowTableOnRenderTimeout,
     updateCustomChartRenderReadiness,
     type CustomChartColorScheme,
     type CustomChartHostMessage,
@@ -285,13 +285,45 @@ function renderCustomChart(
     const post = (message: CustomChartHostMessage) =>
         iframe.contentWindow?.postMessage(message, '*');
     let readiness = INITIAL_CUSTOM_CHART_RENDER_READINESS;
-    const timeout = setTimeout(() => {
-        if (!shouldShowTableOnRenderTimeout(readiness)) return;
-        clearCustomChart();
-        onFailure();
-    }, CUSTOM_CHART_RENDER_TIMEOUT_MS);
-    const onLoad = () =>
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const stopDeadline = () => {
+        if (timeout !== null) clearTimeout(timeout);
+        timeout = null;
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+    const onDeadline = () => {
+        timeout = null;
+        const action = getCustomChartRenderDeadlineAction(readiness, {
+            documentHidden: document.visibilityState === 'hidden',
+        });
+        switch (action) {
+            case 'keep-chart':
+                return;
+            case 'wait-for-visible':
+                document.addEventListener(
+                    'visibilitychange',
+                    onVisibilityChange,
+                );
+                return;
+            case 'show-table':
+                clearCustomChart();
+                onFailure();
+                return;
+            default:
+                assertUnreachable(action, 'Unknown render deadline action');
+        }
+    };
+    const startDeadline = () => {
+        stopDeadline();
+        timeout = setTimeout(onDeadline, CUSTOM_CHART_RENDER_TIMEOUT_MS);
+    };
+    const onVisibilityChange = () => {
+        if (document.visibilityState !== 'hidden') startDeadline();
+    };
+    const onLoad = () => {
         getCustomChartFrameHandshake(getHostColorScheme()).forEach(post);
+        startDeadline();
+    };
     const onMessage = (event: MessageEvent) => {
         if (event.source !== iframe.contentWindow) return;
         readiness = updateCustomChartRenderReadiness(readiness, event.data);
@@ -304,7 +336,7 @@ function renderCustomChart(
                 post(action.message);
                 return;
             case 'rendered':
-                clearTimeout(timeout);
+                stopDeadline();
                 return;
             case 'ignore':
                 return;
@@ -318,7 +350,7 @@ function renderCustomChart(
     customChartContainer.appendChild(iframe);
     postToCustomChart = post;
     teardownCustomChart = () => {
-        clearTimeout(timeout);
+        stopDeadline();
         window.removeEventListener('message', onMessage);
         iframe.removeEventListener('load', onLoad);
         iframe.remove();
