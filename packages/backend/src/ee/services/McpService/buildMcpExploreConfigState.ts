@@ -25,6 +25,29 @@ export type McpExploreCustomChart = {
     };
 };
 
+/** The saved chart a custom chart type render draws and its Explore link opens. */
+export const buildMcpCustomChartSavedChart = ({
+    config,
+    chartType,
+}: McpExploreCustomChart): Pick<
+    CreateSavedChartVersion,
+    'chartConfig' | 'pivotConfig'
+> => ({
+    chartConfig: {
+        type: ChartType.DATA_APP_VIZ,
+        config: {
+            dataAppVizUuid: chartType.dataAppVizUuid,
+            dataAppVizVersion: chartType.dataAppVizVersion,
+            fieldMapping: structuredClone(config.fieldMapping),
+            optionValues: config.options ?? undefined,
+        },
+    },
+    pivotConfig: deriveDataAppVizPivotConfig(
+        chartType.fields,
+        config.fieldMapping,
+    ),
+});
+
 export const buildMcpExploreConfigState = ({
     queryTool,
     metricQuery,
@@ -60,21 +83,5 @@ export const buildMcpExploreConfigState = ({
             pivotConfig: groupBy?.length ? { columns: groupBy } : undefined,
         };
     }
-    const { config, chartType } = customChart;
-    return {
-        ...base,
-        chartConfig: {
-            type: ChartType.DATA_APP_VIZ,
-            config: {
-                dataAppVizUuid: chartType.dataAppVizUuid,
-                dataAppVizVersion: chartType.dataAppVizVersion,
-                fieldMapping: structuredClone(config.fieldMapping),
-                optionValues: config.options ?? undefined,
-            },
-        },
-        pivotConfig: deriveDataAppVizPivotConfig(
-            chartType.fields,
-            config.fieldMapping,
-        ),
-    };
+    return { ...base, ...buildMcpCustomChartSavedChart(customChart) };
 };

@@ -120,6 +120,7 @@ import {
     type PivotConfiguration,
     type PivotValuesColumn,
     type QueryHistory,
+    type ReadyQueryResultsPage,
     type RegisteredAccount,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
@@ -250,6 +251,7 @@ import {
     getMcpPreviewOrigin,
 } from './buildMcpCustomChartTypeRender';
 import {
+    buildMcpCustomChartSavedChart,
     buildMcpExploreConfigState,
     type McpExploreCustomChart,
 } from './buildMcpExploreConfigState';
@@ -488,6 +490,7 @@ type McpChartPivot = {
     rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
     valuesColumns: PivotValuesColumn[];
+    pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
     parameters: ParametersValuesMap | null;
     timezone: string | null;
 };
@@ -1461,6 +1464,7 @@ export class McpService extends BaseService {
                 rows: results.rows,
                 fieldsMap: results.fields,
                 valuesColumns: results.pivotDetails.valuesColumns,
+                pivotDetails: results.pivotDetails,
                 parameters,
                 timezone: results.displayTimezone,
             },
@@ -1610,7 +1614,9 @@ export class McpService extends BaseService {
         renderTool,
         chartConfig,
         queryTool,
-        metricQuery,
+        sourceQueryHistory,
+        deadlineMs,
+        signal,
     }: {
         ctx: McpProtocolContext;
         projectUuid: string;
@@ -1618,9 +1624,12 @@ export class McpService extends BaseService {
         renderTool: ToolRenderChartArgsTransformed;
         chartConfig: ToolRunQueryCustomChartTypeConfig;
         queryTool: ToolRunQueryArgsTransformed;
-        metricQuery: MetricQuery;
+        sourceQueryHistory: QueryHistory;
+        deadlineMs: number;
+        signal: AbortSignal;
     }) {
         const { user, account } = McpService.getAccount(ctx);
+        const { metricQuery } = sourceQueryHistory;
         const slug = chartConfig.customChartTypeSlug;
         if (
             !(await this.aiAgentToolsService.canUseCustomChartTypes({
@@ -1629,7 +1638,7 @@ export class McpService extends BaseService {
             }))
         ) {
             throw new ForbiddenError(
-                'You do not have permission to use chart types in this project',
+                "Chart types aren't available in this project, or you don't have permission to use them.",
             );
         }
         const toolsRuntime = await this.getToolsRuntime(
@@ -1670,6 +1679,54 @@ export class McpService extends BaseService {
             }),
             this.projectService.getResolvedColorPalette(user, projectUuid),
         ]);
+        const customChart: McpExploreCustomChart = {
+            config: chartConfig,
+            chartType: {
+                dataAppVizUuid: resolved.dataAppVizUuid,
+                dataAppVizVersion: resolved.dataAppVizVersion,
+                fields: resolved.schema.fields,
+            },
+        };
+        const pivotConfiguration =
+            results.rows.length > 0
+                ? derivePivotConfigurationFromChart(
+                      buildMcpCustomChartSavedChart(customChart),
+                      metricQuery,
+                      results.fields,
+                  )
+                : undefined;
+        const pivotResult = pivotConfiguration
+            ? await this.getPivotedChartResults({
+                  ctx,
+                  projectUuid,
+                  sourceQueryHistory,
+                  pivotConfiguration,
+                  deadlineMs,
+                  signal,
+              })
+            : null;
+        if (pivotResult?.status === 'running') {
+            return McpService.getRenderChartRunningResponse(
+                renderTool.queryUuid,
+            );
+        }
+        const pivot = pivotResult?.pivot ?? null;
+        const vizResult = pivot
+            ? {
+                  rows: pivot.rows,
+                  fields: pivot.fieldsMap,
+                  pivotDetails: pivot.pivotDetails,
+                  parameters: pivot.parameters,
+                  displayTimezone: pivot.timezone,
+              }
+            : {
+                  rows: results.rows,
+                  fields: results.fields,
+                  pivotDetails: null,
+                  parameters: null,
+                  displayTimezone: results.displayTimezone,
+              };
+
         const fieldIds = results.rows[0]
             ? Object.keys(results.rows[0])
             : Object.keys(results.fields);
@@ -1680,14 +1737,7 @@ export class McpService extends BaseService {
             fieldsMap: results.fields,
             columnOrder: fieldIds,
             queryTool,
-            customChart: {
-                config: chartConfig,
-                chartType: {
-                    dataAppVizUuid: resolved.dataAppVizUuid,
-                    dataAppVizVersion: resolved.dataAppVizVersion,
-                    fields: resolved.schema.fields,
-                },
-            },
+            customChart,
         });
         const previewOrigin = getMcpPreviewOrigin(this.lightdashConfig);
         const token =
@@ -1743,9 +1793,7 @@ export class McpService extends BaseService {
                         vizContext: buildMcpCustomChartTypeVizContext({
                             chartConfig,
                             schema: resolved.schema,
-                            rows: results.rows,
-                            fields: results.fields,
-                            displayTimezone: results.displayTimezone,
+                            ...vizResult,
                             colorPalette: palette.colors,
                         }),
                         slug,
@@ -4532,7 +4580,9 @@ export class McpService extends BaseService {
                                         renderTool,
                                         chartConfig: renderTool.chartConfig,
                                         queryTool,
-                                        metricQuery: queryHistory.metricQuery,
+                                        sourceQueryHistory: queryHistory,
+                                        deadlineMs,
+                                        signal: extra.signal,
                                     },
                                 );
                             }

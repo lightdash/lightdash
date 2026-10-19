@@ -4,6 +4,7 @@ import {
     AiAccessRefusedError,
     CatalogType,
     ChartType,
+    derivePivotConfigurationFromChart,
     DimensionType,
     FieldType,
     isAndFilterGroup,
@@ -12,6 +13,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     type Account,
+    type ItemsMap,
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -3078,7 +3080,7 @@ describe('render_chart with a custom chart type', () => {
 
         expect(refused.isError).toBe(true);
         expect(refused.content[0].text).toBe(
-            'Error rendering chart: You do not have permission to use chart types in this project',
+            "Error rendering chart: Chart types aren't available in this project, or you don't have permission to use them.",
         );
         expect(resolveCustomChartType).not.toHaveBeenCalled();
         expect(
@@ -3087,6 +3089,198 @@ describe('render_chart with a custom chart type', () => {
 
         const builtIn = await render(null);
         expect(builtIn.isError).toBeUndefined();
+    });
+
+    describe('with a series slot', () => {
+        const seriesChartConfig = {
+            customChartTypeSlug: 'stacked-flow',
+            fieldMapping: {
+                x: 'orders_order_date',
+                series: 'orders_status',
+                value: 'orders_count',
+            },
+            options: null,
+        };
+
+        const setupSeries = (
+            options: Parameters<typeof makePivotRenderService>[0] = {},
+        ) => {
+            const mocks = makePivotRenderService(options);
+            vi.spyOn(
+                mocks.service,
+                'getUserAttributeOverridesFromContext',
+            ).mockResolvedValue({ region: ['EU'] });
+            mocks.resolveCustomChartType.mockResolvedValue({
+                dataAppVizUuid,
+                name: 'Stacked Flow',
+                dataAppVizVersion: 4,
+                schema: {
+                    fields: [
+                        {
+                            name: 'x',
+                            label: 'X',
+                            type: 'dimension',
+                            required: true,
+                        },
+                        {
+                            name: 'series',
+                            label: 'Series',
+                            type: 'series',
+                            required: false,
+                        },
+                        {
+                            name: 'value',
+                            label: 'Value',
+                            type: 'metric',
+                            required: true,
+                        },
+                    ],
+                    configOptions: [],
+                    colorPalette: null,
+                },
+            });
+            return mocks;
+        };
+
+        it('draws from one pivoted query keyed by its values columns', async () => {
+            const { asyncQueryService } = setupSeries();
+
+            const result = await render(seriesChartConfig);
+
+            expect(result.isError).toBeUndefined();
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid,
+                    metricQuery: makePivotSourceQueryHistory().metricQuery,
+                    context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                    parameters: { region: 'EU' },
+                    userAttributeOverrides: { region: ['EU'] },
+                    pivotConfiguration: expect.objectContaining({
+                        groupByColumns: [{ reference: 'orders_status' }],
+                        valuesColumns: [
+                            { reference: 'orders_count', aggregation: 'any' },
+                        ],
+                    }),
+                }),
+            );
+            expect(
+                asyncQueryService.pollQueryHistoryUntilDeadline,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    queryUuid: pivotedQueryUuid,
+                    signal: extra.signal,
+                }),
+            );
+            expect(result._meta?.result).toMatchObject({
+                rows: longRows,
+                fields: pivotFields,
+                customChartType: {
+                    vizContext: {
+                        fieldMapping: seriesChartConfig.fieldMapping,
+                        rows: [
+                            {
+                                orders_count_any_completed: {
+                                    value: { raw: 1, formatted: '1' },
+                                },
+                                orders_count_any_pending: {
+                                    value: { raw: 2, formatted: '2' },
+                                },
+                            },
+                        ],
+                        pivotDetails: {
+                            valuesColumns: [
+                                makePivotValuesColumn(
+                                    'orders_count',
+                                    'completed',
+                                ),
+                                makePivotValuesColumn(
+                                    'orders_count',
+                                    'pending',
+                                ),
+                            ],
+                        },
+                    },
+                },
+            });
+        });
+
+        it('runs the pivot the explore link opens', async () => {
+            const { asyncQueryService, shareService } = setupSeries();
+
+            await render(seriesChartConfig);
+
+            const exploreState = JSON.parse(
+                new URLSearchParams(
+                    shareService.createShareUrl.mock.calls[0][2],
+                ).get('create_saved_chart_version') ?? '',
+            );
+            expect(exploreState.pivotConfig).toEqual({
+                columns: ['orders_status'],
+            });
+            expect(
+                asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0]
+                    .pivotConfiguration,
+            ).toEqual(
+                derivePivotConfigurationFromChart(
+                    exploreState,
+                    exploreState.metricQuery,
+                    pivotFields as unknown as ItemsMap,
+                ),
+            );
+        });
+
+        it('replies running without an error while the pivoted query runs', async () => {
+            const { aiAgentToolsService } = setupSeries({
+                status: QueryHistoryStatus.QUEUED,
+            });
+
+            const running = await render(seriesChartConfig);
+
+            expect(running.isError).toBeUndefined();
+            expect(running.structuredContent).toMatchObject({
+                result: {
+                    status: 'running',
+                    queryUuid,
+                    nextPollAfterMs: expect.any(Number),
+                },
+            });
+            expect(running.content[0].text).toContain(
+                'call render_chart again with the same arguments',
+            );
+            expect(
+                aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('returns an error when the pivoted query fails', async () => {
+            setupSeries({
+                status: QueryHistoryStatus.ERROR,
+                error: 'Warehouse timed out',
+            });
+
+            const result = await render(seriesChartConfig);
+
+            expect(result.isError).toBe(true);
+            expect(result.content[0].text).toContain('Warehouse timed out');
+        });
+    });
+
+    it('runs no pivoted query without a series slot', async () => {
+        const { asyncQueryService } = setup();
+
+        const result = await render(customChartConfig);
+
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
+        expect(result._meta?.result).toMatchObject({
+            customChartType: { vizContext: { pivotDetails: null } },
+        });
     });
 
     it('lets the chart app load the preview origin', async () => {

@@ -7,6 +7,8 @@ import {
     type DataAppVizSchema,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
+    type ReadyQueryResultsPage,
     type ToolRunQueryCustomChartTypeConfig,
 } from '@lightdash/common';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -44,6 +46,8 @@ export const buildMcpCustomChartTypeVizContext = ({
     schema,
     rows,
     fields,
+    pivotDetails,
+    parameters,
     displayTimezone,
     colorPalette,
 }: {
@@ -51,27 +55,45 @@ export const buildMcpCustomChartTypeVizContext = ({
     schema: DataAppVizSchema;
     rows: Record<string, unknown>[];
     fields: ItemsMap;
+    pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    parameters: ParametersValuesMap | null;
     displayTimezone: string | null;
     colorPalette: string[];
-}): DataAppVizContext => ({
-    fieldMapping: chartConfig.fieldMapping,
-    fields: deriveDataAppVizFieldMetadata(chartConfig.fieldMapping, fields),
-    rows: rows.map((row) =>
-        formatRow(row, fields, null, undefined, displayTimezone ?? undefined),
-    ),
-    options: getEffectiveOptionValues(
-        schema.configOptions,
-        chartConfig.options ?? {},
-    ),
-    colorPalette,
-    seriesColors: {},
-    valueColors: {},
-    pivotDetails: null,
-    underlyingData: { enabled: false },
-    drillDown: { enabled: false },
-    pointMenu: { enabled: false },
-    subtotals: { enabled: false, dimensions: [] },
-});
+}): DataAppVizContext => {
+    const pivotValuesColumns = pivotDetails
+        ? Object.fromEntries(
+              pivotDetails.valuesColumns.map((column) => [
+                  column.pivotColumnName,
+                  column,
+              ]),
+          )
+        : null;
+    return {
+        fieldMapping: chartConfig.fieldMapping,
+        fields: deriveDataAppVizFieldMetadata(chartConfig.fieldMapping, fields),
+        rows: rows.map((row) =>
+            formatRow(
+                row,
+                fields,
+                pivotValuesColumns,
+                parameters ?? undefined,
+                displayTimezone ?? undefined,
+            ),
+        ),
+        options: getEffectiveOptionValues(
+            schema.configOptions,
+            chartConfig.options ?? {},
+        ),
+        colorPalette,
+        seriesColors: {},
+        valueColors: {},
+        pivotDetails,
+        underlyingData: { enabled: false },
+        drillDown: { enabled: false },
+        pointMenu: { enabled: false },
+        subtotals: { enabled: false, dimensions: [] },
+    };
+};
 
 export const buildMcpCustomChartTypeIndexUrl = ({
     previewOrigin,
