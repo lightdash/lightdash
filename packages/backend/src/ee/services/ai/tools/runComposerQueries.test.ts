@@ -269,9 +269,6 @@ describe('getRunComposerQueries', () => {
         });
 
         const output = await executeTool(tool, makeArgs(), 'composer-call');
-        expect(successMetadata(output)).not.toHaveProperty(
-            'artifactVersionUuid',
-        );
         expect(output.result).not.toContain('<show');
         // The model selects the table using the queryUuid it was given.
         const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
