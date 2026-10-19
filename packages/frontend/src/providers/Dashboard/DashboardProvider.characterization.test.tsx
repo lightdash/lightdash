@@ -1294,6 +1294,34 @@ describe('filters: embedded dashboards', () => {
         // quirk: no event fires when the previous filters were empty
         expect(mocks.dispatchEmbedEvent).toHaveBeenCalledTimes(3);
     });
+
+    it('dispatches one FilterChanged per saved filter edit in view mode', () => {
+        mocks.dashboard = makeDashboard({ filters: savedFilters });
+        const { result } = renderDashboard();
+        act(() =>
+            result.current.updateDimensionDashboardFilter(
+                { ...statusFilter, values: ['returned'] },
+                0,
+                false,
+                false,
+            ),
+        );
+        // the pre-store provider sent a second, identical event here
+        expect(mocks.dispatchEmbedEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not dispatch FilterChanged when URL temporary filters load with the dashboard', () => {
+        mocks.dashboard = makeDashboard({ filters: savedFilters });
+        renderDashboard(
+            urlFor('/dashboard/dashboard-uuid', {
+                tempFilters: {
+                    dimensions: [rule('city', 'orders_city', ['Lisbon'])],
+                    metrics: [],
+                },
+            }),
+        );
+        expect(mocks.dispatchEmbedEvent).not.toHaveBeenCalled();
+    });
 });
 
 describe('filters: SDK mode', () => {

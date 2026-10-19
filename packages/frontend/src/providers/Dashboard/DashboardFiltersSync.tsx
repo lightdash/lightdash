@@ -484,6 +484,11 @@ const DashboardFiltersSync: FC<Props> = ({
 
     // Watch for filter changes and emit events (skip initial render)
     useEffect(() => {
+        // URL temporary filters are restored before load; don't count load as a change
+        if (dashboardFilters === emptyDashboardFilters) {
+            previousFiltersRef.current = null;
+            return;
+        }
         const previousFilters = previousFiltersRef.current;
         const hasPreviousFilters =
             previousFilters &&
@@ -504,7 +509,7 @@ const DashboardFiltersSync: FC<Props> = ({
         }
 
         previousFiltersRef.current = allFilters;
-    }, [allFilters, dispatchEmbedEvent]);
+    }, [allFilters, dashboardFilters, dispatchEmbedEvent]);
 
     return null;
 };

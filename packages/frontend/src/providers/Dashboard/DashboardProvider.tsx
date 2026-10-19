@@ -114,7 +114,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     searchRef.current = search;
     const navigate = useNavigate();
     const { showToastWarning } = useToaster();
-    const hasNotifiedLockedOverrideRef = useRef(false);
 
     const {
         dashboardUuid: dashboardIdentifier,
@@ -130,11 +129,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         mode?: string;
     };
 
-    // Reset the "locked filter override" toast guard on dashboard navigation
-    // so each dashboard gets a fresh chance to notify the viewer.
-    useEffect(() => {
-        hasNotifiedLockedOverrideRef.current = false;
-    }, [dashboardIdentifier]);
     const isEditMode = mode === 'edit';
 
     // Embedded dashboards will not be using this query hook to load the dashboard,
