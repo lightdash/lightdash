@@ -116,7 +116,7 @@ export const MergeQuerySidebar: FC<{
     const primaryCount =
         metricQuery.dimensions.length + metricQuery.metrics.length;
     const unfinishedSource = merge.additionalSources.find(
-        (source) => !source.exploreName,
+        (source) => !source.exploreName || source.metrics.length === 0,
     );
     const filteredFieldIds = useMemo<Record<string, Set<string>>>(
         () =>
