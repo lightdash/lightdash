@@ -1,0 +1,407 @@
+import {
+    DashboardTileTypes,
+    FilterOperator,
+    type Dashboard,
+    type DashboardFilterRule,
+    type DashboardTile,
+} from '@lightdash/common';
+import { act, cleanup, render } from '@testing-library/react';
+import {
+    memo,
+    Profiler,
+    useEffect,
+    type ProfilerOnRenderCallback,
+    type ReactNode,
+} from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import DashboardProvider from './DashboardProvider';
+import useDashboardContext from './useDashboardContext';
+
+const mocks = vi.hoisted(() => ({
+    dashboard: undefined as unknown,
+    toaster: { showToastWarning: () => {}, showToastInfo: () => {} },
+    embed: { mode: 'direct', filters: undefined, dispatchEmbedEvent: () => {} },
+}));
+
+vi.mock('../../ee/providers/Embed/useEmbed', () => ({
+    default: () => mocks.embed,
+}));
+vi.mock('../../hooks/dashboard/useDashboard', () => ({
+    useDashboardQuery: () => ({
+        data: mocks.dashboard,
+        isInitialLoading: false,
+        error: null,
+    }),
+    useDashboardVersionRefresh: () => ({ mutateAsync: vi.fn() }),
+    useDashboardsAvailableFilters: () => ({ data: undefined }),
+}));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => mocks.toaster,
+}));
+vi.mock('../../features/comments', () => ({
+    useGetComments: () => ({ data: undefined }),
+}));
+vi.mock('../../features/parameters', () => ({
+    useParameters: () => ({ data: undefined }),
+}));
+vi.mock('./DashboardTileStatusProvider', () => ({
+    default: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock('./useDashboardTileStatusContext', () => ({
+    default: (selector: (context: Record<string, unknown>) => unknown) =>
+        selector({
+            areAllChartsLoaded: false,
+            availableCustomGranularities: {},
+        }),
+}));
+
+// ---------------------------------------------------------------------------
+// ADAPTER: the only section that should change when the state source moves.
+// ---------------------------------------------------------------------------
+
+const useWholeContext = () => useDashboardContext((c) => c);
+const useTileState = () => ({
+    tiles: useDashboardContext((c) => c.dashboardTiles),
+    activeTab: useDashboardContext((c) => c.activeTab),
+});
+const useFilterBarState = () => useDashboardContext((c) => c.allFilters);
+const useParameterBarState = () => ({
+    parameterValues: useDashboardContext((c) => c.parameterValues),
+    missing: useDashboardContext((c) => c.missingRequiredParameters),
+});
+const usePageState = () => ({
+    dashboardFilters: useDashboardContext((c) => c.dashboardFilters),
+    dashboardTemporaryFilters: useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    ),
+    haveFiltersChanged: useDashboardContext((c) => c.haveFiltersChanged),
+    parametersHaveChanged: useDashboardContext((c) => c.parametersHaveChanged),
+    parameterValues: useDashboardContext((c) => c.parameterValues),
+    dashboardParameters: useDashboardContext((c) => c.dashboardParameters),
+    pinnedParameters: useDashboardContext((c) => c.pinnedParameters),
+    parameterOrder: useDashboardContext((c) => c.parameterOrder),
+});
+type Actions = {
+    updateDimensionDashboardFilter: (
+        item: DashboardFilterRule,
+        index: number,
+        isTemporary: boolean,
+        isInEditMode: boolean,
+    ) => void;
+    addDimensionDashboardFilter: (
+        filter: DashboardFilterRule,
+        isTemporary: boolean,
+    ) => void;
+    setParameter: (key: string, value: string) => void;
+    toggleParameterPin: (key: string) => void;
+};
+const useActions = (): Actions => ({
+    updateDimensionDashboardFilter: useDashboardContext(
+        (c) => c.updateDimensionDashboardFilter,
+    ),
+    addDimensionDashboardFilter: useDashboardContext(
+        (c) => c.addDimensionDashboardFilter,
+    ),
+    setParameter: useDashboardContext((c) => c.setParameter),
+    toggleParameterPin: useDashboardContext((c) => c.toggleParameterPin),
+});
+
+const DashboardPageLoader = () => {
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+    const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
+    useEffect(() => {
+        if (dashboardTiles) return;
+        setDashboardTiles(dashboard?.tiles ?? []);
+        setDashboardTabs(dashboard?.tabs ?? []);
+        setSavedParameters(dashboard?.parameters ?? {});
+    }, [
+        dashboard,
+        dashboardTiles,
+        setDashboardTiles,
+        setDashboardTabs,
+        setSavedParameters,
+    ]);
+    return null;
+};
+
+const Wrapper = ({ children }: { children: ReactNode }) => (
+    <MemoryRouter initialEntries={['/dashboard/dashboard-uuid']}>
+        <Routes>
+            <Route
+                path="/dashboard/:dashboardUuid/:mode?"
+                element={
+                    <DashboardProvider projectUuid="project-uuid">
+                        <DashboardPageLoader />
+                        {children}
+                    </DashboardProvider>
+                }
+            />
+        </Routes>
+    </MemoryRouter>
+);
+
+// ---------------------------------------------------------------------------
+// Probes
+// ---------------------------------------------------------------------------
+
+const TILE_COUNT = 20;
+
+type Counts = {
+    wholeContextConsumer: number;
+    tiles: number;
+    filterBar: number;
+    parameterBar: number;
+    page: number;
+};
+const counts: Counts = {
+    wholeContextConsumer: 0,
+    tiles: 0,
+    filterBar: 0,
+    parameterBar: 0,
+    page: 0,
+};
+let actualDuration = 0;
+let actions: Actions | undefined;
+
+const resetCounters = () => {
+    (Object.keys(counts) as (keyof Counts)[]).forEach((key) => {
+        counts[key] = 0;
+    });
+    actualDuration = 0;
+};
+
+const WholeContextProbe = memo(() => {
+    useWholeContext();
+    counts.wholeContextConsumer += 1;
+    return null;
+});
+const TileProbe = memo(({ index }: { index: number }) => {
+    useTileState();
+    counts.tiles += 1;
+    return <span data-index={index} />;
+});
+const FilterBarProbe = memo(() => {
+    useFilterBarState();
+    counts.filterBar += 1;
+    return null;
+});
+const ParameterBarProbe = memo(() => {
+    useParameterBarState();
+    counts.parameterBar += 1;
+    return null;
+});
+const PageProbe = memo(() => {
+    usePageState();
+    counts.page += 1;
+    return null;
+});
+const ActionsProbe = memo(() => {
+    actions = useActions();
+    return null;
+});
+
+const onRender: ProfilerOnRenderCallback = (_id, _phase, duration) => {
+    actualDuration += duration;
+};
+
+// ---------------------------------------------------------------------------
+// Fixture
+// ---------------------------------------------------------------------------
+
+const chartTile = (uuid: string): DashboardTile => ({
+    uuid,
+    type: DashboardTileTypes.SAVED_CHART,
+    x: 0,
+    y: 0,
+    w: 6,
+    h: 3,
+    tabUuid: undefined,
+    properties: {
+        savedChartUuid: `chart-${uuid}`,
+        title: uuid,
+        belongsToDashboard: false,
+    },
+});
+
+const dimensionFilters: DashboardFilterRule[] = Array.from(
+    { length: 6 },
+    (_, i) => ({
+        id: `filter-${i}`,
+        label: undefined,
+        target: { fieldId: `orders_field_${i}`, tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: [`value-${i}`],
+    }),
+);
+
+const benchmarkDashboard: Dashboard = {
+    organizationUuid: 'org-uuid',
+    projectUuid: 'project-uuid',
+    dashboardVersionId: 1,
+    versionUuid: 'version-uuid',
+    uuid: 'dashboard-uuid',
+    name: 'Benchmark',
+    verification: null,
+    updatedAt: new Date('2026-01-01T00:00:00Z'),
+    tiles: Array.from({ length: TILE_COUNT }, (_, i) => chartTile(`tile-${i}`)),
+    filters: {
+        dimensions: dimensionFilters,
+        metrics: [],
+        tableCalculations: [],
+    },
+    parameters: Object.fromEntries(
+        ['p0', 'p1', 'p2', 'p3'].map((key) => [
+            key,
+            { parameterName: key, value: `${key}-saved` },
+        ]),
+    ),
+    config: { isDateZoomDisabled: false, pinnedParameters: ['p0'] },
+    spaceUuid: 'space-uuid',
+    spaceName: 'Space',
+    views: 0,
+    firstViewedAt: null,
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    tabs: [],
+    inheritsFromOrgOrProject: false,
+    access: null,
+    slug: 'benchmark',
+    colorPaletteUuid: null,
+    owner: null,
+};
+
+const mountBenchmark = () => {
+    mocks.dashboard = benchmarkDashboard;
+    render(
+        <Profiler id="dashboard" onRender={onRender}>
+            <Wrapper>
+                <ActionsProbe />
+                <WholeContextProbe />
+                {Array.from({ length: TILE_COUNT }, (_, i) => (
+                    <TileProbe key={i} index={i} />
+                ))}
+                <FilterBarProbe />
+                <ParameterBarProbe />
+                <PageProbe />
+            </Wrapper>
+        </Profiler>,
+    );
+    resetCounters();
+};
+
+const getActions = () => {
+    if (!actions) throw new Error('actions probe did not render');
+    return actions;
+};
+
+const scenarios: Record<string, () => void> = {
+    'update one dimension filter': () =>
+        act(() =>
+            getActions().updateDimensionDashboardFilter(
+                { ...dimensionFilters[0], values: ['changed'] },
+                0,
+                false,
+                false,
+            ),
+        ),
+    'add a temporary filter': () =>
+        act(() =>
+            getActions().addDimensionDashboardFilter(
+                {
+                    ...dimensionFilters[1],
+                    id: 'temporary',
+                    values: ['temporary'],
+                },
+                true,
+            ),
+        ),
+    'set one parameter': () =>
+        act(() => getActions().setParameter('p1', 'p1-changed')),
+    'toggle a parameter pin': () =>
+        act(() => getActions().toggleParameterPin('p2')),
+    '10 rapid filter updates': () => {
+        for (let i = 0; i < 10; i += 1) {
+            act(() =>
+                getActions().updateDimensionDashboardFilter(
+                    { ...dimensionFilters[0], values: [`rapid-${i}`] },
+                    0,
+                    false,
+                    false,
+                ),
+            );
+        }
+    },
+};
+
+const results: Record<string, Counts & { actualDurationMs: number }> = {};
+
+afterEach(() => {
+    cleanup();
+    actions = undefined;
+});
+
+describe('dashboard render benchmark', () => {
+    it.each(Object.keys(scenarios))('%s', (name) => {
+        mountBenchmark();
+        scenarios[name]();
+        results[name] = {
+            ...counts,
+            actualDurationMs: Number(actualDuration.toFixed(2)),
+        };
+    });
+
+    it('matches the render-count baseline', () => {
+        // eslint-disable-next-line no-console
+        console.table(results);
+        const renderCounts = Object.fromEntries(
+            Object.entries(results).map(
+                ([name, { actualDurationMs, ...c }]) => [name, c],
+            ),
+        );
+        expect(renderCounts).toEqual(BASELINE);
+    });
+});
+
+// Baseline with the context provider: every provider render re-runs every
+// consumer, so tiles render even though their selected values never change.
+const BASELINE: Record<string, Counts> = {
+    'update one dimension filter': {
+        wholeContextConsumer: 3,
+        tiles: 3 * TILE_COUNT,
+        filterBar: 3,
+        parameterBar: 3,
+        page: 3,
+    },
+    'add a temporary filter': {
+        wholeContextConsumer: 2,
+        tiles: 2 * TILE_COUNT,
+        filterBar: 2,
+        parameterBar: 2,
+        page: 2,
+    },
+    'set one parameter': {
+        wholeContextConsumer: 2,
+        tiles: 2 * TILE_COUNT,
+        filterBar: 2,
+        parameterBar: 2,
+        page: 2,
+    },
+    'toggle a parameter pin': {
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 1,
+        page: 1,
+    },
+    '10 rapid filter updates': {
+        wholeContextConsumer: 30,
+        tiles: 30 * TILE_COUNT,
+        filterBar: 30,
+        parameterBar: 30,
+        page: 30,
+    },
+};
