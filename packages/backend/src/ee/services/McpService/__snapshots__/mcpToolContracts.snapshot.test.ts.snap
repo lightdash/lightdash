@@ -11905,9 +11905,17 @@ Errors: an unknown appSlug, or an app this caller may not view, returns an error
             "type": "string",
           },
           "appSlug": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "default": null,
             "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only.",
-            "minLength": 1,
-            "type": "string",
           },
           "projectUuid": {
             "description": "Project UUID for this operation.",

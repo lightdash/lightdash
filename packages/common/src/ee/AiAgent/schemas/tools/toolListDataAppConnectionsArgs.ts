@@ -33,7 +33,8 @@ export const mcpListDataAppConnectionsArgsSchema = z.object({
     appSlug: z
         .string()
         .min(1)
-        .optional()
+        .nullish()
+        .default(null)
         .describe(
             "A data app's slug. Pass it to see which connections that app already links; omit to list connections only.",
         ),

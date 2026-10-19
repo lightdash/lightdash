@@ -63,7 +63,6 @@ import {
     iterateCustomChartTypeToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
-    listDataAppConnectionsToolDefinition,
     listDataAppThemesToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
@@ -84,6 +83,7 @@ import {
     McpGetTaskResult,
     mcpIterateDataAppToolDefinition,
     mcpListCustomChartTypesToolDefinition,
+    mcpListDataAppConnectionsToolDefinition,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
     MetricQuery,
@@ -359,7 +359,7 @@ const mcpGenerateDataAppTool = withProjectScopeInput(
     mcpGenerateDataAppToolDefinition.for('mcp'),
 );
 const mcpListDataAppConnectionsTool = withProjectScopeInput(
-    listDataAppConnectionsToolDefinition.for('mcp'),
+    mcpListDataAppConnectionsToolDefinition.for('mcp'),
 );
 
 const withBuildWarnings = (summary: string, warnings: string[]): string =>
@@ -1915,7 +1915,7 @@ export class McpService extends BaseService {
                                 chartSlugs: args.chartSlugs ?? null,
                                 themeSlug: args.themeSlug ?? null,
                                 externalConnectionSlugs:
-                                    args.externalConnectionSlugs ?? null,
+                                    args.externalConnectionSlugs,
                                 toolCallId: null,
                             });
                         return {
@@ -2200,7 +2200,7 @@ export class McpService extends BaseService {
                                 chartSlugs: args.chartSlugs ?? null,
                                 themeSlug: args.themeSlug ?? null,
                                 externalConnectionSlugs:
-                                    args.externalConnectionSlugs ?? null,
+                                    args.externalConnectionSlugs,
                                 toolCallId: null,
                             });
                         return {
@@ -2233,7 +2233,7 @@ export class McpService extends BaseService {
                     async (toolsRuntime) => {
                         const connections =
                             await toolsRuntime.listDataAppConnections({
-                                appSlug: args.appSlug ?? null,
+                                appSlug: args.appSlug,
                             });
                         return {
                             summary:

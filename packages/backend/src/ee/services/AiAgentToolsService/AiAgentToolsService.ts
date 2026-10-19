@@ -2483,15 +2483,15 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         { appSlug }: Parameters<ListDataAppConnectionsFn>[0],
     ): ReturnType<ListDataAppConnectionsFn> {
-        const links =
-            appSlug === null
-                ? []
-                : await this.getDataAppConnectionLinks(context, appSlug);
         const connections =
             await this.appGenerateService.listLinkableExternalConnections(
                 context.user,
                 context.projectUuid,
             );
+        const links =
+            appSlug === null
+                ? []
+                : await this.getDataAppConnectionLinks(context, appSlug);
         return connections.map((connection) => ({
             slug: connection.slug,
             name: connection.name,

@@ -1197,7 +1197,7 @@ export const mcpIterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const listDataAppConnectionsToolDefinition: ToolDefinitionWithMcpOutput<
+export const mcpListDataAppConnectionsToolDefinition: ToolDefinitionWithMcpOutput<
     'listDataAppConnections',
     typeof mcpListDataAppConnectionsArgsSchema,
     typeof mcpListDataAppConnectionsArgsSchema,
@@ -2217,7 +2217,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     getDataAppBuildStatusToolDefinition,
     mcpGenerateDataAppToolDefinition,
     mcpIterateDataAppToolDefinition,
-    listDataAppConnectionsToolDefinition,
+    mcpListDataAppConnectionsToolDefinition,
     createCustomChartTypeToolDefinition,
     iterateCustomChartTypeToolDefinition,
     mcpFindCustomChartTypesToolDefinition,

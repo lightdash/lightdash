@@ -1138,9 +1138,11 @@ describe('McpService iterate_data_app', () => {
         });
         await createServerWithRuntime({ iterateDataApp });
 
+        // Harness skips schema parsing, so pass the default the SDK applies.
         await callTool(McpToolName.ITERATE_DATA_APP, {
             ...iterateArgs,
             themeSlug: 'brand',
+            externalConnectionSlugs: null,
         });
 
         expect(iterateDataApp).toHaveBeenCalledWith({

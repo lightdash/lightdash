@@ -3231,9 +3231,17 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "appSlug": {
-                        "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only.",
-                        "minLength": 1,
-                        "type": "string"
+                        "anyOf": [
+                            {
+                                "minLength": 1,
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only."
                     }
                 },
                 "type": "object"

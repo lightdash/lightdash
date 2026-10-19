@@ -260,7 +260,6 @@ import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../ai/utils/aiCallTelemetry';
-import type { ConnectionSlugLookup } from '../AiAgentToolsService/dataAppConnections';
 import { type AiCreditService } from '../AiCreditService';
 import { getExternalConnectionSubject } from '../ExternalConnectionService/externalConnectionAuthz';
 import {
@@ -389,6 +388,7 @@ import {
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { assertValidDistTar } from './distTarValidation';
+import type { ConnectionSlugLookup } from './externalConnectionSlugLookup';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import {
@@ -1837,29 +1837,6 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /**
-     * Link the given external connections to the app before its catalog stage,
-     * so the generated app can call them via client.externalFetch. A connection
-     * from another project is never linked (that would expose its credentialed
-     * proxy to a foreign app). Linking is idempotent, so re-sending an
-     * already-linked connection is fine.
-     */
-    private async linkExternalConnections(
-        user: SessionUser,
-        projectUuid: string,
-        appId: string,
-        externalConnections: AppExternalConnectionReference[] | undefined,
-    ): Promise<AppVersionExternalConnectionResource[]> {
-        const resolved = await this.resolveExternalConnectionResources(
-            user,
-            projectUuid,
-            appId,
-            externalConnections,
-        );
-        await this.linkResolvedExternalConnections(appId, resolved);
-        return resolved;
-    }
-
     private async resolveExternalConnectionResources(
         user: SessionUser,
         projectUuid: string,
@@ -2045,6 +2022,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
+        await this.assertDataAppsEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
@@ -8021,12 +7999,14 @@ export class AppGenerateService extends BaseService {
                 : undefined;
         const codingAgentModel = codexModel ?? claudeModel;
 
-        const externalConnectionResources = await this.linkExternalConnections(
-            user,
-            projectUuid,
-            appUuid,
-            externalConnections,
-        );
+        // Validated now, linked only after every rejection check below.
+        const externalConnectionResources =
+            await this.resolveExternalConnectionResources(
+                user,
+                projectUuid,
+                appUuid,
+                externalConnections,
+            );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -8131,6 +8111,11 @@ export class AppGenerateService extends BaseService {
             appUuid,
             newVersion,
             latestVersion?.dependencies,
+        );
+
+        await this.linkResolvedExternalConnections(
+            appUuid,
+            externalConnectionResources,
         );
 
         const agentIdentity = getContentWriteAgentIdentity({

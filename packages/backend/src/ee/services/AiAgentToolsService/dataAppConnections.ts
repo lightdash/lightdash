@@ -2,22 +2,11 @@ import {
     ParameterError,
     uniqueAliasFromName,
     type AppExternalConnectionLink,
-    type ExternalConnection,
 } from '@lightdash/common';
-
-export type DataAppConnectionIdentity = Pick<
-    ExternalConnection,
-    'externalConnectionUuid' | 'name' | 'slug'
->;
-
-export type ConnectionSlugLookup =
-    | {
-          slug: string;
-          status: 'found';
-          connection: DataAppConnectionIdentity;
-      }
-    | { slug: string; status: 'not_found' }
-    | { slug: string; status: 'not_linkable' };
+import type {
+    ConnectionSlugLookup,
+    DataAppConnectionIdentity,
+} from '../AppGenerateService/externalConnectionSlugLookup';
 
 const describeUnusableSlug = (
     lookup: Exclude<ConnectionSlugLookup, { status: 'found' }>,
