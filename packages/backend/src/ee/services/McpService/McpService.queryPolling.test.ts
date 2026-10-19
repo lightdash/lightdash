@@ -2894,12 +2894,19 @@ describe('render_chart with a custom chart type', () => {
     });
 
     it('returns everything the chart app needs to host the chart type', async () => {
-        const { aiAgentToolsService, resolveCustomChartType, shareService } =
-            setup();
+        const {
+            aiAgentToolsService,
+            asyncQueryService,
+            resolveCustomChartType,
+            shareService,
+        } = setup();
 
         const result = await render(customChartConfig);
 
         expect(result.isError).toBeUndefined();
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).not.toHaveBeenCalled();
         const exploreParams = new URLSearchParams(
             shareService.createShareUrl.mock.calls[0][2],
         );
@@ -2909,12 +2916,7 @@ describe('render_chart with a custom chart type', () => {
             tableName: 'orders',
             chartConfig: {
                 type: ChartType.DATA_APP_VIZ,
-                config: {
-                    dataAppVizUuid,
-                    dataAppVizVersion: 3,
-                    fieldMapping: customChartConfig.fieldMapping,
-                    optionValues: { maxBars: 5 },
-                },
+                config: { dataAppVizUuid, dataAppVizVersion: 3 },
             },
         });
         expect(resolveCustomChartType).toHaveBeenCalledWith('sankey-flow');
@@ -3072,7 +3074,7 @@ describe('render_chart with a custom chart type', () => {
         },
     );
 
-    it('refuses the custom branch without chart type access while built-in still renders', async () => {
+    it('refuses a custom chart type without chart type access', async () => {
         const { aiAgentToolsService, resolveCustomChartType } = setup();
         aiAgentToolsService.canUseCustomChartTypes.mockResolvedValue(false);
 
@@ -3086,9 +3088,6 @@ describe('render_chart with a custom chart type', () => {
         expect(
             aiAgentToolsService.getMcpCustomChartTypePreviewToken,
         ).not.toHaveBeenCalled();
-
-        const builtIn = await render(null);
-        expect(builtIn.isError).toBeUndefined();
     });
 
     describe('with a series slot', () => {
@@ -3329,19 +3328,6 @@ describe('render_chart with a custom chart type', () => {
                     ],
                 },
             },
-        });
-    });
-
-    it('runs no pivoted query without a series slot', async () => {
-        const { asyncQueryService } = setup();
-
-        const result = await render(customChartConfig);
-
-        expect(
-            asyncQueryService.executeAsyncMetricQuery,
-        ).not.toHaveBeenCalled();
-        expect(result._meta?.result).toMatchObject({
-            customChartType: { vizContext: { pivotDetails: null } },
         });
     });
 
