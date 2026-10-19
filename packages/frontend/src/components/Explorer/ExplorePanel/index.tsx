@@ -57,6 +57,7 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
@@ -86,7 +87,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
-    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -95,10 +95,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     useEffect(() => {
         if (!additionalSource?.exploreName) setIsChoosingMergeExplore(true);
     }, [additionalSource?.exploreName]);
-    const isGuidedMerge =
-        mergeFlag?.enabled === true &&
-        merge?.isMerging === true &&
-        !merge.readOnly;
+    const isGuidedMerge = merge?.isMerging === true && !merge.readOnly;
     const activeTableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -245,7 +242,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         ) === true;
     const canMergeAnotherQuery =
         explore.type !== ExploreType.VIRTUAL &&
-        mergeFlag?.enabled === true &&
         !!merge &&
         !merge.isMerging &&
         !merge.readOnly;
@@ -444,6 +440,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                                     icon={IconGitMerge}
                                                 />
                                             }
+                                            rightSection={<BetaBadge />}
                                             onClick={handleAddMergeSource}
                                         >
                                             <Text fz="xs" fw={500}>
@@ -459,10 +456,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 {explore.type === ExploreType.EXTERNAL_SOURCE &&
                     canMergeAnotherQuery &&
                     !isGuidedMerge && (
-                        <Group>
+                        <Group gap="xs">
                             <JoinWithWarehouseHint
                                 onClick={handleAddMergeSource}
                             />
+                            <BetaBadge />
                         </Group>
                     )}
 

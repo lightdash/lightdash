@@ -32,9 +32,8 @@ import { uniqueName } from '../helpers/test-isolation';
 
 // Two independent aggregations of the jaffle dataset, joined on the order
 // month. The payments explore joins orders, so both sides expose the same
-// month dimension. One flag touches merges: `merge-queries` gates the
-// Explorer entry point only. A merge runs each source as its own leg on the
-// warehouse and joins the results on the compose engine; every merged value
+// month dimension. No flag gates merges. A merge runs each source as its own
+// leg on the warehouse and joins the results on the compose engine; every merged value
 // must equal what its source query returns on its own, and this suite is
 // that bar for every credentialed warehouse.
 const ordersByMonth = {
@@ -202,8 +201,6 @@ function registerMergeQueryTests(getContext: () => MergeTestContext) {
         throw new Error('Merge query did not complete in time');
     }
 
-    // The merge-queries flag gates only the frontend entry point; the API
-    // endpoints are always available.
     beforeAll(() => {
         ({
             client: admin,

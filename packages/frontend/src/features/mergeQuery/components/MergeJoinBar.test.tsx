@@ -89,10 +89,6 @@ const state = vi.hoisted(() => ({
     },
 }));
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
-}));
-
 vi.mock('../../explorer/store', () => ({
     explorerActions: {
         toggleDimension: (fieldId: string) => ({

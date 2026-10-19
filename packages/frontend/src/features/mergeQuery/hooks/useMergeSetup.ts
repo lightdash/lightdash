@@ -1,7 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useExploreQueries } from '../../../hooks/useExplore';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     selectMetricQuery,
     selectParameters,
@@ -24,7 +22,6 @@ import { useMergeSourceNames } from './useMergeSourceNames';
  * it".
  */
 export const useMergeSetup = () => {
-    const { data: mergeFlag } = useServerFeatureFlag(FeatureFlags.MergeQueries);
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
@@ -65,7 +62,7 @@ export const useMergeSetup = () => {
         ],
     );
     const { run, isRunning, runErrors, mergeResults } = mergeContext ?? {};
-    const canRun = mergeFlag?.enabled === true && setup.canRun;
+    const { canRun } = setup;
     const handleRun = useCallback(() => {
         if (canRun && setup.mergeQuery)
             run?.(setup.mergeQuery, parameters, unsavedChartVersion);

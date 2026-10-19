@@ -115,19 +115,20 @@ const buildService = () => {
             .fn()
             .mockResolvedValue({ outcome: 'success', query }),
     };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
+    };
     const service = new AiAgentService({
         aiAgentModel,
         asyncQueryService,
         aiAgentToolsService: {
             getExplore: vi.fn().mockResolvedValue(validExplore),
         },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        },
+        featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
-    return { service, aiAgentModel, asyncQueryService };
+    return { service, aiAgentModel, asyncQueryService, featureFlagService };
 };
 
 const artifactArgs = [
@@ -207,8 +208,18 @@ describe.each([
                 );
             },
         );
-        it('executes merge charts with viewer user attribute overrides', async () => {
-            const { service, aiAgentModel, asyncQueryService } = buildService();
+        it('executes merge charts with viewer user attribute overrides and merge-queries off', async () => {
+            const {
+                service,
+                aiAgentModel,
+                asyncQueryService,
+                featureFlagService,
+            } = buildService();
+            featureFlagService.get.mockImplementation(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    enabled: featureFlagId !== 'merge-queries',
+                }),
+            );
             aiAgentModel.getArtifact.mockResolvedValue({
                 threadUuid: 'thread-uuid',
                 artifactType: 'chart',
