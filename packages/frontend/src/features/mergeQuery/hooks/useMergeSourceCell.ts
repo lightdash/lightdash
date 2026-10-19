@@ -77,12 +77,12 @@ export const useMergeSourceCell = () => {
     const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const merge = useMergeSafe();
-    const {
-        tableName,
-        metricQuery: primaryMetricQuery,
-        parameters,
-        resolvedTimezone,
-    } = useMetricQueryDataContext();
+    // Optional: custom chart renderers mount on surfaces without the provider
+    const metricQueryData = useMetricQueryDataContext(true);
+    const tableName = metricQueryData?.tableName;
+    const primaryMetricQuery = metricQueryData?.metricQuery;
+    const parameters = metricQueryData?.parameters;
+    const resolvedTimezone = metricQueryData?.resolvedTimezone;
     // Not useMergeSourceNames: it reads the explorer store, absent outside the explorer
     const { handleByName } = useMemo(
         () =>
@@ -94,9 +94,12 @@ export const useMergeSourceCell = () => {
         [tableName, merge?.primarySourceName, merge?.additionalSources],
     );
     const additionalSource = merge?.additionalSources[0];
-    const { data: primaryExplore } = useExplore(tableName, {
-        refetchOnMount: false,
-    });
+    const { data: primaryExplore } = useExplore(
+        merge?.mergeResults ? tableName : undefined,
+        {
+            refetchOnMount: false,
+        },
+    );
     const { data: additionalExplore } = useExplore(
         additionalSource?.exploreName ?? undefined,
         { refetchOnMount: false },
