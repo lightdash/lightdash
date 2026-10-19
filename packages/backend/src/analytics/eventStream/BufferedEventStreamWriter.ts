@@ -32,7 +32,6 @@ export type BufferedEventStreamWriterArgs = {
     flushBatchSize: number;
     bufferMaxSize: number;
     prometheusMetrics: PrometheusMetrics;
-    isOrganizationEnabled: (organizationUuid: string) => Promise<boolean>;
 };
 
 const getUtcDate = (eventTs: string): string => {
@@ -58,10 +57,6 @@ export class BufferedEventStreamWriter
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
-    private readonly isOrganizationEnabled: (
-        organizationUuid: string,
-    ) => Promise<boolean>;
-
     private readonly writerId: string;
 
     private readonly flushTimer: NodeJS.Timeout;
@@ -78,7 +73,6 @@ export class BufferedEventStreamWriter
         this.flushBatchSize = args.flushBatchSize;
         this.bufferMaxSize = args.bufferMaxSize;
         this.prometheusMetrics = args.prometheusMetrics;
-        this.isOrganizationEnabled = args.isOrganizationEnabled;
         this.writerId = randomUUID().slice(0, 8);
         this.flushTimer = setInterval(() => {
             void this.flush();
@@ -165,7 +159,6 @@ export class BufferedEventStreamWriter
             group.stream
         }/dt=${group.dt}/${this.writerId}-${randomUUID()}.jsonl.gz`;
         try {
-            if (!(await this.isOrganizationEnabled(group.orgId))) return;
             const jsonl = `${group.rows
                 .map((row) => JSON.stringify(row))
                 .join('\n')}\n`;
