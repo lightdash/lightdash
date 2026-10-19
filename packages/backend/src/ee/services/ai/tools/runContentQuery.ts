@@ -218,6 +218,7 @@ export const getRunContentQuery = ({
                 await approveSql({
                     sql,
                     heading: RUN_CONTENT_SQL_APPROVAL_HEADING,
+                    steps: null,
                 });
             } catch (e) {
                 if (e instanceof SqlNotApprovedError) {

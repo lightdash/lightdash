@@ -73,6 +73,7 @@ export const getSqlApprovalSteps = (
         case 'runComposerQueries':
             return getComposerSqlApprovalSteps(toolArgs);
         case 'runSql':
+        case 'runContentQuery':
         case 'createContent':
         case 'editContent':
             return null;
