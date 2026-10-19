@@ -44,6 +44,7 @@ import type {
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateSelectOnly } from './runSql';
+import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
 import {
     COMPOSER_SQL_REJECTED_RESULT,
@@ -302,6 +303,10 @@ export const getRunComposerQueries = ({
                             sql: approvalSql,
                             heading:
                                 getSqlApprovalHeading('runComposerQueries'),
+                            steps: getSqlApprovalSteps(
+                                'runComposerQueries',
+                                args,
+                            ),
                         });
                     } catch (e) {
                         if (e instanceof SqlNotApprovedError) {
