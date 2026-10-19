@@ -576,6 +576,11 @@ import {
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
 import {
+    resolveComposerPresentations,
+    type ComposerPresentation,
+    type ComposerToolResult,
+} from '../ai/utils/composerPresentation';
+import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
 } from '../ai/utils/errorMessages';
@@ -8224,6 +8229,43 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    /** One composer artifact version per presented node, in answer order. */
+    private async saveComposerPresentations({
+        threadUuid,
+        promptUuid,
+        presentations,
+        onArtifactReady,
+    }: {
+        threadUuid: string;
+        promptUuid: string;
+        presentations: ComposerPresentation[];
+        onArtifactReady: (artifact: AiArtifact) => void;
+    }): Promise<void> {
+        try {
+            await presentations.reduce<Promise<void>>(
+                (previous, { title, description, config }) =>
+                    previous.then(async () => {
+                        const artifact =
+                            await this.aiAgentModel.createOrUpdateArtifact({
+                                threadUuid,
+                                promptUuid,
+                                artifactType: 'chart',
+                                title,
+                                ...(description ? { description } : {}),
+                                vizConfig: config,
+                            });
+                        onArtifactReady(artifact);
+                    }),
+                Promise.resolve(),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to save composer presentations for prompt ${promptUuid}`,
+                error,
+            );
+        }
+    }
+
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
         classificationContext?: {
@@ -15612,6 +15654,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+        // This turn's tool results, so the final answer can present composer nodes.
+        const turnToolResults: ComposerToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -17004,7 +17048,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateSlackMessage,
                     storeToolCall,
                     storeToolCallError,
-                    storeToolResults,
+                    storeToolResults: (results) => {
+                        turnToolResults.push(
+                            ...results.map(
+                                ({ promptUuid, toolName, metadata }) => ({
+                                    promptUuid,
+                                    toolName,
+                                    metadata,
+                                }),
+                            ),
+                        );
+                        return storeToolResults(results);
+                    },
                     storeReasoning,
                     isPromptInterrupted,
                     consumePromptSteers,
@@ -17039,17 +17094,32 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // Generation saves step and terminal responses before Slack
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
-                        const visibleUpdate =
+                        const composerPresentation =
+                            !isSlackPrompt(prompt) &&
+                            update.response !== undefined
+                                ? resolveComposerPresentations({
+                                      response: update.response,
+                                      promptUuid: prompt.promptUuid,
+                                      toolResults: turnToolResults,
+                                  })
+                                : null;
+                        let visibleUpdate = update;
+                        if (composerPresentation) {
+                            visibleUpdate = {
+                                ...update,
+                                response: composerPresentation.response,
+                            };
+                        } else if (
                             isSlackPrompt(prompt) &&
                             update.response !== undefined
-                                ? {
-                                      ...update,
-                                      response:
-                                          stripSlackVisualizationSelection(
-                                              update.response,
-                                          ),
-                                  }
-                                : update;
+                        ) {
+                            visibleUpdate = {
+                                ...update,
+                                response: stripSlackVisualizationSelection(
+                                    update.response,
+                                ),
+                            };
+                        }
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17064,6 +17134,32 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!updatePromise) {
                             return Promise.resolve();
                         }
+                        const presentationPromise = updatePromise.then(
+                            async (persisted) => {
+                                if (!persisted || !composerPresentation) return;
+                                await this.saveComposerPresentations({
+                                    threadUuid: prompt.threadUuid,
+                                    promptUuid: prompt.promptUuid,
+                                    presentations:
+                                        composerPresentation.presentations,
+                                    onArtifactReady: (artifact) => {
+                                        if (decisions) {
+                                            stepProgressEmitter?.emit(
+                                                'artifactReady',
+                                                {
+                                                    promptUuid:
+                                                        prompt.promptUuid,
+                                                    artifactUuid:
+                                                        artifact.artifactUuid,
+                                                    versionUuid:
+                                                        artifact.versionUuid,
+                                                },
+                                            );
+                                        }
+                                    },
+                                });
+                            },
+                        );
                         const updateWithCitationTelemetryPromise =
                             aiAgentMemoryEnabled &&
                             update.response !== undefined &&
@@ -17199,9 +17295,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 });
                         }
 
-                        return updateWithCitationTelemetryPromise.then(
-                            () => undefined,
-                        );
+                        return Promise.all([
+                            updateWithCitationTelemetryPromise,
+                            presentationPromise,
+                        ]).then(() => undefined);
                     },
                     trackEvent: (event) => this.analytics.track(event),
 
