@@ -1,9 +1,8 @@
-import { type ApiError } from '@lightdash/common';
+import { type ApiError, uniqueAliasFromName } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
-import { uniqueAliasFromName } from '../utils/aliasFromName';
 import { getAppExternalConnections } from './useAppExternalConnections';
 
 type LinkParams = {

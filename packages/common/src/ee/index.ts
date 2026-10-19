@@ -9,6 +9,7 @@ export * from './aiDeepResearch/workers';
 export * from './aiWriteback/mcpTask';
 export * from './aiWriteback/types';
 export * from './mcp/tasks';
+export * from './externalConnections/aliasFromName';
 export * from './externalConnections/coder';
 export * from './externalConnections/types';
 export * from './AiRouter';
