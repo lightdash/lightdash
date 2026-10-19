@@ -12,6 +12,7 @@ import {
     type CreatePostgresCredentials,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -163,6 +164,8 @@ describe('Space warehouse routing on the real schema', () => {
             }),
         } as never);
         spaceService = new SpaceService({
+            analytics: analyticsMock,
+            projectModel,
             featureFlagModel,
             warehouseConnectionModel,
             spaceModel,
@@ -407,6 +410,115 @@ describe('Space warehouse routing on the real schema', () => {
                 'This connection is reserved for a space you cannot edit.',
             ),
         );
+    });
+
+    test('a parent viewer cannot create a child and gain SQL runner access', async () => {
+        await database('space_user_access').insert({
+            user_uuid: userUuid,
+            space_uuid: spaceA,
+            space_role: SpaceMemberRole.VIEWER,
+        });
+        const spacesBefore = await spaceModel.getChildSpaceUuids(spaceA);
+        await expect(
+            spaceService.createSpace(projectUuid, account.user, {
+                name: 'Escalation child',
+                parentSpaceUuid: spaceA,
+            }),
+        ).rejects.toThrow(
+            'You need edit access on a space that uses this connection',
+        );
+        expect(await spaceModel.getChildSpaceUuids(spaceA)).toEqual(
+            spacesBefore,
+        );
+        await expect(
+            service.executeAsyncSqlQuery({
+                account,
+                projectUuid,
+                sql: 'SELECT 1',
+                context: QueryExecutionContext.SQL_RUNNER,
+                warehouseConnectionUuid: extraConnectionUuid,
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    test.each([
+        [true, SpaceMemberRole.EDITOR],
+        [false, SpaceMemberRole.VIEWER],
+    ])(
+        'child creation stays available with flag %s and parent role %s',
+        async (enabled, role) => {
+            await featureFlagModel.upsertOrganizationOverride(
+                FeatureFlags.SpaceWarehouseConnections,
+                organizationUuid,
+                enabled,
+            );
+            await database('space_user_access').insert({
+                user_uuid: userUuid,
+                space_uuid: spaceA,
+                space_role: role,
+            });
+            const created = await spaceService.createSpace(
+                projectUuid,
+                account.user,
+                { name: 'Allowed child', parentSpaceUuid: spaceA },
+            );
+            try {
+                expect(created.parentSpaceUuid).toBe(spaceA);
+                expect(created.access).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            userUuid,
+                            role: SpaceMemberRole.ADMIN,
+                        }),
+                    ]),
+                );
+                expect(
+                    (
+                        await service.getSqlRunnerConnections(
+                            account,
+                            projectUuid,
+                        )
+                    ).find(
+                        (c) =>
+                            c.warehouseConnectionUuid === extraConnectionUuid,
+                    )?.canRunSql,
+                ).toBe(true);
+            } finally {
+                await database('space_user_access')
+                    .where('space_uuid', created.uuid)
+                    .delete();
+                await database('spaces')
+                    .where('space_uuid', created.uuid)
+                    .delete();
+            }
+        },
+    );
+
+    test('a parent viewer cannot move an owned space under a reserved parent', async () => {
+        await database('space_user_access').insert([
+            {
+                user_uuid: userUuid,
+                space_uuid: spaceA,
+                space_role: SpaceMemberRole.VIEWER,
+            },
+            {
+                user_uuid: userUuid,
+                space_uuid: spaceB,
+                space_role: SpaceMemberRole.ADMIN,
+            },
+        ]);
+        await expect(
+            spaceService.moveToSpace(
+                account.user,
+                { projectUuid, itemUuid: spaceB, targetSpaceUuid: spaceA },
+                { checkForAccess: false },
+            ),
+        ).rejects.toThrow(
+            'You need edit access on a space that uses this connection',
+        );
+        expect(
+            (await spaceModel.getSpaceSummary(spaceB)).parentSpaceUuid,
+        ).toBeNull();
     });
 
     test('SQL runner admits a developer who edits a bound space', async () => {

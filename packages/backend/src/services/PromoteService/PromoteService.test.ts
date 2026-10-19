@@ -2968,9 +2968,14 @@ describe('agent content writes', () => {
 });
 
 describe('SQL chart promotion connection reservations', () => {
-    test.each([PromotionAction.CREATE, PromotionAction.UPDATE])(
-        'refuses %s on a reserved named connection',
-        async (action) => {
+    test.each([
+        [PromotionAction.CREATE, 'reserved'],
+        [PromotionAction.UPDATE, 'reserved'],
+        [PromotionAction.CREATE, null],
+        [PromotionAction.UPDATE, null],
+    ])(
+        'refuses %s on a reserved effective connection with named connection %s',
+        async (action, namedConnectionUuid) => {
             const create = vi.fn();
             const update = vi.fn();
             const service = new PromoteService({
@@ -2987,6 +2992,9 @@ describe('SQL chart promotion connection reservations', () => {
                 },
                 savedSqlModel: { create, update },
                 spaceModel: {
+                    getEffectiveWarehouseConnectionUuid: vi.fn(
+                        async () => 'reserved',
+                    ),
                     getConnectionBoundSpaces: vi.fn(async () => [
                         {
                             spaceUuid: 'restricted',
@@ -3001,13 +3009,25 @@ describe('SQL chart promotion connection reservations', () => {
             await expect(
                 service.upsertSqlCharts(
                     user,
-                    { charts: [], spaces: [], dashboards: [] },
+                    {
+                        charts: [],
+                        spaces: [
+                            {
+                                action: PromotionAction.NO_CHANGES,
+                                data: { path: 'target', uuid: 'target-space' },
+                            },
+                        ],
+                        dashboards: [],
+                    } as never,
                     [
                         {
                             action,
                             data: {
                                 oldUuid: 'source-chart',
                                 projectUuid: 'target-project',
+                                spacePath: 'target',
+                                unversionedData: {},
+                                versionedData: {},
                             },
                         },
                     ] as never,
@@ -3016,7 +3036,7 @@ describe('SQL chart promotion connection reservations', () => {
                             'source-chart',
                             {
                                 kind: 'connection',
-                                warehouseConnectionUuid: 'reserved',
+                                warehouseConnectionUuid: namedConnectionUuid,
                             },
                         ],
                     ]),

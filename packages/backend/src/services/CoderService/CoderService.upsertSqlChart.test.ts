@@ -84,6 +84,9 @@ const reservationFlag = {
     })),
 };
 const reservedSpaces = {
+    getEffectiveWarehouseConnectionUuid: vi.fn(
+        async (): Promise<string | null> => null,
+    ),
     getConnectionBoundSpaces: vi.fn(
         async () =>
             [] as { spaceUuid: string; warehouseConnectionUuid: string }[],
@@ -473,6 +476,7 @@ describe('CoderService.upsertSqlChart - connections', () => {
     const user = makeUser([
         { subject: 'ContentAsCode', action: 'create' },
         { subject: 'CustomSql', action: 'manage' },
+        { subject: 'SqlRunner', action: 'manage' },
         {
             subject: 'SavedChart',
             action: ['create', 'update'],
@@ -528,7 +532,40 @@ describe('CoderService.upsertSqlChart - connections', () => {
             );
             expect(savedSqlModel.create).not.toHaveBeenCalled();
             expect(savedSqlModel.update).not.toHaveBeenCalled();
-            expect(service.getOrCreateSpace).not.toHaveBeenCalled();
+            expect(service.getOrCreateSpace).toHaveBeenCalled();
+        },
+    );
+
+    it.each([false, true])(
+        'rejects an upload using the effective space connection with no named connection, existing=%s',
+        async (existing) => {
+            connectionState.route = 'multi';
+            reservationFlag.get.mockResolvedValueOnce({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: true,
+            });
+            reservedSpaces.getConnectionBoundSpaces.mockResolvedValueOnce([
+                {
+                    spaceUuid: OTHER_SPACE_UUID,
+                    warehouseConnectionUuid: 'finance-uuid',
+                },
+            ]);
+            reservedSpaces.getEffectiveWarehouseConnectionUuid.mockResolvedValueOnce(
+                'finance-uuid',
+            );
+            const { savedSqlModel, error } = await uploadWith(
+                existing ? [existingRow()] : [],
+                undefined,
+            );
+            expect(error).toBeInstanceOf(ForbiddenError);
+            expect(
+                reservedSpaces.getEffectiveWarehouseConnectionUuid,
+            ).toHaveBeenCalledWith({
+                projectUuid: PROJECT_UUID,
+                spaceUuid: SPACE_UUID,
+            });
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
         },
     );
 

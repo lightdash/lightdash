@@ -1222,35 +1222,6 @@ export class PromoteService extends BaseService {
             return promotionChanges;
         }
 
-        const auditedAbility = this.createAuditedAbility(user);
-        await Promise.all(
-            promotedSqlCharts
-                .filter(
-                    ({ action }) =>
-                        action === PromotionAction.CREATE ||
-                        action === PromotionAction.UPDATE,
-                )
-                .map(async (change) => {
-                    const binding = bindings.get(change.data.oldUuid);
-                    if (binding?.warehouseConnectionUuid) {
-                        const { organizationUuid } =
-                            await this.projectModel.getSummary(
-                                change.data.projectUuid,
-                            );
-                        await this.spaceConnectionReservation.assertCanUseConnection(
-                            {
-                                userUuid: user.userUuid,
-                                ability: auditedAbility,
-                                organizationUuid,
-                                projectUuid: change.data.projectUuid,
-                                warehouseConnectionUuid:
-                                    binding.warehouseConnectionUuid,
-                            },
-                        );
-                    }
-                }),
-        );
-
         const sqlChangesWithResolvedSpaces = promotedSqlCharts.map(
             (sqlChartChange) => {
                 const targetSpace = PromoteService.getSpaceByPath(
@@ -1269,6 +1240,32 @@ export class PromoteService extends BaseService {
                     },
                 };
             },
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        await Promise.all(
+            sqlChangesWithResolvedSpaces
+                .filter(
+                    ({ action }) =>
+                        action === PromotionAction.CREATE ||
+                        action === PromotionAction.UPDATE,
+                )
+                .map(async ({ data }) => {
+                    const binding = bindings.get(data.oldUuid);
+                    await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: auditedAbility,
+                            organizationUuid: user.organizationUuid!,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: data.unversionedData.spaceUuid,
+                            warehouseConnectionUuid:
+                                binding === undefined
+                                    ? data.versionedData.warehouseConnectionUuid
+                                    : binding.warehouseConnectionUuid,
+                        },
+                    );
+                }),
         );
 
         await Promise.all(
@@ -2278,6 +2275,18 @@ export class PromoteService extends BaseService {
                 }
 
                 const { data } = spaceChange;
+
+                if (parentSpaceUuid) {
+                    await this.spaceConnectionReservation.assertCanCreateInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: this.createAuditedAbility(user),
+                            organizationUuid: user.organizationUuid!,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: parentSpaceUuid,
+                        },
+                    );
+                }
 
                 const space = await this.spaceModel.createSpace(
                     {

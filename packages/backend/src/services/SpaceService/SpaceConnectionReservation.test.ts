@@ -10,12 +10,22 @@ import { SpaceConnectionReservation } from './SpaceConnectionReservation';
 import { type AccessContextForCasl } from './SpacePermissionService';
 
 class TestService extends BaseService {
-    getAbility(managesSpace: boolean) {
+    getAbility(managesSpace: boolean, managesSqlRunner = true) {
         return this.createAuditedAbility({
             ...defaultSessionUser,
-            ability: new Ability(
-                managesSpace ? [{ action: 'manage', subject: 'Space' }] : [],
-            ),
+            ability: new Ability([
+                ...(managesSpace
+                    ? [{ action: 'manage' as const, subject: 'Space' as const }]
+                    : []),
+                ...(managesSqlRunner
+                    ? [
+                          {
+                              action: 'manage' as const,
+                              subject: 'SqlRunner' as const,
+                          },
+                      ]
+                    : []),
+            ]),
         });
     }
 }
@@ -41,7 +51,10 @@ const context = (role: SpaceMemberRole): AccessContextForCasl => ({
 
 describe('SpaceConnectionReservation', () => {
     const featureFlagModel = { get: vi.fn() };
-    const spaceModel = { getConnectionBoundSpaces: vi.fn() };
+    const spaceModel = {
+        getConnectionBoundSpaces: vi.fn(),
+        getEffectiveWarehouseConnectionUuid: vi.fn(),
+    };
     const spacePermissionService = { resolveAccessBatch: vi.fn() };
     const reservation = new SpaceConnectionReservation({
         featureFlagModel,
@@ -58,6 +71,7 @@ describe('SpaceConnectionReservation', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         featureFlagModel.get.mockResolvedValue({ enabled: true });
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(null);
         spaceModel.getConnectionBoundSpaces.mockResolvedValue([
             { spaceUuid: 'private', warehouseConnectionUuid: 'connection' },
         ]);
@@ -192,5 +206,112 @@ describe('SpaceConnectionReservation', () => {
         expect(await reservation.getReservedConnectionUuids(args())).toEqual(
             new Set(['connection']),
         );
+    });
+
+    it('requires SqlRunner permission even when the space is editable', async () => {
+        await expect(
+            reservation.assertCanUseConnection({
+                ...args(),
+                ability: new TestService().getAbility(true, false),
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(
+            reservation.assertCanUseConnection({
+                ...args(),
+                ability: new TestService().getAbility(true, false),
+                warehouseConnectionUuid: 'unreserved',
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it.each([null, undefined, 'unreserved'])(
+        'checks the space connection before the named connection %s',
+        async (warehouseConnectionUuid) => {
+            spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+                'connection',
+            );
+            await expect(
+                reservation.assertCanAuthorSqlInSpace({
+                    ...args(),
+                    spaceUuid: 'private',
+                    warehouseConnectionUuid,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+        },
+    );
+
+    it('allows SQL on an unreserved space override of a reserved named connection', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'unreserved',
+        );
+        await expect(
+            reservation.assertCanAuthorSqlInSpace({
+                ...args(),
+                spaceUuid: 'private',
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).resolves.toBeUndefined();
+    });
+
+    it('refuses child creation under a reserved parent connection', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'connection',
+        );
+        await expect(
+            reservation.assertCanCreateInSpace({
+                ...args(),
+                spaceUuid: 'private',
+            }),
+        ).rejects.toThrow(
+            'You need edit access on a space that uses this connection',
+        );
+    });
+
+    it('lets an editor without SqlRunner create a child under a reserved parent', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'connection',
+        );
+        spacePermissionService.resolveAccessBatch.mockResolvedValue([
+            {
+                target: { type: 'space', spaceUuid: 'private' },
+                context: context(SpaceMemberRole.EDITOR),
+            },
+        ]);
+        const ability = new TestService().getAbility(false, false);
+        await expect(
+            reservation.assertCanCreateInSpace({
+                ...args(),
+                ability,
+                spaceUuid: 'private',
+            }),
+        ).resolves.toBeUndefined();
+        await expect(
+            reservation.assertCanUseConnection({
+                ...args(),
+                ability,
+                warehouseConnectionUuid: 'connection',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    it('does no space or access lookups for either write guard while disabled', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await reservation.assertCanAuthorSqlInSpace({
+            ...args(),
+            spaceUuid: 'private',
+            warehouseConnectionUuid: null,
+        });
+        await reservation.assertCanCreateInSpace({
+            ...args(),
+            spaceUuid: 'private',
+        });
+        expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
+        expect(
+            spaceModel.getEffectiveWarehouseConnectionUuid,
+        ).not.toHaveBeenCalled();
+        expect(
+            spacePermissionService.resolveAccessBatch,
+        ).not.toHaveBeenCalled();
     });
 });

@@ -572,18 +572,14 @@ export class SavedSqlService
             },
         );
 
-        if (
-            sqlChart.warehouseConnectionUuid !== undefined &&
-            sqlChart.warehouseConnectionUuid !== null
-        ) {
-            await this.spaceConnectionReservation.assertCanUseConnection({
-                userUuid: user.userUuid,
-                ability: auditedAbility,
-                organizationUuid,
-                projectUuid,
-                warehouseConnectionUuid: sqlChart.warehouseConnectionUuid,
-            });
-        }
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            spaceUuid: sqlChart.spaceUuid,
+            warehouseConnectionUuid: sqlChart.warehouseConnectionUuid,
+        });
 
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
@@ -667,16 +663,18 @@ export class SavedSqlService
             requestedConnectionUuid === undefined
                 ? savedChart.warehouseConnectionUuid
                 : requestedConnectionUuid;
+        const destinationSpaceUuid =
+            sqlChart.unversionedData?.spaceUuid ?? savedChart.space.uuid;
         if (
-            sqlChart.versionedData &&
-            resultingConnectionUuid !== undefined &&
-            resultingConnectionUuid !== null
+            sqlChart.versionedData ||
+            destinationSpaceUuid !== savedChart.space.uuid
         ) {
-            await this.spaceConnectionReservation.assertCanUseConnection({
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
                 userUuid: user.userUuid,
                 ability: auditedAbility,
                 organizationUuid,
                 projectUuid,
+                spaceUuid: destinationSpaceUuid,
                 warehouseConnectionUuid: resultingConnectionUuid,
             });
         }
@@ -1100,6 +1098,27 @@ export class SavedSqlService
                 type: 'SavedChart',
                 metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        }
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: user.organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (enabled) {
+            const savedChart = await this.savedSqlModel.getByUuid(
+                savedSqlUuid,
+                {
+                    projectUuid,
+                },
+            );
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid: savedChart.organization.organizationUuid,
+                projectUuid,
+                spaceUuid: targetSpaceUuid,
+                warehouseConnectionUuid: savedChart.warehouseConnectionUuid,
             });
         }
 

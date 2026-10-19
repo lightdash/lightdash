@@ -834,11 +834,15 @@ describe('SavedSqlService space connection reservations', () => {
         ...baseUser,
         ability: new Ability<PossibleAbilities>([
             { subject: 'CustomSql', action: 'manage' },
+            { subject: 'SqlRunner', action: 'manage' },
             { subject: 'SavedChart', action: ['create', 'update'] },
         ]),
     };
     const featureFlagModel = { get: vi.fn() };
-    const spaceModel = { getConnectionBoundSpaces: vi.fn() };
+    const spaceModel = {
+        getConnectionBoundSpaces: vi.fn(),
+        getEffectiveWarehouseConnectionUuid: vi.fn(),
+    };
     const connectionIdentity = { getSaveWarehouseConnectionUuid: vi.fn() };
     const service = new SavedSqlService({
         featureFlagModel,
@@ -851,7 +855,7 @@ describe('SavedSqlService space connection reservations', () => {
     } as never);
     const save = (
         operation: 'create' | 'update',
-        warehouseConnectionUuid: string | null,
+        warehouseConnectionUuid: string | null | undefined,
     ) =>
         operation === 'create'
             ? service.createSqlChart(user, projectUuid, {
@@ -874,6 +878,7 @@ describe('SavedSqlService space connection reservations', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         featureFlagModel.get.mockResolvedValue({ enabled: true });
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(null);
         spaceModel.getConnectionBoundSpaces.mockResolvedValue([
             {
                 spaceUuid: 'restricted-space',
@@ -925,10 +930,12 @@ describe('SavedSqlService space connection reservations', () => {
     );
 
     it.each(['create', 'update'] as const)(
-        'does not apply reservations to a null connection on %s',
+        'allows a null connection in an unbound space on %s',
         async (operation) => {
             await expect(save(operation, null)).resolves.toBeDefined();
-            expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
+            expect(
+                spaceModel.getEffectiveWarehouseConnectionUuid,
+            ).toHaveBeenCalledWith({ projectUuid, spaceUuid });
         },
     );
 
@@ -940,4 +947,66 @@ describe('SavedSqlService space connection reservations', () => {
             expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
         },
     );
+
+    it.each([
+        ['create', null],
+        ['create', undefined],
+        ['update', null],
+        ['update', undefined],
+    ] as const)(
+        'refuses a direct chart editor writing SQL in a bound space on %s with %s connection',
+        async (operation, connection) => {
+            spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+                'reserved',
+            );
+            await expect(save(operation, connection)).rejects.toBeInstanceOf(
+                ForbiddenError,
+            );
+            expect(savedSqlModel.create).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+        },
+    );
+
+    it('refuses a chart update that only moves into a bound space', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'reserved',
+        );
+        await expect(
+            service.updateSqlChart(user, projectUuid, savedSqlUuid, {
+                unversionedData: { spaceUuid: 'restricted-space' },
+            } as never),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(
+            spaceModel.getEffectiveWarehouseConnectionUuid,
+        ).toHaveBeenCalledWith({ projectUuid, spaceUuid: 'restricted-space' });
+        expect(savedSqlModel.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses the separate chart move endpoint into a bound space', async () => {
+        spaceModel.getEffectiveWarehouseConnectionUuid.mockResolvedValue(
+            'reserved',
+        );
+        await expect(
+            service.moveToSpace(user, {
+                projectUuid,
+                itemUuid: savedSqlUuid,
+                targetSpaceUuid: 'restricted-space',
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(savedSqlModel.moveToSpace).not.toHaveBeenCalled();
+    });
+
+    it('does no extra chart or space lookups for a move while disabled', async () => {
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await service.moveToSpace(user, {
+            projectUuid,
+            itemUuid: savedSqlUuid,
+            targetSpaceUuid: 'restricted-space',
+        });
+        expect(savedSqlModel.getByUuid).toHaveBeenCalledTimes(1);
+        expect(spaceModel.getConnectionBoundSpaces).not.toHaveBeenCalled();
+        expect(
+            spaceModel.getEffectiveWarehouseConnectionUuid,
+        ).not.toHaveBeenCalled();
+    });
 });

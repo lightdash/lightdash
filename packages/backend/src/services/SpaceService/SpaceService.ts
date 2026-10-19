@@ -48,6 +48,7 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
+import { SpaceConnectionReservation } from './SpaceConnectionReservation';
 import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
@@ -127,8 +128,11 @@ export class SpaceService
 
     private readonly serviceAccountModel: ServiceAccountModel | undefined;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: SpaceServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.featureFlagModel = args.featureFlagModel;
         this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.analytics = args.analytics;
@@ -425,6 +429,13 @@ export class SpaceService
             if (parentSpace.projectUuid !== projectUuid) {
                 throw new NotFoundError('Parent space not found');
             }
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                spaceUuid: space.parentSpaceUuid,
+            });
         }
 
         if (space.access && space.access.length > 0) {
@@ -762,6 +773,16 @@ export class SpaceService
                     targetSpaceUuid: targetSpaceUuid ?? undefined,
                 },
             );
+        }
+
+        if (targetSpaceUuid) {
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid: space.organizationUuid,
+                projectUuid,
+                spaceUuid: targetSpaceUuid,
+            });
         }
 
         if (space.inheritParentPermissions) {

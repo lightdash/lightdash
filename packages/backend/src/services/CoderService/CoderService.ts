@@ -1651,6 +1651,16 @@ export class CoderService extends BaseService {
             );
         }
 
+        if (!existingSpace && parentSpaceUuid !== null) {
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                spaceUuid: parentSpaceUuid,
+            });
+        }
+
         const rawAccess = existingSpace
             ? ((
                   await this.spacePermissionService.getRawDirectAccess([
@@ -4814,15 +4824,6 @@ export class CoderService extends BaseService {
             connections,
             sqlChartAsCode.connection,
         );
-        if (warehouseConnectionUuid !== null) {
-            await this.spaceConnectionReservation.assertCanUseConnection({
-                userUuid: user.userUuid,
-                ability: auditedAbility,
-                organizationUuid: project.organizationUuid,
-                projectUuid,
-                warehouseConnectionUuid,
-            });
-        }
         if (
             existingSqlChart?.warehouse_connection_uuid &&
             existingSqlChart.warehouse_connection_uuid !==
@@ -4850,6 +4851,15 @@ export class CoderService extends BaseService {
             spaceNames,
             allowSpaceCreate,
         );
+
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: auditedAbility,
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+            spaceUuid: space.uuid,
+            warehouseConnectionUuid,
+        });
 
         const savedChartAction = isUpdate ? 'update' : 'create';
         await this.assertSpaceContentAccess({
@@ -5387,6 +5397,16 @@ export class CoderService extends BaseService {
             const spaceName =
                 spaceNames?.[getContentAsCodePathFromLtreePath(parentPath)] ??
                 friendlyName(currentPath);
+
+            if (parentSpaceUuid) {
+                await this.spaceConnectionReservation.assertCanCreateInSpace({
+                    userUuid: user.userUuid,
+                    ability: this.createAuditedAbility(user),
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    spaceUuid: parentSpaceUuid,
+                });
+            }
 
             const newSpace = await this.spaceModel.createSpace(
                 {

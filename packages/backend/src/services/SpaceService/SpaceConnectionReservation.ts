@@ -18,7 +18,10 @@ type ReservationContext = {
 
 type SpaceConnectionReservationArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-    spaceModel: Pick<SpaceModel, 'getConnectionBoundSpaces'>;
+    spaceModel: Pick<
+        SpaceModel,
+        'getConnectionBoundSpaces' | 'getEffectiveWarehouseConnectionUuid'
+    >;
     spacePermissionService: Pick<SpacePermissionService, 'resolveAccessBatch'>;
 };
 
@@ -32,7 +35,10 @@ export class SpaceConnectionReservation {
         ability,
         organizationUuid,
         projectUuid,
-    }: ReservationContext): Promise<Set<string>> {
+        requireSqlRunner = true,
+    }: ReservationContext & { requireSqlRunner?: boolean }): Promise<
+        Set<string>
+    > {
         const { enabled } = await this.dependencies.featureFlagModel.get({
             user: { organizationUuid },
             featureFlagId: FeatureFlags.SpaceWarehouseConnections,
@@ -67,7 +73,18 @@ export class SpaceConnectionReservation {
         );
         const usableConnections = new Set(
             spaces
-                .filter(({ spaceUuid }) => editableSpaces.has(spaceUuid))
+                .filter(
+                    ({ spaceUuid }) =>
+                        (!requireSqlRunner ||
+                            ability.can(
+                                'manage',
+                                subject('SqlRunner', {
+                                    organizationUuid,
+                                    projectUuid,
+                                }),
+                            )) &&
+                        editableSpaces.has(spaceUuid),
+                )
                 .map(({ warehouseConnectionUuid }) => warehouseConnectionUuid),
         );
         return new Set(
@@ -79,15 +96,67 @@ export class SpaceConnectionReservation {
 
     async assertCanUseConnection({
         warehouseConnectionUuid,
+        errorMessage = 'This connection is reserved for a space you cannot edit.',
         ...context
     }: ReservationContext & {
         warehouseConnectionUuid: string;
+        errorMessage?: string;
+        requireSqlRunner?: boolean;
     }): Promise<void> {
         if (
             (await this.getReservedConnectionUuids(context)).has(
                 warehouseConnectionUuid,
             )
         ) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    async assertCanCreateInSpace({
+        spaceUuid,
+        ...context
+    }: ReservationContext & { spaceUuid: string }): Promise<void> {
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            user: { organizationUuid: context.organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return;
+        const warehouseConnectionUuid =
+            await this.dependencies.spaceModel.getEffectiveWarehouseConnectionUuid(
+                {
+                    projectUuid: context.projectUuid,
+                    spaceUuid,
+                },
+            );
+        if (warehouseConnectionUuid !== null) {
+            await this.assertCanUseConnection({
+                ...context,
+                warehouseConnectionUuid,
+                errorMessage:
+                    'You need edit access on a space that uses this connection to create or move a space inside it.',
+                requireSqlRunner: false,
+            });
+        }
+    }
+
+    async assertCanAuthorSqlInSpace({
+        spaceUuid,
+        warehouseConnectionUuid,
+        ...context
+    }: ReservationContext & {
+        spaceUuid: string;
+        warehouseConnectionUuid?: string | null;
+    }): Promise<void> {
+        const reserved = await this.getReservedConnectionUuids(context);
+        if (reserved.size === 0) return;
+        const effectiveConnectionUuid =
+            (await this.dependencies.spaceModel.getEffectiveWarehouseConnectionUuid(
+                {
+                    projectUuid: context.projectUuid,
+                    spaceUuid,
+                },
+            )) ?? warehouseConnectionUuid;
+        if (effectiveConnectionUuid && reserved.has(effectiveConnectionUuid)) {
             throw new ForbiddenError(
                 'This connection is reserved for a space you cannot edit.',
             );
