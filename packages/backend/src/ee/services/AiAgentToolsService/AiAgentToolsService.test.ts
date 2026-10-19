@@ -6666,6 +6666,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
                     rows: [{ status: 'completed', orders: 97 }],
                     columns: { status: {}, orders: {} },
                 }),
+                getQueryExecutionStats: vi.fn().mockResolvedValue(null),
             },
         });
         return {
@@ -6689,6 +6690,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             rows: [{ status: 'completed', orders: 97 }],
             columns: ['status', 'orders'],
             rowCount: 1,
+            executionStats: null,
             sqlChart: {
                 uuid: 'sql-chart-uuid',
                 slug: 'orders-by-status',

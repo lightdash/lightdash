@@ -180,7 +180,11 @@ const describeSqlChartHeader = ({ name, slug, sql }: SqlChartSummary) =>
 
 /** The CSV and structured rows for results keyed by column name. */
 const buildSqlRowsOutput = (
-    { rows, columns, rowCount }: Omit<SqlQueryRows, 'queryUuid'>,
+    {
+        rows,
+        columns,
+        rowCount,
+    }: Pick<SqlQueryRows, 'rows' | 'columns' | 'rowCount'>,
     maxContextRows: number,
 ) => {
     const shownRows = rows
