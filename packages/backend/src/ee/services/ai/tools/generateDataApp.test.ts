@@ -66,6 +66,7 @@ describe('getGenerateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: ['revenue-by-month'],
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
         });
         expect(output).toEqual({

@@ -48,6 +48,7 @@ export const getIterateDataApp = ({ iterateDataApp }: Dependencies) =>
                     dashboardSlug,
                     chartSlugs,
                     themeSlug,
+                    externalConnectionSlugs: null,
                     toolCallId,
                 });
                 const started = {

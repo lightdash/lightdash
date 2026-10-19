@@ -166,6 +166,7 @@ import {
 import {
     MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION,
     mcpDataAppBuildStartedOutputSchema,
+    mcpGenerateDataAppArgsSchema,
     TOOL_GENERATE_DATA_APP_DESCRIPTION,
     toolGenerateDataAppArgsSchema,
     toolGenerateDataAppOutputSchema,
@@ -228,6 +229,7 @@ import {
 } from './toolIterateCustomChartTypeArgs';
 import {
     MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    mcpIterateDataAppArgsSchema,
     TOOL_ITERATE_DATA_APP_DESCRIPTION,
     toolIterateDataAppArgsSchema,
     toolIterateDataAppOutputSchema,
@@ -242,6 +244,11 @@ import {
     mcpListCustomChartTypesArgsSchema,
     mcpListCustomChartTypesOutputSchema,
 } from './toolListCustomChartTypesMcpArgs';
+import {
+    MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    mcpListDataAppConnectionsArgsSchema,
+    mcpListDataAppConnectionsStructuredOutputSchema,
+} from './toolListDataAppConnectionsArgs';
 import {
     MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     mcpListDataAppThemesStructuredOutputSchema,
@@ -1124,47 +1131,88 @@ const descriptionByRuntime =
     ({ runtime }: ToolDescriptionContext): string =>
         byRuntime[runtime];
 
-export const generateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
+export const generateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
     'generateDataApp',
     typeof toolGenerateDataAppArgsSchema,
     typeof toolGenerateDataAppArgsSchema,
-    typeof toolGenerateDataAppOutputSchema,
+    typeof toolGenerateDataAppOutputSchema
+> = defineTool({
+    name: 'generateDataApp',
+    title: 'Generate data app',
+    description: TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGenerateDataAppArgsSchema,
+    agent: { outputSchema: toolGenerateDataAppOutputSchema },
+});
+
+/** MCP variant: also links external connections by slug. */
+export const mcpGenerateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
+    'generateDataApp',
+    typeof mcpGenerateDataAppArgsSchema,
+    typeof mcpGenerateDataAppArgsSchema,
+    undefined,
     typeof mcpDataAppBuildStartedOutputSchema
 > = defineTool({
     name: 'generateDataApp',
     title: 'Generate data app',
-    description: descriptionByRuntime({
-        agent: TOOL_GENERATE_DATA_APP_DESCRIPTION,
-        mcp: MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION,
-    }),
-    availability: ['agent', 'mcp'],
-    inputSchema: toolGenerateDataAppArgsSchema,
-    agent: { outputSchema: toolGenerateDataAppOutputSchema },
+    description: MCP_TOOL_GENERATE_DATA_APP_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGenerateDataAppArgsSchema,
     mcp: {
         annotations: writeAnnotations,
         structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
     },
 });
 
-export const iterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
+export const iterateDataAppToolDefinition: ToolDefinitionWithoutMcpOutput<
     'iterateDataApp',
     typeof toolIterateDataAppArgsSchema,
     typeof toolIterateDataAppArgsSchema,
-    typeof toolIterateDataAppOutputSchema,
+    typeof toolIterateDataAppOutputSchema
+> = defineTool({
+    name: 'iterateDataApp',
+    title: 'Iterate on data app',
+    description: TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolIterateDataAppArgsSchema,
+    agent: { outputSchema: toolIterateDataAppOutputSchema },
+});
+
+/** MCP variant: also links external connections by slug. */
+export const mcpIterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
+    'iterateDataApp',
+    typeof mcpIterateDataAppArgsSchema,
+    typeof mcpIterateDataAppArgsSchema,
+    undefined,
     typeof mcpDataAppBuildStartedOutputSchema
 > = defineTool({
     name: 'iterateDataApp',
     title: 'Iterate on data app',
-    description: descriptionByRuntime({
-        agent: TOOL_ITERATE_DATA_APP_DESCRIPTION,
-        mcp: MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
-    }),
-    availability: ['agent', 'mcp'],
-    inputSchema: toolIterateDataAppArgsSchema,
-    agent: { outputSchema: toolIterateDataAppOutputSchema },
+    description: MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpIterateDataAppArgsSchema,
     mcp: {
         annotations: writeAnnotations,
         structuredContentSchema: mcpDataAppBuildStartedOutputSchema,
+    },
+});
+
+export const listDataAppConnectionsToolDefinition: ToolDefinitionWithMcpOutput<
+    'listDataAppConnections',
+    typeof mcpListDataAppConnectionsArgsSchema,
+    typeof mcpListDataAppConnectionsArgsSchema,
+    undefined,
+    typeof mcpListDataAppConnectionsStructuredOutputSchema
+> = defineTool({
+    name: 'listDataAppConnections',
+    title: 'List data app connections',
+    description: MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpListDataAppConnectionsArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema:
+            mcpListDataAppConnectionsStructuredOutputSchema,
     },
 });
 
@@ -2167,6 +2215,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runAiWritebackToolDefinition,
     getAiWritebackStatusToolDefinition,
     getDataAppBuildStatusToolDefinition,
+    mcpGenerateDataAppToolDefinition,
+    mcpIterateDataAppToolDefinition,
+    listDataAppConnectionsToolDefinition,
     createCustomChartTypeToolDefinition,
     iterateCustomChartTypeToolDefinition,
     mcpFindCustomChartTypesToolDefinition,

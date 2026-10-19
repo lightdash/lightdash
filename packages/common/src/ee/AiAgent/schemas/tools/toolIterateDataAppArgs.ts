@@ -6,6 +6,8 @@ import {
     DATA_APP_THEME_SLUG_DESCRIPTION,
     isToolGenerateDataAppResult,
     MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
+    MCP_DATA_APP_EXTERNAL_CONNECTIONS_GUIDANCE,
+    mcpExternalConnectionSlugsInput,
     toolGenerateDataAppOutputSchema,
     type ToolGenerateDataAppOutput,
 } from './toolGenerateDataAppArgs';
@@ -33,15 +35,17 @@ Important:
 - While a version is already building for the app, this call fails with "A version is already building for this app". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.
 ${MCP_DATA_APP_AGENT_SCOPE_GUIDANCE}
 - Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.
+${MCP_DATA_APP_EXTERNAL_CONNECTIONS_GUIDANCE}
 
 Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<confirmation that the build started>" }]
 - structuredContent: {
-    slug:    string, // the app's slug, unchanged by this build
-    version: number  // the version of the app this build produces
+    slug:     string,  // the app's slug, unchanged by this build
+    version:  number,  // the version of the app this build produces
+    warnings: string[] // e.g. a connection the brief names but does not link
   }
 
-Errors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
+Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
 `;
 
 export const toolIterateDataAppArgsSchema = z.object({
@@ -77,6 +81,14 @@ export const toolIterateDataAppArgsSchema = z.object({
             `${DATA_APP_THEME_SLUG_DESCRIPTION} On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.`,
         ),
 });
+
+export const mcpIterateDataAppArgsSchema = toolIterateDataAppArgsSchema.extend({
+    externalConnectionSlugs: mcpExternalConnectionSlugsInput.describe(
+        'External connections to link to the app before the build: slugs from list_data_app_connections. Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.',
+    ),
+});
+
+export type McpIterateDataAppArgs = z.infer<typeof mcpIterateDataAppArgsSchema>;
 
 export const toolIterateDataAppStructuredContentSchema = z.object({
     status: z

@@ -59,6 +59,7 @@ import {
     type AiAgentDocumentSummary,
     type AppChartReference,
     type AppDashboardReference,
+    type AppExternalConnectionLink,
     type ChartAsCode,
     type CustomChartType,
     type DashboardAsCode,
@@ -166,6 +167,7 @@ import {
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppConnectionsFn,
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -215,6 +217,10 @@ import type {
 } from '../AppGenerateService/AppGenerateService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
+import {
+    findUnlinkedConnectionMentions,
+    planConnectionLinks,
+} from './dataAppConnections';
 import type {
     DataAppRead,
     DataAppReadDataReferences,
@@ -426,6 +432,7 @@ export type McpAiAgentToolsRuntime = Omit<
     'getExplore' | 'findExplores' | 'findFields' | 'updateUserName'
 > & {
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
+    listDataAppConnections: ListDataAppConnectionsFn;
     createCustomChartType: CreateCustomChartTypeFn;
     iterateCustomChartType: IterateCustomChartTypeFn;
     searchCustomChartTypes: SearchCustomChartTypesFn;
@@ -1030,6 +1037,8 @@ export class AiAgentToolsService extends BaseService {
             ...runtime,
             getDataAppBuildStatus: (args) =>
                 this.getDataAppBuildStatus(context, args),
+            listDataAppConnections: (args) =>
+                this.listDataAppConnections(context, args),
             createCustomChartType: (args) =>
                 this.withWriteRefusal(context, 'app', 'create', () =>
                     this.createCustomChartType(context, args),
@@ -2353,6 +2362,7 @@ export class AiAgentToolsService extends BaseService {
             dashboardSlug,
             chartSlugs,
             themeSlug,
+            externalConnectionSlugs,
             toolCallId,
         }: Parameters<GenerateDataAppFn>[0],
     ): ReturnType<GenerateDataAppFn> {
@@ -2396,7 +2406,18 @@ export class AiAgentToolsService extends BaseService {
                                   ),
                               ),
                           );
-                return this.appGenerateService.generateApp(
+                const externalConnections =
+                    await this.planDataAppConnectionLinks(
+                        context,
+                        externalConnectionSlugs,
+                        [],
+                    );
+                const warnings = await this.getDataAppConnectionWarnings(
+                    context,
+                    prompt,
+                    externalConnections,
+                );
+                const build = await this.appGenerateService.generateApp(
                     context.user,
                     context.projectUuid,
                     prompt,
@@ -2415,9 +2436,99 @@ export class AiAgentToolsService extends BaseService {
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
+                        ...(externalConnections.length === 0
+                            ? {}
+                            : { externalConnections }),
                     },
                 );
+                return { ...build, warnings };
             },
+        );
+    }
+
+    /** Resolves requested connection slugs to new links; fails on any unusable slug. */
+    private async planDataAppConnectionLinks(
+        context: AiAgentToolsRuntimeContext,
+        slugs: string[] | null,
+        existingLinks: AppExternalConnectionLink[],
+    ): Promise<AppExternalConnectionLink[]> {
+        if (slugs === null || slugs.length === 0) return [];
+        const lookups =
+            await this.appGenerateService.lookupExternalConnectionSlugs(
+                context.user,
+                context.projectUuid,
+                slugs,
+            );
+        return planConnectionLinks(lookups, existingLinks);
+    }
+
+    private async getDataAppConnectionWarnings(
+        context: AiAgentToolsRuntimeContext,
+        prompt: string,
+        links: AppExternalConnectionLink[],
+    ): Promise<string[]> {
+        const visible =
+            await this.appGenerateService.listLinkableExternalConnections(
+                context.user,
+                context.projectUuid,
+            );
+        return findUnlinkedConnectionMentions(
+            prompt,
+            visible,
+            links.map((link) => link.externalConnectionUuid),
+        );
+    }
+
+    private async listDataAppConnections(
+        context: AiAgentToolsRuntimeContext,
+        { appSlug }: Parameters<ListDataAppConnectionsFn>[0],
+    ): ReturnType<ListDataAppConnectionsFn> {
+        const links =
+            appSlug === null
+                ? []
+                : await this.getDataAppConnectionLinks(context, appSlug);
+        const connections =
+            await this.appGenerateService.listLinkableExternalConnections(
+                context.user,
+                context.projectUuid,
+            );
+        return connections.map((connection) => ({
+            slug: connection.slug,
+            name: connection.name,
+            authType: connection.type,
+            origin: connection.origin,
+            instructions: connection.instructions,
+            linkedAliases: links
+                .filter(
+                    (link) =>
+                        link.externalConnectionUuid ===
+                        connection.externalConnectionUuid,
+                )
+                .map((link) => link.alias),
+        }));
+    }
+
+    private async getDataAppConnectionLinks(
+        context: AiAgentToolsRuntimeContext,
+        appSlug: string,
+    ): Promise<AppExternalConnectionLink[]> {
+        const app = await this.appModel.findAppBySlug(
+            context.projectUuid,
+            appSlug,
+        );
+        if (!app) {
+            throw new NotFoundError(`Data app "${appSlug}" was not found`);
+        }
+        await this.assertDataAppInAgentScope(
+            context,
+            app.space_uuid,
+            appSlug,
+            'read',
+            'Data app',
+        );
+        return this.appGenerateService.listAppExternalConnectionLinks(
+            context.user,
+            app,
         );
     }
 
@@ -2563,6 +2674,7 @@ export class AiAgentToolsService extends BaseService {
             dashboardSlug,
             chartSlugs,
             themeSlug,
+            externalConnectionSlugs,
             toolCallId,
         }: Parameters<IterateDataAppFn>[0],
     ): ReturnType<IterateDataAppFn> {
@@ -2634,7 +2746,23 @@ export class AiAgentToolsService extends BaseService {
                                   ),
                               ),
                           );
-                return this.appGenerateService.iterateApp(
+                const existingLinks =
+                    await this.appGenerateService.listAppExternalConnectionLinks(
+                        context.user,
+                        app,
+                    );
+                const externalConnections =
+                    await this.planDataAppConnectionLinks(
+                        context,
+                        externalConnectionSlugs,
+                        existingLinks,
+                    );
+                const warnings = await this.getDataAppConnectionWarnings(
+                    context,
+                    prompt,
+                    [...existingLinks, ...externalConnections],
+                );
+                const build = await this.appGenerateService.iterateApp(
                     context.user,
                     context.projectUuid,
                     app.app_id,
@@ -2645,6 +2773,9 @@ export class AiAgentToolsService extends BaseService {
                     undefined,
                     {
                         ...attribution,
+                        ...(externalConnections.length === 0
+                            ? {}
+                            : { externalConnections }),
                         // The brief is a real change request, so the restyle
                         // rides along with it instead of replacing it.
                         ...(designUuid === undefined
@@ -2655,6 +2786,7 @@ export class AiAgentToolsService extends BaseService {
                               }),
                     },
                 );
+                return { ...build, warnings };
             },
         );
     }

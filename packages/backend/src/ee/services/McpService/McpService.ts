@@ -35,7 +35,6 @@ import {
     FeatureFlags,
     findContentToolDefinition,
     ForbiddenError,
-    generateDataAppToolDefinition,
     generateHashesToolDefinition,
     getAgentPermissionRefusalDetails,
     getAiAccessRefusalSettingsUrl,
@@ -62,9 +61,9 @@ import {
     isAiAccessRefusal,
     ItemsMap,
     iterateCustomChartTypeToolDefinition,
-    iterateDataAppToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
+    listDataAppConnectionsToolDefinition,
     listDataAppThemesToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
@@ -81,7 +80,9 @@ import {
     McpCreateTaskResult,
     mcpEditContentToolDefinition,
     mcpFindCustomChartTypesToolDefinition,
+    mcpGenerateDataAppToolDefinition,
     McpGetTaskResult,
+    mcpIterateDataAppToolDefinition,
     mcpListCustomChartTypesToolDefinition,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
@@ -282,6 +283,7 @@ export enum McpToolName {
     ITERATE_DATA_APP = 'iterate_data_app',
     LIST_DATA_APP_THEMES = 'list_data_app_themes',
     GET_DATA_APP_BUILD_STATUS = 'get_data_app_build_status',
+    LIST_DATA_APP_CONNECTIONS = 'list_data_app_connections',
     CREATE_CUSTOM_CHART_TYPE = 'create_custom_chart_type',
     ITERATE_CUSTOM_CHART_TYPE = 'iterate_custom_chart_type',
     FIND_CUSTOM_CHART_TYPES = 'find_custom_chart_types',
@@ -354,8 +356,16 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
     getDataAppBuildStatusToolDefinition.for('mcp'),
 );
 const mcpGenerateDataAppTool = withProjectScopeInput(
-    generateDataAppToolDefinition.for('mcp'),
+    mcpGenerateDataAppToolDefinition.for('mcp'),
 );
+const mcpListDataAppConnectionsTool = withProjectScopeInput(
+    listDataAppConnectionsToolDefinition.for('mcp'),
+);
+
+const withBuildWarnings = (summary: string, warnings: string[]): string =>
+    warnings.length === 0
+        ? summary
+        : `${summary}\nWarnings:\n${warnings.map((w) => `- ${w}`).join('\n')}`;
 type SampleRowsOutcome =
     | { kind: 'not_requested' }
     | { kind: 'shared'; sampleRows: Record<string, string>[] }
@@ -392,7 +402,7 @@ const mcpListCustomChartTypesTool = withProjectScopeInput(
     mcpListCustomChartTypesToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
-    iterateDataAppToolDefinition.for('mcp'),
+    mcpIterateDataAppToolDefinition.for('mcp'),
 );
 const mcpListDataAppThemesTool = withProjectScopeInput(
     listDataAppThemesToolDefinition.for('mcp'),
@@ -1820,6 +1830,7 @@ export class McpService extends BaseService {
         this.registerGenerateDataAppTool();
         this.registerIterateDataAppTool();
         this.registerListDataAppThemesTool();
+        this.registerListDataAppConnectionsTool();
         this.registerGetDataAppBuildStatusTool();
         this.registerCreateCustomChartTypeTool();
         this.registerIterateCustomChartTypeTool();
@@ -1895,7 +1906,7 @@ export class McpService extends BaseService {
                     args,
                     'Error starting the data app build. No app was created',
                     async (toolsRuntime) => {
-                        const { slug, version } =
+                        const { slug, version, warnings } =
                             await toolsRuntime.generateDataApp({
                                 name: args.name,
                                 prompt: args.prompt,
@@ -1903,11 +1914,16 @@ export class McpService extends BaseService {
                                 dashboardSlug: args.dashboardSlug ?? null,
                                 chartSlugs: args.chartSlugs ?? null,
                                 themeSlug: args.themeSlug ?? null,
+                                externalConnectionSlugs:
+                                    args.externalConnectionSlugs ?? null,
                                 toolCallId: null,
                             });
                         return {
-                            summary: `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
-                            structuredContent: { slug, version },
+                            summary: withBuildWarnings(
+                                `Started building the data app "${args.name}" as slug "${slug}", version ${version}. Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
+                                warnings,
+                            ),
+                            structuredContent: { slug, version, warnings },
                         };
                     },
                 ),
@@ -2176,18 +2192,65 @@ export class McpService extends BaseService {
                     args,
                     'Error starting the data app build. No version was added',
                     async (toolsRuntime) => {
-                        const { slug, version } =
+                        const { slug, version, warnings } =
                             await toolsRuntime.iterateDataApp({
                                 appSlug: args.appSlug,
                                 prompt: args.prompt,
                                 dashboardSlug: args.dashboardSlug ?? null,
                                 chartSlugs: args.chartSlugs ?? null,
                                 themeSlug: args.themeSlug ?? null,
+                                externalConnectionSlugs:
+                                    args.externalConnectionSlugs ?? null,
                                 toolCallId: null,
                             });
                         return {
-                            summary: `Started building version ${version} of the data app "${slug}". Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
-                            structuredContent: { slug, version },
+                            summary: withBuildWarnings(
+                                `Started building version ${version} of the data app "${slug}". Poll get_data_app_build_status with that slug every ${DATA_APP_BUILD_POLL_INTERVAL_MS / 1000} seconds until it reports a terminal status.`,
+                                warnings,
+                            ),
+                            structuredContent: { slug, version, warnings },
+                        };
+                    },
+                ),
+        );
+    }
+
+    private registerListDataAppConnectionsTool(): void {
+        this.registerTrackedTool(
+            mcpListDataAppConnectionsTool.name,
+            {
+                title: mcpListDataAppConnectionsTool.title,
+                description: mcpListDataAppConnectionsTool.description,
+                inputSchema: mcpListDataAppConnectionsTool.inputSchema.shape,
+                outputSchema: mcpListDataAppConnectionsTool.outputSchema.shape,
+                annotations: mcpListDataAppConnectionsTool.annotations,
+            },
+            async (args, extra) =>
+                this.callDataAppBuildTool(
+                    extra,
+                    args,
+                    'Error listing data app connections',
+                    async (toolsRuntime) => {
+                        const connections =
+                            await toolsRuntime.listDataAppConnections({
+                                appSlug: args.appSlug ?? null,
+                            });
+                        return {
+                            summary:
+                                connections.length === 0
+                                    ? 'No external connections are available to link in this project. Omit externalConnectionSlugs.'
+                                    : connections
+                                          .map(
+                                              (connection) =>
+                                                  `${connection.slug}: ${connection.name} (${connection.origin})${
+                                                      connection.linkedAliases
+                                                          .length > 0
+                                                          ? ` — linked as ${connection.linkedAliases.join(', ')}`
+                                                          : ''
+                                                  }`,
+                                          )
+                                          .join('\n'),
+                            structuredContent: { connections },
                         };
                     },
                 ),

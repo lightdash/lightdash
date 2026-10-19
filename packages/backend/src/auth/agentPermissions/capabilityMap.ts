@@ -34,6 +34,7 @@ export const MCP_TOOL_CAPABILITIES = {
     list_agents: [AgentCapability.ReadDiscover],
     list_content: [AgentCapability.ReadDiscover],
     list_data_app_themes: [AgentCapability.ReadDiscover],
+    list_data_app_connections: [AgentCapability.ReadDiscover],
     list_explores: [AgentCapability.ReadDiscover],
     list_projects: [AgentCapability.ReadDiscover],
     list_skills: [AgentCapability.ReadDiscover],

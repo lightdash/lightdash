@@ -58,6 +58,7 @@ describe('getIterateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: ['orders-by-status'],
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
         });
         expect(output.metadata).toEqual({
