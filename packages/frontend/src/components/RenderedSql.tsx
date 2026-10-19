@@ -80,11 +80,17 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     );
 
     const formattedSql = useMemo(() => {
-        const sqlToFormat = merge.isMergeActive
-            ? merge.data && getMergeCompiledSqlText(merge.data)
-            : effectiveView === 'pivotQuery'
-              ? data?.pivotQuery
-              : data?.query;
+        if (merge.isMergeActive) {
+            if (!merge.data) return '';
+            return (
+                getMergeCompiledSqlText(
+                    merge.data,
+                    warehouseType ?? undefined,
+                ) ?? ''
+            );
+        }
+        const sqlToFormat =
+            effectiveView === 'pivotQuery' ? data?.pivotQuery : data?.query;
         if (!sqlToFormat) return '';
         return formatSql(sqlToFormat, warehouseType ?? undefined);
     }, [

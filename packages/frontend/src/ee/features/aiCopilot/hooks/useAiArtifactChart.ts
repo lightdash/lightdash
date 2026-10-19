@@ -91,7 +91,8 @@ export const useAiArtifactCompiledSql = ({
     );
     if (!canViewSql) return undefined;
     return isMergeArtifact
-        ? ((mergeCompiledSql && getMergeCompiledSqlText(mergeCompiledSql)) ??
+        ? ((mergeCompiledSql &&
+              getMergeCompiledSqlText(mergeCompiledSql, undefined)) ??
               undefined)
         : compiledSql?.query;
 };
