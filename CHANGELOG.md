@@ -1,3 +1,12 @@
+## [2.606.6](https://github.com/lightdash/lightdash/compare/2.606.5...2.606.6) (2026-10-19)
+
+
+### Bug Fixes
+
+* **explorer:** keep format form prefix and suffix inputs controlled ([#31142](https://github.com/lightdash/lightdash/issues/31142)) ([c97f686](https://github.com/lightdash/lightdash/commit/c97f6867c230ae9fa5881cf4dae6dabe1b57ef51))
+* **merge-queries:** add field-list filters to the source whose list was clicked ([#31145](https://github.com/lightdash/lightdash/issues/31145)) ([0673f33](https://github.com/lightdash/lightdash/commit/0673f33bb2f5ecd9afac61dd25b8e9af472badbc))
+* **query-history:** only cancel running queries and keep cancelled rows ([#31144](https://github.com/lightdash/lightdash/issues/31144)) ([fe24214](https://github.com/lightdash/lightdash/commit/fe24214073d1b98eaceadeacbe6cb825305feb27))
+
 ## [2.606.5](https://github.com/lightdash/lightdash/compare/2.606.4...2.606.5) (2026-10-19)
 
 
