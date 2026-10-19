@@ -1842,7 +1842,6 @@ export class SchedulerModel {
         );
 
         let logsQuery = this.database(SchedulerLogTableName)
-            .select()
             .whereIn(`scheduler_uuid`, schedulerUuids)
             .where(`scheduled_time`, '>', sevenDaysAgo)
             .where(`scheduled_time`, '<', new Date());
@@ -1852,36 +1851,53 @@ export class SchedulerModel {
             logsQuery = logsQuery.whereIn(`status`, filters.statuses);
         }
 
-        logsQuery = logsQuery.orderBy('created_at', 'desc');
+        // Dedupe, sort and page in SQL so a page never loads every log row in memory
+        const rankedLogsSubquery = logsQuery
+            .select(
+                '*',
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY job_id, task, status ORDER BY scheduled_time DESC, created_at DESC) as rn',
+                ),
+            )
+            .as('ranked_logs');
 
-        const logs = await logsQuery;
+        const uniqueLogsQuery = this.database
+            .from(rankedLogsSubquery)
+            .where('rn', 1);
 
-        const schedulerLogs: SchedulerLog[] = logs.map(
-            SchedulerModel.parseSchedulerLog,
+        const statusOrderCase = `CASE status ${statusOrder
+            .map((_, index) => `WHEN ? THEN ${index}`)
+            .join(' ')} ELSE ${statusOrder.length} END`;
+
+        const pagedLogsQuery = uniqueLogsQuery
+            .clone()
+            .select<SchedulerLogDb[]>(
+                'task',
+                'scheduler_uuid',
+                'status',
+                'job_id',
+                'job_group',
+                'scheduled_time',
+                'created_at',
+                'target',
+                'target_type',
+                'details',
+            )
+            .orderBy('scheduled_time', 'desc')
+            .orderByRaw(statusOrderCase, statusOrder)
+            .orderBy('created_at', 'desc');
+
+        const { pagination, data: logs } = await KnexPaginate.paginate(
+            pagedLogsQuery,
+            {
+                page: paginateArgs?.page || 1,
+                pageSize: paginateArgs?.pageSize || 10,
+            },
+            uniqueLogsQuery,
         );
 
-        const sortedLogs = schedulerLogs.sort(SchedulerModel.sortLogs);
-        const uniqueLogs = sortedLogs.reduce<SchedulerLog[]>((acc, log) => {
-            if (
-                acc.some(
-                    (l) =>
-                        l.jobId === log.jobId &&
-                        l.task === log.task &&
-                        l.status === log.status,
-                )
-            ) {
-                return acc;
-            }
-            return [...acc, log];
-        }, []);
-
-        // Paginate the unique logs
-        const page = paginateArgs?.page || 1;
-        const pageSize = paginateArgs?.pageSize || 10;
-        const startIndex = (page - 1) * pageSize;
-        const paginatedLogs = uniqueLogs.slice(
-            startIndex,
-            startIndex + pageSize,
+        const paginatedLogs: SchedulerLog[] = logs.map(
+            SchedulerModel.parseSchedulerLog,
         );
 
         const users = await this.database(UserTableName)
@@ -1897,12 +1913,7 @@ export class SchedulerModel {
             .whereNull('deleted_at');
 
         return {
-            pagination: {
-                page,
-                pageSize,
-                totalPageCount: Math.ceil(uniqueLogs.length / pageSize),
-                totalResults: uniqueLogs.length,
-            },
+            pagination,
             data: {
                 schedulers: filteredSchedulers,
                 users: users.map((u) => ({
