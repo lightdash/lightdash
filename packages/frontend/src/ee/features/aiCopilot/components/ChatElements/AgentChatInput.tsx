@@ -872,6 +872,7 @@ export const AgentChatInput = ({
     const canAttachExternalSource = Boolean(
         projectUuid &&
         externalSourcesFlag?.enabled &&
+        app.health.data?.externalSources.engineAvailable &&
         multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
         !isEmbedded &&

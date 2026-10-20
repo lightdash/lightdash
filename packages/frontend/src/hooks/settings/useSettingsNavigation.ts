@@ -109,7 +109,9 @@ export const useSettingsNavigation = (
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
-    const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
+    const isExternalSourcesEnabled =
+        (externalSourcesFlag?.enabled ?? false) &&
+        (health?.externalSources.engineAvailable ?? false);
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
