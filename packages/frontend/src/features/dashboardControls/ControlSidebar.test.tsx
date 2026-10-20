@@ -6,8 +6,15 @@ import {
 } from '@lightdash/common';
 import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+    type DashboardEditTestValues,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { ControlSidebar } from './ControlSidebar';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 import { LABEL_COMMIT_DELAY } from './useLabelDraft';
@@ -117,6 +124,32 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     };
     mockSidebar.current = value;
     return value;
+};
+
+// Seeds a real dashboard store from the context fixture, again on rerender
+const renderWithProviders = (ui: ReactElement) => {
+    const store = seedDashboardEditState(
+        createDashboardTestStore(),
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
+    const wrap = (node: ReactElement) => (
+        <DashboardStoreTestProvider store={store}>
+            {node}
+        </DashboardStoreTestProvider>
+    );
+    const result = renderWithAppProviders(wrap(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => {
+            act(() => {
+                seedDashboardEditState(
+                    store,
+                    mockDashboardContext.current as DashboardEditTestValues,
+                );
+            });
+            result.rerender(wrap(node));
+        },
+    };
 };
 
 describe('ControlSidebar', () => {

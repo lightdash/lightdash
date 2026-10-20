@@ -13,6 +13,7 @@ import { useDndSensors } from '../../hooks/useDndSensors';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
+    selectDashboardTabs,
     useDashboardSelector,
 } from '../dashboard/store';
 import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
@@ -51,7 +52,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         (c) => c.setHaveFiltersChanged,
     );
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const hasTabs = useDashboardContext((c) => c.dashboardTabs.length > 0);
+    const hasTabs = useDashboardSelector(
+        (state) => selectDashboardTabs(state).length > 0,
+    );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

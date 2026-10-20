@@ -3,6 +3,7 @@ import {
     createDashboardFilterRuleFromSqlColumn,
     FilterOperator,
     isMetric,
+    type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -29,6 +30,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
     selectDashboardFilters,
+    selectDashboardTiles,
     selectHaveFiltersChanged,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -97,7 +99,7 @@ type Latest = {
     dashboardFilters: DashboardFilters;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
-    dashboardTiles: DashboardContextType['dashboardTiles'];
+    dashboardTiles: Dashboard['tiles'] | undefined;
     highlightedFieldId: string | null;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
@@ -166,7 +168,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (c) => c.filterableFieldsByTileUuid,
     );
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const { track } = useTracking();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 

@@ -27,7 +27,11 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { useDashboardAllFilters } from '../dashboard/store';
+import {
+    selectIsAddFilterDisabled,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import classes from './DashboardFiltersBar.module.css';
@@ -80,9 +84,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
     const getUiString = useUiStrings();
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
-    );
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const allFilters = useDashboardAllFilters();
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,

@@ -11,7 +11,11 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { type DashboardStore } from '../dashboard/store';
@@ -131,7 +135,12 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
 let dashboardStore: DashboardStore = createDashboardTestStore();
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
-        <DashboardStoreTestProvider store={dashboardStore}>
+        <DashboardStoreTestProvider
+            store={seedDashboardEditState(
+                dashboardStore,
+                mockDashboardContext.current as DashboardEditTestValues,
+            )}
+        >
             {ui}
         </DashboardStoreTestProvider>,
     );

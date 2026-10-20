@@ -3,8 +3,11 @@ import {
     type DashboardMarkdownTile,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import MarkdownTile from './DashboardMarkdownTile';
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
@@ -54,6 +57,13 @@ const renderTile = (props: Partial<{ minimal: boolean }> = {}) =>
             onEdit={vi.fn()}
             onDelete={vi.fn()}
         />,
+    );
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider store={createDashboardTestStore()}>
+            {ui}
+        </DashboardStoreTestProvider>,
     );
 
 describe('MarkdownTile in the minimal dashboard view', () => {

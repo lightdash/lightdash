@@ -2,6 +2,11 @@ import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Group, Menu, Text, TextInput } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterSettings } from './FilterSettings';
@@ -56,8 +61,8 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             {removeArmed ? 'Click again to remove' : 'Remove filter'}
         </Menu.Item>
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

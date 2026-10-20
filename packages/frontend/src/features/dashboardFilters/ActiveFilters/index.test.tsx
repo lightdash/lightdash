@@ -7,12 +7,14 @@ import {
     type DashboardFilterableField,
     type DashboardTile,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
+    type DashboardEditTestValues,
     type DashboardStoreTestValues,
+    seedDashboardEditState,
 } from '../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../testing/testUtils';
@@ -25,6 +27,10 @@ let storeValues: DashboardStoreTestValues = {};
 
 const renderWithStore = (ui: ReactElement) => {
     const store = createDashboardTestStore(storeValues);
+    seedDashboardEditState(
+        store,
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
     const result = renderWithProviders(
         <DashboardStoreTestProvider store={store}>
             {ui}
@@ -32,12 +38,19 @@ const renderWithStore = (ui: ReactElement) => {
     );
     return {
         ...result,
-        rerender: (next: ReactElement) =>
-            result.rerender(
+        rerender: (next: ReactElement) => {
+            act(() => {
+                seedDashboardEditState(
+                    store,
+                    mockDashboardContext.current as DashboardEditTestValues,
+                );
+            });
+            return result.rerender(
                 <DashboardStoreTestProvider store={store}>
                     {next}
                 </DashboardStoreTestProvider>,
-            ),
+            );
+        },
     };
 };
 

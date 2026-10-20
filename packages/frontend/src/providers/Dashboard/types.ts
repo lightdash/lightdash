@@ -47,20 +47,13 @@ export type DashboardContextType = {
     dashboard: Dashboard | undefined;
     setEmbedDashboard: Dispatch<SetStateAction<Dashboard | undefined>>;
     dashboardError: ApiError | null;
-    dashboardTiles: Dashboard['tiles'] | undefined;
     setDashboardTiles: Dispatch<SetStateAction<Dashboard['tiles'] | undefined>>;
-    haveTilesChanged: boolean;
     setHaveTilesChanged: Dispatch<SetStateAction<boolean>>;
     /** Staged registry of dashboard custom metrics; follows the tiles lifecycle */
-    dashboardCustomMetrics: AdditionalMetric[];
     setDashboardCustomMetrics: Dispatch<SetStateAction<AdditionalMetric[]>>;
-    haveCustomMetricsChanged: boolean;
     setHaveCustomMetricsChanged: Dispatch<SetStateAction<boolean>>;
-    haveTabsChanged: boolean;
     setHaveTabsChanged: Dispatch<SetStateAction<boolean>>;
-    dashboardTabs: Dashboard['tabs'];
     setDashboardTabs: Dispatch<SetStateAction<Dashboard['tabs']>>;
-    activeTab: Dashboard['tabs'][number] | undefined;
     setActiveTab: Dispatch<
         SetStateAction<Dashboard['tabs'][number] | undefined>
     >;
@@ -117,9 +110,7 @@ export type DashboardContextType = {
     setTilesWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
-    dateZoomConfig: DateZoomConfig;
     setDateZoomConfig: (config: DateZoomConfig) => void;
-    hasDateZoomConfigChanged: boolean;
     setHasDateZoomConfigChanged: Dispatch<SetStateAction<boolean>>;
     setControlGranularity: (
         controlUuid: string,
@@ -128,11 +119,8 @@ export type DashboardContextType = {
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
-    isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
-    isAddFilterDisabled: boolean;
     setIsAddFilterDisabled: Dispatch<SetStateAction<boolean>>;
-    requiredFiltersNote: string | undefined;
     setRequiredFiltersNote: Dispatch<SetStateAction<string | undefined>>;
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     clearAllParameters: () => void;
@@ -148,17 +136,13 @@ export type DashboardContextType = {
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
     setParameterOrder: (order: string[]) => void;
     setHasParameterOrderChanged: Dispatch<SetStateAction<boolean>>;
-    dateZoomGranularities: (DateGranularity | string)[];
     setDateZoomGranularities: (
         granularities: (DateGranularity | string)[],
     ) => void;
-    haveDateZoomGranularitiesChanged: boolean;
     setHaveDateZoomGranularitiesChanged: Dispatch<SetStateAction<boolean>>;
-    defaultDateZoomGranularity: DateGranularity | string | undefined;
     setDefaultDateZoomGranularity: (
         granularity: DateGranularity | string | undefined,
     ) => void;
-    hasDefaultDateZoomGranularityChanged: boolean;
     setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;
     refreshDashboardVersion: () => Promise<void>;
     isRefreshingDashboardVersion: boolean;

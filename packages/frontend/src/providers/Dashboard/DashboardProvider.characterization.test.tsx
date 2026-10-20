@@ -1,6 +1,8 @@
 import {
     DashboardTileTypes,
+    DateGranularity,
     FilterInteractivityValues,
+    isSubDayGranularity,
     FilterOperator,
     type Dashboard,
     type DashboardAvailableFilters,
@@ -40,8 +42,24 @@ import {
     selectParameterValues,
     selectPinnedParameters,
     selectTileParameterReferences,
+    selectActiveTab,
+    selectDashboardCustomMetrics,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
     useDashboardAllFilters,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
     useDashboardDispatch,
+    useDefaultDateZoomGranularity,
+    useHasDateZoomConfigChanged,
+    useRequiredFiltersNote,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -175,6 +193,31 @@ const useReportCustomGranularities = () => {
         );
 };
 
+// Editable dashboard state staged until save or cancel
+const useEditValues = () => ({
+    dashboardTiles: useDashboardSelector(selectDashboardTiles),
+    haveTilesChanged: useDashboardSelector(selectHaveTilesChanged),
+    dashboardTabs: useDashboardSelector(selectDashboardTabs),
+    haveTabsChanged: useDashboardSelector(selectHaveTabsChanged),
+    activeTab: useDashboardSelector(selectActiveTab),
+    dashboardCustomMetrics: useDashboardSelector(selectDashboardCustomMetrics),
+    haveCustomMetricsChanged: useDashboardSelector(
+        selectHaveCustomMetricsChanged,
+    ),
+    isDateZoomDisabled: useDashboardSelector(selectIsDateZoomDisabled),
+    isAddFilterDisabled: useDashboardSelector(selectIsAddFilterDisabled),
+    requiredFiltersNote: useRequiredFiltersNote(),
+    dateZoomConfig: useDashboardDateZoomConfig(),
+    hasDateZoomConfigChanged: useHasDateZoomConfigChanged(),
+    dateZoomGranularities: useDashboardDateZoomGranularities(),
+    haveDateZoomGranularitiesChanged: useDashboardSelector(
+        selectHaveDateZoomGranularitiesChanged,
+    ),
+    defaultDateZoomGranularity: useDefaultDateZoomGranularity(),
+    hasDefaultDateZoomGranularityChanged: useDashboardSelector(
+        selectHasDefaultDateZoomGranularityChanged,
+    ),
+});
 const useChartSortValues = () => {
     const sortsByTileUuid = useDashboardSelector(
         (state) => state.chartSort.sortsByTileUuid,
@@ -193,6 +236,7 @@ const useHarness = () => ({
     ...useChartSortValues(),
     ...useStoreValues(),
     ...useDateZoomValues(),
+    ...useEditValues(),
     search: useLocation().search,
 });
 
@@ -209,7 +253,7 @@ type ProviderOptions = {
 const DashboardPageLoader = () => {
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
@@ -2404,6 +2448,545 @@ describe('date zoom: tile reports', () => {
         );
         act(() => result.current.setTilesWithDateZoomApplied(new Set()));
         expect(result.current.tilesWithDateZoomApplied).toEqual(new Set());
+    });
+});
+
+// ---------------------------------------------------------------------------
+// EDIT STATE
+// ---------------------------------------------------------------------------
+
+describe('edit state: tiles', () => {
+    it('is undefined until the page seeds it from the loaded dashboard', () => {
+        mocks.dashboard = makeDashboard();
+        const unseeded = renderDashboard(undefined, {
+            loadLikeDashboardPage: false,
+        });
+        expect(unseeded.result.current.dashboardTiles).toBeUndefined();
+        unseeded.unmount();
+
+        const { result } = renderDashboard();
+        expect(result.current.dashboardTiles).toBe(
+            (mocks.dashboard as Dashboard).tiles,
+        );
+        expect(result.current.haveTilesChanged).toBe(false);
+    });
+
+    it('accepts a value and an updater, and tracks the changed flag separately', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        const replaced = [chartTile('tile-3')];
+        act(() => result.current.setDashboardTiles(replaced));
+        expect(result.current.dashboardTiles).toBe(replaced);
+        expect(result.current.haveTilesChanged).toBe(false);
+
+        act(() =>
+            result.current.setDashboardTiles((previous) => [
+                ...(previous ?? []),
+                chartTile('tile-4'),
+            ]),
+        );
+        expect(result.current.dashboardTiles?.map((t) => t.uuid)).toEqual([
+            'tile-3',
+            'tile-4',
+        ]);
+        act(() => result.current.setHaveTilesChanged(true));
+        expect(result.current.haveTilesChanged).toBe(true);
+    });
+
+    it('keeps the staged tiles when the dashboard refetches', () => {
+        mocks.dashboard = makeDashboard();
+        const { result, rerender } = renderDashboard();
+        const staged = [chartTile('tile-3')];
+        act(() => result.current.setDashboardTiles(staged));
+        mocks.dashboard = makeDashboard({ tiles: [chartTile('server')] });
+        rerender();
+        expect(result.current.dashboardTiles).toBe(staged);
+    });
+
+    it('derives filter support from the staged tiles', () => {
+        mocks.dashboard = makeDashboard({ tiles: [] });
+        const { result } = renderDashboard();
+        expect(result.current.hasTilesThatSupportFilters).toBe(false);
+        act(() => result.current.setDashboardTiles([chartTile('tile-1')]));
+        expect(result.current.hasTilesThatSupportFilters).toBe(true);
+    });
+
+    it('refreshDashboardVersion replaces staged tiles and tabs', async () => {
+        mocks.dashboard = makeDashboard();
+        const fresh = makeDashboard({
+            tiles: [chartTile('fresh')],
+            tabs: [tabB, tabA],
+        });
+        mocks.versionRefresh.mockResolvedValue(fresh);
+        const { result } = renderDashboard();
+        await act(() => result.current.refreshDashboardVersion());
+        expect(result.current.dashboardTiles).toBe(fresh.tiles);
+        expect(result.current.dashboardTabs).toEqual([tabA, tabB]);
+    });
+});
+
+describe('edit state: tabs and the active tab', () => {
+    it('keeps tabs sorted by order for values and updaters', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabB, tabA] });
+        const { result } = renderDashboard();
+        expect(result.current.dashboardTabs).toEqual([tabA, tabB]);
+        const tabC = { uuid: 'tab-c', name: 'C', order: -1 };
+        act(() =>
+            result.current.setDashboardTabs((previous) => [...previous, tabC]),
+        );
+        expect(result.current.dashboardTabs.map((t) => t.uuid)).toEqual([
+            'tab-c',
+            'tab-a',
+            'tab-b',
+        ]);
+        expect(result.current.haveTabsChanged).toBe(false);
+        act(() => result.current.setHaveTabsChanged(true));
+        expect(result.current.haveTabsChanged).toBe(true);
+    });
+
+    it('starts on the URL tab, else the first tab', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const fromUrl = renderDashboard(
+            '/dashboard/dashboard-uuid/view/tabs/tab-b',
+        );
+        expect(fromUrl.result.current.activeTab).toEqual(tabB);
+        fromUrl.unmount();
+
+        const fallback = renderDashboard(
+            '/dashboard/dashboard-uuid/view/tabs/missing',
+        );
+        expect(fallback.result.current.activeTab).toEqual(tabA);
+    });
+
+    it('skips hidden tabs in view mode but not in edit mode', () => {
+        const hiddenA = { ...tabA, hidden: true };
+        mocks.dashboard = makeDashboard({ tabs: [hiddenA, tabB] });
+        const view = renderDashboard(
+            '/dashboard/dashboard-uuid/view/tabs/tab-a',
+        );
+        expect(view.result.current.activeTab).toEqual(tabB);
+        view.unmount();
+
+        const edit = renderDashboard(
+            '/dashboard/dashboard-uuid/edit/tabs/tab-a',
+        );
+        expect(edit.result.current.activeTab).toEqual(hiddenA);
+    });
+
+    it('setActiveTab switches without marking tabs changed', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const { result } = renderDashboard();
+        act(() => result.current.setActiveTab(tabB));
+        expect(result.current.activeTab).toEqual(tabB);
+        expect(result.current.haveTabsChanged).toBe(false);
+    });
+
+    it('keeps the current tab when it is reordered or renamed', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const { result } = renderDashboard();
+        act(() => result.current.setActiveTab(tabB));
+        act(() =>
+            result.current.setDashboardTabs([
+                { ...tabB, order: 0, name: 'Renamed' },
+                { ...tabA, order: 1 },
+            ]),
+        );
+        expect(result.current.activeTab).toEqual({
+            ...tabB,
+            order: 0,
+            name: 'Renamed',
+        });
+    });
+
+    // Quirk: deleting the active tab leaves it active until something else
+    // sets a tab
+    it('keeps a deleted active tab active', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const { result } = renderDashboard();
+        act(() => result.current.setActiveTab(tabB));
+        act(() => result.current.setDashboardTabs([tabA]));
+        expect(result.current.dashboardTabs).toEqual([tabA]);
+        expect(result.current.activeTab).toEqual(tabB);
+    });
+
+    it('clearing every tab leaves the last active tab in place', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const { result } = renderDashboard();
+        act(() => result.current.setDashboardTabs([]));
+        expect(result.current.activeTab).toEqual(tabA);
+    });
+});
+
+describe('edit state: custom metrics', () => {
+    const metric = {
+        name: 'total',
+        table: 'orders',
+        type: 'sum',
+        sql: '${TABLE}.amount',
+    } as never;
+    const other = { ...(metric as object), name: 'other' } as never;
+
+    it('seeds from config and keeps edits while they are flagged', () => {
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, customMetrics: [metric] },
+        });
+        const { result, rerender } = renderDashboard();
+        expect(result.current.dashboardCustomMetrics).toEqual([metric]);
+        expect(result.current.haveCustomMetricsChanged).toBe(false);
+
+        act(() => {
+            result.current.setDashboardCustomMetrics([metric, other]);
+            result.current.setHaveCustomMetricsChanged(true);
+        });
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, customMetrics: [] },
+        });
+        rerender();
+        expect(result.current.dashboardCustomMetrics).toEqual([metric, other]);
+
+        act(() => result.current.setHaveCustomMetricsChanged(false));
+        expect(result.current.dashboardCustomMetrics).toEqual([]);
+    });
+
+    it('reseeds unflagged edits when the config changes', () => {
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, customMetrics: [metric] },
+        });
+        const { result, rerender } = renderDashboard();
+        act(() =>
+            result.current.setDashboardCustomMetrics((current) => [
+                ...current,
+                other,
+            ]),
+        );
+        expect(result.current.dashboardCustomMetrics).toEqual([metric, other]);
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, customMetrics: [other] },
+        });
+        rerender();
+        expect(result.current.dashboardCustomMetrics).toEqual([other]);
+    });
+});
+
+describe('edit state: config flags and required filters note', () => {
+    it('seeds the disabled flags from config', () => {
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: true, isAddFilterDisabled: true },
+        });
+        const { result } = renderDashboard();
+        expect(result.current.isDateZoomDisabled).toBe(true);
+        expect(result.current.isAddFilterDisabled).toBe(true);
+    });
+
+    // Quirk: config can turn the flags on but never back off
+    it('does not clear the flags when a refetch turns them off', () => {
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: true, isAddFilterDisabled: true },
+        });
+        const { result, rerender } = renderDashboard();
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, isAddFilterDisabled: false },
+        });
+        rerender();
+        expect(result.current.isDateZoomDisabled).toBe(true);
+        expect(result.current.isAddFilterDisabled).toBe(true);
+    });
+
+    it('lets editors toggle the flags', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.isDateZoomDisabled).toBe(false);
+        act(() => {
+            result.current.setIsDateZoomDisabled(true);
+            result.current.setIsAddFilterDisabled(true);
+        });
+        expect(result.current.isDateZoomDisabled).toBe(true);
+        expect(result.current.isAddFilterDisabled).toBe(true);
+    });
+
+    it('prefers an edited note over the saved one until it is cleared', () => {
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, requiredFiltersNote: 'Saved' },
+        });
+        const { result, rerender } = renderDashboard();
+        expect(result.current.requiredFiltersNote).toBe('Saved');
+        act(() => result.current.setRequiredFiltersNote('Edited'));
+        expect(result.current.requiredFiltersNote).toBe('Edited');
+        mocks.dashboard = makeDashboard({
+            config: { isDateZoomDisabled: false, requiredFiltersNote: 'New' },
+        });
+        rerender();
+        expect(result.current.requiredFiltersNote).toBe('Edited');
+        act(() => result.current.setRequiredFiltersNote(''));
+        expect(result.current.requiredFiltersNote).toBe('');
+        act(() => result.current.setRequiredFiltersNote(undefined));
+        expect(result.current.requiredFiltersNote).toBe('New');
+    });
+
+    it('reads the note from an embedded dashboard', () => {
+        const { result } = renderDashboard(undefined, {
+            loadLikeDashboardPage: false,
+        });
+        act(() =>
+            result.current.setEmbedDashboard({
+                ...makeDashboard({
+                    config: {
+                        isDateZoomDisabled: false,
+                        requiredFiltersNote: 'Embed note',
+                    },
+                }),
+                dashboardFiltersInteractivity: {
+                    enabled: FilterInteractivityValues.all,
+                },
+            } as Dashboard & InteractivityOptions),
+        );
+        expect(result.current.requiredFiltersNote).toBe('Embed note');
+    });
+});
+
+describe('edit state: date zoom settings', () => {
+    const control = { uuid: 'c1', name: 'Zoom', granularity: 'MONTH' };
+    const zoomConfig = {
+        controls: [control],
+        tileTargets: {
+            'tile-1': { controlUuid: 'c1', fieldId: 'f', tableName: 't' },
+        },
+    };
+    const withConfig = (config: Partial<Dashboard['config']>) =>
+        makeDashboard({
+            config: { isDateZoomDisabled: false, ...config },
+        });
+
+    it('seeds the control config and replaces it on edit', () => {
+        mocks.dashboard = withConfig({ dateZoomConfig: zoomConfig });
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomConfig).toEqual(zoomConfig);
+        expect(result.current.hasDateZoomConfigChanged).toBe(false);
+        const edited = { controls: [], tileTargets: {} };
+        act(() => result.current.setDateZoomConfig(edited));
+        expect(result.current.dateZoomConfig).toBe(edited);
+        expect(result.current.hasDateZoomConfigChanged).toBe(true);
+        act(() => result.current.setHasDateZoomConfigChanged(false));
+        expect(result.current.dateZoomConfig).toBe(edited);
+        expect(result.current.hasDateZoomConfigChanged).toBe(false);
+    });
+
+    it('defaults to an empty config', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomConfig).toEqual({
+            controls: [],
+            tileTargets: {},
+        });
+    });
+
+    it('keeps an edit through a refetch of equal content', () => {
+        mocks.dashboard = withConfig({ dateZoomConfig: zoomConfig });
+        const { result, rerender } = renderDashboard();
+        const edited = { controls: [], tileTargets: {} };
+        act(() => result.current.setDateZoomConfig(edited));
+        mocks.dashboard = withConfig({
+            dateZoomConfig: structuredClone(zoomConfig),
+        });
+        rerender();
+        expect(result.current.dateZoomConfig).toBe(edited);
+        expect(result.current.hasDateZoomConfigChanged).toBe(true);
+    });
+
+    it('replaces an edit and clears its flag when the saved config changes', () => {
+        mocks.dashboard = withConfig({ dateZoomConfig: zoomConfig });
+        const { result, rerender } = renderDashboard();
+        act(() =>
+            result.current.setDateZoomConfig({ controls: [], tileTargets: {} }),
+        );
+        const saved = {
+            ...zoomConfig,
+            controls: [{ ...control, name: 'New' }],
+        };
+        mocks.dashboard = withConfig({ dateZoomConfig: saved });
+        rerender();
+        expect(result.current.dateZoomConfig).toEqual(saved);
+        expect(result.current.hasDateZoomConfigChanged).toBe(false);
+    });
+
+    it('offers every standard granularity except sub-day ones by default', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomGranularities).toEqual(
+            Object.values(DateGranularity).filter(
+                (g) => !isSubDayGranularity(g),
+            ),
+        );
+        expect(result.current.defaultDateZoomGranularity).toBeUndefined();
+    });
+
+    it('seeds granularities from config and flags edits', () => {
+        mocks.dashboard = withConfig({
+            dateZoomGranularities: [DateGranularity.DAY, DateGranularity.HOUR],
+            defaultDateZoomGranularity: DateGranularity.DAY,
+        });
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.DAY,
+            DateGranularity.HOUR,
+        ]);
+        expect(result.current.defaultDateZoomGranularity).toBe(
+            DateGranularity.DAY,
+        );
+        act(() => {
+            result.current.setDateZoomGranularities([DateGranularity.WEEK]);
+            result.current.setDefaultDateZoomGranularity(DateGranularity.WEEK);
+        });
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.WEEK,
+        ]);
+        expect(result.current.haveDateZoomGranularitiesChanged).toBe(true);
+        expect(result.current.defaultDateZoomGranularity).toBe(
+            DateGranularity.WEEK,
+        );
+        expect(result.current.hasDefaultDateZoomGranularityChanged).toBe(true);
+        act(() => {
+            result.current.setHaveDateZoomGranularitiesChanged(false);
+            result.current.setHasDefaultDateZoomGranularityChanged(false);
+        });
+        expect(result.current.haveDateZoomGranularitiesChanged).toBe(false);
+        expect(result.current.hasDefaultDateZoomGranularityChanged).toBe(false);
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.WEEK,
+        ]);
+    });
+
+    // Quirk: a changed saved list replaces the edit but the flag stays set
+    it('replaces granularity edits when the saved values change, keeping the flags', () => {
+        mocks.dashboard = withConfig({
+            dateZoomGranularities: [DateGranularity.DAY],
+            defaultDateZoomGranularity: DateGranularity.DAY,
+        });
+        const { result, rerender } = renderDashboard();
+        act(() => {
+            result.current.setDateZoomGranularities([DateGranularity.WEEK]);
+            result.current.setDefaultDateZoomGranularity(DateGranularity.WEEK);
+        });
+        mocks.dashboard = withConfig({
+            dateZoomGranularities: [DateGranularity.MONTH],
+            defaultDateZoomGranularity: DateGranularity.MONTH,
+        });
+        rerender();
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.MONTH,
+        ]);
+        expect(result.current.defaultDateZoomGranularity).toBe(
+            DateGranularity.MONTH,
+        );
+        expect(result.current.haveDateZoomGranularitiesChanged).toBe(true);
+        expect(result.current.hasDefaultDateZoomGranularityChanged).toBe(true);
+    });
+
+    it('keeps granularity edits through a refetch with the same saved values', () => {
+        const granularities = [DateGranularity.DAY];
+        mocks.dashboard = withConfig({
+            dateZoomGranularities: granularities,
+            defaultDateZoomGranularity: DateGranularity.DAY,
+        });
+        const { result, rerender } = renderDashboard();
+        act(() => {
+            result.current.setDateZoomGranularities([DateGranularity.WEEK]);
+            result.current.setDefaultDateZoomGranularity(undefined);
+        });
+        mocks.dashboard = withConfig({
+            dateZoomGranularities: granularities,
+            defaultDateZoomGranularity: DateGranularity.DAY,
+        });
+        rerender();
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.WEEK,
+        ]);
+        expect(result.current.defaultDateZoomGranularity).toBeUndefined();
+    });
+
+    it('prunes stale custom granularities from an edited list once charts load', () => {
+        mocks.dashboard = makeDashboard();
+        mocks.tileStatus.areAllChartsLoaded = true;
+        const { result } = renderDashboard();
+        act(() => {
+            result.current.setDateZoomGranularities([
+                DateGranularity.DAY,
+                'fiscal_quarter',
+            ]);
+            result.current.setHaveDateZoomGranularitiesChanged(false);
+        });
+        // The cleanup runs on tile reports, not on edits
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.DAY,
+            'fiscal_quarter',
+        ]);
+        act(() => {
+            result.current.reportCustomGranularities({ fiscal_year: 'FY' });
+        });
+        expect(result.current.dateZoomGranularities).toEqual([
+            DateGranularity.DAY,
+        ]);
+        expect(result.current.haveDateZoomGranularitiesChanged).toBe(true);
+    });
+});
+
+describe('edit state: setters', () => {
+    it('keeps setter identities across edits', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const { result } = renderDashboard();
+        const setterNames = [
+            'setDashboardTiles',
+            'setHaveTilesChanged',
+            'setDashboardTabs',
+            'setHaveTabsChanged',
+            'setActiveTab',
+            'setDashboardCustomMetrics',
+            'setHaveCustomMetricsChanged',
+            'setIsDateZoomDisabled',
+            'setIsAddFilterDisabled',
+            'setRequiredFiltersNote',
+            'setDateZoomConfig',
+            'setHasDateZoomConfigChanged',
+            'setDateZoomGranularities',
+            'setHaveDateZoomGranularitiesChanged',
+            'setDefaultDateZoomGranularity',
+            'setHasDefaultDateZoomGranularityChanged',
+        ] as const;
+        const before = setterNames.map((name) => result.current[name]);
+        act(() => {
+            result.current.setDashboardTiles([chartTile('tile-9')]);
+            result.current.setHaveTilesChanged(true);
+            result.current.setDashboardTabs([tabB]);
+            result.current.setActiveTab(tabB);
+            result.current.setDateZoomConfig({ controls: [], tileTargets: {} });
+            result.current.setDateZoomGranularities([DateGranularity.DAY]);
+            result.current.setRequiredFiltersNote('note');
+        });
+        expect(setterNames.map((name) => result.current[name])).toEqual(before);
+    });
+});
+
+describe('edit state: multiple dashboards', () => {
+    it('keeps each mounted dashboard draft separate', () => {
+        mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
+        const first = renderDashboard();
+        const second = renderDashboard();
+        act(() => {
+            first.result.current.setDashboardTiles([chartTile('only-first')]);
+            first.result.current.setHaveTilesChanged(true);
+            first.result.current.setActiveTab(tabB);
+            first.result.current.setDateZoomGranularities([
+                DateGranularity.DAY,
+            ]);
+        });
+        expect(second.result.current.dashboardTiles).toBe(
+            (mocks.dashboard as Dashboard).tiles,
+        );
+        expect(second.result.current.haveTilesChanged).toBe(false);
+        expect(second.result.current.activeTab).toEqual(tabA);
+        expect(second.result.current.haveDateZoomGranularitiesChanged).toBe(
+            false,
+        );
     });
 });
 

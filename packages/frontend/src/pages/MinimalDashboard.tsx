@@ -39,7 +39,11 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
-import { useScreenshotReadiness } from '../features/dashboard/store';
+import {
+    selectDashboardTiles,
+    useDashboardSelector,
+    useScreenshotReadiness,
+} from '../features/dashboard/store';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
@@ -173,7 +177,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
 }) => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 

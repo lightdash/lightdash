@@ -7,12 +7,16 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { TabCounts } from './TabCounts';
@@ -112,6 +116,10 @@ const renderWithProviders = (ui: ReactElement) => {
         sqlChartTilesMetadata: tileStatus.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
     });
+    seedDashboardEditState(
+        store,
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
     const wrap = (node: ReactElement) => (
         <DashboardStoreTestProvider store={store}>
             {node}
@@ -120,7 +128,15 @@ const renderWithProviders = (ui: ReactElement) => {
     const result = renderWithAppProviders(wrap(ui));
     return {
         ...result,
-        rerender: (node: ReactElement) => result.rerender(wrap(node)),
+        rerender: (node: ReactElement) => {
+            act(() => {
+                seedDashboardEditState(
+                    store,
+                    mockDashboardContext.current as DashboardEditTestValues,
+                );
+            });
+            result.rerender(wrap(node));
+        },
     };
 };
 

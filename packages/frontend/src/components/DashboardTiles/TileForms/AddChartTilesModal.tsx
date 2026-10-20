@@ -30,6 +30,10 @@ import React, {
     type FC,
 } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import {
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -109,7 +113,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
     }, [chartPages?.pages]);
 
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     const form = useForm<{ savedChartsUuids: string[] }>({
         initialValues: {

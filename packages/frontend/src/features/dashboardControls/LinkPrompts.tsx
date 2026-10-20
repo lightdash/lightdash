@@ -10,6 +10,7 @@ import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
+    selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
@@ -89,7 +90,7 @@ export const LinkPrompts: FC = () => {
     const { isSidebarOpen, newTileUuids, dismissedLinks } =
         useControlsSidebar();
     const { mode } = useParams<{ mode?: string }>();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

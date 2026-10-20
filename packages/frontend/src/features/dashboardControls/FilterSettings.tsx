@@ -9,6 +9,8 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
+    selectDashboardTiles,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -33,12 +35,12 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // A SQL column filter has no field: its column's type decides the inputs
     const sqlColumnType = useFilterRuleSqlColumnType(rule);
     const filterType = getFilterRuleType(field, sqlColumnType);

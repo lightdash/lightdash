@@ -4,6 +4,7 @@ import {
     type ChartZoomableField,
     type Dashboard,
     type DashboardFilterRule,
+    type DashboardTab,
     type DashboardTile,
     type SortField,
 } from '@lightdash/common';
@@ -21,6 +22,8 @@ import {
     selectChartZoomableFieldsByTileUuid,
     selectControlGranularities,
     selectDashboardFilters,
+    selectActiveTab,
+    selectDashboardTiles,
     selectDateZoomGranularity,
     selectIsDateZoomAppliedToTile,
     selectDashboardParameters,
@@ -85,8 +88,8 @@ const useTileSorts = (tileUuid: string) =>
     useDashboardSelector((state) => selectTileChartSorts(state, tileUuid));
 const useTileState = (tileUuid: string) => ({
     sorts: useTileSorts(tileUuid),
-    tiles: useDashboardContext((c) => c.dashboardTiles),
-    activeTab: useDashboardContext((c) => c.activeTab),
+    tiles: useDashboardSelector(selectDashboardTiles),
+    activeTab: useDashboardSelector(selectActiveTab),
     dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
     controlGranularities: useDashboardSelector(selectControlGranularities),
     isDateZoomApplied: useDashboardSelector((state) =>
@@ -143,6 +146,8 @@ type Actions = {
         update: (previous: DashboardTile[] | undefined) => DashboardTile[],
     ) => void;
     setHaveTilesChanged: (changed: boolean) => void;
+    setActiveTab: (tab: DashboardTab) => void;
+    setDateZoomGranularities: (granularities: string[]) => void;
     setTileSorts: (tileUuid: string, sorts: SortField[]) => void;
 };
 const useSetTileSorts = () => useDashboardContext((c) => c.setTileChartSorts);
@@ -167,12 +172,16 @@ const useActions = (): Actions => ({
     ),
     setDashboardTiles: useDashboardContext((c) => c.setDashboardTiles),
     setHaveTilesChanged: useDashboardContext((c) => c.setHaveTilesChanged),
+    setActiveTab: useDashboardContext((c) => c.setActiveTab),
+    setDateZoomGranularities: useDashboardContext(
+        (c) => c.setDateZoomGranularities,
+    ),
     setTileSorts: useSetTileSorts(),
 });
 
 const DashboardPageLoader = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
@@ -430,6 +439,12 @@ const scenarios: Record<string, () => void> = {
             );
             getActions().setHaveTilesChanged(true);
         }),
+    'switch the active tab': () =>
+        act(() =>
+            getActions().setActiveTab({ uuid: 'tab-x', name: 'X', order: 0 }),
+        ),
+    'edit the allowed date zoom granularities': () =>
+        act(() => getActions().setDateZoomGranularities(['Day', 'Week'])),
     'sort one tile': () =>
         act(() =>
             getActions().setTileSorts('tile-0', [
@@ -496,14 +511,14 @@ describe('dashboard render benchmark', () => {
     });
 });
 
-// Filter, parameter and date zoom state comes from the dashboard store, so
-// tiles only re-render for the state they read and for the router update a URL
-// write causes (the context provider re-ran every consumer on each of its 1-3
-// renders per edit, and once per tile report while tiles loaded).
+// Filter, parameter, date zoom and edit state comes from the dashboard store,
+// so tiles only re-render for the state they read and for the router update a
+// URL write causes. Moving a tile, switching tab or editing a date zoom setting
+// no longer re-renders the provider and with it every context consumer.
 const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 2,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -511,7 +526,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'add a temporary filter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 2,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -519,7 +534,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set one parameter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 1,
         parameterBar: 1,
         dateZoomControl: 0,
@@ -535,7 +550,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set the date zoom granularity': {
         wholeContextConsumer: 1,
-        tiles: 2 * TILE_COUNT,
+        tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 1,
@@ -543,7 +558,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set a date zoom control granularity': {
         wholeContextConsumer: 1,
-        tiles: 2 * TILE_COUNT,
+        tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -566,12 +581,28 @@ const BASELINE: Record<string, Counts> = {
         page: 0,
     },
     'drop one dragged tile': {
-        wholeContextConsumer: 1,
+        wholeContextConsumer: 0,
+        tiles: TILE_COUNT,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
+    },
+    'switch the active tab': {
+        wholeContextConsumer: 0,
         tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 0,
         page: 1,
+    },
+    'edit the allowed date zoom granularities': {
+        wholeContextConsumer: 0,
+        tiles: 0,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
     },
     // Only the sorted tile re-renders (the provider state re-ran every tile
     // and context consumer, also for an identical sort: 1/20/1/1 per sort)
@@ -601,7 +632,7 @@ const BASELINE: Record<string, Counts> = {
     },
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
-        tiles: 10 * TILE_COUNT,
+        tiles: 0,
         filterBar: 20,
         parameterBar: 0,
         dateZoomControl: 0,

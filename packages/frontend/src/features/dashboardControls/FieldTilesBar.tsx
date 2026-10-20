@@ -2,7 +2,7 @@ import { Button, Divider, Group, Paper, Text } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { joinLabels, pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields } from './peers';
@@ -214,7 +214,7 @@ export const FieldTilesBar: FC = () => {
     );
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
 
     const fieldId =
         editingRule !== null &&

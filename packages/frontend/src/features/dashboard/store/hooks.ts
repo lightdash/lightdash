@@ -20,6 +20,7 @@ import {
     isLockedDashboardFilterRule,
 } from '../../dashboardFilters/lockedFilters';
 import { DashboardStoreContext } from './context';
+import { selectActiveTabUuid } from './dashboardEditSelectors';
 import {
     combineDashboardFilters,
     getSafeTemporaryFilters,
@@ -45,7 +46,7 @@ export const useDashboardTemporaryFilters = () => {
     const temporaryFilterLocks = useDashboardContext(
         (c) => c.temporaryFilterLocks,
     );
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     return useMemo(
         () =>
             getSafeTemporaryFilters(
@@ -62,7 +63,7 @@ export const useHasDashboardTemporaryFilters = () => {
     const temporaryFilterLocks = useDashboardContext(
         (c) => c.temporaryFilterLocks,
     );
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     return useDashboardSelector((state) => {
         const { filters } = getSafeTemporaryFilters(
             selectRawTemporaryFilters(state),

@@ -13,6 +13,7 @@ import {
 } from '../../../providers/Dashboard/dashboardParametersUrl';
 import { initialDashboardChartSortState } from './dashboardChartSortReducer';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
+import { initialDashboardEditState } from './dashboardEditReducer';
 import {
     emptyDashboardFilters,
     initialDashboardFiltersState,
@@ -113,6 +114,7 @@ export const buildInitialDashboardState = ({
                 controlGranularities,
             },
             tileStatus: { ...initialDashboardTileStatusState, invalidateCache },
+            edit: initialDashboardEditState,
             chartSort: initialDashboardChartSortState,
         },
         urlRestoreErrors: {

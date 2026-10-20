@@ -12,6 +12,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
+    selectDashboardTiles,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -47,7 +48,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
