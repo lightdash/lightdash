@@ -1,3 +1,10 @@
+# [2.622.0](https://github.com/lightdash/lightdash/compare/2.621.1...2.622.0) (2026-10-20)
+
+
+### Features
+
+* **external-sources:** name columns when importing a sheet or CSV, and rename them later ([#31219](https://github.com/lightdash/lightdash/issues/31219)) ([d214297](https://github.com/lightdash/lightdash/commit/d21429750dbeeeb4e27ccf8a904e3976363cf2ef))
+
 ## [2.621.1](https://github.com/lightdash/lightdash/compare/2.621.0...2.621.1) (2026-10-20)
 
 

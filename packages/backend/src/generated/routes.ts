@@ -14720,7 +14720,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { label: { dataType: 'string', required: true } },
+            nestedProperties: {
+                columnLabels: { ref: 'Record_string.string_' },
+                label: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
