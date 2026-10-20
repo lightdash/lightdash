@@ -1,3 +1,10 @@
+## [2.629.2](https://github.com/lightdash/lightdash/compare/2.629.1...2.629.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **mcp:** follow the host theme in the chart app ([#31236](https://github.com/lightdash/lightdash/issues/31236)) ([9553847](https://github.com/lightdash/lightdash/commit/9553847e98b7e6ae137af7706ca808d34b9b9bec))
+
 ## [2.629.1](https://github.com/lightdash/lightdash/compare/2.629.0...2.629.1) (2026-10-20)
 
 
