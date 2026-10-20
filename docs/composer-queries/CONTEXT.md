@@ -86,7 +86,9 @@ _Avoid_: selected node, displayed node (which may be any node of the panel)
 
 **Snapshot**:
 The closed pipeline stored in an artifact version: the presented node and
-everything it reads, copied so the version reads no node outside itself.
+everything it reads, copied from the thread composer query nodes when the node
+is presented, so the version reads no node outside itself. The tool result
+carries no snapshot.
 _Avoid_: pipeline copy, closure (in user-facing copy), frozen pipeline
 
 **Node result**:
@@ -104,10 +106,11 @@ focused node
 
 **Viz config**:
 How the presented node's result is visualized: chart kind, axes and display
-options, in the same vocabulary as a SQL runner chart. Picked for each
-submission from the question and the terminal result, stored with the
-artifact version when the node is presented, and the starting point of the
-viz switcher and of any later configuration. Other node results have no viz
+options, in the same vocabulary as a SQL runner chart. Picked when the node is
+presented, from the question and the presented result, starting from the
+thread's latest viz config; stored with the artifact version and the starting
+point of the viz switcher and of any later configuration. Nothing is picked for
+a submission that is not presented, and the tool result names no viz. Other node results have no viz
 config and start from their column types.
 _Avoid_: viz plan, presentation, chart config (the classic vocabulary)
 
