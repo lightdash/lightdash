@@ -20,7 +20,9 @@ export const getOpenaiGptmodel = (
     });
     const { supportsReasoning, modelId } = preset;
 
-    const model = openai(modelId);
+    const model = config.useChatCompletions
+        ? openai.chat(modelId)
+        : openai(modelId);
     const extendedReasoningEnabled =
         options?.enableReasoning === true && supportsReasoning;
     const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
@@ -30,10 +32,11 @@ export const getOpenaiGptmodel = (
               reasoningEffort:
                   presetReasoningEffort ??
                   (extendedReasoningEnabled ? 'medium' : 'low'),
-              ...(extendedReasoningEnabled && {
-                  // Request a summary so extended reasoning reaches the client.
-                  reasoningSummary: 'auto',
-              }),
+              // Reasoning summaries only exist on the Responses API.
+              ...(extendedReasoningEnabled &&
+                  !config.useChatCompletions && {
+                      reasoningSummary: 'auto',
+                  }),
           } satisfies ProviderOptionsMap[typeof PROVIDER])
         : undefined;
 
@@ -50,8 +53,10 @@ export const getOpenaiGptmodel = (
                 ...reasoningProviderOptions,
                 // OpenAI Zero Data Retention (ZDR) organizations do not persist
                 // reasoning IDs; return encrypted content for stateless follow-ups.
+                // Chat Completions is stateless already and rejects `include`.
                 ...(config.zeroDataRetention &&
-                    supportsReasoning && {
+                    supportsReasoning &&
+                    !config.useChatCompletions && {
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),

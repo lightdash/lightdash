@@ -20,7 +20,9 @@ export const getAzureGpt41Model = (
 ): AiModel<typeof PROVIDER> => {
     const azure = getAzureProvider(config);
 
-    const model = azure(config.deploymentName);
+    const model = config.useChatCompletions
+        ? azure.chat(config.deploymentName)
+        : azure(config.deploymentName);
 
     const reasoningEnabled = config.deploymentSupportsReasoning;
     const reasoningEffort = 'medium';
@@ -37,8 +39,11 @@ export const getAzureGpt41Model = (
             openai: {
                 // strictJsonSchema: provider default is true
                 ...(reasoningEnabled && {
-                    reasoningSummary: 'auto',
                     reasoningEffort,
+                    // Reasoning summaries only exist on the Responses API.
+                    ...(!config.useChatCompletions && {
+                        reasoningSummary: 'auto',
+                    }),
                 }),
             },
         },

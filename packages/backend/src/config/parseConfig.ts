@@ -1412,6 +1412,8 @@ export const getAiConfig = () => ({
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
+                  useChatCompletions:
+                      process.env.AZURE_AI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'AZURE_AI_CUSTOM_HEADERS',
                   ),
@@ -1435,6 +1437,8 @@ export const getAiConfig = () => ({
                   ),
                   zeroDataRetention:
                       process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
+                  useChatCompletions:
+                      process.env.OPENAI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'OPENAI_CUSTOM_HEADERS',
                   ),

@@ -5,6 +5,7 @@ import {
     tool,
     wrapLanguageModel,
 } from 'ai';
+import type { JSONValue, LanguageModel } from 'ai';
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
@@ -70,6 +71,62 @@ const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
     },
 });
 
+const azureCopilotConfig = (
+    overrides: Partial<
+        NonNullable<LightdashConfig['ai']['copilot']['providers']['azure']>
+    >,
+): LightdashConfig['ai']['copilot'] => ({
+    ...baseCopilotConfig,
+    defaultProvider: 'azure',
+    providers: {
+        azure: {
+            endpoint: 'https://example.openai.azure.com',
+            apiKey: 'test',
+            apiVersion: '2025-01-01',
+            deploymentName: 'current-deployment',
+            deploymentSupportsReasoning: false,
+            embeddingDeploymentName: 'embedding',
+            useDeploymentBasedUrls: true,
+            useChatCompletions: false,
+            customHeaders: {},
+            supportsStreaming: true,
+            ...overrides,
+        },
+    },
+});
+
+// Captures the HTTP request a model would send without a real upstream: the
+// stubbed fetch fails, so the call rejects after the request has been built.
+const captureModelRequest = async (
+    model: Exclude<LanguageModel, string>,
+    providerOptions: Record<string, Record<string, JSONValue>> | undefined,
+) => {
+    const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
+    vi.stubGlobal('fetch', fetchSpy);
+    try {
+        try {
+            await model.doGenerate({
+                prompt: [
+                    { role: 'user', content: [{ type: 'text', text: 'hi' }] },
+                ],
+                providerOptions,
+            });
+        } catch {
+            // The stubbed upstream always fails; only the request matters.
+        }
+        const [url, init] = fetchSpy.mock.calls[0] as unknown as [
+            string | URL,
+            RequestInit,
+        ];
+        return {
+            url: url.toString(),
+            body: JSON.parse(String(init.body)) as Record<string, unknown>,
+        };
+    } finally {
+        vi.unstubAllGlobals();
+    }
+};
+
 const copilotConfigWithZeroDataRetention = () => {
     const config = copilotConfigWithStreaming(true);
     return {
@@ -79,6 +136,20 @@ const copilotConfigWithZeroDataRetention = () => {
             openai: {
                 ...config.providers.openai,
                 zeroDataRetention: true,
+            },
+        },
+    };
+};
+
+const copilotConfigWithChatCompletions = () => {
+    const config = copilotConfigWithZeroDataRetention();
+    return {
+        ...config,
+        providers: {
+            ...config.providers,
+            openai: {
+                ...config.providers.openai,
+                useChatCompletions: true,
             },
         },
     };
@@ -199,6 +270,86 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningEffort).toBe('minimal');
     });
 
+    it('sends OpenAI requests to the Responses API by default', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithZeroDataRetention(),
+            { enableReasoning: true, modelName: 'gpt-5.5' },
+        );
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://api.openai.com/v1/responses');
+        expect(body.input).toBeDefined();
+        expect(body.reasoning).toEqual({
+            effort: 'medium',
+            summary: 'auto',
+        });
+        expect(body.include).toEqual(['reasoning.encrypted_content']);
+    });
+
+    it('sends OpenAI requests to Chat Completions when useChatCompletions is on', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { enableReasoning: true, modelName: 'gpt-5.5' },
+        );
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.reasoningSummary).toBeUndefined();
+        expect(providerOptions.openai.include).toBeUndefined();
+        expect(providerOptions.openai.store).toBeUndefined();
+        expect(providerOptions.openai.parallelToolCalls).toBe(false);
+        expect(providerOptions.openai.reasoningEffort).toBe('medium');
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe('https://api.openai.com/v1/chat/completions');
+        expect(body.messages).toBeDefined();
+        expect(body.input).toBeUndefined();
+        expect(body.reasoning_effort).toBe('medium');
+        expect(body.parallel_tool_calls).toBe(false);
+        expect(body.include).toBeUndefined();
+    });
+
+    it('sends Azure requests to the Responses API by default', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({ deploymentSupportsReasoning: true }),
+        );
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.reasoningSummary).toBe('auto');
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe(
+            'https://example.openai.azure.com/deployments/current-deployment/responses?api-version=2025-01-01',
+        );
+        expect(body.input).toBeDefined();
+    });
+
+    it('sends Azure requests to Chat Completions when useChatCompletions is on', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentSupportsReasoning: true,
+                useChatCompletions: true,
+            }),
+        );
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.reasoningSummary).toBeUndefined();
+        expect(providerOptions.openai.reasoningEffort).toBe('medium');
+
+        const { url, body } = await captureModelRequest(model, providerOptions);
+        expect(url).toBe(
+            'https://example.openai.azure.com/deployments/current-deployment/chat/completions?api-version=2025-01-01',
+        );
+        expect(body.messages).toBeDefined();
+        expect(body.input).toBeUndefined();
+        expect(body.reasoning_effort).toBe('medium');
+    });
+
     it('does not wrap the model when the provider supports streaming', () => {
         getModel(copilotConfigWithStreaming(true));
 
@@ -244,6 +395,7 @@ describe('getModel', () => {
                         deploymentSupportsReasoning: false,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
+                        useChatCompletions: false,
                         customHeaders: {},
                         supportsStreaming: true,
                     },
@@ -330,6 +482,7 @@ describe('getModel', () => {
                         deploymentSupportsReasoning: false,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
+                        useChatCompletions: false,
                         customHeaders: {},
                         supportsStreaming: true,
                     },
