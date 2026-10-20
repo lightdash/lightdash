@@ -257,6 +257,18 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningSummary).toBe('auto');
     });
 
+    it('keeps a preset-pinned reasoning effort on Chat Completions', () => {
+        const { providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { enableReasoning: true, modelName: 'gpt-5-mini' },
+        );
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.reasoningEffort).toBe('minimal');
+    });
+
     it('keeps preset-specific reasoning effort when enabled', () => {
         const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
             enableReasoning: true,
@@ -299,13 +311,13 @@ describe('getModel', () => {
         expect(providerOptions.openai.include).toBeUndefined();
         expect(providerOptions.openai.store).toBeUndefined();
         expect(providerOptions.openai.parallelToolCalls).toBe(false);
-        expect(providerOptions.openai.reasoningEffort).toBe('medium');
+        expect(providerOptions.openai.reasoningEffort).toBe('none');
 
         const { url, body } = await captureModelRequest(model, providerOptions);
         expect(url).toBe('https://api.openai.com/v1/chat/completions');
         expect(body.messages).toBeDefined();
         expect(body.input).toBeUndefined();
-        expect(body.reasoning_effort).toBe('medium');
+        expect(body.reasoning_effort).toBe('none');
         expect(body.parallel_tool_calls).toBe(false);
         expect(body.include).toBeUndefined();
     });
@@ -339,7 +351,7 @@ describe('getModel', () => {
             throw new Error('expected openai provider options');
         }
         expect(providerOptions.openai.reasoningSummary).toBeUndefined();
-        expect(providerOptions.openai.reasoningEffort).toBe('medium');
+        expect(providerOptions.openai.reasoningEffort).toBe('none');
 
         const { url, body } = await captureModelRequest(model, providerOptions);
         expect(url).toBe(
@@ -347,7 +359,7 @@ describe('getModel', () => {
         );
         expect(body.messages).toBeDefined();
         expect(body.input).toBeUndefined();
-        expect(body.reasoning_effort).toBe('medium');
+        expect(body.reasoning_effort).toBe('none');
     });
 
     it('does not wrap the model when the provider supports streaming', () => {

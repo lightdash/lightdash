@@ -27,12 +27,18 @@ export const getOpenaiGptmodel = (
         options?.enableReasoning === true && supportsReasoning;
     const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
         preset.providerOptions ?? {};
+    const responsesReasoningEffort = extendedReasoningEnabled
+        ? 'medium'
+        : 'low';
+    // Chat Completions rejects function tools on reasoning models unless
+    // reasoning is explicitly disabled; it also has no reasoning summaries.
     const reasoningProviderOptions = supportsReasoning
         ? ({
               reasoningEffort:
                   presetReasoningEffort ??
-                  (extendedReasoningEnabled ? 'medium' : 'low'),
-              // Reasoning summaries only exist on the Responses API.
+                  (config.useChatCompletions
+                      ? 'none'
+                      : responsesReasoningEffort),
               ...(extendedReasoningEnabled &&
                   !config.useChatCompletions && {
                       reasoningSummary: 'auto',

@@ -25,7 +25,9 @@ export const getAzureGpt41Model = (
         : azure(config.deploymentName);
 
     const reasoningEnabled = config.deploymentSupportsReasoning;
-    const reasoningEffort = 'medium';
+    // Chat Completions rejects function tools on reasoning deployments unless
+    // reasoning is explicitly disabled.
+    const reasoningEffort = config.useChatCompletions ? 'none' : 'medium';
 
     return {
         model,
@@ -40,7 +42,6 @@ export const getAzureGpt41Model = (
                 // strictJsonSchema: provider default is true
                 ...(reasoningEnabled && {
                     reasoningEffort,
-                    // Reasoning summaries only exist on the Responses API.
                     ...(!config.useChatCompletions && {
                         reasoningSummary: 'auto',
                     }),
