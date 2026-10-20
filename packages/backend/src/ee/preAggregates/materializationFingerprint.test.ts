@@ -1,3 +1,4 @@
+/* oxlint-disable no-param-reassign -- fixtures are mutated in place on purpose */
 import {
     DimensionType,
     FieldType,
