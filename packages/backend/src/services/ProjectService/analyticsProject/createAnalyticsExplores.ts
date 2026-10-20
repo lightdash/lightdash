@@ -40,6 +40,11 @@ import {
     contentReachSql,
 } from '../../../analytics/systemExplores/contentReach';
 import {
+    dataAppOutcomesColumns,
+    dataAppOutcomesMetrics,
+    dataAppOutcomesSql,
+} from '../../../analytics/systemExplores/dataAppOutcomes';
+import {
     dataAppReachColumns,
     dataAppReachMetrics,
     dataAppReachSql,
@@ -95,6 +100,7 @@ export const analyticsExploreNames = [
     'agent_request_events',
     'semantic_usage',
     'data_app_reach',
+    'data_app_outcomes',
     'people_adoption',
 ] as const;
 
@@ -111,6 +117,10 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            data_app_outcomes: {
+                columns: dataAppOutcomesColumns,
+                metrics: dataAppOutcomesMetrics,
+            },
             data_app_reach: {
                 columns: dataAppReachColumns,
                 metrics: dataAppReachMetrics,
@@ -165,6 +175,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
             name === 'data_app_reach' ||
+            name === 'data_app_outcomes' ||
             name === 'people_adoption'
                 ? model[name]
                 : {
@@ -286,6 +297,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                         agent_requests: agentRequestsSql,
                         semantic_usage: semanticUsageSql,
                         data_app_reach: dataAppReachSql,
+                        data_app_outcomes: dataAppOutcomesSql,
                         people_adoption: peopleAdoptionSql,
                     } as Partial<Record<typeof name, string>>
                 )[name] ?? `"${name}"`,
@@ -325,6 +337,14 @@ export const createAnalyticsExplores = (): Explore[] => {
             table.dimensions.event_name.hidden = true;
             table.dimensions.view_context.description =
                 'UI surface captured at token creation, not historical builder identity. Older loads have unknown context. Reloads remain included.';
+        }
+        if (name === 'data_app_outcomes') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.event_name.hidden = true;
+            table.dimensions.navigation_key.hidden = true;
+            table.dimensions.navigation_id.label = 'Navigation UUID';
+            table.dimensions.version.description =
+                'App version authorized by the preview capability when this signal was captured.';
         }
         if (name === 'people_adoption') {
             table.dimensions.org_id.hidden = true;
@@ -444,7 +464,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         const includeAppMetadata =
             name === 'data_app_events' ||
             name === 'semantic_usage' ||
-            name === 'data_app_reach';
+            name === 'data_app_reach' ||
+            name === 'data_app_outcomes';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,

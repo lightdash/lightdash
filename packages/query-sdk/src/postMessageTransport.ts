@@ -17,6 +17,7 @@ import {
 import { mountDeliveryRender } from './deliveryRender';
 import { mountHostContext } from './hostContext';
 import { announceSdkManifest } from './manifest';
+import { mountRuntimeErrorObserver } from './runtimeErrors';
 import type {
     ExternalFetchMethod,
     ExternalFetchOptions,
@@ -95,7 +96,10 @@ export type SdkGsheetExportColumn = {
     type?: SdkGsheetExportColumnType;
 };
 
-export type SdkGsheetExportRow = Record<string, string | number | boolean | null>;
+export type SdkGsheetExportRow = Record<
+    string,
+    string | number | boolean | null
+>;
 
 /**
  * Iframe → parent. The parent host (useAppSdkBridge) runs the Google OAuth
@@ -187,7 +191,11 @@ function createPostMessageFetchAdapter(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
@@ -227,7 +235,11 @@ function createPostMessageFetchAdapter(config: {
         return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
                 pending.delete(id);
-                reject(new Error(`SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`));
+                reject(
+                    new Error(
+                        `SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`,
+                    ),
+                );
             }, timeoutMs);
 
             pending.set(id, {
@@ -293,7 +305,11 @@ function createPostMessageExternalFetch(config: {
         // The UUID ids already make spoofing hard — this closes the gap cheaply.
         if (event.source !== targetWindow) return;
         const { data } = event;
-        if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
+        if (
+            !data ||
+            typeof data !== 'object' ||
+            typeof data.type !== 'string'
+        ) {
             return;
         }
 
@@ -380,6 +396,7 @@ export function createPostMessageTransport(
 ): Transport {
     // Report this bundle's SDK capabilities so the host can offer upgrades.
     announceSdkManifest(config.targetWindow);
+    mountRuntimeErrorObserver(config.targetWindow);
     // Listen for the delivery/preview capture flag riding on the same
     // `lightdash:sdk:ready` handshake — see `useDeliveryRender()`.
     mountDeliveryRender(config.targetWindow);
@@ -392,7 +409,8 @@ export function createPostMessageTransport(
         { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
         adapter,
         {
-            resolveExploreBaseTable: createHostExploreBaseTableResolver(adapter),
+            resolveExploreBaseTable:
+                createHostExploreBaseTableResolver(adapter),
         },
     );
     const externalFetch = createPostMessageExternalFetch({

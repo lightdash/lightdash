@@ -1,4 +1,5 @@
 import { GetObjectCommand, S3ServiceException } from '@aws-sdk/client-s3';
+import { type DataAppViewOutcome } from '@lightdash/common';
 import express, { type Router } from 'express';
 import { type Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -127,7 +128,15 @@ export const createAppPreviewRouter = (
      * session- and embed-minted preview tokens.
      */
     frameAncestors: string[],
-    onPreviewView?: (payload: PreviewTokenPayload) => void,
+    onPreviewView?: (
+        payload: PreviewTokenPayload,
+        navigationId: string | null,
+    ) => void,
+    onPreviewOutcome?: (
+        payload: PreviewTokenPayload,
+        navigationId: string | null,
+        outcome: Extract<DataAppViewOutcome, 'html_loaded' | 'html_error'>,
+    ) => void,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -223,7 +232,7 @@ export const createAppPreviewRouter = (
         s3Key: string,
         res: express.Response,
         prepareResponse: () => void,
-    ): Promise<void> => {
+    ): Promise<boolean> => {
         const controller = new AbortController();
         const cancel = () => {
             if (!res.writableFinished) controller.abort();
@@ -239,18 +248,19 @@ export const createAppPreviewRouter = (
                         error: { message: result.message },
                     });
                 }
-                return;
+                return false;
             }
             if (res.destroyed) {
                 controller.abort();
                 result.body.destroy();
-                return;
+                return false;
             }
 
             prepareResponse();
             await pipeline(result.body, res, {
                 signal: controller.signal,
             });
+            return true;
         } catch (error) {
             if (!controller.signal.aborted) {
                 Logger.error(
@@ -260,6 +270,7 @@ export const createAppPreviewRouter = (
             // SDK checksum wrappers don't destroy their underlying HTTP stream.
             controller.abort();
             res.destroy();
+            return false;
         } finally {
             res.removeListener('close', cancel);
         }
@@ -361,12 +372,30 @@ export const createAppPreviewRouter = (
                 previewTokenPayload.appUuid,
                 previewTokenPayload.version,
             );
-            await streamFromS3(s3Key, res, () => {
+            const navigationId =
+                typeof req.query.navigationId === 'string' &&
+                isValidUuid(req.query.navigationId)
+                    ? req.query.navigationId
+                    : null;
+            const completed = await streamFromS3(s3Key, res, () => {
                 setSecurityHeaders(res, previewTokenPayload);
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-store');
-                onPreviewView?.(previewTokenPayload);
+                try {
+                    onPreviewView?.(previewTokenPayload, navigationId);
+                } catch {
+                    Logger.warn('Failed to record app HTML load');
+                }
             });
+            try {
+                onPreviewOutcome?.(
+                    previewTokenPayload,
+                    navigationId,
+                    completed ? 'html_loaded' : 'html_error',
+                );
+            } catch {
+                Logger.warn('Failed to record app HTML outcome');
+            }
         },
     );
 

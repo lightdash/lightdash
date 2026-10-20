@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { type AgentIdentityClaim } from '../../types/agentIdentity';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type UUID } from '../../types/api/uuid';
 import { type ContentVerificationInfo } from '../../types/contentVerification';
 import {
     type DashboardConfig,
@@ -1587,3 +1588,15 @@ export type DataAppViewContext =
     | 'chart'
     | 'delivery'
     | 'unknown';
+
+export type DataAppViewOutcome =
+    | 'html_loaded'
+    | 'html_error'
+    | 'sdk_started'
+    | 'runtime_error';
+
+export type RecordDataAppViewOutcome = {
+    previewToken: string;
+    navigationId: UUID;
+    outcome: Extract<DataAppViewOutcome, 'sdk_started' | 'runtime_error'>;
+};

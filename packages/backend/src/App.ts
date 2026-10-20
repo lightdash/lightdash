@@ -752,11 +752,12 @@ export default class App {
                     this.lightdashConfig.appRuntime,
                     this.lightdashConfig.lightdashSecrets,
                     embedFrameAncestors,
-                    (p) => {
-                        void analyticsModel.addAppViewEvent(
-                            p.appUuid,
-                            p.userUuid,
-                        );
+                    (p, navigationId) => {
+                        void analyticsModel
+                            .addAppViewEvent(p.appUuid, p.userUuid)
+                            .catch(() =>
+                                Logger.warn('Failed to record app view'),
+                            );
                         this.analytics.track({
                             event: 'data_app.view',
                             userId: p.userUuid,
@@ -765,6 +766,23 @@ export default class App {
                                 projectId: p.projectUuid,
                                 appUuid: p.appUuid,
                                 viewContext: p.viewContext,
+                                version: p.version,
+                                navigationId,
+                            },
+                        });
+                    },
+                    (p, navigationId, outcome) => {
+                        this.analytics.track({
+                            event: 'data_app.view_outcome',
+                            userId: p.userUuid,
+                            properties: {
+                                organizationId: p.organizationUuid,
+                                projectId: p.projectUuid,
+                                appUuid: p.appUuid,
+                                viewContext: p.viewContext,
+                                version: p.version,
+                                navigationId,
+                                outcome,
                             },
                         });
                     },

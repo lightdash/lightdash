@@ -300,4 +300,5 @@ export type SdkManifestMessage = {
     sdkVersion: string;
     features: string[];
     fixes: string[];
+    navigationId?: string;
 };

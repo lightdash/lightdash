@@ -27,6 +27,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Direct field references in captured semantic queries, with one row per query, field and role. Use this Explore to find which metrics and dimensions are queried. Counts are distinct and cannot be summed across fields or roles; SQL-only and older queries may have no field details.',
     data_app_reach:
         'Recorded app HTML loads by app, user, date and viewing surface. Includes previews and reloads; filter View context to choose surfaces. A load does not confirm successful rendering or human attention. Identified embed loads have no known viewer.',
+    data_app_outcomes:
+        'Observed HTML response, SDK startup and browser runtime outcomes for data apps. Navigation metrics deduplicate repeated signals; signals without navigation IDs remain in Total signals. Missing outcomes are unknown, including older bundles and uncaptured history. SDK startup does not prove completed rendering or human attention.',
     people_adoption:
         'Current organization members, including people with no observed activity. Compare eligible membership with confirmed human activity over the last 1, 7 or 30 closed UTC days. Uses current membership, not historical eligibility; incomplete capture does not prove inactivity.',
     lightdash_users:
@@ -348,6 +350,16 @@ const modelDimensions: Record<string, Record<string, string>> = {
     data_app_reach: {
         user_id:
             'Recorded viewer identifier. Known embed loads are left unattributed because the token issuer is not the viewer. Historical unknown context cannot distinguish embeds.',
+    },
+    data_app_outcomes: {
+        user_id:
+            'Recorded viewer identifier. Known embedded viewers remain unattributed; the token issuer is not assigned as the viewer.',
+        view_context:
+            'Surface recorded on the verified preview capability: standalone, dashboard, builder, chart, delivery, embed or unknown. This is not historical builder identity.',
+        navigation_id:
+            'Opaque identity for one iframe navigation. Repeated technical signals can share it; old clients may omit it. Do not sum distinct navigation counts across outcomes or dates.',
+        outcome:
+            'Observed technical signal: html_loaded, html_error, sdk_started or runtime_error. html_loaded means the server completed its response; sdk_started is a startup proxy. Neither proves complete rendering or human attention. No signal means unknown.',
     },
     content_reach: {
         content_name:

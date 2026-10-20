@@ -123,6 +123,14 @@ export const systemStreamMetrics: Record<
             description: 'Total number of data app activity events',
             type: MetricType.COUNT,
             column: 'event_name',
+            filters: [
+                {
+                    id: 'data-app-activity',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: ['data_app.view_outcome'],
+                },
+            ],
         },
         {
             name: 'total_views',
@@ -159,6 +167,14 @@ export const systemStreamMetrics: Record<
             description: 'Distinct data apps with any activity event',
             type: MetricType.COUNT_DISTINCT,
             column: 'app_id',
+            filters: [
+                {
+                    id: 'data-app-active-apps',
+                    target: { fieldRef: 'event_name' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: ['data_app.view_outcome'],
+                },
+            ],
         },
     ],
     query_events: [

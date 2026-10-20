@@ -154,6 +154,7 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RecordDataAppViewOutcome,
     type RegisteredAccount,
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
@@ -219,6 +220,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { type UserModel } from '../../../models/UserModel';
 import {
     mintPreviewToken,
+    verifyPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
 import {
@@ -12288,6 +12290,47 @@ export class AppGenerateService extends BaseService {
                 passThrough.end(tarBuffer);
             },
         );
+    }
+
+    recordViewOutcome(
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+        body: RecordDataAppViewOutcome,
+    ): void {
+        const verified = verifyPreviewToken(
+            body.previewToken,
+            this.lightdashConfig.lightdashSecrets,
+            appUuid,
+            version,
+        );
+        if (!verified.ok || verified.payload.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Invalid or expired preview token');
+        }
+        if (
+            !isValidUuid(body.navigationId) ||
+            !['sdk_started', 'runtime_error'].includes(body.outcome)
+        ) {
+            throw new ParameterError('Invalid app view outcome');
+        }
+        const { payload } = verified;
+        try {
+            this.analytics.track({
+                event: 'data_app.view_outcome',
+                userId: payload.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    appUuid: payload.appUuid,
+                    version: payload.version,
+                    viewContext: payload.viewContext,
+                    navigationId: body.navigationId,
+                    outcome: body.outcome,
+                },
+            });
+        } catch {
+            this.logger.warn('Failed to record app view outcome');
+        }
     }
 
     async getPreviewToken(
