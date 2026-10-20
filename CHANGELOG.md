@@ -1,3 +1,10 @@
+## [2.631.6](https://github.com/lightdash/lightdash/compare/2.631.5...2.631.6) (2026-10-20)
+
+
+### Bug Fixes
+
+* **api:** keep AI credential JSDoc descriptions out of operation summaries ([#31199](https://github.com/lightdash/lightdash/issues/31199)) ([f3b0098](https://github.com/lightdash/lightdash/commit/f3b0098030b91a7fe444e72bb7f503dc4b0f89c6))
+
 ## [2.631.5](https://github.com/lightdash/lightdash/compare/2.631.4...2.631.5) (2026-10-20)
 
 
