@@ -23,6 +23,7 @@ Users describe features by what they see in the Lightdash editor. Translate:
 | drill into a viz data point (reusable visualization) | `viz-drill-down` | app code opt-in |
 | "ask the AI", one-line takeaway, explain this row | `ai-prompt` | app code opt-in |
 | "share this view", URL that restores state | `url-state` | app code opt-in |
+| "remember my filters", "keep my inputs", shared comments/targets/notes, "who changed this" | `app-state` | app code opt-in — only when the host has it enabled |
 | Google Sheets export | `gsheet-export` | app code opt-in |
 | "delivery has all tabs", full data in scheduled deliveries | `delivery-render` | app code opt-in |
 | external API data | `external-fetch` | app code opt-in |
@@ -166,6 +167,11 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   helper.
 - `url-state`: `useUrlState(...)` syncs a piece of app state into the page URL
   so views can be shared and restored.
+- `app-state`: `useAppState(key, default)` remembers a value per person;
+  `useSharedAppState(key, default)` keeps a value every viewer shares, with a
+  version, author and history (`client.appState.history(key)`). Offer it only
+  when the build prompt says saved app state is available; the hooks fall back
+  to memory otherwise. Full contract in `/app/references/app-state.md`.
 - `gsheet-export`: `exportToSheets(...)` sends tabular results to a new
   Google Sheet — offer it wherever the app renders a table.
 - `external-fetch`: `client.externalFetch(alias, opts)` calls an external

@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import {
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     type ExternalConnectionSample,
@@ -349,6 +350,73 @@ describe('AppGenerateService pipeline external connection samples', () => {
         );
 
         expect(resolveSpy).toHaveBeenCalledWith('app-1');
+    });
+
+    const assembleWith = async (opts: {
+        flagEnabled: boolean;
+        isDataAppViz?: boolean;
+        builder?: { userUuid: string; organizationUuid: string };
+    }) => {
+        const sandbox = makeSandbox();
+        const { service, featureFlagModel } = buildService();
+        featureFlagModel.get.mockResolvedValue({ enabled: opts.flagEnabled });
+        vi.spyOn(
+            service as unknown as PrivateWithSamples,
+            'resolveExternalConnectionSamples',
+        ).mockResolvedValue([]);
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (...args: unknown[]) => Promise<unknown>;
+            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectParametersModel: { find: import('vitest').Mock };
+        };
+        privateService.projectModel = {
+            getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+        };
+        privateService.projectParametersModel = {
+            find: vi.fn().mockResolvedValue([]),
+        };
+        await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            undefined,
+            opts.isDataAppViz ?? false,
+            opts.builder,
+        );
+        const promptWrite = sandbox.files.write.mock.calls.find(
+            ([path]) => path === '/tmp/prompt.txt',
+        );
+        return { prompt: String(promptWrite?.[1] ?? ''), featureFlagModel };
+    };
+
+    it('tells the agent about saved app state only when the builder has the flag', async () => {
+        const builder = { userUuid: 'user-1', organizationUuid: 'org-1' };
+        const on = await assembleWith({ flagEnabled: true, builder });
+        expect(on.prompt).toContain('Saved app state is available');
+        expect(on.prompt).toContain('/app/references/app-state.md');
+        expect(on.featureFlagModel.get).toHaveBeenCalledWith({
+            user: builder,
+            featureFlagId: FeatureFlags.EnableDataAppState,
+        });
+
+        const off = await assembleWith({ flagEnabled: false, builder });
+        expect(off.prompt).not.toContain('Saved app state');
+
+        const viz = await assembleWith({
+            flagEnabled: true,
+            isDataAppViz: true,
+            builder,
+        });
+        expect(viz.prompt).not.toContain('Saved app state');
+
+        const noBuilder = await assembleWith({ flagEnabled: true });
+        expect(noBuilder.prompt).not.toContain('Saved app state');
     });
 
     it('omits the explores catalog and stale model files for chart types', async () => {
