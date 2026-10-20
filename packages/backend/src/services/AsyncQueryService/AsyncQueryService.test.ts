@@ -25506,6 +25506,7 @@ describe('fresh execution producer to result reader', () => {
             getToolCallsAndResultsForPrompt: vi.fn(
                 async (uuid: string) => provenance.get(uuid) ?? [],
             ),
+            getArtifactVersionsByUuids: vi.fn(async () => []),
         };
         const userModel = {
             findSessionUserAndOrgByUuid: vi.fn(async () =>
