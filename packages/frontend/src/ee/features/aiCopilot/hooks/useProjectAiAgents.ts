@@ -1346,6 +1346,8 @@ export const useCreateAgentThreadMutation = (
                         pinnedAt: null,
                         battleProfile: variables.battleProfile ?? null,
                         liveStatus: null,
+                        binding: thread.binding,
+                        threadContext: thread.threadContext,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,

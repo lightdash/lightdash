@@ -110,6 +110,8 @@ const thread: AiAgentThread = {
     pinnedAt: null,
     battleProfile: null,
     liveStatus: null,
+    binding: null,
+    threadContext: null,
     firstMessage: {
         uuid: 'deep-research-prompt',
         message: 'Find anomalies',

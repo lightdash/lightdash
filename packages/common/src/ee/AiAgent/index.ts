@@ -32,6 +32,7 @@ import {
     type AiPromptContextInput,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
+    type AiThreadBinding,
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
@@ -417,6 +418,9 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     };
     user: TUser;
     liveStatus: AiAgentThreadLiveStatus | null;
+    binding: AiThreadBinding | null;
+    /** Initial context set at creation. */
+    threadContext: string | null;
 };
 
 export type AiAgentThreadShare = {
@@ -882,6 +886,8 @@ export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
     AiAgentThreadWorkstream[]
 >;
 
+export const AI_THREAD_CONTEXT_MAX_LENGTH = 10_000;
+
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;
@@ -889,6 +895,10 @@ export type ApiAiAgentThreadCreateRequest = {
     originatingInstallationUuid?: string;
     /** Internal feature-speed battle; accepted only behind battle mode. */
     battleProfile?: AiAgentBattleProfile;
+    /** Binds the thread to this resource. Cannot be changed after creation. */
+    binding?: AiThreadBinding;
+    /** Initial context for the agent, up to 10,000 characters. Cannot be changed after creation. */
+    threadContext?: string;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;

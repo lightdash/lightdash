@@ -199,6 +199,8 @@ export type CreateWebAppThread = {
     agentUuid: string | null;
     embedSpaceUuid?: string | null;
     battleProfile?: AiAgentBattleProfile | null;
+    binding?: AiThreadBinding | null;
+    threadContext?: string | null;
 };
 
 /** `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions. */
@@ -364,6 +366,12 @@ export type AiPromptContextItemInput =
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
+
+/** Resource a thread is bound to for its whole life. Same shape as the matching pinned context item. */
+export type AiThreadBinding = {
+    type: 'dashboard';
+    dashboardUuid: string;
+};
 
 // The concrete change a writeback applies — one card concept, two payloads.
 export type AiPromptProposedChangePayload =
