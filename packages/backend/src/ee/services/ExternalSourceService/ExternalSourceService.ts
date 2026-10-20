@@ -82,6 +82,30 @@ export const toSheetCsvRow = (row: unknown[], width: number): unknown[] =>
         ? row.slice(0, width)
         : [...row, ...Array<string>(width - row.length).fill('')];
 
+// A label equal to the generated one is dropped so renames stay reversible.
+export const applyColumnLabels = (
+    columns: ResultColumns,
+    columnLabels: Record<string, string>,
+): ResultColumns => {
+    const unknown = Object.keys(columnLabels).find((ref) => !columns[ref]);
+    if (unknown) {
+        throw new ParameterError(`The table has no column "${unknown}"`);
+    }
+    return Object.fromEntries(
+        Object.values(columns).map((column) => {
+            const typed = columnLabels[column.reference]?.trim();
+            if (typed === undefined) return [column.reference, column];
+            const { label: _previous, ...rest } = column;
+            return [
+                column.reference,
+                typed && typed !== friendlyName(column.reference)
+                    ? { ...rest, label: typed }
+                    : rest,
+            ];
+        }),
+    );
+};
+
 export const getAttachmentTableName = (sourceUuid: UUID): string =>
     `attachment_${sourceUuid.replaceAll('-', '_')}`;
 
@@ -944,15 +968,20 @@ export class ExternalSourceService extends BaseService {
         if (!table) {
             throw new NotFoundError('External source has no table');
         }
+        const columns =
+            payload.columnLabels && table.columns
+                ? applyColumnLabels(table.columns, payload.columnLabels)
+                : table.columns;
         await this.externalSourceModel.updateTableLabel(
             table.external_source_table_uuid,
             label,
+            columns,
         );
-        if (shouldPublishExternalSourceExplore(source.scope) && table.columns) {
+        if (shouldPublishExternalSourceExplore(source.scope) && columns) {
             const explore = createExternalSourceExplore({
                 name: table.name,
                 label,
-                columns: table.columns,
+                columns,
                 externalSource: {
                     sourceUuid,
                     tableUuid: table.external_source_table_uuid,
@@ -1422,9 +1451,11 @@ export class ExternalSourceService extends BaseService {
             );
             const columns = describeRows.reduce<ResultColumns>((acc, row) => {
                 const reference = String(row.column_name);
+                const label = table.columns?.[reference]?.label;
                 acc[reference] = {
                     reference,
                     type: duckdbTypeToDimensionType(String(row.column_type)),
+                    ...(label && { label }),
                 };
                 return acc;
             }, {});

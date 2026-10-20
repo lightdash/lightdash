@@ -18,6 +18,7 @@ import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { duckdbTypeToDimensionType } from '../../../utils/duckdb/duckdbTypeToDimensionType';
 import {
+    applyColumnLabels,
     ExternalSourceService,
     getAttachmentTableName,
     shouldPublishExternalSourceExplore,
@@ -245,5 +246,36 @@ describe('toSheetCsvRow', () => {
             'b',
             'c',
         ]);
+    });
+});
+
+describe('applyColumnLabels', () => {
+    const columns: ResultColumns = {
+        _month: { reference: '_month', type: DimensionType.DATE },
+        regiao: {
+            reference: 'regiao',
+            type: DimensionType.STRING,
+            label: 'Old',
+        },
+    };
+
+    it('sets typed names, drops generated ones, and keeps unlisted columns', () => {
+        expect(
+            applyColumnLabels(columns, { _month: 'Target month', regiao: '' }),
+        ).toEqual({
+            _month: {
+                reference: '_month',
+                type: DimensionType.DATE,
+                label: 'Target month',
+            },
+            regiao: { reference: 'regiao', type: DimensionType.STRING },
+        });
+        expect(applyColumnLabels(columns, {}).regiao.label).toBe('Old');
+    });
+
+    it('rejects unknown columns', () => {
+        expect(() => applyColumnLabels(columns, { nope: 'x' })).toThrow(
+            'The table has no column "nope"',
+        );
     });
 });

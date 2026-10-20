@@ -61,7 +61,7 @@ export const getVirtualViewWarehouseType = (
 export const buildDimensionsFromColumns = (args: {
     tableName: string;
     tableLabel: string;
-    columns: VizColumn[];
+    columns: Array<VizColumn & { label?: string }>;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     qualifyColumnReferences?: boolean;
 }): Record<string, Dimension> => {
@@ -73,7 +73,7 @@ export const buildDimensionsFromColumns = (args: {
 
     return columns.reduce<Record<string, Dimension>>((acc, column) => {
         const type = column.type ?? DimensionType.STRING;
-        const columnLabel = friendlyName(column.reference);
+        const columnLabel = column.label ?? friendlyName(column.reference);
         const columnReference = quoteFieldReference(
             column.reference,
             fieldQuoteChar,
