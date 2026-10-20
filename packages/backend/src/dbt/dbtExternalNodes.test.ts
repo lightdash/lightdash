@@ -13,6 +13,7 @@ import {
     dbtSupportsExternalNodes,
     getMissingDbtNodeReferences,
     parseMissingDbtNodeReferences,
+    withCrossSourceRefsHint,
     writeDbtExternalNodesPlugin,
 } from './dbtExternalNodes';
 
@@ -136,4 +137,24 @@ it('keeps distinct missing versions and supports both dbt version positions', ()
         { model: 'leaf_a', packageName: 'ring_0', version: '1' },
         { model: 'leaf_a', packageName: 'ring_0', version: '2' },
     ]);
+});
+
+it('parses one-argument missing refs with and without a version', () => {
+    expect(
+        parseMissingDbtNodeReferences(
+            "depends on a node named 'orders' which was not found\ndepends on a node named 'items' with version '2' which was not found",
+        ),
+    ).toEqual([
+        { packageName: null, model: 'orders', version: null },
+        { packageName: null, model: 'items', version: '2' },
+    ]);
+});
+
+it('keeps the disabled error unchanged for a missing one-argument local ref', () => {
+    const error = new DbtError(
+        "depends on a node named 'local_missing' which was not found",
+    );
+    const before = error.message;
+    expect(withCrossSourceRefsHint(error, false)).toBe(error);
+    expect(error.message).toBe(before);
 });

@@ -3145,16 +3145,19 @@ describe('database slow transaction threshold', () => {
 describe('cross-source dbt deadlines', () => {
     it('uses the default deadlines', () => {
         expect(parseConfig().dbt).toMatchObject({
+            crossSourceMaxPasses: 3,
             crossSourcePrepareTimeoutMs: 180000,
             crossSourceLsTimeoutMs: 300000,
             crossSourceResolutionTimeoutMs: 1200000,
         });
     });
     it('reads each deadline from the environment', () => {
+        process.env.DBT_CROSS_SOURCE_MAX_PASSES = '5';
         process.env.DBT_SOURCE_PREPARE_TIMEOUT_MS = '120';
         process.env.DBT_SOURCE_LS_TIMEOUT_MS = '240';
         process.env.DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS = '480';
         expect(parseConfig().dbt).toMatchObject({
+            crossSourceMaxPasses: 5,
             crossSourcePrepareTimeoutMs: 120,
             crossSourceLsTimeoutMs: 240,
             crossSourceResolutionTimeoutMs: 480,

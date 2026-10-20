@@ -9,6 +9,7 @@ import Logger from '../logging/logger';
 export const DBT_PARTIAL_PARSE_FILE = 'partial_parse.msgpack';
 
 const BASELINE_EXTENSION = '.msgpack';
+const DIGEST_EXTENSION = '.external_nodes.sha256';
 
 export const DBT_PARTIAL_PARSE_BASELINE_ROOT = path.join(
     os.tmpdir(),
@@ -104,13 +105,42 @@ export const seedDbtPartialParse = async (
     }
 };
 
+export const getDbtPartialParseExternalNodesDigest = async (
+    baselinePath: string,
+    targetDirectory: string,
+): Promise<string | null> => {
+    try {
+        const saved: unknown = JSON.parse(
+            await fs.readFile(`${baselinePath}${DIGEST_EXTENSION}`, 'utf8'),
+        );
+        if (
+            typeof saved !== 'object' ||
+            saved === null ||
+            !('payloadDigest' in saved) ||
+            typeof saved.payloadDigest !== 'string' ||
+            !('partialParseDigest' in saved)
+        )
+            return null;
+        const digest = createHash('sha256')
+            .update(
+                await fs.readFile(
+                    path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+                ),
+            )
+            .digest('hex');
+        return saved.partialParseDigest === digest ? saved.payloadDigest : null;
+    } catch {
+        return null;
+    }
+};
+
 export const pruneDbtPartialParseBaselines = async (
     root: string,
     now: number,
     limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
 ): Promise<void> => {
     const names = await fs.readdir(root);
-    const entries = (
+    const files = (
         await Promise.all(
             names.map(async (name) => {
                 const filePath = path.join(root, name);
@@ -118,7 +148,6 @@ export const pruneDbtPartialParseBaselines = async (
                     const stats = await fs.stat(filePath);
                     return {
                         filePath,
-                        isBaseline: name.endsWith(BASELINE_EXTENSION),
                         size: stats.size,
                         mtimeMs: stats.mtimeMs,
                     };
@@ -128,6 +157,27 @@ export const pruneDbtPartialParseBaselines = async (
             }),
         )
     ).filter((entry) => entry !== null);
+    const byPath = new Map(files.map((entry) => [entry.filePath, entry]));
+    const entries = files
+        .filter(
+            (entry) =>
+                !entry.filePath.endsWith(DIGEST_EXTENSION) ||
+                !byPath.has(entry.filePath.slice(0, -DIGEST_EXTENSION.length)),
+        )
+        .map((entry) => {
+            const isBaseline = entry.filePath.endsWith(BASELINE_EXTENSION);
+            const sidecar = isBaseline
+                ? byPath.get(`${entry.filePath}${DIGEST_EXTENSION}`)
+                : undefined;
+            return {
+                ...entry,
+                isBaseline,
+                size: entry.size + (sidecar?.size ?? 0),
+                paths: sidecar
+                    ? [entry.filePath, sidecar.filePath]
+                    : [entry.filePath],
+            };
+        });
 
     const expired = entries.filter((entry) =>
         entry.isBaseline
@@ -144,8 +194,8 @@ export const pruneDbtPartialParseBaselines = async (
     });
 
     await Promise.all(
-        [...expired, ...overLimit].map((entry) =>
-            fs.rm(entry.filePath, { force: true }),
+        [...expired, ...overLimit].flatMap((entry) =>
+            entry.paths.map((filePath) => fs.rm(filePath, { force: true })),
         ),
     );
 };
@@ -160,6 +210,7 @@ export const saveDbtPartialParse = async (
     baselinePath: string,
     targetDirectory: string,
     limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
+    externalNodesDigest: string | null = null,
 ): Promise<void> => {
     const root = path.dirname(baselinePath);
     const temporaryPath = `${baselinePath}.${randomUUID()}.tmp`;
@@ -171,6 +222,23 @@ export const saveDbtPartialParse = async (
         );
         await fs.chmod(temporaryPath, 0o600);
         await fs.rename(temporaryPath, baselinePath);
+        if (externalNodesDigest !== null) {
+            const partialParseDigest = createHash('sha256')
+                .update(
+                    await fs.readFile(
+                        path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+                    ),
+                )
+                .digest('hex');
+            await fs.writeFile(
+                `${baselinePath}${DIGEST_EXTENSION}`,
+                JSON.stringify({
+                    payloadDigest: externalNodesDigest,
+                    partialParseDigest,
+                }),
+                { mode: 0o600 },
+            );
+        }
         await pruneDbtPartialParseBaselines(root, Date.now(), limits);
     } catch (error) {
         await fs.rm(temporaryPath, { force: true }).catch(() => undefined);

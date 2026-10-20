@@ -66,6 +66,7 @@ const model = (
 ): DbtRawModelNode & DbtManifest['nodes'][string] => ({
     unique_id: `model.${project}.${name}`,
     resource_type: 'model',
+    access: 'public',
     raw_code: 'select 1 as id',
     compiled: true,
     config: { materialized: 'table', snowflake_warehouse: '' },
@@ -122,6 +123,14 @@ const scan = (
 ): DbtProjectScan => ({
     projectName,
     referencedProjects,
+    refs: referencedProjects.map((packageName) => ({
+        packageName,
+        name: 'calendar',
+        version: null,
+    })),
+    localModels:
+        projectName === 'shared_dimensions' ? ['calendar'] : ['orders'],
+    installedPackageModels: [],
     installedPackages: [],
     declaredUpstreams: [],
 });
@@ -247,6 +256,14 @@ const harness = ({
             };
         },
     );
+    const dbtSourceRefCatalogModel = {
+        get: vi.fn(async () => []),
+        upsertProvisional: vi.fn(
+            async ({ dbtSourceUuid }: { dbtSourceUuid: string }) =>
+                `digest-${dbtSourceUuid}`,
+        ),
+        confirm: vi.fn(async () => undefined),
+    };
     const projectModel = {
         getDbtSourceIdentity: vi.fn(async () => ({
             dbtSourceUuid: 'primary-uuid',
@@ -259,6 +276,7 @@ const harness = ({
     const saveCompileArtifacts = vi.fn();
     const compiler = new MultiConnectionCompiler({
         projectModel,
+        dbtSourceRefCatalogModel: dbtSourceRefCatalogModel as never,
         warehouseClientFactory: {
             withWarehouseClient,
         },
@@ -357,6 +375,7 @@ const harness = ({
     };
     return {
         compiler,
+        dbtSourceRefCatalogModel,
         input,
         plans,
         fetchSourceManifest,
@@ -370,7 +389,7 @@ const harness = ({
 };
 
 const warning = (project = 'shared_dimensions') =>
-    `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: Cannot resolve dbt source "analytics": ref "${project}.calendar" was not found. No connected dbt source provides project "${project}".`;
+    `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: dbt source "analytics" references ref('${project}', 'calendar'), but no connected dbt source provides project "${project}".`;
 
 const expectOriginalExplores = async (
     stream: AsyncIterable<Explore | ExploreError>,
@@ -500,6 +519,77 @@ describe('cross-connection dbt ref diagnostics', () => {
         },
     );
 
+    it('writes provisional catalogues in each group and confirms them after artifact publication', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const compilation = await h.compiler.compile(h.input);
+        expect(h.dbtSourceRefCatalogModel.get).toHaveBeenCalledWith(
+            'project',
+            'original',
+        );
+        expect(h.dbtSourceRefCatalogModel.get).toHaveBeenCalledWith(
+            'project',
+            'extra',
+        );
+        expect(
+            h.dbtSourceRefCatalogModel.upsertProvisional,
+        ).toHaveBeenCalledTimes(3);
+        expect(
+            h.dbtSourceRefCatalogModel.upsertProvisional,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                dbtSourceUuid: 'analytics-uuid',
+                connectionGroup: 'extra',
+            }),
+        );
+        expect(
+            h.dbtSourceRefCatalogModel.upsertProvisional,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project',
+                connectionGroup: 'original',
+                dbtSourceUuid: 'primary-uuid',
+            }),
+        );
+        expect(h.dbtSourceRefCatalogModel.confirm).not.toHaveBeenCalled();
+        await h.compiler.save('project', compilation);
+        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionGroup: 'original',
+                entries: [
+                    {
+                        dbtSourceUuid: 'primary-uuid',
+                        nodesDigest: 'digest-primary-uuid',
+                    },
+                ],
+            }),
+        );
+        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionGroup: 'extra',
+                entries: expect.arrayContaining([
+                    {
+                        dbtSourceUuid: 'analytics-uuid',
+                        nodesDigest: 'digest-analytics-uuid',
+                    },
+                    {
+                        dbtSourceUuid: 'shared-uuid',
+                        nodesDigest: 'digest-shared-uuid',
+                    },
+                ]),
+            }),
+        );
+    });
+
+    it('does not confirm cache rows for a group that fails to compile', async () => {
+        const h = harness({ referencedProject: 'not_connected' });
+        const compilation = await h.compiler.compile(h.input);
+        await h.compiler.save('project', compilation);
+        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledTimes(1);
+        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
+            expect.objectContaining({ connectionGroup: 'original' }),
+        );
+    });
+
     it('detects a provider in a later group before resolving refs', async () => {
         const h = harness({ providerGroup: 'later' });
         const compilation = await h.compiler.compile(h.input);
@@ -587,6 +677,11 @@ describe('cross-connection dbt ref diagnostics', () => {
             `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: Failed to load dbt source "analytics": ${missing().message} This model references a model in another dbt project. Connect that project as a dbt source and enable cross-source dbt refs for your organization.`,
         ]);
         expect(h.prepareSourceManifest).not.toHaveBeenCalled();
+        expect(h.dbtSourceRefCatalogModel.get).not.toHaveBeenCalled();
+        expect(
+            h.dbtSourceRefCatalogModel.upsertProvisional,
+        ).not.toHaveBeenCalled();
+        expect(h.dbtSourceRefCatalogModel.confirm).not.toHaveBeenCalled();
     });
 });
 
@@ -955,16 +1050,23 @@ describe('multi-connection source disk lifecycle', () => {
                 events.push(`release ${dbtSource.name}`);
             });
             await h.compiler.compile(h.input);
-            const order = enabled
-                ? ['shared', 'analytics']
-                : ['analytics', 'shared'];
-            expect(events).toEqual([
-                'primary release',
-                ...order.flatMap((name) => [
-                    `fetch ${name}`,
-                    `release ${name}`,
-                ]),
-            ]);
+            expect(events).toEqual(
+                enabled
+                    ? [
+                          'primary release',
+                          'fetch analytics',
+                          'fetch shared',
+                          'release analytics',
+                          'release shared',
+                      ]
+                    : [
+                          'primary release',
+                          'fetch analytics',
+                          'release analytics',
+                          'fetch shared',
+                          'release shared',
+                      ],
+            );
             expect(primaryRelease).toHaveBeenCalledOnce();
         },
     );

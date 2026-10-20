@@ -1,0 +1,5 @@
+name: node_cycle_a
+version: '1.0'
+config-version: 2
+profile: cross_source_refs
+model-paths: [models]

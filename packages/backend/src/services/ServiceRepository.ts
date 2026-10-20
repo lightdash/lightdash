@@ -1165,6 +1165,8 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
                         this.getAgentConnectionGrantService(),
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
@@ -1323,6 +1325,8 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
@@ -2363,6 +2367,8 @@ export class ServiceRepository
             'projectDbtSourcesService',
             () =>
                 new ProjectDbtSourcesService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -2380,6 +2386,8 @@ export class ServiceRepository
             'warehouseConnectionService',
             () =>
                 new WarehouseConnectionService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectModel: this.models.getProjectModel(),
@@ -2416,6 +2424,9 @@ export class ServiceRepository
             'warehouseConnectionBindingService',
             () =>
                 new WarehouseConnectionBindingService({
+                    dbtSourceRefCatalogModel:
+                        this.models.getDbtSourceRefCatalogModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                     projectModel: this.models.getProjectModel(),
                     warehouseConnectionCompileModel:
                         this.models.getWarehouseConnectionCompileModel(),

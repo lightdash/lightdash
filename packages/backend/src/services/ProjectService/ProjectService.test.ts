@@ -707,12 +707,15 @@ const getMockedProjectService = (
             | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
+            | 'dbtSourceRefCatalogModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
         >
     > = {},
 ) =>
     new ProjectService({
+        dbtSourceRefCatalogModel:
+            overrides.dbtSourceRefCatalogModel ?? ({} as never),
         refreshTokenRotation: { run: vi.fn() },
         lightdashConfig,
         analytics: analyticsMock,
@@ -2675,6 +2678,56 @@ describe('ProjectService', () => {
             });
         });
     });
+    test('keeps primary ref rows when the dbt connection is unchanged', async () => {
+        const deleteForSource = vi.fn();
+        const get = vi.fn(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled: featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+        }));
+        const warehouseConnection: CreateWarehouseCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'postgres',
+            password: 'postgres',
+            dbname: 'analytics',
+            schema: 'public',
+        };
+        const saved = {
+            ...projectWithSensitiveFields,
+            warehouseConnection,
+            dbtConnection: { type: DbtProjectType.NONE as const },
+        };
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                projectModel: {
+                    ...projectModel,
+                    getWithSensitiveFields: vi.fn(async () => saved),
+                } as unknown as ProjectModel,
+                dbtSourceRefCatalogModel: { deleteForSource } as never,
+                featureFlagModel: { get } as unknown as FeatureFlagModel,
+            },
+        );
+        await configured.updateAndScheduleAsyncWork(
+            projectUuid,
+            developerAccount,
+            {
+                name: saved.name,
+                dbtVersion: saved.dbtVersion,
+                warehouseConnection,
+                dbtConnection: saved.dbtConnection,
+            },
+            RequestMethod.WEB_APP,
+        );
+        expect(deleteForSource).not.toHaveBeenCalled();
+        expect(get).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            }),
+        );
+    });
+
     describe('GitHub App connections on save', () => {
         const postgresWarehouseConnection: CreateWarehouseCredentials = {
             type: WarehouseTypes.POSTGRES,
@@ -2728,6 +2781,37 @@ describe('ProjectService', () => {
             jobModel.create.mockClear();
             projectModel.getWithSensitiveFields.mockResolvedValueOnce(
                 savedGithubOAuthProject,
+            );
+        });
+
+        test('invalidates the primary ref catalogue after the dbt connection changes', async () => {
+            const deleteForSource = vi.fn(async () => undefined);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    githubAppInstallationsModel: {
+                        findInstallationId: vi.fn(async () => '999'),
+                    } as unknown as GithubAppInstallationsModel,
+                    dbtSourceRefCatalogModel: { deleteForSource } as never,
+                    featureFlagModel: {
+                        get: vi.fn(async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.CrossSourceDbtRefs,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            await configured.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.WEB_APP,
+            );
+            expect(deleteForSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.any(String),
             );
         });
 
@@ -13764,6 +13848,7 @@ type ResolveCompileAdapterArgs = {
 };
 
 type BuildMergedManifestAdapterArgs = {
+    jobUuid?: string;
     userUuid: string;
     projectUuid: string;
     organizationUuid: string | undefined;
@@ -13790,6 +13875,10 @@ type ProjectServiceInternals = {
     buildMergedManifestAdapter: (
         args: BuildMergedManifestAdapterArgs,
     ) => Promise<ResolvedCompileAdapter>;
+    persistMergedManifest: (
+        projectUuid: string,
+        manifest: Buffer | undefined,
+    ) => Promise<void>;
     stageMergedManifest: (
         projectUuid: string,
         manifest: DbtManifest,
@@ -14049,6 +14138,90 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         );
         return (await adapter).adapter;
     };
+
+    it('writes provisional source catalogues and confirms only when the merged artifact is saved', async () => {
+        const cacheModel = {
+            get: vi.fn(async () => []),
+            upsertProvisional: vi.fn(async () => 'digest'),
+            confirm: vi.fn(async () => undefined),
+        };
+        const projectService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                dbtSourceRefCatalogModel: cacheModel as never,
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+            },
+        ) as unknown as ProjectServiceInternals;
+        const primaryManifest = buildManifest([
+            {
+                uniqueId: 'model.catalogue_a.orders',
+                name: 'orders',
+                packageName: 'catalogue_a',
+            },
+        ]);
+        primaryManifest.metadata.project_name = 'catalogue_a';
+        const sourceManifest = buildManifest([
+            {
+                uniqueId: 'model.catalogue_b.customers',
+                name: 'customers',
+                packageName: 'catalogue_b',
+            },
+        ]);
+        sourceManifest.metadata.project_name = 'catalogue_b';
+        vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
+            buildAdapterWithManifest(sourceManifest),
+        );
+        const built = await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: {
+                ...primary,
+                adapter: buildAdapterWithManifest(primaryManifest),
+            },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+            jobUuid: 'compile-job',
+        });
+        expect(cacheModel.get).toHaveBeenCalledWith('project-uuid', 'original');
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledTimes(2);
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                compileJobUuid: 'compile-job',
+                dbtSourceUuid: 'primary-source-uuid',
+                projectName: 'catalogue_a',
+                referencedProjects: [],
+            }),
+        );
+        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                dbtSourceUuid: 'source-b-uuid',
+            }),
+        );
+        expect(cacheModel.confirm).not.toHaveBeenCalled();
+        await projectService.persistMergedManifest(
+            'project-uuid',
+            built.stagedMergedManifest,
+        );
+        expect(cacheModel.confirm).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                connectionGroup: 'original',
+                entries: expect.arrayContaining([
+                    expect.objectContaining({ nodesDigest: 'digest' }),
+                ]),
+            }),
+        );
+    });
 
     it('fails a compile before adapter creation settles and releases its disk later', async () => {
         vi.useFakeTimers();
@@ -21196,6 +21369,7 @@ describe.each([
                     rotate(uuid, old, next),
             );
             const service = new ProjectService({
+                dbtSourceRefCatalogModel: {} as never,
                 lightdashConfig: lightdashConfigWithGoogleOAuthMock,
                 refreshTokenRotation: rotation,
                 featureFlagModel: {

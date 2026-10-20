@@ -89,6 +89,9 @@ describe('DbtSourceDiskPool', () => {
                 declaredUpstreams: [],
                 installedPackages: [],
                 referencedProjects: [],
+                refs: [],
+                localModels: [],
+                installedPackageModels: [],
             };
             const rescan = vi.fn(async () => ({
                 ...scan,
@@ -218,6 +221,18 @@ describe('DbtSourceDiskPool', () => {
                                 declaredUpstreams: [],
                                 referencedProjects:
                                     index === 0 ? ['leaf_1'] : [],
+                                refs:
+                                    index === 0
+                                        ? [
+                                              {
+                                                  packageName: 'leaf_1',
+                                                  name: 'orders',
+                                                  version: null,
+                                              },
+                                          ]
+                                        : [],
+                                localModels: [],
+                                installedPackageModels: [],
                             };
                         },
                     ),

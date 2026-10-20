@@ -23,6 +23,7 @@ import {
 import { type DbtProjectScan } from '../../dbt/dbtProjectScan';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
+import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
     type BoundExplore,
@@ -45,6 +46,7 @@ import {
     waitForDbtSourceCleanup,
     type CrossSourceTimeouts,
 } from '../../projectAdapters/crossSourceCancellation';
+import { CrossSourceCatalogCache } from '../../projectAdapters/crossSourceCatalogCache';
 import { validateCrossSourceProjectScans } from '../../projectAdapters/crossSourcePreflight';
 import {
     resolveCrossSourceManifests,
@@ -155,6 +157,7 @@ type CompiledExtraGroup = {
 type MultiConnectionCompilerArguments = {
     warehouseClientFactory: WarehouseClientFactory;
     projectModel: ProjectModel;
+    dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     warehouseConnectionCompileModel: WarehouseConnectionCompileModel;
 };
@@ -211,9 +214,13 @@ type MultiConnectionCompileInput = SourceDiskLifecycle & {
     trackingParams?: TrackingParams;
     analytics?: LightdashAnalytics;
     crossSourceTimeouts?: CrossSourceTimeouts;
+    crossSourceMaxPasses?: number;
+    compileJobUuid?: string | null;
 };
 
 export class MultiConnectionCompiler {
+    private readonly dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly projectDbtSourcesModel: ProjectDbtSourcesModel;
@@ -224,6 +231,7 @@ export class MultiConnectionCompiler {
 
     constructor(args: MultiConnectionCompilerArguments) {
         this.projectModel = args.projectModel;
+        this.dbtSourceRefCatalogModel = args.dbtSourceRefCatalogModel;
         this.warehouseClientFactory = args.warehouseClientFactory;
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.warehouseConnectionCompileModel =
@@ -263,6 +271,8 @@ export class MultiConnectionCompiler {
         resolutionOptions: SourceDiskLifecycle & {
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
+            maxPasses?: number;
+            catalogCache?: CrossSourceCatalogCache;
             resolutionElapsedMs?: number;
             connectionName?: string;
             otherConnectionProjects?: {
@@ -395,10 +405,31 @@ export class MultiConnectionCompiler {
                 ).catch(releaseFailed)),
             ];
         }
+        const tasks = [...(primaryTask ? [primaryTask] : []), ...sourceTasks];
+        const { catalogCache } = resolutionOptions;
+        const cache = await catalogCache?.load(
+            tasks.map((task) => ({
+                key: task.key,
+                uuid: task.context.dbtSourceUuid,
+            })),
+        );
         const resolution = await resolveCrossSourceManifests({
+            cache,
+            onSourceResolved: async ({
+                task,
+                nodes,
+                projectName,
+                referencedProjects,
+            }) =>
+                catalogCache?.resolved(
+                    task.context.dbtSourceUuid,
+                    nodes,
+                    projectName,
+                    referencedProjects,
+                ),
             enabled,
             concurrency,
-            tasks: [...(primaryTask ? [primaryTask] : []), ...sourceTasks],
+            tasks,
             signal: armCompileShutdown(),
             ...resolutionOptions,
             onSourceFinal: async (task) => {
@@ -420,6 +451,12 @@ export class MultiConnectionCompiler {
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
+                    passes: resolution.passes,
+                    stubs: resolution.stubs,
+                    contradictions: resolution.contradictions,
+                    sourceTimings: resolution.sources,
+                    cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
+                    cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
                     dbtLsRuns: resolution.attempts,
@@ -427,11 +464,14 @@ export class MultiConnectionCompiler {
                     timeouts:
                         resolutionOptions.timeouts ??
                         DEFAULT_CROSS_SOURCE_TIMEOUTS,
-                    signatureExhausted: resolution.signatureExhausted,
                     sources: resolution.results.map(
                         ({ task, injectedFrom }) => ({
                             name: task.key,
                             injectedFrom,
+                            injectedStubs:
+                                resolution.sources?.find(
+                                    (source) => source.key === task.key,
+                                )?.injectedStubs ?? 0,
                         }),
                     ),
                 },
@@ -713,6 +753,8 @@ export class MultiConnectionCompiler {
             trackingParams,
             analytics,
             crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
+            crossSourceMaxPasses = 3,
+            compileJobUuid = null,
             withSourceDisk,
             prepareSourceFetch,
             releaseSourceDisk,
@@ -917,6 +959,22 @@ export class MultiConnectionCompiler {
                 preparedSourceManifest = async (source) =>
                     scans.get(source.projectDbtSourceUuid) ?? null;
             }
+            const catalogCaches = new Map<string, CrossSourceCatalogCache>();
+            const cacheFor = (plan: CompileGroupPlan) => {
+                const group = plan.warehouseConnectionUuid ?? 'original';
+                if (!catalogCaches.has(group))
+                    catalogCaches.set(
+                        group,
+                        new CrossSourceCatalogCache(
+                            this.dbtSourceRefCatalogModel,
+                            projectUuid,
+                            group,
+                            dbtVersion,
+                            compileJobUuid,
+                        ),
+                    );
+                return catalogCaches.get(group)!;
+            };
             const resolutionOptions = (plan: CompileGroupPlan) => ({
                 withSourceDisk,
                 prepareSourceFetch,
@@ -927,6 +985,8 @@ export class MultiConnectionCompiler {
                     ? {
                           signal: compileSignal,
                           timeouts: crossSourceTimeouts,
+                          maxPasses: crossSourceMaxPasses,
+                          catalogCache: cacheFor(plan),
                           get resolutionElapsedMs() {
                               return Date.now() - resolutionStartedAt;
                           },
@@ -1241,17 +1301,21 @@ export class MultiConnectionCompiler {
                             originalManifest,
                         );
                     }
+                    await catalogCaches.get('original')?.confirm();
                     await Promise.all(
-                        compiledExtraGroups.map((group) =>
-                            this.warehouseConnectionCompileModel.saveCompileArtifacts(
+                        compiledExtraGroups.map(async (group) => {
+                            await this.warehouseConnectionCompileModel.saveCompileArtifacts(
                                 projectUuid,
                                 group.plan.warehouseConnectionUuid,
                                 {
                                     manifest: group.manifest,
                                     catalog: group.catalog,
                                 },
-                            ),
-                        ),
+                            );
+                            await catalogCaches
+                                .get(group.plan.warehouseConnectionUuid)
+                                ?.confirm();
+                        }),
                     );
                 },
             };

@@ -1,7 +1,9 @@
 import {
     combineManifestSources,
     DbtError,
+    getExternalModelNodesFromManifest,
     isExternalDbtNode,
+    ParameterError,
     SupportedDbtVersions,
     type DbtRawModelNode,
 } from '@lightdash/common';
@@ -39,11 +41,6 @@ const fixtures = path.resolve(
     __dirname,
     '../../../../examples/cross-source-dbt-refs',
 );
-const cycleError =
-    'Cannot resolve cross-source dbt refs: the pending sources depend on each other. Source "cycle_a": cycle_b.model_b; Source "cycle_b": cycle_a.model_a';
-const missingUpstreamError =
-    'Cannot resolve dbt source "missing_upstream": ref "nowhere.ghost" was not found. No connected dbt source provides project "nowhere".';
-
 const dbtErrorOutput = async (
     resolution: Promise<unknown>,
 ): Promise<string> => {
@@ -108,7 +105,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 project: string,
                 enabledModel: string | null = null,
                 restrictAccess = false,
-                scan = false,
+                scan = true,
                 dynamicOnly = false,
             ): Promise<CrossSourceFetchTask<string>> => {
                 const copy = await fs.mkdtemp(
@@ -273,7 +270,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).toEqual([]);
             }, 30000);
 
-            it('orders a scanned chain with one dbt ls per source', async () => {
+            it('resolves a scanned chain with one dbt ls per source', async () => {
                 const resolution = await resolveCrossSourceManifests({
                     tasks: await Promise.all(
                         ['chain_c', 'analytics', 'shared_dimensions'].map(
@@ -285,6 +282,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 });
                 expect(resolution.attempts).toBe(3);
                 expect(resolution.firstAttemptInjected).toBe(2);
+                expect(resolution.passes).toBe(1);
                 expect(resolution.results[0].injectedFrom.sort()).toEqual([
                     'analytics',
                     'shared_dimensions',
@@ -301,7 +299,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     enabled: true,
                     concurrency: 1,
                 });
-                expect(resolution.attempts).toBeGreaterThan(3);
+                expect(resolution.passes).toBe(2);
+                expect(resolution.attempts).toBe(4);
                 for (const name of ['m_var', 'm_set', 'm_macro'])
                     expect(
                         resolution.results[0].result.manifest.nodes[
@@ -310,12 +309,12 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     ).toBeDefined();
             }, 120_000);
 
-            it('resolves two sources in two rounds and strips stubs while keeping dependencies', async () => {
+            it('resolves two sources in one pass and strips stubs while keeping dependencies', async () => {
                 const resolution = await resolve([
                     'shared_dimensions',
                     'analytics',
                 ]);
-                expect(resolution.rounds).toBe(2);
+                expect(resolution.passes).toBe(1);
                 const { manifest } = resolution.results[1].result;
                 expect(
                     Object.values(manifest.nodes).filter((node) =>
@@ -334,13 +333,13 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).toBeUndefined();
             }, 120_000);
 
-            it('resolves a reversed chain in three rounds and records both upstream sources', async () => {
+            it('resolves a reversed chain in one pass', async () => {
                 const resolution = await resolve([
                     'chain_c',
                     'analytics',
                     'shared_dimensions',
                 ]);
-                expect(resolution.rounds).toBe(3);
+                expect(resolution.passes).toBe(1);
                 expect(resolution.results[0].injectedFrom.sort()).toEqual([
                     'analytics',
                     'shared_dimensions',
@@ -352,14 +351,14 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).toBeDefined();
             }, 120_000);
 
-            it('resolves the diamond in three rounds once both sides are ready', async () => {
+            it('resolves the diamond in one pass', async () => {
                 const resolution = await resolve([
                     'shared_dimensions',
                     'diamond_left',
                     'diamond_right',
                     'diamond_top',
                 ]);
-                expect(resolution.rounds).toBe(3);
+                expect(resolution.passes).toBe(1);
                 expect(
                     resolution.results[3].result.manifest.nodes[
                         'model.diamond_top.joined_days'
@@ -374,21 +373,35 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 });
             }, 120_000);
 
-            it('reports both sources and refs in a cycle', async () => {
+            it.each([
+                ['cycle_a', 'cycle_b'],
+                ['ring_a', 'ring_b', 'ring_c'],
+            ])(
+                'allows project cycles %j in one pass',
+                async (...projects) => {
+                    const resolution = await resolve(projects);
+                    expect(resolution.passes).toBe(1);
+                    expect(resolution.attempts).toBe(projects.length);
+                },
+                120_000,
+            );
+
+            it('rejects a real node cycle with an ordered path', async () => {
                 await expect(
-                    resolve(['cycle_a', 'cycle_b']),
-                ).rejects.toHaveProperty('message', cycleError);
+                    resolve(['node_cycle_a', 'node_cycle_b']),
+                ).rejects.toThrow(
+                    'model.node_cycle_a.model_a -> model.node_cycle_b.model_b -> model.node_cycle_a.model_a',
+                );
             }, 120_000);
 
             it.each([
                 { projects: ['missing_upstream'] },
                 { projects: ['missing_upstream', 'shared_dimensions'] },
             ])(
-                'reports a missing upstream with sources $projects',
+                'reports a missing provider with sources $projects',
                 async ({ projects }) => {
-                    await expect(resolve(projects)).rejects.toHaveProperty(
-                        'message',
-                        missingUpstreamError,
+                    await expect(resolve(projects)).rejects.toThrow(
+                        'no connected dbt source provides project "nowhere"',
                     );
                 },
                 120_000,
@@ -448,7 +461,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
 
             it('resolves public and versioned refs with restricted models disabled', async () => {
                 const resolution = await access();
-                expect(resolution.rounds).toBe(2);
+                expect(resolution.passes).toBe(1);
                 const { manifest } = resolution.results[1].result;
                 expect(Object.keys(manifest.nodes).sort()).toEqual([
                     'model.access_downstream.uses_public',
@@ -473,7 +486,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         enabled: true,
                         concurrency: 1,
                     });
-                    expect(resolution.rounds).toBe(2);
+                    expect(resolution.passes).toBe(2);
                     expect(
                         resolution.results[1].result.manifest.nodes[
                             'model.access_downstream.uses_protected'
@@ -505,21 +518,339 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('rejects a ref to a private upstream model', async () => {
+            it('rejects a private ref through placeholders before another dbt ls', async () => {
                 const tasks = await Promise.all([
-                    task('access_upstream'),
                     task('access_downstream', 'uses_private'),
+                    task('access_upstream'),
                 ]);
+                await expect(
+                    resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 2,
+                    }),
+                ).rejects.toThrow('defines that model as private');
+            }, 120_000);
+
+            it('uses a cached catalogue in a single pass for dynamic refs', async () => {
+                const tasks = [
+                    await task('dyn_downstream', null, false, true, true),
+                    await task('dyn_upstream'),
+                    await task('dyn_upstream2'),
+                ];
+                const referenced = new Map<string, string[]>();
+                const first = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    onSourceResolved: async ({
+                        task: source,
+                        referencedProjects,
+                    }) => {
+                        referenced.set(source.key, referencedProjects);
+                    },
+                });
+                expect(first.passes).toBe(2);
+                const cache = first.results.map(({ task: source, result }) => ({
+                    key: source.key,
+                    referencedProjects: referenced.get(source.key) ?? [],
+                    projectName: result.manifest.metadata.project_name!,
+                    nodes: getExternalModelNodesFromManifest(result.manifest),
+                }));
+                const second = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    cache,
+                });
+                expect(second.passes).toBe(1);
+                expect(referenced.get('dyn_downstream')).toEqual([
+                    'dyn_upstream',
+                ]);
+                const providerNodes = cache.find(
+                    (row) => row.key === 'dyn_upstream',
+                )!.nodes.length;
+                expect(providerNodes).toBeGreaterThan(0);
+                expect(second.stubs!.cached).toBe(providerNodes);
                 expect(
-                    await dbtErrorOutput(
-                        resolveCrossSourceManifests({
-                            tasks,
-                            enabled: true,
-                            concurrency: 1,
-                        }),
+                    second.sources?.map(({ key, injectedStubs }) => ({
+                        key,
+                        injectedStubs,
+                    })),
+                ).toEqual([
+                    { key: 'dyn_downstream', injectedStubs: providerNodes },
+                    { key: 'dyn_upstream', injectedStubs: 0 },
+                    { key: 'dyn_upstream2', injectedStubs: 0 },
+                ]);
+                expect(second.contradictions).toBe(0);
+            }, 120_000);
+
+            it.each([false, true])(
+                'binds versioned refs with cached=%s',
+                async (cached) => {
+                    const tasks = [
+                        await task('access_downstream'),
+                        await task('access_upstream'),
+                    ];
+                    const first = await resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 2,
+                    });
+                    const cache = cached
+                        ? first.results.map(({ task: source, result }) => ({
+                              key: source.key,
+                              referencedProjects: [],
+                              projectName:
+                                  result.manifest.metadata.project_name!,
+                              nodes: getExternalModelNodesFromManifest(
+                                  result.manifest,
+                              ),
+                          }))
+                        : [];
+                    const resolution = await resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 2,
+                        cache,
+                    });
+                    expect(resolution.passes).toBe(1);
+                    expect(
+                        (
+                            resolution.results[0].result.manifest.nodes[
+                                'model.access_downstream.uses_versioned_v1'
+                            ] as DbtRawModelNode
+                        ).depends_on?.nodes,
+                    ).toEqual(['model.access_upstream.dim_product.v1']);
+                    expect(
+                        (
+                            resolution.results[0].result.manifest.nodes[
+                                'model.access_downstream.uses_versioned_latest'
+                            ] as DbtRawModelNode
+                        ).depends_on?.nodes,
+                    ).toEqual(['model.access_upstream.dim_product.v2']);
+                },
+                120_000,
+            );
+
+            it.each([false, true])(
+                'resolves a versioned project cycle with cached=%s',
+                async (cached) => {
+                    const tasks = await Promise.all(
+                        ['versioned_ring_a', 'versioned_ring_b'].map((name) =>
+                            task(name),
+                        ),
+                    );
+                    const first = await resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 2,
+                    });
+                    const cache = cached
+                        ? first.results.map(({ task: source, result }) => ({
+                              key: source.key,
+                              projectName:
+                                  result.manifest.metadata.project_name!,
+                              referencedProjects: [],
+                              nodes: getExternalModelNodesFromManifest(
+                                  result.manifest,
+                              ),
+                          }))
+                        : [];
+                    const resolution = cached
+                        ? await resolveCrossSourceManifests({
+                              tasks,
+                              enabled: true,
+                              concurrency: 2,
+                              cache,
+                          })
+                        : first;
+                    expect(resolution.passes).toBe(1);
+                    const { manifest } = resolution.results[0].result;
+                    for (const [name, modelVersion] of [
+                        ['uses_v3', 3],
+                        ['uses_latest', 3],
+                        ['uses_v1', 1],
+                    ])
+                        expect(
+                            (
+                                manifest.nodes[
+                                    `model.versioned_ring_a.${name}`
+                                ] as DbtRawModelNode
+                            ).depends_on?.nodes,
+                        ).toEqual([
+                            `model.versioned_ring_b.dim.v${modelVersion}`,
+                        ]);
+                    expect(
+                        (
+                            resolution.results[1].result.manifest.nodes[
+                                'model.versioned_ring_b.uses_a'
+                            ] as DbtRawModelNode
+                        ).depends_on?.nodes,
+                    ).toEqual(['model.versioned_ring_a.base']);
+                },
+                120_000,
+            );
+
+            it('resolves a cached non-leaf provider through a one-argument ref', async () => {
+                const tasks = [
+                    await task('versioned_ring_a'),
+                    await task('versioned_ring_b'),
+                ];
+                const first = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                });
+                const cache = first.results.map(({ task: source, result }) => ({
+                    key: source.key,
+                    projectName: result.manifest.metadata.project_name!,
+                    referencedProjects: [],
+                    nodes: getExternalModelNodesFromManifest(result.manifest),
+                }));
+                const consumerClient = clients[clients.length - 2];
+                await Promise.all(
+                    ['uses_v3', 'uses_latest', 'uses_v1'].map(async (name) => {
+                        const filename = path.join(
+                            consumerClient.dbtProjectDirectory,
+                            'models',
+                            `${name}.sql`,
+                        );
+                        await fs.writeFile(
+                            filename,
+                            (await fs.readFile(filename, 'utf8')).replace(
+                                "'versioned_ring_b', ",
+                                '',
+                            ),
+                        );
+                    }),
+                );
+                const provider = cache.find(
+                    (row) => row.key === 'versioned_ring_b',
+                )!;
+                const versions = provider.nodes.filter(
+                    (node) => node.name === 'dim',
+                );
+                expect(versions).toHaveLength(2);
+                expect(
+                    versions.every((node) =>
+                        node.depends_on_nodes.includes(
+                            'model.versioned_ring_b.base',
+                        ),
                     ),
-                ).toContain(
-                    'not allowed because the referenced node is private',
+                ).toBe(true);
+                const resolution = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    cache,
+                });
+                expect(resolution.passes).toBe(1);
+                expect(
+                    (
+                        resolution.results[0].result.manifest.nodes[
+                            'model.versioned_ring_a.uses_v3'
+                        ] as DbtRawModelNode
+                    ).depends_on?.nodes,
+                ).toEqual(['model.versioned_ring_b.dim.v3']);
+            }, 120_000);
+
+            it('names the consumer, provider and missing numeric version', async () => {
+                const consumer = await task('versioned_ring_a');
+                await fs.writeFile(
+                    path.join(
+                        clients[clients.length - 1].dbtProjectDirectory,
+                        'models',
+                        'uses_missing.sql',
+                    ),
+                    "select * from {{ ref('versioned_ring_b', 'dim', v=4) }}\n",
+                );
+                const provider = await task('versioned_ring_b');
+                const resolution = resolveCrossSourceManifests({
+                    tasks: [consumer, provider],
+                    enabled: true,
+                    concurrency: 2,
+                });
+                await expect(resolution).rejects.toBeInstanceOf(ParameterError);
+                await expect(resolution).rejects.toThrow(
+                    `Model "uses_missing" in dbt source "versioned_ring_a" references ref('versioned_ring_b', 'dim', v=4), but dbt source "versioned_ring_b" does not define that model (or version).`,
+                );
+            }, 120_000);
+
+            it('allows a public provider after an older cache marked it private', async () => {
+                const tasks = await Promise.all(
+                    ['access_downstream', 'access_upstream'].map((name) =>
+                        task(name),
+                    ),
+                );
+                const first = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                });
+                const cache = first.results.map(({ task: source, result }) => ({
+                    key: source.key,
+                    projectName: result.manifest.metadata.project_name!,
+                    referencedProjects: [],
+                    nodes: getExternalModelNodesFromManifest(
+                        result.manifest,
+                    ).map((node) =>
+                        node.name === 'public_model'
+                            ? { ...node, access: 'private' as const }
+                            : node,
+                    ),
+                }));
+                const resolution = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    cache,
+                });
+                expect(resolution.passes).toBe(1);
+                expect(
+                    (
+                        resolution.results[0].result.manifest.nodes[
+                            'model.access_downstream.uses_public'
+                        ] as DbtRawModelNode
+                    ).depends_on?.nodes,
+                ).toEqual(['model.access_upstream.public_model']);
+            }, 120_000);
+
+            it('rejects a cached model deleted from the provider fixture', async () => {
+                const tasks = [
+                    await task('analytics'),
+                    await task('shared_dimensions'),
+                ];
+                const first = await resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                });
+                const cache = first.results.map(({ task: source, result }) => ({
+                    key: source.key,
+                    referencedProjects: [],
+                    projectName: result.manifest.metadata.project_name!,
+                    nodes: getExternalModelNodesFromManifest(result.manifest),
+                }));
+                const providerClient = clients[clients.length - 1];
+                await fs.rm(
+                    path.join(
+                        providerClient.dbtProjectDirectory,
+                        'models',
+                        'dim_calendar.sql',
+                    ),
+                );
+                const resolution = resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    cache,
+                });
+                await expect(resolution).rejects.toBeInstanceOf(ParameterError);
+                await expect(resolution).rejects.toThrow('fct_orders');
+                await expect(resolution).rejects.toThrow('shared_dimensions');
+                await expect(resolution).rejects.toThrow(
+                    'does not define that model (or version)',
                 );
             }, 120_000);
 
