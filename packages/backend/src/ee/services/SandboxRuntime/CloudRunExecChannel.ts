@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { Agent, type Dispatcher } from 'undici';
+import { readBoundedStream } from './boundedOutput';
 import {
     SandboxCommandError,
     SandboxOutputLimitError,
@@ -175,6 +176,27 @@ const decodeExecResponse = (value: unknown): ExecResponse => {
  * The gateway buffers a command's output server-side and returns it whole, so
  * the ceiling is applied once the bytes arrive rather than mid-stream.
  */
+/**
+ * Cap a command's streams inside the sandbox so neither the gateway (which
+ * buffers the whole response in memory) nor the backend ever receives more
+ * than the ceiling. Each stream keeps one byte over the cap so the post-check
+ * can still tell truncation from an exact fit. Exit code is preserved.
+ */
+const capOutputInSandbox = (
+    command: string,
+    maxOutputBytes: number,
+): string => {
+    const keep = maxOutputBytes + 1;
+    return (
+        `__ld_d=$(mktemp -d); ( ${command} ) > "$__ld_d/o" 2> "$__ld_d/e"; __ld_rc=$?; ` +
+        `head -c ${keep} "$__ld_d/o"; head -c ${keep} "$__ld_d/e" >&2; rm -rf "$__ld_d"; exit $__ld_rc`
+    );
+};
+
+/** Worst case JSON escaping is 6 bytes per raw byte, plus envelope. */
+const maxBodyBytesFor = (maxOutputBytes: number): number =>
+    2 * (maxOutputBytes + 1) * 6 + 64 * 1024;
+
 const assertWithinOutputLimit = (
     stdout: string,
     stderr: string,
@@ -202,7 +224,11 @@ export class CloudRunGatewayClient {
     async post(
         path: string,
         body: Record<string, unknown>,
-        options?: { signal?: AbortSignal; dispatcher?: Dispatcher },
+        options?: {
+            signal?: AbortSignal;
+            dispatcher?: Dispatcher;
+            maxBodyBytes?: number;
+        },
     ): Promise<unknown> {
         const requestInit: RequestInit & { dispatcher?: Dispatcher } = {
             method: 'POST',
@@ -233,8 +259,16 @@ export class CloudRunGatewayClient {
             );
         }
         try {
+            if (options?.maxBodyBytes !== undefined && response.body) {
+                const bounded = await readBoundedStream(
+                    response.body,
+                    options.maxBodyBytes,
+                );
+                return JSON.parse(bounded.toString('utf8'));
+            }
             return await response.json();
         } catch (error) {
+            if (error instanceof SandboxOutputLimitError) throw error;
             throw new SandboxCommandError(
                 -1,
                 `Cloud Run sandbox gateway ${path} returned a non-JSON response`,
@@ -332,7 +366,14 @@ export class CloudRunExecChannel {
                 'exec',
                 {
                     sandboxId: this.sandboxId,
-                    command: buildCommandLine(command),
+                    command: buildCommandLine(
+                        options?.maxOutputBytes !== undefined
+                            ? capOutputInSandbox(
+                                  command,
+                                  options.maxOutputBytes,
+                              )
+                            : command,
+                    ),
                     cwd: options?.cwd,
                     env: options?.envs,
                     timeout: serverTimeoutMs,
@@ -340,6 +381,10 @@ export class CloudRunExecChannel {
                 {
                     signal: controller.signal,
                     dispatcher: timer ? bufferedExecDispatcher : undefined,
+                    maxBodyBytes:
+                        options?.maxOutputBytes !== undefined
+                            ? maxBodyBytesFor(options.maxOutputBytes)
+                            : undefined,
                 },
             );
             const result = decodeExecResponse(raw);
@@ -449,8 +494,8 @@ export class CloudRunExecChannel {
                 // eslint-disable-next-line no-await-in-loop
                 const response = await this.runBuffered(
                     `printf S; cat ${shQuote(`${runDir}/exit`)} 2>/dev/null; echo; ` +
-                        `printf O; tail -c +${outOffset + 1} ${shQuote(`${runDir}/out.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo; ` +
-                        `printf E; tail -c +${errOffset + 1} ${shQuote(`${runDir}/err.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo`,
+                        `printf O; tail -c +${outOffset + 1} ${shQuote(`${runDir}/out.log`)} 2>/dev/null | head -c ${READ_CHUNK_BYTES} | base64 | tr -d '\\n'; echo; ` +
+                        `printf E; tail -c +${errOffset + 1} ${shQuote(`${runDir}/err.log`)} 2>/dev/null | head -c ${READ_CHUNK_BYTES} | base64 | tr -d '\\n'; echo`,
                     { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
                 );
                 tick = parseDetachedTick(response.stdout);
@@ -476,6 +521,15 @@ export class CloudRunExecChannel {
                 continue;
             }
 
+            if (
+                options.maxOutputBytes !== undefined &&
+                outOffset + errOffset + tick.out.length + tick.err.length >
+                    options.maxOutputBytes
+            ) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.killDetachedProcessGroup(runDir);
+                throw new SandboxOutputLimitError(options.maxOutputBytes);
+            }
             outOffset += tick.out.length;
             errOffset += tick.err.length;
             const outText = outDecoder.write(tick.out);
@@ -487,14 +541,6 @@ export class CloudRunExecChannel {
             if (errText) {
                 stderr += errText;
                 options.onStderr?.(errText);
-            }
-            if (
-                options.maxOutputBytes !== undefined &&
-                outOffset + errOffset > options.maxOutputBytes
-            ) {
-                // eslint-disable-next-line no-await-in-loop
-                await this.killDetachedProcessGroup(runDir);
-                throw new SandboxOutputLimitError(options.maxOutputBytes);
             }
 
             if (tick.exitCode !== null) {
@@ -553,13 +599,26 @@ export class CloudRunExecChannel {
                 throw new SandboxOutputLimitError(options.maxBytes);
             }
             const chunks: Buffer[] = [];
+            let received = 0;
             for (let offset = 0; offset < size; offset += READ_CHUNK_BYTES) {
+                // Never fetch past the allowance even if the file grew since sizing.
+                const want = options
+                    ? Math.min(
+                          READ_CHUNK_BYTES,
+                          options.maxBytes - received + 1,
+                      )
+                    : READ_CHUNK_BYTES;
                 // eslint-disable-next-line no-await-in-loop
                 const result = await this.runBuffered(
-                    `tail -c +${offset + 1} ${quoted} | head -c ${READ_CHUNK_BYTES} | base64 | tr -d '\\n'`,
+                    `tail -c +${offset + 1} ${quoted} | head -c ${want} | base64 | tr -d '\\n'`,
                     { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
                 );
-                chunks.push(Buffer.from(result.stdout, 'base64'));
+                const chunk = Buffer.from(result.stdout, 'base64');
+                received += chunk.length;
+                if (options && received > options.maxBytes) {
+                    throw new SandboxOutputLimitError(options.maxBytes);
+                }
+                chunks.push(chunk);
             }
             return Buffer.concat(chunks);
         },
