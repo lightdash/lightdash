@@ -25,6 +25,8 @@ const settingsContext = (
     canAccessAnalyticsSettings: false,
     isAnalyticsProjectFlagLoading: false,
     isOrganizationRoadmapEnabled: false,
+    isOrganizationAdoptionEnabled: false,
+    isOrganizationAdoptionLoading: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
     isSsoOrganizationSettingsEnabled: false,

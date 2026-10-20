@@ -100,6 +100,12 @@ export const useSettingsContext = (): SettingsContext => {
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
 
+    const organizationAdoptionFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrganizationAdoption,
+    );
+    const isOrganizationAdoptionEnabled =
+        organizationAdoptionFlagQuery.data?.enabled ?? false;
+
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
     );
@@ -226,6 +232,9 @@ export const useSettingsContext = (): SettingsContext => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
+        isOrganizationAdoptionEnabled,
+        isOrganizationAdoptionLoading:
+            organizationAdoptionFlagQuery.isInitialLoading,
         canAccessAiCredits,
         isAiCreditsLoading: isAiCreditUsageLoading,
         isSsoOrganizationSettingsEnabled,

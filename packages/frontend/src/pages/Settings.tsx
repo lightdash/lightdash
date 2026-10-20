@@ -86,6 +86,7 @@ import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admi
 import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
+import Adoption from '../ee/pages/Adoption';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
@@ -188,6 +189,8 @@ const Settings: FC = () => {
         canAccessAnalyticsSettings,
         isAnalyticsProjectFlagLoading,
         isOrganizationRoadmapEnabled,
+        isOrganizationAdoptionEnabled,
+        isOrganizationAdoptionLoading,
         canAccessAiCredits,
         isAiCreditsLoading,
         isSsoOrganizationSettingsEnabled,
@@ -694,6 +697,25 @@ const Settings: FC = () => {
         }
 
         if (
+            isOrganizationAdoptionEnabled &&
+            user?.ability.can(
+                'view',
+                subject('OrganizationAdoption', {
+                    organizationUuid: organization?.organizationUuid,
+                }),
+            )
+        ) {
+            allowedRoutes.push({
+                path: '/adoption',
+                element: (
+                    <TrackPage name={PageName.ADOPTION}>
+                        <Adoption />
+                    </TrackPage>
+                ),
+            });
+        }
+
+        if (
             isAgentIdentityEnabled &&
             user?.ability.can('manage', 'Organization')
         ) {
@@ -900,6 +922,7 @@ const Settings: FC = () => {
         isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
+        isOrganizationAdoptionEnabled,
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
@@ -1027,6 +1050,10 @@ const Settings: FC = () => {
                 location.pathname,
             ) &&
             !matchPath(
+                { path: '/generalSettings/adoption/*' },
+                location.pathname,
+            ) &&
+            !matchPath(
                 { path: '/generalSettings/dataApps/activity' },
                 location.pathname,
             )
@@ -1053,6 +1080,10 @@ const Settings: FC = () => {
         Boolean(
             matchPath('/generalSettings/lightdashAnalytics', location.pathname),
         );
+
+    const isAwaitingAdoptionRoute =
+        isOrganizationAdoptionLoading &&
+        Boolean(matchPath('/generalSettings/adoption/*', location.pathname));
 
     const isAwaitingAiCreditsRoute =
         isAiCreditsLoading &&
@@ -1089,7 +1120,8 @@ const Settings: FC = () => {
         isAwaitingAgentIdentityRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
-        isAwaitingAiCreditsRoute
+        isAwaitingAiCreditsRoute ||
+        isAwaitingAdoptionRoute
     ) {
         return <PageSpinner />;
     }
