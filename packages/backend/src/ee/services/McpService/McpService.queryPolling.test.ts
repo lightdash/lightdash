@@ -7,6 +7,7 @@ import {
     derivePivotConfigurationFromChart,
     DimensionType,
     FieldType,
+    ForbiddenError,
     isAndFilterGroup,
     MetricType,
     NotFoundError,
@@ -2949,20 +2950,14 @@ describe('render_chart with a custom chart type', () => {
         expect(resolveCustomChartType).toHaveBeenCalledWith('sankey-flow');
         expect(
             aiAgentToolsService.getMcpCustomChartTypePreviewToken,
-        ).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid,
-                dataAppVizUuid,
-                version: 3,
-            }),
-        );
+        ).not.toHaveBeenCalled();
         expect(result._meta?.result).toMatchObject({
             rows: [{ orders_status: 'completed', orders_orders_count: 42 }],
             fields,
             echartsOption: null,
             exploreUrl: 'https://lightdash.example/share/share-id',
             customChartType: {
-                indexUrl,
+                dataAppVizUuid,
                 previewOrigin: 'https://preview.lightdash.example',
                 slug: 'sankey-flow',
                 version: 3,
@@ -3010,6 +3005,12 @@ describe('render_chart with a custom chart type', () => {
                 },
             },
         });
+        expect(result._meta?.result.customChartType).not.toHaveProperty(
+            'indexUrl',
+        );
+        expect(result._meta?.result.customChartType).not.toHaveProperty(
+            'contentSecurityPolicy',
+        );
         expect(result.structuredContent).toEqual({
             result: {
                 status: 'done',
@@ -3035,19 +3036,30 @@ describe('render_chart with a custom chart type', () => {
         );
     });
 
-    it('sends the view the bundle policy to load the chart type with', async () => {
-        const { analytics } = setup();
+    it('gets the bundle url and policy from the frame tool', async () => {
+        const { aiAgentToolsService, analytics } = setup();
 
-        const result = await render(customChartConfig);
+        const result = (await getToolCallback(
+            McpToolName.GET_CUSTOM_CHART_TYPE_FRAME,
+        )({ dataAppVizUuid, version: 3 }, extra)) as {
+            structuredContent: {
+                indexUrl: string;
+                contentSecurityPolicy: string;
+            };
+        };
 
-        const { customChartType } = result._meta?.result as {
-            customChartType: Record<string, unknown>;
-        };
-        expect(customChartType).not.toHaveProperty('html');
-        expect(customChartType.indexUrl).toBe(indexUrl);
-        const { contentSecurityPolicy } = customChartType as {
-            contentSecurityPolicy: string;
-        };
+        expect(
+            aiAgentToolsService.getMcpCustomChartTypePreviewToken,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid,
+                dataAppVizUuid,
+                version: 3,
+            }),
+        );
+        const { indexUrl: url, contentSecurityPolicy } =
+            result.structuredContent;
+        expect(url).toBe(indexUrl);
         expect(contentSecurityPolicy.startsWith("default-src 'none'; ")).toBe(
             true,
         );
@@ -3060,29 +3072,18 @@ describe('render_chart with a custom chart type', () => {
         );
     });
 
-    it('falls back to the query rows for a token minted for another version', async () => {
+    it('refuses the frame when the preview gate refuses', async () => {
         const { aiAgentToolsService } = setup();
-        aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockResolvedValue(
-            mintPreviewToken(
-                testLightdashSecrets,
-                dataAppVizUuid,
-                2,
-                userUuid,
-                organizationUuid,
-                projectUuid,
-                [],
-                'mcp',
+        aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockRejectedValue(
+            new ForbiddenError(),
+        );
+
+        await expect(
+            getToolCallback(McpToolName.GET_CUSTOM_CHART_TYPE_FRAME)(
+                { dataAppVizUuid, version: 3 },
+                extra,
             ),
-        );
-
-        const result = await render(customChartConfig);
-
-        expect(result._meta?.result).toMatchObject({
-            customChartType: { contentSecurityPolicy: null },
-        });
-        expect(result.content[0].text).toContain(
-            'The chart type could not be loaded, so the chart view shows the query rows instead.',
-        );
+        ).rejects.toThrow(ForbiddenError);
     });
 
     it('keeps built-in rendering free of the custom chart type payload', async () => {

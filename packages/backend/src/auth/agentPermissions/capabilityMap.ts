@@ -24,6 +24,10 @@ export const MCP_TOOL_CAPABILITIES = {
     get_context: [AgentCapability.ReadDiscover],
     get_current_agent: [AgentCapability.ReadDiscover],
     get_current_project: [AgentCapability.ReadDiscover],
+    get_custom_chart_type_frame: [
+        AgentCapability.ReadDiscover,
+        AgentCapability.Export,
+    ],
     get_data_app_build_status: [AgentCapability.ReadDiscover],
     get_lightdash_version: [AgentCapability.ReadDiscover],
     get_metadata: [AgentCapability.ReadDiscover],

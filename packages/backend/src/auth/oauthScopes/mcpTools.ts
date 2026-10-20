@@ -27,6 +27,7 @@ export const MCP_TOOL_SCOPE_MAP: Readonly<Record<string, 'read' | 'write'>> = {
     run_metric_query: 'read',
     run_composer_queries: 'read',
     render_chart: 'read',
+    get_custom_chart_type_frame: 'read',
     run_sql: 'read',
     get_query_result: 'read',
     search_field_values: 'read',

@@ -1,6 +1,8 @@
 import { JSDOM } from 'jsdom';
 import {
     fetchMcpCustomChartFrameHtml,
+    loadMcpCustomChartFrameHtml,
+    MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
     prepareMcpCustomChartTypeHtml,
     toMetaContentSecurityPolicy,
 } from './mcpCustomChartFrameHtml';
@@ -180,4 +182,86 @@ describe('fetchMcpCustomChartFrameHtml', () => {
         ).resolves.toEqual({ kind: 'unavailable' });
         expect(fetchFn).not.toHaveBeenCalled();
     });
+});
+
+describe('loadMcpCustomChartFrameHtml', () => {
+    const indexUrl = 'https://preview.example/api/apps/a/versions/1/t/x.y.z/';
+    const contentSecurityPolicy = "default-src 'none'";
+    const request = {
+        projectUuid: 'project-1',
+        agentUuid: null,
+        dataAppVizUuid: 'a',
+        version: 1,
+    };
+    const { signal } = new AbortController();
+    const respond = (result: unknown) => vi.fn().mockResolvedValue(result);
+    const html = () =>
+        vi.fn().mockResolvedValue(new Response('<!doctype html><head></head>'));
+
+    it('asks the frame tool for the bundle url and fetches it', async () => {
+        const callTool = respond({
+            content: [],
+            structuredContent: { indexUrl, contentSecurityPolicy },
+        });
+        const fetchFn = html();
+
+        await expect(
+            loadMcpCustomChartFrameHtml(request, { callTool, fetchFn, signal }),
+        ).resolves.toEqual({
+            kind: 'html',
+            html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><!doctype html><head></head>`,
+        });
+        expect(callTool).toHaveBeenCalledWith(
+            {
+                name: MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+                arguments: {
+                    projectUuid: 'project-1',
+                    dataAppVizUuid: 'a',
+                    version: 1,
+                },
+            },
+            { signal },
+        );
+        expect(fetchFn).toHaveBeenCalledWith(indexUrl, {
+            credentials: 'omit',
+            cache: 'no-store',
+            signal,
+        });
+    });
+
+    it.each([
+        [
+            'an error result',
+            respond({
+                isError: true,
+                content: [{ type: 'text', text: 'nope' }],
+                structuredContent: { indexUrl, contentSecurityPolicy },
+            }),
+        ],
+        [
+            'a failed call',
+            vi.fn().mockRejectedValue(new Error('Tool call failed')),
+        ],
+        [
+            'a malformed result',
+            respond({
+                structuredContent: { indexUrl, contentSecurityPolicy: 1 },
+            }),
+        ],
+        ['no tool call support', null],
+    ])(
+        'reports %s as unavailable without fetching',
+        async (_case, callTool) => {
+            const fetchFn = html();
+
+            await expect(
+                loadMcpCustomChartFrameHtml(request, {
+                    callTool,
+                    fetchFn,
+                    signal,
+                }),
+            ).resolves.toEqual({ kind: 'unavailable' });
+            expect(fetchFn).not.toHaveBeenCalled();
+        },
+    );
 });

@@ -289,6 +289,7 @@ export enum McpToolName {
     GET_CURRENT_AGENT = 'get_current_agent',
     RUN_METRIC_QUERY = 'run_metric_query',
     RENDER_CHART = 'render_chart',
+    GET_CUSTOM_CHART_TYPE_FRAME = 'get_custom_chart_type_frame',
     RUN_SQL = 'run_sql',
     GET_QUERY_RESULT = 'get_query_result',
     SEARCH_FIELD_VALUES = 'search_field_values',
@@ -488,6 +489,36 @@ const mcpRunMetricQueryFilterExpressionTool = withProjectScopeInput(
 const mcpRenderChartTool = withProjectScopeInput(
     renderChartToolDefinition.for('mcp'),
 );
+// App-only: the chart view loads a custom chart type with it at display time.
+const mcpGetCustomChartTypeFrameTool = {
+    name: McpToolName.GET_CUSTOM_CHART_TYPE_FRAME,
+    title: 'Get custom chart type frame',
+    description:
+        'Used by the chart view to display a custom chart type returned by render_chart. Do not call it directly.',
+    inputSchema: z.object({
+        projectUuid: projectUuidInput,
+        agentUuid: agentUuidInput,
+        dataAppVizUuid: z
+            .string()
+            .uuid()
+            .describe('Chart type UUID from the render_chart result.'),
+        version: z
+            .number()
+            .int()
+            .positive()
+            .describe('Chart type version from the render_chart result.'),
+    }),
+    outputSchema: z.object({
+        indexUrl: z.string(),
+        contentSecurityPolicy: z.string(),
+    }),
+    annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+    },
+};
 type McpChartPivot = {
     rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
@@ -1747,19 +1778,6 @@ export class McpService extends BaseService {
             customChart,
         });
         const previewOrigin = getMcpPreviewOrigin(this.lightdashConfig);
-        const token =
-            await this.aiAgentToolsService.getMcpCustomChartTypePreviewToken({
-                user,
-                projectUuid,
-                dataAppVizUuid: resolved.dataAppVizUuid,
-                version: resolved.dataAppVizVersion,
-            });
-        const contentSecurityPolicy =
-            this.getCustomChartTypeContentSecurityPolicy({
-                dataAppVizUuid: resolved.dataAppVizUuid,
-                version: resolved.dataAppVizVersion,
-                token,
-            });
 
         const content = [
             {
@@ -1767,10 +1785,6 @@ export class McpService extends BaseService {
                 text: `Custom chart type "${resolved.name}" (${slug}, version ${resolved.dataAppVizVersion}) sent to the chart app for queryUuid: ${renderTool.queryUuid}. Only MCP App-capable clients display it; echartsOption in structuredContent is a placeholder, not a failed render. If your client cannot display MCP Apps, the user has not seen it: build the visual from the query rows.${
                     results.rows.length === 0
                         ? ' The query returned 0 rows.'
-                        : ''
-                }${
-                    contentSecurityPolicy === null
-                        ? ' The chart type could not be loaded, so the chart view shows the query rows instead.'
                         : ''
                 }${exploreUrl ? ` Explore from here: ${exploreUrl}` : ''}`,
             },
@@ -1800,13 +1814,7 @@ export class McpService extends BaseService {
                     echartsOption: null,
                     exploreUrl,
                     customChartType: {
-                        indexUrl: buildMcpCustomChartTypeIndexUrl({
-                            previewOrigin,
-                            dataAppVizUuid: resolved.dataAppVizUuid,
-                            version: resolved.dataAppVizVersion,
-                            token,
-                        }),
-                        contentSecurityPolicy,
+                        dataAppVizUuid: resolved.dataAppVizUuid,
                         previewOrigin,
                         vizContext: buildMcpCustomChartTypeVizContext({
                             chartConfig,
@@ -1827,6 +1835,76 @@ export class McpService extends BaseService {
                     },
                 },
             },
+        };
+    }
+
+    private registerGetCustomChartTypeFrameTool(): void {
+        registerAppTool(
+            this.mcpServer,
+            mcpGetCustomChartTypeFrameTool.name,
+            {
+                title: mcpGetCustomChartTypeFrameTool.title,
+                description: mcpGetCustomChartTypeFrameTool.description,
+                inputSchema: mcpGetCustomChartTypeFrameTool.inputSchema.shape,
+                outputSchema: mcpGetCustomChartTypeFrameTool.outputSchema.shape,
+                annotations: mcpGetCustomChartTypeFrameTool.annotations,
+                _meta: { ui: { visibility: ['app'] } },
+            },
+            this.wrapToolCallback(
+                mcpGetCustomChartTypeFrameTool.name,
+                async (
+                    args: z.infer<
+                        typeof mcpGetCustomChartTypeFrameTool.inputSchema
+                    >,
+                    extra,
+                ) => this.getCustomChartTypeFrame(getMcpContext(extra), args),
+            ),
+        );
+    }
+
+    private async getCustomChartTypeFrame(
+        ctx: McpProtocolContext,
+        args: z.infer<typeof mcpGetCustomChartTypeFrameTool.inputSchema>,
+    ) {
+        const projectUuid = await this.resolveToolProjectUuid(
+            ctx,
+            args.projectUuid,
+        );
+        const { user } = McpService.getAccount(ctx);
+        // Applies the same project and agent scope checks as render_chart.
+        await this.getToolsRuntime(ctx, projectUuid, args.agentUuid);
+        const token =
+            await this.aiAgentToolsService.getMcpCustomChartTypePreviewToken({
+                user,
+                projectUuid,
+                dataAppVizUuid: args.dataAppVizUuid,
+                version: args.version,
+            });
+        const contentSecurityPolicy =
+            this.getCustomChartTypeContentSecurityPolicy({
+                dataAppVizUuid: args.dataAppVizUuid,
+                version: args.version,
+                token,
+            });
+        if (contentSecurityPolicy === null) {
+            throw new UnexpectedServerError(
+                'Cannot build the chart type policy',
+            );
+        }
+        const structuredContent = {
+            indexUrl: buildMcpCustomChartTypeIndexUrl({
+                previewOrigin: getMcpPreviewOrigin(this.lightdashConfig),
+                dataAppVizUuid: args.dataAppVizUuid,
+                version: args.version,
+                token,
+            }),
+            contentSecurityPolicy,
+        };
+        return {
+            content: [
+                { type: 'text' as const, text: 'Chart type frame ready.' },
+            ],
+            structuredContent,
         };
     }
 
@@ -4544,6 +4622,7 @@ export class McpService extends BaseService {
 
         // render_chart only renders metric queries, so it follows the same gate.
         if (options.runMetricQueryEnabled) {
+            this.registerGetCustomChartTypeFrameTool();
             registerAppTool(
                 this.mcpServer,
                 mcpRenderChartTool.name,

@@ -14,6 +14,7 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuidance';
 import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import { MCP_CUSTOM_CHART_FRAME_TOOL_NAME } from './mcpCustomChartFrameHtml';
 import {
     isProjectScopedMcpTool,
     McpService,
@@ -912,6 +913,21 @@ describe('MCP tool contracts', () => {
         expect(registeredNames).not.toContain(McpToolName.GET_QUERY_RESULT);
         expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
         expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
+    });
+
+    it('registers the chart type frame tool for the chart view only', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+        );
+        const tool = mockRegisteredMcpTools.find(
+            ({ name }) => name === MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+        );
+        expect(McpToolName.GET_CUSTOM_CHART_TYPE_FRAME).toBe(
+            MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+        );
+        expect(tool?.config._meta).toEqual({ ui: { visibility: ['app'] } });
     });
 
     it('registers only SQL execution tools when metric queries are disabled', async () => {

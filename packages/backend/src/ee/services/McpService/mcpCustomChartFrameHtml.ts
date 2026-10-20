@@ -86,3 +86,72 @@ export const fetchMcpCustomChartFrameHtml = async (
         return { kind: 'unavailable' };
     }
 };
+
+export const MCP_CUSTOM_CHART_FRAME_TOOL_NAME = 'get_custom_chart_type_frame';
+
+export type McpCustomChartFrameRequest = {
+    projectUuid: string;
+    agentUuid: string | null;
+    dataAppVizUuid: string;
+    version: number;
+};
+
+export type McpCustomChartFrameToolCall = (
+    params: { name: string; arguments: Record<string, unknown> },
+    options: { signal: AbortSignal },
+) => Promise<unknown>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+/** Asks the frame tool for a bundle url, then fetches the bundle from it. */
+export const loadMcpCustomChartFrameHtml = async (
+    request: McpCustomChartFrameRequest,
+    {
+        callTool,
+        fetchFn,
+        signal,
+    }: {
+        // Null when the host cannot proxy tool calls to the server.
+        callTool: McpCustomChartFrameToolCall | null;
+        fetchFn: (url: string, init: RequestInit) => Promise<Response>;
+        signal: AbortSignal;
+    },
+): Promise<McpCustomChartFrameHtmlResult> => {
+    if (callTool === null) return { kind: 'unavailable' };
+    try {
+        const result = await callTool(
+            {
+                name: MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+                arguments: {
+                    projectUuid: request.projectUuid,
+                    ...(request.agentUuid
+                        ? { agentUuid: request.agentUuid }
+                        : {}),
+                    dataAppVizUuid: request.dataAppVizUuid,
+                    version: request.version,
+                },
+            },
+            { signal },
+        );
+        const frame = isRecord(result) ? result.structuredContent : null;
+        if (
+            !isRecord(result) ||
+            result.isError === true ||
+            !isRecord(frame) ||
+            typeof frame.indexUrl !== 'string' ||
+            typeof frame.contentSecurityPolicy !== 'string'
+        ) {
+            return { kind: 'unavailable' };
+        }
+        return await fetchMcpCustomChartFrameHtml(
+            {
+                indexUrl: frame.indexUrl,
+                contentSecurityPolicy: frame.contentSecurityPolicy,
+            },
+            { fetchFn, signal },
+        );
+    } catch {
+        return { kind: 'unavailable' };
+    }
+};
