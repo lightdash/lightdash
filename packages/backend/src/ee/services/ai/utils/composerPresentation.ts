@@ -126,8 +126,10 @@ export const buildComposerPresentations = async ({
                 previousVizConfig: previous,
             });
         } catch (error) {
-            Logger.warn(
-                `Composer presentation could not plan a viz: ${String(error)}`,
+            // The version is still saved; it opens as a table.
+            Logger.error(
+                `Composer presentation could not plan a viz for node ${metadata.terminalNodeId} (query ${metadata.queryUuid}): ${String(error)}`,
+                error,
             );
             return null;
         }
