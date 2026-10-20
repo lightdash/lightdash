@@ -1410,7 +1410,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** MCP render_chart: a preview token for a resolved chart type version. */
+    /** MCP chart view: a preview token for a chart type version, minted at display time. */
     async getMcpCustomChartTypePreviewToken(context: {
         user: SessionUser;
         projectUuid: string;

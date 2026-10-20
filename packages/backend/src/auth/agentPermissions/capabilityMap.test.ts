@@ -388,6 +388,12 @@ it('requires external_tools for connected MCP tools regardless of their names', 
     ]);
 });
 
+it('requires discovery for the chart type frame, as render_chart does to resolve the chart type', () => {
+    expect(
+        getRequiredAgentCapabilities('mcp', 'get_custom_chart_type_frame'),
+    ).toEqual([AgentCapability.ReadDiscover, AgentCapability.Export]);
+});
+
 it('keeps the defaults explicit', () => {
     expect(Object.values(AgentCapability)).toHaveLength(11);
     expect(AGENT_CAPABILITY_DEFAULTS).toEqual([

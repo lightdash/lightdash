@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common/src/visualizations/helpers/styles/tooltipStyles';
 import { App } from '@modelcontextprotocol/ext-apps';
 import * as echarts from 'echarts';
-import { fetchMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
+import { loadMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
 import {
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
@@ -227,10 +227,10 @@ const app = new App({ name: 'Lightdash Chart', version: '1.0.0' });
 type ChartToolStatus = 'done' | 'running' | 'error' | 'cancelled' | 'expired';
 
 type CustomChartTypeResult = {
-    indexUrl: string;
-    contentSecurityPolicy: string | null;
+    dataAppVizUuid: string;
+    version: number;
     vizContext: DataAppVizContext;
-    renderArgs: { projectUuid: string };
+    renderArgs: { projectUuid: string; agentUuid?: string };
 };
 
 type ChartToolResult = {
@@ -394,10 +394,24 @@ function loadCustomChart(
         clearTimeout(fetchTimeout);
         controller.abort();
     };
-    void fetchMcpCustomChartFrameHtml(customChartType, {
-        fetchFn: (url, init) => fetch(url, init),
-        signal: controller.signal,
-    }).then((result) => {
+    const hostCallsServerTools = Boolean(
+        app.getHostCapabilities()?.serverTools,
+    );
+    void loadMcpCustomChartFrameHtml(
+        {
+            projectUuid: customChartType.renderArgs.projectUuid,
+            agentUuid: customChartType.renderArgs.agentUuid ?? null,
+            dataAppVizUuid: customChartType.dataAppVizUuid,
+            version: customChartType.version,
+        },
+        {
+            callTool: hostCallsServerTools
+                ? (params, options) => app.callServerTool(params, options)
+                : null,
+            fetchFn: (url, init) => fetch(url, init),
+            signal: controller.signal,
+        },
+    ).then((result) => {
         clearTimeout(fetchTimeout);
         if (superseded) return;
         switch (result.kind) {
@@ -511,7 +525,7 @@ app.ontoolresult = (result) => {
     clearCustomChart();
     const customChartType = structured?.customChartType;
 
-    if (customChartType?.indexUrl) {
+    if (customChartType?.dataAppVizUuid) {
         loadCustomChart(customChartType, () =>
             renderTable(structured.rows ?? [], structured.fields ?? {}),
         );
