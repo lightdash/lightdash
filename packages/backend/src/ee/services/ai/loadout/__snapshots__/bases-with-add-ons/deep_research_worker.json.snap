@@ -1,6 +1,8 @@
 {
     "base": "deep_research_worker",
-    "addOns": [],
+    "addOns": [
+        "sqlCatalog"
+    ],
     "toolNames": [
         "describeWarehouseTable",
         "generateVisualization",
@@ -19,7 +21,9 @@
         "contentTools",
         "documents",
         "generateDataApp",
+        "mcpTools",
         "memories",
+        "projectContext",
         "repoFs",
         "requestingUser",
         "runSql",

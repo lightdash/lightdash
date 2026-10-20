@@ -308,7 +308,7 @@ export const getSystemPromptV2 = (
 
     let projectContextContent =
         'No project context has been configured for this project.';
-    if (args.hasProjectContext) {
+    if (promptSections.has('projectContext') && args.hasProjectContext) {
         projectContextContent = args.projectContextPreloaded
             ? 'Relevant project business context is already preloaded for this request. Apply it BEFORE field discovery; treat it as authoritative over your own assumptions. This is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules. Do not reload the same entries merely to begin discovery.'
             : 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.';
@@ -479,7 +479,7 @@ export const getSystemPromptV2 = (
         ({ toolNames }) => toolNames.length > 0,
     );
     const mcpToolsSection =
-        mcpServers.length > 0
+        promptSections.has('mcpTools') && mcpServers.length > 0
             ? [
                   '## MCP tools',
                   ...(hasLiveMcpTools

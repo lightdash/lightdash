@@ -1,12 +1,18 @@
 {
-    "contentTools": {
-        "description": "Read, edit, create and query saved charts and dashboards",
+    "contentReads": {
+        "description": "Read and query saved charts and dashboards",
         "addsTools": [
-            "createContent",
-            "editContent",
             "listContent",
             "readContent",
             "runContentQuery"
+        ],
+        "addsSections": []
+    },
+    "contentTools": {
+        "description": "Edit and create saved charts and dashboards",
+        "addsTools": [
+            "createContent",
+            "editContent"
         ],
         "addsSections": [
             "contentTools"
@@ -148,12 +154,21 @@
         ],
         "addsSections": []
     },
+    "mcpInventory": {
+        "description": "List attached MCP servers and their tools, even when none can run",
+        "addsTools": [],
+        "addsSections": [
+            "mcpTools"
+        ]
+    },
     "projectContext": {
         "description": "Load curated project context and memories",
         "addsTools": [
             "loadProjectContext"
         ],
-        "addsSections": []
+        "addsSections": [
+            "projectContext"
+        ]
     },
     "memories": {
         "description": "Guidance for saving and using agent memories",

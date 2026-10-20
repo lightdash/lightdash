@@ -52,7 +52,34 @@ const fullInput: LoadoutInput = {
     aiAgentMemoryEnabled: true,
     requestingUser: { name: 'Ada', role: null, groups: [] },
     mcpToolNames: ['mcp_linear__search_issues'],
+    attachedMcpServerCount: 1,
     customChartTypeCount: 2,
+};
+
+// Every condition off.
+const minimalInput: LoadoutInput = {
+    execution: { mode: 'standard', maxSteps: 10 },
+    decisions: undefined,
+    enableDataAccess: false,
+    enableComposerQueries: false,
+    canRunSql: false,
+    canCreateDashboards: false,
+    enableContentTools: false,
+    enableDocuments: false,
+    enableGenerateDataApp: false,
+    enableAiWriteback: false,
+    enableCodingAgent: false,
+    enableRepoDiscovery: false,
+    enablePreviewDeploySetup: false,
+    enableEditProjectContext: false,
+    enableReadAttachments: false,
+    availableSkills: [],
+    projectContextEnabled: false,
+    aiAgentMemoryEnabled: false,
+    requestingUser: null,
+    mcpToolNames: [],
+    attachedMcpServerCount: 0,
+    customChartTypeCount: 0,
 };
 
 const deepResearch = (
@@ -149,15 +176,17 @@ describe('loadout contracts', () => {
         );
     });
 
-    test('classic with capability add-ons renders the flag-off capabilities prompt', () => {
-        const loadout = buildLoadout('classic', fullInput, [
-            'contentTools',
-            'scheduling',
-            'documents',
-            'generateDataApp',
-            'sqlCatalog',
-            'skills',
-        ]);
+    test('classic resolved from the capability flags renders the flag-off capabilities prompt', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+            canRunSql: true,
+            enableContentTools: true,
+            enableDocuments: true,
+            enableGenerateDataApp: true,
+            availableSkills: [SKILL],
+        });
+        expect(loadout.base).toBe('classic');
         expect(
             getSystemPromptV2({
                 availableExplores: [],
@@ -265,11 +294,11 @@ describe('resolveLoadout', () => {
         expect(toolNames.has('generateVisualization')).toBe(true);
     });
 
-    test('deep research bases accept no add-ons', () => {
-        expect(
-            resolveLoadout(inputs.deep_research_coordinator).addOns.size,
-        ).toBe(0);
-        expect(resolveLoadout(inputs.deep_research_worker).addOns.size).toBe(0);
+    test('deep research coordinator reads saved content but cannot change it', () => {
+        const { toolNames } = resolveLoadout(inputs.deep_research_coordinator);
+        expect(toolNames.has('readContent')).toBe(true);
+        expect(toolNames.has('editContent')).toBe(false);
+        expect(toolNames.has('createContent')).toBe(false);
     });
 });
 
@@ -281,15 +310,10 @@ describe('loadout structure', () => {
         expect(addOnTools.length).toBe(new Set(addOnTools).size);
     });
 
-    test('add-ons own their tools exclusively from the bases that accept them', () => {
-        const acceptingBases = BASE_NAMES.filter(
-            (base) => BASES[base](inputs[base]).accepts.length > 0,
-        );
-        for (const base of acceptingBases) {
-            expect(
-                baseTools(base).filter((tool) => addOnTools.includes(tool)),
-            ).toEqual([]);
-        }
+    test.each(BASE_NAMES)('%s base lists no add-on tool', (base) => {
+        expect(
+            baseTools(base).filter((tool) => addOnTools.includes(tool)),
+        ).toEqual([]);
     });
 
     test('every agent tool belongs to a base or an add-on', () => {
@@ -310,30 +334,42 @@ describe('loadout structure', () => {
         expect(sections.length).toBe(new Set(sections).size);
     });
 
-    test('deferred sections derive their tools from add-on declarations', () => {
-        expect(Object.fromEntries(DEFERRED_SECTION_TOOLS)).toEqual({
-            runSql: [
-                'runSql',
-                'runComposerQueries',
-                'listWarehouseTables',
-                'describeWarehouseTable',
-            ],
-            contentTools: ['createContent', 'editContent'],
-            schedulingTools: ['createScheduledDelivery'],
-            generateDataApp: ['generateDataApp', 'iterateDataApp'],
-            skills: ['loadSkill'],
-        });
-    });
+    test.each([...DEFERRED_SECTION_TOOLS])(
+        '%s section documents only its owner add-on and base tools',
+        (section, tools) => {
+            const owner = ADD_ON_NAMES.find(
+                (name) => ADD_ONS[name].section?.id === section,
+            );
+            expect(owner).toBeDefined();
+            const ownTools: readonly string[] = owner
+                ? ADD_ONS[owner].tools
+                : [];
+            expect(
+                tools.filter(
+                    (tool) =>
+                        !ownTools.includes(tool) && addOnTools.includes(tool),
+                ),
+            ).toEqual([]);
+        },
+    );
 
-    test('overlays only name declared tools', () => {
-        const declared = new Set<string>(AGENT_TOOL_NAMES);
+    // An overlay may span exclusive add-ons (readContent and getDashboardCharts) since it only intersects.
+    test('every overlay names only tools a resolved loadout contains', () => {
+        const resolved = new Set<string>(
+            [
+                inputs.classic,
+                { ...inputs.classic, enableContentTools: false },
+                inputs.composer,
+                inputs.deep_research_coordinator,
+            ].flatMap((input) => [...resolveLoadout(input).toolNames]),
+        );
         const overlays = [
             DATA_APP_INVESTIGATE_TOOL_NAMES,
             ...TURN_INTENTS.map(toolsForIntent),
         ];
         for (const overlay of overlays) {
             expect(
-                [...(overlay ?? [])].filter((tool) => !declared.has(tool)),
+                [...(overlay ?? [])].filter((tool) => !resolved.has(tool)),
             ).toEqual([]);
         }
     });

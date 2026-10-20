@@ -1,9 +1,4 @@
-import {
-    ADD_ON_NAMES,
-    ADD_ONS,
-    hasContentTools,
-    hasProjectContextTool,
-} from './addOns';
+import { ADD_ON_NAMES, ADD_ONS, hasDecisionsInStandardMode } from './addOns';
 import type {
     AgentToolName,
     BaseDefinition,
@@ -30,22 +25,13 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'generateUuids',
 ];
 
-const when = <T>(condition: boolean, items: readonly T[]): readonly T[] =>
-    condition ? items : [];
-
-const hasClassicQueryTools = (input: LoadoutInput): boolean =>
-    !!input.decisions && input.execution.mode === 'standard';
+const onlyIf = (
+    condition: boolean,
+    tools: readonly AgentToolName[],
+): readonly AgentToolName[] => (condition ? tools : []);
 
 const canRunRawSql = (input: LoadoutInput): boolean =>
     input.canRunSql && !input.enableComposerQueries;
-
-const sqlTools = (input: LoadoutInput): readonly AgentToolName[] => [
-    ...when<AgentToolName>(input.canRunSql, [
-        'listWarehouseTables',
-        'describeWarehouseTable',
-    ]),
-    ...when<AgentToolName>(canRunRawSql(input), ['runSql']),
-];
 
 // Deep research narrows tools only; its prompt still renders every applicable add-on section.
 const applicableAddOnSections = (
@@ -60,26 +46,24 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         tools: [
             ...CORE_TOOLS,
             'searchFieldValues',
-            ...when<AgentToolName>(hasClassicQueryTools(input), [
+            ...onlyIf(hasDecisionsInStandardMode(input), [
                 'runQuery',
                 'exportChartAsCode',
             ]),
-            ...when<AgentToolName>(input.canRunSql, ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql']),
         ],
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
-    // runQuery and generateVisualization stay until the composer-only agent (ZAP-1274).
+    // runQuery and generateVisualization stay until the composer-only agent lands.
     composer: (input) => ({
         tools: [
             ...CORE_TOOLS,
             'runComposerQueries',
             // The service enables composer only with data access; kept for exact parity.
-            ...when<AgentToolName>(input.enableDataAccess, [
-                'searchFieldValues',
-            ]),
-            ...when<AgentToolName>(
-                input.enableDataAccess && hasClassicQueryTools(input),
+            ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+            ...onlyIf(
+                input.enableDataAccess && hasDecisionsInStandardMode(input),
                 ['runQuery', 'exportChartAsCode'],
             ),
         ],
@@ -88,10 +72,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     }),
     // Today every add-on can apply without data access; narrowing it is a behaviour change.
     no_data_access: (input) => ({
-        tools: [
-            ...CORE_TOOLS,
-            ...when<AgentToolName>(input.canRunSql, ['runSql']),
-        ],
+        tools: [...CORE_TOOLS, ...onlyIf(input.canRunSql, ['runSql'])],
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
@@ -101,43 +82,28 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'getMetadata',
             'grepFields',
             'searchSemanticLayer',
-            ...when<AgentToolName>(input.enableDataAccess, [
-                'searchFieldValues',
-            ]),
-            ...sqlTools(input),
+            ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+            ...onlyIf(canRunRawSql(input), ['runSql']),
             'submitWorkerFindings',
         ],
         sections: applicableAddOnSections(input),
-        accepts: [],
+        accepts: ['sqlCatalog'],
     }),
     deep_research_coordinator: (input) => ({
         tools: [
-            'findContent',
-            'grepFields',
-            'getMetadata',
-            'analyzeFieldImpact',
-            'searchSemanticLayer',
-            'listProjects',
-            'getProjectInfo',
-            'listKnowledgeDocuments',
-            'getKnowledgeDocumentContent',
-            'readPinnedThread',
-            'resolveUrl',
-            'generateVisualization',
-            'runSavedChart',
-            ...(hasContentTools(input)
-                ? (['readContent', 'listContent', 'runContentQuery'] as const)
-                : (['getDashboardCharts'] as const)),
-            ...when<AgentToolName>(input.enableDataAccess, [
-                'searchFieldValues',
-            ]),
-            ...sqlTools(input),
-            ...when<AgentToolName>(hasProjectContextTool(input), [
-                'loadProjectContext',
-            ]),
+            ...CORE_TOOLS.filter(
+                (tool) => tool !== 'generateHashes' && tool !== 'generateUuids',
+            ),
+            ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+            ...onlyIf(canRunRawSql(input), ['runSql']),
             'delegateResearchTask',
         ],
         sections: applicableAddOnSections(input),
-        accepts: [],
+        accepts: [
+            'contentReads',
+            'legacyDashboards',
+            'sqlCatalog',
+            'projectContext',
+        ],
     }),
 };

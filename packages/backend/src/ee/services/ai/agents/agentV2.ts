@@ -65,6 +65,7 @@ import {
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import {
+    hasDecisionsInStandardMode,
     resolveLoadout,
     type AgentToolName,
     type DeferredPromptSection,
@@ -1676,9 +1677,7 @@ export const buildPrepareStep = ({
 };
 
 const isChartExportEnabled = (args: AiAgentArgs) =>
-    !!args.decisions &&
-    args.enableDataAccess &&
-    args.execution.mode === 'standard';
+    hasDecisionsInStandardMode(args) && args.enableDataAccess;
 
 export const withAgentToolPermissions = (
     tools: ToolSet,
@@ -1755,6 +1754,7 @@ export const resolveAgentLoadout = (
     resolveLoadout({
         ...args,
         mcpToolNames: Object.keys(getRunnableMcpTools(args, mcpToolSetup)),
+        attachedMcpServerCount: args.mcpServers.length,
         customChartTypeCount: customChartTypeLibrary.totalCount,
     });
 
@@ -1784,14 +1784,10 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const documentsEnabled =
-        args.enableDataAccess &&
-        args.enableContentTools &&
-        args.enableDocuments;
-    const decisionContext =
-        args.decisions && args.execution.mode === 'standard'
-            ? getAgentDecisionContext(args)
-            : undefined;
+    const documentsEnabled = loadout.promptSections.has('documents');
+    const decisionContext = hasDecisionsInStandardMode(args)
+        ? getAgentDecisionContext(args)
+        : undefined;
     const reviewQuery =
         args.decisions &&
         args.enableDataAccess &&
@@ -1852,7 +1848,7 @@ export const getAgentTools = (
 
     const runnableMcpTools = getRunnableMcpTools(args, mcpToolSetup);
     const mcpToolNames = Object.keys(runnableMcpTools);
-    // Ordered as tools are offered to the model; only loadout members are built.
+    // Ordered as tools are offered to the model.
     const toolBuilders: Record<NativeAgentToolName, () => Tool> = {
         findContent: () =>
             getFindContent({
@@ -2027,8 +2023,7 @@ export const getAgentTools = (
                 maxLimit: args.maxQueryLimit,
                 maxContextRows: args.maxContextRows,
                 exposeQueryUuid: args.execution.mode === 'deep_research',
-                enableChartExport:
-                    !!args.decisions && args.execution.mode === 'standard',
+                enableChartExport: hasDecisionsInStandardMode(args),
                 enableDataAccess: args.enableDataAccess,
                 projectParameterDefinitions,
                 slackLinksOnly: args.slackLinksOnly,
@@ -2701,9 +2696,8 @@ const prepareAgentTurn = async ({
     const agentContext = new AgentContext(
         availableExplores,
         verifyAnswers &&
-            !!args.decisions &&
-            args.enableDataAccess &&
-            args.execution.mode === 'standard',
+            hasDecisionsInStandardMode(args) &&
+            args.enableDataAccess,
         (stage, startedAt, durationMs) =>
             timing.recordStageSpan(stage, startedAt, durationMs),
     );
@@ -2773,8 +2767,7 @@ const prepareAgentTurn = async ({
         preparedContext.turnIntent = 'chart';
     }
     if (
-        args.decisions &&
-        args.execution.mode === 'standard' &&
+        hasDecisionsInStandardMode(args) &&
         preparedContext?.turnIntent === 'chart_from_previous'
     ) {
         agentContext.previousQueryUuid = getPreviousQueryUuid(

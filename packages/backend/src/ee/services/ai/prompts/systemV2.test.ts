@@ -244,6 +244,7 @@ describe('getSystemPromptV2 project context', () => {
     test('advertises the loadProjectContext tool when context exists', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['projectContext']),
             hasProjectContext: true,
         });
         expect(content).toContain('## Project context');
@@ -254,6 +255,7 @@ describe('getSystemPromptV2 project context', () => {
     test('uses preloaded rules without requiring a redundant context tool turn', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['projectContext']),
             hasProjectContext: true,
             projectContextPreloaded: true,
         });
@@ -946,6 +948,7 @@ describe('getSystemPromptV2 MCP connections', () => {
     test('lists attached servers and live tool names without definitions', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['mcpTools']),
             mcpServers: [
                 {
                     name: 'Linear',
@@ -977,6 +980,7 @@ describe('getSystemPromptV2 MCP connections', () => {
     test('lists attached servers without loader guidance when no tools are live', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['mcpTools']),
             mcpServers: [{ name: 'Linear', toolNames: [] }],
         });
 

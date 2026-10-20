@@ -1,30 +1,33 @@
-import type {
-    AddOnDefinition,
-    AddOnName,
-    DeferredPromptSection,
-    LoadoutInput,
+import {
+    DEFERRED_PROMPT_SECTIONS,
+    type AddOnDefinition,
+    type AddOnName,
+    type AgentToolName,
+    type DeferredPromptSection,
+    type LoadoutInput,
 } from './types';
 
-export const hasContentTools = (input: LoadoutInput): boolean =>
+const hasContentTools = (input: LoadoutInput): boolean =>
     input.enableDataAccess && input.enableContentTools;
 
-export const hasProjectContextTool = (input: LoadoutInput): boolean =>
+const hasProjectContextTool = (input: LoadoutInput): boolean =>
     input.projectContextEnabled || input.aiAgentMemoryEnabled;
 
-const hasDecisionsInStandardMode = (input: LoadoutInput): boolean =>
-    !!input.decisions && input.execution.mode === 'standard';
+export const hasDecisionsInStandardMode = (
+    input: Pick<LoadoutInput, 'decisions' | 'execution'>,
+): boolean => !!input.decisions && input.execution.mode === 'standard';
 
 export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
-    contentTools: {
-        description: 'Read, edit, create and query saved charts and dashboards',
+    contentReads: {
+        description: 'Read and query saved charts and dashboards',
         when: hasContentTools,
-        tools: [
-            'readContent',
-            'editContent',
-            'listContent',
-            'createContent',
-            'runContentQuery',
-        ],
+        tools: ['readContent', 'listContent', 'runContentQuery'],
+        section: null,
+    },
+    contentTools: {
+        description: 'Edit and create saved charts and dashboards',
+        when: hasContentTools,
+        tools: ['editContent', 'createContent'],
         section: {
             id: 'contentTools',
             documents: ['createContent', 'editContent'],
@@ -150,14 +153,20 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         description: 'Load tools from attached MCP servers on demand',
         when: (input) => input.mcpToolNames.length > 0,
         tools: ['loadMcpTools'],
-        // The MCP inventory block renders from attached servers, even ones without tools.
         section: null,
+    },
+    mcpInventory: {
+        description:
+            'List attached MCP servers and their tools, even when none can run',
+        when: (input) => input.attachedMcpServerCount > 0,
+        tools: [],
+        section: { id: 'mcpTools', documents: [] },
     },
     projectContext: {
         description: 'Load curated project context and memories',
         when: hasProjectContextTool,
         tools: ['loadProjectContext'],
-        section: null,
+        section: { id: 'projectContext', documents: ['loadProjectContext'] },
     },
     memories: {
         description: 'Guidance for saving and using agent memories',
@@ -185,18 +194,10 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
 
 export const ADD_ON_NAMES = Object.keys(ADD_ONS) as AddOnName[];
 
-const DEFERRED_PROMPT_SECTIONS: readonly DeferredPromptSection[] = [
-    'runSql',
-    'contentTools',
-    'schedulingTools',
-    'generateDataApp',
-    'skills',
-];
-
 /** Tools each deferrable section explains, derived from the add-on that owns it. */
 export const DEFERRED_SECTION_TOOLS: ReadonlyMap<
     DeferredPromptSection,
-    readonly string[]
+    readonly AgentToolName[]
 > = new Map(
     DEFERRED_PROMPT_SECTIONS.map((id) => [
         id,

@@ -1,12 +1,18 @@
 {
     "base": "deep_research_coordinator",
-    "addOns": [],
+    "addOns": [
+        "contentReads",
+        "legacyDashboards",
+        "projectContext",
+        "sqlCatalog"
+    ],
     "toolNames": [
         "analyzeFieldImpact",
         "delegateResearchTask",
         "describeWarehouseTable",
         "findContent",
         "generateVisualization",
+        "getDashboardCharts",
         "getKnowledgeDocumentContent",
         "getMetadata",
         "getProjectInfo",
@@ -32,7 +38,9 @@
         "contentTools",
         "documents",
         "generateDataApp",
+        "mcpTools",
         "memories",
+        "projectContext",
         "repoFs",
         "requestingUser",
         "runSql",

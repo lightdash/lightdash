@@ -8,6 +8,7 @@ export type LoadoutBase =
     | 'deep_research_coordinator';
 
 export type AddOnName =
+    | 'contentReads'
     | 'contentTools'
     | 'scheduling'
     | 'legacyDashboards'
@@ -25,6 +26,7 @@ export type AddOnName =
     | 'intentRouting'
     | 'skills'
     | 'mcp'
+    | 'mcpInventory'
     | 'projectContext'
     | 'memories'
     | 'customChartTypes'
@@ -100,15 +102,22 @@ export type PromptSection =
     | 'repoFs'
     | 'fastMetadata'
     | 'skills'
+    | 'mcpTools'
+    | 'projectContext'
     | 'memories'
     | 'availableCustomChartTypes'
     | 'requestingUser';
 
 /** Sections the intent gate may withhold until the agent loads their tools. */
-export type DeferredPromptSection = Extract<
-    PromptSection,
-    'runSql' | 'contentTools' | 'schedulingTools' | 'generateDataApp' | 'skills'
->;
+export const DEFERRED_PROMPT_SECTIONS = [
+    'runSql',
+    'contentTools',
+    'schedulingTools',
+    'generateDataApp',
+    'skills',
+] as const satisfies readonly PromptSection[];
+
+export type DeferredPromptSection = (typeof DEFERRED_PROMPT_SECTIONS)[number];
 
 export type LoadoutInput = Pick<
     AiAgentArgs,
@@ -134,6 +143,7 @@ export type LoadoutInput = Pick<
 > & {
     /** MCP server tools this run may call, after deep research's raw SQL rule. */
     mcpToolNames: readonly string[];
+    attachedMcpServerCount: number;
     customChartTypeCount: number;
 };
 
