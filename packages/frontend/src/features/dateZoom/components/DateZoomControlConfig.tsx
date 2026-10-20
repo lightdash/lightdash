@@ -33,8 +33,8 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
+    selectAvailableCustomGranularities,
     selectChartZoomableFieldsByTileUuid,
     selectTileParameterReferences,
     useDashboardSelector,
@@ -83,8 +83,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     );
     // Custom granularities discovered across the dashboard's tiles (same source
     // as the global picker). A control can zoom to these when available.
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
     // The dashboard's enabled granularities (set in the default picker); every
     // control offers only these.

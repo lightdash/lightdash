@@ -10,7 +10,18 @@ import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
-import { dashboardFiltersActions } from '../../features/dashboard/store';
+import {
+    dashboardFiltersActions,
+    selectAvailableCustomGranularities,
+    selectInvalidateCache,
+    selectIsAutoRefresh,
+    selectOldestCacheTime,
+    selectRefreshCounter,
+    selectSqlChartTilesMetadata,
+    useAreAllChartsLoaded,
+    useDashboardSelector,
+    useScreenshotReadiness,
+} from '../../features/dashboard/store';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import DashboardTileStatusProvider, {
@@ -59,20 +70,41 @@ vi.mock('../../hooks/dashboard/useDashboardPreAggregateAudit', () => ({
 // ADAPTER: the only section that should change when the state source moves.
 // ---------------------------------------------------------------------------
 
-const useHarness = () => useDashboardTileStatusContext((context) => context);
+const useHarness = () => ({
+    ...useDashboardTileStatusContext((context) => context),
+    areAllChartsLoaded: useAreAllChartsLoaded(),
+    oldestCacheTime: useDashboardSelector(selectOldestCacheTime),
+    invalidateCache: useDashboardSelector(selectInvalidateCache),
+    refreshCounter: useDashboardSelector(selectRefreshCounter),
+    isAutoRefresh: useDashboardSelector(selectIsAutoRefresh),
+    sqlChartTilesMetadata: useDashboardSelector(selectSqlChartTilesMetadata),
+    availableCustomGranularities: useDashboardSelector(
+        selectAvailableCustomGranularities,
+    ),
+    ...useScreenshotReadiness(),
+});
 
-type Props = Omit<DashboardTileStatusProviderProps, 'children'>;
+type Props = Omit<DashboardTileStatusProviderProps, 'children'> & {
+    defaultInvalidateCache?: boolean;
+};
 
 const renderStatus = (
     initialProps: Props,
     path = '/projects/p/dashboards/dashboard-uuid/view',
 ) => {
-    const store = createDashboardTestStore();
+    const store = createDashboardTestStore({
+        invalidateCache: initialProps.defaultInvalidateCache,
+    });
     let currentProps = initialProps;
     const Wrapper = ({ children }: { children: ReactNode }) => (
         <MemoryRouter initialEntries={[path]}>
             <DashboardStoreTestProvider store={store}>
-                <DashboardTileStatusProvider {...currentProps}>
+                <DashboardTileStatusProvider
+                    dashboardTiles={currentProps.dashboardTiles}
+                    dashboardTabs={currentProps.dashboardTabs}
+                    activeTab={currentProps.activeTab}
+                    schedulerTabsSelected={currentProps.schedulerTabsSelected}
+                >
                     {children}
                 </DashboardTileStatusProvider>
             </DashboardStoreTestProvider>

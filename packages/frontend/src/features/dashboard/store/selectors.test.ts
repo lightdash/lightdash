@@ -11,6 +11,7 @@ import {
     initialDashboardParametersState,
     type DashboardParametersState,
 } from './dashboardParametersReducer';
+import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     combineDashboardFilters,
     getSafeTemporaryFilters,
@@ -27,6 +28,7 @@ const stateWith = (
     filters: initialDashboardFiltersState,
     parameters: { ...initialDashboardParametersState, ...parameters },
     dateZoom: initialDashboardDateZoomState,
+    tileStatus: initialDashboardTileStatusState,
 });
 
 const rule = (

@@ -35,7 +35,10 @@ import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
@@ -157,8 +160,8 @@ const FilterConfiguration: FC<Props> = ({
         },
         [setDraftFilterRule, isEditMode],
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const columnsOptions = useMemo(
         () => getUniqueSqlColumns(sqlChartTilesMetadata),

@@ -19,7 +19,10 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../dashboard/store';
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
@@ -104,8 +107,8 @@ export const FieldsAndTiles: FC = () => {
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     // Creating a metric filter is gated like the shipped "Add filter"
     const { data: metricFiltersFlag } = useServerFeatureFlag(

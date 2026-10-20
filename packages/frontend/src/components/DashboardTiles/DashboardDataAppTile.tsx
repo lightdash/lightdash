@@ -29,6 +29,11 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import {
+    selectInvalidateCache,
+    selectRefreshCounter,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -203,12 +208,8 @@ const DataAppTile: FC<Props> = (props) => {
     // reload, so we bake the counter into the URL to force one, and forward
     // invalidateCache so those re-fired queries bypass the warehouse cache —
     // matching how a chart refreshes.
-    const invalidateCache = useDashboardTileStatusContext(
-        (c) => c.invalidateCache,
-    );
-    const refreshCounter = useDashboardTileStatusContext(
-        (c) => c.refreshCounter,
-    );
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
 
     const previewOrigin = usePreviewOrigin();
     const { data: project } = useProject(projectUuid);

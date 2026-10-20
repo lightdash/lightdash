@@ -7,6 +7,7 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useScreenshotReadiness } from '../../features/dashboard/store';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import DashboardTileStatusProvider, {
@@ -55,17 +56,25 @@ const renderStatus = (
     props: Omit<DashboardTileStatusProviderProps, 'children'>,
     path = '/minimal/dashboard/dashboard-uuid',
 ) =>
-    renderHook(() => useDashboardTileStatusContext((context) => context), {
-        wrapper: ({ children }: { children: ReactNode }) => (
-            <MemoryRouter initialEntries={[path]}>
-                <DashboardStoreTestProvider store={createDashboardTestStore()}>
-                    <DashboardTileStatusProvider {...props}>
-                        {children}
-                    </DashboardTileStatusProvider>
-                </DashboardStoreTestProvider>
-            </MemoryRouter>
-        ),
-    });
+    renderHook(
+        () => ({
+            ...useDashboardTileStatusContext((context) => context),
+            ...useScreenshotReadiness(),
+        }),
+        {
+            wrapper: ({ children }: { children: ReactNode }) => (
+                <MemoryRouter initialEntries={[path]}>
+                    <DashboardStoreTestProvider
+                        store={createDashboardTestStore()}
+                    >
+                        <DashboardTileStatusProvider {...props}>
+                            {children}
+                        </DashboardTileStatusProvider>
+                    </DashboardStoreTestProvider>
+                </MemoryRouter>
+            ),
+        },
+    );
 
 afterEach(cleanup);
 

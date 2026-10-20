@@ -19,6 +19,8 @@ import { type LightdashApi } from '../../api';
 import {
     selectControlGranularities,
     selectDateZoomGranularity,
+    selectInvalidateCache,
+    selectIsAutoRefresh,
     selectParameterValues,
     selectTileParameterReferences,
     useDashboardSelector,
@@ -88,9 +90,7 @@ export const useDashboardChartReadyQuery = (
     const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const invalidateCache = useDashboardTileStatusContext(
-        (c) => c.invalidateCache,
-    );
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardSelector(selectParameterValues);
@@ -111,7 +111,7 @@ export const useDashboardChartReadyQuery = (
         [chartSort, tileUuid],
     );
     const granularity = useDashboardSelector(selectDateZoomGranularity);
-    const autoRefresh = useDashboardTileStatusContext((c) => c.isAutoRefresh);
+    const autoRefresh = useDashboardSelector(selectIsAutoRefresh);
     const context =
         useSearchParams<QueryExecutionContext>('context') || undefined;
     const setTilesWithDateZoomApplied = useDashboardContext(

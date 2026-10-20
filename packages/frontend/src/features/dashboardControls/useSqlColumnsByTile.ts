@@ -4,7 +4,10 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { type SqlColumnsByTile } from './peers';
 
 const NO_SQL_COLUMNS: SqlColumnsByTile = {};
@@ -15,8 +18,8 @@ export const useSqlColumnsByTile = (
     rule: DashboardFilterRule | null,
 ): SqlColumnsByTile => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const hasTarget = rule !== null && rule.target.fieldId !== '';
 

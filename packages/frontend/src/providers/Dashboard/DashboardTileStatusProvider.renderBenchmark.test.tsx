@@ -12,6 +12,15 @@ import {
 } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+    selectAvailableCustomGranularities,
+    selectInvalidateCache,
+    selectIsAutoRefresh,
+    selectOldestCacheTime,
+    selectSqlChartTilesMetadata,
+    useAreAllChartsLoaded,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import DashboardTileStatusProvider from './DashboardTileStatusProvider';
@@ -42,30 +51,26 @@ vi.mock('../../hooks/dashboard/useDashboardPreAggregateAudit', () => ({
 
 // DashboardChartTile + useDashboardChartReadyQuery
 const useChartTileState = () => ({
-    invalidateCache: useDashboardTileStatusContext((c) => c.invalidateCache),
-    isAutoRefresh: useDashboardTileStatusContext((c) => c.isAutoRefresh),
+    invalidateCache: useDashboardSelector(selectInvalidateCache),
+    isAutoRefresh: useDashboardSelector(selectIsAutoRefresh),
     preAggregateStatuses: useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     ),
 });
 // pages/Dashboard.tsx
 const usePageState = () => ({
-    areAllChartsLoaded: useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    ),
-    oldestCacheTime: useDashboardTileStatusContext((c) => c.oldestCacheTime),
+    areAllChartsLoaded: useAreAllChartsLoaded(),
+    oldestCacheTime: useDashboardSelector(selectOldestCacheTime),
     preAggregateStatuses: useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     ),
 });
 // DateZoom and the filter bar
 const useBarState = () => ({
-    availableCustomGranularities: useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    availableCustomGranularities: useDashboardSelector(
+        selectAvailableCustomGranularities,
     ),
-    sqlChartTilesMetadata: useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
-    ),
+    sqlChartTilesMetadata: useDashboardSelector(selectSqlChartTilesMetadata),
 });
 type Actions = {
     markTileLoaded: (tileUuid: string) => void;
@@ -239,17 +244,10 @@ describe('tile status render benchmark', () => {
     });
 });
 
-// Every tile report re-renders the provider, and use-context-selector re-runs
-// every consumer, so tiles re-render for reports that change nothing they read.
+// Tile reports go to the dashboard store, so tiles never re-render for them and
+// the page only for the two values it shows (the provider used to re-render on
+// each report and use-context-selector re-ran every consumer with it).
 const BASELINE: Record<string, Counts> = {
-    'every tile loads': {
-        tiles: 22 * TILE_COUNT,
-        page: 22,
-        bars: 22,
-    },
-    'every tile reloads after a filter change': {
-        tiles: TILE_COUNT * TILE_COUNT,
-        page: TILE_COUNT,
-        bars: TILE_COUNT,
-    },
+    'every tile loads': { tiles: 0, page: 2, bars: 0 },
+    'every tile reloads after a filter change': { tiles: 0, page: 0, bars: 0 },
 };

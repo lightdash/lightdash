@@ -14,6 +14,7 @@ import {
     type DashboardStoreState,
 } from '.';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
     excludeLockedFilterRequirements,
     isLockedDashboardFilterRule,
@@ -104,6 +105,60 @@ export const useDashboardUnmetFilterRequirements = () => {
             dashboardFilters,
             filterableFieldsByTileUuid,
             hiddenFilterableFieldIds,
+        ],
+    );
+};
+
+/** True once every chart tile shown on the active tab reported loaded */
+export const useAreAllChartsLoaded = () => {
+    const chartTileUuidsToLoad = useDashboardTileStatusContext(
+        (c) => c.chartTileUuidsToLoad,
+    );
+    return useDashboardSelector(
+        (state) =>
+            chartTileUuidsToLoad !== undefined &&
+            chartTileUuidsToLoad.every((tileUuid) =>
+                state.tileStatus.loadedTiles.has(tileUuid),
+            ),
+    );
+};
+
+/** Screenshot progress for the export page; re-renders on every tile report */
+export const useScreenshotReadiness = () => {
+    const expectedScreenshotTileUuids = useDashboardTileStatusContext(
+        (c) => c.expectedScreenshotTileUuids,
+    );
+    const hasDashboardTiles = useDashboardTileStatusContext(
+        (c) => c.hasDashboardTiles,
+    );
+    const screenshotReadyTiles = useDashboardSelector(
+        (state) => state.tileStatus.screenshotReadyTiles,
+    );
+    const screenshotErroredTiles = useDashboardSelector(
+        (state) => state.tileStatus.screenshotErroredTiles,
+    );
+    return useMemo(
+        () => ({
+            isReadyForScreenshot:
+                expectedScreenshotTileUuids.length === 0
+                    ? hasDashboardTiles
+                    : expectedScreenshotTileUuids.every(
+                          (tileUuid) =>
+                              screenshotReadyTiles.has(tileUuid) ||
+                              screenshotErroredTiles.has(tileUuid),
+                      ),
+            screenshotReadyTilesCount: screenshotReadyTiles.size,
+            screenshotErroredTilesCount: screenshotErroredTiles.size,
+            expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
+            expectedScreenshotTileUuids,
+            screenshotReadyTileUuids: Array.from(screenshotReadyTiles),
+            screenshotErroredTileUuids: Array.from(screenshotErroredTiles),
+        }),
+        [
+            expectedScreenshotTileUuids,
+            hasDashboardTiles,
+            screenshotReadyTiles,
+            screenshotErroredTiles,
         ],
     );
 };

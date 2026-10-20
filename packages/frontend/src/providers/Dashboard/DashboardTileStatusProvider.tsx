@@ -6,22 +6,24 @@ import {
     type CacheMetadata,
     type Dashboard,
 } from '@lightdash/common';
-import min from 'lodash/min';
 import React, {
     useCallback,
     useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
-    useState,
 } from 'react';
 import { useLocation } from 'react-router';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
+    dashboardTileStatusActions,
+    selectCompletedEmbedTiles,
     selectDateZoomGranularity,
     selectParameterValues,
+    selectRefreshCounter,
     useDashboardAllFilters,
+    useDashboardDispatch,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import {
@@ -42,7 +44,6 @@ export type DashboardTileStatusProviderProps = {
     dashboardTabs: Dashboard['tabs'];
     activeTab: Dashboard['tabs'][number] | undefined;
     schedulerTabsSelected?: (string | null)[] | undefined;
-    defaultInvalidateCache?: boolean;
     children: React.ReactNode;
 };
 
@@ -53,42 +54,37 @@ const DashboardTileStatusProvider: React.FC<
     dashboardTabs,
     activeTab,
     schedulerTabsSelected,
-    defaultInvalidateCache,
     children,
 }) => {
     const exportPagedTabs = useSearchParams('exportPagedTabs') === 'true';
+    // Tile reports go to the store, so they don't re-render this provider and
+    // every tile-status consumer with it.
+    const dispatch = useDashboardDispatch();
 
-    const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
-
-    const [oldestCacheTime, setOldestCacheTime] = useState<Date | undefined>();
-    const [invalidateCache, setInvalidateCache] = useState<boolean>(
-        defaultInvalidateCache === true,
+    const setIsAutoRefresh = useCallback(
+        (autoRefresh: boolean) => {
+            dispatch(dashboardTileStatusActions.setIsAutoRefresh(autoRefresh));
+        },
+        [dispatch],
     );
 
-    // Bumped on every refresh so iframe-based tiles (data apps) can force a
-    // reload — they can't piggyback on React Query invalidation like charts do.
-    const [refreshCounter, setRefreshCounter] = useState<number>(0);
-
-    const [sqlChartTilesMetadata, setSqlChartTilesMetadata] = useState<
-        Record<string, SqlChartTileMetadata>
-    >({});
-
     // Track which tiles have loaded (to know when all are complete)
-    const [loadedTiles, setLoadedTiles] = useState<Set<string>>(new Set());
+    const markTileLoaded = useCallback(
+        (tileUuid: string) => {
+            dispatch(dashboardTileStatusActions.markTileLoaded(tileUuid));
+        },
+        [dispatch],
+    );
 
-    const markTileLoaded = useCallback((tileUuid: string) => {
-        setLoadedTiles((prev) => new Set(prev).add(tileUuid));
-    }, []);
-
-    // Determine if all chart tiles have loaded
-    const areAllChartsLoaded = useMemo(() => {
-        if (!dashboardTiles) return false;
+    // The chart tiles that must load before all charts count as loaded
+    const chartTileUuidsToLoad = useMemo(() => {
+        if (!dashboardTiles) return undefined;
 
         // If tabs exist, but no active tab is specified, tiles are not loaded
         if (dashboardTabs && dashboardTabs.length > 0 && !activeTab)
-            return false;
+            return undefined;
 
-        const chartTileUuids = dashboardTiles
+        return dashboardTiles
             .filter(isDashboardChartTileType)
             .filter((tile) => {
                 // If no active tab specified, include all tiles (backwards compatibility)
@@ -98,16 +94,15 @@ const DashboardTileStatusProvider: React.FC<
                 return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
             })
             .map((tile) => tile.uuid);
-
-        return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
-    }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
+    }, [dashboardTiles, activeTab, dashboardTabs]);
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const allFilters = useDashboardAllFilters();
     const parameterValues = useDashboardSelector(selectParameterValues);
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const { embedToken, dispatchEmbedEvent, isEmbedEventReady } = useEmbed();
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
+    const { embedToken } = useEmbed();
 
     const visibleEmbedTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];
@@ -146,122 +141,56 @@ const DashboardTileStatusProvider: React.FC<
             visibleEmbedTileUuids,
         ],
     );
-    const [completedEmbedTiles, setCompletedEmbedTiles] = useState<{
-        cycleKey: string;
-        tileUuids: Set<string>;
-    }>(() => ({ cycleKey: embedLoadCycleKey, tileUuids: new Set() }));
     const markEmbedTileComplete = useCallback(
         (tileUuid: string) => {
             if (!embedToken) return;
-
-            setCompletedEmbedTiles((current) => {
-                const tileUuids =
-                    current.cycleKey === embedLoadCycleKey
-                        ? new Set(current.tileUuids)
-                        : new Set<string>();
-
-                if (tileUuids.has(tileUuid)) return current;
-                tileUuids.add(tileUuid);
-
-                return { cycleKey: embedLoadCycleKey, tileUuids };
-            });
+            dispatch(
+                dashboardTileStatusActions.markEmbedTileComplete({
+                    tileUuid,
+                    cycleKey: embedLoadCycleKey,
+                }),
+            );
         },
-        [embedLoadCycleKey, embedToken],
+        [dispatch, embedLoadCycleKey, embedToken],
     );
-    const currentCompletedEmbedTiles =
-        completedEmbedTiles.cycleKey === embedLoadCycleKey
-            ? completedEmbedTiles.tileUuids
-            : new Set<string>();
-    const areAllEmbedTilesLoaded =
-        !!dashboardTiles &&
-        visibleEmbedTileUuids.every((tileUuid) =>
-            currentCompletedEmbedTiles.has(tileUuid),
-        );
-    const loadCycleTiming = useRef({
-        cycleKey: embedLoadCycleKey,
-        startedAt: performance.now(),
-    });
-    useLayoutEffect(() => {
-        if (loadCycleTiming.current.cycleKey !== embedLoadCycleKey) {
-            loadCycleTiming.current = {
-                cycleKey: embedLoadCycleKey,
-                startedAt: performance.now(),
-            };
-        }
-    }, [embedLoadCycleKey]);
-    const emittedLoadCycle = useRef<string | undefined>(undefined);
-
-    useEffect(() => {
-        if (!embedToken || !isEmbedEventReady || !areAllEmbedTilesLoaded)
-            return;
-        if (emittedLoadCycle.current === embedLoadCycleKey) return;
-
-        const dispatched = dispatchEmbedEvent(
-            LightdashEventType.AllTilesLoaded,
-            {
-                tilesCount: visibleEmbedTileUuids.length,
-                loadTimeMs: Math.max(
-                    0,
-                    Math.round(
-                        performance.now() - loadCycleTiming.current.startedAt,
-                    ),
-                ),
-            },
-        );
-        if (dispatched) emittedLoadCycle.current = embedLoadCycleKey;
-    }, [
-        areAllEmbedTilesLoaded,
-        dispatchEmbedEvent,
-        embedLoadCycleKey,
-        embedToken,
-        isEmbedEventReady,
-        visibleEmbedTileUuids,
-    ]);
-
-    // Custom granularities discovered from explores: key -> label (e.g., "fiscal_quarter" -> "Fiscal Quarter")
-    const [availableCustomGranularities, setAvailableCustomGranularities] =
-        useState<Record<string, string>>({});
 
     const addAvailableCustomGranularities = useCallback(
         (granularities: Record<string, string>) => {
-            setAvailableCustomGranularities((prev) => {
-                const newKeys = Object.keys(granularities).filter(
-                    (k) => !(k in prev),
-                );
-                if (newKeys.length === 0) return prev;
-                return { ...prev, ...granularities };
-            });
+            dispatch(
+                dashboardTileStatusActions.addAvailableCustomGranularities(
+                    granularities,
+                ),
+            );
         },
-        [],
+        [dispatch],
     );
 
-    const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
-        Set<string>
-    >(new Set());
-    const [screenshotErroredTiles, setScreenshotErroredTiles] = useState<
-        Set<string>
-    >(new Set());
+    const markTileScreenshotReady = useCallback(
+        (tileUuid: string) => {
+            dispatch(
+                dashboardTileStatusActions.markTileScreenshotReady(tileUuid),
+            );
+        },
+        [dispatch],
+    );
 
-    const markTileScreenshotReady = useCallback((tileUuid: string) => {
-        setScreenshotReadyTiles((prev) => new Set(prev).add(tileUuid));
-    }, []);
+    const markTileScreenshotErrored = useCallback(
+        (tileUuid: string) => {
+            dispatch(
+                dashboardTileStatusActions.markTileScreenshotErrored(tileUuid),
+            );
+        },
+        [dispatch],
+    );
 
-    const markTileScreenshotErrored = useCallback((tileUuid: string) => {
-        setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
-    }, []);
-
-    const markTileScreenshotLoading = useCallback((tileUuid: string) => {
-        const removeTile = (tiles: Set<string>) => {
-            if (!tiles.has(tileUuid)) {
-                return tiles;
-            }
-            const next = new Set(tiles);
-            next.delete(tileUuid);
-            return next;
-        };
-        setScreenshotReadyTiles(removeTile);
-        setScreenshotErroredTiles(removeTile);
-    }, []);
+    const markTileScreenshotLoading = useCallback(
+        (tileUuid: string) => {
+            dispatch(
+                dashboardTileStatusActions.markTileScreenshotLoading(tileUuid),
+            );
+        },
+        [dispatch],
+    );
 
     const expectedScreenshotTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];
@@ -325,27 +254,9 @@ const DashboardTileStatusProvider: React.FC<
         exportPagedTabs,
     ]);
 
-    const isReadyForScreenshot = useMemo(() => {
-        if (expectedScreenshotTileUuids.length === 0) {
-            return !!dashboardTiles;
-        }
-
-        return expectedScreenshotTileUuids.every(
-            (tileUuid) =>
-                screenshotReadyTiles.has(tileUuid) ||
-                screenshotErroredTiles.has(tileUuid),
-        );
-    }, [
-        expectedScreenshotTileUuids,
-        screenshotReadyTiles,
-        screenshotErroredTiles,
-        dashboardTiles,
-    ]);
-
     useEffect(() => {
-        setScreenshotReadyTiles(new Set());
-        setScreenshotErroredTiles(new Set());
-    }, [dashboardTiles, activeTab]);
+        dispatch(dashboardTileStatusActions.resetScreenshotTiles());
+    }, [dispatch, dashboardTiles, activeTab]);
 
     // Memoized mapping of tile UUIDs to their display names
     const tileNamesById = useMemo(() => {
@@ -368,41 +279,34 @@ const DashboardTileStatusProvider: React.FC<
         }, {});
     }, [dashboardTiles]);
 
-    const addResultsCacheTime = useCallback((cacheMetadata?: CacheMetadata) => {
-        if (
-            cacheMetadata &&
-            cacheMetadata.cacheHit &&
-            cacheMetadata.cacheUpdatedTime
-        ) {
-            const newTime = cacheMetadata.cacheUpdatedTime;
-            setOldestCacheTime((prev) =>
-                prev === undefined ? newTime : min([prev, newTime])!,
+    const addResultsCacheTime = useCallback(
+        (cacheMetadata?: CacheMetadata) => {
+            dispatch(
+                dashboardTileStatusActions.addResultsCacheTime(cacheMetadata),
             );
-        }
-    }, []);
+        },
+        [dispatch],
+    );
 
+    // Clears the cache time and loaded tiles, sets invalidateCache (causes
+    // results refetch) and bumps refreshCounter, which drives the iframe reload
+    // for data-app tiles (charts re-fetch via React Query invalidation, which
+    // happens separately in the refresh button). Bumping every call covers
+    // repeat refreshes — unlike invalidateCache, which is sticky once true.
     const clearCacheAndFetch = useCallback(() => {
-        setOldestCacheTime(undefined);
-        setLoadedTiles(new Set());
-
-        // Causes results refetch
-        setInvalidateCache(true);
-
-        // Drives the iframe reload for data-app tiles (charts re-fetch via
-        // React Query invalidation, which happens separately in the refresh
-        // button). Bumping every call covers repeat refreshes — unlike
-        // invalidateCache, which is sticky once true.
-        setRefreshCounter((prev) => prev + 1);
-    }, []);
+        dispatch(dashboardTileStatusActions.refresh());
+    }, [dispatch]);
 
     const updateSqlChartTilesMetadata = useCallback(
         (tileUuid: string, metadata: SqlChartTileMetadata) => {
-            setSqlChartTilesMetadata((prev) => ({
-                ...prev,
-                [tileUuid]: metadata,
-            }));
+            dispatch(
+                dashboardTileStatusActions.updateSqlChartTilesMetadata({
+                    tileUuid,
+                    metadata,
+                }),
+            );
         },
-        [],
+        [dispatch],
     );
 
     const { health } = useApp();
@@ -428,55 +332,37 @@ const DashboardTileStatusProvider: React.FC<
 
     const value = useMemo(
         () => ({
-            oldestCacheTime,
             addResultsCacheTime,
             preAggregateStatuses,
-            invalidateCache,
-            refreshCounter,
-            isAutoRefresh,
             setIsAutoRefresh,
             clearCacheAndFetch,
-            sqlChartTilesMetadata,
             updateSqlChartTilesMetadata,
             markTileLoaded,
             markEmbedTileComplete,
-            areAllChartsLoaded,
-            availableCustomGranularities,
+            chartTileUuidsToLoad,
             addAvailableCustomGranularities,
             tileNamesById,
             markTileScreenshotReady,
             markTileScreenshotErrored,
             markTileScreenshotLoading,
-            isReadyForScreenshot,
-            screenshotReadyTilesCount: screenshotReadyTiles.size,
-            screenshotErroredTilesCount: screenshotErroredTiles.size,
-            expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
+            hasDashboardTiles: !!dashboardTiles,
             expectedScreenshotTileUuids,
-            screenshotReadyTileUuids: Array.from(screenshotReadyTiles),
-            screenshotErroredTileUuids: Array.from(screenshotErroredTiles),
         }),
         [
-            oldestCacheTime,
             addResultsCacheTime,
             preAggregateStatuses,
-            invalidateCache,
-            refreshCounter,
-            isAutoRefresh,
+            setIsAutoRefresh,
             clearCacheAndFetch,
-            sqlChartTilesMetadata,
             updateSqlChartTilesMetadata,
             markTileLoaded,
             markEmbedTileComplete,
-            areAllChartsLoaded,
-            availableCustomGranularities,
+            chartTileUuidsToLoad,
             addAvailableCustomGranularities,
             tileNamesById,
             markTileScreenshotReady,
             markTileScreenshotErrored,
             markTileScreenshotLoading,
-            isReadyForScreenshot,
-            screenshotReadyTiles,
-            screenshotErroredTiles,
+            dashboardTiles,
             expectedScreenshotTileUuids,
         ],
     );
@@ -484,8 +370,74 @@ const DashboardTileStatusProvider: React.FC<
     return (
         <DashboardTileStatusContext.Provider value={value}>
             {children}
+            {/* After children so its effect runs after the tiles', as when it lived in this provider */}
+            <EmbedAllTilesLoadedSync
+                embedLoadCycleKey={embedLoadCycleKey}
+                visibleEmbedTileUuids={visibleEmbedTileUuids}
+                hasDashboardTiles={!!dashboardTiles}
+            />
         </DashboardTileStatusContext.Provider>
     );
+};
+
+/** Tells the embed host once every visible tile settled in a load cycle */
+const EmbedAllTilesLoadedSync: React.FC<{
+    embedLoadCycleKey: string;
+    visibleEmbedTileUuids: string[];
+    hasDashboardTiles: boolean;
+}> = ({ embedLoadCycleKey, visibleEmbedTileUuids, hasDashboardTiles }) => {
+    const { embedToken, dispatchEmbedEvent, isEmbedEventReady } = useEmbed();
+    const completedEmbedTiles = useDashboardSelector(selectCompletedEmbedTiles);
+    const currentCompletedEmbedTiles =
+        completedEmbedTiles.cycleKey === embedLoadCycleKey
+            ? completedEmbedTiles.tileUuids
+            : new Set<string>();
+    const areAllEmbedTilesLoaded =
+        hasDashboardTiles &&
+        visibleEmbedTileUuids.every((tileUuid) =>
+            currentCompletedEmbedTiles.has(tileUuid),
+        );
+    const loadCycleTiming = useRef({
+        cycleKey: embedLoadCycleKey,
+        startedAt: performance.now(),
+    });
+    useLayoutEffect(() => {
+        if (loadCycleTiming.current.cycleKey !== embedLoadCycleKey) {
+            loadCycleTiming.current = {
+                cycleKey: embedLoadCycleKey,
+                startedAt: performance.now(),
+            };
+        }
+    }, [embedLoadCycleKey]);
+    const emittedLoadCycle = useRef<string | undefined>(undefined);
+
+    useEffect(() => {
+        if (!embedToken || !isEmbedEventReady || !areAllEmbedTilesLoaded)
+            return;
+        if (emittedLoadCycle.current === embedLoadCycleKey) return;
+
+        const dispatched = dispatchEmbedEvent(
+            LightdashEventType.AllTilesLoaded,
+            {
+                tilesCount: visibleEmbedTileUuids.length,
+                loadTimeMs: Math.max(
+                    0,
+                    Math.round(
+                        performance.now() - loadCycleTiming.current.startedAt,
+                    ),
+                ),
+            },
+        );
+        if (dispatched) emittedLoadCycle.current = embedLoadCycleKey;
+    }, [
+        areAllEmbedTilesLoaded,
+        dispatchEmbedEvent,
+        embedLoadCycleKey,
+        embedToken,
+        isEmbedEventReady,
+        visibleEmbedTileUuids,
+    ]);
+    return null;
 };
 
 export default DashboardTileStatusProvider;
