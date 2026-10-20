@@ -77,6 +77,18 @@ const DashboardTileStatusProvider: React.FC<
     );
 
     // The chart tiles that must load before all charts count as loaded
+    // Tiles without a tab render on the first tab only (see dashboardTabs and
+    // MinimalDashboard), so they count there and nowhere else
+    const isTileOnActiveTab = useCallback(
+        (tile: Dashboard['tiles'][number]) => {
+            if (!activeTab) return true;
+            return tile.tabUuid
+                ? tile.tabUuid === activeTab.uuid
+                : activeTab.uuid === dashboardTabs[0]?.uuid;
+        },
+        [activeTab, dashboardTabs],
+    );
+
     const chartTileUuidsToLoad = useMemo(() => {
         if (!dashboardTiles) return undefined;
 
@@ -84,17 +96,14 @@ const DashboardTileStatusProvider: React.FC<
         if (dashboardTabs && dashboardTabs.length > 0 && !activeTab)
             return undefined;
 
-        return dashboardTiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => {
-                // If no active tab specified, include all tiles (backwards compatibility)
-                if (!activeTab) return true;
-
-                // If tabs exist, only include tiles from the active tab or no tabUuid
-                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
-            })
-            .map((tile) => tile.uuid);
-    }, [dashboardTiles, activeTab, dashboardTabs]);
+        return (
+            dashboardTiles
+                .filter(isDashboardChartTileType)
+                // Without an active tab, include all tiles (backwards compatibility)
+                .filter(isTileOnActiveTab)
+                .map((tile) => tile.uuid)
+        );
+    }, [dashboardTiles, activeTab, dashboardTabs, isTileOnActiveTab]);
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -241,15 +250,13 @@ const DashboardTileStatusProvider: React.FC<
                     isDashboardSqlChartTile(tile) ||
                     isDashboardDataAppTileType(tile),
             )
-            .filter((tile) => {
-                if (!activeTab) return true;
-                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
-            })
+            .filter(isTileOnActiveTab)
             .map((tile) => tile.uuid);
     }, [
         dashboardTiles,
         activeTab,
         dashboardTabs,
+        isTileOnActiveTab,
         schedulerTabsSelected,
         exportPagedTabs,
     ]);
