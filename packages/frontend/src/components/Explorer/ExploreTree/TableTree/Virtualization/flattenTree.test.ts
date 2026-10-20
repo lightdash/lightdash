@@ -316,6 +316,50 @@ describe('flattenTreeForVirtualization', () => {
         expect(treeNodes[0].data.node.key).toBe('orders_status');
     });
 
+    it('should only show section headers with matching fields when searching', () => {
+        const options: FlattenTreeOptions = {
+            ...baseOptions,
+            searchQuery: 'status',
+            isSearching: true,
+            searchResultsMap: {
+                orders: ['orders_status'],
+            },
+        };
+
+        const { items: result } = flattenTreeForVirtualization(options);
+
+        const sectionHeaders = result
+            .filter((item) => item.type === 'section-header')
+            .map((item) => item.data.treeSection);
+
+        expect(sectionHeaders).toEqual([TreeSection.Dimensions]);
+    });
+
+    it('should hide the metrics header when the table has no metrics and search matches a dimension', () => {
+        const tableWithoutMetrics: CompiledTable = {
+            ...mockTable,
+            metrics: {},
+        };
+        const options: FlattenTreeOptions = {
+            ...baseOptions,
+            tables: [tableWithoutMetrics],
+            searchQuery: 'status',
+            isSearching: true,
+            searchResultsMap: {
+                orders: ['orders_status'],
+            },
+            sectionNodeMaps: createSectionNodeMaps([tableWithoutMetrics]),
+        };
+
+        const { items: result } = flattenTreeForVirtualization(options);
+
+        const sectionHeaders = result
+            .filter((item) => item.type === 'section-header')
+            .map((item) => item.data.treeSection);
+
+        expect(sectionHeaders).toEqual([TreeSection.Dimensions]);
+    });
+
     it('should hide tables with no search results', () => {
         const tables = [mockTable, { ...mockTable, name: 'customers' }];
         const options: FlattenTreeOptions = {
