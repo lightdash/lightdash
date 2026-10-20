@@ -877,3 +877,86 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: docker buildx imagetools create -t "$IMAGE:$RELEASE_TAG" "$IMAGE:latest"
+
+  # ============================================================================
+  # Job 7: Publish the python-runner Cloud Run sandbox gateway image
+  # ============================================================================
+  python-sandbox-cloud-run-image:
+    name: Publish python Cloud Run sandbox image
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      IMAGE: lightdash/lightdash-python-sandbox-cloud-run
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
+
+      - name: Plan build
+        id: plan
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          ACTION=retag
+          STATUS=0
+          CHANGED=$(.github/scripts/sandbox-image-changes.sh "$RELEASE_TAG" \
+            sandboxes/python-runner) || STATUS=$?
+          if ! docker buildx imagetools inspect "$IMAGE:latest" >/dev/null 2>&1; then
+            echo "No published :latest image — performing full build"
+            ACTION=build
+          elif [ "$STATUS" -eq 10 ]; then
+            echo "No previous tag found — performing full build"
+            ACTION=build
+          elif [ "$STATUS" -ne 0 ]; then
+            exit "$STATUS"
+          elif [ -n "$CHANGED" ]; then
+            echo "Sandbox changed — performing full build"
+            echo "$CHANGED"
+            ACTION=build
+          else
+            echo "No sandbox changes — re-tagging :latest"
+          fi
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+
+      - name: Read Node pin from checked-out revision
+        if: steps.plan.outputs.action == 'build'
+        id: node-version
+        run: echo "version=$(tr -d '[:space:]' < .nvmrc)" >> "$GITHUB_OUTPUT"
+
+      # npm is only needed to fetch the ComputeSDK gateway tarball
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: steps.plan.outputs.action == 'build'
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+
+      - name: Build and push image
+        if: steps.plan.outputs.action == 'build'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          ./sandboxes/python-runner/build-cloud-run-image.sh "$IMAGE:$RELEASE_TAG" \
+            -t "$IMAGE:latest" \
+            --sbom=true \
+            --provenance=mode=max \
+            --push
+
+      - name: Re-tag latest image with release version
+        if: steps.plan.outputs.action == 'retag'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: docker buildx imagetools create -t "$IMAGE:$RELEASE_TAG" "$IMAGE:latest"
