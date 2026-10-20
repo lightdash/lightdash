@@ -1,3 +1,15 @@
+# [2.624.0](https://github.com/lightdash/lightdash/compare/2.623.0...2.624.0) (2026-10-20)
+
+
+### Features
+
+* **ai:** composer semanticLayer node filters validated like runQuery, with filter expressions ([#31222](https://github.com/lightdash/lightdash/issues/31222)) ([3b649ee](https://github.com/lightdash/lightdash/commit/3b649ee8a81f007ef796b7372afbfbc64376d51d))
+
+
+### Performance Improvements
+
+* **dashboard:** move runtime date zoom state into the dashboard store ([#31224](https://github.com/lightdash/lightdash/issues/31224)) ([9be3d12](https://github.com/lightdash/lightdash/commit/9be3d12c2a47f31b263c69c7520819e6b777c550))
+
 # [2.623.0](https://github.com/lightdash/lightdash/compare/2.622.2...2.623.0) (2026-10-20)
 
 
