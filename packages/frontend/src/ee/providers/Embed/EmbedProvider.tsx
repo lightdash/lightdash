@@ -33,6 +33,10 @@ import {
 } from '../../features/embed/events/types';
 import { useCreateEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
+import {
+    parseEmbedHash,
+    type EmbedAiAgentThreadSetup,
+} from './embedAiAgentThreadSetup';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
 import {
@@ -65,6 +69,7 @@ type Props = {
     savedQueryUuid?: string;
     appUuid?: string;
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
+    aiAgentThreadSetup?: EmbedAiAgentThreadSetup | null;
 };
 
 const decodeEmbedJwtPayload = (
@@ -107,8 +112,10 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     savedQueryUuid,
     appUuid,
     onAiAgentThreadChange,
+    aiAgentThreadSetup: aiAgentThreadSetupFromProps,
 }) => {
-    const embedToken = encodedToken || window.location.hash.replace('#', '');
+    const embedToken =
+        encodedToken || parseEmbedHash(window.location.hash).token;
     const params = useParams();
     const projectUuid = projectUuidFromProps || params.projectUuid;
     // Only the AI-agent dashboard route carries this param.
@@ -152,6 +159,14 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     const [embedTimezone] = useState(() =>
         encodedToken ? null : parseEmbedTimezoneParam(),
     );
+    // Read once, before the hash is stripped; SDK embeds pass it as a prop
+    const [aiAgentThreadSetupFromHash] = useState(() =>
+        encodedToken
+            ? null
+            : parseEmbedHash(window.location.hash).aiAgentThreadSetup,
+    );
+    const aiAgentThreadSetup =
+        aiAgentThreadSetupFromProps ?? aiAgentThreadSetupFromHash;
     const embed =
         mode === 'direct'
             ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
@@ -255,6 +270,7 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
             backgroundColor: embedThemeParams.backgroundColor,
             timezone: embedTimezone,
             onAiAgentThreadChange,
+            aiAgentThreadSetup,
         };
     }, [
         embed?.projectUuid,
@@ -283,6 +299,7 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
         embedThemeParams.backgroundColor,
         embedTimezone,
         onAiAgentThreadChange,
+        aiAgentThreadSetup,
     ]);
 
     return (

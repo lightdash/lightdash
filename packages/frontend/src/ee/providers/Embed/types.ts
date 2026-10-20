@@ -12,6 +12,7 @@ import {
     type ChartSavedAction,
     type DispatchEmbedEvent,
 } from '../../features/embed/events/types';
+import { type EmbedAiAgentThreadSetup } from './embedAiAgentThreadSetup';
 
 export const EMBED_KEY = 'lightdash-embed';
 
@@ -96,6 +97,8 @@ export interface EmbedContext {
     timezone: string | null;
     // SDK-rendered AI agents report thread changes here instead of postMessage
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
+    // Binding and context for threads the embedded agent starts
+    aiAgentThreadSetup: EmbedAiAgentThreadSetup | null;
 }
 
 export type EmbedAiAgentThreadChange = {

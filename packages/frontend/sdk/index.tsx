@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     FilterOperator,
     getErrorMessage,
+    type AiThreadBinding,
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
@@ -56,6 +57,11 @@ import EmbedAiAgentDashboard from '../src/ee/pages/EmbedAiAgentDashboard';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
+import {
+    buildEmbedHash,
+    getEmbedAiAgentThreadSetup,
+    type EmbedAiAgentThreadSetup,
+} from '../src/ee/providers/Embed/embedAiAgentThreadSetup';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import {
     type EmbedAiAgentThreadChange,
@@ -147,6 +153,9 @@ type AiAgentProps = Omit<
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
     threadUuid?: string;
+    // Applied to threads started here; an existing thread keeps its own
+    binding?: AiThreadBinding;
+    threadContext?: string;
     // Beta: 'native' renders the agent in the host page instead of an iframe
     renderMode?: 'iframe' | 'native';
 };
@@ -348,6 +357,7 @@ const getAiAgentEmbedUrl = ({
     projectUuid,
     targetOrigin,
     theme,
+    threadSetup,
     threadUuid,
     token,
 }: {
@@ -356,6 +366,7 @@ const getAiAgentEmbedUrl = ({
     projectUuid: string;
     targetOrigin?: string;
     theme: AiAgentProps['theme'];
+    threadSetup: EmbedAiAgentThreadSetup | null;
     threadUuid?: string;
     token: string;
 }) => {
@@ -372,7 +383,7 @@ const getAiAgentEmbedUrl = ({
         url.searchParams.set('targetOrigin', targetOrigin);
     }
 
-    url.hash = token;
+    url.hash = buildEmbedHash(token, threadSetup);
     return url.toString();
 };
 
@@ -1021,11 +1032,13 @@ const Chart: FC<ChartProps> = ({
 
 const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
+    binding,
     instanceUrl,
     onError,
     onThreadChange,
     styles,
     theme,
+    threadContext,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
@@ -1079,6 +1092,10 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 projectUuid: tokenContext.projectUuid,
                 targetOrigin,
                 theme,
+                threadSetup: getEmbedAiAgentThreadSetup({
+                    binding,
+                    threadContext,
+                }),
                 threadUuid,
                 token: tokenContext.token,
             })}
@@ -1123,6 +1140,7 @@ const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
 const NativeAiAgentLayout: FC<{
     agentUuid: string;
     embedToken: string;
+    threadSetup: EmbedAiAgentThreadSetup | null;
     hasThread: boolean;
     onThreadChange: AiAgentProps['onThreadChange'];
     path: string;
@@ -1134,6 +1152,7 @@ const NativeAiAgentLayout: FC<{
     onThreadChange,
     path,
     projectUuid,
+    threadSetup,
 }) => {
     const {
         savedChart,
@@ -1165,6 +1184,7 @@ const NativeAiAgentLayout: FC<{
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}
             onAiAgentThreadChange={handleThreadChange}
+            aiAgentThreadSetup={threadSetup}
         >
             <AiAgentsCoreProvider>
                 <AiAgentRouteSync path={path} hasThread={hasThread} />
@@ -1176,11 +1196,13 @@ const NativeAiAgentLayout: FC<{
 
 const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
+    binding,
     instanceUrl,
     onError,
     onThreadChange,
     styles,
     theme,
+    threadContext,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
@@ -1188,6 +1210,19 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         instanceUrl,
         tokenOrTokenPromise,
         onError,
+    );
+    const boundDashboardUuid =
+        binding?.type === 'dashboard' ? binding.dashboardUuid : undefined;
+    // Hosts often pass a new binding object each render
+    const threadSetup = useMemo(
+        () =>
+            getEmbedAiAgentThreadSetup({
+                binding: boundDashboardUuid
+                    ? { type: 'dashboard', dashboardUuid: boundDashboardUuid }
+                    : undefined,
+                threadContext,
+            }),
+        [boundDashboardUuid, threadContext],
     );
     const { ref: containerRef, width: containerWidth } = useElementSize();
 
@@ -1231,6 +1266,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                                     onThreadChange={onThreadChange}
                                     path={path}
                                     projectUuid={tokenContext.projectUuid}
+                                    threadSetup={threadSetup}
                                 />
                             }
                         >
@@ -1383,6 +1419,7 @@ export {
     useLightdashContent,
 };
 export type {
+    AiThreadBinding,
     MetricsCatalogFilter,
     LightdashEvent,
     LightdashEventHandler,

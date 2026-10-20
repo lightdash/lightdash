@@ -341,14 +341,18 @@ vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
     const { useParams } = await import('react-router');
     const { useEmitEmbedAiAgentThreadChange } =
         await import('../src/ee/features/aiCopilot/hooks/embedAiAgentThreadChange');
+    const { default: useEmbedForSetup } =
+        await import('../src/ee/providers/Embed/useEmbed');
 
     return {
         default: function MockAiAgentNewThreadPage() {
             const { projectUuid, agentUuid } = useParams();
             const emitThreadChange = useEmitEmbedAiAgentThreadChange();
+            const { aiAgentThreadSetup } = useEmbedForSetup();
             return (
                 <button
                     data-testid="agent-new-thread"
+                    data-thread-setup={JSON.stringify(aiAgentThreadSetup)}
                     onClick={() =>
                         emitThreadChange({
                             projectUuid: projectUuid!,
@@ -384,6 +388,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { type LightdashApi } from '../src/api';
+import { parseEmbedHash } from '../src/ee/providers/Embed/embedAiAgentThreadSetup';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { EMBED_KEY, type InMemoryEmbed } from '../src/ee/providers/Embed/types';
 import {
@@ -1108,6 +1113,40 @@ describe('SDK AI agent', () => {
         );
     });
 
+    it('passes the thread binding and context in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                }}
+                threadContext="Earlier: revenue & churn"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: {
+                binding: {
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                },
+                threadContext: 'Earlier: revenue & churn',
+            },
+        });
+    });
+
     it('names the iframe without Lightdash branding', async () => {
         const { container } = render(
             <AiAgent
@@ -1238,6 +1277,47 @@ describe('SDK native AI agent', () => {
         expect(thread.getAttribute('data-thread-uuid')).toBe(
             'test-thread-uuid',
         );
+    });
+
+    it('gives new threads the binding and context from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                }}
+                threadContext="Earlier conversation"
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(
+            JSON.parse(newThread.getAttribute('data-thread-setup') ?? 'null'),
+        ).toEqual({
+            binding: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+            },
+            threadContext: 'Earlier conversation',
+        });
+    });
+
+    it('starts unbound threads when the host passes no setup', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(newThread).toHaveAttribute('data-thread-setup', 'null');
     });
 
     it('reports thread changes to onThreadChange', async () => {

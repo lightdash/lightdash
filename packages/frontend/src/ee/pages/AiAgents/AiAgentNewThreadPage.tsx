@@ -72,6 +72,8 @@ import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadMo
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
+import { getThreadSetupRequestFields } from '../../providers/Embed/embedAiAgentThreadSetup';
+import useEmbed from '../../providers/Embed/useEmbed';
 import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
@@ -102,6 +104,7 @@ const AiAgentNewThreadPage: FC = () => {
     const accessGate = useAiAccessGate(projectUuid);
     const { track } = useTracking();
     const isEmbed = useIsEmbedded();
+    const { aiAgentThreadSetup } = useEmbed();
     const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
@@ -326,6 +329,7 @@ const AiAgentNewThreadPage: FC = () => {
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
                 modelConfig: explicitModelConfig,
+                ...getThreadSetupRequestFields(aiAgentThreadSetup),
             });
         },
         [
@@ -348,6 +352,7 @@ const AiAgentNewThreadPage: FC = () => {
             navigate,
             track,
             isEmbed,
+            aiAgentThreadSetup,
         ],
     );
 
@@ -364,6 +369,7 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext: previewItems,
                 modelConfig: explicitModelConfig,
                 skipAgentResponse: true,
+                ...getThreadSetupRequestFields(aiAgentThreadSetup),
             });
             await startDeepResearch.mutateAsync({
                 question,
@@ -382,6 +388,7 @@ const AiAgentNewThreadPage: FC = () => {
             previewItems,
             setPendingPrompt,
             startDeepResearch,
+            aiAgentThreadSetup,
         ],
     );
 
