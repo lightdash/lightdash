@@ -133,7 +133,6 @@ const makeService = ({
     groupsModel = {},
     projectModel = {},
     userModel = {},
-    fileStorageClient = {},
     persistentDownloadFileService = {},
     slackClient = {},
     slackInstalled = true,
@@ -147,9 +146,6 @@ const makeService = ({
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
     userModel?: Partial<ProjectHomepageServiceArguments['userModel']>;
-    fileStorageClient?: Partial<
-        ProjectHomepageServiceArguments['fileStorageClient']
-    >;
     persistentDownloadFileService?: Partial<
         ProjectHomepageServiceArguments['persistentDownloadFileService']
     >;
@@ -220,12 +216,8 @@ const makeService = ({
             }),
             ...userModel,
         },
-        fileStorageClient: {
-            uploadImage: vi.fn(),
-            ...fileStorageClient,
-        } as ProjectHomepageServiceArguments['fileStorageClient'],
         persistentDownloadFileService: {
-            createPersistentUrl: vi.fn(),
+            uploadPersistentImage: vi.fn(),
             deleteFileWithKeyPrefix: vi.fn().mockResolvedValue(undefined),
             ...persistentDownloadFileService,
         } as ProjectHomepageServiceArguments['persistentDownloadFileService'],
@@ -2134,17 +2126,13 @@ describe('ProjectHomepageService', () => {
             });
 
             it('uploads the normalized image and returns a site-relative URL', async () => {
-                const uploadImage = vi
-                    .fn()
-                    .mockResolvedValue('https://s3/presigned');
-                const createPersistentUrl = vi
+                const uploadPersistentImage = vi
                     .fn()
                     .mockResolvedValue(
                         'https://app.lightdash.com/api/v1/file/abc123',
                     );
                 const service = makeService({
-                    fileStorageClient: { uploadImage },
-                    persistentDownloadFileService: { createPersistentUrl },
+                    persistentDownloadFileService: { uploadPersistentImage },
                 });
 
                 const result = await service.uploadAnnouncementImage(
@@ -2155,15 +2143,12 @@ describe('ProjectHomepageService', () => {
                     tinyPng.length,
                 );
 
-                expect(uploadImage).toHaveBeenCalledWith(
-                    expect.any(Buffer),
-                    expect.stringMatching(
-                        new RegExp(`^announcements/${PROJECT_UUID}/`),
-                    ),
-                );
-                expect(createPersistentUrl).toHaveBeenCalledWith(
+                expect(uploadPersistentImage).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        fileType: 'image',
+                        image: expect.any(Buffer),
+                        storageId: expect.stringMatching(
+                            new RegExp(`^announcements/${PROJECT_UUID}/`),
+                        ),
                         organizationUuid: ORGANIZATION_UUID,
                         projectUuid: PROJECT_UUID,
                         createdByUserUuid: USER_UUID,

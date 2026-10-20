@@ -1057,6 +1057,17 @@ export const parseStaticAssetsS3Config = ():
     };
 };
 
+// Null means no dedicated bucket: uploads then stay in S3_BUCKET and are
+// recorded as exports, so enabling this later never orphans earlier uploads.
+export const parseUploadsS3Config = (): LightdashConfig['uploads']['s3'] => {
+    const bucket = process.env.UPLOADS_S3_BUCKET;
+    const base = parseBaseS3Config();
+    if (!bucket || !base) {
+        return null;
+    }
+    return { ...base, bucket };
+};
+
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
 
@@ -1786,6 +1797,7 @@ export type LightdashConfig = {
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     staticAssets: { s3?: Omit<S3Config, 'expirationTime'> };
+    uploads: { s3: S3Config | null };
     natsWorker: {
         enabled: boolean;
         url: string | undefined;
@@ -3840,6 +3852,7 @@ export const parseConfig = (): LightdashConfig => {
             s3: parseResultsS3Config(),
         },
         staticAssets: { s3: parseStaticAssetsS3Config() },
+        uploads: { s3: parseUploadsS3Config() },
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,

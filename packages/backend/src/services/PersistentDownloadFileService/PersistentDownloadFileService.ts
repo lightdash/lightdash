@@ -4,6 +4,7 @@ import {
     NotFoundError,
     ParameterError,
     PersistentDownloadFileAccessMode,
+    PersistentDownloadFileStorage,
     S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS,
     type Account,
 } from '@lightdash/common';
@@ -36,6 +37,21 @@ type PersistentDownloadFileServiceArguments = {
     lightdashConfig: LightdashConfig;
     persistentDownloadFileModel: PersistentDownloadFileModel;
     fileStorageClient: FileStorageClient;
+    uploadsFileStorageClient: FileStorageClient | null;
+};
+
+type CreatePersistentUrlData = {
+    s3Key: string;
+    fileType: string;
+    organizationUuid: string;
+    projectUuid: string | null;
+    createdByUserUuid: string | null;
+    accessMode: Exclude<
+        PersistentDownloadFileAccessMode,
+        PersistentDownloadFileAccessMode.LEGACY_PUBLIC
+    >;
+    expirationSeconds?: number;
+    source?: PersistentDownloadFileSource;
 };
 
 const PERSISTENT_URL_S3_EXPIRY_SECONDS = 300; // 5 minutes
@@ -70,32 +86,70 @@ export class PersistentDownloadFileService extends BaseService {
 
     private readonly fileStorageClient: FileStorageClient;
 
+    private readonly uploadsFileStorageClient: FileStorageClient | null;
+
     constructor({
         analytics,
         lightdashConfig,
         persistentDownloadFileModel,
         fileStorageClient,
+        uploadsFileStorageClient,
     }: PersistentDownloadFileServiceArguments) {
         super();
         this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.persistentDownloadFileModel = persistentDownloadFileModel;
         this.fileStorageClient = fileStorageClient;
+        this.uploadsFileStorageClient = uploadsFileStorageClient;
     }
 
-    async createPersistentUrl(data: {
-        s3Key: string;
-        fileType: string;
-        organizationUuid: string;
-        projectUuid: string | null;
-        createdByUserUuid: string | null;
-        accessMode: Exclude<
-            PersistentDownloadFileAccessMode,
-            PersistentDownloadFileAccessMode.LEGACY_PUBLIC
-        >;
-        expirationSeconds?: number;
-        source?: PersistentDownloadFileSource;
-    }): Promise<string> {
+    private storageClient(
+        storage: PersistentDownloadFileStorage,
+    ): FileStorageClient {
+        switch (storage) {
+            case PersistentDownloadFileStorage.EXPORTS:
+                return this.fileStorageClient;
+            case PersistentDownloadFileStorage.UPLOADS:
+                return this.uploadsFileStorageClient ?? this.fileStorageClient;
+            default:
+                return assertUnreachable(
+                    storage,
+                    'Unknown persistent download file storage',
+                );
+        }
+    }
+
+    /** Links an object already written to the exports bucket. */
+    async createPersistentUrl(data: CreatePersistentUrlData): Promise<string> {
+        return this.createPersistentUrlForStorage(
+            data,
+            PersistentDownloadFileStorage.EXPORTS,
+        );
+    }
+
+    /** Stores an image where it will outlive export retention and links it. */
+    async uploadPersistentImage({
+        image,
+        storageId,
+        ...data
+    }: { image: Buffer; storageId: string } & Omit<
+        CreatePersistentUrlData,
+        's3Key' | 'fileType'
+    >): Promise<string> {
+        const storage = this.uploadsFileStorageClient
+            ? PersistentDownloadFileStorage.UPLOADS
+            : PersistentDownloadFileStorage.EXPORTS;
+        await this.storageClient(storage).uploadImage(image, storageId);
+        return this.createPersistentUrlForStorage(
+            { ...data, s3Key: `${storageId}.png`, fileType: 'image' },
+            storage,
+        );
+    }
+
+    private async createPersistentUrlForStorage(
+        data: CreatePersistentUrlData,
+        storage: PersistentDownloadFileStorage,
+    ): Promise<string> {
         const exceedsS3Limit =
             data.expirationSeconds !== undefined &&
             data.expirationSeconds > S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS;
@@ -104,7 +158,7 @@ export class PersistentDownloadFileService extends BaseService {
             !this.lightdashConfig.persistentDownloadUrls.enabled &&
             !exceedsS3Limit
         ) {
-            return this.fileStorageClient.getFileUrl(
+            return this.storageClient(storage).getFileUrl(
                 data.s3Key,
                 data.expirationSeconds,
             );
@@ -139,6 +193,7 @@ export class PersistentDownloadFileService extends BaseService {
             projectUuid: data.projectUuid,
             createdByUserUuid: data.createdByUserUuid,
             accessMode: data.accessMode,
+            storage,
             expiresAt,
         });
         this.analytics.track({
@@ -235,7 +290,7 @@ export class PersistentDownloadFileService extends BaseService {
                 `File ${fileNanoid} is not stored under ${s3KeyPrefix}`,
             );
         }
-        await this.fileStorageClient.deleteFile(file.s3_key);
+        await this.storageClient(file.storage).deleteFile(file.s3_key);
         await this.persistentDownloadFileModel.delete(fileNanoid);
     }
 
@@ -370,7 +425,7 @@ export class PersistentDownloadFileService extends BaseService {
     ): Promise<string> {
         const file = await this.getAuthorizedFile(fileNanoid, requestContext);
 
-        const signedUrl = await this.fileStorageClient.getFileUrl(
+        const signedUrl = await this.storageClient(file.storage).getFileUrl(
             file.s3_key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
@@ -414,8 +469,9 @@ export class PersistentDownloadFileService extends BaseService {
             },
         });
 
-        const { stream, contentDisposition } =
-            await this.fileStorageClient.getFileStream(file.s3_key);
+        const { stream, contentDisposition } = await this.storageClient(
+            file.storage,
+        ).getFileStream(file.s3_key);
 
         this.analytics.track({
             event: 'persistent_file.url_responded',
