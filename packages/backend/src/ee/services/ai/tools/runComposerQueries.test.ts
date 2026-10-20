@@ -101,7 +101,6 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
             nodes,
         }: {
             threadUuid: string;
-            toolCallId: string;
             nodes: ThreadComposerQueryNode[];
         }) => {
             const registered = list(threadUuid);

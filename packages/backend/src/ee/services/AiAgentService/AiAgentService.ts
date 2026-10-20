@@ -17226,14 +17226,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         this.aiAgentModel.listComposerQueryNodes(
                             threadComposerQueryScope(threadUuid),
                         ),
-                    registerThreadComposerQueryNodes: ({
-                        threadUuid,
-                        toolCallId,
-                        nodes,
-                    }) =>
+                    registerThreadComposerQueryNodes: ({ threadUuid, nodes }) =>
                         this.aiAgentModel.registerComposerQueryNodes({
                             scope: threadComposerQueryScope(threadUuid),
-                            toolCallId,
                             nodes,
                         }),
                     getLatestComposerVizConfig: async (threadUuid) =>

@@ -69,12 +69,10 @@ describe('AiAgentModel thread composer query nodes', () => {
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-1',
             nodes: [orders],
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-2',
             nodes: [orders, totals],
         });
 
@@ -89,13 +87,11 @@ describe('AiAgentModel thread composer query nodes', () => {
         const threadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-1',
             nodes: [orders, totals],
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-2',
             nodes: [{ ...totals, references: ['orders'] }],
         });
 
@@ -110,14 +106,12 @@ describe('AiAgentModel thread composer query nodes', () => {
         const threadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-1',
             nodes: [orders],
         });
 
         await expect(
             model.registerComposerQueryNodes({
                 scope: threadComposerQueryScope(threadUuid),
-                toolCallId: 'call-2',
                 nodes: [totals, { ...orders, limit: 10 }],
             }),
         ).rejects.toThrow(
@@ -135,13 +129,11 @@ describe('AiAgentModel thread composer query nodes', () => {
         const threadB = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadA),
-            toolCallId: 'call-1',
             nodes: [orders],
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadB),
-            toolCallId: 'call-2',
             nodes: [{ ...orders, limit: 10 }],
         });
 
@@ -162,12 +154,10 @@ describe('AiAgentModel thread composer query nodes', () => {
         const otherThreadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-1',
             nodes: [orders],
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(otherThreadUuid),
-            toolCallId: 'call-2',
             nodes: [orders],
         });
 
@@ -199,7 +189,6 @@ describe('AiAgentModel thread composer query nodes', () => {
             .returning('*');
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            toolCallId: 'call-1',
             nodes: [orders, totals],
         });
 

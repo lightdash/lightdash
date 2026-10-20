@@ -693,7 +693,6 @@ export type ListThreadComposerQueryNodesFn = (
 /** Throws on a different definition under a registered node id. */
 export type RegisterThreadComposerQueryNodesFn = (args: {
     threadUuid: string;
-    toolCallId: string;
     nodes: ThreadComposerQueryNode[];
 }) => Promise<void>;
 

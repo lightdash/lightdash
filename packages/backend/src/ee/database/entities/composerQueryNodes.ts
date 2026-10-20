@@ -27,7 +27,6 @@ export type DbComposerQueryNode = {
     scope_uuid: string;
     node_id: string;
     definition: ThreadComposerQueryNode;
-    tool_call_id: string;
     created_at: Date;
 };
 

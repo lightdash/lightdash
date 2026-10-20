@@ -371,7 +371,6 @@ export const getRunComposerQueries = ({
 
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
-                    toolCallId,
                     nodes: queries,
                 });
 

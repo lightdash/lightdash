@@ -19,7 +19,6 @@ export async function up(knex: Knex): Promise<void> {
             table.uuid('scope_uuid').notNullable();
             table.text('node_id').notNullable();
             table.jsonb('definition').notNullable();
-            table.text('tool_call_id').notNullable();
             table
                 .timestamp('created_at', { useTz: false })
                 .notNullable()

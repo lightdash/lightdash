@@ -9799,11 +9799,9 @@ export class AiAgentModel {
     /** Identical definitions are a no-op; a different one under a registered node id throws. */
     async registerComposerQueryNodes({
         scope,
-        toolCallId,
         nodes,
     }: {
         scope: ComposerQueryNodeScope;
-        toolCallId: string;
         nodes: ThreadComposerQueryNode[];
     }): Promise<void> {
         if (nodes.length === 0) return;
@@ -9816,7 +9814,6 @@ export class AiAgentModel {
                         scope_uuid: scope.scopeUuid,
                         node_id: node.nodeId,
                         definition: node,
-                        tool_call_id: toolCallId,
                     })),
                 )
                 .onConflict(['scope_type', 'scope_uuid', 'node_id'])
@@ -11350,8 +11347,8 @@ export class AiAgentModel {
 
             await trx.raw(
                 `INSERT INTO ${ComposerQueryNodesTableName}
-                    (scope_type, scope_uuid, node_id, definition, tool_call_id, created_at)
-                 SELECT scope_type, :targetThreadUuid, node_id, definition, tool_call_id, created_at
+                    (scope_type, scope_uuid, node_id, definition, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, created_at
                  FROM ${ComposerQueryNodesTableName}
                  WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
                 {
