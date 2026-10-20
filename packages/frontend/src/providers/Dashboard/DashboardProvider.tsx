@@ -414,20 +414,18 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [store, dashboard?.config?.parameterOrder, dashboard?.config]);
 
-    // Sync date zoom granularities from dashboard config
+    // Sync date zoom granularities from dashboard config during render, so the
+    // URL granularity is never validated against a stale list
     // Note: Custom granularities from explores are added by DashboardGranularitySync
-    useEffect(() => {
-        if (currentDashboardConfig?.dateZoomGranularities !== undefined) {
-            setDateZoomGranularitiesState(
-                currentDashboardConfig.dateZoomGranularities,
-            );
-        } else {
-            setDateZoomGranularitiesState(defaultStandardGranularities);
-        }
-    }, [
-        currentDashboardConfig?.dateZoomGranularities,
-        defaultStandardGranularities,
-    ]);
+    const persistedDateZoomGranularities =
+        currentDashboardConfig?.dateZoomGranularities ??
+        defaultStandardGranularities;
+    const [syncedDateZoomGranularities, setSyncedDateZoomGranularities] =
+        useState<(DateGranularity | string)[]>(defaultStandardGranularities);
+    if (persistedDateZoomGranularities !== syncedDateZoomGranularities) {
+        setSyncedDateZoomGranularities(persistedDateZoomGranularities);
+        setDateZoomGranularitiesState(persistedDateZoomGranularities);
+    }
 
     // Seed the staged custom-metrics registry from config; keep user edits
     // until save/cancel resets the changed flag.
@@ -436,12 +434,21 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setDashboardCustomMetrics(currentDashboardConfig?.customMetrics ?? []);
     }, [currentDashboardConfig?.customMetrics, haveCustomMetricsChanged]);
 
-    // Sync default date zoom granularity from dashboard config
-    useEffect(() => {
-        setDefaultDateZoomGranularityState(
-            currentDashboardConfig?.defaultDateZoomGranularity,
+    // Sync default date zoom granularity from dashboard config, also during render
+    const persistedDefaultDateZoomGranularity =
+        currentDashboardConfig?.defaultDateZoomGranularity;
+    const [
+        syncedDefaultDateZoomGranularity,
+        setSyncedDefaultDateZoomGranularity,
+    ] = useState<DateGranularity | string | undefined>(undefined);
+    if (
+        persistedDefaultDateZoomGranularity !== syncedDefaultDateZoomGranularity
+    ) {
+        setSyncedDefaultDateZoomGranularity(
+            persistedDefaultDateZoomGranularity,
         );
-    }, [currentDashboardConfig?.defaultDateZoomGranularity]);
+        setDefaultDateZoomGranularityState(persistedDefaultDateZoomGranularity);
+    }
 
     // Set active tab when dashboard and tabs are loaded.
     // In view mode, hidden tabs are not selectable — fall back to the first
@@ -1131,6 +1138,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 />
                 <DashboardDateZoomSync
                     dashboardUuid={dashboard?.uuid}
+                    isDashboardLoaded={!!(dashboard ?? embedDashboard)}
                     isEditMode={isEditMode}
                     configDefaultDateZoomGranularity={
                         currentDashboardConfig?.defaultDateZoomGranularity

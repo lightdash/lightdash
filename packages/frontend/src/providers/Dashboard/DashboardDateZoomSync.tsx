@@ -15,6 +15,7 @@ import {
 
 type Props = {
     dashboardUuid: string | undefined;
+    isDashboardLoaded: boolean;
     isEditMode: boolean;
     configDefaultDateZoomGranularity: DateGranularity | string | undefined;
     isDateZoomDisabledInConfig: boolean | undefined;
@@ -28,6 +29,7 @@ type Props = {
  */
 const DashboardDateZoomSync: FC<Props> = ({
     dashboardUuid,
+    isDashboardLoaded,
     isEditMode,
     configDefaultDateZoomGranularity,
     isDateZoomDisabledInConfig,
@@ -160,8 +162,11 @@ const DashboardDateZoomSync: FC<Props> = ({
     // Only validates standard granularities here — custom granularities
     // are validated by DashboardGranularitySync once all charts have loaded
     // and the full set of available custom granularities is known.
+    // Waits for the dashboard so a URL value isn't checked against the
+    // placeholder list, which leaves out sub-day granularities.
     useEffect(() => {
         if (
+            isDashboardLoaded &&
             dateZoomGranularity &&
             dateZoomGranularities.length > 0 &&
             isStandardDateGranularity(dateZoomGranularity) &&
@@ -174,6 +179,7 @@ const DashboardDateZoomSync: FC<Props> = ({
             );
         }
     }, [
+        isDashboardLoaded,
         dateZoomGranularities,
         dateZoomGranularity,
         defaultDateZoomGranularity,

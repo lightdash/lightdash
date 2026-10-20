@@ -2176,6 +2176,44 @@ describe('date zoom: allowed granularities', () => {
         expect(result.current.dateZoomGranularity).toBeUndefined();
     });
 
+    it('keeps an allowed sub-day granularity from the URL', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({
+                dateZoomGranularities: ['Hour', 'Day', 'Month'],
+            }),
+        });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=hour',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Hour');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('hour');
+    });
+
+    it('keeps an allowed sub-day granularity when the dashboard loads after mount', () => {
+        const { result, rerender } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=hour',
+        );
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ dateZoomGranularities: ['Hour', 'Day'] }),
+        });
+        rerender();
+        expect(result.current.dateZoomGranularity).toBe('Hour');
+    });
+
+    it('resets a disallowed sub-day URL value to the configured default', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({
+                dateZoomGranularities: ['Day', 'Month'],
+                defaultDateZoomGranularity: 'Month',
+            }),
+        });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=hour',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Month');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('month');
+    });
+
     it('keeps a custom granularity while charts are loading', () => {
         mocks.dashboard = makeDashboard({
             config: zoomConfig({ dateZoomGranularities: ['Month'] }),
