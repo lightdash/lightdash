@@ -1,3 +1,10 @@
+# [2.629.0](https://github.com/lightdash/lightdash/compare/2.628.0...2.629.0) (2026-10-20)
+
+
+### Features
+
+* **sdk:** start dashboard-bound AI agent threads from the SDK ([#31234](https://github.com/lightdash/lightdash/issues/31234)) ([e8bfc5e](https://github.com/lightdash/lightdash/commit/e8bfc5ee546e7b9b8912353a931f62614dbd9e58))
+
 # [2.628.0](https://github.com/lightdash/lightdash/compare/2.627.0...2.628.0) (2026-10-20)
 
 
