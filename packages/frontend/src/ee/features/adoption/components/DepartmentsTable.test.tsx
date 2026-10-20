@@ -62,12 +62,18 @@ const setTableWidth = (width: number) =>
     );
 const WIDE = 1400;
 
-const renderTable = (canManage = true, onEdit = vi.fn()) =>
+const renderTable = (
+    canManage = true,
+    onEdit = vi.fn(),
+    selectedUuid: string | null = null,
+    path = '/generalSettings/adoption',
+) =>
     renderWithProviders(
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>
             <DepartmentsTable
                 departments={departments}
                 canManage={canManage}
+                selectedUuid={selectedUuid}
                 onEdit={onEdit}
             />
         </MemoryRouter>,
@@ -82,6 +88,52 @@ describe('DepartmentsTable', () => {
         renderTable();
         const links = screen.getAllByRole('link').map((l) => l.textContent);
         expect(links).toEqual(['Small', 'Ops', 'Sales', 'Legal']);
+    });
+    it('links each name to the page with its department selected, keeping the view', () => {
+        renderTable(true, vi.fn(), null, '/generalSettings/adoption?view=list');
+        expect(screen.getByRole('link', { name: 'Ops' })).toHaveAttribute(
+            'href',
+            '/generalSettings/adoption?view=list&department=Ops',
+        );
+    });
+    it('marks the row of the department selected, opening the rows above it', () => {
+        renderTable(true, vi.fn(), 'Stores');
+        const row = (name: string) =>
+            screen.getByRole('link', { name }).closest('tr');
+        expect(row('Stores')).toHaveAttribute('aria-current', 'true');
+        expect(row('Stores')).toHaveClass(styles.markedRow);
+        expect(
+            screen.getByRole('button', { name: 'Collapse Ops' }),
+        ).toHaveAttribute('aria-expanded', 'true');
+        expect(row('Ops')).not.toHaveAttribute('aria-current');
+        expect(row('Sales')).not.toHaveAttribute('aria-current');
+    });
+    it('marks the nearest row shown for a department below the levels the table shows', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        dept('Commercial', null, 50),
+                        dept('Customer Success', 'Commercial', 50),
+                        dept('Support', 'Customer Success', 50),
+                        dept('Tier one', 'Support', 50),
+                    ]}
+                    canManage
+                    selectedUuid="Tier one"
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link', { name: 'Tier one' })).toBeNull();
+        expect(
+            screen.getByRole('link', { name: 'Support' }).closest('tr'),
+        ).toHaveAttribute('aria-current', 'true');
+    });
+    it('scrolls within the height a strip gives it, and is as tall as it needs otherwise', () => {
+        renderTable();
+        expect(screen.getByRole('table').parentElement).toHaveClass(
+            styles.container,
+        );
     });
     it('reveals children when a parent is expanded, with state on the button', async () => {
         renderTable();
@@ -115,6 +167,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -233,6 +286,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -269,6 +323,7 @@ describe('DepartmentsTable', () => {
                         dept('Tier one', 'Support', 50),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -313,6 +368,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -334,6 +390,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -373,6 +430,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -428,6 +486,7 @@ describe('DepartmentsTable', () => {
                         }),
                     ]}
                     canManage={false}
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
@@ -454,6 +513,7 @@ describe('DepartmentsTable', () => {
                 <DepartmentsTable
                     departments={[dept('Sales', null, 80)]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,

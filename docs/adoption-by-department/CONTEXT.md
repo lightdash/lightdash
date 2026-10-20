@@ -139,15 +139,19 @@ _Avoid_: popular content, favourites, what they use, what this department uses
 ### Views
 
 **Map**:
-The default index view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. A person who counts in several departments has a dot in each, ringed. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
+The default view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. A person who counts in several departments has a dot in each, ringed. Dots show how a department is doing, not where to find someone; to find a person, select their department and use its people list, where picking their dot marks their row.
 _Avoid_: bubble chart, treemap, org chart
 
 **List**:
-The index view as a table of departments with their measures.
+The view as a table of departments with their measures.
 _Avoid_: grid, table view
 
+**Selected department**:
+The department chosen on the Adoption page, the only screen, and named in its link (`department=<uuid>`). The view above becomes a strip and the department is shown below it in place of the organization panel: where it sits, its owners, its people as the view colours them, its trend, key content, overlaps, sub-departments and people.
+_Avoid_: department page, inspector
+
 **Attention**:
-The counts shown above the index: unassigned people, and shared people with no primary department. Anyone holding `manage:OrganizationAdoption` (admins by default, custom roles can grant it) can place the first and choose where the second count. Only unassigned people make it a warning.
+The counts shown above the views: unassigned people, and shared people with no primary department. Anyone holding `manage:OrganizationAdoption` (admins by default, custom roles can grant it) can place the first and choose where the second count. Only unassigned people make it a warning.
 _Avoid_: alerts, issues, to-do
 
 ## Relationships

@@ -5,7 +5,6 @@ import {
     type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
-import { formatLastActive } from '../utils/departmentDetail';
 import {
     DEPARTMENTS,
     formatCount,
@@ -457,40 +456,6 @@ export const buildMapAriaLabel = ({
 export const formatPct = (pct: number | null, count: number): string | null => {
     if (pct === null) return null;
     return pct === 0 && count > 0 ? '<1%' : `${pct}%`;
-};
-
-export const formatMemberActivity = (
-    lastActiveAt: string | null,
-    now: Date = new Date(),
-): string => {
-    if (lastActiveAt === null) return 'No activity in 90 days';
-    const when = formatLastActive(lastActiveAt, now);
-    // Relative days read as part of the sentence; a date keeps its capitals
-    return `Last active ${/^[A-Z][a-z]+$/.test(when) ? when.toLowerCase() : when}`;
-};
-
-// For a person in several departments: each of them by name, then the one they count in when they have a primary
-export const getMemberDepartmentLines = (
-    member: DepartmentMember,
-): string[] => {
-    const names = new Map([
-        [member.departmentUuid, member.departmentName],
-        ...member.sharedWith.map((other): [string, string] => [
-            other.departmentUuid,
-            other.name,
-        ]),
-    ]);
-    if (names.size < 2) return [];
-    const primary =
-        member.primaryDepartmentUuid === null
-            ? undefined
-            : names.get(member.primaryDepartmentUuid);
-    return [
-        `In ${formatQuantity(names.size, DEPARTMENTS)}: ${[...names.values()]
-            .sort((a, b) => a.localeCompare(b))
-            .join(', ')}`,
-        ...(primary === undefined ? [] : [`Counts in: ${primary}`]),
-    ];
 };
 
 // A department with no sub-departments is drawn as one circle, which carries the department's own name

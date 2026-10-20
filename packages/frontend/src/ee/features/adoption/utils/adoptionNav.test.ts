@@ -6,7 +6,9 @@ import {
     ADOPTION_NAV_KEYWORDS,
     ADOPTION_PATH,
     getDepartmentPath,
+    getSelectedDepartment,
     parseAdoptionView,
+    withSelectedDepartment,
 } from './adoptionNav';
 
 describe('adoption nav', () => {
@@ -36,8 +38,41 @@ describe('adoption nav', () => {
             ]);
         },
     );
-    it('builds the department page path under the index', () => {
-        expect(getDepartmentPath('abc')).toBe('/generalSettings/adoption/abc');
+    it('links to the page with the department selected, encoding whatever it is given', () => {
+        expect(getDepartmentPath('abc')).toBe(
+            '/generalSettings/adoption?department=abc',
+        );
+        expect(getDepartmentPath('../../user?x=1')).toBe(
+            '/generalSettings/adoption?department=..%2F..%2Fuser%3Fx%3D1',
+        );
+    });
+});
+
+describe('the department selected in the link', () => {
+    it('is read from the query string, and an empty one selects nothing', () => {
+        expect(
+            getSelectedDepartment(new URLSearchParams('view=map&department=a')),
+        ).toBe('a');
+        expect(getSelectedDepartment(new URLSearchParams('department='))).toBe(
+            null,
+        );
+        expect(getSelectedDepartment(new URLSearchParams('view=map'))).toBe(
+            null,
+        );
+    });
+    it('is written beside the rest of the query string, and taken out to select nothing', () => {
+        const params = new URLSearchParams('view=list');
+        expect(withSelectedDepartment(params, 'a').toString()).toBe(
+            'view=list&department=a',
+        );
+        expect(
+            withSelectedDepartment(
+                new URLSearchParams('view=list&department=a'),
+                null,
+            ).toString(),
+        ).toBe('view=list');
+        // The query string given is left as it was
+        expect(params.toString()).toBe('view=list');
     });
 });
 

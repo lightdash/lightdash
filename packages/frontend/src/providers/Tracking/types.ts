@@ -1109,6 +1109,16 @@ type LearnWalkthroughDismissedEvent = {
     };
 };
 
+// A department selected on the Adoption page, sent where the department page's page view was
+type AdoptionDepartmentSelectedEvent = {
+    name: EventName.ADOPTION_DEPARTMENT_SELECTED;
+    properties: {
+        departmentUuid: string;
+        // The view it was selected in: the map, the list or the waffle
+        view: 'map' | 'list' | 'waffle';
+    };
+};
+
 export type SqlRunnerConnectionKind = 'primary' | 'extra';
 
 type SqlRunnerConnectionProperties = {
@@ -1280,6 +1290,7 @@ export type EventData =
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent
     | LearnWalkthroughDismissedEvent
+    | AdoptionDepartmentSelectedEvent
     | SqlRunnerConnectionSwitchedEvent
     | SqlRunnerConnectionHintResolvedEvent
     | SqlRunnerShareLinkOpenedEvent

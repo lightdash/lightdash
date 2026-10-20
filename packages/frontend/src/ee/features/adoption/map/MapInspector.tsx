@@ -1,66 +1,37 @@
-import {
-    assertUnreachable,
-    OrganizationMemberRoleLabels,
-    type DepartmentMember,
-    type DepartmentWithMetrics,
-} from '@lightdash/common';
-import {
-    Box,
-    Button,
-    CloseButton,
-    Group,
-    Paper,
-    Progress,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { assertUnreachable } from '@lightdash/common';
+import { Box, Group, Paper, Progress, Stack, Text, Title } from '@mantine/core';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import { getDepartmentPath } from '../utils/adoptionNav';
 import { getMissingHeadcountWord } from '../utils/departmentRows';
 import { formatCount } from '../utils/format';
 import {
-    getDirectRow,
     hasHeadcountInView,
     type CoverageReading,
     type CoverageRow,
+    type DirectRow,
     type PeopleBreakdown,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
-import { type ColourBy, type DotKind } from './geometry';
+import { type DotKind } from './geometry';
 import { DOT_LABELS } from './mapStyles';
-import {
-    formatMemberActivity,
-    formatPct,
-    getMemberDepartmentLines,
-} from './mapView';
+import { formatPct } from './mapView';
 
 type Props = {
-    // The focused department, or null at the top of the organization
-    department: DepartmentWithMetrics | null;
-    // The focused department's parent, or null for a top-level department
-    parentName: string | null;
-    // Everyone the panel is about, counted as the legend under the map counts them
+    // Everyone placed in a department, counted as the legend under the view counts them
     breakdown: PeopleBreakdown;
-    colourBy: ColourBy;
-    // The departments one level down, which is what the map is showing, lowest coverage first
+    // The top-level departments, lowest coverage first
     rows: CoverageRow[];
-    member: DepartmentMember | null;
     canManage: boolean;
     // The key beside each part of the bar: the view's own mark for those people, a dot on the map
     keySwatch: FC<{ kind: DotKind }>;
     onDepartmentClick: (departmentUuid: string) => void;
-    onClearMember: () => void;
-    onEdit: (department: DepartmentWithMetrics) => void;
 };
 
 // The parts of the people on Lightdash, as the map colours them, over a track that stands for the people
 // without an account; the whole bar is everyone the breakdown counts
-const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
-    breakdown,
-    size,
-}) => {
+export const BreakdownBar: FC<{
+    breakdown: PeopleBreakdown;
+    size: 'md' | 'lg';
+}> = ({ breakdown, size }) => {
     const total = breakdown.reduce((sum, part) => sum + part.count, 0);
     return (
         <Progress.Root
@@ -126,7 +97,7 @@ const RowEnd: FC<{
 
 // Each part keyed with the mark the view draws for those people: the map's dots or the waffle's squares. Without
 // a headcount anywhere, nobody can be counted as having no account, so that count gives way to a request
-const BreakdownLegend: FC<{
+export const BreakdownLegend: FC<{
     breakdown: PeopleBreakdown;
     hasHeadcount: boolean;
     keySwatch: FC<{ kind: DotKind }>;
@@ -151,203 +122,128 @@ const BreakdownLegend: FC<{
     </ul>
 );
 
-export const MapInspector: FC<Props> = ({
-    department,
-    parentName,
-    breakdown,
-    colourBy,
+type CoverageRowListProps = {
+    rows: CoverageRow[];
+    // The people directly in a department beside its sub-departments, named after it; null where there are none
+    direct: { name: string; row: DirectRow } | null;
+    canManage: boolean;
+    onDepartmentClick: (departmentUuid: string) => void;
+};
+
+// A row per department with its bar over its headcount and its coverage; a row selects its department. The people
+// directly in a department come last, in a plain row, as they are the department already selected
+export const CoverageRowList: FC<CoverageRowListProps> = ({
     rows,
-    member,
+    direct,
+    canManage,
+    onDepartmentClick,
+}) => (
+    <Box>
+        {rows.map((row) => (
+            <button
+                key={row.department.departmentUuid}
+                type="button"
+                className={styles.row}
+                onClick={() => onDepartmentClick(row.department.departmentUuid)}
+            >
+                <Text
+                    component="span"
+                    fz="sm"
+                    truncate
+                    title={row.department.name}
+                >
+                    {row.department.name}
+                </Text>
+                <BreakdownBar breakdown={row.breakdown} size="md" />
+                <RowEnd
+                    reading={row.reading}
+                    memberCount={row.department.metrics.memberCount}
+                    canManage={canManage}
+                />
+            </button>
+        ))}
+        {direct !== null && (
+            <div className={`${styles.row} ${styles.directRow}`}>
+                <span
+                    className={styles.directLabel}
+                    title={`Directly in ${direct.name} · ${formatCount(direct.row.memberCount)}`}
+                >
+                    <Text component="span" fz="sm" truncate>
+                        {`Directly in ${direct.name}`}
+                    </Text>
+                    <Text
+                        component="span"
+                        fz="sm"
+                        className={styles.directCount}
+                    >
+                        {` · ${formatCount(direct.row.memberCount)}`}
+                    </Text>
+                </span>
+                <BreakdownBar breakdown={direct.row.breakdown} size="md" />
+                <RowEnd
+                    reading={direct.row.reading}
+                    memberCount={direct.row.memberCount}
+                    canManage={canManage}
+                />
+            </div>
+        )}
+    </Box>
+);
+
+// The organization beside the view while no department is selected: everyone placed in a department as one bar, and
+// the top-level departments, lowest coverage first
+export const MapInspector: FC<Props> = ({
+    breakdown,
+    rows,
     canManage,
     keySwatch,
     onDepartmentClick,
-    onClearMember,
-    onEdit,
-}) => {
-    const subtitle =
-        department === null ? 'All departments' : (parentName ?? 'Department');
-    // A person in several departments is named with all of them, so their role stands alone
-    const departmentLines =
-        member === null ? [] : getMemberDepartmentLines(member);
-    const hasHeadcount = hasHeadcountInView(
-        department,
-        rows.map((row) => row.department),
-    );
-    // The people directly in a department beside its sub-departments, as the map draws them
-    const direct =
-        department === null
-            ? null
-            : getDirectRow(
-                  department,
-                  rows.map((row) => row.department),
-                  colourBy,
-              );
-    return (
-        <Paper p="md" component="aside" aria-label="Details">
-            <Stack gap="lg" h="100%">
-                <Group
-                    justify="space-between"
-                    align="baseline"
-                    gap="sm"
-                    wrap="nowrap"
+}) => (
+    <Paper p="md" component="aside" aria-label="Details">
+        <Stack gap="lg" h="100%">
+            <Group
+                justify="space-between"
+                align="baseline"
+                gap="sm"
+                wrap="nowrap"
+            >
+                <Title order={5} size="h4" className={styles.title}>
+                    Organization
+                </Title>
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    truncate
+                    title="All departments"
+                    className={styles.subtitle}
                 >
-                    <Title order={5} size="h4" className={styles.title}>
-                        {department?.name ?? 'Organization'}
-                    </Title>
-                    <Text
-                        fz="xs"
-                        c="dimmed"
-                        truncate
-                        title={subtitle}
-                        className={styles.subtitle}
-                    >
-                        {subtitle}
+                    All departments
+                </Text>
+            </Group>
+            <Stack gap="xs">
+                <BreakdownBar breakdown={breakdown} size="lg" />
+                <BreakdownLegend
+                    breakdown={breakdown}
+                    hasHeadcount={hasHeadcountInView(
+                        null,
+                        rows.map((row) => row.department),
+                    )}
+                    keySwatch={keySwatch}
+                />
+            </Stack>
+            {rows.length > 0 && (
+                <Stack gap={6}>
+                    <Text fz="xs" c="dimmed">
+                        Departments
                     </Text>
-                </Group>
-                <Stack gap="xs">
-                    <BreakdownBar breakdown={breakdown} size="lg" />
-                    <BreakdownLegend
-                        breakdown={breakdown}
-                        hasHeadcount={hasHeadcount}
-                        keySwatch={keySwatch}
+                    <CoverageRowList
+                        rows={rows}
+                        direct={null}
+                        canManage={canManage}
+                        onDepartmentClick={onDepartmentClick}
                     />
                 </Stack>
-                {member !== null && (
-                    <Stack gap={6}>
-                        <Text fz="xs" c="dimmed">
-                            Selected
-                        </Text>
-                        <Group
-                            className={styles.selected}
-                            justify="space-between"
-                            align="flex-start"
-                            wrap="nowrap"
-                        >
-                            <Stack gap={2} miw={0}>
-                                <Text fz="sm" fw={500} truncate>
-                                    {`${member.firstName} ${member.lastName}`.trim() ||
-                                        member.email}
-                                </Text>
-                                <Text fz="xs" c="dimmed" truncate>
-                                    {member.email}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {departmentLines.length === 0
-                                        ? `${OrganizationMemberRoleLabels[member.role]} · ${member.departmentName}`
-                                        : OrganizationMemberRoleLabels[
-                                              member.role
-                                          ]}
-                                </Text>
-                                {departmentLines.map((line) => (
-                                    <Text key={line} fz="xs" c="dimmed">
-                                        {line}
-                                    </Text>
-                                ))}
-                                <Text fz="xs" c="dimmed">
-                                    {formatMemberActivity(member.lastActiveAt)}
-                                </Text>
-                            </Stack>
-                            <CloseButton
-                                size="sm"
-                                aria-label="Clear selected person"
-                                onClick={onClearMember}
-                            />
-                        </Group>
-                    </Stack>
-                )}
-                {rows.length > 0 && (
-                    <Stack gap={6}>
-                        <Text fz="xs" c="dimmed">
-                            {department === null
-                                ? 'Departments'
-                                : 'Sub-departments'}
-                        </Text>
-                        <Box>
-                            {rows.map((row) => (
-                                <button
-                                    key={row.department.departmentUuid}
-                                    type="button"
-                                    className={styles.row}
-                                    onClick={() =>
-                                        onDepartmentClick(
-                                            row.department.departmentUuid,
-                                        )
-                                    }
-                                >
-                                    <Text
-                                        component="span"
-                                        fz="sm"
-                                        truncate
-                                        title={row.department.name}
-                                    >
-                                        {row.department.name}
-                                    </Text>
-                                    <BreakdownBar
-                                        breakdown={row.breakdown}
-                                        size="md"
-                                    />
-                                    <RowEnd
-                                        reading={row.reading}
-                                        memberCount={
-                                            row.department.metrics.memberCount
-                                        }
-                                        canManage={canManage}
-                                    />
-                                </button>
-                            ))}
-                            {/* Nothing to open: the department is already open, so the row is plain */}
-                            {department !== null && direct !== null && (
-                                <div
-                                    className={`${styles.row} ${styles.directRow}`}
-                                >
-                                    <span
-                                        className={styles.directLabel}
-                                        title={`Directly in ${department.name} · ${formatCount(direct.memberCount)}`}
-                                    >
-                                        <Text component="span" fz="sm" truncate>
-                                            {`Directly in ${department.name}`}
-                                        </Text>
-                                        <Text
-                                            component="span"
-                                            fz="sm"
-                                            className={styles.directCount}
-                                        >
-                                            {` · ${formatCount(direct.memberCount)}`}
-                                        </Text>
-                                    </span>
-                                    <BreakdownBar
-                                        breakdown={direct.breakdown}
-                                        size="md"
-                                    />
-                                    <RowEnd
-                                        reading={direct.reading}
-                                        memberCount={direct.memberCount}
-                                        canManage={canManage}
-                                    />
-                                </div>
-                            )}
-                        </Box>
-                    </Stack>
-                )}
-                {department !== null && (
-                    <Stack gap="xs" className={styles.actions}>
-                        <Button
-                            component={Link}
-                            to={getDepartmentPath(department.departmentUuid)}
-                        >
-                            Open {department.name}
-                        </Button>
-                        {canManage && (
-                            <Button
-                                variant="default"
-                                onClick={() => onEdit(department)}
-                            >
-                                Edit department
-                            </Button>
-                        )}
-                    </Stack>
-                )}
-            </Stack>
-        </Paper>
-    );
-};
+            )}
+        </Stack>
+    </Paper>
+);

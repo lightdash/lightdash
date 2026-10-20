@@ -46,6 +46,11 @@
     align-items: stretch;
 }
 
+/* A strip over a selected department takes the full width, with no panel beside it */
+.body[data-strip] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 62em) {
     .body {
         grid-template-columns: minmax(0, 1fr);
@@ -57,10 +62,11 @@
     overflow: hidden;
 }
 
-/* The drawing is sized from this box, so its height is fixed here and nowhere else */
+/* The drawing is sized from this box, so its height is fixed here and nowhere else: full height, or the strip's
+   height over a selected department */
 .canvas {
     position: relative;
-    height: 560px;
+    height: var(--adoption-view-height, 560px);
     overflow: hidden;
 }
 
@@ -202,17 +208,9 @@
     box-shadow: none;
 }
 
-.selected {
-    padding: var(--mantine-spacing-sm);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
-}
-
-.actions {
-    margin-top: auto;
-}
-
-/* Receives focus after the map changes level, so the outline belongs to the keyboard only */
-.crumb:focus:not(:focus-visible) {
+/* The view when a department is deselected, and a department's name when it is selected, receive focus from code,
+   so the outline belongs to the keyboard only */
+.view:focus:not(:focus-visible),
+.heading:focus:not(:focus-visible) {
     outline: none;
 }

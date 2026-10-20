@@ -21,7 +21,7 @@ const ORG_ADOPTION_QUERY_KEY = ['org-adoption'];
 const departmentUrl = (departmentUuid: string, suffix = ''): string =>
     `/org/departments/${encodeURIComponent(departmentUuid)}${suffix}`;
 
-export const useOrgAdoptionSummary = (enabled = true) => {
+export const useOrgAdoptionSummary = () => {
     const lightdashApi = useLightdashApi();
     return useQuery<OrganizationAdoptionSummary, ApiError>({
         queryKey: [...ORG_ADOPTION_QUERY_KEY, 'summary'],
@@ -31,7 +31,6 @@ export const useOrgAdoptionSummary = (enabled = true) => {
                 method: 'GET',
                 body: undefined,
             }),
-        enabled,
         retry: false,
     });
 };

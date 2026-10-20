@@ -100,7 +100,7 @@ export const getParentOptions = (
         .sort((a, b) => a.label.localeCompare(b.label));
 };
 
-// Where each person counts under the department: here, else the first sub-department, as on the department page
+// Where each person counts under the department: here, else the first sub-department, as its people list shows
 export const getResolvedMembers = (
     membership: DepartmentMembership[],
     departments: NamedDepartment[],
@@ -121,7 +121,7 @@ export const getResolvedMembers = (
     });
 };
 
-// Where a person is placed, read from the membership list or from a department page's people
+// Where a person is placed, read from the membership list or from the selected department's people
 export type PersonPlacements = { userUuid: string; departmentUuids: string[] };
 
 export const placementsFromMembership = (
@@ -182,7 +182,7 @@ export const getAlsoIn = (
     return alsoIn;
 };
 
-// The department page already holds its people, so the drawer need not load everyone again
+// The selected department already holds its people, so the drawer need not load everyone again
 export const getResolvedMembersFromDetail = (
     members: DepartmentMember[],
 ): ResolvedMemberLine[] =>

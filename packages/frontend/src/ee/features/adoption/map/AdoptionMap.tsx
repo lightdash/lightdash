@@ -1,17 +1,11 @@
-import {
-    type DepartmentWithMetrics,
-    type OrganizationAdoptionSummary,
-} from '@lightdash/common';
+import { type OrganizationAdoptionSummary } from '@lightdash/common';
 import { Box, Paper, Stack, Text, VisuallyHidden } from '@mantine/core';
 import {
     useCallback,
-    useEffect,
     useLayoutEffect,
     useMemo,
-    useRef,
     useState,
     type FC,
-    type KeyboardEvent,
 } from 'react';
 import { useDepartmentDetail } from '../../../hooks/useOrgDepartments';
 import {
@@ -39,7 +33,6 @@ import {
     buildDots,
     buildMapAriaLabel,
     describeCircles,
-    getFocusTrail,
     getLegendCounts,
     getPeopleInView,
     getRingKeys,
@@ -58,7 +51,14 @@ const FALLBACK_SIZE = { width: MAP_SIZE, height: 560 };
 type Props = {
     summary: OrganizationAdoptionSummary;
     canManage: boolean;
-    onEdit: (department: DepartmentWithMetrics) => void;
+    // The department selected on the page, which the map opens as a strip above it; null for the whole organization
+    selectedUuid: string | null;
+    onSelect: (departmentUuid: string | null) => void;
+    colourBy: ColourBy;
+    onColourByChange: (colourBy: ColourBy) => void;
+    // The person picked on the map, whose row the selected department's people show
+    selectedUserUuid: string | null;
+    onPersonClick: (userUuid: string) => void;
     // Label widths; measured with the page's own font unless one is supplied
     measureText?: TextMeasurer;
 };
@@ -66,17 +66,22 @@ type Props = {
 export const AdoptionMap: FC<Props> = ({
     summary,
     canManage,
-    onEdit,
+    selectedUuid,
+    onSelect,
+    colourBy,
+    onColourByChange,
+    selectedUserUuid,
+    onPersonClick,
     measureText,
 }) => {
     const { departments } = summary;
-    const [focusUuid, setFocusUuid] = useState<string | null>(null);
-    const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
-        null,
-    );
+    // A selected department is shown below the map, which becomes a strip with no panel beside it
+    const isStrip = selectedUuid !== null;
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('activity');
-    const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
+    const { ref, width, height, isMeasured } = useContainerSize(
+        FALLBACK_SIZE,
+        isStrip ? 'strip' : 'full',
+    );
 
     // Labels are measured in the font they are drawn in, again once web fonts have loaded
     const [font, setFont] = useState<{ family: string; epoch: number } | null>(
@@ -106,16 +111,13 @@ export const AdoptionMap: FC<Props> = ({
         () => new Map(departments.map((d) => [d.departmentUuid, d])),
         [departments],
     );
-    // A department deleted while focused falls back to the whole organization
-    const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
+    // A department deleted while selected, or one not in the organization, falls back to the whole organization
+    const focus =
+        selectedUuid === null ? null : (byUuid.get(selectedUuid) ?? null);
     const focusedUuid = focus?.departmentUuid ?? null;
     const focusName = focus?.name ?? null;
     const visibleDepartments = useMemo(
         () => getVisibleDepartments(departments, focusedUuid),
-        [departments, focusedUuid],
-    );
-    const trail = useMemo(
-        () => getFocusTrail(departments, focusedUuid),
         [departments, focusedUuid],
     );
 
@@ -123,17 +125,22 @@ export const AdoptionMap: FC<Props> = ({
         (circles: PackedCircle[]) => describeCircles(circles, byUuid),
         [byUuid],
     );
+    // Nothing is laid out until the drawing's box is measured for how the map is shown, so the strip coming or going
+    // draws the map once, at its own size
     const circles = useMemo(
         () =>
-            layoutMap({
-                input: buildPackInput(departments, focusedUuid),
-                area: { width, height },
-                focusName,
-            }),
-        [departments, focusedUuid, focusName, width, height],
+            isMeasured
+                ? layoutMap({
+                      input: buildPackInput(departments, focusedUuid),
+                      area: { width, height },
+                      focusName,
+                  })
+                : [],
+        [isMeasured, departments, focusedUuid, focusName, width, height],
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
-    // The panel, the legend under the map and the map's description count the same people from the same numbers
+    // The legend under the map, its description and the panel beside it, or the selected department's bar, count
+    // the same people from the same numbers
     const breakdown = useMemo(
         () =>
             focus === null
@@ -166,7 +173,7 @@ export const AdoptionMap: FC<Props> = ({
 
     // Names, roles and last activity for the people inside the focused department.
     // Not asked for when there are too many people in view to name them.
-    const loadPeople = showDots && shouldLoadPeople(peopleInView);
+    const loadPeople = isMeasured && showDots && shouldLoadPeople(peopleInView);
     const detail = useDepartmentDetail(
         loadPeople ? (focusedUuid ?? undefined) : undefined,
     );
@@ -186,8 +193,6 @@ export const AdoptionMap: FC<Props> = ({
         [loadedMembers],
     );
     const listPeople = shouldListPeople(peopleInView, loadedMembers !== null);
-    const selectedMember =
-        loadedMembers?.find((m) => m.userUuid === selectedUserUuid) ?? null;
 
     const dots = useMemo(
         () =>
@@ -200,40 +205,14 @@ export const AdoptionMap: FC<Props> = ({
     );
     const legendCounts = useMemo(() => getLegendCounts(breakdown), [breakdown]);
 
-    // Whether the last thing the person did in the map was a key press or a pointer press
-    const lastInputRef = useRef<'keyboard' | 'pointer'>('pointer');
-    const shouldMoveFocusRef = useRef(false);
-    const focusOn = useCallback((departmentUuid: string | null) => {
-        shouldMoveFocusRef.current = lastInputRef.current === 'keyboard';
-        setFocusUuid(departmentUuid);
-        setSelectedUserUuid(null);
-        setHighlightedUuid(null);
-    }, []);
-
-    // The control that was pressed is gone after a change of level, so keyboard focus moves to the
-    // breadcrumb's current item. A pointer press leaves focus, and the page's scroll position, alone.
-    const currentCrumbRef = useRef<HTMLParagraphElement | null>(null);
-    const lastFocusedUuid = useRef(focusedUuid);
-    useEffect(() => {
-        if (lastFocusedUuid.current === focusedUuid) return;
-        lastFocusedUuid.current = focusedUuid;
-        if (!shouldMoveFocusRef.current) return;
-        shouldMoveFocusRef.current = false;
-        currentCrumbRef.current?.focus();
-    }, [focusedUuid]);
-
-    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        lastInputRef.current = 'keyboard';
-        if (event.key !== 'Escape' || focus === null) return;
-        // Escape belongs to the map's own way-finding controls; elsewhere it keeps its usual meaning
-        const isOnMapControl =
-            event.target instanceof Element &&
-            event.target.closest('[data-map-navigation]') !== null;
-        if (event.defaultPrevented || !isOnMapControl) return;
-        event.stopPropagation();
-        // Up one level: the last ancestor in the trail, or the whole organization
-        focusOn(trail[trail.length - 2]?.departmentUuid ?? null);
-    };
+    // The page moves focus to the department selected, and back to the view when it is deselected
+    const focusOn = useCallback(
+        (departmentUuid: string | null) => {
+            onSelect(departmentUuid);
+            setHighlightedUuid(null);
+        },
+        [onSelect],
+    );
 
     const departmentCircles = circles.filter(
         (circle) => circle.kind === 'department',
@@ -242,28 +221,18 @@ export const AdoptionMap: FC<Props> = ({
     const namedPeople = listPeople ? getPeopleInView(dots) : [];
 
     return (
-        <Stack
-            gap="md"
-            className={styles.root}
-            onKeyDown={handleKeyDown}
-            onPointerDownCapture={() => {
-                lastInputRef.current = 'pointer';
-            }}
-        >
+        <Stack gap="md" className={styles.root}>
             <AdoptionViewHeader
                 label="Position on the map"
-                trail={trail}
-                currentUuid={focusedUuid}
-                currentCrumbRef={currentCrumbRef}
-                onCrumbClick={focusOn}
+                isOrganization={!isStrip}
                 colourBy={colourBy}
-                onColourByChange={setColourBy}
+                onColourByChange={onColourByChange}
             />
 
-            <Box className={styles.body}>
+            <Box className={styles.body} data-strip={isStrip || undefined}>
                 <Paper className={styles.frame}>
                     <Box ref={ref} className={styles.canvas}>
-                        {circles.length === 0 ? (
+                        {!isMeasured ? null : circles.length === 0 ? (
                             <Box className={styles.message}>
                                 <Text fz="sm" c="dimmed">
                                     No people or headcount in this department
@@ -295,12 +264,12 @@ export const AdoptionMap: FC<Props> = ({
                                 highlightedUuid={highlightedUuid}
                                 selectedUserUuid={selectedUserUuid}
                                 onDepartmentClick={focusOn}
-                                onPersonClick={setSelectedUserUuid}
+                                onPersonClick={onPersonClick}
                             />
                         )}
                     </Box>
                     {/* The drawing is one image to assistive tech, so its controls are real buttons here */}
-                    <VisuallyHidden component="div" data-map-navigation>
+                    <VisuallyHidden component="div">
                         <ul aria-label="Departments on the map">
                             {departmentCircles.map((circle) => (
                                 <li key={circle.id}>
@@ -329,9 +298,7 @@ export const AdoptionMap: FC<Props> = ({
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                setSelectedUserUuid(
-                                                    member.userUuid,
-                                                )
+                                                onPersonClick(member.userUuid)
                                             }
                                         >
                                             {`${member.firstName} ${member.lastName}`.trim() ||
@@ -360,19 +327,15 @@ export const AdoptionMap: FC<Props> = ({
                         dotLimit={SVG_DOT_LIMIT}
                     />
                 </Paper>
-                <MapInspector
-                    department={focus}
-                    parentName={trail[trail.length - 2]?.name ?? null}
-                    breakdown={breakdown}
-                    colourBy={colourBy}
-                    rows={rows}
-                    member={selectedMember}
-                    canManage={canManage}
-                    keySwatch={DotSwatch}
-                    onDepartmentClick={focusOn}
-                    onClearMember={() => setSelectedUserUuid(null)}
-                    onEdit={onEdit}
-                />
+                {!isStrip && (
+                    <MapInspector
+                        breakdown={breakdown}
+                        rows={rows}
+                        canManage={canManage}
+                        keySwatch={DotSwatch}
+                        onDepartmentClick={focusOn}
+                    />
+                )}
             </Box>
         </Stack>
     );

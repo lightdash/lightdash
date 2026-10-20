@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     type AdoptionMetrics,
     type DepartmentMember,
+    type DepartmentWithMetrics,
     type DepartmentOverlap,
     type DepartmentRef,
     type DepartmentTopContent,
@@ -23,6 +24,10 @@ export type MemberFilter =
     | 'active30d'
     | 'inactive30d'
     | 'noRecordedActivity';
+
+// A person picked on the map, whose row the people table shows; every pick is a new request, so picking the same
+// person again brings their row back into view
+export type PersonHighlight = { userUuid: string; request: number };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
@@ -280,35 +285,26 @@ export const getWeeklyChartLabel = (weeks: WeeklyComparisonPoint[]): string => {
     return `${department}, against ${formatCount(first.atOrgRate)} and ${formatCount(last.atOrgRate)} at the organization's rate`;
 };
 
-// Captions use the same denominator as the percentage beside them (the headcount); null when none is set, where
-// the people on Lightdash are all that is counted
-export const getCoverageCaption = (
-    headcount: number | null,
-    memberCount: number,
-): string =>
-    headcount === null
-        ? `${formatQuantity(memberCount, PEOPLE)} on Lightdash`
-        : `${formatCount(memberCount)} of ${formatCount(headcount)} people have an account`;
-
-export const getActiveCaption = (
-    headcount: number | null,
-    activeCount: number,
-    memberCount: number,
-): string => {
-    const withAccount =
-        memberCount === 0
-            ? null
-            : `${formatCount(activeCount)} of the ${formatCount(memberCount)} with an account`;
-    if (headcount === null) {
-        return withAccount === null
-            ? 'No one has an account yet'
-            : `${withAccount} ${activeCount === 1 ? 'was' : 'were'} active`;
-    }
-    const overall = `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
-    // When everyone in the headcount has an account, the share of accounts would only repeat it
-    return withAccount === null || headcount === memberCount
-        ? overall
-        : `${overall} · ${withAccount}`;
+// A department's numbers on one line: "187 of 420 on Lightdash · 115 active in 30 days · 233 without an account".
+// Without a headcount only the people on Lightdash are counted, so nobody is without an account
+export const formatDepartmentCounts = ({
+    hasHeadcount,
+    effectiveHeadcount,
+    metrics: { memberCount, activeCount30d },
+}: Pick<
+    DepartmentWithMetrics,
+    'hasHeadcount' | 'effectiveHeadcount' | 'metrics'
+>): string => {
+    const withoutAccount = hasHeadcount ? effectiveHeadcount - memberCount : 0;
+    return [
+        hasHeadcount
+            ? `${formatCount(memberCount)} of ${formatCount(effectiveHeadcount)} on Lightdash`
+            : `${formatCount(memberCount)} on Lightdash`,
+        `${formatCount(activeCount30d)} active in 30 days`,
+        ...(withoutAccount > 0
+            ? [`${formatCount(withoutAccount)} without an account`]
+            : []),
+    ].join(' · ');
 };
 
 // People of this department also in every "with" department and in no "without" one
