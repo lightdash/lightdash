@@ -41,6 +41,7 @@ export const useAppViewOutcomes = ({
             try {
                 void api<undefined>({
                     method: 'POST',
+                    sensitive: true,
                     url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions/${version}/view-outcome`,
                     body: JSON.stringify({
                         previewToken,

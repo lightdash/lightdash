@@ -34,6 +34,7 @@ describe('useAppViewOutcomes', () => {
         expect(api).toHaveBeenCalledTimes(2);
         expect(api.mock.calls[1][0]).toEqual({
             method: 'POST',
+            sensitive: true,
             url: '/ee/projects/project/apps/app/versions/2/view-outcome',
             body: JSON.stringify({
                 previewToken: 'renewed-token',
