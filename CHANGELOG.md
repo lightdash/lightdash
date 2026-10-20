@@ -1,3 +1,10 @@
+## [2.631.4](https://github.com/lightdash/lightdash/compare/2.631.3...2.631.4) (2026-10-20)
+
+
+### Performance Improvements
+
+* **dashboard:** move per-tile chart sort into the dashboard store ([#31256](https://github.com/lightdash/lightdash/issues/31256)) ([2babd31](https://github.com/lightdash/lightdash/commit/2babd317ed3dfc15eb6d6364bb27ae4964364e0a))
+
 ## [2.631.3](https://github.com/lightdash/lightdash/compare/2.631.2...2.631.3) (2026-10-20)
 
 
