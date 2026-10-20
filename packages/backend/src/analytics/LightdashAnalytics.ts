@@ -2408,7 +2408,7 @@ export type DataAppViewOutcomeEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         version: number;
-        viewContext: DataAppViewContext | 'embed';
+        viewContext: DataAppViewContext | 'embed' | 'mcp';
         navigationId: string | null;
         outcome: DataAppViewOutcome;
     };
