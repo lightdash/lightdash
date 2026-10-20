@@ -113,6 +113,14 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 ## Project context
 {{project_context}}`;
 
+export type QueryPath = {
+    internalToolExamples: string;
+    dashboardRequestGuidance: string;
+    discoveryOutcomes: string;
+    queryStep: string;
+    queryLanguageSections: string;
+};
+
 // Query-path text for every base except composer, which renders its own section.
 export const CLASSIC_QUERY_PATH = {
     internalToolExamples:
@@ -157,7 +165,7 @@ Use the fieldId in \`queryConfig.metrics\`, \`chartConfig.yAxisMetrics\`, \`sort
 - Any field used in \`sorts\` must also appear in \`dimensions\`, \`metrics\`, or \`tableCalculations\`. To sort by an ordering field (e.g. \`order_date_month_num\`) while displaying another (e.g. \`order_date_month_name\`), include both in dimensions.
 - For date dimensions, pick the granularity the user asked for (\`order_date_month\` over \`order_date\` if they said "by month").
 - The field-discovery tool surfaces joined-table fields it considers relevant; trust its selection rather than substituting a base-table field with a similar name. Joined-table fields are marked \`isFromJoinedTable="true"\` in the discovery handoff.`,
-};
+} satisfies QueryPath;
 
 export const CHART_TYPES_LIMITATION =
     '\n- Available chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. Other chart types are not supported.';

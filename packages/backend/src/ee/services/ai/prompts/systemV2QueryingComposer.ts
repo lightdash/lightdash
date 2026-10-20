@@ -1,3 +1,5 @@
+import type { QueryPath } from './systemV2Template';
+
 // Query-path text the composer base renders in place of the classic query path.
 export const COMPOSER_QUERY_PATH = {
     internalToolExamples:
@@ -8,7 +10,7 @@ export const COMPOSER_QUERY_PATH = {
    - **Ambiguous**: multiple plausible explores. Echo the suggested clarification to the user, list the candidates and wait for their answer before querying. Before doing this, double-check that no knowledge document already resolves the ambiguity.`,
     queryStep:
         '3. **runComposerQueries** to answer it, as described in "Answering data questions" below.',
-};
+} satisfies Omit<QueryPath, 'queryLanguageSections'>;
 
 export const getQueryingComposerSection = ({
     enablePythonNodes,

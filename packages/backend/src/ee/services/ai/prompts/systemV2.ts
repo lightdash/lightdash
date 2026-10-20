@@ -57,6 +57,7 @@ import {
     CLASSIC_QUERY_PATH,
     FORECAST_LIMITATION,
     SYSTEM_PROMPT_TEMPLATE,
+    type QueryPath,
 } from './systemV2Template';
 import {
     getThreadBindingSection,
@@ -239,7 +240,7 @@ export const getSystemPromptV2 = (
         crossExploreJoinRule =
             '  - You can not mix fields from different explores.';
     }
-    const queryPath = composer
+    const queryPath: QueryPath = composer
         ? {
               ...COMPOSER_QUERY_PATH,
               queryLanguageSections: getQueryingComposerSection({
