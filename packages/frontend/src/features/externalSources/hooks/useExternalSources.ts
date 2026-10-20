@@ -320,9 +320,8 @@ export const useRenameExternalSource = (projectUuid: string | undefined) => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-sources', projectUuid],
             });
-            await queryClient.invalidateQueries({
-                queryKey: ['tables', projectUuid],
-            });
+            // Explore keys are ['tables', exploreName, projectUuid]
+            await queryClient.invalidateQueries({ queryKey: ['tables'] });
             showToastSuccess({ title: 'Table renamed' });
         },
         onError: ({ error }) => {

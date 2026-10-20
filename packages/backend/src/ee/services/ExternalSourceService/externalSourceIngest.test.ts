@@ -21,6 +21,7 @@ import {
     ExternalSourceService,
     getAttachmentTableName,
     shouldPublishExternalSourceExplore,
+    toSheetCsvRow,
 } from './ExternalSourceService';
 
 /**
@@ -229,5 +230,20 @@ describe('external source ingest capacity', () => {
         await expect(
             service.runIngest({ attemptUuid: 'attempt-uuid' } as never),
         ).resolves.toBeUndefined();
+    });
+});
+
+describe('toSheetCsvRow', () => {
+    it('sizes Sheets rows to the header width', () => {
+        expect(toSheetCsvRow(['2025-01-01', 'Retail'], 3)).toEqual([
+            '2025-01-01',
+            'Retail',
+            '',
+        ]);
+        expect(toSheetCsvRow(['a', 'b', 'c', 'stray'], 3)).toEqual([
+            'a',
+            'b',
+            'c',
+        ]);
     });
 });

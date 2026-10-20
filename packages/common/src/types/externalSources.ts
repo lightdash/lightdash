@@ -110,6 +110,12 @@ export const parseGoogleSheetsSpreadsheetId = (
     url: string,
 ): string | undefined => url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
 
+/** The tab a sheet URL points at (its `gid`), when the URL names one. */
+export const parseGoogleSheetsTabId = (url: string): number | undefined => {
+    const gid = url.match(/[#&?]gid=(\d+)/)?.[1];
+    return gid === undefined ? undefined : Number(gid);
+};
+
 export type ExternalSourceTablePreview = {
     columns: ResultColumns;
     sampleRows: Record<string, unknown>[];

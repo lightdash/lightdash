@@ -294,7 +294,7 @@ export class GoogleDriveClient {
     async listSheetTabs(
         refreshToken: string,
         fileId: string,
-    ): Promise<string[]> {
+    ): Promise<Array<{ title: string; sheetId: number | null }>> {
         if (!this.isEnabled) {
             throw new MissingConfigError('Google Drive is not enabled');
         }
@@ -304,11 +304,18 @@ export class GoogleDriveClient {
         const response = await GoogleDriveClient.catchApiError(
             sheets.spreadsheets.get({
                 spreadsheetId: fileId,
-                fields: 'sheets(properties(title))',
+                fields: 'sheets(properties(title,sheetId))',
             }),
         );
         return (response.data.sheets ?? []).flatMap((sheet) =>
-            sheet.properties?.title ? [sheet.properties.title] : [],
+            sheet.properties?.title
+                ? [
+                      {
+                          title: sheet.properties.title,
+                          sheetId: sheet.properties.sheetId ?? null,
+                      },
+                  ]
+                : [],
         );
     }
 

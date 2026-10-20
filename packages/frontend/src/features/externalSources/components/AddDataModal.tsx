@@ -339,8 +339,12 @@ export const AddDataModal: FC<AddDataModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={isSheetsMode ? 'Connect a Google Sheet' : 'Upload a CSV'}
-            icon={isSheetsMode ? IconBrandGoogleDrive : IconFileSpreadsheet}
+            title={
+                mode === 'sheets' ? 'Connect a Google Sheet' : 'Upload a CSV'
+            }
+            icon={
+                mode === 'sheets' ? IconBrandGoogleDrive : IconFileSpreadsheet
+            }
             size="lg"
         >
             <Stack gap="md">
@@ -371,10 +375,7 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                     <SheetsStep
                         projectUuid={projectUuid}
                         onBack={() => setMode('csv')}
-                        onCreated={(sourceUuid) => {
-                            setCommittedSourceUuid(sourceUuid);
-                            setMode('csv');
-                        }}
+                        onCreated={setCommittedSourceUuid}
                     />
                 )}
                 {stage && !committedSourceUuid && (
