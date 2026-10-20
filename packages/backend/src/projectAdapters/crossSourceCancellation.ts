@@ -41,12 +41,13 @@ export class CrossSourceCancellation {
                         ? ` Sources still in progress: ${sources.map((source) => `"${source}"`).join(', ')}.`
                         : '';
                 const error = new ParameterError(
-                    `Cross-source dbt resolution timed out after ${timeouts.resolutionMs / 1000} s.${pending} Raise DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS if these projects need longer.`,
+                    `Cross-source dbt resolution timed out after ${timeouts.resolutionMs / 1000} s.${pending}`,
                 );
                 Logger.warn('dbt.compile.crossSourceTimeout', {
                     event: 'dbt.compile.crossSourceTimeout',
                     source: null,
                     phase: 'resolution',
+                    setting: 'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
                     elapsedMs: Date.now() - started,
                 });
                 this.controller.abort(error);
@@ -77,12 +78,13 @@ export class CrossSourceCancellation {
                     ? 'DBT_SOURCE_PREPARE_TIMEOUT_MS'
                     : 'DBT_SOURCE_LS_TIMEOUT_MS';
             const error = new ParameterError(
-                `dbt source "${source}" timed out after ${duration / 1000} s while ${description}. Raise ${variable} if this project needs longer.`,
+                `dbt source "${source}" timed out after ${duration / 1000} s while ${description}.`,
             );
             Logger.warn('dbt.compile.crossSourceTimeout', {
                 event: 'dbt.compile.crossSourceTimeout',
                 source,
                 phase,
+                setting: variable,
                 elapsedMs: Date.now() - started,
             });
             this.controller.abort(error);

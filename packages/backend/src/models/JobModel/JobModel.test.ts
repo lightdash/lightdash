@@ -258,4 +258,40 @@ describe('JobModel.failRunningJob', () => {
             JobStepStatusType.PENDING,
         ]);
     });
+    it.each(['absent', 'unarmed'] as const)(
+        'keeps the original update SQL with an %s context',
+        async (mode) => {
+            tracker.on.update(JobsTableName).response(1);
+            tracker.on.update(JobStepsTableName).response(1);
+            const update = async () => {
+                await model.update('leaf_a', { jobStatus: JobStatusType.DONE });
+                await model.startJobStep('leaf_a', JobStepType.COMPILING);
+                await model.updateJobStep(
+                    'leaf_a',
+                    JobStepStatusType.DONE,
+                    JobStepType.COMPILING,
+                );
+            };
+            if (mode === 'absent') await update();
+            else {
+                const controller = new AbortController();
+                controller.abort(new Error('leaf_b'));
+                await compileShutdown.run(
+                    {
+                        controller,
+                        jobUuid: 'leaf_a',
+                        armed: false,
+                        isStopping: () => true,
+                        interrupt: vi.fn(),
+                    },
+                    update,
+                );
+            }
+            expect(tracker.history.update).toHaveLength(4);
+            for (const query of tracker.history.update) {
+                const where = query.sql.slice(query.sql.indexOf(' where '));
+                expect(where).not.toMatch(/"job_status" in|"step_status" =/);
+            }
+        },
+    );
 });

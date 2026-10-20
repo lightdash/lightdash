@@ -16320,7 +16320,60 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     );
 
     it.each(['compileProject', 'testAndCompileProject'] as const)(
-        '%s fences manifest and DONE publication when shutdown follows the cache write',
+        '%s publishes nothing when shutdown occurs before the staged cache commit',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const reason = new CompileInterruptedError();
+            const projectService = buildCompilationBoundaryService();
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.MultiDbtSources ||
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            let committed = false;
+            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+                async (_projectUuid, stream, beforeWrite) => {
+                    const explores = [];
+                    for await (const explore of stream) explores.push(explore);
+                    expect(explores.length).toBeGreaterThan(0);
+                    context.controller.abort(reason);
+                    expect(beforeWrite).toBeDefined();
+                    await beforeWrite!(null as never, 'leaf_b');
+                    committed = true;
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            jobModel.update.mockClear();
+            await expect(
+                compileShutdown.run(context, () =>
+                    projectService[method](
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                ),
+            ).rejects.toBe(reason);
+            expect(committed).toBe(false);
+            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s persists the manifest and marks DONE when shutdown follows the cache commit',
         async (method) => {
             const context: CompileShutdownContext = {
                 controller: new AbortController(),
@@ -16345,19 +16398,16 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             );
             jobModel.update.mockClear();
-            const failure = await compileShutdown
-                .run(context, () =>
-                    projectService[method](
-                        compileUser,
-                        'projectUuid',
-                        RequestMethod.WEB_APP,
-                        'leaf_a',
-                    ),
-                )
-                .catch((error: unknown) => error);
-            expect(failure).toBe(context.controller.signal.reason);
-            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
-            expect(jobModel.update).not.toHaveBeenCalledWith(
+            await compileShutdown.run(context, () =>
+                projectService[method](
+                    compileUser,
+                    'projectUuid',
+                    RequestMethod.WEB_APP,
+                    'leaf_a',
+                ),
+            );
+            expect(projectModel.upsertMergedManifest).toHaveBeenCalledOnce();
+            expect(jobModel.update).toHaveBeenCalledWith(
                 'leaf_a',
                 expect.objectContaining({ jobStatus: JobStatusType.DONE }),
             );

@@ -20,6 +20,12 @@ export const crossConnectionReferenceReason = (
         : null;
 };
 
+export const duplicateProjectNameReason = (
+    name: string,
+    keys: string[],
+): string =>
+    `dbt sources ${keys.map((key) => `"${key}"`).join(' and ')} both use the dbt project name "${name}". Each connected dbt source needs a unique name: in dbt_project.yml. Change the name in one of the repositories.`;
+
 export const validateCrossSourceProjectScans = (
     sources: { key: string; scan: DbtProjectScan | null }[],
     otherConnectionProjects: OtherConnectionProject[] = [],
@@ -37,10 +43,7 @@ export const validateCrossSourceProjectScans = (
     if (duplicates.length > 0)
         throw new ParameterError(
             duplicates
-                .map(
-                    ([name, keys]) =>
-                        `dbt sources ${keys.map((key) => `"${key}"`).join(' and ')} both use the dbt project name "${name}". Each connected dbt source needs a unique name: in dbt_project.yml. Change the name in one of the repositories.`,
-                )
+                .map(([name, keys]) => duplicateProjectNameReason(name, keys))
                 .join(' '),
         );
     const missing: string[] = [];

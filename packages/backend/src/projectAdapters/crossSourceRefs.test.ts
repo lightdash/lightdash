@@ -944,17 +944,19 @@ describe('cross-source hygiene', () => {
                     },
                 });
                 const rejected = resolution.catch((error: unknown) => error);
-                const expectedVariable = {
-                    prepare: 'DBT_SOURCE_PREPARE_TIMEOUT_MS',
-                    ls: 'DBT_SOURCE_LS_TIMEOUT_MS',
-                    resolution: 'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
+                const expectedMessage = {
+                    prepare:
+                        'dbt source "leaf_a" timed out after 0.02 s while cloning the repository and installing dbt packages.',
+                    ls: 'dbt source "leaf_a" timed out after 0.02 s while running dbt ls.',
+                    resolution:
+                        'Cross-source dbt resolution timed out after 0.02 s. Sources still in progress: "leaf_a", "leaf_b".',
                 }[phase];
                 await vi.advanceTimersByTimeAsync(21);
                 expect(settled).toEqual([]);
                 await vi.runAllTimersAsync();
                 expect(await rejected).toHaveProperty(
                     'message',
-                    expect.stringContaining(expectedVariable),
+                    expectedMessage,
                 );
                 expect(settled.sort()).toEqual(['leaf_a', 'leaf_b']);
             } finally {

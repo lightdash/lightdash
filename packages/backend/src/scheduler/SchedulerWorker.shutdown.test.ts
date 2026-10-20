@@ -295,6 +295,120 @@ describe('SchedulerWorker ordinary shutdown', () => {
         }
     });
 
+    it.each([false, true])(
+        'still releases runners when the failure write rejects, dead pool=%s',
+        async (deadPool) => {
+            const markFailed = vi
+                .fn()
+                .mockRejectedValue(new Error('leaf_b write failed'));
+            const health = new SchedulerWorkerHealth();
+            const worker = makeWorker(health, markFailed);
+            await worker.run();
+            const methods = worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+                stopManagedRunnersForRetry(reason: string): Promise<void>;
+            };
+            const stopForRetry = vi.spyOn(
+                methods,
+                'stopManagedRunnersForRetry',
+            );
+            let release!: () => void;
+            const work = methods.runCompileTask('leaf_a', async () => {
+                armCompileShutdown();
+                await new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+            });
+            try {
+                if (deadPool) health.markPoolDead('leaf_b');
+                const stopping = worker.stop();
+                await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS);
+                await expect(stopping).resolves.toBeUndefined();
+                expect(markFailed).toHaveBeenCalledOnce();
+                expect(
+                    fakeRunners[0].workerPool.gracefulShutdown,
+                ).toHaveBeenCalledOnce();
+                if (deadPool) expect(stopForRetry).toHaveBeenCalledOnce();
+            } finally {
+                release();
+                await work;
+            }
+        },
+    );
+
+    it('rethrows the original compile error when the failure write rejects', async () => {
+        const markFailed = vi
+            .fn()
+            .mockRejectedValue(new Error('leaf_b write failed'));
+        const worker = makeWorker(undefined, markFailed);
+        const methods = worker as unknown as {
+            runCompileTask(
+                jobUuid: string,
+                task: () => Promise<void>,
+            ): Promise<void>;
+        };
+        const reason = new CompileInterruptedError();
+        await expect(
+            methods.runCompileTask('leaf_a', async () => {
+                armCompileShutdown();
+                compileShutdown.getStore()!.controller.abort(reason);
+                throw reason;
+            }),
+        ).rejects.toBe(reason);
+        expect(markFailed).toHaveBeenCalledOnce();
+    });
+
+    it('does not fail an armed compile whose controller has not aborted', async () => {
+        const markFailed = vi.fn();
+        const worker = makeWorker(undefined, markFailed);
+        const methods = worker as unknown as {
+            failInterruptedCompile(
+                context: CompileShutdownContext,
+            ): Promise<void>;
+        };
+        await methods.failInterruptedCompile({
+            controller: new AbortController(),
+            jobUuid: 'leaf_a',
+            armed: true,
+            isStopping: () => false,
+            interrupt: vi.fn(),
+        });
+        expect(markFailed).not.toHaveBeenCalled();
+    });
+
+    it('does not wait for a stalled failure write when the pool is dead', async () => {
+        const markFailed = vi.fn(() => new Promise<void>(() => {}));
+        const health = new SchedulerWorkerHealth();
+        const worker = makeWorker(health, markFailed);
+        await worker.run();
+        const methods = worker as unknown as {
+            runCompileTask(
+                jobUuid: string,
+                task: () => Promise<void>,
+            ): Promise<void>;
+        };
+        let release!: () => void;
+        const work = methods.runCompileTask('leaf_a', async () => {
+            armCompileShutdown();
+            await new Promise<void>((resolve) => {
+                release = resolve;
+            });
+        });
+        health.markPoolDead('leaf_b');
+        try {
+            await worker.stop();
+            expect(
+                fakeRunners[0].workerPool.gracefulShutdown,
+            ).toHaveBeenCalledOnce();
+        } finally {
+            release();
+            await work;
+        }
+    });
+
     it('aborts and fails a compile armed during the drain', async () => {
         const markFailed = vi.fn().mockResolvedValue(undefined);
         const worker = makeWorker(undefined, markFailed);

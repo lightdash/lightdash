@@ -429,7 +429,6 @@ export class JobModel {
             throwIfCompileAborted();
 
             const result = await callback();
-            throwIfCompileAborted();
 
             await this.updateJobStep(
                 jobUuid,

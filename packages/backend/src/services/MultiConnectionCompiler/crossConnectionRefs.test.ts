@@ -499,6 +499,29 @@ describe('cross-connection dbt ref diagnostics', () => {
         expect(compilation.bindingOf('calendar')).toBe('later');
     });
 
+    it('keeps successful scans from a partly failed connection group', async () => {
+        const h = harness({ providerGroup: 'later' });
+        h.plans[0].sources.push(h.plans[1].sources.pop()!);
+        h.plans[2].connectionName = 'Warehouse B';
+        h.plans[0].connectionName = 'Warehouse A';
+        h.plans[2].sources.push(source('leaf_b', 3));
+        const prepare = h.prepareSourceManifest.getMockImplementation()!;
+        h.prepareSourceManifest.mockImplementation(async (...args) => {
+            if (args[0].name === 'leaf_b') {
+                await Promise.resolve();
+                throw new Error('leaf_b preparation failed');
+            }
+            return prepare(...args);
+        });
+        const failure = h.compiler.compile(h.input);
+        await expect(failure).rejects.toThrow(
+            'dbt source "analytics" on warehouse connection "Warehouse A" references project "shared_dimensions", which dbt source "shared" provides on a different warehouse connection ("Warehouse B").',
+        );
+        await expect(failure).rejects.toThrow(
+            'Cross-source refs only work between dbt sources on the same warehouse connection.',
+        );
+    });
+
     it('keeps an original-group failure unchanged', async () => {
         const h = harness({ providerGroup: 'later' });
         h.plans[0].sources.push(h.plans[1].sources.pop()!);
@@ -800,6 +823,28 @@ describe('cross-source compile boundaries', () => {
         expect(error).toBe(context.controller.signal.reason);
         expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
         expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
+    });
+
+    it('finishes artifact persistence after the explore cache commits', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const context = shutdownContext();
+        await compileShutdown.run(context, async () => {
+            const compilation = await h.compiler.compile(h.input);
+            h.saveMultiConnectionExplores.mockImplementationOnce(
+                async (_projectUuid, stream) => {
+                    await collect(stream);
+                    context.controller.abort(new CompileInterruptedError());
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            await expect(
+                h.compiler.save('project', compilation),
+            ).resolves.toEqual({ cachedExploreUuids: [] });
+            expect(context.armed).toBe(false);
+        });
+        expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(h.projectModel.deleteMergedManifest).toHaveBeenCalledOnce();
+        expect(h.saveCompileArtifacts).toHaveBeenCalledOnce();
     });
 
     it('fences detached persistence callbacks and staged explore writes after shutdown', async () => {

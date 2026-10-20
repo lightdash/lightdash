@@ -446,8 +446,16 @@ export class SchedulerWorker extends SchedulerTask {
         try {
             await compileShutdown.run(context, task);
         } catch (error) {
-            if (context.armed && context.controller.signal.aborted)
-                await this.failInterruptedCompile(context);
+            if (context.armed && context.controller.signal.aborted) {
+                await this.failInterruptedCompile(context).catch(
+                    (writeError) => {
+                        Logger.error(
+                            'Failed to record interrupted compile',
+                            writeError,
+                        );
+                    },
+                );
+            }
             throw error;
         } finally {
             context.armed = false;
@@ -458,7 +466,12 @@ export class SchedulerWorker extends SchedulerTask {
     private async failInterruptedCompile(
         context: CompileShutdownContext,
     ): Promise<void> {
-        if (!context.armed || context.jobUuid === null) return;
+        if (
+            !context.armed ||
+            !context.controller.signal.aborted ||
+            context.jobUuid === null
+        )
+            return;
         let failure = this.interruptedCompileFailures.get(context);
         if (!failure) {
             failure = this.projectService._markInterruptedCompileAsFailed(
@@ -471,11 +484,18 @@ export class SchedulerWorker extends SchedulerTask {
     }
 
     private async failInterruptedCompiles(): Promise<void> {
-        await Promise.all(
+        const outcomes = await Promise.allSettled(
             [...this.activeCompiles].map((context) =>
                 this.failInterruptedCompile(context),
             ),
         );
+        for (const outcome of outcomes) {
+            if (outcome.status === 'rejected')
+                Logger.error(
+                    'Failed to record interrupted compile',
+                    outcome.reason,
+                );
+        }
     }
 
     async stop() {
@@ -486,7 +506,8 @@ export class SchedulerWorker extends SchedulerTask {
             if (context.armed) context.interrupt();
         }
         await this.drainManagedRunners();
-        await this.failInterruptedCompiles();
+        if (!this.workerHealth?.isPoolDead())
+            await this.failInterruptedCompiles();
         this.isRunning = false;
         this.isQuiesced = false;
     }
@@ -502,7 +523,6 @@ export class SchedulerWorker extends SchedulerTask {
             return;
         }
         if (this.workerHealth?.isPoolDead()) {
-            await this.failInterruptedCompiles();
             await this.stopManagedRunnersForRetry(
                 'Scheduler worker stopping with dead pool',
             );

@@ -4394,7 +4394,7 @@ export class ProjectService
                 args.projectUuid,
                 'compileProject',
             );
-            await multiConnection.persistArtifacts();
+            await multiConnection.persistArtifacts({ exploresCommitted: true });
             return result;
         }
         return saving;
@@ -4462,6 +4462,7 @@ export class ProjectService
             );
         throwIfCompileAborted();
         const { cachedExploreUuids } = await saveExplores(summary);
+        disarmCompileShutdown();
         const connectionIndexCatalogJob = connectionProject
             ? await this.schedulerClient.indexCatalog({
                   projectUuid,
@@ -5757,8 +5758,7 @@ export class ProjectService
         await this.jobModel.failRunningJob(jobUuid, error);
     }
 
-    async _markJobAsFailed(jobUuid: string, error?: string) {
-        if (error) await this.jobModel.failRunningSteps(jobUuid, error);
+    async _markJobAsFailed(jobUuid: string) {
         await this.jobModel.setPendingJobsToSkipped(jobUuid);
         await this.jobModel.update(jobUuid, {
             jobStatus: JobStatusType.ERROR,
@@ -6796,7 +6796,6 @@ export class ProjectService
                         }
                     },
                 );
-                throwIfCompileAborted();
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
@@ -8149,7 +8148,6 @@ export class ProjectService
         projectUuid: string,
         stagedMergedManifest: Buffer | undefined,
     ): Promise<void> {
-        throwIfCompileAborted();
         if (!stagedMergedManifest) {
             return;
         }
@@ -13687,7 +13685,6 @@ export class ProjectService
                         projectUuid,
                         'compileProject',
                     );
-                throwIfCompileAborted();
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,

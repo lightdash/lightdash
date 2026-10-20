@@ -38,6 +38,22 @@ import {
     getMissingEnvironmentVariableHint,
 } from './dbtProcessEnvironment';
 
+const liveDetachedProcessGroups = new Set<number>();
+
+process.once('exit', () => {
+    for (const pgid of liveDetachedProcessGroups) {
+        try {
+            process.kill(-pgid, 'SIGKILL');
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
+                Logger.error(
+                    'Failed to kill detached dbt process group',
+                    error,
+                );
+        }
+    }
+});
+
 type DbtCliArgs = {
     dbtProjectDirectory: string;
     dbtProfilesDirectory: string;
@@ -293,6 +309,13 @@ export class DbtCliClient implements DbtClient {
                     gitConfigGlobalPath: this.gitConfigGlobalPath,
                 }),
             });
+            if (signal && process.platform === 'linux' && subprocess.pid) {
+                const pgid = subprocess.pid;
+                liveDetachedProcessGroups.add(pgid);
+                void subprocess.once('exit', () =>
+                    liveDetachedProcessGroups.delete(pgid),
+                );
+            }
             let killTimer: NodeJS.Timeout | null = null;
             const killGroup = (killSignal: NodeJS.Signals) => {
                 if (process.platform === 'linux' && subprocess.pid) {

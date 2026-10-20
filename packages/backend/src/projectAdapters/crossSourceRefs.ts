@@ -23,6 +23,7 @@ import {
 } from './crossSourceCancellation';
 import {
     crossConnectionReferenceReason,
+    duplicateProjectNameReason,
     validateCrossSourceProjectScans,
     type OtherConnectionProject,
 } from './crossSourcePreflight';
@@ -423,6 +424,7 @@ export const resolveCrossSourceManifests = async <T>({
                 const name = scans.get(task)?.projectName;
                 const providers = name ? providersByName.get(name) : undefined;
                 if (
+                    name &&
                     providers &&
                     providers.some((provider) => provider !== task) &&
                     getMissingDbtNodeReferences(error).some(
@@ -430,7 +432,10 @@ export const resolveCrossSourceManifests = async <T>({
                     )
                 ) {
                     throw new ParameterError(
-                        `dbt sources "${providers[0].key}" and "${providers[1].key}" both use the dbt project name "${name}". A model cannot reference another dbt project that has its own name. Change the name: value in one repository's dbt_project.yml.`,
+                        duplicateProjectNameReason(
+                            name,
+                            providers.map((provider) => provider.key),
+                        ),
                     );
                 }
                 return { ok: false, error };

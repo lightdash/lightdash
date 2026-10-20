@@ -51,7 +51,10 @@ import {
     type CrossSourceFetchTask,
 } from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
-import { armCompileShutdown } from '../../scheduler/compileShutdown';
+import {
+    armCompileShutdown,
+    disarmCompileShutdown,
+} from '../../scheduler/compileShutdown';
 import {
     type CachedWarehouse,
     type DbtManifestFetchOptions,
@@ -110,7 +113,7 @@ export type MultiConnectionSave = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
     bindingOf: (exploreName: string) => string | null;
     carry: MultiConnectionCarry;
-    persistArtifacts: () => Promise<void>;
+    persistArtifacts: (options?: { exploresCommitted: true }) => Promise<void>;
     signal?: AbortSignal;
 };
 
@@ -616,7 +619,6 @@ export class MultiConnectionCompiler {
                         compileSignal,
                         crossSourceTimeouts,
                     );
-                    const groupProjects: typeof projects = [];
                     const tasks = [
                         ...(includePrimary
                             ? [
@@ -655,7 +657,7 @@ export class MultiConnectionCompiler {
                                 );
                                 scans.set(task.uuid, scan);
                                 if (scan?.projectName)
-                                    groupProjects.push({
+                                    projects.push({
                                         projectName: scan.projectName,
                                         sourceKey: task.key,
                                         connectionName: plan.connectionName,
@@ -664,7 +666,6 @@ export class MultiConnectionCompiler {
                                     });
                             },
                         );
-                        projects.push(...groupProjects);
                         preparationDurations.set(
                             plan.warehouseConnectionUuid,
                             Date.now() - started,
@@ -1055,8 +1056,9 @@ export class MultiConnectionCompiler {
                     warehouseConnectionUuids: failedConnectionUuids,
                 },
                 warnings,
-                persistArtifacts: async () => {
-                    compileSignal?.throwIfAborted();
+                persistArtifacts: async (options) => {
+                    if (!options?.exploresCommitted)
+                        compileSignal?.throwIfAborted();
                     if (originalManifest === null) {
                         await this.projectModel.deleteMergedManifest(
                             projectUuid,
@@ -1068,17 +1070,16 @@ export class MultiConnectionCompiler {
                         );
                     }
                     await Promise.all(
-                        compiledExtraGroups.map((group) => {
-                            compileSignal?.throwIfAborted();
-                            return this.warehouseConnectionCompileModel.saveCompileArtifacts(
+                        compiledExtraGroups.map((group) =>
+                            this.warehouseConnectionCompileModel.saveCompileArtifacts(
                                 projectUuid,
                                 group.plan.warehouseConnectionUuid,
                                 {
                                     manifest: group.manifest,
                                     catalog: group.catalog,
                                 },
-                            );
-                        }),
+                            ),
+                        ),
                     );
                 },
             };
@@ -1116,8 +1117,8 @@ export class MultiConnectionCompiler {
             compilation.carry,
             ...(checkBeforeWrite ? [checkBeforeWrite] : []),
         );
-        compilation.signal?.throwIfAborted();
-        await compilation.persistArtifacts();
+        disarmCompileShutdown();
+        await compilation.persistArtifacts({ exploresCommitted: true });
         return saved;
     }
 

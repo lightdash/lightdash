@@ -43,3 +43,54 @@ it('bounds settlement and logs the sources whose operations never exit', async (
         vi.restoreAllMocks();
     }
 });
+
+it.each(['prepare', 'ls', 'resolution'] as const)(
+    'keeps the %s timeout setting in logs and out of the user message',
+    async (phase) => {
+        vi.useFakeTimers();
+        const warn = vi.spyOn(Logger, 'warn').mockReturnValue(Logger);
+        const cancellation = new CrossSourceCancellation(undefined, {
+            prepareMs: phase === 'prepare' ? 10 : 100,
+            lsMs: phase === 'ls' ? 10 : 100,
+            resolutionMs: phase === 'resolution' ? 10 : 100,
+        });
+        try {
+            const work = cancellation
+                .run(
+                    'leaf_c',
+                    phase === 'prepare' ? 'prepare' : 'ls',
+                    async (signal) =>
+                        new Promise<never>((_resolve, reject) => {
+                            signal.addEventListener(
+                                'abort',
+                                () => reject(signal.reason),
+                                { once: true },
+                            );
+                        }),
+                )
+                .catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(10);
+            const error = await work;
+            expect(error).toHaveProperty(
+                'message',
+                expect.stringContaining('timed out after 0.01 s'),
+            );
+            expect((error as Error).message).not.toMatch(/DBT_|Raise /);
+            expect(warn).toHaveBeenCalledWith(
+                'dbt.compile.crossSourceTimeout',
+                expect.objectContaining({
+                    phase,
+                    setting: {
+                        prepare: 'DBT_SOURCE_PREPARE_TIMEOUT_MS',
+                        ls: 'DBT_SOURCE_LS_TIMEOUT_MS',
+                        resolution: 'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
+                    }[phase],
+                }),
+            );
+        } finally {
+            cancellation.dispose();
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+        }
+    },
+);

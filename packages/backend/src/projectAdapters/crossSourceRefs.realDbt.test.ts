@@ -260,7 +260,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                             resolutionMs: 60000,
                         },
                     }),
-                ).rejects.toThrow('DBT_SOURCE_LS_TIMEOUT_MS');
+                ).rejects.toThrow('timed out after 2 s while running dbt ls.');
                 const processes = await execa('ps', ['-eo', 'pid,args']);
                 expect(
                     processes.stdout
