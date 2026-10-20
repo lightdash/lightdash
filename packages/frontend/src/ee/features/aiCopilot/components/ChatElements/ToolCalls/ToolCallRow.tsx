@@ -39,6 +39,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'generateUuids',
     'getProjectInfo',
     'listDataAppThemes',
+    'listDataAppConnections',
     'listKnowledgeDocuments',
     'listProjects',
     'loadProjectContext',

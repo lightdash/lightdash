@@ -844,7 +844,7 @@ export type GenerateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
-    /** Connections to link before the build; MCP-only, null from the agent. */
+    /** Connections to link before the build. */
     externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;
@@ -867,7 +867,7 @@ export type DataAppConnectionSummary = {
     linkedAliases: string[];
 };
 
-// Connections the caller may link; with appSlug, also that app's aliases. MCP-only.
+// Connections the caller may link; with appSlug, also that app's aliases.
 export type ListDataAppConnectionsFn = (args: {
     appSlug: string | null;
 }) => Promise<DataAppConnectionSummary[]>;
@@ -890,7 +890,7 @@ export type IterateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
-    /** Connections to link before the build; MCP-only, null from the agent. */
+    /** Connections to link before the build. */
     externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;

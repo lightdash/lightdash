@@ -967,7 +967,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "External connections to link to the app before the build: slugs from list_data_app_connections. The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API."
+                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API."
                     },
                     "name": {
                         "description": "Display name for the app: a headline-short title, in title case, naming what the app shows (\"Revenue Overview\"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
@@ -2747,7 +2747,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "External connections to link to the app before the build: slugs from list_data_app_connections. Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API."
+                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API."
                     },
                     "prompt": {
                         "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
@@ -3287,7 +3287,7 @@
                                     "type": "string"
                                 },
                                 "slug": {
-                                    "description": "Pass in externalConnectionSlugs to generate_data_app or iterate_data_app.",
+                                    "description": "Pass in externalConnectionSlugs when starting a data app build.",
                                     "type": "string"
                                 }
                             },

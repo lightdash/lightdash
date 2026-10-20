@@ -435,6 +435,7 @@ export const ToolCallDescription: FC<{
         case 'generateDataApp':
         case 'iterateDataApp':
         case 'listDataAppThemes':
+        case 'listDataAppConnections':
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':

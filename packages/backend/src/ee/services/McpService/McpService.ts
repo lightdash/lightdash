@@ -35,6 +35,7 @@ import {
     FeatureFlags,
     findContentToolDefinition,
     ForbiddenError,
+    generateDataAppToolDefinition,
     generateHashesToolDefinition,
     getAgentPermissionRefusalDetails,
     getAiAccessRefusalSettingsUrl,
@@ -61,8 +62,10 @@ import {
     isAiAccessRefusal,
     ItemsMap,
     iterateCustomChartTypeToolDefinition,
+    iterateDataAppToolDefinition,
     listAgentsToolDefinition,
     listContentToolDefinition,
+    listDataAppConnectionsToolDefinition,
     listDataAppThemesToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
@@ -79,11 +82,8 @@ import {
     McpCreateTaskResult,
     mcpEditContentToolDefinition,
     mcpFindCustomChartTypesToolDefinition,
-    mcpGenerateDataAppToolDefinition,
     McpGetTaskResult,
-    mcpIterateDataAppToolDefinition,
     mcpListCustomChartTypesToolDefinition,
-    mcpListDataAppConnectionsToolDefinition,
     mcpListProjectsToolDefinition,
     mcpReadContentToolDefinition,
     MetricQuery,
@@ -230,6 +230,7 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { validateQueryParameters } from '../ai/utils/validators';
+import { withBuildWarnings } from '../ai/utils/withBuildWarnings';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
 import {
@@ -356,16 +357,12 @@ const mcpGetDataAppBuildStatusTool = withProjectScopeInput(
     getDataAppBuildStatusToolDefinition.for('mcp'),
 );
 const mcpGenerateDataAppTool = withProjectScopeInput(
-    mcpGenerateDataAppToolDefinition.for('mcp'),
+    generateDataAppToolDefinition.for('mcp'),
 );
 const mcpListDataAppConnectionsTool = withProjectScopeInput(
-    mcpListDataAppConnectionsToolDefinition.for('mcp'),
+    listDataAppConnectionsToolDefinition.for('mcp'),
 );
 
-const withBuildWarnings = (summary: string, warnings: string[]): string =>
-    warnings.length === 0
-        ? summary
-        : `${summary}\nWarnings:\n${warnings.map((w) => `- ${w}`).join('\n')}`;
 type SampleRowsOutcome =
     | { kind: 'not_requested' }
     | { kind: 'shared'; sampleRows: Record<string, string>[] }
@@ -402,7 +399,7 @@ const mcpListCustomChartTypesTool = withProjectScopeInput(
     mcpListCustomChartTypesToolDefinition.for('mcp'),
 );
 const mcpIterateDataAppTool = withProjectScopeInput(
-    mcpIterateDataAppToolDefinition.for('mcp'),
+    iterateDataAppToolDefinition.for('mcp'),
 );
 const mcpListDataAppThemesTool = withProjectScopeInput(
     listDataAppThemesToolDefinition.for('mcp'),

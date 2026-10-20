@@ -31,6 +31,7 @@ const executeIterateDataApp = async (tool: IterateDataAppTool) => {
             dashboardSlug: null,
             chartSlugs: ['orders-by-status'],
             themeSlug: null,
+            externalConnectionSlugs: ['amplitude-1'],
         },
         { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
@@ -46,7 +47,7 @@ describe('getIterateDataApp', () => {
     it('forwards the args and the tool call id, returning a pending result', async () => {
         const iterateDataApp = vi
             .fn()
-            .mockResolvedValue({ appUuid: 'app-1', version: 3 });
+            .mockResolvedValue({ appUuid: 'app-1', version: 3, warnings: [] });
 
         const output = await executeIterateDataApp(
             getIterateDataApp({ iterateDataApp }),
@@ -58,7 +59,7 @@ describe('getIterateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: ['orders-by-status'],
             themeSlug: null,
-            externalConnectionSlugs: null,
+            externalConnectionSlugs: ['amplitude-1'],
             toolCallId: 'tool-call-1',
         });
         expect(output.metadata).toEqual({
@@ -69,6 +70,7 @@ describe('getIterateDataApp', () => {
         expect(output.result).toContain('Started the data app build');
         expect(output.structuredContent).toEqual({
             status: 'pending',
+            warnings: [],
         });
     });
 

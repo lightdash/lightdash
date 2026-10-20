@@ -2454,9 +2454,11 @@ describe('getAgentTools workstream tool gate', () => {
         expect(withGate).toContain('generateDataApp');
         expect(withGate).toContain('iterateDataApp');
         expect(withGate).toContain('listDataAppThemes');
+        expect(withGate).toContain('listDataAppConnections');
         expect(withoutGate).not.toContain('generateDataApp');
         expect(withoutGate).not.toContain('iterateDataApp');
         expect(withoutGate).not.toContain('listDataAppThemes');
+        expect(withoutGate).not.toContain('listDataAppConnections');
     });
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {

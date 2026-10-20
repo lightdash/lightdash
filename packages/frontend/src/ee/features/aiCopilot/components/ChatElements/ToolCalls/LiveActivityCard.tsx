@@ -97,6 +97,7 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>(['runSql', 'runSavedChart']);
 // because it has no description string but does render a subagent trace.
 const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'listDataAppThemes',
+    'listDataAppConnections',
     'listKnowledgeDocuments',
     'listProjects',
     'getProjectInfo',

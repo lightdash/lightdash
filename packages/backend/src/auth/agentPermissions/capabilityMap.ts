@@ -92,6 +92,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     iterateDataApp: [AgentCapability.ContentWrite],
     listContent: [AgentCapability.ReadDiscover],
     listDataAppThemes: [AgentCapability.ReadDiscover],
+    listDataAppConnections: [AgentCapability.ReadDiscover],
     listKnowledgeDocuments: [AgentCapability.ReadDiscover],
     listProjects: [AgentCapability.ReadDiscover],
     listWarehouseTables: [AgentCapability.RawSql],

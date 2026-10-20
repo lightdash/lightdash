@@ -52,6 +52,11 @@ Themes are organization-wide looks the coding agent applies from theme files it 
 - iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
 - An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
 
+External connections are admin-configured proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a connection linked to it, and naming one in the brief does not link it:
+- The user wants the app to use an outside API or names a connection → call listDataAppConnections, match the request to a connection by name, slug, or origin, and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.
+- iterateDataApp: externalConnectionSlugs adds connections; the ones the app already links stay. Pass appSlug to listDataAppConnections to see what an app links.
+- An unknown or unlinkable slug returns an error and starts no build. A build result can carry warnings, such as a connection named in the brief that is not linked: relay them to the user.
+
 When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and href; the user views the app from this thread; "error" carries the failure message; "pending" means still building. readContent (type data_app) reads a finished app; the content tools create and edit charts and dashboards, never data apps.
 
 ## Scheduled deliveries
@@ -11689,7 +11694,7 @@ Parameters:
     },
   },
   {
-    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.",
+    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn. When the app needs an outside API (product analytics, billing, CRM) or the user names a connection, call listDataAppConnections first and pass the matching slugs as externalConnectionSlugs; a connection named only in the brief is not linked.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -11710,6 +11715,17 @@ Parameters:
           "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
           "type": [
             "string",
+            "null",
+          ],
+        },
+        "externalConnectionSlugs": {
+          "default": null,
+          "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API.",
+          "items": {
+            "type": "string",
+          },
+          "type": [
+            "array",
             "null",
           ],
         },
@@ -11881,6 +11897,13 @@ Parameters:
                       "description": "The build has started and is still running; its outcome replaces this result on a later turn.",
                       "type": "string",
                     },
+                    "warnings": {
+                      "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                      "items": {
+                        "type": "string",
+                      },
+                      "type": "array",
+                    },
                   },
                   "required": [
                     "status",
@@ -12028,7 +12051,7 @@ Parameters:
     },
   },
   {
-    "description": "Start a build that adds a version to an existing data app from a follow-up brief. Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app. The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn. While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish. When the attached context lists element references for this app (bracketed \`[tag "text" @path:line]\` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.",
+    "description": "Start a build that adds a version to an existing data app from a follow-up brief. Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app. The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn. While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish. When the attached context lists element references for this app (bracketed \`[tag "text" @path:line]\` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise. When the app needs an outside API (product analytics, billing, CRM) or the user names a connection, call listDataAppConnections first and pass the matching slugs as externalConnectionSlugs; a connection named only in the brief is not linked.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -12053,6 +12076,17 @@ Parameters:
           "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
           "type": [
             "string",
+            "null",
+          ],
+        },
+        "externalConnectionSlugs": {
+          "default": null,
+          "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.",
+          "items": {
+            "type": "string",
+          },
+          "type": [
+            "array",
             "null",
           ],
         },
@@ -12202,6 +12236,13 @@ Parameters:
                   "const": "pending",
                   "description": "The build has started and runs in the background; its outcome lands on this result later.",
                   "type": "string",
+                },
+                "warnings": {
+                  "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
                 },
               },
               "required": [
@@ -12425,6 +12466,376 @@ Parameters:
               "required": [
                 "count",
                 "themes",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "List the project's external connections you can link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a linked connection. Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection and pass its slug in externalConnectionSlugs to generateDataApp or iterateDataApp. Pass appSlug to see which connections an existing app already links. Credentials are never returned.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "appSlug": {
+          "default": null,
+          "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only.",
+          "minLength": 1,
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "type": "object",
+    },
+    "name": "listDataAppConnections",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "connections": {
+                  "description": "Connections you may link; empty when there are none.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "authType": {
+                        "description": "How the proxy authenticates to the API.",
+                        "type": "string",
+                      },
+                      "instructions": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "How to use the API, written by an admin.",
+                      },
+                      "linkedAliases": {
+                        "description": "Aliases the appSlug app links this connection under; empty when not linked or no appSlug was given.",
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "name": {
+                        "description": "The connection's display name.",
+                        "type": "string",
+                      },
+                      "origin": {
+                        "description": "The API's base URL.",
+                        "type": "string",
+                      },
+                      "slug": {
+                        "description": "Pass in externalConnectionSlugs when starting a data app build.",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "slug",
+                      "name",
+                      "authType",
+                      "origin",
+                      "instructions",
+                      "linkedAliases",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "connections",
               ],
               "type": "object",
             },
@@ -24942,6 +25353,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "generateDataApp",
   "iterateDataApp",
   "listDataAppThemes",
+  "listDataAppConnections",
   "editDbtProject",
   "editProjectContext",
   "editRepo",
