@@ -103,6 +103,11 @@ export type CreatePasswordlessUserArgs = {
 
 type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
 
+type OrganizationTrainingProject = {
+    project_uuid: string;
+    created_by_user_uuid: string | null;
+};
+
 export type DbUserDetails = {
     user_id: number;
     user_uuid: string;
@@ -126,6 +131,14 @@ export type DbUserDetails = {
     avatar_gradient: string | null;
     avatar_content_hash: string | null;
     updated_at: Date;
+    /**
+     * The organization's shared training project, joined in by
+     * `userDetailsQueryBuilder` so building abilities needs no extra read.
+     * `null` when the organization has none; `undefined` when the row came
+     * from a query that did not select it.
+     */
+    training_project_uuid?: string | null;
+    training_project_created_by_user_uuid?: string | null;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -187,6 +200,22 @@ const userDetailsQueryBuilder = (
             'organizations',
             'organization_memberships.organization_id',
             'organizations.organization_id',
+        )
+        // The org's shared training project (one per org; DISTINCT ON keeps
+        // a stray second one from duplicating the user row).
+        .leftJoin(
+            db(ProjectTableName)
+                .distinctOn('organization_id')
+                .select(
+                    'organization_id as training_organization_id',
+                    'project_uuid as training_project_uuid',
+                    'created_by_user_uuid as training_project_created_by_user_uuid',
+                )
+                .where('project_type', ProjectType.TRAINING)
+                .orderBy(['organization_id', 'project_id'])
+                .as('org_training_projects'),
+            'organizations.organization_id',
+            'org_training_projects.training_organization_id',
         );
 
 type UserModelArguments = {
@@ -1408,12 +1437,30 @@ export class UserModel {
             isEnterprise,
             abilityBuilder,
             learnFlag.enabled,
+            UserModel.trainingProjectFromUserDetails(user),
             trx,
         );
 
         return {
             abilityBuilder,
             lightdashUser,
+        };
+    }
+
+    /**
+     * The training project the user-details row carries: `null` when the
+     * org has none, `undefined` when the row did not select it (then it is
+     * read from the database).
+     */
+    private static trainingProjectFromUserDetails(
+        user: DbUserDetails,
+    ): OrganizationTrainingProject | null | undefined {
+        if (user.training_project_uuid === undefined) return undefined;
+        if (user.training_project_uuid === null) return null;
+        return {
+            project_uuid: user.training_project_uuid,
+            created_by_user_uuid:
+                user.training_project_created_by_user_uuid ?? null,
         };
     }
 
@@ -1443,6 +1490,7 @@ export class UserModel {
     private async getTrainingProjects(
         organizationId: number,
         userUuid: string,
+        training: OrganizationTrainingProject | undefined,
         trx: Knex = this.database,
     ): Promise<
         {
@@ -1451,10 +1499,6 @@ export class UserModel {
             createdByUserUuid: string | null;
         }[]
     > {
-        const training = await this.getOrganizationTrainingProject(
-            organizationId,
-            trx,
-        );
         if (!training) {
             return [];
         }
@@ -1515,8 +1559,13 @@ export class UserModel {
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
         learnEnabled: boolean,
+        knownTrainingProject: OrganizationTrainingProject | null | undefined,
         trx: Knex = this.database,
     ): Promise<void> {
+        const training =
+            knownTrainingProject === undefined
+                ? await this.getOrganizationTrainingProject(organizationId, trx)
+                : (knownTrainingProject ?? undefined);
         // Learn off for the org, or this user may not see Learn: no trainee
         // scopes, so switching off also closes the sandbox. The lock still
         // applies, so the seed cannot be edited meanwhile and then cloned
@@ -1528,10 +1577,6 @@ export class UserModel {
                 .build()
                 .cannot('view', caslSubject('Learn', { organizationUuid }))
         ) {
-            const training = await this.getOrganizationTrainingProject(
-                organizationId,
-                trx,
-            );
             if (training) {
                 UserModel.lockTrainingProject(training.project_uuid, builder);
             }
@@ -1540,6 +1585,7 @@ export class UserModel {
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,
+            training,
             trx,
         );
         // The shared training project is read-only for learners; their own

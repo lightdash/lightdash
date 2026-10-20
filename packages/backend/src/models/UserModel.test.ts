@@ -601,6 +601,7 @@ describe('UserModel', () => {
             expect(model.getTrainingProjects).toHaveBeenCalledWith(
                 humanDetails.organization_id,
                 humanDetails.user_uuid,
+                undefined,
                 expect.anything(),
             );
             // the learner's own copy of the training project gets the layer too
@@ -780,6 +781,44 @@ describe('UserModel', () => {
                         ),
                     }).toEqual({ projectUuid, can: true });
                 });
+            });
+
+            it('reads the training project from the user row, not the database', async () => {
+                const model = createHumanModel(false);
+
+                const { abilityBuilder } =
+                    await model.generateUserAbilityBuilder({
+                        ...adminDetails,
+                        training_project_uuid: 'training-project',
+                        training_project_created_by_user_uuid:
+                            adminDetails.user_uuid,
+                    });
+                const ability = abilityBuilder.build();
+
+                expect(
+                    model.getOrganizationTrainingProject,
+                ).not.toHaveBeenCalled();
+                lockedWrites.forEach(([action, subjectName]) => {
+                    expect({
+                        action,
+                        subjectName,
+                        can: ability.can(action, trainingSubject(subjectName)),
+                    }).toEqual({ action, subjectName, can: false });
+                });
+            });
+
+            it('reads nothing when the user row says the org has no training project', async () => {
+                const model = createHumanModel(false);
+
+                await model.generateUserAbilityBuilder({
+                    ...adminDetails,
+                    training_project_uuid: null,
+                    training_project_created_by_user_uuid: null,
+                });
+
+                expect(
+                    model.getOrganizationTrainingProject,
+                ).not.toHaveBeenCalled();
             });
 
             it('stays locked when the org Learn flag is off', async () => {
