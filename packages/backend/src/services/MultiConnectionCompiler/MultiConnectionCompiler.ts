@@ -53,7 +53,7 @@ import {
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import {
     armCompileShutdown,
-    disarmCompileShutdown,
+    markCompilePublished,
 } from '../../scheduler/compileShutdown';
 import {
     type CachedWarehouse,
@@ -174,6 +174,24 @@ class ExtraConnectionCheckError extends Error {
     }
 }
 
+type MultiConnectionCompileInput = {
+    projectUuid: string;
+    context: ConnectionContext;
+    primary: PrimaryCompileInput;
+    dbtVersion: SupportedDbtVersions;
+    includeUnboundSources: boolean;
+    fetchSourceManifest: FetchSourceManifest;
+    prepareSourceManifest?: PrepareSourceManifest;
+    crossSourceRefsEnabled: boolean;
+    mixedWarehouseConnectionsEnabled: boolean;
+    concurrency: number;
+    loadExtraCredentials: LoadExtraConnectionCredentials;
+    beforeLoadExtraCredentials?: () => Promise<void>;
+    trackingParams?: TrackingParams;
+    analytics?: LightdashAnalytics;
+    crossSourceTimeouts?: CrossSourceTimeouts;
+};
+
 export class MultiConnectionCompiler {
     private readonly projectModel: ProjectModel;
 
@@ -244,6 +262,7 @@ export class MultiConnectionCompiler {
                               options,
                           );
                       } catch (error) {
+                          options?.signal?.throwIfAborted();
                           const repoSuffix =
                               'repository' in source.dbtConnection &&
                               source.dbtConnection.repository
@@ -539,39 +558,60 @@ export class MultiConnectionCompiler {
         }
     }
 
-    async compile({
-        projectUuid,
-        context,
-        primary,
-        dbtVersion,
-        includeUnboundSources,
-        fetchSourceManifest,
-        prepareSourceManifest,
-        crossSourceRefsEnabled,
-        mixedWarehouseConnectionsEnabled,
-        concurrency,
-        loadExtraCredentials,
-        beforeLoadExtraCredentials,
-        trackingParams,
-        analytics,
-        crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
-    }: {
-        projectUuid: string;
-        context: ConnectionContext;
-        primary: PrimaryCompileInput;
-        dbtVersion: SupportedDbtVersions;
-        includeUnboundSources: boolean;
-        fetchSourceManifest: FetchSourceManifest;
-        prepareSourceManifest?: PrepareSourceManifest;
-        crossSourceRefsEnabled: boolean;
-        mixedWarehouseConnectionsEnabled: boolean;
-        concurrency: number;
-        loadExtraCredentials: LoadExtraConnectionCredentials;
-        beforeLoadExtraCredentials?: () => Promise<void>;
-        trackingParams?: TrackingParams;
-        analytics?: LightdashAnalytics;
-        crossSourceTimeouts?: CrossSourceTimeouts;
-    }): Promise<MultiConnectionCompilation> {
+    async compile(
+        input: MultiConnectionCompileInput,
+    ): Promise<MultiConnectionCompilation> {
+        const resolutionStartedAt = Date.now();
+        const callerSignal = input.crossSourceRefsEnabled
+            ? armCompileShutdown()
+            : undefined;
+        const cancellation = input.crossSourceRefsEnabled
+            ? new CrossSourceCancellation(
+                  callerSignal,
+                  input.crossSourceTimeouts ?? DEFAULT_CROSS_SOURCE_TIMEOUTS,
+              )
+            : null;
+        const compile = () =>
+            this.compileWithCancellation(
+                input,
+                cancellation?.controller.signal,
+                callerSignal,
+                resolutionStartedAt,
+            );
+        try {
+            return cancellation
+                ? await cancellation.wait('connections', compile)
+                : await compile();
+        } catch (error) {
+            if (cancellation) return await cancellation.fail(error);
+            throw error;
+        } finally {
+            cancellation?.dispose();
+        }
+    }
+
+    private async compileWithCancellation(
+        {
+            projectUuid,
+            context,
+            primary,
+            dbtVersion,
+            includeUnboundSources,
+            fetchSourceManifest,
+            prepareSourceManifest,
+            crossSourceRefsEnabled,
+            mixedWarehouseConnectionsEnabled,
+            concurrency,
+            loadExtraCredentials,
+            beforeLoadExtraCredentials,
+            trackingParams,
+            analytics,
+            crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
+        }: MultiConnectionCompileInput,
+        compileSignal: AbortSignal | undefined,
+        callerSignal: AbortSignal | undefined,
+        resolutionStartedAt: number,
+    ): Promise<MultiConnectionCompilation> {
         const [originalPlan, ...extraPlans] = await this.planGroups(
             projectUuid,
             includeUnboundSources,
@@ -580,9 +620,6 @@ export class MultiConnectionCompiler {
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];
 
-        const compileSignal = crossSourceRefsEnabled
-            ? armCompileShutdown()
-            : undefined;
         const loadedCredentials = new Map<
             string,
             ReturnType<LoadExtraConnectionCredentials>
@@ -594,7 +631,6 @@ export class MultiConnectionCompiler {
             return loaded;
         };
         const preparationFailures = new Map<string, unknown>();
-        const preparationDurations = new Map<string | null, number>();
         let preparedPrimary = primary;
         let preparedSourceManifest = prepareSourceManifest;
         try {
@@ -614,10 +650,10 @@ export class MultiConnectionCompiler {
                     connection: ScopedWarehouseConnection,
                     includePrimary: boolean,
                 ) => {
-                    const started = Date.now();
-                    const cancellation = new CrossSourceCancellation(
+                    const groupCancellation = new CrossSourceCancellation(
                         compileSignal,
-                        crossSourceTimeouts,
+                        crossSourceTimeouts ?? DEFAULT_CROSS_SOURCE_TIMEOUTS,
+                        Date.now() - resolutionStartedAt,
                     );
                     const tasks = [
                         ...(includePrimary
@@ -650,10 +686,22 @@ export class MultiConnectionCompiler {
                             tasks,
                             concurrency,
                             async (task) => {
-                                const scan = await cancellation.run(
+                                const scan = await groupCancellation.run(
                                     task.key,
                                     'prepare',
-                                    (signal) => task.prepare({ signal }),
+                                    async (signal) => {
+                                        try {
+                                            return await task.prepare({
+                                                signal,
+                                            });
+                                        } catch (error) {
+                                            signal.throwIfAborted();
+                                            throw new DbtSourceError(
+                                                `Failed to load dbt source "${task.key}": ${getErrorMessage(error)}`,
+                                                error,
+                                            );
+                                        }
+                                    },
                                 );
                                 scans.set(task.uuid, scan);
                                 if (scan?.projectName)
@@ -666,14 +714,10 @@ export class MultiConnectionCompiler {
                                     });
                             },
                         );
-                        preparationDurations.set(
-                            plan.warehouseConnectionUuid,
-                            Date.now() - started,
-                        );
                     } catch (error) {
-                        await cancellation.fail(error);
+                        await groupCancellation.fail(error);
                     } finally {
-                        cancellation.dispose();
+                        groupCancellation.dispose();
                     }
                 };
                 await scanGroup(
@@ -690,6 +734,7 @@ export class MultiConnectionCompiler {
                         const credentials = await loadCredentialsOnce(
                             plan.warehouseConnectionUuid!,
                         );
+                        compileSignal?.throwIfAborted();
                         await this.warehouseClientFactory.withWarehouseClient(
                             { kind: 'compile', projectUuid, credentials },
                             context,
@@ -756,10 +801,9 @@ export class MultiConnectionCompiler {
                     ? {
                           signal: compileSignal,
                           timeouts: crossSourceTimeouts,
-                          resolutionElapsedMs:
-                              preparationDurations.get(
-                                  plan.warehouseConnectionUuid,
-                              ) ?? 0,
+                          get resolutionElapsedMs() {
+                              return Date.now() - resolutionStartedAt;
+                          },
                           connectionName: plan.connectionName,
                           otherConnectionProjects: projects.filter(
                               (project) =>
@@ -1037,7 +1081,7 @@ export class MultiConnectionCompiler {
 
             compileSignal?.throwIfAborted();
             return {
-                ...(crossSourceRefsEnabled ? { signal: compileSignal } : {}),
+                ...(crossSourceRefsEnabled ? { signal: callerSignal } : {}),
                 originalAdapter,
                 exploreStream: MultiConnectionCompiler.groupExplores(
                     originalStream,
@@ -1058,7 +1102,7 @@ export class MultiConnectionCompiler {
                 warnings,
                 persistArtifacts: async (options) => {
                     if (!options?.exploresCommitted)
-                        compileSignal?.throwIfAborted();
+                        callerSignal?.throwIfAborted();
                     if (originalManifest === null) {
                         await this.projectModel.deleteMergedManifest(
                             projectUuid,
@@ -1117,7 +1161,7 @@ export class MultiConnectionCompiler {
             compilation.carry,
             ...(checkBeforeWrite ? [checkBeforeWrite] : []),
         );
-        disarmCompileShutdown();
+        markCompilePublished();
         await compilation.persistArtifacts({ exploresCommitted: true });
         return saved;
     }

@@ -140,28 +140,13 @@ export class DbtGitProjectAdapter
 
     private async _refreshRepo(signal?: AbortSignal) {
         signal?.throwIfAborted();
-        const git = signal
-            ? simpleGit({
-                  allowEnvironment: GIT_REPOSITORY_ENVIRONMENT,
-                  abort: signal,
-                  progress({
-                      method,
-                      stage,
-                      progress,
-                  }: SimpleGitProgressEvent) {
-                      Logger.debug(
-                          `git.${method} ${stage} stage ${progress}% complete`,
-                      );
-                  },
-              })
-            : this.git;
         await new GitRepository(
-            git,
+            this.git,
             this.localRepositoryDir,
             this.remoteRepositoryUrl,
             this.repository,
             this.branch,
-        ).refresh();
+        ).refresh(signal);
     }
 
     public async prepareExploreStream(
@@ -177,9 +162,14 @@ export class DbtGitProjectAdapter
         );
     }
 
-    public async test() {
-        await this.prepareRepository();
-        await super.test();
+    public async test(options?: { signal?: AbortSignal }) {
+        if (options?.signal) {
+            await this.prepareRepository(options.signal);
+            await super.test(options);
+        } else {
+            await this.prepareRepository();
+            await super.test();
+        }
     }
 
     private async prepareRepository(signal?: AbortSignal): Promise<number> {

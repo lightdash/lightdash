@@ -120,6 +120,33 @@ export class CrossSourceCancellation {
         }
     }
 
+    async wait<T>(source: string, operation: () => Promise<T>): Promise<T> {
+        this.controller.signal.throwIfAborted();
+        let onAbort = () => {};
+        const aborted = new Promise<never>((_, reject) => {
+            onAbort = () => reject(this.controller.signal.reason);
+            this.controller.signal.addEventListener('abort', onAbort, {
+                once: true,
+            });
+        });
+        const work = Promise.resolve().then(() => {
+            this.controller.signal.throwIfAborted();
+            return operation();
+        });
+        this.inFlight.set(work, source);
+        void work.then(
+            () => this.inFlight.delete(work),
+            () => this.inFlight.delete(work),
+        );
+        try {
+            const result = await Promise.race([work, aborted]);
+            this.controller.signal.throwIfAborted();
+            return result;
+        } finally {
+            this.controller.signal.removeEventListener('abort', onAbort);
+        }
+    }
+
     async fail(error: unknown): Promise<never> {
         this.controller.abort(error);
         let timer: NodeJS.Timeout | undefined;

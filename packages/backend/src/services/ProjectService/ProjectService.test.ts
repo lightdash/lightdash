@@ -15212,6 +15212,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         primaryDestroy: ProjectAdapter['destroy'] = vi.fn(
             async () => undefined,
         ),
+        preparePrimary: ProjectAdapter['prepareDbtSource'] = vi.fn(
+            async () => ({
+                projectDir: null,
+                timings: { gitRefreshMs: null, depsMs: null },
+            }),
+        ),
     ) => {
         const primaryManifest = buildManifest([
             {
@@ -15229,7 +15235,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ]);
         const primaryCompileAdapter = {
             test: vi.fn(async () => undefined),
-            prepareDbtSource: vi.fn(async () => ({ projectDir: null })),
+            prepareDbtSource: preparePrimary,
             getDbtManifest: vi.fn(async () => ({
                 manifest: primaryManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -16225,6 +16231,84 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
     });
 
+    it.each(['shutdown', 'deadline'] as const)(
+        'arms primary preparation before test and deploy and handles %s',
+        async (cause) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            let signal: AbortSignal | undefined;
+            const prepare = vi.fn<ProjectAdapter['prepareDbtSource']>(
+                async (options) => {
+                    expect(context.armed).toBe(true);
+                    signal = options?.signal;
+                    return new Promise((_resolve, reject) => {
+                        signal!.addEventListener(
+                            'abort',
+                            () => reject(signal!.reason),
+                            { once: true },
+                        );
+                    });
+                },
+            );
+            const service = buildCompilationBoundaryService(
+                undefined,
+                undefined,
+                prepare,
+            );
+            vi.mocked(service.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.MultiDbtSources ||
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            Object.assign(service, {
+                lightdashConfig: {
+                    ...lightdashConfigWithGoogleOAuthMock,
+                    dbt: {
+                        ...lightdashConfigWithGoogleOAuthMock.dbt,
+                        crossSourcePrepareTimeoutMs: 50,
+                    },
+                },
+            });
+            const reason = new CompileInterruptedError();
+            projectModel.saveExploreStreamToCache.mockClear();
+            const work = compileShutdown
+                .run(context, () =>
+                    service.testAndCompileProject(
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                )
+                .catch((error: unknown) => error);
+            await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
+            if (cause === 'shutdown') context.controller.abort(reason);
+            const error = await work;
+            if (cause === 'shutdown') expect(error).toBe(reason);
+            else
+                expect(error).toHaveProperty(
+                    'message',
+                    expect.stringContaining(
+                        'while cloning the repository and installing dbt packages',
+                    ),
+                );
+            expect(signal?.aborted).toBe(true);
+            expect(
+                projectModel.saveExploreStreamToCache,
+            ).not.toHaveBeenCalled();
+            expect(context.state).toBe('terminal');
+        },
+    );
+
     it.each(['compileProject', 'testAndCompileProject'] as const)(
         '%s fences a shutdown after dbt ls before any publication',
         async (method) => {
@@ -16232,6 +16316,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 controller: new AbortController(),
                 jobUuid: 'leaf_a',
                 armed: false,
+                state: 'running',
                 isStopping: () => false,
                 interrupt: vi.fn(),
             };
@@ -16286,6 +16371,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 controller: new AbortController(),
                 jobUuid: 'leaf_a',
                 armed: false,
+                state: 'running',
                 isStopping: () => false,
                 interrupt: vi.fn(),
             };
@@ -16326,6 +16412,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 controller: new AbortController(),
                 jobUuid: 'leaf_a',
                 armed: false,
+                state: 'running',
                 isStopping: () => false,
                 interrupt: vi.fn(),
             };
@@ -16379,6 +16466,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 controller: new AbortController(),
                 jobUuid: 'leaf_a',
                 armed: false,
+                state: 'running',
                 isStopping: () => false,
                 interrupt: vi.fn(),
             };
@@ -16395,6 +16483,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async () => {
                     context.controller.abort(new CompileInterruptedError());
                     return { cachedExploreUuids: [] };
+                },
+            );
+            projectModel.upsertMergedManifest.mockImplementationOnce(
+                async () => {
+                    expect(context.armed).toBe(true);
+                    expect(context.state).toBe('published');
                 },
             );
             jobModel.update.mockClear();

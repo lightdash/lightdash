@@ -11,11 +11,9 @@ it.skipIf(process.platform !== 'linux')(
         const once = vi.spyOn(process, 'once');
         const kill = vi.spyOn(process, 'kill').mockReturnValue(true);
         const { DbtCliClient } = await import('./dbtCliClient');
-        const exitHandlers = once.mock.calls.filter(
-            ([event]) => event === 'exit',
-        );
-        expect(exitHandlers).toHaveLength(1);
-        const onExit = exitHandlers[0][1];
+        expect(
+            once.mock.calls.filter(([event]) => event === 'exit'),
+        ).toHaveLength(0);
         const events = new EventEmitter();
         let finish!: () => void;
         const subprocess = Object.assign(
@@ -39,14 +37,31 @@ it.skipIf(process.platform !== 'linux')(
             partialParseBaselinePath: null,
         });
         try {
+            vi.mocked(execa).mockReturnValueOnce(
+                Object.assign(Promise.resolve({ all: '', stdout: '' }), {
+                    kill: vi.fn(),
+                    once: vi.fn(),
+                }) as never,
+            );
+            await client.installDeps();
+            expect(
+                once.mock.calls.filter(([event]) => event === 'exit'),
+            ).toHaveLength(0);
             const work = client.installDeps(new AbortController().signal);
             await vi.waitFor(() =>
                 expect(events.listenerCount('exit')).toBe(1),
             );
+            const exitHandlers = once.mock.calls.filter(
+                ([event]) => event === 'exit',
+            );
+            expect(exitHandlers).toHaveLength(1);
+            const onExit = exitHandlers[0][1];
             onExit(0);
             expect(kill).toHaveBeenCalledExactlyOnceWith(-100001, 'SIGKILL');
             kill.mockClear();
             events.emit('exit', 0);
+            expect(kill).toHaveBeenCalledExactlyOnceWith(-100001, 'SIGKILL');
+            kill.mockClear();
             onExit(0);
             expect(kill).not.toHaveBeenCalled();
             finish();
@@ -72,7 +87,9 @@ it.skipIf(process.platform !== 'linux')(
             events.emit('exit', 0);
         } finally {
             finish();
-            process.removeListener('exit', onExit);
+            for (const [event, handler] of once.mock.calls) {
+                if (event === 'exit') process.removeListener('exit', handler);
+            }
             await client.cleanup();
             vi.restoreAllMocks();
         }

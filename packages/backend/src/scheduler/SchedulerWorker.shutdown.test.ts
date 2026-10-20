@@ -373,6 +373,7 @@ describe('SchedulerWorker ordinary shutdown', () => {
             controller: new AbortController(),
             jobUuid: 'leaf_a',
             armed: true,
+            state: 'running',
             isStopping: () => false,
             interrupt: vi.fn(),
         });
@@ -479,6 +480,95 @@ describe('SchedulerWorker ordinary shutdown', () => {
         release();
         await work;
     });
+
+    it.each(['publishing', 'published'] as const)(
+        'lets a %s compile finish its tail during shutdown',
+        async (state) => {
+            const markFailed = vi.fn();
+            const worker = makeWorker(undefined, markFailed);
+            await worker.run();
+            let release!: () => void;
+            let context!: CompileShutdownContext;
+            const methods = worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            };
+            const work = methods.runCompileTask('leaf_a', async () => {
+                armCompileShutdown();
+                context = compileShutdown.getStore()!;
+                context.state = state;
+                await new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+                disarmCompileShutdown();
+            });
+            const stopping = worker.stop();
+            await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS - 1);
+            expect(context.armed).toBe(true);
+            expect(context.controller.signal.aborted).toBe(false);
+            expect(markFailed).not.toHaveBeenCalled();
+            release();
+            await work;
+            fakeRunners[0].finishActiveJobs();
+            await stopping;
+            expect(context.state).toBe('terminal');
+            expect(markFailed).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['running', 'publishing', 'published'] as const)(
+        'releases healthy runners despite a stalled %s failure write',
+        async (state) => {
+            let finishWrite!: () => void;
+            const markFailed = vi.fn(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishWrite = resolve;
+                    }),
+            );
+            const worker = makeWorker(undefined, markFailed);
+            await worker.run();
+            const methods = worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            };
+            let release!: () => void;
+            let context!: CompileShutdownContext;
+            const work = methods.runCompileTask('leaf_a', async () => {
+                armCompileShutdown();
+                context = compileShutdown.getStore()!;
+                context.state = state;
+                await new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+            });
+            try {
+                const stopping = worker.stop();
+                await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS - 1);
+                expect(markFailed).toHaveBeenCalledTimes(
+                    state === 'running' ? 1 : 0,
+                );
+                await vi.advanceTimersByTimeAsync(1);
+                expect(markFailed).toHaveBeenCalledOnce();
+                await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS);
+                await stopping;
+                expect(
+                    fakeRunners[0].workerPool.gracefulShutdown,
+                ).toHaveBeenCalledOnce();
+                expect(context.controller.signal.aborted).toBe(
+                    state === 'running',
+                );
+            } finally {
+                finishWrite();
+                release();
+                await work;
+            }
+        },
+    );
 
     it('leaves an unarmed compile controller untouched', async () => {
         const worker = makeWorker();

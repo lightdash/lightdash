@@ -47,6 +47,14 @@ import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnec
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type CompilableDbtSource } from '../../../projectAdapters/CompileGroup';
 import { DbtManifestProjectAdapter } from '../../../projectAdapters/dbtManifestProjectAdapter';
+import {
+    armCompileShutdown,
+    CompileInterruptedError,
+    compileShutdown,
+    disarmCompileShutdown,
+    type CompileShutdownContext,
+} from '../../../scheduler/compileShutdown';
+import { SchedulerWorker } from '../../../scheduler/SchedulerWorker';
 import { DeployService } from '../../../services/DeployService';
 import {
     MultiConnectionCompiler,
@@ -574,6 +582,193 @@ describe('Multi-connection compile on the real schema', () => {
             explore: row.explore,
             warehouse_connection_uuid: row.warehouse_connection_uuid,
         }));
+
+    test.each(['single', 'multi'] as const)(
+        '%s publication holds the job lock and finishes after shutdown at the staged hook',
+        async (savePath) => {
+            const fixture = await createProject();
+            const jobModel = new JobModel({ database });
+            const jobUuid = randomUUID();
+            const [user] = await database('users')
+                .insert({ first_name: 'Leaf', last_name: 'A' } as never)
+                .returning('user_uuid');
+            await database('jobs').insert({
+                user_uuid: user.user_uuid,
+                job_uuid: jobUuid,
+                job_type: JobType.COMPILE_PROJECT,
+                job_status: JobStatusType.RUNNING,
+                project_uuid: fixture.projectUuid,
+                is_preview: false,
+            });
+            const fail = vi.fn(async (uuid: string, message: string) =>
+                jobModel.failRunningJob(uuid, message),
+            );
+            const worker = new SchedulerWorker({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    scheduler: {
+                        ...lightdashConfigMock.scheduler,
+                        shutdownTimeout: 1000,
+                    },
+                },
+                projectService: { _markInterruptedCompileAsFailed: fail },
+            } as unknown as ConstructorParameters<typeof SchedulerWorker>[0]);
+            const internals = worker as unknown as {
+                runCompileTask(
+                    uuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+                managedRunners: Set<{
+                    runner: { stop(): Promise<void> };
+                    workerPool: null;
+                    stopPromise: Promise<void> | null;
+                }>;
+            };
+            let reached!: () => void;
+            const staged = new Promise<void>((resolve) => {
+                reached = resolve;
+            });
+            let release!: () => void;
+            const pending = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            let context!: CompileShutdownContext;
+            const work = internals.runCompileTask(jobUuid, async () => {
+                armCompileShutdown();
+                context = compileShutdown.getStore()!;
+                const stream = (async function* leafExplores() {
+                    yield explore('leaf_a', ['leaf_a']);
+                })();
+                const beforeWrite = async () => {
+                    reached();
+                    await pending;
+                };
+                if (savePath === 'single')
+                    await projectModel.saveExploreStreamToCache(
+                        fixture.projectUuid,
+                        stream,
+                        beforeWrite,
+                    );
+                else
+                    await compiler.save(
+                        fixture.projectUuid,
+                        {
+                            exploreStream: stream,
+                            bindingOf: () => null,
+                            carry: {
+                                kind: 'connections',
+                                warehouseConnectionUuids: [],
+                            },
+                            persistArtifacts: async () => {},
+                            signal: context.controller.signal,
+                        },
+                        beforeWrite,
+                    );
+                expect(context.state).toBe('published');
+                expect(context.armed).toBe(true);
+                await jobModel.update(jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                });
+                disarmCompileShutdown();
+            });
+            internals.managedRunners.add({
+                runner: { stop: () => work },
+                workerPool: null,
+                stopPromise: null,
+            });
+            try {
+                await staged;
+                expect(context.state).toBe('publishing');
+                await expect(
+                    database('jobs')
+                        .where('job_uuid', jobUuid)
+                        .forUpdate()
+                        .noWait()
+                        .first(),
+                ).rejects.toHaveProperty('code', '55P03');
+                const stopping = worker.stop();
+                expect(context.controller.signal.aborted).toBe(false);
+                expect(fail).not.toHaveBeenCalled();
+                release();
+                await work;
+                await stopping;
+                expect((await jobModel.get(jobUuid)).jobStatus).toBe(
+                    JobStatusType.DONE,
+                );
+                expect(
+                    (await dump(fixture.projectUuid)).map(({ name }) => name),
+                ).toContain('leaf_a');
+                expect(fail).not.toHaveBeenCalled();
+            } finally {
+                release();
+                await work;
+            }
+        },
+    );
+
+    test.each(['single', 'multi'] as const)(
+        '%s publication refuses a job already marked ERROR',
+        async (savePath) => {
+            const fixture = await createProject();
+            const jobModel = new JobModel({ database });
+            const jobUuid = randomUUID();
+            const [user] = await database('users')
+                .insert({ first_name: 'Leaf', last_name: 'A' } as never)
+                .returning('user_uuid');
+            await database('jobs').insert({
+                user_uuid: user.user_uuid,
+                job_uuid: jobUuid,
+                job_type: JobType.COMPILE_PROJECT,
+                job_status: JobStatusType.RUNNING,
+                project_uuid: fixture.projectUuid,
+                is_preview: false,
+            });
+            await jobModel.failRunningJob(
+                jobUuid,
+                new CompileInterruptedError().message,
+            );
+            const before = await dump(fixture.projectUuid);
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid,
+                armed: true,
+                state: 'running',
+                isStopping: () => false,
+                interrupt: () => {},
+            };
+            await compileShutdown.run(context, async () => {
+                const stream = (async function* leafExplores() {
+                    yield explore('leaf_a', ['leaf_a']);
+                })();
+                const saving =
+                    savePath === 'single'
+                        ? projectModel.saveExploreStreamToCache(
+                              fixture.projectUuid,
+                              stream,
+                          )
+                        : compiler.save(fixture.projectUuid, {
+                              exploreStream: stream,
+                              bindingOf: () => null,
+                              carry: {
+                                  kind: 'connections',
+                                  warehouseConnectionUuids: [],
+                              },
+                              persistArtifacts: async () => {},
+                              signal: context.controller.signal,
+                          });
+                await expect(saving).rejects.toBeInstanceOf(
+                    CompileInterruptedError,
+                );
+                await jobModel.update(jobUuid, {
+                    jobStatus: JobStatusType.DONE,
+                });
+            });
+            expect((await jobModel.get(jobUuid)).jobStatus).toBe(
+                JobStatusType.ERROR,
+            );
+            expect(await dump(fixture.projectUuid)).toEqual(before);
+        },
+    );
 
     describe('entry points', () => {
         type PrimaryBuild = {

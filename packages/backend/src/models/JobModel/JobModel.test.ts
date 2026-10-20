@@ -206,6 +206,7 @@ describe('JobModel.failRunningJob', () => {
             controller: new AbortController(),
             jobUuid: 'leaf_a',
             armed: true,
+            state: 'running',
             isStopping: () => true,
             interrupt: vi.fn(),
         };
@@ -281,6 +282,7 @@ describe('JobModel.failRunningJob', () => {
                         controller,
                         jobUuid: 'leaf_a',
                         armed: false,
+                        state: 'running',
                         isStopping: () => true,
                         interrupt: vi.fn(),
                     },

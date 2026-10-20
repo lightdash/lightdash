@@ -70,7 +70,7 @@ export interface ProjectAdapter {
         options?: DbtManifestFetchOptions,
     ): Promise<DbtManifestFetchResult>;
 
-    test(): Promise<void>;
+    test(options?: { signal?: AbortSignal }): Promise<void>;
 
     destroy(): Promise<void>;
 
@@ -101,7 +101,10 @@ export interface DbtClient {
 
     getSelector(): string | undefined;
 
-    test(prepareDependencies?: () => Promise<void>): Promise<void>;
+    test(
+        prepareDependencies?: () => Promise<void>,
+        signal?: AbortSignal,
+    ): Promise<void>;
 
     cleanup?(): Promise<void>;
 }

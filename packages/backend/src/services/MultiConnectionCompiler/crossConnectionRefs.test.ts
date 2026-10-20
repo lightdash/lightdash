@@ -572,6 +572,7 @@ describe('cross-source compile boundaries', () => {
         controller: new AbortController(),
         jobUuid: 'leaf_a',
         armed: false,
+        state: 'running',
         isStopping: () => false,
         interrupt: vi.fn(),
     });
@@ -599,7 +600,7 @@ describe('cross-source compile boundaries', () => {
                 warehouseConnectionUuids: ['extra'],
             });
             expect(compilation.warnings).toEqual([
-                `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: ${failure.message}`,
+                `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: ${phase === 'clone' ? 'Failed to load dbt source "analytics": ' : ''}${failure.message}`,
             ]);
         },
     );
@@ -735,18 +736,46 @@ describe('cross-source compile boundaries', () => {
             }
             return fetch(...args);
         });
-        const work = h.compiler.compile(h.input);
+        const work = h.compiler
+            .compile(h.input)
+            .catch((error: unknown) => error);
         await vi.advanceTimersByTimeAsync(10);
-        const compilation = await work;
-        expect(compilation.carry).toEqual({
-            kind: 'connections',
-            warehouseConnectionUuids: ['extra'],
-        });
-        expect(compilation.warnings).toEqual([
+        expect(await work).toHaveProperty(
+            'message',
             expect.stringContaining(
-                'Cross-source dbt resolution timed out after 0.01 s. Sources still in progress: "analytics".',
+                'Cross-source dbt resolution timed out after 0.01 s.',
             ),
-        ]);
+        );
+        expect(h.saveMultiConnectionExplores).not.toHaveBeenCalled();
+    });
+
+    it('counts slow credential loading against the shared resolution deadline', async () => {
+        vi.useFakeTimers();
+        const h = harness();
+        h.input.crossSourceTimeouts = {
+            prepareMs: 100,
+            lsMs: 100,
+            resolutionMs: 10,
+        };
+        h.input.loadExtraCredentials = vi.fn(async () => {
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 25);
+            });
+            return trino;
+        });
+        const work = h.compiler
+            .compile(h.input)
+            .catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(25);
+        expect(await work).toHaveProperty(
+            'message',
+            expect.stringContaining(
+                'Cross-source dbt resolution timed out after 0.01 s.',
+            ),
+        );
+        expect(h.withWarehouseClient).not.toHaveBeenCalled();
+        expect(h.fetchSourceManifest).not.toHaveBeenCalled();
+        expect(h.saveMultiConnectionExplores).not.toHaveBeenCalled();
     });
 
     it('fails the compile on an original-group deadline', async () => {
@@ -840,7 +869,8 @@ describe('cross-source compile boundaries', () => {
             await expect(
                 h.compiler.save('project', compilation),
             ).resolves.toEqual({ cachedExploreUuids: [] });
-            expect(context.armed).toBe(false);
+            expect(context.armed).toBe(true);
+            expect(context.state).toBe('published');
         });
         expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
         expect(h.projectModel.deleteMergedManifest).toHaveBeenCalledOnce();

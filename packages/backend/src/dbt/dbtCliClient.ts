@@ -16,7 +16,7 @@ import {
     validateDbtSelector,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import execa, { ExecaError, ExecaReturnValue } from 'execa';
+import execa, { ExecaError } from 'execa';
 import * as fs from 'fs/promises';
 import yaml from 'js-yaml';
 import os from 'os';
@@ -24,6 +24,7 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient, DbtManifestFetchOptions } from '../types';
+import { awaitDetachedProcess } from '../utils/detachedProcess';
 import { DbtAbortError } from './DbtAbortError';
 import {
     dbtSupportsExternalNodes,
@@ -37,22 +38,6 @@ import {
     getDbtProcessEnvironment,
     getMissingEnvironmentVariableHint,
 } from './dbtProcessEnvironment';
-
-const liveDetachedProcessGroups = new Set<number>();
-
-process.once('exit', () => {
-    for (const pgid of liveDetachedProcessGroups) {
-        try {
-            process.kill(-pgid, 'SIGKILL');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
-                Logger.error(
-                    'Failed to kill detached dbt process group',
-                    error,
-                );
-        }
-    }
-});
 
 type DbtCliArgs = {
     dbtProjectDirectory: string;
@@ -309,64 +294,9 @@ export class DbtCliClient implements DbtClient {
                     gitConfigGlobalPath: this.gitConfigGlobalPath,
                 }),
             });
-            if (signal && process.platform === 'linux' && subprocess.pid) {
-                const pgid = subprocess.pid;
-                liveDetachedProcessGroups.add(pgid);
-                void subprocess.once('exit', () =>
-                    liveDetachedProcessGroups.delete(pgid),
-                );
-            }
-            let killTimer: NodeJS.Timeout | null = null;
-            const killGroup = (killSignal: NodeJS.Signals) => {
-                if (process.platform === 'linux' && subprocess.pid) {
-                    try {
-                        process.kill(-subprocess.pid, killSignal);
-                    } catch (error) {
-                        if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
-                            throw error;
-                    }
-                } else subprocess.kill(killSignal);
-            };
-            const abort = () => {
-                killGroup('SIGTERM');
-                killTimer = setTimeout(() => killGroup('SIGKILL'), 5000);
-            };
-            signal?.addEventListener('abort', abort, { once: true });
-            if (signal?.aborted) abort();
-            let dbtProcess: ExecaReturnValue;
-            try {
-                dbtProcess = await subprocess;
-            } finally {
-                signal?.removeEventListener('abort', abort);
-                if (signal?.aborted && killTimer) {
-                    await new Promise<void>((resolve) => {
-                        const groupDeadline = Date.now() + 5000;
-                        const waitForGroup = () => {
-                            if (
-                                process.platform !== 'linux' ||
-                                !subprocess.pid
-                            ) {
-                                resolve();
-                                return;
-                            }
-                            try {
-                                process.kill(-subprocess.pid, 0);
-                            } catch {
-                                resolve();
-                                return;
-                            }
-                            if (Date.now() >= groupDeadline) {
-                                killGroup('SIGKILL');
-                                resolve();
-                                return;
-                            }
-                            setTimeout(waitForGroup, 25);
-                        };
-                        waitForGroup();
-                    });
-                }
-                if (killTimer) clearTimeout(killTimer);
-            }
+            const dbtProcess = signal
+                ? await awaitDetachedProcess(subprocess, signal)
+                : await subprocess;
             if (signal?.aborted) throw new DbtAbortError(signal.reason);
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
@@ -624,6 +554,7 @@ export class DbtCliClient implements DbtClient {
 
     async test(
         prepareDependencies: () => Promise<void> = () => this.installDeps(),
+        signal?: AbortSignal,
     ): Promise<void> {
         return traceSpan(
             {
@@ -633,7 +564,11 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 await this.ensureDbtProjectDir();
                 await prepareDependencies();
-                const { logs } = await this._runDbtCommand(['parse']);
+                const { logs } = await this._runDbtCommand(
+                    ['parse'],
+                    {},
+                    signal,
+                );
                 await this.keepPartialParse('parse', logs);
             },
         );

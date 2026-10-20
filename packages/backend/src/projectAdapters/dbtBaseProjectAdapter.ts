@@ -96,11 +96,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         await this.dbtClient.cleanup?.();
     }
 
-    public async test(): Promise<void> {
+    public async test(options?: { signal?: AbortSignal }): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test(async () => {
-            await this.prepareDbtSource();
-        });
+        if (options?.signal) {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource(options);
+            }, options.signal);
+        } else {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource();
+            });
+        }
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }

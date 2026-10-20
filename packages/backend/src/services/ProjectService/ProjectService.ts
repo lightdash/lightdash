@@ -423,6 +423,7 @@ import {
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { type CompilableDbtSource } from '../../projectAdapters/CompileGroup';
+import { CrossSourceCancellation } from '../../projectAdapters/crossSourceCancellation';
 import { resolveCrossSourceManifests } from '../../projectAdapters/crossSourceRefs';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
@@ -433,6 +434,7 @@ import {
     CompileInterruptedError,
     disarmCompileShutdown,
     getCompileShutdownSignal,
+    markCompilePublished,
     throwIfCompileAborted,
 } from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -4462,7 +4464,7 @@ export class ProjectService
             );
         throwIfCompileAborted();
         const { cachedExploreUuids } = await saveExplores(summary);
-        disarmCompileShutdown();
+        markCompilePublished();
         const connectionIndexCatalogJob = connectionProject
             ? await this.schedulerClient.indexCatalog({
                   projectUuid,
@@ -6591,6 +6593,7 @@ export class ProjectService
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
+            await this.armCrossSourceCompile(projectUuid, user);
             timings.testAdapter.start = performance.now();
             const {
                 adapter: primaryAdapter,
@@ -6873,7 +6876,6 @@ export class ProjectService
             }
             throw error;
         } finally {
-            disarmCompileShutdown();
             if (!cleanup.started && cleanup.adapter && cleanup.lease) {
                 try {
                     await cleanup.adapter.destroy();
@@ -6886,6 +6888,7 @@ export class ProjectService
                     await cleanup.lease.release();
                 }
             }
+            disarmCompileShutdown();
         }
     }
 
@@ -7073,7 +7076,37 @@ export class ProjectService
                 this.analytics,
             );
             try {
-                await adapter.test();
+                const signal = getCompileShutdownSignal();
+                if (signal) {
+                    const cancellation = new CrossSourceCancellation(signal, {
+                        prepareMs:
+                            this.lightdashConfig.dbt
+                                .crossSourcePrepareTimeoutMs,
+                        lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                        resolutionMs:
+                            this.lightdashConfig.dbt
+                                .crossSourceResolutionTimeoutMs,
+                    });
+                    try {
+                        await cancellation.run(
+                            'primary',
+                            'prepare',
+                            (prepareSignal) =>
+                                adapter!.prepareDbtSource({
+                                    signal: prepareSignal,
+                                }),
+                        );
+                        await cancellation.run('primary', 'ls', (testSignal) =>
+                            adapter!.test({ signal: testSignal }),
+                        );
+                    } catch (error) {
+                        await cancellation.fail(error);
+                    } finally {
+                        cancellation.dispose();
+                    }
+                } else {
+                    await adapter.test();
+                }
             } catch (error) {
                 const refs = getMissingDbtNodeReferences(error);
                 if (refs.length === 0) throw error;
@@ -7900,6 +7933,7 @@ export class ProjectService
             dbtVersionOption,
             dbtPartialParse,
         } = await this.prepareCompileAdapter(projectUuid, user);
+        await this.armCrossSourceCompile(projectUuid, user);
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
@@ -8222,6 +8256,25 @@ export class ProjectService
                 manifestMs: timings.manifestMs,
             },
         );
+    }
+
+    private async armCrossSourceCompile(
+        projectUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user,
+        });
+        if (!enabled) return;
+        const { enabled: multiSource } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MultiDbtSources,
+            user,
+        });
+        if (!multiSource) return;
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        if (sources.length > 0) armCompileShutdown();
     }
 
     private static async scanAdapter(

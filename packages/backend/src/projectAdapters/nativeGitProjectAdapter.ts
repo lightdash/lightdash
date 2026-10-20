@@ -121,6 +121,7 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
             `https://${host}/${repository}.git`,
             repository,
             branch,
+            { GIT_CONFIG_GLOBAL: this.credentials.configPath },
         );
     }
 
@@ -173,8 +174,11 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
     async compileAllExplores(
         _trackingParams?: TrackingParams,
         loadSources = false,
+        _allowPartialCompilation = true,
+        signal?: AbortSignal,
     ): Promise<Explore[]> {
-        await this.checkout.refresh();
+        if (signal) await this.checkout.refresh(signal);
+        else await this.checkout.refresh();
         await this.assertWithinCheckout(this.dbtProjectDir);
         const models = await loadLightdashModels(this.dbtProjectDir);
         if (models.length === 0) {
@@ -218,8 +222,15 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         })();
     }
 
-    async test(): Promise<void> {
-        await this.compileAllExplores();
+    async test(options?: { signal?: AbortSignal }): Promise<void> {
+        if (options?.signal)
+            await this.compileAllExplores(
+                undefined,
+                false,
+                true,
+                options.signal,
+            );
+        else await this.compileAllExplores();
         await this.warehouseClient.test();
     }
 

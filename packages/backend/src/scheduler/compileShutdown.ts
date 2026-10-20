@@ -1,5 +1,7 @@
-import { LightdashError } from '@lightdash/common';
+import { JobStatusType, LightdashError } from '@lightdash/common';
+import type { Knex } from 'knex';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { JobsTableName } from '../database/entities/jobs';
 
 export class CompileInterruptedError extends LightdashError {
     constructor() {
@@ -17,6 +19,7 @@ export type CompileShutdownContext = {
     controller: AbortController;
     jobUuid: string | null;
     armed: boolean;
+    state: 'running' | 'publishing' | 'published' | 'terminal';
     isStopping: () => boolean;
     interrupt: () => void;
 };
@@ -42,5 +45,33 @@ export const throwIfCompileAborted = (): void => {
 
 export const disarmCompileShutdown = (): void => {
     const context = compileShutdown.getStore();
-    if (context) context.armed = false;
+    if (context) {
+        context.state = 'terminal';
+        context.armed = false;
+    }
+};
+
+export const lockCompilePublication = async (
+    trx: Knex.Transaction,
+): Promise<void> => {
+    const context = compileShutdown.getStore();
+    if (!context?.armed) return;
+    context.controller.signal.throwIfAborted();
+    context.state = 'publishing';
+    if (context.jobUuid === null) return;
+    const job = await trx(JobsTableName)
+        .select('job_status')
+        .where('job_uuid', context.jobUuid)
+        .forUpdate()
+        .first();
+    if (
+        !job ||
+        ![JobStatusType.RUNNING, JobStatusType.STARTED].includes(job.job_status)
+    )
+        throw new CompileInterruptedError();
+};
+
+export const markCompilePublished = (): void => {
+    const context = compileShutdown.getStore();
+    if (context?.armed) context.state = 'published';
 };

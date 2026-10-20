@@ -429,15 +429,22 @@ export class SchedulerWorker extends SchedulerTask {
             controller: new AbortController(),
             jobUuid,
             armed: false,
+            state: 'running',
             isStopping: () => this.isStopping,
             interrupt: () => {
-                if (context.controller.signal.aborted) return;
+                if (
+                    context.state !== 'running' ||
+                    context.controller.signal.aborted
+                )
+                    return;
                 Logger.warn('dbt.compile.crossSourceInterrupted', {
                     event: 'dbt.compile.crossSourceInterrupted',
                     jobUuid: context.jobUuid,
                 });
                 context.controller.abort(new CompileInterruptedError());
-                void this.failInterruptedCompile(context).catch((error) => {
+                void this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((error) => {
                     Logger.error('Failed to record interrupted compile', error);
                 });
             },
@@ -447,17 +454,18 @@ export class SchedulerWorker extends SchedulerTask {
             await compileShutdown.run(context, task);
         } catch (error) {
             if (context.armed && context.controller.signal.aborted) {
-                await this.failInterruptedCompile(context).catch(
-                    (writeError) => {
-                        Logger.error(
-                            'Failed to record interrupted compile',
-                            writeError,
-                        );
-                    },
-                );
+                await this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((writeError) => {
+                    Logger.error(
+                        'Failed to record interrupted compile',
+                        writeError,
+                    );
+                });
             }
             throw error;
         } finally {
+            context.state = 'terminal';
             context.armed = false;
             this.activeCompiles.delete(context);
         }
@@ -465,10 +473,12 @@ export class SchedulerWorker extends SchedulerTask {
 
     private async failInterruptedCompile(
         context: CompileShutdownContext,
+        deadline = false,
     ): Promise<void> {
         if (
             !context.armed ||
-            !context.controller.signal.aborted ||
+            (!deadline && !context.controller.signal.aborted) ||
+            context.state === 'terminal' ||
             context.jobUuid === null
         )
             return;
@@ -483,19 +493,46 @@ export class SchedulerWorker extends SchedulerTask {
         await failure;
     }
 
-    private async failInterruptedCompiles(): Promise<void> {
-        const outcomes = await Promise.allSettled(
+    private async boundCompileFailureWrites(
+        work: Promise<unknown>,
+    ): Promise<void> {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                work,
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(
+                        resolve,
+                        Math.min(
+                            5000,
+                            this.lightdashConfig.scheduler.shutdownTimeout ??
+                                5000,
+                        ),
+                    );
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async failInterruptedCompiles(deadline = false): Promise<void> {
+        const outcomes = Promise.allSettled(
             [...this.activeCompiles].map((context) =>
-                this.failInterruptedCompile(context),
+                this.failInterruptedCompile(context, deadline),
             ),
         );
-        for (const outcome of outcomes) {
-            if (outcome.status === 'rejected')
-                Logger.error(
-                    'Failed to record interrupted compile',
-                    outcome.reason,
-                );
-        }
+        await this.boundCompileFailureWrites(
+            outcomes.then((results) => {
+                for (const outcome of results) {
+                    if (outcome.status === 'rejected')
+                        Logger.error(
+                            'Failed to record interrupted compile',
+                            outcome.reason,
+                        );
+                }
+            }),
+        );
     }
 
     async stop() {
@@ -506,8 +543,6 @@ export class SchedulerWorker extends SchedulerTask {
             if (context.armed) context.interrupt();
         }
         await this.drainManagedRunners();
-        if (!this.workerHealth?.isPoolDead())
-            await this.failInterruptedCompiles();
         this.isRunning = false;
         this.isQuiesced = false;
     }
@@ -520,6 +555,8 @@ export class SchedulerWorker extends SchedulerTask {
     private async drainManagedRunners(): Promise<void> {
         const managedRunners = [...this.managedRunners];
         if (managedRunners.length === 0) {
+            if (!this.workerHealth?.isPoolDead())
+                await this.failInterruptedCompiles();
             return;
         }
         if (this.workerHealth?.isPoolDead()) {
@@ -549,7 +586,7 @@ export class SchedulerWorker extends SchedulerTask {
 
         const outcome = await Promise.race([drained, deadline]);
         if (outcome === 'timeout') {
-            await this.failInterruptedCompiles();
+            await this.failInterruptedCompiles(true);
             Logger.warn(
                 `Scheduler shutdown drain exceeded ${shutdownTimeout}ms; releasing in-flight jobs for retry`,
             );
