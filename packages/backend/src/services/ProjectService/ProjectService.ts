@@ -285,7 +285,6 @@ import {
     type AgentConnectionTaskEffect,
     type AgentSqlScope,
     type ApiCreateProjectResults,
-    type ApiSetPreAggregateCompileTriggerBody,
     type ChartUsageIn,
     type DashboardTileParameterInputs,
     type DataTimezonePreviewRequest,
@@ -3865,7 +3864,7 @@ export class ProjectService
 
     private async syncPreAggregateDefinitionsRegistry(
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<{ supersededDefinitionUuids: string[] }> {
         const exploresByUuid =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
@@ -3964,9 +3963,9 @@ export class ProjectService
                                 ? null
                                 : (preAggregateDefinition.refresh?.cron ??
                                   null),
-                            materialize_on_compile:
-                                preAggregateDefinition.refresh?.onCompile !==
-                                false,
+                            materialize_on_change:
+                                preAggregateDefinition.refresh?.onChange ===
+                                true,
                             definition_fingerprint: definitionFingerprint,
                         });
                     },
@@ -3996,9 +3995,10 @@ export class ProjectService
         );
         if (supersededDefinitionUuids.length > 0) {
             this.logger.info(
-                `Superseded the active materialization of ${supersededDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} whose definition changed; they are rebuilt on this compile regardless of refresh.on_compile`,
+                `Superseded the active materialization of ${supersededDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} whose definition changed`,
             );
         }
+        return { supersededDefinitionUuids };
     }
 
     private async syncAndEnqueuePreAggregateMaterializations(args: {
@@ -4013,7 +4013,10 @@ export class ProjectService
                     args.projectUuid,
                     'compileProject',
                 );
-            await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
+            const { supersededDefinitionUuids } =
+                await this.syncPreAggregateDefinitionsRegistry(
+                    args.projectUuid,
+                );
 
             if (args.skipMaterialization) {
                 this.logger.info(
@@ -4030,30 +4033,31 @@ export class ProjectService
                 (definition) => definition.materializationMetricQuery !== null,
             );
 
-            // Definitions that opted out of compile-triggered materialization
-            // are still built once when nothing is active yet, so a new
-            // pre-aggregate is never dead until its first cron run.
-            const optedOut = materializableDefinitions.filter(
-                (definition) => !definition.materializeOnCompile,
-            );
-            const activeDefinitionUuids =
-                optedOut.length > 0
-                    ? await this.preAggregateModel.getDefinitionUuidsWithActiveMaterialization(
+            // A compile builds a definition that has never completed a
+            // materialization, so a new pre-aggregate is live without waiting
+            // for cron, and one whose definition just changed when it opted
+            // in with refresh.on_change. Everything else is left to cron or
+            // a manual refresh.
+            const superseded = new Set(supersededDefinitionUuids);
+            const everMaterialized =
+                materializableDefinitions.length > 0
+                    ? await this.preAggregateModel.getDefinitionUuidsEverMaterialized(
                           args.projectUuid,
                       )
                     : new Set<string>();
             const compileDefinitions = materializableDefinitions.filter(
                 (definition) =>
-                    definition.materializeOnCompile ||
-                    !activeDefinitionUuids.has(
+                    !everMaterialized.has(
                         definition.preAggregateDefinitionUuid,
-                    ),
+                    ) ||
+                    (definition.materializeOnChange &&
+                        superseded.has(definition.preAggregateDefinitionUuid)),
             );
             const skippedCount =
                 materializableDefinitions.length - compileDefinitions.length;
             if (skippedCount > 0) {
                 this.logger.info(
-                    `Skipping compile-triggered materialization for ${skippedCount} pre-aggregate definition(s) in project ${args.projectUuid} (refresh.on_compile is false)`,
+                    `Leaving ${skippedCount} pre-aggregate definition(s) in project ${args.projectUuid} to cron or manual refresh on this compile`,
                 );
             }
 
@@ -13221,27 +13225,6 @@ export class ProjectService
         return {
             jobIds: jobs.map((job) => job.jobId),
         };
-    }
-
-    async setPreAggregateCompileTrigger(
-        user: SessionUser,
-        projectUuid: string,
-        body: ApiSetPreAggregateCompileTriggerBody,
-    ): Promise<{ updatedCount: number }> {
-        await this.assertCanRefreshPreAggregates(user, projectUuid);
-        const updatedCount =
-            await this.preAggregateModel.setMaterializeOnCompileOverride({
-                projectUuid,
-                materializeOnCompile: body.materializeOnCompile,
-                preAggregateDefinitionNames: body.preAggregateDefinitionNames,
-            });
-        this.logger.info(
-            `Set pre-aggregate compile trigger override to ${String(
-                body.materializeOnCompile,
-            )} for ${updatedCount} definition(s) in project ${projectUuid}`,
-            { userUuid: user.userUuid },
-        );
-        return { updatedCount };
     }
 
     async refreshPreAggregateByDefinitionName(

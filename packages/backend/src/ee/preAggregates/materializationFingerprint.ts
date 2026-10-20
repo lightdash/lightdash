@@ -10,6 +10,9 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 
+// Whitespace next to these never separates tokens, so it is dropped outright
+const SQL_PUNCTUATION = new Set(['(', ')', '[', ']', '{', '}', ',', '.', ';']);
+
 type JsonValue =
     | string
     | number
@@ -17,6 +20,65 @@ type JsonValue =
     | null
     | JsonValue[]
     | { [key: string]: JsonValue };
+
+/**
+ * Collapses whitespace and drops SQL comments outside string literals and
+ * quoted identifiers, so reformatting an expression leaves it untouched.
+ */
+export const normalizeSql = (sql: string): string => {
+    let out = '';
+    let quote: string | null = null;
+    let pendingSpace = false;
+    let i = 0;
+    const flushSpace = (next: string) => {
+        if (
+            pendingSpace &&
+            out.length > 0 &&
+            !SQL_PUNCTUATION.has(next) &&
+            !SQL_PUNCTUATION.has(out[out.length - 1])
+        ) {
+            out += ' ';
+        }
+        pendingSpace = false;
+    };
+    while (i < sql.length) {
+        const char = sql[i];
+        if (quote) {
+            out += char;
+            if (char === quote && sql[i + 1] === quote) {
+                out += quote;
+                i += 2;
+            } else {
+                if (char === quote) quote = null;
+                i += 1;
+            }
+        } else if (char === "'" || char === '"' || char === '`') {
+            flushSpace(char);
+            quote = char;
+            out += char;
+            i += 1;
+        } else if (char === '-' && sql[i + 1] === '-') {
+            const end = sql.indexOf('\n', i);
+            i = end === -1 ? sql.length : end;
+            pendingSpace = true;
+        } else if (char === '/' && sql[i + 1] === '*') {
+            const end = sql.indexOf('*/', i + 2);
+            i = end === -1 ? sql.length : end + 2;
+            pendingSpace = true;
+        } else if (/\s/.test(char)) {
+            pendingSpace = true;
+            i += 1;
+        } else {
+            flushSpace(char);
+            out += char;
+            i += 1;
+        }
+    }
+    return out;
+};
+
+const normalizeOptionalSql = (sql: string | undefined | null): string | null =>
+    sql === undefined || sql === null ? null : normalizeSql(sql);
 
 // Sorted keys so object insertion order never changes the hash. Filter rule
 // ids are minted fresh on every compile and carry no meaning, so they go.
@@ -43,6 +105,13 @@ const canonicalize = (value: unknown): JsonValue => {
     return String(value);
 };
 
+// Order-free list: the materialized file is read by column name
+const canonicalSet = (values: unknown[]): JsonValue[] =>
+    values
+        .map((value) => JSON.stringify(canonicalize(value)))
+        .sort()
+        .map((json) => JSON.parse(json) as JsonValue);
+
 const getFilterTargetFieldIds = (
     filters: MaterializationMetricQueryPayload['metricQuery']['filters'],
 ): FieldId[] => {
@@ -68,22 +137,24 @@ const compiledFieldInput = (field: CompiledField) => ({
     fieldType: field.fieldType,
     type: field.type,
     table: field.table,
-    compiledSql: field.compiledSql,
+    compiledSql: normalizeSql(field.compiledSql),
     tablesReferences: [...(field.tablesReferences ?? [])].sort(),
     ...(isCompiledMetric(field)
         ? {
-              compiledValueSql: field.compiledValueSql ?? null,
-              compiledDistinctKeys: field.compiledDistinctKeys ?? null,
-              filters: field.filters ?? null,
+              compiledValueSql: normalizeOptionalSql(field.compiledValueSql),
+              compiledDistinctKeys:
+                  field.compiledDistinctKeys?.map(normalizeSql).sort() ?? null,
+              filters: field.filters ? canonicalSet(field.filters) : null,
           }
         : {}),
 });
 
 /**
- * Hash of everything the materialization query reads: the YAML definition,
- * the stored metric query, the compiled SQL of the fields it selects or
- * filters on, and the source tables and joins those fields reach. Changes
- * to fields the pre-aggregate does not touch leave the fingerprint alone.
+ * Hash of everything that decides the rows a materialization holds: the
+ * fields the definition selects and filters on (by compiled SQL), the
+ * tables and joins those fields reach, the definition filters, time
+ * grain, row cap and materialization role. Labels, descriptions, formats,
+ * key order, SQL formatting, sort order and refresh settings stay out.
  */
 export const computeMaterializationFingerprint = ({
     sourceExplore,
@@ -97,7 +168,8 @@ export const computeMaterializationFingerprint = ({
     const fieldsById = new Map<FieldId, CompiledField>(
         getFields(sourceExplore).map((field) => [getItemId(field), field]),
     );
-    const { metricQuery, metricComponents } = materializationMetricQuery;
+    const { metricQuery, metricComponents, timeDimensionFieldId } =
+        materializationMetricQuery;
     const selectedFieldIds = Array.from(
         new Set<FieldId>([
             ...metricQuery.dimensions,
@@ -139,13 +211,12 @@ export const computeMaterializationFingerprint = ({
             const table = sourceExplore.tables[tableName];
             const join = joinsByTable.get(tableName);
             acc[tableName] = canonicalize({
-                sqlTable: table?.sqlTable ?? null,
-                sqlWhere: table?.sqlWhere ?? null,
-                uncompiledSqlWhere: table?.uncompiledSqlWhere ?? null,
+                sqlTable: normalizeOptionalSql(table?.sqlTable),
+                sqlWhere: normalizeOptionalSql(table?.sqlWhere),
                 requiredAttributes: table?.requiredAttributes ?? null,
                 join: join
                     ? {
-                          compiledSqlOn: join.compiledSqlOn,
+                          compiledSqlOn: normalizeSql(join.compiledSqlOn),
                           type: join.type ?? null,
                           relationship: join.relationship ?? null,
                           always: join.always ?? null,
@@ -155,16 +226,27 @@ export const computeMaterializationFingerprint = ({
             return acc;
         }, {});
 
-    // Refresh settings decide when to build, not what; they never invalidate
-    const { refresh: _refresh, ...definition } = preAggregateDef;
     const input = canonicalize({
-        version: 1,
+        version: 2,
         targetDatabase: sourceExplore.targetDatabase,
         warehouse: sourceExplore.warehouse ?? null,
         databricksCompute: sourceExplore.databricksCompute ?? null,
         baseTable: sourceExplore.baseTable,
-        definition,
-        materializationMetricQuery,
+        dimensions: [...metricQuery.dimensions].sort(),
+        metrics: [...metricQuery.metrics].sort(),
+        metricComponents,
+        additionalMetrics: canonicalSet(
+            (metricQuery.additionalMetrics ?? []).map((metric) => ({
+                ...metric,
+                sql: normalizeSql(metric.sql),
+                filters: metric.filters ? canonicalSet(metric.filters) : null,
+            })),
+        ),
+        filters: metricQuery.filters,
+        timeDimensionFieldId,
+        granularity: preAggregateDef.granularity ?? null,
+        resolvedMaxRows: materializationMetricQuery.resolvedMaxRows,
+        materializationRole: preAggregateDef.materializationRole ?? null,
         fields,
         tables,
     });

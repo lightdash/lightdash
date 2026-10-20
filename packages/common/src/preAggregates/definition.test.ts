@@ -245,23 +245,23 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
-    it('parses refresh.on_compile alongside cron', () => {
+    it('parses refresh.on_change alongside cron', () => {
         const result = parseDbtPreAggregateDef(
             {
                 ...basePreAggregate,
-                refresh: { cron: '0 3 * * *', on_compile: false },
+                refresh: { cron: '0 3 * * *', on_change: true },
             },
             'orders',
         );
-        expect(result.refresh).toEqual({ cron: '0 3 * * *', onCompile: false });
+        expect(result.refresh).toEqual({ cron: '0 3 * * *', onChange: true });
     });
 
-    it('parses refresh.on_compile without a cron (manual-only)', () => {
+    it('parses refresh.on_change without a cron', () => {
         const result = parseDbtPreAggregateDef(
-            { ...basePreAggregate, refresh: { on_compile: false } },
+            { ...basePreAggregate, refresh: { on_change: true } },
             'orders',
         );
-        expect(result.refresh).toEqual({ onCompile: false });
+        expect(result.refresh).toEqual({ onChange: true });
     });
 
     it('omits refresh when it is an empty object', () => {
@@ -290,16 +290,16 @@ describe('parseDbtPreAggregateDef', () => {
         ).toBeUndefined();
     });
 
-    it('throws when refresh.on_compile is not a boolean', () => {
+    it('throws when refresh.on_change is not a boolean', () => {
         expect(() =>
             parseDbtPreAggregateDef(
                 {
                     ...basePreAggregate,
-                    refresh: { on_compile: 'no' },
+                    refresh: { on_change: 'no' },
                 } as unknown as Parameters<typeof parseDbtPreAggregateDef>[0],
                 'orders',
             ),
-        ).toThrow('invalid "refresh.on_compile"');
+        ).toThrow('invalid "refresh.on_change"');
     });
 
     it('throws when materialization_role.email is missing', () => {

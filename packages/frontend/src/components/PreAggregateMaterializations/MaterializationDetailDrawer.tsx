@@ -8,7 +8,6 @@ import {
 import {
     ActionIcon,
     Badge,
-    Button,
     Box,
     Collapse,
     Drawer,
@@ -16,7 +15,6 @@ import {
     Group,
     List,
     Stack,
-    Switch,
     Text,
     Tooltip,
     UnstyledButton,
@@ -257,9 +255,6 @@ type Props = {
     onClose: () => void;
     onRefresh: (preAggregateName: string) => void;
     isRefreshing: boolean;
-    // null clears the page override so YAML applies again
-    onSetCompileTrigger: (materializeOnCompile: boolean | null) => void;
-    isSettingCompileTrigger: boolean;
 };
 
 const MaterializationDetailDrawer: FC<Props> = ({
@@ -268,8 +263,6 @@ const MaterializationDetailDrawer: FC<Props> = ({
     onClose,
     onRefresh,
     isRefreshing,
-    onSetCompileTrigger,
-    isSettingCompileTrigger,
 }) => {
     if (!summary) return null;
 
@@ -400,54 +393,16 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     <Box>
                         <DetailLabel>Triggers</DetailLabel>
                         <Stack gap={6} mt={4}>
-                            <Switch
-                                size="xs"
-                                label="Rebuild on project compile"
-                                checked={summary.materializeOnCompile}
-                                disabled={isSettingCompileTrigger}
-                                onChange={(event) => {
-                                    const next = event.currentTarget.checked;
-                                    // Back to YAML when the choice matches it
-                                    onSetCompileTrigger(
-                                        next ===
-                                            summary.materializeOnCompileYaml
-                                            ? null
-                                            : next,
-                                    );
-                                }}
-                            />
                             <Group gap="xs" wrap="nowrap">
-                                {summary.materializeOnCompileOverride !==
-                                    null && (
+                                {summary.materializeOnChange && (
                                     <Badge
                                         size="xs"
                                         variant="light"
-                                        color="yellow"
+                                        color="gray"
                                     >
-                                        Overridden here
+                                        On change
                                     </Badge>
                                 )}
-                                <Text fz="xs" c="ldGray.5">
-                                    YAML:{' '}
-                                    {summary.materializeOnCompileYaml
-                                        ? 'rebuild on compile'
-                                        : 'skip on compile'}
-                                </Text>
-                                {summary.materializeOnCompileOverride !==
-                                    null && (
-                                    <Button
-                                        size="compact-xs"
-                                        variant="subtle"
-                                        disabled={isSettingCompileTrigger}
-                                        onClick={() =>
-                                            onSetCompileTrigger(null)
-                                        }
-                                    >
-                                        Use YAML
-                                    </Button>
-                                )}
-                            </Group>
-                            <Group gap="xs" wrap="nowrap">
                                 {summary.refreshCron && (
                                     <Badge
                                         size="xs"
@@ -476,19 +431,13 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                     </Text>
                                 </DetailValue>
                             )}
-                            {!summary.materializeOnCompile && (
-                                <Text fz="xs" c="ldGray.6">
-                                    Not rebuilt when the project compiles.
-                                    Rebuilds
-                                    {summary.refreshCron
-                                        ? ' on schedule or '
-                                        : ' only '}
-                                    when refreshed from this page. The
-                                    definition still syncs on every compile, and
-                                    a pre-aggregate with no active
-                                    materialization is built once.
-                                </Text>
-                            )}
+                            <Text fz="xs" c="ldGray.6">
+                                {summary.materializeOnChange
+                                    ? 'Rebuilt on the project compile that changes its definition or the fields it reads (refresh.on_change: true in YAML).'
+                                    : 'When a compile changes its definition or the fields it reads, the old materialization stops serving and the rebuild waits for the next scheduled or manual refresh. Set refresh.on_change: true in YAML to rebuild on that compile.'}{' '}
+                                Built once on compile when it has never been
+                                materialized.
+                            </Text>
                         </Stack>
                     </Box>
                 )}

@@ -510,15 +510,12 @@ const organizationWarehouseCredentialsModel = {
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(async () => ({
-        supersededDefinitionUuids: [],
+        supersededDefinitionUuids: [] as string[],
     })),
     getPreAggregateDefinitionsForProject: vi.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),
-    getDefinitionUuidsWithActiveMaterialization: vi.fn(
-        async () => new Set<string>(),
-    ),
-    setMaterializeOnCompileOverride: vi.fn(async () => 2),
+    getDefinitionUuidsEverMaterialized: vi.fn(async () => new Set<string>()),
 };
 projectModel.getPreAggregateRefreshSummary.mockImplementation(async () => {
     const definitions =
@@ -10844,7 +10841,7 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('setPreAggregateCompileTrigger stores the override for managed definitions', async () => {
+        test('a compile rebuilds a changed definition only when refresh.on_change is true', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -10852,48 +10849,33 @@ describe('ProjectService', () => {
                     enabled: true,
                 },
             });
-            const result =
-                await serviceWithPreAggregatesEnabled.setPreAggregateCompileTrigger(
-                    adminUser,
-                    projectUuid,
-                    { materializeOnCompile: false },
-                );
-            expect(result).toEqual({ updatedCount: 2 });
-            expect(
-                preAggregateModel.setMaterializeOnCompileOverride,
-            ).toHaveBeenCalledWith({
-                projectUuid,
-                materializeOnCompile: false,
-                preAggregateDefinitionNames: undefined,
-            });
-        });
-
-        test('skips compile-triggered materialization when refresh.on_compile is false and a materialization is active', async () => {
-            const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigWithGoogleOAuthMock,
-                preAggregates: {
-                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
-                    enabled: true,
-                },
-            });
+            preAggregateModel.upsertPreAggregateDefinitions.mockResolvedValueOnce(
+                { supersededDefinitionUuids: ['def-changed', 'def-waits'] },
+            );
             preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
                 [
                     {
-                        preAggregateDefinitionUuid: 'def-cron-only',
-                        refreshCron: '0 3 * * *',
-                        materializeOnCompile: false,
+                        preAggregateDefinitionUuid: 'def-changed',
+                        refreshCron: null,
+                        materializeOnChange: true,
                         materializationMetricQuery: {},
                     },
                     {
-                        preAggregateDefinitionUuid: 'def-default',
+                        preAggregateDefinitionUuid: 'def-waits',
+                        refreshCron: '0 3 * * *',
+                        materializeOnChange: false,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-unchanged',
                         refreshCron: null,
-                        materializeOnCompile: true,
+                        materializeOnChange: true,
                         materializationMetricQuery: {},
                     },
                 ] as never,
             );
-            preAggregateModel.getDefinitionUuidsWithActiveMaterialization.mockResolvedValueOnce(
-                new Set(['def-cron-only']),
+            preAggregateModel.getDefinitionUuidsEverMaterialized.mockResolvedValueOnce(
+                new Set(['def-changed', 'def-waits', 'def-unchanged']),
             );
 
             await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
@@ -10908,7 +10890,7 @@ describe('ProjectService', () => {
             expect(
                 preAggregateModel.upsertPreAggregateDefinitions,
             ).toHaveBeenCalledWith([
-                expect.objectContaining({ materialize_on_compile: true }),
+                expect.objectContaining({ materialize_on_change: false }),
             ]);
             expect(
                 schedulerClient.materializePreAggregate,
@@ -10917,17 +10899,17 @@ describe('ProjectService', () => {
                 schedulerClient.materializePreAggregate,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    preAggregateDefinitionUuid: 'def-default',
+                    preAggregateDefinitionUuid: 'def-changed',
                     trigger: 'compile',
                 }),
             );
-            // Cron is still scheduled for the opted-out definition
+            // The changed definition that waits for cron keeps its schedule
             expect(
                 schedulerClient.schedulePreAggregateCronJobs,
             ).toHaveBeenCalledWith(
                 [
                     expect.objectContaining({
-                        preAggregateDefinitionUuid: 'def-cron-only',
+                        preAggregateDefinitionUuid: 'def-waits',
                         refreshCron: '0 3 * * *',
                     }),
                 ],
@@ -10935,7 +10917,7 @@ describe('ProjectService', () => {
             );
         });
 
-        test('materializes an opted-out definition once on compile when nothing is active yet', async () => {
+        test('a compile builds a definition that has never completed a materialization', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -10946,15 +10928,21 @@ describe('ProjectService', () => {
             preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
                 [
                     {
-                        preAggregateDefinitionUuid: 'def-cron-only',
+                        preAggregateDefinitionUuid: 'def-new',
                         refreshCron: '0 3 * * *',
-                        materializeOnCompile: false,
+                        materializeOnChange: false,
+                        materializationMetricQuery: {},
+                    },
+                    {
+                        preAggregateDefinitionUuid: 'def-built',
+                        refreshCron: null,
+                        materializeOnChange: false,
                         materializationMetricQuery: {},
                     },
                 ] as never,
             );
-            preAggregateModel.getDefinitionUuidsWithActiveMaterialization.mockResolvedValueOnce(
-                new Set<string>(),
+            preAggregateModel.getDefinitionUuidsEverMaterialized.mockResolvedValueOnce(
+                new Set(['def-built']),
             );
 
             await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
@@ -10968,15 +10956,18 @@ describe('ProjectService', () => {
 
             expect(
                 schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                schedulerClient.materializePreAggregate,
             ).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    preAggregateDefinitionUuid: 'def-cron-only',
+                    preAggregateDefinitionUuid: 'def-new',
                     trigger: 'compile',
                 }),
             );
         });
 
-        test('stores materialize_on_compile=false from refresh.on_compile', async () => {
+        test('stores materialize_on_change=true from refresh.on_change', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -10991,7 +10982,7 @@ describe('ProjectService', () => {
                         name: 'rollup',
                         dimensions: ['dim1'],
                         metrics: ['met1'],
-                        refresh: { cron: '0 3 * * *', onCompile: false },
+                        refresh: { cron: '0 3 * * *', onChange: true },
                     },
                 ],
             } as Explore;
@@ -11016,7 +11007,7 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith([
                 expect.objectContaining({
                     refresh_cron: '0 3 * * *',
-                    materialize_on_compile: false,
+                    materialize_on_change: true,
                 }),
             ]);
         });

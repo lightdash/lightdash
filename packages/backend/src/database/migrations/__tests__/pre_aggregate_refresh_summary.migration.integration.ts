@@ -170,7 +170,7 @@ test('empty project, other project, and definition-only schedule are distinct', 
         materialization_metric_query: null,
         materialization_query_error: null,
         refresh_cron: '',
-        materialize_on_compile: true,
+        materialize_on_change: false,
         definition_fingerprint: null,
     });
     expect(

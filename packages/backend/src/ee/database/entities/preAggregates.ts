@@ -20,8 +20,7 @@ export type DbPreAggregateDefinition = {
     materialization_metric_query: MaterializationMetricQueryPayload | null;
     materialization_query_error: string | null;
     refresh_cron: string | null;
-    materialize_on_compile: boolean;
-    materialize_on_compile_override: boolean | null;
+    materialize_on_change: boolean;
     definition_fingerprint: string | null;
     created_at: Date;
     updated_at: Date;
@@ -29,10 +28,7 @@ export type DbPreAggregateDefinition = {
 
 export type DbPreAggregateDefinitionIn = Omit<
     DbPreAggregateDefinition,
-    | 'pre_aggregate_definition_uuid'
-    | 'materialize_on_compile_override'
-    | 'created_at'
-    | 'updated_at'
+    'pre_aggregate_definition_uuid' | 'created_at' | 'updated_at'
 >;
 
 export type DbPreAggregateDefinitionUpdate = Partial<
@@ -44,8 +40,7 @@ export type DbPreAggregateDefinitionUpdate = Partial<
         | 'materialization_metric_query'
         | 'materialization_query_error'
         | 'refresh_cron'
-        | 'materialize_on_compile'
-        | 'materialize_on_compile_override'
+        | 'materialize_on_change'
         | 'definition_fingerprint'
         | 'updated_at'
     >

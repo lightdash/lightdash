@@ -840,7 +840,7 @@ it('reads scheduled refresh from both real schema sources and narrows only the a
             materialization_query_error: null,
             definition_fingerprint: null,
             refresh_cron: index === 0 ? '0 * * * *' : null,
-            materialize_on_compile: true,
+            materialize_on_change: false,
         })),
     );
     const answer = await approval.service.getReviewAnswer(

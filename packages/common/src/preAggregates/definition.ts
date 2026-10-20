@@ -210,10 +210,10 @@ const parsePreAggregateRefresh = (
     }
     if (refresh === null || typeof refresh !== 'object') {
         throw new ParseError(
-            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh". Expected an object with "cron" and/or "on_compile".`,
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh". Expected an object with "cron" and/or "on_change".`,
         );
     }
-    const { cron: rawCron, on_compile: rawOnCompile } = refresh as Record<
+    const { cron: rawCron, on_change: rawOnChange } = refresh as Record<
         string,
         unknown
     >;
@@ -222,20 +222,20 @@ const parsePreAggregateRefresh = (
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh.cron". Expected a cron expression string.`,
         );
     }
-    if (rawOnCompile != null && typeof rawOnCompile !== 'boolean') {
+    if (rawOnChange != null && typeof rawOnChange !== 'boolean') {
         throw new ParseError(
-            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh.on_compile". Expected true or false.`,
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "refresh.on_change". Expected true or false.`,
         );
     }
     // Empty/null cron is treated as unset, matching previous behaviour
     const cron = rawCron?.trim() ? rawCron : undefined;
-    const onCompile = rawOnCompile ?? undefined;
-    if (cron === undefined && onCompile === undefined) {
+    const onChange = rawOnChange ?? undefined;
+    if (cron === undefined && onChange === undefined) {
         return undefined;
     }
     return {
         ...(cron !== undefined ? { cron } : {}),
-        ...(onCompile !== undefined ? { onCompile } : {}),
+        ...(onChange !== undefined ? { onChange } : {}),
     };
 };
 

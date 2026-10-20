@@ -47,23 +47,26 @@ _Avoid_: rebuild, re-run, sync
 **Trigger**:
 What initiated a materialization: compile (dbt project compiled), cron
 (scheduled refresh), or manual (user-requested refresh). Not a scheduler
-delivery trigger or DB trigger. A definition opts out of the compile
-trigger with `refresh.on_compile: false` in YAML, or through the page
-override (`materialize_on_compile_override`, which wins over YAML until
-cleared); the registry still syncs on every compile, and an opted-out
-definition with no active materialization is built once so it is never
-dead until its first cron run.
+delivery trigger or DB trigger. A compile materializes a definition that
+has never completed a materialization, so a new pre-aggregate is live
+without waiting for cron, and one whose definition fingerprint moved when
+it sets `refresh.on_change: true` in YAML. Everything else is left to cron
+or a manual refresh; the registry still syncs on every compile. There is
+no page override: YAML is the only source of the trigger settings.
 
 **Definition fingerprint**:
 A hash of what a managed pre-aggregate's materialization query reads: the
 YAML definition, the stored metric query, the compiled SQL of the fields it
 selects or filters on, and the source tables and joins those fields reach.
-Stored on the definition at every compile and copied onto each
+Field labels, descriptions, formatting, YAML key order, SQL whitespace and
+comments, filter rule ids, sort order and `refresh` settings do not move
+it. Stored on the definition at every compile and copied onto each
 materialization when it starts. When the fingerprint moves, the active
-materialization is superseded and the pre-aggregate is materialized on that
-compile regardless of `refresh.on_compile`; a materialization started under
-an older fingerprint never becomes active and is never served. Rows written
-before fingerprints existed take the next compile's value as their baseline.
+materialization is superseded on that compile; the definition is rebuilt
+on the same compile only with `refresh.on_change: true`, otherwise by cron
+or a manual refresh. A materialization started under an older fingerprint
+never becomes active and is never served. Rows written before fingerprints
+existed take the next compile's value as their baseline.
 _Avoid_: checksum, version, hash (bare), signature
 
 **Source explore**:

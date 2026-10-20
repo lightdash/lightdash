@@ -67,7 +67,7 @@ const upsert = (definitionFingerprint: string | null) =>
             materialization_metric_query: null,
             materialization_query_error: null,
             refresh_cron: null,
-            materialize_on_compile: false,
+            materialize_on_change: false,
             definition_fingerprint: definitionFingerprint,
         },
     ]);

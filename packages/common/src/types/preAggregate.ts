@@ -58,8 +58,9 @@ export type PreAggregateDef = {
     maxRows?: number;
     refresh?: {
         cron?: string;
-        // false skips the compile-triggered materialization; cron and manual still run
-        onCompile?: boolean;
+        // true rebuilds on the compile that changes the definition; default false
+        // leaves the changed pre-aggregate to cron or a manual refresh
+        onChange?: boolean;
     };
     materializationRole?: PreAggregateMaterializationRole;
 };
@@ -181,9 +182,7 @@ export type PreAggregateDefinition = {
     materializationMetricQuery: MaterializationMetricQueryPayload | null;
     materializationQueryError: string | null;
     refreshCron: string | null;
-    // Effective value: the page override when set, otherwise YAML
-    materializeOnCompile: boolean;
-    materializeOnCompileOverride: boolean | null;
+    materializeOnChange: boolean;
     // Hash of what the materialization query reads; null for external
     // pre-aggregates, broken definitions, and rows written before tracking
     definitionFingerprint: string | null;
@@ -316,10 +315,7 @@ export type PreAggregateMaterializationSummary = {
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
-    // Effective value: the page override when set, otherwise YAML
-    materializeOnCompile: boolean;
-    materializeOnCompileYaml: boolean;
-    materializeOnCompileOverride: boolean | null;
+    materializeOnChange: boolean;
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
@@ -334,18 +330,6 @@ export type PreAggregateMaterializationSummary = {
         errorMessage: string | null;
         trigger: PreAggregateMaterializationTrigger;
     } | null;
-};
-
-export type ApiSetPreAggregateCompileTriggerBody = {
-    // null clears the override so the YAML value applies again
-    materializeOnCompile: boolean | null;
-    // Omitted applies to every managed pre-aggregate in the project
-    preAggregateDefinitionNames?: string[];
-};
-
-export type ApiSetPreAggregateCompileTriggerResponse = {
-    status: 'ok';
-    results: { updatedCount: number };
 };
 
 export type ApiPreAggregateMaterializationsResults = {

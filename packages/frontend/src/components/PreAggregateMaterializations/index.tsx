@@ -11,7 +11,6 @@ import {
     Button,
     Group,
     LoadingOverlay,
-    Menu,
     Popover,
     Radio,
     ScrollArea,
@@ -24,10 +23,7 @@ import { useDisclosure, useLocalStorage } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconBolt,
-    IconBoltOff,
     IconCalendarTime,
-    IconChevronDown,
-    IconFileCode,
     IconClock,
     IconColumns,
     IconFile,
@@ -42,7 +38,6 @@ import {
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useSetPreAggregateCompileTrigger } from '../../hooks/usePreAggregateCompileTrigger';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
     useRefreshAllPreAggregates,
@@ -139,28 +134,21 @@ const TriggerChip: FC<{
     </Tooltip>
 );
 
-const compileTriggerTooltip = (summary: PreAggregateMaterializationSummary) => {
-    const source =
-        summary.materializeOnCompileOverride === null
-            ? 'Set by refresh.on_compile in YAML.'
-            : `Overridden on this page (YAML says ${
-                  summary.materializeOnCompileYaml ? 'rebuild' : 'skip'
-              }).`;
-    return summary.materializeOnCompile
-        ? `Rebuilt every time the project compiles. ${source}`
-        : `Skipped on project compile. Built once if nothing is active yet. ${source}`;
-};
+const onChangeTooltip = (materializeOnChange: boolean) =>
+    materializeOnChange
+        ? 'Rebuilt on the project compile that changes its definition or the fields it reads (refresh.on_change: true in YAML). Built once when it has never been materialized.'
+        : 'Not rebuilt when a compile changes its definition: the old materialization stops serving until the next scheduled or manual refresh. Built once when it has never been materialized. Set refresh.on_change: true in YAML to rebuild on compile.';
 
 const TriggerChips: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     summary,
 }) => {
-    const { materializeOnCompile, refreshCron } = summary;
+    const { materializeOnChange, refreshCron } = summary;
     return (
         <Group gap={4} wrap="nowrap">
             <TriggerChip
-                label="compile"
-                disabled={!materializeOnCompile}
-                tooltip={compileTriggerTooltip(summary)}
+                label="on change"
+                disabled={!materializeOnChange}
+                tooltip={onChangeTooltip(materializeOnChange)}
             />
             {refreshCron && (
                 <TriggerChip
@@ -288,8 +276,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     } = useRefreshPreAggregateByDefinitionName(projectUuid, {
         showToast: false,
     });
-    const { mutate: setCompileTrigger, isLoading: isSettingCompileTrigger } =
-        useSetPreAggregateCompileTrigger(projectUuid);
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -798,67 +784,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     <SettingsPageActions>
                         <SettingsPageDocumentationLink href="https://docs.lightdash.com/references/pre-aggregates" />
                         {managedMaterializations.length > 0 && (
-                            <Menu position="bottom-end" width={260}>
-                                <Menu.Target>
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        loading={isSettingCompileTrigger}
-                                        rightSection={
-                                            <MantineIcon
-                                                icon={IconChevronDown}
-                                                size="sm"
-                                            />
-                                        }
-                                    >
-                                        Compile trigger
-                                    </Button>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Label>
-                                        All managed pre-aggregates
-                                    </Menu.Label>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconBoltOff} />
-                                        }
-                                        onClick={() =>
-                                            setCompileTrigger({
-                                                materializeOnCompile: false,
-                                            })
-                                        }
-                                    >
-                                        Skip on compile
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconBolt} />
-                                        }
-                                        onClick={() =>
-                                            setCompileTrigger({
-                                                materializeOnCompile: true,
-                                            })
-                                        }
-                                    >
-                                        Rebuild on compile
-                                    </Menu.Item>
-                                    <Menu.Divider />
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconFileCode} />
-                                        }
-                                        onClick={() =>
-                                            setCompileTrigger({
-                                                materializeOnCompile: null,
-                                            })
-                                        }
-                                    >
-                                        Use YAML settings
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
-                        )}
-                        {managedMaterializations.length > 0 && (
                             <Button
                                 size="xs"
                                 leftSection={
@@ -911,16 +836,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 opened={isDrawerOpen}
                 onClose={closeDrawer}
                 onRefresh={refreshByName}
-                onSetCompileTrigger={(materializeOnCompile) =>
-                    selectedSummary &&
-                    setCompileTrigger({
-                        materializeOnCompile,
-                        preAggregateDefinitionNames: [
-                            selectedSummary.preAggregateName,
-                        ],
-                    })
-                }
-                isSettingCompileTrigger={isSettingCompileTrigger}
                 isRefreshing={
                     isRefreshingOne &&
                     refreshingDefinitionName ===
