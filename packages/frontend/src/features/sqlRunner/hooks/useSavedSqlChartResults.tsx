@@ -50,6 +50,8 @@ type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
 type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
     dashboardUuid: string;
     isEmbed?: false;
+    /** Skips the results cache, set by the dashboard refresh */
+    invalidateCache?: boolean;
 };
 
 // Embed callers don't pass dashboardUuid — the JWT carries it server-side.
@@ -179,6 +181,7 @@ export const useSavedSqlChartResults = (
                             savedSqlUuid,
                             context: args.context as QueryExecutionContext,
                             parameters,
+                            invalidateCache: args.invalidateCache,
                         },
                     );
                 } else {

@@ -3,7 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { getSqlChartPivotChartData } from '../../queryRunner/sqlRunnerPivotQueries';
+import {
+    getDashboardSqlChartPivotChartData,
+    getSqlChartPivotChartData,
+} from '../../queryRunner/sqlRunnerPivotQueries';
 import { useSavedSqlChartResults } from './useSavedSqlChartResults';
 import { fetchSavedSqlChart } from './useSavedSqlCharts';
 
@@ -78,4 +81,51 @@ describe('useSavedSqlChartResults', () => {
             expect(getSqlChartPivotChartData).toHaveBeenCalledTimes(1),
         );
     });
+
+    it.each([true, false])(
+        'sends invalidateCache=%s for a dashboard tile so refresh skips the results cache',
+        async (invalidateCache) => {
+            const chart = {
+                savedSqlUuid: 'sql-uuid',
+                lastUpdatedAt: new Date('2026-01-01T00:00:00Z'),
+            } as SqlChart;
+            vi.mocked(fetchSavedSqlChart).mockResolvedValue(chart);
+            vi.mocked(getDashboardSqlChartPivotChartData).mockReturnValue(
+                new Promise(() => {}),
+            );
+            const client = new QueryClient({
+                defaultOptions: { queries: { retry: false } },
+            });
+            const wrapper = ({ children }: PropsWithChildren) => (
+                <QueryClientProvider client={client}>
+                    {children}
+                </QueryClientProvider>
+            );
+
+            renderHook(
+                () =>
+                    useSavedSqlChartResults({
+                        projectUuid: 'project',
+                        savedSqlUuid: 'sql-uuid',
+                        dashboardUuid: 'dashboard',
+                        tileUuid: 'tile',
+                        dashboardFilters: {
+                            dimensions: [],
+                            metrics: [],
+                            tableCalculations: [],
+                        },
+                        dashboardSorts: [],
+                        invalidateCache,
+                    }),
+                { wrapper },
+            );
+
+            await waitFor(() =>
+                expect(getDashboardSqlChartPivotChartData).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({ invalidateCache }),
+                ),
+            );
+        },
+    );
 });

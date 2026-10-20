@@ -23,6 +23,7 @@ import {
     type FC,
 } from 'react';
 import {
+    selectInvalidateCache,
     selectParameterValues,
     useDashboardSelector,
 } from '../../features/dashboard/store';
@@ -112,6 +113,7 @@ const SqlChartTile: FC<Props> = ({
         (c) => c.updateSqlChartTilesMetadata,
     );
     const parameters = useDashboardSelector(selectParameterValues);
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
     );
@@ -165,6 +167,7 @@ const SqlChartTile: FC<Props> = ({
                   dashboardFilters,
                   dashboardSorts: [],
                   parameters,
+                  invalidateCache,
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);
