@@ -1288,7 +1288,6 @@ describe('semanticLayer node filters', () => {
                         dimensions:
                             'orders_customer_name equals=Alice AND orders_amount greaterThan=100',
                         metrics: 'orders_total_revenue greaterThan=1000',
-                        tableCalculations: null,
                     }),
                     sqlNode,
                     duckdbNode,
@@ -1333,7 +1332,6 @@ describe('semanticLayer node filters', () => {
                     ordersNodeWithFilters({
                         dimensions: 'orders_customer_nam equals=Alice',
                         metrics: null,
-                        tableCalculations: null,
                     }),
                     sqlNode,
                     duckdbNode,
@@ -1360,7 +1358,6 @@ describe('semanticLayer node filters', () => {
                     ordersNodeWithFilters({
                         dimensions: 'orders_total_revenue greaterThan=100',
                         metrics: null,
-                        tableCalculations: null,
                     }),
                     sqlNode,
                     duckdbNode,

@@ -343,7 +343,6 @@ describe('semanticLayer node filters', () => {
                 semanticArgs({
                     dimensions: 'orders_customer_name equals=Alice',
                     metrics: null,
-                    tableCalculations: null,
                 }),
             ).success,
         ).toBe(true);
@@ -352,7 +351,16 @@ describe('semanticLayer node filters', () => {
         ).toBe(true);
     });
 
-    it('rejects structured rules and empty expressions', () => {
+    it('rejects structured rules, table calculation filters and empty expressions', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: null,
+                    metrics: null,
+                    tableCalculations: 'rank lessThan=10',
+                }),
+            ).success,
+        ).toBe(false);
         expect(
             toolComposerQueriesArgsSchema.safeParse(
                 semanticArgs({

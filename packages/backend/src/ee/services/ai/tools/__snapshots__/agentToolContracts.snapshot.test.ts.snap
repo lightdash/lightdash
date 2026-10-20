@@ -990,7 +990,7 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 
 ## Composer node filters
 
-\`runComposerQueries\` semanticLayer nodes take filters as flat expression strings, never the structured rule objects described above: one string per field kind (\`dimensions\`, \`metrics\`, \`tableCalculations\`), null for an unfiltered kind. Each string is \`<field> <operator form>\` rules joined with AND or OR, in this grammar:
+\`runComposerQueries\` semanticLayer nodes take filters as flat expression strings, never the structured rule objects described above: one \`dimensions\` string and one \`metrics\` string, null for an unfiltered kind; nodes have no table calculations, so there is no third kind. Each string is \`<field> <operator form>\` rules joined with AND or OR, in this grammar:
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
 - Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
@@ -21610,7 +21610,6 @@ Results stay hidden until you present one; each successful result says how.",
                     "anyOf": [
                       {
                         "additionalProperties": false,
-                        "description": "Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
                         "properties": {
                           "dimensions": {
                             "anyOf": [
@@ -21638,24 +21637,10 @@ Results stay hidden until you present one; each successful result says how.",
                             ],
                             "description": "Flat filter expression for metric fields.",
                           },
-                          "tableCalculations": {
-                            "anyOf": [
-                              {
-                                "maxLength": 16384,
-                                "minLength": 1,
-                                "type": "string",
-                              },
-                              {
-                                "type": "null",
-                              },
-                            ],
-                            "description": "Flat filter expression for table calculations.",
-                          },
                         },
                         "required": [
                           "dimensions",
                           "metrics",
-                          "tableCalculations",
                         ],
                         "type": "object",
                       },
@@ -21663,7 +21648,7 @@ Results stay hidden until you present one; each successful result says how.",
                         "type": "null",
                       },
                     ],
-                    "description": "Filters on this node's explore as flat expression strings, never structured rule objects. Separate flat expressions for dimensions, metrics, and table calculations. Each category chooses AND or OR independently. Non-null categories combine implicitly with AND. For example, dimensions "D1 AND D2" and metrics "M1 OR M2" mean "(D1 AND D2) AND (M1 OR M2)", where D1, D2, M1, and M2 are complete filter rules. Use null when a category has no filters.",
+                    "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                   },
                   "limit": {
                     "default": 500,

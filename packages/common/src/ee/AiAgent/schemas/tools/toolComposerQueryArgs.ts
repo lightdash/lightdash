@@ -79,14 +79,14 @@ const nodeMetaSchema = {
     description: nodeDescriptionSchema,
 };
 
-// The node speaks runQuery's filter-expression contract only: one flat
-// expression per field kind, resolved against the explore when the tool runs.
+// runQuery's filter-expression contract, minus table calculations: a node has
+// none, DuckDB nodes do that work downstream.
 export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
+    .omit({ tableCalculations: true })
+    .strict()
     .nullable()
     .describe(
-        `Filters on this node's explore as flat expression strings, never structured rule objects. ${
-            filterExpressionsSchema.description ?? ''
-        }`,
+        "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
 
 const sortFieldSchema = z.object({

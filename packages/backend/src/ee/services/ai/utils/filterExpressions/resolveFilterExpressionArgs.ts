@@ -2126,11 +2126,15 @@ export const resolveExploreFilterExpressions = ({
     filters,
     explore,
 }: {
-    filters: ExpressionQueryConfig['filters'];
+    filters: Omit<
+        NonNullable<ExpressionQueryConfig['filters']>,
+        'tableCalculations'
+    > | null;
     explore: Explore;
 }): ResolutionResult<Filters | null> => {
     const result = resolveQueryFilters({
-        filters,
+        filters:
+            filters === null ? null : { ...filters, tableCalculations: null },
         fields: makeExploreFields(explore),
         exploreName: explore.name,
     });
