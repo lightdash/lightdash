@@ -23168,6 +23168,26 @@
                 ],
                 "description": "Client-supplied context for signed-in app previews; unknown keeps older clients\nunclassified. The separate embed endpoint assigns 'embed' server-side after\nverifying embed access, so it is intentionally excluded from this input type."
             },
+            "Extract_DataAppViewOutcome.sdk_started-or-runtime_error_": {
+                "type": "string",
+                "enum": ["sdk_started", "runtime_error"],
+                "description": "Extract from T those types that are assignable to U"
+            },
+            "RecordDataAppViewOutcome": {
+                "properties": {
+                    "outcome": {
+                        "$ref": "#/components/schemas/Extract_DataAppViewOutcome.sdk_started-or-runtime_error_"
+                    },
+                    "navigationId": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "previewToken": {
+                        "type": "string"
+                    }
+                },
+                "required": ["outcome", "navigationId", "previewToken"],
+                "type": "object"
+            },
             "DataAppManifestExternalConnection": {
                 "properties": {
                     "connectionSlug": {
@@ -73258,7 +73278,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.618.1",
+        "version": "2.619.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

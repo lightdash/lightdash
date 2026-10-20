@@ -1,3 +1,10 @@
+# [2.619.0](https://github.com/lightdash/lightdash/compare/2.618.1...2.619.0) (2026-10-20)
+
+
+### Features
+
+* observe Data App load and runtime outcomes ([#31208](https://github.com/lightdash/lightdash/issues/31208)) ([a8643e9](https://github.com/lightdash/lightdash/commit/a8643e9652fb55546b8e7cc4df6a03236a4f2f79))
+
 ## [2.618.1](https://github.com/lightdash/lightdash/compare/2.618.0...2.618.1) (2026-10-20)
 
 
