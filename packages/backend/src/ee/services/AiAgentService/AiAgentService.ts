@@ -216,6 +216,7 @@ import {
     type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
@@ -17928,6 +17929,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
+    /** Composer previews need the thread's nodes; without them the answer still goes out, minus those previews. */
+    private async getSlackComposerThreadNodes(
+        slackPrompt: Pick<SlackPrompt, 'promptUuid' | 'threadUuid'>,
+        toolCalls: { tool_name: string }[],
+    ): Promise<ThreadComposerQueryNode[]> {
+        const hasComposerCall = toolCalls.some(
+            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
+        );
+        if (!hasComposerCall) return [];
+        try {
+            return await this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(slackPrompt.threadUuid),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to load composer nodes for Slack previews of prompt ${slackPrompt.promptUuid}`,
+                error,
+            );
+            return [];
+        }
+    }
+
     // TODO: user permissions
     private async getSlackAgentFinalBlocks({
         user,
@@ -18022,13 +18045,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
-        const threadNodes = toolCalls.some(
-            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
-        )
-            ? await this.aiAgentModel.listComposerQueryNodes(
-                  threadComposerQueryScope(slackPrompt.threadUuid),
-              )
-            : [];
+        const threadNodes = await this.getSlackComposerThreadNodes(
+            slackPrompt,
+            toolCalls,
+        );
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
