@@ -83,6 +83,18 @@ describe('prepareMcpCustomChartTypeHtml', () => {
         },
     );
 
+    it.each([
+        ['a no-break space', String.fromCharCode(0xa0)],
+        ['a vertical tab', String.fromCharCode(0x0b)],
+        ['a line separator', String.fromCharCode(0x2028)],
+    ])(
+        'keeps the policy first when %s, which html treats as text, precedes the doctype',
+        (_case, prefix) => {
+            const indexHtml = `${prefix}<!doctype html><html><head></head></html>`;
+            expect(prepare(indexHtml)).toBe(`${tags}${indexHtml}`);
+        },
+    );
+
     it('starts the document with the policy when there is no doctype', () => {
         expect(prepare('<script>alert(1)</script><head></head>')).toBe(
             `${tags}<script>alert(1)</script><head></head>`,

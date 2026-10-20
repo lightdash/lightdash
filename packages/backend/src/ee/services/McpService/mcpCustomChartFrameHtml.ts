@@ -27,8 +27,10 @@ export const toMetaContentSecurityPolicy = (cspHeader: string): string =>
         )
         .join('; ');
 
-// A comment can't span '>', since the parser also ends comments at <!--> and --!>
-const LEADING_DOCTYPE = /^﻿?(?:\s*<!--[^>]*-->)*\s*<!doctype[^>]*>/i;
+// A comment can't span '>', since the parser also ends comments at <!--> and --!>.
+// Only html whitespace may precede the doctype: anything else starts the body.
+const LEADING_DOCTYPE =
+    /^﻿?(?:[\t\n\f\r ]*<!--[^>]*-->)*[\t\n\f\r ]*<!doctype[^>]*>/i;
 
 /**
  * The chart view runs the bundle from a blob: URL, so the bundle's own policy
