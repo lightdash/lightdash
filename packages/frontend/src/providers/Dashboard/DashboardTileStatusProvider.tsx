@@ -270,9 +270,8 @@ const DashboardTileStatusProvider: React.FC<
         dispatch(dashboardTileStatusActions.resetScreenshotTiles());
     }, [dispatch, dashboardTiles, activeTab]);
 
-    // Memoized mapping of tile UUIDs to their display names
-    // Only names and uuids matter, so moving or resizing tiles keeps the names
-    // (and the pre-aggregate statuses derived from them) stable
+    // Tile names keyed by uuid; moving or resizing tiles keeps them (and the
+    // pre-aggregate statuses derived from them) stable
     const tileNamesKey = JSON.stringify(
         dashboardTiles?.map((tile) => [
             tile.uuid,
