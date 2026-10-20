@@ -1,3 +1,10 @@
+## [2.622.2](https://github.com/lightdash/lightdash/compare/2.622.1...2.622.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **learn:** make the shared training project read-only for org admins ([#30156](https://github.com/lightdash/lightdash/issues/30156)) ([3025b4a](https://github.com/lightdash/lightdash/commit/3025b4ab16c04014ca6b491ca3f4b4cb930c2654))
+
 ## [2.622.1](https://github.com/lightdash/lightdash/compare/2.622.0...2.622.1) (2026-10-20)
 
 
