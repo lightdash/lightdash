@@ -1,3 +1,10 @@
+## [2.618.1](https://github.com/lightdash/lightdash/compare/2.618.0...2.618.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **ai:** publish Deep Research charts when agents write filter expressions ([#31130](https://github.com/lightdash/lightdash/issues/31130)) ([e2db86a](https://github.com/lightdash/lightdash/commit/e2db86aed0ce664fa7ecd95062d05eee3a4ad7c6))
+
 # [2.618.0](https://github.com/lightdash/lightdash/compare/2.617.0...2.618.0) (2026-10-20)
 
 

@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.618.0",
-  "previousVersion": "2.617.0",
-  "releaseDate": "2026-10-20T08:25:06.914Z",
+  "version": "2.618.1",
+  "previousVersion": "2.618.0",
+  "releaseDate": "2026-10-20T08:50:13.127Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261019160350_create_composer_query_nodes.ts",
-        "edition": "ee",
-        "tables": [
-          "composer_query_nodes"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
