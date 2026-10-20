@@ -419,7 +419,6 @@ describe('getRunComposerQueries', () => {
             vizConfig: null,
             title: 'Revenue vs signups',
             description: null,
-            artifactVersionUuid: null,
         });
         expect(output.result).toContain(
             'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer.',

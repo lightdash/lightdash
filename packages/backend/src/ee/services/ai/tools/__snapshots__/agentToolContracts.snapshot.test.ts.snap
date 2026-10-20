@@ -21219,14 +21219,7 @@ Presenting results: results are hidden from the user by default. Each successful
                       "additionalProperties": false,
                       "properties": {
                         "artifactVersionUuid": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                            },
-                            {
-                              "type": "null",
-                            },
-                          ],
+                          "type": "string",
                         },
                         "description": {
                           "anyOf": [
@@ -21268,7 +21261,6 @@ Presenting results: results are hidden from the user by default. Each successful
                         "vizConfig",
                         "title",
                         "description",
-                        "artifactVersionUuid",
                       ],
                       "type": "object",
                     },
@@ -21478,14 +21470,7 @@ Presenting results: results are hidden from the user by default. Each successful
                       "additionalProperties": false,
                       "properties": {
                         "artifactVersionUuid": {
-                          "anyOf": [
-                            {
-                              "type": "string",
-                            },
-                            {
-                              "type": "null",
-                            },
-                          ],
+                          "type": "string",
                         },
                         "description": {
                           "anyOf": [
@@ -21527,7 +21512,6 @@ Presenting results: results are hidden from the user by default. Each successful
                         "vizConfig",
                         "title",
                         "description",
-                        "artifactVersionUuid",
                       ],
                       "type": "object",
                     },

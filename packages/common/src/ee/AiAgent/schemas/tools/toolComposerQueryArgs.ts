@@ -527,7 +527,7 @@ const toolComposerQueriesSuccessMetadataShapeSchema = z.object({
     title: z.string(),
     description: z.string().nullable(),
     // Slack saves an artifact version per call; web saves on presentation.
-    artifactVersionUuid: z.string().nullable(),
+    artifactVersionUuid: z.string().optional(),
 });
 
 const isComposerSnapshot = (value: unknown): value is SourceQuery[] =>

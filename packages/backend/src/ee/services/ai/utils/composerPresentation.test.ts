@@ -30,7 +30,6 @@ const success = (
     vizConfig: null,
     title: `Title ${terminalNodeId}`,
     description: null,
-    artifactVersionUuid: null,
     ...overrides,
 });
 

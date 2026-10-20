@@ -442,7 +442,9 @@ export const getRunComposerQueries = ({
                     vizConfig,
                     title: artifactTitle,
                     description: description ?? null,
-                    artifactVersionUuid: slackArtifact?.versionUuid ?? null,
+                    ...(slackArtifact
+                        ? { artifactVersionUuid: slackArtifact.versionUuid }
+                        : {}),
                 };
 
                 const nodes = queries.map((node) => ({
