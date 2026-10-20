@@ -1,0 +1,23 @@
+{
+    "base": "no_data_access",
+    "addOns": [],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "findContent",
+        "generateHashes",
+        "generateUuids",
+        "generateVisualization",
+        "getKnowledgeDocumentContent",
+        "getMetadata",
+        "getProjectInfo",
+        "grepFields",
+        "listKnowledgeDocuments",
+        "listProjects",
+        "readPinnedThread",
+        "resolveUrl",
+        "runSavedChart",
+        "runSql",
+        "searchSemanticLayer"
+    ],
+    "promptSections": []
+}

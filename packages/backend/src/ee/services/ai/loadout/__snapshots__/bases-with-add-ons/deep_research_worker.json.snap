@@ -1,0 +1,29 @@
+{
+    "base": "deep_research_worker",
+    "addOns": [],
+    "toolNames": [
+        "describeWarehouseTable",
+        "generateVisualization",
+        "getMetadata",
+        "grepFields",
+        "listWarehouseTables",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer",
+        "submitWorkerFindings"
+    ],
+    "promptSections": [
+        "aiWriteback",
+        "availableCustomChartTypes",
+        "codingAgent",
+        "contentTools",
+        "documents",
+        "generateDataApp",
+        "memories",
+        "repoFs",
+        "requestingUser",
+        "runSql",
+        "schedulingTools",
+        "skills"
+    ]
+}
