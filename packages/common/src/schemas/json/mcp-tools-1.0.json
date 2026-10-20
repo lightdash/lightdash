@@ -923,7 +923,7 @@
                 "readOnlyHint": false,
                 "title": "Generate data app"
             },
-            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's permanent slug; pass it to get_data_app_build_status\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.\n",
+            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's permanent slug; pass it to get_data_app_build_status\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -953,6 +953,21 @@
                         ],
                         "default": null,
                         "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard."
+                    },
+                    "externalConnectionSlugs": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "External connections to link to the app before the build: slugs from list_data_app_connections. The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API."
                     },
                     "name": {
                         "description": "Display name for the app: a headline-short title, in title case, naming what the app shows (\"Revenue Overview\"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
@@ -1010,9 +1025,16 @@
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991,
                         "type": "integer"
+                    },
+                    "warnings": {
+                        "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["slug", "version"],
+                "required": ["slug", "version", "warnings"],
                 "type": "object"
             },
             "title": "Generate data app"
@@ -2677,7 +2699,7 @@
                 "readOnlyHint": false,
                 "title": "Iterate on data app"
             },
-            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's slug, unchanged by this build\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.\n",
+            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's slug, unchanged by this build\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -2711,6 +2733,21 @@
                         ],
                         "default": null,
                         "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard."
+                    },
+                    "externalConnectionSlugs": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "External connections to link to the app before the build: slugs from list_data_app_connections. Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API."
                     },
                     "prompt": {
                         "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
@@ -2746,9 +2783,16 @@
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991,
                         "type": "integer"
+                    },
+                    "warnings": {
+                        "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["slug", "version"],
+                "required": ["slug", "version", "warnings"],
                 "type": "object"
             },
             "title": "Iterate on data app"
@@ -3173,6 +3217,97 @@
                 "type": "object"
             },
             "title": "List custom chart types"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true,
+                "title": "List data app connections"
+            },
+            "description": "Tool: list_data_app_connections\n\nPurpose:\nList the project's external connections you can link to a data app. An external connection is an admin-configured, credentialed proxy to an outside API (product analytics, billing, CRM, ...); a data app can call an API only through a linked connection.\n\nImportant:\n- Call it when the user wants a data app to use an outside API or names a connection, then pass the matching slugs as externalConnectionSlugs to generate_data_app or iterate_data_app.\n- Only connections you may link are listed. Credentials are never returned.\n- Pass appSlug to also see which connections that app already links.\n\nParameters:\n- appSlug: Optional. A data app's slug; fills linkedAliases for that app.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<the connections, one per line>\" }]\n- structuredContent: {\n    connections: [{\n      slug:          string,        // pass in externalConnectionSlugs\n      name:          string,\n      authType:      string,        // \"none\" | \"api_key\" | \"bearer_token\" | \"google_service_account\" | \"oauth_client_credentials\"\n      origin:        string,        // the API's base URL\n      instructions:  string | null, // how to use the API, written by an admin\n      linkedAliases: string[]       // aliases the appSlug app links it under; empty when not linked or no appSlug\n    }]\n  }\n\nErrors: an unknown appSlug, or an app this caller may not view, returns an error.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "appSlug": {
+                        "anyOf": [
+                            {
+                                "minLength": 1,
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only."
+                    }
+                },
+                "type": "object"
+            },
+            "name": "list_data_app_connections",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "connections": {
+                        "description": "Connections you may link; empty when there are none.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "authType": {
+                                    "description": "How the proxy authenticates to the API.",
+                                    "type": "string"
+                                },
+                                "instructions": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ],
+                                    "description": "How to use the API, written by an admin."
+                                },
+                                "linkedAliases": {
+                                    "description": "Aliases the appSlug app links this connection under; empty when not linked or no appSlug was given.",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "name": {
+                                    "description": "The connection's display name.",
+                                    "type": "string"
+                                },
+                                "origin": {
+                                    "description": "The API's base URL.",
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "description": "Pass in externalConnectionSlugs to generate_data_app or iterate_data_app.",
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "slug",
+                                "name",
+                                "authType",
+                                "origin",
+                                "instructions",
+                                "linkedAliases"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["connections"],
+                "type": "object"
+            },
+            "title": "List data app connections"
         },
         {
             "annotations": {

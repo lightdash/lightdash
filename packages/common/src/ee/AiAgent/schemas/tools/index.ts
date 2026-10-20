@@ -18,6 +18,7 @@ export * from './toolGenerateDataAppArgs';
 export * from './toolIterateDataAppArgs';
 export * from './toolListDataAppThemesArgs';
 export * from './toolGetDataAppBuildStatusArgs';
+export * from './toolListDataAppConnectionsArgs';
 export * from './toolCreateCustomChartTypeArgs';
 export * from './toolIterateCustomChartTypeArgs';
 export * from './toolEditProjectContextArgs';

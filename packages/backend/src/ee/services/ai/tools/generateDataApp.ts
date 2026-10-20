@@ -28,6 +28,7 @@ export const getGenerateDataApp = ({ generateDataApp }: Dependencies) =>
                     dashboardSlug,
                     chartSlugs,
                     themeSlug,
+                    externalConnectionSlugs: null,
                     toolCallId,
                 });
                 const pendingBuild = {

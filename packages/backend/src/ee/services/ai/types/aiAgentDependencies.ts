@@ -27,6 +27,7 @@ import {
     DataAppVizSchema,
     DbtProjectType,
     Explore,
+    ExternalConnectionAuthType,
     FieldImpactReport,
     Filters,
     ItemsMap,
@@ -843,9 +844,33 @@ export type GenerateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
+    /** Connections to link before the build; MCP-only, null from the agent. */
+    externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;
-}) => Promise<{ appUuid: string; slug: string; version: number }>;
+}) => Promise<DataAppBuildStarted>;
+
+export type DataAppBuildStarted = {
+    appUuid: string;
+    slug: string;
+    version: number;
+    /** Non-blocking issues, e.g. a connection the brief names that the app does not link. */
+    warnings: string[];
+};
+
+export type DataAppConnectionSummary = {
+    slug: string;
+    name: string;
+    authType: ExternalConnectionAuthType;
+    origin: string;
+    instructions: string | null;
+    linkedAliases: string[];
+};
+
+// Connections the caller may link; with appSlug, also that app's aliases. MCP-only.
+export type ListDataAppConnectionsFn = (args: {
+    appSlug: string | null;
+}) => Promise<DataAppConnectionSummary[]>;
 
 export type DataAppThemeSummary = {
     slug: string;
@@ -865,9 +890,11 @@ export type IterateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
+    /** Connections to link before the build; MCP-only, null from the agent. */
+    externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;
-}) => Promise<{ appUuid: string; slug: string; version: number }>;
+}) => Promise<DataAppBuildStarted>;
 
 // Reports on a build an external agent started; MCP-only, since the AI agent
 // gets its outcome patched onto the tool result instead of polling.

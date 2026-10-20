@@ -390,6 +390,7 @@ describe('McpService generate_data_app', () => {
                 appUuid,
                 slug: 'quarterly-review-2',
                 version: 1,
+                warnings: ['Brief mentions "Amplitude"'],
             }),
         });
 
@@ -401,7 +402,9 @@ describe('McpService generate_data_app', () => {
         expect(result.structuredContent).toEqual({
             slug: 'quarterly-review-2',
             version: 1,
+            warnings: ['Brief mentions "Amplitude"'],
         });
+        expect(JSON.stringify(result.content)).toContain('Brief mentions');
     });
 
     it('starts the build with no agent tool-call reference', async () => {
@@ -409,12 +412,14 @@ describe('McpService generate_data_app', () => {
             appUuid,
             slug: 'quarterly-review',
             version: 1,
+            warnings: [],
         });
         await createServerWithRuntime({ generateDataApp });
 
         await callTool(McpToolName.GENERATE_DATA_APP, {
             ...generateArgs,
             themeSlug: 'brand',
+            externalConnectionSlugs: ['amplitude-1'],
         });
 
         expect(generateDataApp).toHaveBeenCalledWith({
@@ -424,6 +429,7 @@ describe('McpService generate_data_app', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: 'brand',
+            externalConnectionSlugs: ['amplitude-1'],
             toolCallId: null,
         });
     });
@@ -1038,6 +1044,44 @@ describe('McpService list_data_app_themes', () => {
     });
 });
 
+describe('McpService list_data_app_connections', () => {
+    const connections = [
+        {
+            slug: 'amplitude-1',
+            name: 'Amplitude',
+            authType: 'api_key' as const,
+            origin: 'https://amplitude.com',
+            instructions: 'Use the export API',
+            linkedAliases: ['amplitude'],
+        },
+    ];
+
+    it('omits the tool when data app builds are unavailable', async () => {
+        await createServerWithRuntime(
+            { listDataAppConnections: vi.fn() },
+            { dataAppBuildsEnabled: false },
+        );
+
+        expect(
+            mockRegisteredMcpTools.has(McpToolName.LIST_DATA_APP_CONNECTIONS),
+        ).toBe(false);
+    });
+
+    it('lists the connections for the given app', async () => {
+        const listDataAppConnections = vi.fn().mockResolvedValue(connections);
+        await createServerWithRuntime({ listDataAppConnections });
+
+        const result = await callTool(McpToolName.LIST_DATA_APP_CONNECTIONS, {
+            appSlug: 'quarterly-review',
+        });
+
+        expect(listDataAppConnections).toHaveBeenCalledWith({
+            appSlug: 'quarterly-review',
+        });
+        expect(result.structuredContent).toEqual({ connections });
+    });
+});
+
 describe('McpService iterate_data_app', () => {
     const iterateArgs = {
         appSlug: 'quarterly-review',
@@ -1069,6 +1113,7 @@ describe('McpService iterate_data_app', () => {
                 appUuid,
                 slug: 'quarterly-review',
                 version: 4,
+                warnings: [],
             }),
         });
 
@@ -1080,6 +1125,7 @@ describe('McpService iterate_data_app', () => {
         expect(result.structuredContent).toEqual({
             slug: 'quarterly-review',
             version: 4,
+            warnings: [],
         });
     });
 
@@ -1088,12 +1134,15 @@ describe('McpService iterate_data_app', () => {
             appUuid,
             slug: 'quarterly-review',
             version: 2,
+            warnings: [],
         });
         await createServerWithRuntime({ iterateDataApp });
 
+        // Harness skips schema parsing, so pass the default the SDK applies.
         await callTool(McpToolName.ITERATE_DATA_APP, {
             ...iterateArgs,
             themeSlug: 'brand',
+            externalConnectionSlugs: null,
         });
 
         expect(iterateDataApp).toHaveBeenCalledWith({
@@ -1102,6 +1151,7 @@ describe('McpService iterate_data_app', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: 'brand',
+            externalConnectionSlugs: null,
             toolCallId: null,
         });
     });

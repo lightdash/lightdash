@@ -36,6 +36,7 @@ export const MCP_TOOL_SCOPE_MAP: Readonly<Record<string, 'read' | 'write'>> = {
     generate_data_app: 'write',
     iterate_data_app: 'write',
     list_data_app_themes: 'read',
+    list_data_app_connections: 'read',
     get_data_app_build_status: 'read',
     create_custom_chart_type: 'write',
     iterate_custom_chart_type: 'write',
