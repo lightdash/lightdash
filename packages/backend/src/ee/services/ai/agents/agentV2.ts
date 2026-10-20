@@ -2034,7 +2034,6 @@ export const getAgentTools = (
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,
               enablePythonNodes: args.enableComposerPythonNodes,
-              enableFilterExpressions: args.enableFilterExpressions,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
               useSlackStreamCard: args.useSlackStreamCard,

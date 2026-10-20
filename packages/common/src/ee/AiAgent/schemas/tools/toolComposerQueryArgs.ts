@@ -15,7 +15,6 @@ import {
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
-import { filtersSchemaV2 } from '../filters';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -80,22 +79,15 @@ const nodeMetaSchema = {
     description: nodeDescriptionSchema,
 };
 
-// Same two filter contracts as runQuery, selected by the filter-expressions
-// flag: structured rules, or one flat expression per field kind.
-export const composerSemanticLayerStructuredFiltersSchema = filtersSchemaV2
+// The node speaks runQuery's filter-expression contract only: one flat
+// expression per field kind, resolved against the explore when the tool runs.
+export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
     .nullable()
     .describe(
-        "Filters on this node's explore, in the same shape as generateVisualization filters: a connector plus a list of rules per field kind, each rule naming its fieldId, fieldFilterType, operator and values. Null when unfiltered.",
+        `Filters on this node's explore as flat expression strings, never structured rule objects. ${
+            filterExpressionsSchema.description ?? ''
+        }`,
     );
-
-export const composerSemanticLayerExpressionFiltersSchema =
-    filterExpressionsSchema
-        .nullable()
-        .describe(
-            `Filters on this node's explore, in the same flat expression grammar as generateVisualization filters. ${
-                filterExpressionsSchema.description ?? ''
-            }`,
-        );
 
 const sortFieldSchema = z.object({
     fieldId: z.string().describe('Field id to sort by.'),
@@ -121,15 +113,12 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     defaultLimit?: number;
     /** Offers the python node; only when python queries are enabled for the org. */
     enablePythonNodes?: boolean;
-    /** semanticLayer node filters as flat expressions instead of structured rules. */
-    enableFilterExpressions?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchema = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
-    enableFilterExpressions = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
     const limitSchema = z.coerce
         .number()
@@ -141,7 +130,7 @@ export const createToolComposerQueriesArgsSchema = ({
             `Maximum number of rows this node returns. Defaults to ${defaultLimit}, max ${maxLimit}.`,
         );
 
-    const semanticLayerNodeBaseSchema = z.object({
+    const semanticLayerNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SEMANTIC_LAYER),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
@@ -164,19 +153,9 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 'Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
+        filters: composerSemanticLayerFiltersSchema,
         limit: limitSchema,
     });
-    const semanticLayerStructuredNodeSchema =
-        semanticLayerNodeBaseSchema.extend({
-            filters: composerSemanticLayerStructuredFiltersSchema,
-        });
-    const semanticLayerExpressionNodeSchema =
-        semanticLayerNodeBaseSchema.extend({
-            filters: composerSemanticLayerExpressionFiltersSchema,
-        });
-    const semanticLayerNodeSchema = enableFilterExpressions
-        ? semanticLayerExpressionNodeSchema
-        : semanticLayerStructuredNodeSchema;
 
     const sqlNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SQL),
@@ -293,9 +272,6 @@ export type ToolComposerSemanticLayerNode = Extract<
     ToolComposerQueryNode,
     { sourceType: QuerySourceType.SEMANTIC_LAYER }
 >;
-
-export type ToolComposerSemanticLayerNodeFilters =
-    ToolComposerSemanticLayerNode['filters'];
 
 /**
  * A submitted node whose semanticLayer filters have been validated against

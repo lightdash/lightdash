@@ -220,7 +220,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
-            enableFilterExpressions,
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,
@@ -314,9 +313,19 @@ describe('AI agent tool contracts', () => {
             enableFilterExpressions: true,
             enableGenerateDataApp: true,
         },
+        {
+            name: 'structured-filter-with-composer',
+            enableFilterExpressions: false,
+            enableGenerateDataApp: false,
+            enableComposerQueries: true,
+        },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({ enableFilterExpressions, enableGenerateDataApp }) => {
+        ({
+            enableFilterExpressions,
+            enableGenerateDataApp,
+            enableComposerQueries,
+        }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
@@ -324,6 +333,7 @@ describe('AI agent tool contracts', () => {
                     enableFilterExpressions,
                     enableContentTools: enableGenerateDataApp,
                     enableGenerateDataApp,
+                    enableComposerQueries,
                 }).content,
             ).toMatchSnapshot();
         },
@@ -344,14 +354,6 @@ describe('AI agent tool contracts', () => {
 
         expect(
             agentToolSnapshot('generateVisualization', generateVisualization),
-        ).toMatchSnapshot();
-    });
-
-    it('matches the filter-expression composer contract snapshot', () => {
-        const { runComposerQueries } = makeAgentTools(true);
-
-        expect(
-            agentToolSnapshot('runComposerQueries', runComposerQueries),
         ).toMatchSnapshot();
     });
 

@@ -336,76 +336,45 @@ describe('semanticLayer node filters', () => {
             },
         ],
     });
-    const structuredFilters = {
-        type: 'and',
-        dimensions: [
-            {
-                fieldId: 'orders_customer_name',
-                fieldType: 'string',
-                fieldFilterType: 'string',
-                operator: 'equals',
-                values: ['Alice'],
-            },
-        ],
-        metrics: null,
-        tableCalculations: null,
-    };
-    const expressionFilters = {
-        dimensions: 'orders_customer_name equals=Alice',
-        metrics: null,
-        tableCalculations: null,
-    };
-    const expressionSchema = createToolComposerQueriesArgsSchema({
-        enableFilterExpressions: true,
-    });
 
-    it('accepts structured rules and rejects malformed ones by default', () => {
+    it('accepts one flat expression per field kind, or null', () => {
         expect(
             toolComposerQueriesArgsSchema.safeParse(
-                semanticArgs(structuredFilters),
+                semanticArgs({
+                    dimensions: 'orders_customer_name equals=Alice',
+                    metrics: null,
+                    tableCalculations: null,
+                }),
             ).success,
         ).toBe(true);
         expect(
             toolComposerQueriesArgsSchema.safeParse(semanticArgs(null)).success,
         ).toBe(true);
-        // A bare rule without its connector and field kind is not a filter.
-        expect(
-            toolComposerQueriesArgsSchema.safeParse(
-                semanticArgs({
-                    dimensions: [{ fieldId: 'orders_customer_name' }],
-                }),
-            ).success,
-        ).toBe(false);
-        expect(
-            toolComposerQueriesArgsSchema.safeParse(
-                semanticArgs({
-                    ...structuredFilters,
-                    dimensions: [
-                        { ...structuredFilters.dimensions[0], operator: 'is' },
-                    ],
-                }),
-            ).success,
-        ).toBe(false);
-        expect(
-            toolComposerQueriesArgsSchema.safeParse(
-                semanticArgs(expressionFilters),
-            ).success,
-        ).toBe(false);
     });
 
-    it('accepts flat expressions only when filter expressions are enabled', () => {
+    it('rejects structured rules and empty expressions', () => {
         expect(
-            expressionSchema.safeParse(semanticArgs(expressionFilters)).success,
-        ).toBe(true);
-        expect(expressionSchema.safeParse(semanticArgs(null)).success).toBe(
-            true,
-        );
-        expect(
-            expressionSchema.safeParse(semanticArgs(structuredFilters)).success,
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    type: 'and',
+                    dimensions: [
+                        {
+                            fieldId: 'orders_customer_name',
+                            fieldType: 'string',
+                            fieldFilterType: 'string',
+                            operator: 'equals',
+                            values: ['Alice'],
+                        },
+                    ],
+                    metrics: null,
+                    tableCalculations: null,
+                }),
+            ).success,
         ).toBe(false);
         expect(
-            expressionSchema.safeParse(semanticArgs({ dimensions: '' }))
-                .success,
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({ dimensions: '' }),
+            ).success,
         ).toBe(false);
     });
 });

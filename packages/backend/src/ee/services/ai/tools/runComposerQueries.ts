@@ -67,7 +67,6 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
-    enableFilterExpressions: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -165,7 +164,6 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
-    enableFilterExpressions,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -193,7 +191,6 @@ export const getRunComposerQueries = ({
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
-        enableFilterExpressions,
     });
 
     return tool({
@@ -247,7 +244,6 @@ export const getRunComposerQueries = ({
                 const submitted = queryNodes.map((node) =>
                     toolComposerQueryNodeToSourceQuery(
                         resolveComposerQueryNode(node, {
-                            enableFilterExpressions,
                             getExplore: (exploreName) =>
                                 agentContext.getExplore(exploreName),
                         }),

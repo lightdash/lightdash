@@ -1,10 +1,5 @@
 import {
     AiAgentValidatorError,
-    composerSemanticLayerExpressionFiltersSchema,
-    composerSemanticLayerStructuredFiltersSchema,
-    filtersSchemaTransformed,
-    getErrorMessage,
-    getTotalFilterRules,
     QuerySourceType,
     type Explore,
     type Filters,
@@ -16,60 +11,33 @@ import {
     formatFilterExpressionError,
     resolveExploreFilterExpressions,
 } from '../utils/filterExpressions';
-import {
-    validateFilterRules,
-    validateMetricDimensionFilterPlacement,
-} from '../utils/validators';
 
 type ResolveOptions = {
-    enableFilterExpressions: boolean;
     getExplore: (exploreName: string) => Explore;
 };
 
-const nodeFilterError = (node: ToolComposerSemanticLayerNode, detail: string) =>
-    new AiAgentValidatorError(
-        `Invalid filters on semanticLayer node "${node.nodeId}": ${detail}`,
-    );
-
 /**
- * Validates a semanticLayer node's filters against its explore and resolves
- * them to domain Filters, the same way runQuery does for its queryConfig: the
- * structured contract is checked rule by rule, the expression contract is
- * parsed and resolved with field recovery. Throws a model-actionable error.
+ * Resolves a semanticLayer node's filter expressions against its explore into
+ * domain Filters, with runQuery's resolver (field recovery included). Throws
+ * a model-actionable error naming the node.
  */
 export const resolveComposerSemanticLayerFilters = (
     node: ToolComposerSemanticLayerNode,
-    { enableFilterExpressions, getExplore }: ResolveOptions,
+    { getExplore }: ResolveOptions,
 ): Filters | null => {
     if (node.filters === null) return null;
-    const explore = getExplore(node.exploreName);
-
-    if (enableFilterExpressions) {
-        const result = resolveExploreFilterExpressions({
-            filters: composerSemanticLayerExpressionFiltersSchema.parse(
-                node.filters,
-            ),
-            explore,
-        });
-        if (!result.success) {
-            throw nodeFilterError(
-                node,
-                formatFilterExpressionError(result.error),
-            );
-        }
-        return result.data;
+    const result = resolveExploreFilterExpressions({
+        filters: node.filters,
+        explore: getExplore(node.exploreName),
+    });
+    if (!result.success) {
+        throw new AiAgentValidatorError(
+            `Invalid filters on semanticLayer node "${node.nodeId}": ${formatFilterExpressionError(
+                result.error,
+            )}`,
+        );
     }
-
-    const filters = filtersSchemaTransformed.parse(
-        composerSemanticLayerStructuredFiltersSchema.parse(node.filters),
-    );
-    try {
-        validateFilterRules(explore, getTotalFilterRules(filters));
-        validateMetricDimensionFilterPlacement(explore, null, null, filters);
-    } catch (e) {
-        throw nodeFilterError(node, getErrorMessage(e));
-    }
-    return filters;
+    return result.data;
 };
 
 export const resolveComposerQueryNode = (
