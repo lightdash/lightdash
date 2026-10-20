@@ -3,7 +3,7 @@ import { Button, Checkbox, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { AxesLabelSections } from './AxesLabelSections';
 
@@ -12,7 +12,7 @@ type Props = {
 };
 
 export const Axes: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 

@@ -37,7 +37,10 @@ import {
     isTableVisualizationConfig,
     isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../LightdashVisualization/useVisualizationContext';
 
 export type ChartTypeOption = {
     id: ChartKind;
@@ -80,15 +83,10 @@ export const projectChartTypeItem = (
 });
 
 export const useChartTypeOptions = () => {
-    const {
-        visualizationConfig,
-        setChartType,
-        setCartesianType,
-        setStacking,
-        isLoading,
-        resultsData,
-        pivotDimensions,
-    } = useVisualizationContext();
+    const { setChartType, setCartesianType, setStacking } =
+        useVisualizationServices();
+    const { visualizationConfig, isLoading, resultsData, pivotDimensions } =
+        useVisualizationState();
 
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
     const cartesianConfig = isCartesianVisualizationConfig(visualizationConfig)

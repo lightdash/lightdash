@@ -2,7 +2,7 @@ import { type GaugeSection } from '@lightdash/common';
 import { Accordion, Stack } from '@mantine/core';
 import { memo, useCallback, type FC } from 'react';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
@@ -13,7 +13,7 @@ const GaugeSections: FC = memo(() => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     const isGaugeChart = isGaugeVisualizationConfig(visualizationConfig);
 

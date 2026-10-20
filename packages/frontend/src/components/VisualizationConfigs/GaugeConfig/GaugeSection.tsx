@@ -15,7 +15,7 @@ import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { GaugeValueMode } from './types';
@@ -30,7 +30,7 @@ export type Props = {
 
 const GaugeSectionComponent: FC<Props> = memo(
     ({ index, onClick, section, onUpdate, onRemove }) => {
-        const { colorPalette, visualizationConfig } = useVisualizationContext();
+        const { colorPalette, visualizationConfig } = useVisualizationState();
 
         if (!isGaugeVisualizationConfig(visualizationConfig)) {
             return null;

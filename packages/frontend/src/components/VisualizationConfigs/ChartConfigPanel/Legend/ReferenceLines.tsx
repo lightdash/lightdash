@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../../common/Accordion.module.css';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
@@ -31,7 +31,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
-    const { visualizationConfig, resultsData } = useVisualizationContext();
+    const { visualizationConfig, resultsData } = useVisualizationState();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 

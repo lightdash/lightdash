@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderHookWithProviders } from '../../../testing/testUtils';
 import { useChartTypeOptions } from './useChartTypeOptions';
 
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         visualizationConfig: {
             chartType: ChartType.TABLE,
             chartConfig: {},
@@ -16,8 +16,14 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
         isLoading: false,
         resultsData: { rows: [{}] },
         pivotDimensions: undefined,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 
 const projectChartType = {
     dataAppVizUuid: 'project-chart-type',

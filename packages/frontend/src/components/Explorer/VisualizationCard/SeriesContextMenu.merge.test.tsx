@@ -30,12 +30,18 @@ vi.mock('../../../features/mergeQuery/context/useMerge', () => ({
 vi.mock('../../../features/mergeQuery/hooks/useMergeSourceCell', () => ({
     useMergeSourceCell: () => ({ resolve }),
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         resultsData: { metricQuery },
         itemsMap: { merge_merge_ratio: ratio },
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 vi.mock('../../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => ({
         tableName: 'orders',

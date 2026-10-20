@@ -32,7 +32,7 @@ import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartes
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
 import { AxisMinInterval } from './AxisMinInterval';
@@ -59,7 +59,7 @@ type Props = {
 };
 
 export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 

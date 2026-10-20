@@ -29,7 +29,10 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isCartesianVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 import { SERIES_FOCUS_ACTION } from './chartSeriesFocus';
 import {
     CHART_POINTER_OPTIONS,
@@ -208,16 +211,15 @@ const getPlotPointForAxisHover = (
 
 const SimpleChart: FC<SimpleChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { chartRef, onSeriesContextMenu } = useVisualizationServices();
         const {
-            chartRef,
             isLoading,
-            onSeriesContextMenu,
             itemsMap,
             resultsData,
             resolvedTimezone,
             visualizationConfig,
             isEditMode,
-        } = useVisualizationContext();
+        } = useVisualizationState();
 
         const cartesianChartConfig = isCartesianVisualizationConfig(
             visualizationConfig,

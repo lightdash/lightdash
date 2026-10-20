@@ -19,7 +19,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 
 const getFormattedValue = (
@@ -63,7 +63,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationState();
     const { user } = useApp();
     const projectUuid = useProjectUuid();
 

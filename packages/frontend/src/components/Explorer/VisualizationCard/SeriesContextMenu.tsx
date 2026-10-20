@@ -27,7 +27,7 @@ import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
@@ -49,8 +49,8 @@ export const SeriesContextMenu: FC<{
         user.data?.organizationUuid ?? account?.organization.organizationUuid;
     const projectUuid = useProjectUuid();
 
-    const context = useVisualizationContext();
-    const { resultsData: { metricQuery } = {}, itemsMap } = context;
+    const { resultsData: { metricQuery } = {}, itemsMap } =
+        useVisualizationState();
     const isMerged = !!useMergeSafe()?.mergeResults;
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);

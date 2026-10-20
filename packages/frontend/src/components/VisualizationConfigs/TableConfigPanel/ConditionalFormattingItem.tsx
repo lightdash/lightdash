@@ -48,7 +48,7 @@ import FieldSelect from '../../common/FieldSelect';
 import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
@@ -100,7 +100,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
             ? value.rules.map((_, i) => `${i}`)
             : [],
     );
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationState();
 
     const field = useMemo(
         () => fields.find((f) => getItemId(f) === config?.target?.fieldId),

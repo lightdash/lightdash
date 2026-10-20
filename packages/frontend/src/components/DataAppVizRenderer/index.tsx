@@ -55,7 +55,7 @@ import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import { DefaultSkeleton } from '../DashboardTiles/TileBase/LoadingSkeletonOverlay';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import {
     FIRST_PAINT_REVEAL_FALLBACK_MS,
@@ -168,7 +168,7 @@ const DataAppVizRenderer: FC<Props> = ({
         resolvedTimezone,
         isEditMode,
         isLoading,
-    } = useVisualizationContext();
+    } = useVisualizationState();
     const { embedToken } = useEmbed();
     const { canViewUnderlyingData, canDrillInto } = useContextMenuPermissions();
     const previewOrigin = usePreviewOrigin();

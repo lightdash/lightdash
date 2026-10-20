@@ -14,7 +14,7 @@ import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
@@ -22,7 +22,7 @@ import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
 
     if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
 

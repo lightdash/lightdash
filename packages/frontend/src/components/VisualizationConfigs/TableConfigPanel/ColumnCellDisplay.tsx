@@ -10,13 +10,13 @@ import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 
 export const ColumnCellDisplay: FC = () => {
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
-        useVisualizationContext();
+        useVisualizationState();
 
     const chartConfig = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) return undefined;

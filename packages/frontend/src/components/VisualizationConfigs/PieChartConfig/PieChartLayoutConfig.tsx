@@ -15,13 +15,13 @@ import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
 import { useMemo } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 export const Layout: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
 

@@ -24,7 +24,7 @@ import {
     isTableVisualizationConfig,
     type VisualizationConfigTable,
 } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import styles from './ColumnConfiguration.module.css';
 
 type ColumnConfigurationInputProps = Pick<
@@ -85,7 +85,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     hideFreezeToggle = false,
 }) => {
     const { pivotDimensions, visualizationConfig, resultsData } =
-        useVisualizationContext();
+        useVisualizationState();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);

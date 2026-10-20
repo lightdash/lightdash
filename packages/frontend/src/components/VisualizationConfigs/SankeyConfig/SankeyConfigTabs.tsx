@@ -13,12 +13,12 @@ import { Stack, Text, SegmentedControl } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 
 export const ConfigTabs: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     const isSankey = isSankeyVisualizationConfig(visualizationConfig);
 
