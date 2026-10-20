@@ -114,6 +114,7 @@ import { CommercialSlackIntegrationService } from './services/CommercialSlackInt
 import { ContentReviewNotificationService } from './services/ContentReviewNotificationService/ContentReviewNotificationService';
 import { ContentReviewRequestService } from './services/ContentReviewRequestService/ContentReviewRequestService';
 import { DataAppAnalysisService } from './services/DataAppAnalysisService/DataAppAnalysisService';
+import { DepartmentService } from './services/DepartmentService/DepartmentService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { ExternalConnectionCoderService } from './services/ExternalConnectionCoderService/ExternalConnectionCoderService';
 import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
@@ -644,6 +645,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new RoadmapService({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
+                }),
+            departmentService: ({ repository, models }) =>
+                new DepartmentService({
+                    featureFlagService: repository.getFeatureFlagService(),
+                    departmentModel: models.getDepartmentModel(),
+                    departmentAnalyticsModel:
+                        models.getDepartmentAnalyticsModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
