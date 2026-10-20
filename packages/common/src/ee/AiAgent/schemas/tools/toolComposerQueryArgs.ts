@@ -514,42 +514,59 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     review: z.string().nullable(),
 });
 
-// What presenting the terminal node needs to save a composer artifact version.
+// Snapshot and viz config are written from typed values. The API-facing
+// shape keeps them untyped: tsoa cannot resolve named types in tool metadata.
 const toolComposerQueriesSuccessMetadataShapeSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
     terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
     snapshot: z
-        .array(z.looseObject({ sourceType: z.nativeEnum(QuerySourceType) }))
+        .array(z.unknown())
         .describe('The full built pipeline, every node self-contained.'),
-    vizConfig: z.looseObject({ type: z.string() }).nullable(),
+    vizConfig: z.unknown(),
     title: z.string(),
     description: z.string().nullable(),
     // Slack saves an artifact version per call; web saves on presentation.
     artifactVersionUuid: z.string().nullable(),
 });
 
-export type ToolComposerQueriesSuccessMetadata = Omit<
-    z.infer<typeof toolComposerQueriesSuccessMetadataShapeSchema>,
-    'snapshot' | 'vizConfig'
-> & {
-    snapshot: SourceQuery[];
-    vizConfig: AllVizChartConfig | null;
-};
+const isComposerSnapshot = (value: unknown): value is SourceQuery[] =>
+    Array.isArray(value) &&
+    value.every(
+        (node: unknown) =>
+            typeof node === 'object' &&
+            node !== null &&
+            'sourceType' in node &&
+            typeof node.sourceType === 'string' &&
+            Object.values<string>(QuerySourceType).includes(node.sourceType),
+    );
+
+const isComposerVizConfig = (
+    value: unknown,
+): value is AllVizChartConfig | null =>
+    value === null ||
+    (typeof value === 'object' && value !== null && 'type' in value);
+
+// What presenting the terminal node needs to save a composer artifact version.
+const toolComposerQueriesSuccessMetadataSchema =
+    toolComposerQueriesSuccessMetadataShapeSchema.extend({
+        snapshot: z.custom<SourceQuery[]>(isComposerSnapshot),
+        vizConfig: z.custom<AllVizChartConfig | null>(isComposerVizConfig),
+    });
+
+export type ToolComposerQueriesSuccessMetadata = z.infer<
+    typeof toolComposerQueriesSuccessMetadataSchema
+>;
 
 export const parseToolComposerQueriesSuccessMetadata = (
     metadata: unknown,
 ): ToolComposerQueriesSuccessMetadata | null => {
-    const parsed =
-        toolComposerQueriesSuccessMetadataShapeSchema.safeParse(metadata);
-    // The tool writes snapshot and vizConfig from typed values; only their shape is checked here.
-    return parsed.success
-        ? (parsed.data as ToolComposerQueriesSuccessMetadata)
-        : null;
+    const parsed = toolComposerQueriesSuccessMetadataSchema.safeParse(metadata);
+    return parsed.success ? parsed.data : null;
 };
 
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
-    metadata: z.union([
+    metadata: z.discriminatedUnion('status', [
         toolComposerQueriesSuccessMetadataShapeSchema,
         z.object({ status: z.enum(['error', 'rejected', 'timeout']) }),
     ]),

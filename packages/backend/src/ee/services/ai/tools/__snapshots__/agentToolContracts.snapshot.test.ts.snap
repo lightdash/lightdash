@@ -21214,7 +21214,7 @@ Presenting results: results are hidden from the user by default. Each successful
             "metadata": {
               "allOf": [
                 {
-                  "anyOf": [
+                  "oneOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
@@ -21243,25 +21243,7 @@ Presenting results: results are hidden from the user by default. Each successful
                         },
                         "snapshot": {
                           "description": "The full built pipeline, every node self-contained.",
-                          "items": {
-                            "additionalProperties": {},
-                            "properties": {
-                              "sourceType": {
-                                "enum": [
-                                  "semanticLayer",
-                                  "sql",
-                                  "duckdb",
-                                  "external",
-                                  "python",
-                                ],
-                                "type": "string",
-                              },
-                            },
-                            "required": [
-                              "sourceType",
-                            ],
-                            "type": "object",
-                          },
+                          "items": {},
                           "type": "array",
                         },
                         "status": {
@@ -21276,25 +21258,7 @@ Presenting results: results are hidden from the user by default. Each successful
                         "title": {
                           "type": "string",
                         },
-                        "vizConfig": {
-                          "anyOf": [
-                            {
-                              "additionalProperties": {},
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "type",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "type": "null",
-                            },
-                          ],
-                        },
+                        "vizConfig": {},
                       },
                       "required": [
                         "status",
@@ -21509,7 +21473,7 @@ Presenting results: results are hidden from the user by default. Each successful
             "metadata": {
               "allOf": [
                 {
-                  "anyOf": [
+                  "oneOf": [
                     {
                       "additionalProperties": false,
                       "properties": {
@@ -21538,25 +21502,7 @@ Presenting results: results are hidden from the user by default. Each successful
                         },
                         "snapshot": {
                           "description": "The full built pipeline, every node self-contained.",
-                          "items": {
-                            "additionalProperties": {},
-                            "properties": {
-                              "sourceType": {
-                                "enum": [
-                                  "semanticLayer",
-                                  "sql",
-                                  "duckdb",
-                                  "external",
-                                  "python",
-                                ],
-                                "type": "string",
-                              },
-                            },
-                            "required": [
-                              "sourceType",
-                            ],
-                            "type": "object",
-                          },
+                          "items": {},
                           "type": "array",
                         },
                         "status": {
@@ -21571,25 +21517,7 @@ Presenting results: results are hidden from the user by default. Each successful
                         "title": {
                           "type": "string",
                         },
-                        "vizConfig": {
-                          "anyOf": [
-                            {
-                              "additionalProperties": {},
-                              "properties": {
-                                "type": {
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "type",
-                              ],
-                              "type": "object",
-                            },
-                            {
-                              "type": "null",
-                            },
-                          ],
-                        },
+                        "vizConfig": {},
                       },
                       "required": [
                         "status",
