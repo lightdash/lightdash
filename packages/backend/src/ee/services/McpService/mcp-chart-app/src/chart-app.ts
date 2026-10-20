@@ -46,7 +46,6 @@ const exploreButton = document.getElementById(
 ) as HTMLButtonElement;
 
 let chart: echarts.ECharts | null = null;
-let chartColorScheme: CustomChartColorScheme | null = null;
 let lastChartOption: echarts.EChartsOption | null = null;
 
 // ---------------------------------------------------------------------------
@@ -163,7 +162,9 @@ function resolveCssColor(value: string): string {
 
 function resolveCssVariables<T>(value: T): T {
     if (typeof value === 'string') {
-        return (value.startsWith('var(') ? resolveCssColor(value) : value) as T;
+        return (
+            value.startsWith('var(--') ? resolveCssColor(value) : value
+        ) as T;
     }
     if (Array.isArray(value)) return value.map(resolveCssVariables) as T;
     if (isRecord(value)) {
@@ -181,7 +182,6 @@ function initChart(): echarts.ECharts {
     if (chart) {
         chart.dispose();
     }
-    chartColorScheme = getHostColorScheme();
     // Re-registered on every init so the theme picks up the host's current colours
     echarts.registerTheme('lightdash', resolveCssVariables(lightdashTheme));
     chart = echarts.init(chartContainer, 'lightdash');
@@ -192,10 +192,7 @@ function renderChart(echartsOption: echarts.EChartsOption): void {
     chartContainer.style.display = 'block';
     resultContainer.style.display = 'none';
 
-    const instance =
-        chart && chartColorScheme === getHostColorScheme()
-            ? chart
-            : initChart();
+    const instance = initChart();
 
     // Inject client-side tooltip formatter (can't be serialized in JSON)
     const tooltip = (echartsOption.tooltip ?? {}) as Record<string, unknown>;
@@ -214,6 +211,13 @@ function renderChart(echartsOption: echarts.EChartsOption): void {
 
     lastChartOption = optionWithFormatter;
     setChartOption(instance, optionWithFormatter);
+}
+
+/** Redraws the visible chart so the canvas picks up the host's current colours. */
+function redrawChart(): void {
+    if (chart && lastChartOption && chartContainer.style.display !== 'none') {
+        setChartOption(initChart(), lastChartOption);
+    }
 }
 
 function setChartOption(
@@ -696,15 +700,17 @@ app.ontoolresult = (result) => {
 app.onhostcontextchanged = (changed) => {
     applyHostContext(changed);
     postToCustomChart?.(getCustomChartThemeMessage(getHostColorScheme()));
-    if (
-        chart &&
-        lastChartOption &&
-        chartContainer.style.display !== 'none' &&
-        chartColorScheme !== getHostColorScheme()
-    ) {
-        setChartOption(initChart(), lastChartOption);
+    if (changed.theme !== undefined || changed.styles !== undefined) {
+        redrawChart();
     }
 };
+
+// Without a host theme the colours follow the OS colour scheme
+window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+        if (!app.getHostContext()?.theme) redrawChart();
+    });
 
 let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 const resizeObserver = new ResizeObserver(() => {

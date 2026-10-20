@@ -126,7 +126,7 @@ export const lightdashTheme = {
             '#ff33e1',
         ],
         label: {
-            color: 'var(--app-border-tertiary)',
+            color: '#eee',
         },
     },
     categoryAxis: {
