@@ -18,6 +18,7 @@ import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import {
+    COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION,
     EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
@@ -386,7 +387,12 @@ export const getSystemPromptV2 = (args: {
             '{{filter_guidance_section}}',
             enableFilterExpressions
                 ? FILTER_EXPRESSION_GUIDANCE_SECTION
-                : STRUCTURED_FILTER_GUIDANCE_SECTION,
+                : [
+                      STRUCTURED_FILTER_GUIDANCE_SECTION,
+                      ...(enableComposerQueries
+                          ? [COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION]
+                          : []),
+                  ].join('\n\n'),
         )
         .replace(
             '{{ai_writeback_section}}',

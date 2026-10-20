@@ -234,6 +234,9 @@ describe('python composer nodes', () => {
         const [node] = createToolComposerQueriesArgsSchema({
             enablePythonNodes: true,
         }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.PYTHON) {
+            throw new Error('expected a python node');
+        }
         expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
             sourceType: QuerySourceType.PYTHON,
             nodeId: 'forecast',
@@ -311,5 +314,75 @@ describe('composer node references', () => {
         expect(
             getToolComposerQueriesDescription({ enablePythonNodes: true }),
         ).not.toMatch(/query ?uuid|query id/i);
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const semanticArgs = (filters: unknown) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue',
+                title: 'Revenue by customer',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_customer_name'],
+                metrics: ['orders_total_revenue'],
+                filters,
+                sorts: null,
+            },
+        ],
+    });
+
+    it('accepts one flat expression per field kind, or null', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: 'orders_customer_name equals=Alice',
+                    metrics: null,
+                }),
+            ).success,
+        ).toBe(true);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(semanticArgs(null)).success,
+        ).toBe(true);
+    });
+
+    it('rejects structured rules, table calculation filters and empty expressions', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: null,
+                    metrics: null,
+                    tableCalculations: 'rank lessThan=10',
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    type: 'and',
+                    dimensions: [
+                        {
+                            fieldId: 'orders_customer_name',
+                            fieldType: 'string',
+                            fieldFilterType: 'string',
+                            operator: 'equals',
+                            values: ['Alice'],
+                        },
+                    ],
+                    metrics: null,
+                    tableCalculations: null,
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({ dimensions: '' }),
+            ).success,
+        ).toBe(false);
     });
 });

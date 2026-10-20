@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DimensionType } from '../../../../types/field';
+import { type Filters } from '../../../../types/filter';
 import {
     type MetricQueryRequest,
     type SortField,
@@ -9,10 +10,12 @@ import {
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type PythonSourceQuery,
+    type QueryNodeId,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -77,14 +80,14 @@ const nodeMetaSchema = {
     description: nodeDescriptionSchema,
 };
 
-const semanticLayerFiltersSchema = z
-    .object({
-        dimensions: z.unknown().optional(),
-        metrics: z.unknown().optional(),
-        tableCalculations: z.unknown().optional(),
-    })
+// runQuery's filter-expression contract, minus table calculations: a node has
+// none, DuckDB nodes do that work downstream.
+export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
+    .omit({ tableCalculations: true })
+    .strict()
+    .nullable()
     .describe(
-        'Filters in the metric query filters shape: an optional filter group per field kind, e.g. {"dimensions": {"id": "<uuid>", "and": [{"id": "<uuid>", "target": {"fieldId": "orders_status"}, "operator": "equals", "values": ["completed"]}]}}.',
+        "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
 
 const sortFieldSchema = z.object({
@@ -145,7 +148,7 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 "Metric field ids to compute, from the explore's schema.",
             ),
-        filters: semanticLayerFiltersSchema.nullable(),
+        filters: composerSemanticLayerFiltersSchema,
         sorts: z
             .array(sortFieldSchema)
             .nullable()
@@ -266,8 +269,21 @@ export type ToolComposerQueryNode = z.infer<
     ReturnType<typeof createToolComposerQueriesArgsSchema>
 >['queries'][number];
 
+export type ToolComposerSemanticLayerNode = Extract<
+    ToolComposerQueryNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+// A submitted node with semanticLayer filters already resolved to domain
+// Filters; only this shape converts to a SourceQuery.
+export type ResolvedToolComposerQueryNode =
+    | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
+    | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
+          filters: Filters | null;
+      });
+
 const toSourceQueryNodeMeta = (
-    node: ToolComposerQueryNode,
+    node: ResolvedToolComposerQueryNode,
 ): Pick<SqlSourceQuery, 'title' | 'description'> => ({
     title: node.title,
     description: node.description ?? undefined,
@@ -278,14 +294,18 @@ const toSourceQueryNodeMeta = (
  * query source service takes. The explicit return types pin drift at compile
  * time: if types/querySources.ts changes incompatibly, this stops compiling.
  */
-export const toolComposerQueryNodeToSourceQuery = (
-    node: ToolComposerQueryNode,
-):
+/** A SourceQuery built from a tool node, so its node id is always set. */
+export type SubmittedSourceQuery = (
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
     | ExternalSourceQuery
-    | PythonSourceQuery => {
+    | PythonSourceQuery
+) & { nodeId: QueryNodeId };
+
+export const toolComposerQueryNodeToSourceQuery = (
+    node: ResolvedToolComposerQueryNode,
+): SubmittedSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =

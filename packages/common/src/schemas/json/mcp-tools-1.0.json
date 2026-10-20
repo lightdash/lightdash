@@ -4415,11 +4415,21 @@
                                             "type": "string"
                                         },
                                         "filters": {
-                                            "description": "Filters in the metric query filters shape: an optional filter group per field kind, e.g. {\"dimensions\": {\"id\": \"<uuid>\", \"and\": [{\"id\": \"<uuid>\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\", \"values\": [\"completed\"]}]}}.",
+                                            "additionalProperties": false,
+                                            "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                                             "properties": {
-                                                "dimensions": {},
-                                                "metrics": {},
-                                                "tableCalculations": {}
+                                                "dimensions": {
+                                                    "description": "Flat filter expression for dimension fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                },
+                                                "metrics": {
+                                                    "description": "Flat filter expression for metric fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                }
                                             },
                                             "type": "object"
                                         },

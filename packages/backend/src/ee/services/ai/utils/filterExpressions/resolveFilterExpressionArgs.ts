@@ -7,6 +7,7 @@ import {
     FILTER_EXPRESSION_MAX_RULES,
     filterAggregationCustomMetrics,
     filterExpressionOperatorDefinitions,
+    filterExpressionResolvedFiltersSchemaTransformed,
     FilterOperator,
     filterRuleSchema,
     filtersSchemaTransformed,
@@ -2114,6 +2115,30 @@ const resolveQueryFilters = ({
         metrics: toResolvedGroup(resolvedGroups.metrics),
         tableCalculations: toResolvedGroup(resolvedGroups.tableCalculations),
     });
+};
+
+// For queries with explore fields only (a composer semanticLayer node).
+export const resolveExploreFilterExpressions = ({
+    filters,
+    explore,
+}: {
+    filters: Omit<
+        NonNullable<ExpressionQueryConfig['filters']>,
+        'tableCalculations'
+    > | null;
+    explore: Explore;
+}): ResolutionResult<Filters | null> => {
+    const result = resolveQueryFilters({
+        filters:
+            filters === null ? null : { ...filters, tableCalculations: null },
+        fields: makeExploreFields(explore),
+        exploreName: explore.name,
+    });
+    if (!result.success) return result;
+    if (result.data === null) return success(null);
+    return success(
+        filterExpressionResolvedFiltersSchemaTransformed.parse(result.data),
+    );
 };
 
 const resolveQueryConfig = ({

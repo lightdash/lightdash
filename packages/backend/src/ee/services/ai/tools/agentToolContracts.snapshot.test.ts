@@ -313,9 +313,19 @@ describe('AI agent tool contracts', () => {
             enableFilterExpressions: true,
             enableGenerateDataApp: true,
         },
+        {
+            name: 'structured-filter-with-composer',
+            enableFilterExpressions: false,
+            enableGenerateDataApp: false,
+            enableComposerQueries: true,
+        },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({ enableFilterExpressions, enableGenerateDataApp }) => {
+        ({
+            enableFilterExpressions,
+            enableGenerateDataApp,
+            enableComposerQueries,
+        }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
@@ -323,6 +333,7 @@ describe('AI agent tool contracts', () => {
                     enableFilterExpressions,
                     enableContentTools: enableGenerateDataApp,
                     enableGenerateDataApp,
+                    enableComposerQueries,
                 }).content,
             ).toMatchSnapshot();
         },
