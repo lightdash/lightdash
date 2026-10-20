@@ -25,6 +25,7 @@ import {
     type Output,
     type ProviderMetadata,
     type TextStreamPart,
+    type Tool,
     type ToolCallPart,
     type ToolSet,
 } from 'ai';
@@ -63,12 +64,17 @@ import {
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
+import {
+    resolveLoadout,
+    type AgentToolName,
+    type DeferredPromptSection,
+    type Loadout,
+} from '../loadout';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
     getSystemPromptV2,
     type CapabilitySectionArgs,
-    type DeferredPromptSection,
 } from '../prompts/systemV2';
 import { DOCUMENT_OFFER_LINE } from '../prompts/systemV2ContentTools';
 import {
@@ -368,11 +374,6 @@ export const AGENT_FINAL_STEP_INSTRUCTION =
     'This is your final step. Do not call any tools. Respond to the user now with the best answer you can, including any limitations or reasons the request could not be fully completed.';
 
 /**
- * A deep-research worker only ever answers one narrow data question, so it gets
- * field discovery and query execution and nothing else — no content, repo,
- * memory, delegation, or reporting tools.
- */
-/**
  * Read-only tools a data-app investigation may use: semantic-layer lookups
  * and queries, saved content reads, and project knowledge. No raw SQL, no
  * writes, no external actions.
@@ -391,42 +392,6 @@ export const DATA_APP_INVESTIGATE_TOOL_NAMES: ReadonlySet<string> = new Set([
     'readContent',
     'runContentQuery',
     'runSavedChart',
-    'searchFieldValues',
-    'searchSemanticLayer',
-]);
-
-export const DEEP_RESEARCH_WORKER_TOOL_NAMES = new Set([
-    'describeWarehouseTable',
-    'generateVisualization',
-    'getMetadata',
-    'grepFields',
-    'listWarehouseTables',
-    'runSql',
-    'searchFieldValues',
-    'searchSemanticLayer',
-]);
-
-export const DEEP_RESEARCH_COORDINATOR_TOOL_NAMES = new Set([
-    'analyzeFieldImpact',
-    'describeWarehouseTable',
-    'findContent',
-    'generateVisualization',
-    'getDashboardCharts',
-    'getKnowledgeDocumentContent',
-    'getMetadata',
-    'getProjectInfo',
-    'grepFields',
-    'listContent',
-    'listKnowledgeDocuments',
-    'listProjects',
-    'listWarehouseTables',
-    'loadProjectContext',
-    'readContent',
-    'readPinnedThread',
-    'resolveUrl',
-    'runContentQuery',
-    'runSavedChart',
-    'runSql',
     'searchFieldValues',
     'searchSemanticLayer',
 ]);
@@ -1768,14 +1733,44 @@ export const withAgentToolPermissions = (
         }),
     );
 
+/** MCP server tools this run may call; deep research drops raw SQL tools without the grant. */
+const getRunnableMcpTools = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+): ToolSet =>
+    Object.fromEntries(
+        Object.entries(mcpToolSetup.tools).filter(
+            ([toolName]) =>
+                args.execution.mode !== 'deep_research' ||
+                args.execution.canUseRawSql ||
+                !isDeepResearchRawSqlMcpTool(toolName),
+        ),
+    );
+
+export const resolveAgentLoadout = (
+    args: AiAgentArgs,
+    mcpToolSetup: AgentMcpToolSetup,
+    customChartTypeLibrary: CustomChartTypeLibrary,
+): Loadout =>
+    resolveLoadout({
+        ...args,
+        mcpToolNames: Object.keys(getRunnableMcpTools(args, mcpToolSetup)),
+        customChartTypeCount: customChartTypeLibrary.totalCount,
+    });
+
+type NativeAgentToolName = Exclude<
+    AgentToolName,
+    'delegateResearchTask' | 'submitWorkerFindings'
+>;
+
 export const getAgentTools = (
     args: AiAgentArgs,
+    loadout: Loadout,
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     verifiedFieldUsage: Map<string, number>,
     projectParameterDefinitions: ParameterDefinitions,
-    customChartTypeLibrary: CustomChartTypeLibrary,
     agentContext: AgentContext,
 ): ToolSet => {
     const queryDependencies = withAnswerEvidence(
@@ -1789,8 +1784,10 @@ export const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const enableContentTools = args.enableDataAccess && args.enableContentTools;
-    const documentsEnabled = enableContentTools && args.enableDocuments;
+    const documentsEnabled =
+        args.enableDataAccess &&
+        args.enableContentTools &&
+        args.enableDocuments;
     const decisionContext =
         args.decisions && args.execution.mode === 'standard'
             ? getAgentDecisionContext(args)
@@ -1806,157 +1803,6 @@ export const getAgentTools = (
                   explores: availableExplores,
               })
             : undefined;
-
-    const grepFields = getGrepFields({
-        availableExplores,
-        decisions:
-            args.execution.mode === 'standard' ? args.decisions : undefined,
-        userQuestion: getAgentQuestion(args),
-        conversation: decisionContext,
-        projectParameterDefinitions,
-        findExplores: dependencies.findExplores,
-        verifiedFieldUsage,
-    });
-
-    // Companion to grepFields: rich detail for the explores/fields the agent
-    // selected (joined tables, required filters, filter types, hints).
-    const getMetadata = getGetMetadata({
-        includeSourceDetails: !!args.decisions,
-        availableExplores,
-        projectParameterDefinitions,
-    });
-
-    const findContent = getFindContent({
-        decisions: args.decisions,
-        findContent: dependencies.findContent,
-        siteUrl: args.siteUrl,
-        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-        dashboardDetailsToolName: enableContentTools
-            ? 'readContent'
-            : 'getDashboardCharts',
-        trackCoverage: (coverage) => {
-            dependencies.trackEvent({
-                event: 'ai_agent.find_content_coverage',
-                userId: args.userId,
-                properties: {
-                    organizationId: args.organizationId,
-                    projectId: args.agentSettings.projectUuid,
-                    aiAgentId: args.agentSettings.uuid,
-                    agentName: args.agentSettings.name,
-                    threadId: args.threadUuid,
-                    promptId: args.promptUuid,
-                    ...coverage,
-                },
-            });
-        },
-    });
-
-    const listContent = getListContent({
-        listContent: dependencies.listContent,
-    });
-
-    // Only offered when the project has a custom chart type library — an
-    // empty library keeps zero prompt and tool overhead.
-    const findCustomChartTypes =
-        customChartTypeLibrary.totalCount > 0
-            ? getFindCustomChartTypes({
-                  findCustomChartTypes: dependencies.findCustomChartTypes,
-                  updateProgress: dependencies.updateProgress,
-              })
-            : null;
-
-    const getDashboardCharts = getGetDashboardCharts({
-        getDashboardCharts: dependencies.getDashboardCharts,
-        siteUrl: args.siteUrl,
-        pageSize: args.getDashboardChartsPageSize,
-    });
-
-    const readContent = getReadContent({
-        readContent: dependencies.readContent,
-        documentsEnabled,
-    });
-
-    const resolveUrl = getResolveUrl({
-        resolveUrl: dependencies.resolveUrl,
-    });
-
-    const generateVisualization = getRunQuery({
-        purpose: 'visualization',
-        documentsEnabled,
-        agentContext,
-        decisions: args.decisions,
-        question: getAgentQuestion(args),
-        conversation: decisionContext,
-        presentationInstructions: args.agentSettings.instruction,
-        allowPresentationCorrection:
-            args.messageHistory.filter((message) => message.role === 'user')
-                .length <= 1,
-        searchFieldValues: dependencies.searchFieldValues,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        getPrompt: dependencies.getPrompt,
-        sendFile: dependencies.sendFile,
-        deferSlackVisualization:
-            args.execution.mode === 'standard'
-                ? dependencies.deferSlackVisualization
-                : undefined,
-        createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        exposeQueryUuid: args.execution.mode === 'deep_research',
-        enableChartExport:
-            !!args.decisions && args.execution.mode === 'standard',
-        enableDataAccess: args.enableDataAccess,
-        projectParameterDefinitions,
-        slackLinksOnly: args.slackLinksOnly,
-        enableFilterExpressions: args.enableFilterExpressions,
-        resolveCustomChartType: dependencies.resolveCustomChartType,
-        exportCustomChartTypeImage: dependencies.exportCustomChartTypeImage,
-    });
-
-    const runQuery =
-        args.decisions &&
-        args.enableDataAccess &&
-        args.execution.mode === 'standard'
-            ? getRunQuery({
-                  purpose: 'answer',
-                  documentsEnabled,
-                  enableFastResponse: args.enableDataAnswerFastResponse,
-                  agentContext,
-                  decisions: args.decisions,
-                  question: getAgentQuestion(args),
-                  conversation: decisionContext,
-                  presentationInstructions: args.agentSettings.instruction,
-                  allowPresentationCorrection: false,
-                  searchFieldValues: dependencies.searchFieldValues,
-                  updateProgress: dependencies.updateProgress,
-                  runAsyncQuery: queryDependencies.runAsyncQuery,
-                  getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
-                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-                  maxLimit: args.maxQueryLimit,
-                  maxContextRows: args.maxContextRows,
-                  exposeQueryUuid: false,
-                  enableChartExport: false,
-                  enableDataAccess: true,
-                  projectParameterDefinitions,
-                  slackLinksOnly: args.slackLinksOnly,
-                  enableFilterExpressions: args.enableFilterExpressions,
-                  resolveCustomChartType: dependencies.resolveCustomChartType,
-                  exportCustomChartTypeImage:
-                      dependencies.exportCustomChartTypeImage,
-              })
-            : null;
-
-    const runSavedChart = getRunSavedChart({
-        reviewQuery,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        getSavedChart: dependencies.getSavedChart,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        enableDataAccess: args.enableDataAccess,
-    });
 
     const trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn = ({
         toolCallId,
@@ -1979,97 +1825,6 @@ export const getAgentTools = (
         );
     };
 
-    // Composer queries supersede the standalone runSql tool: a single `sql`
-    // node is the direct equivalent, and exposing both lets the model shadow
-    // the composer path with raw runSql calls.
-    const runSql =
-        args.canRunSql && !args.enableComposerQueries
-            ? getRunSql({
-                  reviewQuery,
-                  updateProgress: dependencies.updateProgress,
-                  runSqlJob: queryDependencies.runSqlJob,
-                  getPrompt: dependencies.getPrompt,
-                  sendFile: dependencies.sendFile,
-                  updateSlackMessage: dependencies.updateSlackMessage,
-                  siteUrl: args.siteUrl,
-                  waitForSqlApproval: dependencies.waitForSqlApproval,
-                  recordSqlApproval: dependencies.recordSqlApproval,
-                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-                  listSqlApprovalDecisions:
-                      dependencies.listSqlApprovalDecisions,
-                  trackSqlApprovalTimeout,
-                  storeToolResults: dependencies.storeToolResults,
-                  createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-                  maxQueryLimit: args.runSqlMaxLimit,
-                  enableDataAccess: args.enableDataAccess,
-                  slackLinksOnly: args.slackLinksOnly,
-                  sqlScope: args.sqlScope,
-                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
-                  autoApproveSql: args.autoApproveSql,
-                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-                  useSlackStreamCard: args.useSlackStreamCard,
-              })
-            : null;
-
-    const runComposerQueries = args.enableComposerQueries
-        ? getRunComposerQueries({
-              agentContext,
-              reviewQuery,
-              updateProgress: dependencies.updateProgress,
-              runComposerQueries: queryDependencies.runComposerQueries,
-              getPrompt: dependencies.getPrompt,
-              updateSlackMessage: dependencies.updateSlackMessage,
-              siteUrl: args.siteUrl,
-              waitForSqlApproval: dependencies.waitForSqlApproval,
-              recordSqlApproval: dependencies.recordSqlApproval,
-              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-              listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
-              trackSqlApprovalTimeout,
-              storeToolResults: dependencies.storeToolResults,
-              listThreadComposerQueryNodes:
-                  dependencies.listThreadComposerQueryNodes,
-              registerThreadComposerQueryNodes:
-                  dependencies.registerThreadComposerQueryNodes,
-              maxQueryLimit: args.runSqlMaxLimit,
-              enableDataAccess: args.enableDataAccess,
-              canRunSql: args.canRunSql,
-              enablePythonNodes: args.enableComposerPythonNodes,
-              autoApproveSql: args.autoApproveSql,
-              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
-              useSlackStreamCard: args.useSlackStreamCard,
-          })
-        : null;
-
-    const listWarehouseTables = args.canRunSql
-        ? getListWarehouseTables({
-              decisions:
-                  args.execution.mode === 'standard'
-                      ? args.decisions
-                      : undefined,
-              userQuestion: getAgentQuestion(args),
-              listWarehouseTables: dependencies.listWarehouseTables,
-          })
-        : null;
-
-    const describeWarehouseTable = args.canRunSql
-        ? getDescribeWarehouseTable({
-              describeWarehouseTable: dependencies.describeWarehouseTable,
-          })
-        : null;
-
-    const generateDashboard = args.canCreateDashboards
-        ? getGenerateDashboardV2({
-              agentContext,
-              decisions:
-                  args.execution.mode === 'standard'
-                      ? args.decisions
-                      : undefined,
-              userQuestion: getAgentQuestion(args),
-              getPrompt: dependencies.getPrompt,
-              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-          })
-        : null;
-
     const sqlApproval: SqlApprovalDependencies = {
         getPrompt: dependencies.getPrompt,
         updateProgress: dependencies.updateProgress,
@@ -2085,383 +1840,469 @@ export const getAgentTools = (
         autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
         useSlackStreamCard: args.useSlackStreamCard,
     };
-    const sqlChartSaving: SqlChartSaving = args.canRunSql
-        ? { mode: 'thread_approval', approval: sqlApproval }
-        : { mode: 'disabled' };
-    sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
-    const editContent = getEditContent({
-        editContent: dependencies.editContent,
-        documentsEnabled,
-        artifacts: dependencies.chartExportArtifacts,
-        sqlChartSaving,
-    });
-    const createContent = getCreateContent({
-        createContent: dependencies.createContent,
-        documentsEnabled,
-        artifacts: dependencies.chartExportArtifacts,
-        sqlChartSaving,
-    });
-    const createScheduledDelivery = getCreateScheduledDelivery({
-        createScheduledDelivery: dependencies.createScheduledDelivery,
-    });
-    const canRunContentSql = canRunContentQuerySql({
-        canRunSql: args.canRunSql,
-        toolAllowlist:
-            args.execution.mode === 'standard'
-                ? (args.execution.toolAllowlist ?? null)
-                : null,
-    });
-    const runContentQuery = getRunContentQuery({
-        reviewQuery,
-        updateProgress: dependencies.updateProgress,
-        runAsyncQuery: queryDependencies.runAsyncQuery,
-        runSavedChartQuery: queryDependencies.runSavedChartQuery,
-        getSavedChart: dependencies.getSavedChart,
-        runSqlChartQuery: queryDependencies.runSqlChartQuery,
-        getSqlChart: dependencies.getSqlChart,
-        validateContent: dependencies.validateContent,
-        maxLimit: args.maxQueryLimit,
-        maxContextRows: args.maxContextRows,
-        enableDataAccess: args.enableDataAccess,
-        sqlQuerying: canRunContentSql
-            ? {
-                  runSqlJob: queryDependencies.runSqlJob,
-                  approval: sqlApproval,
-                  maxLimit: args.runSqlMaxLimit,
-                  sqlScope: args.sqlScope ?? null,
-                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
-              }
-            : null,
-    });
+    const getSqlChartSaving = (): SqlChartSaving => {
+        const sqlChartSaving: SqlChartSaving = args.canRunSql
+            ? { mode: 'thread_approval', approval: sqlApproval }
+            : { mode: 'disabled' };
+        sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
+        return sqlChartSaving;
+    };
+    const decisionsInStandardMode =
+        args.execution.mode === 'standard' ? args.decisions : undefined;
 
-    const generateDataApp = args.enableGenerateDataApp
-        ? getGenerateDataApp({
-              generateDataApp: dependencies.generateDataApp,
-          })
-        : null;
-
-    const iterateDataApp = args.enableGenerateDataApp
-        ? getIterateDataApp({
-              iterateDataApp: dependencies.iterateDataApp,
-          })
-        : null;
-
-    const listDataAppThemes = args.enableGenerateDataApp
-        ? getListDataAppThemes({
-              listDataAppThemes: dependencies.listDataAppThemes,
-          })
-        : null;
-
-    const listDataAppConnections = args.enableGenerateDataApp
-        ? getListDataAppConnections({
-              listDataAppConnections: dependencies.listDataAppConnections,
-          })
-        : null;
-
-    const editDbtProject = args.enableAiWriteback
-        ? getEditDbtProject({
-              editDbtProject: dependencies.editDbtProject,
-          })
-        : null;
-
-    // Only present in review-remediation work threads, where the user can
-    // rebuild/change the project_context PR conversationally.
-    const editProjectContext = args.enableEditProjectContext
-        ? getEditProjectContext({
-              editProjectContext: dependencies.editProjectContext,
-          })
-        : null;
-
-    const editRepo = args.enableCodingAgent
-        ? getEditRepo({
-              editRepo: dependencies.editRepo,
-          })
-        : null;
-
-    const syncDbtProject = args.enableAiWriteback
-        ? getSyncDbtProject({
-              syncDbtProject: dependencies.syncDbtProject,
-              updateProgress: dependencies.updateProgress,
-          })
-        : null;
-
-    const setupPreviewDeploy = args.enablePreviewDeploySetup
-        ? getSetupPreviewDeploy({
-              setupPreviewDeploy: dependencies.setupPreviewDeploy,
-          })
-        : null;
-
-    const exploreRepo = args.enableRepoDiscovery
-        ? getExploreRepo({
-              exploreRepo: dependencies.exploreRepo,
-          })
-        : null;
-
-    const discoverRepos = args.enableRepoDiscovery
-        ? getDiscoverRepos({
-              discoverRepos: dependencies.discoverRepos,
-          })
-        : null;
-
-    // Workstream tools are shared by the general coding agent (editRepo) and the
-    // dbt-writeback agent (editDbtProject) — both can now drive several PRs per
-    // thread, so both need to enumerate and close them.
-    const listWorkstreams =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getListWorkstreams({
-                  listWorkstreams: dependencies.listWorkstreams,
-              })
-            : null;
-
-    const closePullRequest =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getClosePullRequest({
-                  closePullRequest: dependencies.closePullRequest,
-              })
-            : null;
-
-    // Read-only companion to the workstream tools: lets the agent inspect a
-    // pull request's actual diff before deciding how to split or consolidate
-    // changes across pull requests. Same gate as list/close.
-    const getPullRequestDiff =
-        args.enableCodingAgent || args.enableAiWriteback
-            ? getGetPullRequestDiff({
-                  getPullRequestDiff: dependencies.getPullRequestDiff,
-              })
-            : null;
-
-    const searchFieldValues = getSearchFieldValues({
-        decisions: args.decisions,
-        searchFieldValues: dependencies.searchFieldValues,
-        getExplore: dependencies.getExplore,
-        enableFilterExpressions: args.enableFilterExpressions,
-    });
-
-    const analyzeFieldImpact = getAnalyzeFieldImpact({
-        analyzeFieldImpact: dependencies.analyzeFieldImpact,
-        updateProgress: dependencies.updateProgress,
-    });
-
-    const searchSemanticLayer = getSearchSemanticLayer({
-        searchSemanticLayer: dependencies.searchSemanticLayer,
-        updateProgress: dependencies.updateProgress,
-        // The agent chooses pageSize per task; cap it so one call can't pull an
-        // unbounded payload while still letting an audit grab the inventory in
-        // one or two round-trips.
-        maxPageSize: 500,
-        toolDescriptionMaxChars: args.toolDescriptionMaxChars,
-    });
-
-    const listKnowledgeDocuments = getListKnowledgeDocuments({
-        listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
-    });
-
-    const getKnowledgeDocumentContent = getGetKnowledgeDocumentContent({
-        getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
-    });
-
-    const readPinnedThread = getReadPinnedThread({
-        readPinnedThread: dependencies.readPinnedThread,
-    });
-
-    const readAttachments = args.enableReadAttachments
-        ? getReadAttachments({
-              readAttachments: dependencies.readAttachments,
-          })
-        : null;
-
-    const loadSkill =
-        args.availableSkills.length > 0
-            ? getLoadSkill({
-                  loadSkill: dependencies.loadSkill,
-              })
-            : null;
-    const generateHashes = getGenerateHashes();
-    const generateUuids = getGenerateUuids();
-
-    const listProjects = getListProjects({
-        listProjects: dependencies.listProjects,
-    });
-
-    const getProjectInfo = getGetProjectInfo({
-        getProjectInfo: dependencies.getProjectInfo,
-    });
-
-    const loadProjectContext =
-        args.projectContextEnabled || args.aiAgentMemoryEnabled
-            ? getLoadProjectContext({
-                  getDocument: async () => {
-                      const [projectContext, memories] = await Promise.all([
-                          args.projectContextEnabled
-                              ? dependencies.getProjectContextDocument()
-                              : Promise.resolve([]),
-                          args.aiAgentMemoryEnabled
-                              ? dependencies.getAiAgentMemoryContextEntries()
-                              : Promise.resolve([]),
-                      ]);
-                      return getProjectContextSearchEntries({
-                          projectContext,
-                          memories,
-                          memoryEnabled: args.aiAgentMemoryEnabled,
-                      });
-                  },
-                  includeMemories: args.aiAgentMemoryEnabled,
-                  onEntriesLoaded: args.aiAgentMemoryEnabled
-                      ? dependencies.incrementAiAgentMemoryPulls
-                      : undefined,
-              })
-            : null;
-
-    const mcpTools = Object.fromEntries(
-        Object.entries(mcpToolSetup.tools).filter(
-            ([toolName]) =>
-                args.execution.mode !== 'deep_research' ||
-                args.execution.canUseRawSql ||
-                !isDeepResearchRawSqlMcpTool(toolName),
-        ),
-    );
-    const mcpToolNames = Object.keys(mcpTools);
-    const loadMcpTools =
-        mcpToolNames.length > 0 ? getLoadMcpTools(mcpToolNames) : null;
-
-    const tools: ToolSet = {
-        findContent,
-        grepFields,
-        getMetadata,
-        analyzeFieldImpact,
-        searchSemanticLayer,
-        listProjects,
-        getProjectInfo,
-        listKnowledgeDocuments,
-        getKnowledgeDocumentContent,
-        readPinnedThread,
-        resolveUrl,
-        ...(args.requestingUser
-            ? {
-                  updateUserName: getUpdateUserName({
-                      updateUserName: dependencies.updateUserName,
-                  }),
-              }
-            : {}),
-        ...(enableContentTools
-            ? {
-                  readContent,
-                  editContent,
-                  listContent,
-                  createContent,
-                  createScheduledDelivery,
-                  runContentQuery,
-              }
-            : {
-                  getDashboardCharts,
-                  ...(generateDashboard ? { generateDashboard } : {}),
-              }),
-        generateVisualization,
-        ...(runQuery ? { runQuery } : {}),
-        ...(isChartExportEnabled(args)
-            ? {
-                  exportChartAsCode: getExportChartAsCode(
-                      agentContext,
-                      dependencies.chartExportArtifacts,
-                  ),
-              }
-            : {}),
-        runSavedChart,
-        generateHashes,
-        generateUuids,
-        ...(generateDataApp ? { generateDataApp } : {}),
-        ...(iterateDataApp ? { iterateDataApp } : {}),
-        ...(listDataAppThemes ? { listDataAppThemes } : {}),
-        ...(listDataAppConnections ? { listDataAppConnections } : {}),
-        ...(editDbtProject ? { editDbtProject } : {}),
-        ...(editProjectContext ? { editProjectContext } : {}),
-        ...(editRepo ? { editRepo } : {}),
-        ...(syncDbtProject ? { syncDbtProject } : {}),
-        ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
-        ...(exploreRepo ? { exploreRepo } : {}),
-        ...(readAttachments ? { readAttachments } : {}),
-        ...(discoverRepos ? { discoverRepos } : {}),
-        ...(listWorkstreams ? { listWorkstreams } : {}),
-        ...(closePullRequest ? { closePullRequest } : {}),
-        ...(getPullRequestDiff ? { getPullRequestDiff } : {}),
-        ...(args.enableDataAccess ? { searchFieldValues } : {}),
-        ...(findCustomChartTypes ? { findCustomChartTypes } : {}),
-        ...(runSql ? { runSql } : {}),
-        ...(runComposerQueries ? { runComposerQueries } : {}),
-        ...(listWarehouseTables ? { listWarehouseTables } : {}),
-        ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
-        ...(loadSkill ? { loadSkill } : {}),
-        ...(loadProjectContext ? { loadProjectContext } : {}),
-        ...(loadMcpTools ? { loadMcpTools } : {}),
-        ...(args.decisions && args.execution.mode === 'standard'
-            ? { loadAgentTools: getLoadAgentTools() }
-            : {}),
+    const runnableMcpTools = getRunnableMcpTools(args, mcpToolSetup);
+    const mcpToolNames = Object.keys(runnableMcpTools);
+    // Ordered as tools are offered to the model; only loadout members are built.
+    const toolBuilders: Record<NativeAgentToolName, () => Tool> = {
+        findContent: () =>
+            getFindContent({
+                decisions: args.decisions,
+                findContent: dependencies.findContent,
+                siteUrl: args.siteUrl,
+                toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+                dashboardDetailsToolName: loadout.toolNames.has('readContent')
+                    ? 'readContent'
+                    : 'getDashboardCharts',
+                trackCoverage: (coverage) => {
+                    dependencies.trackEvent({
+                        event: 'ai_agent.find_content_coverage',
+                        userId: args.userId,
+                        properties: {
+                            organizationId: args.organizationId,
+                            projectId: args.agentSettings.projectUuid,
+                            aiAgentId: args.agentSettings.uuid,
+                            agentName: args.agentSettings.name,
+                            threadId: args.threadUuid,
+                            promptId: args.promptUuid,
+                            ...coverage,
+                        },
+                    });
+                },
+            }),
+        grepFields: () =>
+            getGrepFields({
+                availableExplores,
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                conversation: decisionContext,
+                projectParameterDefinitions,
+                findExplores: dependencies.findExplores,
+                verifiedFieldUsage,
+            }),
+        // Companion to grepFields: rich detail for the explores/fields the agent
+        // selected (joined tables, required filters, filter types, hints).
+        getMetadata: () =>
+            getGetMetadata({
+                includeSourceDetails: !!args.decisions,
+                availableExplores,
+                projectParameterDefinitions,
+            }),
+        analyzeFieldImpact: () =>
+            getAnalyzeFieldImpact({
+                analyzeFieldImpact: dependencies.analyzeFieldImpact,
+                updateProgress: dependencies.updateProgress,
+            }),
+        searchSemanticLayer: () =>
+            getSearchSemanticLayer({
+                searchSemanticLayer: dependencies.searchSemanticLayer,
+                updateProgress: dependencies.updateProgress,
+                // The agent chooses pageSize per task; cap it so one call can't pull an
+                // unbounded payload while still letting an audit grab the inventory in
+                // one or two round-trips.
+                maxPageSize: 500,
+                toolDescriptionMaxChars: args.toolDescriptionMaxChars,
+            }),
+        listProjects: () =>
+            getListProjects({ listProjects: dependencies.listProjects }),
+        getProjectInfo: () =>
+            getGetProjectInfo({ getProjectInfo: dependencies.getProjectInfo }),
+        listKnowledgeDocuments: () =>
+            getListKnowledgeDocuments({
+                listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
+            }),
+        getKnowledgeDocumentContent: () =>
+            getGetKnowledgeDocumentContent({
+                getKnowledgeDocumentContent:
+                    dependencies.getKnowledgeDocumentContent,
+            }),
+        readPinnedThread: () =>
+            getReadPinnedThread({
+                readPinnedThread: dependencies.readPinnedThread,
+            }),
+        resolveUrl: () =>
+            getResolveUrl({ resolveUrl: dependencies.resolveUrl }),
+        updateUserName: () =>
+            getUpdateUserName({ updateUserName: dependencies.updateUserName }),
+        readContent: () =>
+            getReadContent({
+                readContent: dependencies.readContent,
+                documentsEnabled,
+            }),
+        editContent: () =>
+            getEditContent({
+                editContent: dependencies.editContent,
+                documentsEnabled,
+                artifacts: dependencies.chartExportArtifacts,
+                sqlChartSaving: getSqlChartSaving(),
+            }),
+        listContent: () =>
+            getListContent({ listContent: dependencies.listContent }),
+        createContent: () =>
+            getCreateContent({
+                createContent: dependencies.createContent,
+                documentsEnabled,
+                artifacts: dependencies.chartExportArtifacts,
+                sqlChartSaving: getSqlChartSaving(),
+            }),
+        createScheduledDelivery: () =>
+            getCreateScheduledDelivery({
+                createScheduledDelivery: dependencies.createScheduledDelivery,
+            }),
+        runContentQuery: () =>
+            getRunContentQuery({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                runSavedChartQuery: queryDependencies.runSavedChartQuery,
+                getSavedChart: dependencies.getSavedChart,
+                runSqlChartQuery: queryDependencies.runSqlChartQuery,
+                getSqlChart: dependencies.getSqlChart,
+                validateContent: dependencies.validateContent,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                enableDataAccess: args.enableDataAccess,
+                sqlQuerying: canRunContentQuerySql({
+                    canRunSql: args.canRunSql,
+                    toolAllowlist:
+                        args.execution.mode === 'standard'
+                            ? (args.execution.toolAllowlist ?? null)
+                            : null,
+                })
+                    ? {
+                          runSqlJob: queryDependencies.runSqlJob,
+                          approval: sqlApproval,
+                          maxLimit: args.runSqlMaxLimit,
+                          sqlScope: args.sqlScope ?? null,
+                          hyphenatedIdentifiers: args.hyphenatedIdentifiers,
+                      }
+                    : null,
+            }),
+        getDashboardCharts: () =>
+            getGetDashboardCharts({
+                getDashboardCharts: dependencies.getDashboardCharts,
+                siteUrl: args.siteUrl,
+                pageSize: args.getDashboardChartsPageSize,
+            }),
+        generateDashboard: () =>
+            getGenerateDashboardV2({
+                agentContext,
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                getPrompt: dependencies.getPrompt,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+            }),
+        generateVisualization: () =>
+            getRunQuery({
+                purpose: 'visualization',
+                documentsEnabled,
+                agentContext,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+                conversation: decisionContext,
+                presentationInstructions: args.agentSettings.instruction,
+                allowPresentationCorrection:
+                    args.messageHistory.filter(
+                        (message) => message.role === 'user',
+                    ).length <= 1,
+                searchFieldValues: dependencies.searchFieldValues,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                exposeQueryUuid: args.execution.mode === 'deep_research',
+                enableChartExport:
+                    !!args.decisions && args.execution.mode === 'standard',
+                enableDataAccess: args.enableDataAccess,
+                projectParameterDefinitions,
+                slackLinksOnly: args.slackLinksOnly,
+                enableFilterExpressions: args.enableFilterExpressions,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                exportCustomChartTypeImage:
+                    dependencies.exportCustomChartTypeImage,
+            }),
+        runQuery: () =>
+            getRunQuery({
+                purpose: 'answer',
+                documentsEnabled,
+                enableFastResponse: args.enableDataAnswerFastResponse,
+                agentContext,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+                conversation: decisionContext,
+                presentationInstructions: args.agentSettings.instruction,
+                allowPresentationCorrection: false,
+                searchFieldValues: dependencies.searchFieldValues,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                exposeQueryUuid: false,
+                enableChartExport: false,
+                enableDataAccess: true,
+                projectParameterDefinitions,
+                slackLinksOnly: args.slackLinksOnly,
+                enableFilterExpressions: args.enableFilterExpressions,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                exportCustomChartTypeImage:
+                    dependencies.exportCustomChartTypeImage,
+            }),
+        exportChartAsCode: () =>
+            getExportChartAsCode(
+                agentContext,
+                dependencies.chartExportArtifacts,
+            ),
+        runSavedChart: () =>
+            getRunSavedChart({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runAsyncQuery: queryDependencies.runAsyncQuery,
+                getSavedChart: dependencies.getSavedChart,
+                maxLimit: args.maxQueryLimit,
+                maxContextRows: args.maxContextRows,
+                enableDataAccess: args.enableDataAccess,
+            }),
+        generateHashes: () => getGenerateHashes(),
+        generateUuids: () => getGenerateUuids(),
+        generateDataApp: () =>
+            getGenerateDataApp({
+                generateDataApp: dependencies.generateDataApp,
+            }),
+        iterateDataApp: () =>
+            getIterateDataApp({ iterateDataApp: dependencies.iterateDataApp }),
+        listDataAppThemes: () =>
+            getListDataAppThemes({
+                listDataAppThemes: dependencies.listDataAppThemes,
+            }),
+        listDataAppConnections: () =>
+            getListDataAppConnections({
+                listDataAppConnections: dependencies.listDataAppConnections,
+            }),
+        editDbtProject: () =>
+            getEditDbtProject({ editDbtProject: dependencies.editDbtProject }),
+        editProjectContext: () =>
+            getEditProjectContext({
+                editProjectContext: dependencies.editProjectContext,
+            }),
+        editRepo: () => getEditRepo({ editRepo: dependencies.editRepo }),
+        syncDbtProject: () =>
+            getSyncDbtProject({
+                syncDbtProject: dependencies.syncDbtProject,
+                updateProgress: dependencies.updateProgress,
+            }),
+        setupPreviewDeploy: () =>
+            getSetupPreviewDeploy({
+                setupPreviewDeploy: dependencies.setupPreviewDeploy,
+            }),
+        exploreRepo: () =>
+            getExploreRepo({ exploreRepo: dependencies.exploreRepo }),
+        readAttachments: () =>
+            getReadAttachments({
+                readAttachments: dependencies.readAttachments,
+            }),
+        discoverRepos: () =>
+            getDiscoverRepos({ discoverRepos: dependencies.discoverRepos }),
+        listWorkstreams: () =>
+            getListWorkstreams({
+                listWorkstreams: dependencies.listWorkstreams,
+            }),
+        closePullRequest: () =>
+            getClosePullRequest({
+                closePullRequest: dependencies.closePullRequest,
+            }),
+        // Read-only companion to the workstream tools: lets the agent inspect a
+        // pull request's diff before splitting or consolidating changes.
+        getPullRequestDiff: () =>
+            getGetPullRequestDiff({
+                getPullRequestDiff: dependencies.getPullRequestDiff,
+            }),
+        searchFieldValues: () =>
+            getSearchFieldValues({
+                decisions: args.decisions,
+                searchFieldValues: dependencies.searchFieldValues,
+                getExplore: dependencies.getExplore,
+                enableFilterExpressions: args.enableFilterExpressions,
+            }),
+        findCustomChartTypes: () =>
+            getFindCustomChartTypes({
+                findCustomChartTypes: dependencies.findCustomChartTypes,
+                updateProgress: dependencies.updateProgress,
+            }),
+        runSql: () =>
+            getRunSql({
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runSqlJob: queryDependencies.runSqlJob,
+                getPrompt: dependencies.getPrompt,
+                sendFile: dependencies.sendFile,
+                updateSlackMessage: dependencies.updateSlackMessage,
+                siteUrl: args.siteUrl,
+                waitForSqlApproval: dependencies.waitForSqlApproval,
+                recordSqlApproval: dependencies.recordSqlApproval,
+                isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+                trackSqlApprovalTimeout,
+                storeToolResults: dependencies.storeToolResults,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                maxQueryLimit: args.runSqlMaxLimit,
+                enableDataAccess: args.enableDataAccess,
+                slackLinksOnly: args.slackLinksOnly,
+                sqlScope: args.sqlScope,
+                hyphenatedIdentifiers: args.hyphenatedIdentifiers,
+                autoApproveSql: args.autoApproveSql,
+                autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                useSlackStreamCard: args.useSlackStreamCard,
+            }),
+        runComposerQueries: () =>
+            getRunComposerQueries({
+                agentContext,
+                reviewQuery,
+                updateProgress: dependencies.updateProgress,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                getPrompt: dependencies.getPrompt,
+                updateSlackMessage: dependencies.updateSlackMessage,
+                siteUrl: args.siteUrl,
+                waitForSqlApproval: dependencies.waitForSqlApproval,
+                recordSqlApproval: dependencies.recordSqlApproval,
+                isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+                trackSqlApprovalTimeout,
+                storeToolResults: dependencies.storeToolResults,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                registerThreadComposerQueryNodes:
+                    dependencies.registerThreadComposerQueryNodes,
+                maxQueryLimit: args.runSqlMaxLimit,
+                enableDataAccess: args.enableDataAccess,
+                canRunSql: args.canRunSql,
+                enablePythonNodes: args.enableComposerPythonNodes,
+                autoApproveSql: args.autoApproveSql,
+                autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+                useSlackStreamCard: args.useSlackStreamCard,
+            }),
+        listWarehouseTables: () =>
+            getListWarehouseTables({
+                decisions: decisionsInStandardMode,
+                userQuestion: getAgentQuestion(args),
+                listWarehouseTables: dependencies.listWarehouseTables,
+            }),
+        describeWarehouseTable: () =>
+            getDescribeWarehouseTable({
+                describeWarehouseTable: dependencies.describeWarehouseTable,
+            }),
+        loadSkill: () => getLoadSkill({ loadSkill: dependencies.loadSkill }),
+        loadProjectContext: () =>
+            getLoadProjectContext({
+                getDocument: async () => {
+                    const [projectContext, memories] = await Promise.all([
+                        args.projectContextEnabled
+                            ? dependencies.getProjectContextDocument()
+                            : Promise.resolve([]),
+                        args.aiAgentMemoryEnabled
+                            ? dependencies.getAiAgentMemoryContextEntries()
+                            : Promise.resolve([]),
+                    ]);
+                    return getProjectContextSearchEntries({
+                        projectContext,
+                        memories,
+                        memoryEnabled: args.aiAgentMemoryEnabled,
+                    });
+                },
+                includeMemories: args.aiAgentMemoryEnabled,
+                onEntriesLoaded: args.aiAgentMemoryEnabled
+                    ? dependencies.incrementAiAgentMemoryPulls
+                    : undefined,
+            }),
+        loadMcpTools: () => getLoadMcpTools(mcpToolNames),
+        loadAgentTools: () => getLoadAgentTools(),
     };
 
-    const mergedTools = { ...tools, ...mcpTools };
+    const tools: ToolSet = Object.fromEntries(
+        (Object.keys(toolBuilders) as NativeAgentToolName[])
+            .filter((toolName) => loadout.toolNames.has(toolName))
+            .map((toolName) => [toolName, toolBuilders[toolName]()]),
+    );
 
-    // Deep-research roles reshape the toolset: the coordinator gains delegation,
-    // and a worker is cut down to the warehouse tools its one task needs so the
-    // agent's full context is not reloaded per worker.
+    // Deep research offers only MCP tools from the project's own Lightdash
+    // server; a standard allowlist run gets no MCP tools at all.
     const research =
         args.execution.mode === 'deep_research'
             ? args.execution.research
             : undefined;
-    const trustedDeepResearchMcpToolNames = research
-        ? getTrustedDeepResearchMcpToolNames(args, mcpToolSetup)
-        : new Set<string>();
-    const getResearchTools = (): ToolSet | null => {
-        switch (research?.role) {
-            case 'coordinator':
-                return {
-                    ...Object.fromEntries(
-                        Object.entries(mergedTools).filter(
-                            ([toolName]) =>
-                                DEEP_RESEARCH_COORDINATOR_TOOL_NAMES.has(
-                                    toolName,
-                                ) ||
-                                trustedDeepResearchMcpToolNames.has(toolName),
-                        ),
-                    ),
-                    delegateResearchTask: getDelegateResearchTask({
-                        runTask: research.runTask,
-                    }),
-                };
-            case 'worker':
-                return {
-                    ...Object.fromEntries(
-                        Object.entries(mergedTools).filter(
-                            ([toolName]) =>
-                                DEEP_RESEARCH_WORKER_TOOL_NAMES.has(toolName) ||
-                                trustedDeepResearchMcpToolNames.has(toolName),
-                        ),
-                    ),
-                    submitWorkerFindings: getSubmitWorkerFindings({
-                        onFindings: research.onFindings,
-                    }),
-                };
-            case undefined:
-                return null;
-            default:
-                return assertUnreachable(research, 'Unknown research role');
-        }
-    };
-    const researchTools = getResearchTools();
     const allowlist =
         args.execution.mode === 'standard'
             ? args.execution.toolAllowlist
             : undefined;
-    // A standard run can pin itself to a read-only subset (data-app
-    // investigations); MCP tools are excluded from such runs entirely.
-    const finalTools =
-        researchTools ??
-        (allowlist
-            ? Object.fromEntries(
-                  Object.entries(tools).filter(([toolName]) =>
-                      allowlist.has(toolName),
-                  ),
-              )
-            : mergedTools);
+    const getMcpTools = (): ToolSet => {
+        if (research) {
+            const trusted = getTrustedDeepResearchMcpToolNames(
+                args,
+                mcpToolSetup,
+            );
+            return Object.fromEntries(
+                Object.entries(runnableMcpTools).filter(([toolName]) =>
+                    trusted.has(toolName),
+                ),
+            );
+        }
+        return allowlist ? {} : runnableMcpTools;
+    };
+    const getResearchTools = (): ToolSet => {
+        switch (research?.role) {
+            case 'coordinator':
+                return loadout.toolNames.has('delegateResearchTask')
+                    ? {
+                          delegateResearchTask: getDelegateResearchTask({
+                              runTask: research.runTask,
+                          }),
+                      }
+                    : {};
+            case 'worker':
+                return loadout.toolNames.has('submitWorkerFindings')
+                    ? {
+                          submitWorkerFindings: getSubmitWorkerFindings({
+                              onFindings: research.onFindings,
+                          }),
+                      }
+                    : {};
+            case undefined:
+                return {};
+            default:
+                return assertUnreachable(research, 'Unknown research role');
+        }
+    };
+    // A standard run can pin itself to a read-only subset (data-app investigations).
+    const nativeTools = allowlist
+        ? Object.fromEntries(
+              Object.entries(tools).filter(([toolName]) =>
+                  allowlist.has(toolName),
+              ),
+          )
+        : tools;
+    const finalTools = {
+        ...nativeTools,
+        ...getMcpTools(),
+        ...getResearchTools(),
+    };
 
     logger(
         'Agent Tools',
@@ -2625,23 +2466,17 @@ export const getPromptMcpServers = (
 
 const getCapabilitySectionArgs = (
     args: AiAgentArgs,
+    loadout: Loadout,
     customChartTypeLibrary: CustomChartTypeLibrary,
 ): CapabilitySectionArgs => ({
+    promptSections: loadout.promptSections,
     availableSkills: args.availableSkills,
-    enableFastMetadata: !!args.decisions && args.execution.mode === 'standard',
-    enableContentTools: args.enableDataAccess && args.enableContentTools,
-    enableDocuments:
-        args.enableDataAccess &&
-        args.enableContentTools &&
-        args.enableDocuments,
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
     enableDocumentCustomCharts:
         customChartTypeLibrary.totalCount > 0 && isChartExportEnabled(args),
-    enableGenerateDataApp: args.enableGenerateDataApp,
     slackChannelId: args.slackChannelId,
-    canRunSql: args.canRunSql,
     enableComposerQueries: args.enableComposerQueries,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
@@ -2652,6 +2487,7 @@ const getCapabilitySectionArgs = (
 
 export const getAgentMessages = (
     args: AiAgentArgs,
+    loadout: Loadout,
     availableExplores: Explore[],
     mcpToolSetup: AgentMcpToolSetup,
     tools: ToolSet,
@@ -2731,7 +2567,7 @@ export const getAgentMessages = (
         ...getDeepResearchInstructions(),
     ].filter((instruction): instruction is string => !!instruction);
     const systemPrompt = getSystemPromptV2({
-        ...getCapabilitySectionArgs(args, customChartTypeLibrary),
+        ...getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
         deferredSections,
         enableChartExport: isChartExportEnabled(args),
         agentName: args.agentSettings.name,
@@ -2746,14 +2582,11 @@ export const getAgentMessages = (
         deepResearchRuns: args.deepResearchRuns,
         hasProjectContext,
         projectContextPreloaded,
-        enableAiAgentMemory: args.aiAgentMemoryEnabled,
         enableDataAccess: args.enableDataAccess,
         enableFilterExpressions: args.enableFilterExpressions,
-        enableAiWriteback: args.enableAiWriteback,
         writebackAttribution: args.writebackAttribution,
-        enableCodingAgent: args.enableCodingAgent,
         siteUrl: args.siteUrl,
-        enableRepoDiscovery: args.enableRepoDiscovery,
+        canRunSql: args.canRunSql,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
@@ -2882,14 +2715,29 @@ const prepareAgentTurn = async ({
                   getAgentQuestion(args),
               )
             : undefined;
+    const loadout = resolveAgentLoadout(
+        args,
+        mcpToolSetup,
+        customChartTypeLibrary,
+    );
+    Logger.info('AI agent loadout', {
+        event: 'ai_agent.loadout_resolved',
+        promptId: args.promptUuid,
+        threadId: args.threadUuid,
+        organizationId: args.organizationId,
+        projectId: args.agentSettings.projectUuid,
+        base: loadout.base,
+        addOns: [...loadout.addOns].sort(),
+        toolNames: [...loadout.toolNames].sort(),
+    });
     let tools = getAgentTools(
         args,
+        loadout,
         dependencies,
         availableExplores,
         mcpToolSetup,
         verifiedFieldUsage,
         projectParameterDefinitions,
-        customChartTypeLibrary,
         agentContext,
     );
     await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
@@ -2943,7 +2791,7 @@ const prepareAgentTurn = async ({
         turnIntent,
         toolIntents,
         getDeferredToolInstructions(
-            getCapabilitySectionArgs(args, customChartTypeLibrary),
+            getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
             deferredSections,
         ),
     );
@@ -2966,6 +2814,7 @@ const prepareAgentTurn = async ({
         : intentToolGate.tools;
     const messages = getAgentMessages(
         args,
+        loadout,
         availableExplores,
         mcpToolSetup,
         tools,

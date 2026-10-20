@@ -5,6 +5,7 @@ import {
     toolCreateContentOutputSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolExecutionOptions } from 'ai';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import type { DocumentContentResult } from '../types/aiAgentDependencies';
 import type { PreparedChartAsCode } from '../utils/chartAsCode';
@@ -548,8 +549,11 @@ describe('AI Agent Document authoring', () => {
         (enableDocuments) => {
             const prompt = getSystemPromptV2({
                 availableExplores: [],
-                enableContentTools: true,
-                enableDocuments,
+                promptSections: new Set<PromptSection>([
+                    'contentTools',
+                    'schedulingTools',
+                    ...(enableDocuments ? (['documents'] as const) : []),
+                ]),
             });
             expect(
                 prompt.content.includes(

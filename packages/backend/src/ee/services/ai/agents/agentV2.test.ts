@@ -59,6 +59,7 @@ import {
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
+    resolveAgentLoadout,
     scopeAgentConversation,
     shouldOfferDocument,
     storeInvalidAgentToolCall,
@@ -2151,15 +2152,15 @@ describe('getAgentTools workstream tool gate', () => {
     const buildToolsForArgs = (args: AiAgentArgs) =>
         getAgentTools(
             args,
+            resolveAgentLoadout(args, mcpStub, {
+                types: [],
+                totalCount: 0,
+            }),
             depsStub(),
             [],
             mcpStub,
             new Map(),
             {},
-            {
-                types: [],
-                totalCount: 0,
-            },
             new AgentContext([]),
         );
 
@@ -2184,12 +2185,15 @@ describe('getAgentTools workstream tool gate', () => {
                 });
             const tools = getAgentTools(
                 args,
+                resolveAgentLoadout(args, mcpStub, {
+                    types: [],
+                    totalCount: 0,
+                }),
                 depsStub(),
                 [validExplore],
                 mcpStub,
                 new Map(),
                 {},
-                { types: [], totalCount: 0 },
                 new AgentContext([validExplore]),
             );
             const result = await tools.getMetadata.execute!(
@@ -2276,12 +2280,12 @@ describe('getAgentTools workstream tool gate', () => {
         ) as unknown as AiAgentDependencies;
         const tools = getAgentTools(
             args,
+            resolveAgentLoadout(args, mcpStub, { types: [], totalCount: 0 }),
             dependencies,
             [validExplore],
             mcpStub,
             new Map(),
             {},
-            { types: [], totalCount: 0 },
             new AgentContext([validExplore]),
         );
         await tools.generateVisualization.execute!(
@@ -2347,6 +2351,10 @@ describe('getAgentTools workstream tool gate', () => {
             const documentsEnabled = contentEnabled && enableDocuments;
             const systemMessage = getAgentMessages(
                 args,
+                resolveAgentLoadout(args, mcpStub, {
+                    types: [],
+                    totalCount: 0,
+                }),
                 [],
                 mcpStub,
                 tools,
@@ -2395,6 +2403,10 @@ describe('getAgentTools workstream tool gate', () => {
             const tools = buildToolsForArgs(args);
             const systemMessage = getAgentMessages(
                 args,
+                resolveAgentLoadout(args, mcpStub, {
+                    types: [],
+                    totalCount: 0,
+                }),
                 [],
                 mcpStub,
                 tools,
@@ -2546,20 +2558,22 @@ describe('getAgentTools workstream tool gate', () => {
     });
 
     it('exposes loadMcpTools when live MCP tools are registered', () => {
+        const args = buildArgs({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+        });
+        const setup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: { mcp_linear__search_issues: {} as never },
+        };
         const tools = getAgentTools(
-            buildArgs({
-                enableCodingAgent: false,
-                enableAiWriteback: false,
-            }),
+            args,
+            resolveAgentLoadout(args, setup, { types: [], totalCount: 0 }),
             depsStub(),
             [],
-            {
-                ...mcpStub,
-                tools: { mcp_linear__search_issues: {} as never },
-            },
+            setup,
             new Map(),
             {},
-            { types: [], totalCount: 0 },
             new AgentContext([]),
         );
 
@@ -2710,6 +2724,15 @@ describe('getAgentTools workstream tool gate', () => {
         return Object.keys(
             getAgentTools(
                 args,
+                resolveAgentLoadout(
+                    args,
+                    {
+                        ...mcpStub,
+                        tools: researchMcpTools,
+                        mcpToolNameToServerUuid: researchMcpToolServers,
+                    },
+                    { types: [], totalCount: 0 },
+                ),
                 depsStub(),
                 [],
                 {
@@ -2719,7 +2742,6 @@ describe('getAgentTools workstream tool gate', () => {
                 },
                 new Map(),
                 {},
-                { types: [], totalCount: 0 },
                 new AgentContext([]),
             ),
         );
@@ -3133,6 +3155,10 @@ describe('buildAgentMessages', () => {
         const messages = (seed?: string) =>
             getAgentMessages(
                 args,
+                resolveAgentLoadout(args, mcpToolSetup(), {
+                    types: [],
+                    totalCount: 0,
+                }),
                 [validExplore],
                 mcpToolSetup(),
                 {},
@@ -3274,6 +3300,10 @@ describe('scopeAgentConversation', () => {
         args.forceToolHints = true;
         const messages = getAgentMessages(
             args,
+            resolveAgentLoadout(args, mcpToolSetup(), {
+                types: [],
+                totalCount: 0,
+            }),
             [],
             mcpToolSetup(),
             {},
@@ -3541,6 +3571,10 @@ describe('shouldOfferDocument', () => {
             args.messageHistory = history;
             return getAgentMessages(
                 args,
+                resolveAgentLoadout(args, mcpToolSetup(), {
+                    types: [],
+                    totalCount: 0,
+                }),
                 [],
                 mcpToolSetup(),
                 {},
