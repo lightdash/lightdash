@@ -1,0 +1,19 @@
+/* Keeps its width however narrow the cell gets */
+.fixed {
+    flex-shrink: 0;
+}
+
+/* Takes only the room the department name leaves, so the name is never shortened for it */
+.yields {
+    flex: 1 1 0;
+}
+
+/* A value with an explanation in its tooltip; a narrow column cuts it short rather than let it spill */
+.explained {
+    cursor: help;
+    max-width: 100%;
+    text-decoration: underline dotted;
+    text-decoration-color: var(--mantine-color-dimmed);
+    text-underline-offset: 3px;
+    width: fit-content;
+}

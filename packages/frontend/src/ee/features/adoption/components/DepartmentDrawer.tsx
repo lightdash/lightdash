@@ -18,7 +18,6 @@ import {
     Textarea,
     TextInput,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -42,7 +41,6 @@ import {
     cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
-    formatTargetDate,
     getAssignableUsers,
     getParentOptions,
     getResolvedMembers,
@@ -51,19 +49,17 @@ import {
     MAX_OWNERS,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
-    TARGET_DATE_MAX,
-    TARGET_DATE_MIN,
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
+import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
+import { getHeadcountFloor } from '../utils/headcount';
 
 type FormValues = {
     name: string;
     parentDepartmentUuid: string | null;
     headcount: number | string;
     headcountNote: string;
-    targetActiveUsers: number | string;
-    targetDate: string | null;
     owners: string[];
     groupUuids: string[];
     memberUuids: string[];
@@ -85,6 +81,32 @@ type FormProps = {
 };
 
 type SavedDepartment = { departmentUuid: string; core: CreateDepartment };
+
+// The headcount never counts fewer than its sub-departments and the people already on Lightdash, so the field
+// says how many that is
+const getHeadcountHint = (
+    department: DepartmentWithMetrics | null,
+    departments: DepartmentWithMetrics[],
+): string => {
+    const children =
+        department === null
+            ? []
+            : departments.filter(
+                  (each) =>
+                      each.parentDepartmentUuid === department.departmentUuid,
+              );
+    const floor =
+        department === null ? 0 : getHeadcountFloor(department, children);
+    const least =
+        children.length > 0
+            ? `At least ${formatCount(floor)}: its sub-departments and the people already on Lightdash`
+            : `At least ${formatCount(floor)}, the people already on Lightdash`;
+    return [
+        'How many people work in this department',
+        'Leave empty to add up its sub-departments',
+        ...(floor > 0 ? [least] : []),
+    ].join('. ');
+};
 
 const getFullName = (person: {
     firstName: string;
@@ -139,8 +161,6 @@ export const DepartmentForm: FC<FormProps> = ({
             parentDepartmentUuid: department?.parentDepartmentUuid ?? null,
             headcount: department?.headcount ?? '',
             headcountNote: department?.headcountNote ?? '',
-            targetActiveUsers: department?.targetActiveUsers ?? '',
-            targetDate: department?.targetDate ?? null,
             owners: department?.owners.map(encodeOwner) ?? [],
             groupUuids: department?.linkedGroups.map((g) => g.groupUuid) ?? [],
             memberUuids: department?.explicitMemberUuids ?? [],
@@ -159,8 +179,6 @@ export const DepartmentForm: FC<FormProps> = ({
                 value.length > HEADCOUNT_NOTE_MAX_LENGTH
                     ? `Keep the note to ${HEADCOUNT_NOTE_MAX_LENGTH} characters or fewer`
                     : null,
-            targetActiveUsers: (value) =>
-                validateWholeNumber(value, 'Target active users'),
         },
     });
 
@@ -235,8 +253,9 @@ export const DepartmentForm: FC<FormProps> = ({
             parentDepartmentUuid: values.parentDepartmentUuid,
             headcount: toNullableNumber(values.headcount),
             headcountNote: cleanHeadcountNote(values.headcountNote),
-            targetActiveUsers: toNullableNumber(values.targetActiveUsers),
-            targetDate: formatTargetDate(values.targetDate),
+            // Targets are not edited here: a new department has none, and an edit keeps what is set
+            targetActiveUsers: saved?.core.targetActiveUsers ?? null,
+            targetDate: saved?.core.targetDate ?? null,
         };
         setIsSaving(true);
         try {
@@ -318,7 +337,7 @@ export const DepartmentForm: FC<FormProps> = ({
                     />
                     <NumberInput
                         label="Headcount"
-                        description="How many people work in this department. Leave empty to add up its sub-departments"
+                        description={getHeadcountHint(department, departments)}
                         min={0}
                         max={MAX_WHOLE_NUMBER}
                         allowNegative={false}
@@ -343,24 +362,6 @@ export const DepartmentForm: FC<FormProps> = ({
                         clearable
                         {...form.getInputProps('owners')}
                     />
-                    <Group grow align="flex-start">
-                        <NumberInput
-                            label="Target active users"
-                            min={0}
-                            max={MAX_WHOLE_NUMBER}
-                            allowNegative={false}
-                            {...form.getInputProps('targetActiveUsers')}
-                        />
-                        <DateInput
-                            label="Target date"
-                            valueFormat="D MMM YYYY"
-                            minDate={TARGET_DATE_MIN}
-                            maxDate={TARGET_DATE_MAX}
-                            clearable
-                            {...form.getInputProps('targetDate')}
-                        />
-                    </Group>
-
                     <Divider
                         label="Who is in this department"
                         labelPosition="left"
@@ -389,9 +390,7 @@ export const DepartmentForm: FC<FormProps> = ({
                     {department !== null && (
                         <Stack gap="xs">
                             <Text fz="sm" fw={500}>
-                                {resolvedMembers.length === 1
-                                    ? '1 person in this department'
-                                    : `${resolvedMembers.length} people in this department`}
+                                {`${formatQuantity(resolvedMembers.length, PEOPLE)} in this department`}
                             </Text>
                             <ScrollArea.Autosize mah={220}>
                                 <Stack gap="xs">
@@ -418,7 +417,7 @@ export const DepartmentForm: FC<FormProps> = ({
                             {hiddenMemberCount > 0 &&
                                 (members !== null ? (
                                     <Text fz="xs" c="dimmed">
-                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, everyone is listed under People on this page`}
+                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, everyone is listed under People on this page`}
                                     </Text>
                                 ) : (
                                     <Anchor
@@ -428,7 +427,7 @@ export const DepartmentForm: FC<FormProps> = ({
                                         )}
                                         fz="xs"
                                     >
-                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, see everyone on the department page`}
+                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, see everyone on the department page`}
                                     </Anchor>
                                 ))}
                         </Stack>

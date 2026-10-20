@@ -5,15 +5,13 @@ import {
     ParameterError,
     QueryExecutionContext,
     resolveDepartmentMembership,
+    type ActivityWindows,
     type CreateDepartment,
     type UpdateDepartment,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import {
-    DepartmentAnalyticsModel,
-    type ActivityWindows,
-} from '../../../models/DepartmentAnalyticsModel';
+import { DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
     DepartmentModel,
     type DepartmentTreeLimits,
@@ -253,7 +251,6 @@ const parentOf = async (departmentUuid: string) =>
 
 const windowsAt = (now: Date): ActivityWindows => ({
     activeSince: new Date(now.getTime() - 30 * DAY),
-    trendSince: new Date(now.getTime() - 84 * DAY),
     lastActiveSince: new Date(now.getTime() - 90 * DAY),
 });
 
@@ -646,7 +643,7 @@ describe('two organizations on the real schema', () => {
             [me.userUuid],
             windows,
         );
-        expect(activity.activeUserUuids).toEqual([me.userUuid]);
+        expect(activity.lastActiveAt).toEqual(new Map([[me.userUuid, myView]]));
         expect(activity.weeklyActivity).toHaveLength(1);
         expect(activity.weeklyActivity[0]?.userUuid).toBe(me.userUuid);
         expect(
@@ -679,7 +676,7 @@ describe('two organizations on the real schema', () => {
             [them.userUuid],
             windows,
         );
-        expect(theirActivity.activeUserUuids).toEqual([them.userUuid]);
+        expect([...theirActivity.lastActiveAt.keys()]).toEqual([them.userUuid]);
         const theirContent = await analytics.getTopContent(
             theirs.organizationUuid,
             [them.userUuid],
@@ -731,8 +728,21 @@ describe('two organizations on the real schema', () => {
             people.map((p) => p.userUuid),
             windows,
         );
-        expect([...activity.activeUserUuids].sort()).toEqual(
-            [recent.userUuid, querier.userUuid].sort(),
+        // Everyone with any activity in the last 90 days, at their latest; nobody older, nothing scheduled
+        expect(
+            new Map(
+                [...activity.lastActiveAt].map(([userUuid, at]) => [
+                    userUuid,
+                    Math.round((now.getTime() - at.getTime()) / DAY),
+                ]),
+            ),
+        ).toEqual(
+            new Map([
+                [recent.userUuid, 29],
+                [lapsed.userUuid, 31],
+                [old.userUuid, 89],
+                [querier.userUuid, 10],
+            ]),
         );
 
         const members = new Map(

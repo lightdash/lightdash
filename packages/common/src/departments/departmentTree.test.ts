@@ -7,6 +7,7 @@ import {
     getDepthMap,
     getDescendantUuids,
     getParentMap,
+    getResidualHeadcount,
     rollUpByDepartment,
     wouldCreateCycle,
 } from './departmentTree';
@@ -87,44 +88,169 @@ describe('computeEffectiveHeadcounts', () => {
             ...n,
             headcount: headcounts[n.departmentUuid] ?? null,
         }));
+    const NOBODY = new Map<string, number>();
 
     it('uses the own value when set', () => {
         const result = computeEffectiveHeadcounts(
             withHeadcount({ ops: 100, stores: 40, depots: 20 }),
+            NOBODY,
         );
         expect(result.get('ops')).toEqual({
             effectiveHeadcount: 100,
+            hasHeadcount: true,
             headcountBelowChildren: false,
         });
     });
     it('sums children when the own value is missing, through several levels', () => {
         const result = computeEffectiveHeadcounts(
             withHeadcount({ north: 15, depots: 20 }),
+            NOBODY,
         );
-        expect(result.get('stores')?.effectiveHeadcount).toBe(15);
+        expect(result.get('stores')).toEqual({
+            effectiveHeadcount: 15,
+            hasHeadcount: true,
+            headcountBelowChildren: false,
+        });
         expect(result.get('ops')?.effectiveHeadcount).toBe(35);
     });
-    it('flags an own value smaller than the children sum and still uses it', () => {
+    it('flags an own value smaller than the children sum and counts their sum instead', () => {
         const result = computeEffectiveHeadcounts(
             withHeadcount({ ops: 30, stores: 40, depots: 20 }),
+            NOBODY,
         );
         expect(result.get('ops')).toEqual({
-            effectiveHeadcount: 30,
+            effectiveHeadcount: 60,
+            hasHeadcount: true,
             headcountBelowChildren: true,
         });
     });
-    it('is null, not zero, when neither the department nor its children have a headcount', () => {
-        const result = computeEffectiveHeadcounts(withHeadcount({}));
-        expect(result.get('ops')).toEqual({
-            effectiveHeadcount: null,
+    it('never goes below its sub-departments plus the people directly in it', () => {
+        // Ops rolls up 9 people on Lightdash: Stores' 4, Depots' 3 and 2 of its own
+        const people = new Map([
+            ['ops', 9],
+            ['stores', 4],
+            ['north', 0],
+            ['depots', 3],
+        ]);
+        const entered = computeEffectiveHeadcounts(
+            withHeadcount({ ops: 30, stores: 20, depots: 10 }),
+            people,
+        );
+        // Its 30 is all taken by Stores and Depots, so its own 2 people add to it, and it says so
+        expect(entered.get('ops')).toEqual({
+            effectiveHeadcount: 32,
+            hasHeadcount: true,
+            headcountBelowChildren: true,
+        });
+        const summed = computeEffectiveHeadcounts(
+            withHeadcount({ stores: 20, depots: 10 }),
+            people,
+        );
+        // Nothing was entered on Ops, so nothing is below anything
+        expect(summed.get('ops')).toEqual({
+            effectiveHeadcount: 32,
+            hasHeadcount: true,
             headcountBelowChildren: false,
         });
+    });
+    it('flags a headcount equal to its sub-departments when people sit directly in the department', () => {
+        // 440 entered, 440 in its sub-departments and 12 people directly in it, as Engineering in the 6,000 shape
+        const result = computeEffectiveHeadcounts(
+            [
+                {
+                    departmentUuid: 'eng',
+                    parentDepartmentUuid: null,
+                    headcount: 440,
+                },
+                {
+                    departmentUuid: 'apps',
+                    parentDepartmentUuid: 'eng',
+                    headcount: 300,
+                },
+                {
+                    departmentUuid: 'platform',
+                    parentDepartmentUuid: 'eng',
+                    headcount: 140,
+                },
+            ],
+            new Map([
+                ['eng', 313],
+                ['apps', 201],
+                ['platform', 100],
+            ]),
+        );
+        expect(result.get('eng')).toEqual({
+            effectiveHeadcount: 452,
+            hasHeadcount: true,
+            headcountBelowChildren: true,
+        });
+    });
+    it('never goes below the people on Lightdash, so a headcount only adds people without an account', () => {
+        // Stores has 9 people on Lightdash for a headcount of 8; Ops rolls up 12 for a headcount of 10
+        const result = computeEffectiveHeadcounts(
+            withHeadcount({ ops: 10, stores: 8, depots: 2 }),
+            new Map([
+                ['ops', 12],
+                ['stores', 9],
+                ['north', 0],
+                ['depots', 2],
+            ]),
+        );
+        expect(result.get('stores')?.effectiveHeadcount).toBe(9);
+        expect(result.get('depots')?.effectiveHeadcount).toBe(2);
+        // Below its sub-departments' 11, and floored at the 12 people on Lightdash it rolls up
+        expect(result.get('ops')).toEqual({
+            effectiveHeadcount: 12,
+            hasHeadcount: true,
+            headcountBelowChildren: true,
+        });
+    });
+    it('counts the people on Lightdash when neither the department nor anything below it has a headcount', () => {
+        const result = computeEffectiveHeadcounts(
+            withHeadcount({}),
+            new Map([
+                ['ops', 5],
+                ['stores', 3],
+                ['north', 1],
+                ['depots', 2],
+                ['finance', 0],
+            ]),
+        );
+        expect(result.get('ops')).toEqual({
+            effectiveHeadcount: 5,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+        });
+        expect(result.get('north')).toEqual({
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+        });
+        expect(result.get('finance')?.effectiveHeadcount).toBe(0);
     });
     it('keeps an explicit zero distinct from missing', () => {
         const result = computeEffectiveHeadcounts(
             withHeadcount({ finance: 0 }),
+            NOBODY,
         );
-        expect(result.get('finance')?.effectiveHeadcount).toBe(0);
+        expect(result.get('finance')).toEqual({
+            effectiveHeadcount: 0,
+            hasHeadcount: true,
+            headcountBelowChildren: false,
+        });
+    });
+});
+
+describe('getResidualHeadcount', () => {
+    it('keeps what a department leaves over its sub-departments for the people directly in it', () => {
+        expect(getResidualHeadcount(40, 30, 4)).toBe(10);
+    });
+    it('never keeps fewer than the people directly in it', () => {
+        expect(getResidualHeadcount(30, 30, 2)).toBe(2);
+        expect(getResidualHeadcount(30, 35, 0)).toBe(0);
+    });
+    it('is the effective headcount for a department without sub-departments', () => {
+        expect(getResidualHeadcount(8, 0, 3)).toBe(8);
     });
 });
 
@@ -172,6 +298,7 @@ describe('very deep and very wide trees', () => {
                 ...n,
                 headcount: n.departmentUuid === leaf ? 7 : null,
             })),
+            new Map(),
         );
         expect(deep.size).toBe(SIZE);
         expect(deep.get('d0')?.effectiveHeadcount).toBe(7);
@@ -180,6 +307,7 @@ describe('very deep and very wide trees', () => {
                 ...n,
                 headcount: n.departmentUuid === 'root' ? null : 1,
             })),
+            new Map(),
         );
         expect(broad.get('root')?.effectiveHeadcount).toBe(SIZE);
     });
@@ -249,35 +377,48 @@ const recursiveEffectiveHeadcounts = (
         parentDepartmentUuid: string | null;
         headcount: number | null;
     }[],
+    memberCounts: Map<string, number>,
 ) => {
     const children = getChildrenMap(input);
     const byUuid = new Map(input.map((n) => [n.departmentUuid, n]));
-    const result = new Map<
-        string,
-        { effectiveHeadcount: number | null; headcountBelowChildren: boolean }
-    >();
-    const visit = (
-        uuid: string,
-        path: Set<string>,
-    ): {
-        effectiveHeadcount: number | null;
+    type Value = {
+        effectiveHeadcount: number;
+        hasHeadcount: boolean;
         headcountBelowChildren: boolean;
-    } => {
+    };
+    const result = new Map<string, Value>();
+    const visit = (uuid: string, path: Set<string>): Value => {
         const cached = result.get(uuid);
         if (cached) return cached;
-        const values = (children.get(uuid) ?? [])
-            .filter((child) => !path.has(child))
-            .map(
-                (child) =>
-                    visit(child, new Set([...path, child])).effectiveHeadcount,
-            )
-            .filter((value): value is number => value !== null);
+        const visitedUuids = (children.get(uuid) ?? []).filter(
+            (child) => !path.has(child),
+        );
+        const visited = visitedUuids.map((child) =>
+            visit(child, new Set([...path, child])),
+        );
         const sum =
-            values.length > 0 ? values.reduce((a, b) => a + b, 0) : null;
+            visited.length > 0
+                ? visited.reduce((a, b) => a + b.effectiveHeadcount, 0)
+                : null;
+        const gaps = visited.reduce(
+            (total, child, index) =>
+                total +
+                child.effectiveHeadcount -
+                (memberCounts.get(visitedUuids[index]) ?? 0),
+            0,
+        );
         const own = byUuid.get(uuid)?.headcount ?? null;
         const value = {
-            effectiveHeadcount: own ?? sum,
-            headcountBelowChildren: own !== null && sum !== null && own < sum,
+            effectiveHeadcount: Math.max(
+                own ?? sum ?? 0,
+                (memberCounts.get(uuid) ?? 0) + gaps,
+            ),
+            hasHeadcount:
+                own !== null || visited.some((child) => child.hasHeadcount),
+            headcountBelowChildren:
+                own !== null &&
+                sum !== null &&
+                own < Math.max(sum, (memberCounts.get(uuid) ?? 0) + gaps),
         };
         result.set(uuid, value);
         return value;
@@ -336,9 +477,15 @@ describe('iterative walks match the recursive ones', () => {
         'gives the same headcounts, roll-ups and depths for random tree %i',
         (seed) => {
             const tree = randomTree(seed);
-            expect([...computeEffectiveHeadcounts(tree)]).toEqual([
-                ...recursiveEffectiveHeadcounts(tree),
-            ]);
+            // People on Lightdash for some departments, at times above their headcount
+            const memberCounts = new Map(
+                tree
+                    .filter((_, i) => i % 2 === 0)
+                    .map((n, i) => [n.departmentUuid, (i * 7) % 40]),
+            );
+            expect([...computeEffectiveHeadcounts(tree, memberCounts)]).toEqual(
+                [...recursiveEffectiveHeadcounts(tree, memberCounts)],
+            );
             const direct = new Map(
                 tree
                     .filter((_, i) => i % 3 !== 0)

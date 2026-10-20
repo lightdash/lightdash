@@ -8,7 +8,6 @@ import {
     cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
-    formatTargetDate,
     getAssignableUsers,
     getDepartmentPathLabel,
     getParentOptions,
@@ -143,23 +142,6 @@ describe('getResolvedMembers', () => {
             getResolvedMembers(membership, departments, 'stores'),
         ).toHaveLength(1);
         expect(getResolvedMembers([], departments, 'ops')).toEqual([]);
-    });
-});
-
-describe('formatTargetDate', () => {
-    it('uses the local calendar day, never the UTC day', () => {
-        expect(formatTargetDate(new Date(2026, 9, 7, 23, 59, 59))).toBe(
-            '2026-10-07',
-        );
-        expect(formatTargetDate(new Date(2026, 0, 1, 0, 0, 1))).toBe(
-            '2026-01-01',
-        );
-    });
-    it('passes a calendar day string through and maps empty to null', () => {
-        expect(formatTargetDate('2026-10-07')).toBe('2026-10-07');
-        expect(formatTargetDate(null)).toBeNull();
-        expect(formatTargetDate('')).toBeNull();
-        expect(formatTargetDate(new Date('invalid'))).toBeNull();
     });
 });
 

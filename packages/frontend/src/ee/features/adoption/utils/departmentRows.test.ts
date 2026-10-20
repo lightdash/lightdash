@@ -5,7 +5,6 @@ import {
     formatOwners,
     formatRoleSplit,
     formatShare,
-    formatTarget,
 } from './departmentRows';
 
 const tree = [
@@ -104,6 +103,10 @@ describe('formatShare', () => {
         expect(formatShare(null, 1)).toBe('1 person');
         expect(formatShare(null, 0)).toBe('0 people');
     });
+    it('groups thousands in the count', () => {
+        expect(formatShare(56, 1317)).toBe('56% (1,317)');
+        expect(formatShare(null, 1951)).toBe('1,951 people');
+    });
 });
 
 describe('formatters', () => {
@@ -115,7 +118,27 @@ describe('formatters', () => {
                 editors: 1,
                 admins: 0,
             }),
-        ).toBe('5 viewers, 2 interactive, 1 editor');
+        ).toBe('5 viewers, 2 interactive viewers, 1 editor');
+    });
+    it('groups thousands in the role split', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 1317,
+                interactiveViewers: 1200,
+                editors: 1,
+                admins: 2,
+            }),
+        ).toBe('1,317 viewers, 1,200 interactive viewers, 1 editor, 2 admins');
+    });
+    it('names one interactive viewer in the singular and leaves out empty roles', () => {
+        expect(
+            formatRoleSplit({
+                viewers: 0,
+                interactiveViewers: 1,
+                editors: 0,
+                admins: 3,
+            }),
+        ).toBe('1 interactive viewer, 3 admins');
     });
     it('shows the first owner and counts the rest', () => {
         expect(formatOwners([])).toBe('–');
@@ -129,17 +152,6 @@ describe('formatters', () => {
                 { type: 'user', uuid: 'v', name: 'Bo K' },
             ]),
         ).toBe('Ops leads +2');
-    });
-    it('formats the target with and without a date', () => {
-        expect(
-            formatTarget({ targetActiveUsers: null, targetDate: null }),
-        ).toBe('–');
-        expect(formatTarget({ targetActiveUsers: 40, targetDate: null })).toBe(
-            '40 active',
-        );
-        expect(
-            formatTarget({ targetActiveUsers: 40, targetDate: '2026-12-31' }),
-        ).toBe('40 active by 31 Dec 2026');
     });
 });
 

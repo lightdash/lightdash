@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { memberFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
-    countWithoutAccount,
     filterMembers,
     formatLastActive,
     formatMemberSource,
-    formatTargetProgress,
+    formatTopContentUsage,
     getActiveCaption,
     getCoverageCaption,
+    getWeekAxisLabels,
+    getWeekLabels,
     getWeeklyChartLabel,
+    getWeeklyComparison,
+    getTopContentPath,
+    getWeekTooltipRows,
     sortMembers,
 } from './departmentDetail';
 
@@ -27,10 +31,15 @@ describe('filterMembers', () => {
     it('returns everyone for all', () => {
         expect(filterMembers(members, 'all')).toHaveLength(5);
     });
-    it('no recorded activity means no timestamp at all', () => {
+    it('no activity in 90 days means no timestamp at all', () => {
         expect(
             filterMembers(members, 'noRecordedActivity').map((m) => m.userUuid),
         ).toEqual(['never']);
+    });
+    it('active in 30 days follows the server flag', () => {
+        expect(
+            filterMembers(members, 'active30d').map((m) => m.userUuid),
+        ).toEqual(['edge', 'recent']);
     });
     it('inactive 30d means active once but not in the last 30 days', () => {
         expect(
@@ -51,14 +60,21 @@ describe('filterMembers', () => {
     it('counts each filter', () => {
         expect(countMembersByFilter(members)).toEqual({
             all: 5,
-            noRecordedActivity: 1,
+            active30d: 2,
             inactive30d: 2,
+            noRecordedActivity: 1,
         });
+    });
+    it('splits everyone into active, not active and no activity in 90 days', () => {
+        const counts = countMembersByFilter(members);
+        expect(
+            counts.active30d + counts.inactive30d + counts.noRecordedActivity,
+        ).toBe(counts.all);
     });
 });
 
 describe('sortMembers', () => {
-    it('puts no recorded activity first, then the least recently active', () => {
+    it('puts no activity in 90 days first, then the least recently active', () => {
         const shuffled = [
             members[4],
             members[1],
@@ -83,7 +99,7 @@ describe('sortMembers', () => {
 
 describe('formatLastActive', () => {
     it.each([
-        [null, 'No recorded activity'],
+        [null, 'No activity in 90 days'],
         ['2026-10-07T00:00:00Z', 'Today'],
         ['2026-10-07T08:00:00Z', 'Today'],
         ['2026-10-06T23:59:00Z', 'Yesterday'],
@@ -130,81 +146,167 @@ describe('formatMemberSource', () => {
     });
 });
 
-describe('formatTargetProgress', () => {
-    const progress = {
-        targetActiveUsers: 10,
-        targetDate: '2026-12-31' as string | null,
-        activeUsers: 2,
-        remaining: 8,
-        weeksLeft: 13 as number | null,
+describe('getWeeklyComparison', () => {
+    const week = (weekStart: string, activeUsers: number) => ({
+        weekStart,
+        activeUsers,
+    });
+    const organization = {
+        memberCount: 2000,
+        weeklyActive: [
+            week('2026-09-21', 1000),
+            week('2026-09-28', 500),
+            week('2026-10-05', 250),
+        ],
     };
-    it('prompts when there is no target', () => {
-        expect(formatTargetProgress(null)).toEqual({
-            value: '–',
-            detail: 'No target set',
+    const department = [
+        week('2026-09-21', 30),
+        week('2026-09-28', 40),
+        week('2026-10-05', 5),
+    ];
+
+    it("is the organization's weekly rate times this department's people on Lightdash", () => {
+        expect(getWeeklyComparison(department, 200, organization)).toEqual([
+            { weekStart: '2026-09-21', activeUsers: 30, atOrgRate: 100 },
+            { weekStart: '2026-09-28', activeUsers: 40, atOrgRate: 50 },
+            { weekStart: '2026-10-05', activeUsers: 5, atOrgRate: 25 },
+        ]);
+    });
+    it('compares rates, so a small department active at a higher rate plots above the line', () => {
+        // 1,951 on Lightdash with 811 active; 67 in the department with 57 active
+        const [point] = getWeeklyComparison([week('2026-10-05', 57)], 67, {
+            memberCount: 1951,
+            weeklyActive: [week('2026-10-05', 811)],
         });
+        expect(point.atOrgRate).toBe(27.9);
+        expect(point.activeUsers).toBeGreaterThan(point.atOrgRate ?? 0);
     });
-    it('shows progress, what is left and the time remaining', () => {
-        expect(formatTargetProgress(progress)).toEqual({
-            value: '2 of 10',
-            detail: '8 to go · 13 weeks left',
-        });
-        expect(formatTargetProgress({ ...progress, weeksLeft: 1 }).detail).toBe(
-            '8 to go · 1 week left',
-        );
-    });
-    it('says due this week on the target day', () => {
-        expect(formatTargetProgress({ ...progress, weeksLeft: 0 }).detail).toBe(
-            '8 to go · Due this week',
-        );
-    });
-    it('says how overdue once the date has passed', () => {
+    it('rounds to one decimal place', () => {
         expect(
-            formatTargetProgress({ ...progress, weeksLeft: -1 }).detail,
-        ).toBe('8 to go · 1 week overdue');
-        expect(
-            formatTargetProgress({ ...progress, weeksLeft: -2 }).detail,
-        ).toBe('8 to go · 2 weeks overdue');
+            getWeeklyComparison(department, 191, organization).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([95.5, 47.8, 23.9]);
     });
-    it('gives no time phrase without a date', () => {
+    it('matches weeks by their start date, not their position', () => {
+        const shifted = {
+            memberCount: 2000,
+            weeklyActive: [week('2026-09-28', 500), week('2026-10-05', 250)],
+        };
         expect(
-            formatTargetProgress({
-                ...progress,
-                targetDate: null,
-                weeksLeft: null,
-            }).detail,
-        ).toBe('8 to go');
+            getWeeklyComparison(department, 200, shifted).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, 50, 25]);
     });
-    it('says the target is met whatever the date', () => {
+    it('has no comparison until the organization numbers are loaded', () => {
         expect(
-            formatTargetProgress({
-                ...progress,
-                activeUsers: 14,
-                remaining: 0,
-                weeksLeft: -3,
+            getWeeklyComparison(department, 200, null).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, null, null]);
+    });
+    it('has no comparison for a department with nobody on Lightdash', () => {
+        expect(
+            getWeeklyComparison(department, 0, organization).map(
+                (point) => point.atOrgRate,
+            ),
+        ).toEqual([null, null, null]);
+        expect(
+            getWeeklyComparison([week('2026-10-05', 0)], 0, {
+                memberCount: 0,
+                weeklyActive: [week('2026-10-05', 0)],
             }),
-        ).toEqual({ value: '14 of 10', detail: 'Target met' });
+        ).toEqual([
+            { weekStart: '2026-10-05', activeUsers: 0, atOrgRate: null },
+        ]);
+    });
+});
+
+describe('getWeekLabels', () => {
+    it('names each week by its Monday and the last one as the week so far', () => {
+        expect(
+            getWeekLabels([
+                { weekStart: '2026-07-20' },
+                { weekStart: '2026-09-28' },
+                { weekStart: '2026-10-05' },
+            ]),
+        ).toEqual(['20 Jul', '28 Sep', 'This week so far']);
+        expect(getWeekLabels([])).toEqual([]);
+    });
+    it('puts the week so far on two short lines for the axis', () => {
+        expect(
+            getWeekAxisLabels([
+                { weekStart: '2026-09-28' },
+                { weekStart: '2026-10-05' },
+            ]),
+        ).toEqual(['28 Sep', 'This week\nso far']);
+    });
+});
+
+describe('getWeekTooltipRows', () => {
+    const department = (value: number | null) => ({
+        seriesName: 'This department',
+        value,
+    });
+    const atOrgRate = (value: number | null) => ({
+        seriesName: "At the organization's rate",
+        value,
+    });
+    it('names the week and gives the count of each line shown', () => {
+        // The week so far is the second department series; the first has no point there
+        expect(
+            getWeekTooltipRows('This week so far', [
+                department(null),
+                department(1250),
+                atOrgRate(27.9),
+            ]),
+        ).toEqual([
+            'This week so far',
+            'This department: 1,250',
+            "At the organization's rate: 27.9",
+        ]);
+    });
+    it('leaves out a line hidden through the legend', () => {
+        expect(
+            getWeekTooltipRows('28 Sep', [department(1250), department(1250)]),
+        ).toEqual(['28 Sep', 'This department: 1,250']);
+        expect(getWeekTooltipRows('28 Sep', [atOrgRate(27.9)])).toEqual([
+            '28 Sep',
+            "At the organization's rate: 27.9",
+        ]);
+    });
+    it('leaves the comparison out until it is loaded', () => {
+        expect(
+            getWeekTooltipRows('28 Sep', [department(1250), atOrgRate(null)]),
+        ).toEqual(['28 Sep', 'This department: 1,250']);
+    });
+    it('shows nothing when every line is hidden', () => {
+        expect(getWeekTooltipRows('28 Sep', [])).toEqual([]);
     });
 });
 
 describe('getWeeklyChartLabel', () => {
-    it('describes start and end of both lines', () => {
-        const points = [
-            { weekStart: '2026-07-20', activeUsers: 1, orgAverage: 3 },
-            { weekStart: '2026-10-05', activeUsers: 2, orgAverage: 2 },
-        ];
+    const points = [
+        { weekStart: '2026-07-20', activeUsers: 1, atOrgRate: 3 },
+        { weekStart: '2026-10-05', activeUsers: 1250, atOrgRate: 2.5 },
+    ];
+    it('describes both lines, with the last week as the week so far', () => {
         expect(getWeeklyChartLabel(points)).toBe(
-            'Weekly active people over 2 weeks: this department had 1 at the start and 2 now, the average department had 3 at the start and 2 now',
+            "Weekly active people over 2 weeks: this department had 1 at the start and 1,250 this week so far, against 3 and 2.5 at the organization's rate",
         );
-        expect(getWeeklyChartLabel([])).toBe('No weekly activity data');
     });
-});
-
-describe('countWithoutAccount', () => {
-    it('is the headcount not yet on Lightdash, never negative', () => {
-        expect(countWithoutAccount(10, 4)).toBe(6);
-        expect(countWithoutAccount(3, 5)).toBe(0);
-        expect(countWithoutAccount(null, 5)).toBe(0);
+    it('describes the department alone while there is no comparison', () => {
+        expect(
+            getWeeklyChartLabel(
+                points.map((point) => ({ ...point, atOrgRate: null })),
+            ),
+        ).toBe(
+            'Weekly active people over 2 weeks: this department had 1 at the start and 1,250 this week so far',
+        );
+    });
+    it('says when there is nothing to draw', () => {
+        expect(getWeeklyChartLabel([])).toBe('No weekly activity data');
     });
 });
 
@@ -216,16 +318,86 @@ describe('getCoverageCaption', () => {
         expect(getCoverageCaption(40, 0)).toBe(
             '0 of 40 people have an account',
         );
-    });
-    it('prompts without a headcount', () => {
-        expect(getCoverageCaption(null, 3)).toBe(
-            'Add a headcount to see a percentage',
+        expect(getCoverageCaption(2350, 221)).toBe(
+            '221 of 2,350 people have an account',
         );
     });
-    it('says so when accounts outnumber the headcount', () => {
-        expect(getCoverageCaption(3, 5)).toBe(
-            '5 accounts, more than the headcount of 3',
+    it('gives the people on Lightdash without a headcount, as they are all that is counted', () => {
+        expect(getCoverageCaption(null, 3)).toBe('3 people on Lightdash');
+        expect(getCoverageCaption(null, 1)).toBe('1 person on Lightdash');
+    });
+});
+
+describe('formatTopContentUsage', () => {
+    it('gives the count and the people behind it', () => {
+        expect(
+            formatTopContentUsage(
+                { count: 37405, distinctPeople: 92 },
+                { one: 'view', other: 'views' },
+            ),
+        ).toBe('37,405 views · 92 people');
+        expect(
+            formatTopContentUsage(
+                { count: 1, distinctPeople: 1 },
+                { one: 'query', other: 'queries' },
+            ),
+        ).toBe('1 query · 1 person');
+    });
+});
+
+describe('getTopContentPath', () => {
+    const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
+    it('opens a dashboard, an explore and an AI agent in their project', () => {
+        expect(
+            getTopContentPath('dashboards', {
+                id: 'c2e7a2a4-0b6e-4a49-9d43-0c5b3f0e8f1a',
+                name: 'Sales',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(
+            `/projects/${PROJECT}/dashboards/c2e7a2a4-0b6e-4a49-9d43-0c5b3f0e8f1a/view`,
         );
+        // The explore's id joins the project and the name, so the name alone opens it
+        expect(
+            getTopContentPath('explores', {
+                id: `${PROJECT}:orders`,
+                name: 'orders',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/orders`);
+        expect(
+            getTopContentPath('aiAgents', {
+                id: '0d1f3c54-8a4e-4f7e-9c0b-2a6b9d1e7f3c',
+                name: 'Analyst',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(
+            `/projects/${PROJECT}/ai-agents/0d1f3c54-8a4e-4f7e-9c0b-2a6b9d1e7f3c`,
+        );
+    });
+    it('encodes the explore name, so a name can never become a URL of its own', () => {
+        expect(
+            getTopContentPath('explores', {
+                id: 'x',
+                name: 'javascript:alert(1)',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/javascript%3Aalert(1)`);
+        expect(
+            getTopContentPath('explores', {
+                id: 'x',
+                name: '../../settings?x=1#y',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/tables/..%2F..%2Fsettings%3Fx%3D1%23y`);
+        // A dashboard or an agent is opened by its id, whatever its name
+        expect(
+            getTopContentPath('dashboards', {
+                id: 'd1',
+                name: 'javascript:alert(1)',
+                projectUuid: PROJECT,
+            }),
+        ).toBe(`/projects/${PROJECT}/dashboards/d1/view`);
     });
 });
 
@@ -244,9 +416,14 @@ describe('getActiveCaption', () => {
         expect(getActiveCaption(40, 0, 0)).toBe('0 of 40 people were active');
         expect(getActiveCaption(null, 0, 0)).toBe('No one has an account yet');
     });
-    it('handles more accounts or activity than headcount', () => {
-        expect(getActiveCaption(3, 5, 5)).toBe(
-            '5 people active, more than the headcount of 3 · 5 of the 5 with an account',
+    it('groups thousands', () => {
+        expect(getActiveCaption(2350, 1126, 1221)).toBe(
+            '1,126 of 2,350 people were active · 1,126 of the 1,221 with an account',
+        );
+    });
+    it('gives the headcount base alone when everyone in the headcount has an account', () => {
+        expect(getActiveCaption(191, 85, 191)).toBe(
+            '85 of 191 people were active',
         );
     });
 });

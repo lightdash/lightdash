@@ -1,11 +1,10 @@
 import {
     getChildrenMap,
-    type Department,
     type DepartmentOwner,
     type DepartmentWithMetrics,
     type RoleSplit,
 } from '@lightdash/common';
-import dayjs from 'dayjs';
+import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
 
 // Levels shown in the table; deeper levels open on the department page
 const MAX_TABLE_DEPTH = 3;
@@ -23,6 +22,8 @@ export const sortByCoverage = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] =>
     [...departments].sort((a, b) => {
+        if (a.hasHeadcount !== b.hasHeadcount) return a.hasHeadcount ? -1 : 1;
+        if (!a.hasHeadcount) return a.name.localeCompare(b.name);
         const left = a.metrics.coveragePct;
         const right = b.metrics.coveragePct;
         if (left === null && right === null)
@@ -65,24 +66,33 @@ export const buildDepartmentRows = (
     return visit(null, 0);
 };
 
+// Shown in place of coverage where no headcount is entered on a department or below it, which would read 100%
+export const getMissingHeadcountWord = (canManage: boolean): string =>
+    canManage ? 'Add headcount' : 'No headcount';
+
 // A share that rounds to 0% but has people in it reads "<1%", never "0%"
 export const formatShare = (pct: number | null, count: number): string => {
-    if (pct === null) return `${count} ${count === 1 ? 'person' : 'people'}`;
+    if (pct === null) return formatQuantity(count, PEOPLE);
     const label = pct === 0 && count > 0 ? '<1%' : `${pct}%`;
-    return `${label} (${count})`;
+    return `${label} (${formatCount(count)})`;
 };
 
-const plural = (count: number, singular: string): string =>
-    `${count} ${singular}${count === 1 ? '' : 's'}`;
+const VIEWERS: Noun = { one: 'viewer', other: 'viewers' };
+const INTERACTIVE_VIEWERS: Noun = {
+    one: 'interactive viewer',
+    other: 'interactive viewers',
+};
+const EDITORS: Noun = { one: 'editor', other: 'editors' };
+const ADMINS: Noun = { one: 'admin', other: 'admins' };
 
 export const formatRoleSplit = (split: RoleSplit): string => {
     const parts = [
-        split.viewers > 0 ? plural(split.viewers, 'viewer') : null,
+        split.viewers > 0 ? formatQuantity(split.viewers, VIEWERS) : null,
         split.interactiveViewers > 0
-            ? `${split.interactiveViewers} interactive`
+            ? formatQuantity(split.interactiveViewers, INTERACTIVE_VIEWERS)
             : null,
-        split.editors > 0 ? plural(split.editors, 'editor') : null,
-        split.admins > 0 ? plural(split.admins, 'admin') : null,
+        split.editors > 0 ? formatQuantity(split.editors, EDITORS) : null,
+        split.admins > 0 ? formatQuantity(split.admins, ADMINS) : null,
     ].filter((part): part is string => part !== null);
     return parts.length > 0 ? parts.join(', ') : 'No one yet';
 };
@@ -91,14 +101,4 @@ export const formatOwners = (owners: DepartmentOwner[]): string => {
     if (owners.length === 0) return '–';
     const [first, ...rest] = owners;
     return rest.length > 0 ? `${first.name} +${rest.length}` : first.name;
-};
-
-export const formatTarget = (
-    department: Pick<Department, 'targetActiveUsers' | 'targetDate'>,
-): string => {
-    if (department.targetActiveUsers === null) return '–';
-    const target = `${department.targetActiveUsers} active`;
-    return department.targetDate === null
-        ? target
-        : `${target} by ${dayjs(department.targetDate).format('D MMM YYYY')}`;
 };

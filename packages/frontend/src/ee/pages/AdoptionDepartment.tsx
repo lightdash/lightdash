@@ -1,18 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     Anchor,
-    Badge,
     Button,
-    Group,
     SimpleGrid,
     Stack,
     Table,
     Text,
     Title,
-    Tooltip,
 } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -30,19 +27,24 @@ import {
     getDepartmentPath,
 } from '../features/adoption/utils/adoptionNav';
 import {
-    countWithoutAccount,
-    formatTargetProgress,
     getActiveCaption,
     getCoverageCaption,
+    getWeeklyComparison,
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
+    getMissingHeadcountWord,
     sortByCoverage,
 } from '../features/adoption/utils/departmentRows';
+import { type Noun } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
     useOrgAdoptionSummary,
 } from '../hooks/useOrgDepartments';
+
+const VIEWS: Noun = { one: 'view', other: 'views' };
+const QUERIES: Noun = { one: 'query', other: 'queries' };
+const PROMPTS: Noun = { one: 'prompt', other: 'prompts' };
 
 const BackToAdoption: FC = () => (
     <Button component={Link} to={ADOPTION_PATH} variant="default">
@@ -88,14 +90,23 @@ const AdoptionDepartment: FC = () => {
             }),
         ) ?? false;
     const detail = useDepartmentDetail(departmentUuid);
-    // The drawer's parent picker needs every department
-    const summary = useOrgAdoptionSummary(
-        canManage && departmentUuid !== undefined,
-    );
+    // The weekly comparison needs the organization's numbers; the drawer's parent picker needs every department
+    const summary = useOrgAdoptionSummary(departmentUuid !== undefined);
     const [isEditing, setIsEditing] = useState(false);
     // While a delete is in flight the refetch returns 404; keep the last page until we leave
     const [isDeleting, setIsDeleting] = useState(false);
     const navigate = useNavigate();
+    const weeks = useMemo(
+        () =>
+            detail.data
+                ? getWeeklyComparison(
+                      detail.data.weeklyActive,
+                      detail.data.department.metrics.memberCount,
+                      summary.data?.organization ?? null,
+                  )
+                : [],
+        [detail.data, summary.data],
+    );
 
     if (departmentUuid === undefined) {
         const { title, description } = getUnavailableCopy(404, undefined);
@@ -137,11 +148,10 @@ const AdoptionDepartment: FC = () => {
     const { department, ancestors, children, members, topContent } =
         detail.data;
     const { metrics } = department;
-    const target = formatTargetProgress(detail.data.targetProgress);
-    const withoutAccount = countWithoutAccount(
-        department.effectiveHeadcount,
-        metrics.memberCount,
-    );
+    // Without a headcount the people on Lightdash are all that is counted, so the captions give that count
+    const headcount = department.hasHeadcount
+        ? department.effectiveHeadcount
+        : null;
 
     return (
         <SettingsPage
@@ -169,74 +179,26 @@ const AdoptionDepartment: FC = () => {
             }
         >
             <Stack gap="lg">
-                <Group gap="lg">
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Owners
-                        </Text>
-                        {department.owners.length === 0 && (
-                            <Text fz="sm">–</Text>
-                        )}
-                        {department.owners.map((owner) => (
-                            <Badge key={`${owner.type}:${owner.uuid}`}>
-                                {owner.name}
-                            </Badge>
-                        ))}
-                    </Group>
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Headcount
-                        </Text>
-                        <Tooltip
-                            label={department.headcountNote}
-                            disabled={department.headcountNote === null}
-                            multiline
-                            maw={280}
-                        >
-                            <Text fz="sm">
-                                {department.effectiveHeadcount ?? 'Not set'}
-                            </Text>
-                        </Tooltip>
-                        {withoutAccount > 0 && (
-                            <Text fz="sm" c="dimmed">
-                                {`${withoutAccount} without an account`}
-                            </Text>
-                        )}
-                        {department.headcountNote !== null && (
-                            <Text fz="xs" c="dimmed">
-                                {department.headcountNote}
-                            </Text>
-                        )}
-                    </Group>
-                    <Group gap="xs">
-                        <Text fz="sm" c="dimmed">
-                            Linked groups
-                        </Text>
-                        {department.linkedGroups.length === 0 && (
-                            <Text fz="sm">–</Text>
-                        )}
-                        {department.linkedGroups.map((group) => (
-                            <Badge key={group.groupUuid} variant="outline">
-                                {group.name}
-                            </Badge>
-                        ))}
-                    </Group>
-                </Group>
                 {department.headcountBelowChildren && (
                     <Text fz="sm" c="yellow">
-                        Headcount is lower than the total of its sub-departments
+                        The headcount entered is below its sub-departments and
+                        its own people, so that total counts instead
                     </Text>
                 )}
 
-                <SimpleGrid cols={{ base: 1, sm: 3 }}>
+                <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <StatTile
                         label="Coverage"
-                        value={formatShare(
-                            metrics.coveragePct,
-                            metrics.memberCount,
-                        )}
+                        value={
+                            department.hasHeadcount
+                                ? formatShare(
+                                      metrics.coveragePct,
+                                      metrics.memberCount,
+                                  )
+                                : getMissingHeadcountWord(canManage)
+                        }
                         detail={getCoverageCaption(
-                            department.effectiveHeadcount,
+                            headcount,
                             metrics.memberCount,
                         )}
                     />
@@ -247,39 +209,42 @@ const AdoptionDepartment: FC = () => {
                             metrics.activeCount30d,
                         )}
                         detail={getActiveCaption(
-                            department.effectiveHeadcount,
+                            headcount,
                             metrics.activeCount30d,
                             metrics.memberCount,
                         )}
-                    />
-                    <StatTile
-                        label="Target progress"
-                        value={target.value}
-                        detail={target.detail}
                     />
                 </SimpleGrid>
 
                 <Stack gap="xs">
                     <Title order={5}>Weekly active people</Title>
-                    <WeeklyActiveChart points={detail.data.weeklyActive} />
+                    {metrics.memberCount === 0 && (
+                        <Text fz="xs" c="dimmed">
+                            No comparison: nobody on Lightdash yet
+                        </Text>
+                    )}
+                    <WeeklyActiveChart weeks={weeks} />
                 </Stack>
 
                 <Stack gap="xs">
-                    <Title order={5}>What this department uses</Title>
+                    <Title order={5}>Key content</Title>
                     <SimpleGrid cols={{ base: 1, md: 3 }}>
                         <TopContentList
                             title="Dashboards"
-                            unit="views"
+                            kind="dashboards"
+                            noun={VIEWS}
                             items={topContent.dashboards}
                         />
                         <TopContentList
                             title="Explores"
-                            unit="queries"
+                            kind="explores"
+                            noun={QUERIES}
                             items={topContent.explores}
                         />
                         <TopContentList
                             title="AI agents"
-                            unit="prompts"
+                            kind="aiAgents"
+                            noun={PROMPTS}
                             items={topContent.aiAgents}
                         />
                     </SimpleGrid>
@@ -311,16 +276,31 @@ const AdoptionDepartment: FC = () => {
                                             </Anchor>
                                         </Table.Td>
                                         <Table.Td>
-                                            {formatShare(
-                                                child.metrics.coveragePct,
-                                                child.metrics.memberCount,
+                                            {child.hasHeadcount ? (
+                                                <Text fz="sm">
+                                                    {formatShare(
+                                                        child.metrics
+                                                            .coveragePct,
+                                                        child.metrics
+                                                            .memberCount,
+                                                    )}
+                                                </Text>
+                                            ) : (
+                                                <Text fz="sm" c="dimmed">
+                                                    {getMissingHeadcountWord(
+                                                        canManage,
+                                                    )}
+                                                </Text>
                                             )}
                                         </Table.Td>
                                         <Table.Td>
-                                            {formatShare(
-                                                child.metrics.activePct,
-                                                child.metrics.activeCount30d,
-                                            )}
+                                            <Text fz="sm">
+                                                {formatShare(
+                                                    child.metrics.activePct,
+                                                    child.metrics
+                                                        .activeCount30d,
+                                                )}
+                                            </Text>
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}

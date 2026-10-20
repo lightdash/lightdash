@@ -1,5 +1,7 @@
 import {
+    getActivityBucket,
     getDepthMap,
+    type ActivityWindows,
     type Department,
     type DepartmentMember,
     type DepartmentMembership,
@@ -74,6 +76,8 @@ export const buildDepartmentMembers = (input: {
     members: DepartmentMembership[];
     departments: DepartmentRef[];
     activity: MemberActivityRow[];
+    // The bounds the summary's counts were taken with, so each person lands in the bucket that counts them
+    windows: ActivityWindows;
 }): DepartmentMember[] => {
     const names = new Map(
         input.departments.map((d) => [d.departmentUuid, d.name]),
@@ -97,6 +101,10 @@ export const buildDepartmentMembers = (input: {
                 sourceGroupName,
                 lastActiveAt: row?.lastActiveAt?.toISOString() ?? null,
                 isActive30d: row?.isActive30d ?? false,
+                activity: getActivityBucket(
+                    row?.lastActiveAt ?? null,
+                    input.windows,
+                ),
                 queries30d: row?.queries30d ?? 0,
                 dashboardViews30d: row?.dashboardViews30d ?? 0,
             },

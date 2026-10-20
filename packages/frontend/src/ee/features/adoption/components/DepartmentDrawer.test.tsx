@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept, memberFixture } from '../utils/adoptionFixtures';
+import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentForm } from './DepartmentDrawer';
 
 const create = vi.fn();
@@ -166,6 +166,62 @@ describe('DepartmentForm', () => {
                 headcountNote: 'Store managers and buyers',
             }),
         );
+    });
+
+    it('says a department without sub-departments counts at least its people on Lightdash, and accepts any number', async () => {
+        const busy = dept('Finance', null, null, {
+            headcount: 4,
+            effectiveHeadcount: 12,
+            metrics: metricsFixture(12, 100),
+            directMetrics: metricsFixture(12, 100),
+        });
+        renderEdit(busy);
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments. At least 12, the people already on Lightdash',
+            ),
+        ).toBeInTheDocument();
+        // A lower number is still sent as typed; the server counts the people on Lightdash
+        await userEvent.clear(screen.getByLabelText('Headcount'));
+        await userEvent.type(screen.getByLabelText('Headcount'), '6');
+        await save();
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Finance',
+            data: { headcount: 6 },
+        });
+    });
+    it('says a department with sub-departments counts at least them and its own people on Lightdash', () => {
+        // Stores counts 10, and 2 people sit directly in Ops
+        renderEdit(
+            dept('Ops', null, null, {
+                headcount: 5,
+                effectiveHeadcount: 12,
+                metrics: metricsFixture(7, null),
+                directMetrics: metricsFixture(2, null),
+            }),
+        );
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments. At least 12: its sub-departments and the people already on Lightdash',
+            ),
+        ).toBeInTheDocument();
+    });
+    it('gives no minimum for a new department', () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                members={null}
+                onClose={vi.fn()}
+            />,
+        );
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/At least/)).toBeNull();
     });
 
     it('prefills an existing department, including the headcount note', () => {
@@ -529,7 +585,6 @@ describe('DepartmentForm', () => {
         await clear(/^Parent department/);
         await userEvent.clear(screen.getByLabelText('Headcount'));
         await userEvent.clear(screen.getByLabelText('Headcount note'));
-        await userEvent.clear(screen.getByLabelText('Target date'));
         await save();
         await waitFor(() => expect(update).toHaveBeenCalled());
         expect(update).toHaveBeenCalledWith({
@@ -538,8 +593,26 @@ describe('DepartmentForm', () => {
                 parentDepartmentUuid: null,
                 headcount: null,
                 headcountNote: null,
-                targetDate: null,
             },
+        });
+    });
+
+    it('has no target fields, and an edit leaves the targets already set alone', async () => {
+        const aiming = dept('Ops', null, 10, {
+            headcount: 40,
+            targetActiveUsers: 30,
+            targetDate: '2026-12-01',
+        });
+        renderEdit(aiming);
+        expect(screen.queryByLabelText(/target/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/target/i)).not.toBeInTheDocument();
+        await userEvent.type(screen.getByLabelText(/^Name/), ' team');
+        await save();
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        // Only the name is sent, so the server keeps the target
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            data: { name: 'Ops team' },
         });
     });
 
@@ -580,6 +653,44 @@ describe('DepartmentForm', () => {
                 ),
             ).toBeInTheDocument();
             expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        });
+
+        it('groups thousands in the count of people in the department', () => {
+            const loaded = Array.from({ length: 1200 }, (_, index) =>
+                memberFixture(`m${index}`, null, {
+                    firstName: `Member${index}`,
+                }),
+            );
+            renderWithProviders(
+                <DepartmentForm
+                    department={departments[0]}
+                    departments={departments}
+                    members={loaded}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(
+                screen.getByText('1,200 people in this department'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Showing 50 of 1,200, everyone is listed under People on this page',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('counts one person in the singular', () => {
+            renderWithProviders(
+                <DepartmentForm
+                    department={departments[0]}
+                    departments={departments}
+                    members={[memberFixture('m0', null)]}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(
+                screen.getByText('1 person in this department'),
+            ).toBeInTheDocument();
         });
 
         it('shows the first 50 resolved people with a link to the department page for the rest', () => {

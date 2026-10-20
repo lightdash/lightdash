@@ -6,19 +6,24 @@ import {
     type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
-import { hierarchy, pack } from 'd3-hierarchy';
+import { packEnclose, packSiblings } from 'd3-hierarchy';
+import { getDirectHeadcount } from '../utils/headcount';
 
 export const MAP_SIZE = 720;
 export const MIN_CIRCLE_RADIUS = 14;
-// Above this many dots SVG gets slow; canvas rendering is a follow-up
-export const SVG_DOT_LIMIT = 5000;
+// Above this many people in view the dots are hidden, as SVG gets slow; canvas rendering is a follow-up
+export const SVG_DOT_LIMIT = 20000;
 
+// Gap between neighbouring circles and inside a parent's edge, in pack units
 const CIRCLE_PADDING = 8;
+// A small parent keeps proportionally smaller gaps, so its sub-departments keep their room
+const MAX_PADDING_SHARE = 0.08;
+// An enlarged circle stays this far from its parent's edge and its neighbours
+const ENLARGED_CLEARANCE = 2;
+// A circle that could grow by no more than this is left at its true size
+const MIN_ENLARGEMENT = 0.5;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const LAPSED_DAYS = 84;
-const LABEL_PX_PER_CHAR = 3.6;
 const ROOMY_DOT_RADIUS = 11;
 const DENSE_DOT_RADIUS = 5;
 const ROOMY_COUNT = 20;
@@ -28,13 +33,12 @@ const RING_WITH_CENTRE_COUNT = 7;
 // Centres are kept this multiple of a dot's diameter apart, so neighbours never touch
 const DOT_SPACING = 1.06;
 
-export type ColourBy = 'active' | 'role' | 'lastActive';
+export type ColourBy = 'activity' | 'role';
 
 export type DotKind =
-    | 'active'
-    | 'idle'
-    | 'lapsed'
-    | 'inactive'
+    | 'healthy'
+    | 'atRisk'
+    | 'lost'
     | 'admin'
     | 'editor'
     | 'interactiveViewer'
@@ -45,23 +49,31 @@ export type DotSegment = { kind: DotKind; count: number };
 
 export type PeopleBucket = {
     metrics: AdoptionMetrics;
+    // What the people are counted against, null without a headcount; for the people directly in a department,
+    // the headcount it keeps for them beside its sub-departments
     headcount: number | null;
 };
 
 export type PackDatum = {
     id: string;
-    kind: 'root' | 'department' | 'own';
+    // 'own' is a department without sub-departments opened on its own; 'direct' is the people directly in a
+    // department beside its sub-departments
+    kind: 'root' | 'department' | 'own' | 'direct';
     departmentUuid: string | null;
     name: string;
     hasHeadcount: boolean;
     hasMembers: boolean;
     childDepartmentCount: number;
+    // What the area stands for: the effective headcount, or for the people directly in a department, the residual
+    size: number;
     people: PeopleBucket | null;
     children: PackDatum[];
 };
 
 export type PackedCircle = Omit<PackDatum, 'children'> & {
     depth: number;
+    // The circle this one is drawn inside, or null at the top of the view
+    parentId: string | null;
     x: number;
     y: number;
     r: number;
@@ -70,19 +82,19 @@ export type PackedCircle = Omit<PackDatum, 'children'> & {
 
 // Core first: this is also the order dots are laid out from the centre
 const DOT_ORDER: DotKind[] = [
-    'active',
-    'lapsed',
+    'healthy',
+    'atRisk',
+    'lost',
     'admin',
     'editor',
     'interactiveViewer',
     'viewer',
-    'idle',
-    'inactive',
     'noAccount',
 ];
 
+// Never below the people on Lightdash, which it is for a department without a headcount
 export const getDepartmentSize = (department: DepartmentWithMetrics): number =>
-    department.effectiveHeadcount ?? department.metrics.memberCount;
+    department.effectiveHeadcount;
 
 export const countBucketPeople = (bucket: PeopleBucket): number =>
     Math.max(bucket.headcount ?? 0, bucket.metrics.memberCount);
@@ -97,13 +109,11 @@ export const getDotSegments = (
         count: countBucketPeople(bucket) - metrics.memberCount,
     };
     switch (colourBy) {
-        case 'active':
+        case 'activity':
             return [
-                { kind: 'active', count: metrics.activeCount30d },
-                {
-                    kind: 'idle',
-                    count: metrics.memberCount - metrics.activeCount30d,
-                },
+                { kind: 'healthy', count: metrics.activitySplit.healthy },
+                { kind: 'atRisk', count: metrics.activitySplit.atRisk },
+                { kind: 'lost', count: metrics.activitySplit.lost },
                 noAccount,
             ];
         case 'role':
@@ -115,19 +125,6 @@ export const getDotSegments = (
                     count: metrics.roleSplit.interactiveViewers,
                 },
                 { kind: 'viewer', count: metrics.roleSplit.viewers },
-                noAccount,
-            ];
-        case 'lastActive':
-            return [
-                { kind: 'active', count: metrics.activeCount30d },
-                {
-                    kind: 'lapsed',
-                    count: metrics.activeCount12w - metrics.activeCount30d,
-                },
-                {
-                    kind: 'inactive',
-                    count: metrics.memberCount - metrics.activeCount12w,
-                },
                 noAccount,
             ];
         default:
@@ -257,28 +254,50 @@ export const buildPackInput = (
             return department ? [department] : [];
         });
 
-    // People who belong to a department itself rather than a sub-department
-    const ownBucket = (department: DepartmentWithMetrics): PackDatum | null => {
-        const childrenSize = lookup(children.get(department.departmentUuid))
-            .map(getDepartmentSize)
-            .reduce((sum, size) => sum + size, 0);
-        const ownPeople = Math.max(
-            getDepartmentSize(department) - childrenSize,
-            department.directMetrics.memberCount,
-        );
-        if (ownPeople <= 0) return null;
+    // The people directly in a department beside its sub-departments, over the headcount the department keeps
+    // for them, so its circles together hold its whole effective headcount
+    const directBucket = (
+        department: DepartmentWithMetrics,
+        childDepartments: DepartmentWithMetrics[],
+    ): PackDatum | null => {
+        const residual = getDirectHeadcount(department, childDepartments);
+        if (residual <= 0) return null;
+        return {
+            id: `own:${department.departmentUuid}`,
+            kind: 'direct',
+            departmentUuid: department.departmentUuid,
+            name: `Directly in ${department.name}`,
+            hasHeadcount: department.hasHeadcount,
+            hasMembers: department.directMetrics.memberCount > 0,
+            childDepartmentCount: 0,
+            size: residual,
+            // Without a headcount anywhere in the department the residual is only its people, so none is quoted
+            people: {
+                metrics: department.directMetrics,
+                headcount: department.hasHeadcount ? residual : null,
+            },
+            children: [],
+        };
+    };
+
+    // A department without sub-departments opened on its own: one circle of all its people
+    const loneBucket = (
+        department: DepartmentWithMetrics,
+    ): PackDatum | null => {
+        const size = getDepartmentSize(department);
+        if (size <= 0) return null;
         return {
             id: `own:${department.departmentUuid}`,
             kind: 'own',
             departmentUuid: department.departmentUuid,
             name: `Directly in ${department.name}`,
-            hasHeadcount: department.effectiveHeadcount !== null,
-            hasMembers: department.directMetrics.memberCount > 0,
+            hasHeadcount: department.hasHeadcount,
+            hasMembers: department.metrics.memberCount > 0,
             childDepartmentCount: 0,
+            size,
             people: {
-                metrics: department.directMetrics,
-                headcount:
-                    department.effectiveHeadcount === null ? null : ownPeople,
+                metrics: department.metrics,
+                headcount: department.hasHeadcount ? size : null,
             },
             children: [],
         };
@@ -286,33 +305,37 @@ export const buildPackInput = (
 
     const finishDatum = (
         department: DepartmentWithMetrics,
-        childDepartmentCount: number,
+        childDepartments: DepartmentWithMetrics[],
         childData: PackDatum[],
     ): PackDatum => {
+        const childDepartmentCount = childDepartments.length;
         const base = {
             id: department.departmentUuid,
             kind: 'department' as const,
             departmentUuid: department.departmentUuid,
             name: department.name,
-            hasHeadcount: department.effectiveHeadcount !== null,
+            hasHeadcount: department.hasHeadcount,
             hasMembers: department.metrics.memberCount > 0,
             childDepartmentCount,
+            size: getDepartmentSize(department),
         };
         if (childDepartmentCount === 0) {
             return {
                 ...base,
                 people: {
                     metrics: department.metrics,
-                    headcount: department.effectiveHeadcount,
+                    headcount: department.hasHeadcount
+                        ? department.effectiveHeadcount
+                        : null,
                 },
                 children: [],
             };
         }
-        const own = ownBucket(department);
+        const direct = directBucket(department, childDepartments);
         return {
             ...base,
             people: null,
-            children: [...childData, ...(own ? [own] : [])],
+            children: [...childData, ...(direct ? [direct] : [])],
         };
     };
 
@@ -353,7 +376,7 @@ export const buildPackInput = (
                 stack[stack.length - 1].childData.push(
                     finishDatum(
                         frame.department,
-                        frame.childDepartments.length,
+                        frame.childDepartments,
                         frame.childData,
                     ),
                 );
@@ -361,14 +384,21 @@ export const buildPackInput = (
         }
         return finishDatum(
             root.department,
-            root.childDepartments.length,
+            root.childDepartments,
             root.childData,
         );
     };
 
     const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
     const topLevel = lookup(children.get(focus?.departmentUuid ?? null));
-    const focusOwn = focus === null ? null : ownBucket(focus);
+    const topLevelData = topLevel.map((department) => toDatum(department));
+    const focusOwn =
+        focus === null
+            ? null
+            : topLevel.length === 0
+              ? loneBucket(focus)
+              : directBucket(focus, topLevel);
+    const rootChildren = [...topLevelData, ...(focusOwn ? [focusOwn] : [])];
     return {
         id: 'root',
         kind: 'root',
@@ -377,83 +407,205 @@ export const buildPackInput = (
         hasHeadcount: true,
         hasMembers: true,
         childDepartmentCount: topLevel.length,
+        size: rootChildren.reduce((sum, child) => sum + child.size, 0),
         people: null,
-        children: [
-            ...topLevel.map((department) => toDatum(department)),
-            ...(focusOwn ? [focusOwn] : []),
-        ],
+        children: rootChildren,
     };
 };
 
-const MAX_PACK_PASSES = 8;
+// Radius in pack units before scaling; every circle gets some area, so an empty one stays visible
+const unitRadius = (datum: PackDatum): number =>
+    Math.sqrt(Math.max(datum.size, 1));
 
+type Packed = { x: number; y: number; r: number };
+
+// Arranges circles of these radii around the origin, `gap` apart, then scales the arrangement
+// to sit inside a circle of radius `radius`, `gap` in from its edge
+const packInside = (
+    radii: number[],
+    centre: { x: number; y: number },
+    radius: number,
+    gap: number,
+): Packed[] => {
+    const arrange = (padding: number) => {
+        const circles = packSiblings(radii.map((r) => ({ r: r + padding })));
+        return { circles, enclosing: packEnclose(circles) };
+    };
+    // A first pass finds the scale, so the padding can be set in drawn units for the second
+    const rough = arrange(0);
+    const roughScale = (radius - gap) / rough.enclosing.r;
+    const padding = gap / 2 / roughScale;
+    const { circles, enclosing } = arrange(padding);
+    const scale = (radius - gap / 2) / enclosing.r;
+    return circles.map((circle, index) => ({
+        x: centre.x + (circle.x - enclosing.x) * scale,
+        y: centre.y + (circle.y - enclosing.y) * scale,
+        r: radii[index] * scale,
+    }));
+};
+
+// Largest first, then by name: the densest packing, and the same whatever order siblings arrive in
+const byPackingOrder = (a: PackDatum, b: PackDatum): number =>
+    b.size - a.size || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+
+// Siblings are packed from their own sizes and scaled to fit inside their parent, so areas compare
+// exactly within a parent. Breadth first over an explicit queue, so deep trees cannot overflow.
 export const layoutPack = (
     input: PackDatum,
     size: number = MAP_SIZE,
-    minRadius: number = MIN_CIRCLE_RADIUS,
 ): PackedCircle[] => {
     if (input.children.length === 0) return [];
-    const trueValue = (datum: PackDatum): number =>
-        datum.people === null
-            ? 0
-            : Math.max(countBucketPeople(datum.people), 1);
-    // Packing values start at the people count and are raised for leaves that
-    // would draw below the minimum radius, so packing itself keeps them apart
-    const packValues = new Map<string, number>();
-    const packOnce = () =>
-        pack<PackDatum>().size([size, size]).padding(CIRCLE_PADDING)(
-            hierarchy(input).sum(
-                (datum) => packValues.get(datum.id) ?? trueValue(datum),
-            ),
-        );
-
-    let packed = packOnce();
-    for (let pass = 0; pass < MAX_PACK_PASSES; pass += 1) {
-        let raised = false;
-        packed.leaves().forEach((leaf) => {
-            const value = packValues.get(leaf.data.id) ?? trueValue(leaf.data);
-            if (leaf.r >= minRadius - 1e-6 || value <= 0) return;
-            // Radius is proportional to sqrt(value), so scale value by the squared shortfall
-            packValues.set(
-                leaf.data.id,
-                value * (minRadius / leaf.r) ** 2 * 1.001,
+    type Pending = { datum: PackDatum; circle: PackedCircle | null };
+    const placed: PackedCircle[] = [];
+    const queue: Pending[] = [{ datum: input, circle: null }];
+    for (let index = 0; index < queue.length; index += 1) {
+        const { datum, circle } = queue[index];
+        if (datum.children.length > 0) {
+            const centre = circle ?? { x: size / 2, y: size / 2 };
+            const radius = circle?.r ?? size / 2;
+            const gap =
+                circle === null
+                    ? CIRCLE_PADDING
+                    : Math.min(CIRCLE_PADDING, radius * MAX_PADDING_SHARE);
+            const order = datum.children
+                .map((_, childIndex) => childIndex)
+                .sort((a, b) =>
+                    byPackingOrder(datum.children[a], datum.children[b]),
+                );
+            const packedInOrder = packInside(
+                order.map((childIndex) =>
+                    unitRadius(datum.children[childIndex]),
+                ),
+                centre,
+                radius,
+                gap,
             );
-            raised = true;
-        });
-        if (!raised) break;
-        packed = packOnce();
-    }
-
-    // A node is not to scale if its own value or any descendant's was raised
-    const inflated = new Set<string>();
-    packed.eachAfter((node) => {
-        if (
-            packValues.has(node.data.id) ||
-            (node.children ?? []).some((child) => inflated.has(child.data.id))
-        ) {
-            inflated.add(node.data.id);
+            // Back to the order the siblings arrived in, which is the order they are listed in
+            const children: Packed[] = [];
+            order.forEach((childIndex, packedIndex) => {
+                children[childIndex] = packedInOrder[packedIndex];
+            });
+            datum.children.forEach((child, childIndex) => {
+                const packed: PackedCircle = {
+                    id: child.id,
+                    kind: child.kind,
+                    departmentUuid: child.departmentUuid,
+                    name: child.name,
+                    hasHeadcount: child.hasHeadcount,
+                    hasMembers: child.hasMembers,
+                    childDepartmentCount: child.childDepartmentCount,
+                    size: child.size,
+                    people: child.people,
+                    depth: (circle?.depth ?? 0) + 1,
+                    parentId: circle?.id ?? null,
+                    ...children[childIndex],
+                    isAreaHonest: true,
+                };
+                placed.push(packed);
+                queue.push({ datum: child, circle: packed });
+            });
         }
-    });
+    }
+    return placed;
+};
 
-    return packed
-        .descendants()
-        .filter((node) => node.depth > 0)
-        .map((node) => ({
-            id: node.data.id,
-            kind: node.data.kind,
-            departmentUuid: node.data.departmentUuid,
-            name: node.data.name,
-            hasHeadcount: node.data.hasHeadcount,
-            hasMembers: node.data.hasMembers,
-            childDepartmentCount: node.data.childDepartmentCount,
-            people: node.data.people,
-            depth: node.depth,
-            x: node.x,
-            y: node.y,
-            r: node.r,
-            // Small departments stay clickable, at the cost of honest area
-            isAreaHonest: !inflated.has(node.data.id),
-        }));
+// A circle below the minimum radius grows in place, its sub-departments with it, as far as its parent's
+// edge (or the drawing's), its neighbours and every sibling with more people allow; it is not to scale
+export const enlargeSmallCircles = (
+    circles: PackedCircle[],
+    minRadius: number,
+    area: { width: number; height: number },
+): PackedCircle[] => {
+    // Each circle as drawn so far: a grown parent's contents and grown neighbours count as they now are
+    const current = new Map(circles.map((circle) => [circle.id, circle]));
+    const childIds = new Map<string | null, string[]>();
+    circles.forEach((circle) => {
+        const group = childIds.get(circle.parentId);
+        if (group) group.push(circle.id);
+        else childIds.set(circle.parentId, [circle.id]);
+    });
+    // Everything drawn inside a circle, walked with a queue so a deep tree cannot overflow
+    const getDescendants = (id: string): PackedCircle[] => {
+        const seen = new Set<string>([id]);
+        const queue = [...(childIds.get(id) ?? [])];
+        const found: PackedCircle[] = [];
+        for (let index = 0; index < queue.length; index += 1) {
+            const descendantId = queue[index];
+            const descendant = current.get(descendantId);
+            if (!seen.has(descendantId) && descendant) {
+                seen.add(descendantId);
+                found.push(descendant);
+                queue.push(...(childIds.get(descendantId) ?? []));
+            }
+        }
+        return found;
+    };
+    const getSiblings = (circle: PackedCircle): PackedCircle[] =>
+        (childIds.get(circle.parentId) ?? []).flatMap((id) => {
+            const sibling = current.get(id);
+            return sibling && id !== circle.id ? [sibling] : [];
+        });
+    [...circles]
+        .sort(
+            (a, b) =>
+                a.depth - b.depth ||
+                b.size - a.size ||
+                a.name.localeCompare(b.name) ||
+                a.id.localeCompare(b.id),
+        )
+        .forEach(({ id }) => {
+            const circle = current.get(id);
+            if (!circle || circle.r >= minRadius) return;
+            const parent =
+                circle.parentId === null
+                    ? undefined
+                    : current.get(circle.parentId);
+            const roomInside =
+                parent === undefined
+                    ? Math.min(
+                          circle.x,
+                          area.width - circle.x,
+                          circle.y,
+                          area.height - circle.y,
+                      )
+                    : parent.r -
+                      Math.hypot(circle.x - parent.x, circle.y - parent.y);
+            const siblings = getSiblings(circle);
+            const roomBeside = siblings.reduce(
+                (room, other) =>
+                    Math.min(
+                        room,
+                        Math.hypot(circle.x - other.x, circle.y - other.y) -
+                            other.r,
+                    ),
+                Number.POSITIVE_INFINITY,
+            );
+            // Parents settle before their children and larger siblings first, so these are final
+            const largestAllowed = siblings
+                .filter((other) => other.size > circle.size)
+                .reduce(
+                    (smallest, other) => Math.min(smallest, other.r),
+                    Number.POSITIVE_INFINITY,
+                );
+            const r = Math.min(
+                minRadius,
+                roomInside - ENLARGED_CLEARANCE,
+                roomBeside - ENLARGED_CLEARANCE,
+                largestAllowed,
+            );
+            if (r - circle.r <= MIN_ENLARGEMENT) return;
+            const scale = r / circle.r;
+            getDescendants(circle.id).forEach((descendant) =>
+                current.set(descendant.id, {
+                    ...descendant,
+                    x: circle.x + (descendant.x - circle.x) * scale,
+                    y: circle.y + (descendant.y - circle.y) * scale,
+                    r: descendant.r * scale,
+                }),
+            );
+            current.set(circle.id, { ...circle, r, isAreaHonest: false });
+        });
+    return circles.map((circle) => current.get(circle.id) ?? circle);
 };
 
 export const countPeople = (circles: PackedCircle[]): number =>
@@ -484,26 +636,16 @@ const roleKind = (role: OrganizationMemberRole): DotKind => {
     }
 };
 
-// Active in 30 days is the server's flag; only the 12-week split still reads the timestamp
+// A person's activity bucket is the server's, from the bounds its counts were taken with
 export const getMemberDotKind = (
-    member: Pick<DepartmentMember, 'role' | 'lastActiveAt' | 'isActive30d'>,
+    member: Pick<DepartmentMember, 'role' | 'activity'>,
     colourBy: ColourBy,
-    now: Date = new Date(),
 ): DotKind => {
     switch (colourBy) {
-        case 'active':
-            return member.isActive30d ? 'active' : 'idle';
+        case 'activity':
+            return member.activity;
         case 'role':
             return roleKind(member.role);
-        case 'lastActive': {
-            if (member.isActive30d) return 'active';
-            const daysSince =
-                member.lastActiveAt === null
-                    ? Number.POSITIVE_INFINITY
-                    : (now.getTime() - Date.parse(member.lastActiveAt)) /
-                      MS_PER_DAY;
-            return daysSince <= LAPSED_DAYS ? 'lapsed' : 'inactive';
-        }
         default:
             return assertUnreachable(colourBy, 'Unknown colouring');
     }
@@ -512,17 +654,9 @@ export const getMemberDotKind = (
 export const orderMembersForDots = (
     members: DepartmentMember[],
     colourBy: ColourBy,
-    now: Date = new Date(),
 ): DepartmentMember[] =>
     [...members].sort(
         (a, b) =>
-            DOT_ORDER.indexOf(getMemberDotKind(a, colourBy, now)) -
-            DOT_ORDER.indexOf(getMemberDotKind(b, colourBy, now)),
+            DOT_ORDER.indexOf(getMemberDotKind(a, colourBy)) -
+            DOT_ORDER.indexOf(getMemberDotKind(b, colourBy)),
     );
-
-export const truncateLabel = (name: string, radius: number): string => {
-    const maxChars = Math.max(Math.floor(radius / LABEL_PX_PER_CHAR), 3);
-    return name.length <= maxChars
-        ? name
-        : `${name.slice(0, maxChars - 1).trimEnd()}…`;
-};

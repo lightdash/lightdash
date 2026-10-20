@@ -53,23 +53,34 @@ export type RoleSplit = {
     admins: number;
 };
 
+// Where a person on Lightdash falls by their last activity; see HEALTHY_ACTIVITY_DAYS for the bounds
+export type ActivityBucket = 'healthy' | 'atRisk' | 'lost';
+
+export type ActivitySplit = {
+    healthy: number;
+    atRisk: number;
+    lost: number;
+};
+
 export type WeeklyActivePoint = { weekStart: string; activeUsers: number };
 
 export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
     activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
-    coveragePct: number | null;
+    coveragePct: number | null; // of the effective headcount, so never above 100; null only when that is 0
     activePct: number | null;
     roleSplit: RoleSplit;
+    activitySplit: ActivitySplit; // the people on Lightdash by their last activity; healthy is activeCount30d
     weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first; chart and dashboard views only
 };
 
 export type DepartmentWithMetrics = Department & {
-    effectiveHeadcount: number | null; // own if set, else sum of children
+    effectiveHeadcount: number; // own if set, else sum of children; never below the children's plus its own members
+    hasHeadcount: boolean; // a headcount is entered on the department or on one below it
     headcountBelowChildren: boolean;
     metrics: AdoptionMetrics; // rolled up: own members plus all descendants'
-    directMetrics: AdoptionMetrics; // members resolved to this department itself
+    directMetrics: AdoptionMetrics; // members resolved to this department itself; percentages of its residual headcount
 };
 
 export type OrganizationAdoptionSummary = {
@@ -143,6 +154,7 @@ export type DepartmentWeeklyActivePoint = {
 export type DepartmentTopContentItem = {
     id: string;
     name: string;
+    projectUuid: string; // the project the content is in, for its link
     count: number;
     distinctPeople: number;
 };
@@ -166,6 +178,7 @@ export type DepartmentMember = {
     sourceGroupName: string | null;
     lastActiveAt: string | null; // ISO timestamp, null = no recorded activity (queries are only kept for a limited time)
     isActive30d: boolean; // same definition and bound as activeCount30d
+    activity: ActivityBucket; // same bounds as activitySplit
     queries30d: number;
     dashboardViews30d: number;
 };

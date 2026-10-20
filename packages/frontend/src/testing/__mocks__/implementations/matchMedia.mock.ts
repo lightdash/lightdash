@@ -3,7 +3,8 @@ import { vi } from 'vitest';
 function mockMatchMedia() {
     Object.defineProperty(window, 'matchMedia', {
         writable: true,
-        value: vi.fn().mockImplementation((query) => ({
+        // Made with its implementation, so a test that spies on it and calls mockRestore gets it back
+        value: vi.fn((query: string) => ({
             matches: false,
             media: query,
             onchange: null,

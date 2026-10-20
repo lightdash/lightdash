@@ -1,6 +1,7 @@
 export const SPARKLINE_WIDTH = 110;
 export const SPARKLINE_HEIGHT = 30;
-const PAD_X = 2;
+// Room for the hollow point that ends the line, so it is never cut off at the edge
+const PAD_X = 3;
 const PAD_Y = 3;
 
 export type SparklinePoint = { x: number; y: number };

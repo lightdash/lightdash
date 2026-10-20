@@ -4,6 +4,7 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    getActivityWindows,
     getAncestorUuids,
     getParentMap,
     hasControlCharacter,
@@ -13,6 +14,7 @@ import {
     resolveDepartmentMembership,
     truncateForMessage,
     type Account,
+    type ActivityWindows,
     type CreateDepartment,
     type Department,
     type DepartmentDetail,
@@ -23,10 +25,7 @@ import {
     type UpdateDepartment,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
-import {
-    type ActivityWindows,
-    type DepartmentAnalyticsModel,
-} from '../../../models/DepartmentAnalyticsModel';
+import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
     type DepartmentModel,
     type DepartmentTreeLimits,
@@ -44,10 +43,7 @@ import {
     type AdoptionSnapshot,
 } from './departmentMetrics';
 
-export const ACTIVE_DAYS = 30;
 export const TREND_WEEKS = 12;
-// A member's last activity is read this far back; beyond it the page says "No recorded activity"
-export const LAST_ACTIVE_DAYS = 90;
 const TOP_CONTENT_LIMIT = 5;
 const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -83,21 +79,6 @@ type CachedSnapshot = {
     loaded: Promise<LoadedSnapshot>;
     expiresAt: number;
 };
-
-const daysBefore = (now: Date, days: number): Date => {
-    const since = new Date(now);
-    since.setUTCDate(since.getUTCDate() - days);
-    return since;
-};
-
-// Rolling windows measured from one instant, shared by every read in a request
-export const getActivityWindows = (
-    now: Date = new Date(),
-): ActivityWindows => ({
-    activeSince: daysBefore(now, ACTIVE_DAYS),
-    trendSince: daysBefore(now, TREND_WEEKS * 7),
-    lastActiveSince: daysBefore(now, LAST_ACTIVE_DAYS),
-});
 
 const isWholeNonNegative = (value: number): boolean =>
     Number.isInteger(value) && value >= 0 && value <= MAX_INT4;
@@ -322,7 +303,8 @@ export class DepartmentService extends BaseService {
         return buildAdoptionSnapshot({
             departments,
             membership,
-            activeUserUuids: new Set(activity.activeUserUuids),
+            lastActiveAt: activity.lastActiveAt,
+            windows,
             weeklyActivity: activity.weeklyActivity,
             weekStarts: lastNWeekStarts(TREND_WEEKS),
         });
@@ -394,6 +376,7 @@ export class DepartmentService extends BaseService {
             members,
             departments: snapshot.summary.departments,
             activity,
+            windows,
         });
     }
 
