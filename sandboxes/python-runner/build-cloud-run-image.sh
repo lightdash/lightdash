@@ -16,8 +16,17 @@ cd "$(dirname "$0")"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 
-npm pack @computesdk/cloud-run@0.1.8 --ignore-scripts --pack-destination "$STAGE" >/dev/null
-tar -xzf "$STAGE/computesdk-cloud-run-0.1.8.tgz" \
+GATEWAY_PKG=@computesdk/cloud-run@0.1.8
+GATEWAY_TGZ="$STAGE/computesdk-cloud-run-0.1.8.tgz"
+# Pinned sha512 of the registry tarball (npm view <pkg> dist.integrity).
+GATEWAY_INTEGRITY="sha512-yDeHr0n1CD7HpHwwxCtLPENqJQ/P0YoqbYlAQ7ouCGzhrsH0wrOP26T9FjiDA3nh0RdwHkAI+HzZ1gt1ahu4zg=="
+npm pack "$GATEWAY_PKG" --ignore-scripts --pack-destination "$STAGE" >/dev/null
+ACTUAL="sha512-$(openssl dgst -sha512 -binary "$GATEWAY_TGZ" | base64)"
+if [ "$ACTUAL" != "$GATEWAY_INTEGRITY" ]; then
+    echo "Integrity mismatch for $GATEWAY_PKG: $ACTUAL" >&2
+    exit 1
+fi
+tar -xzf "$GATEWAY_TGZ" \
     -C "$STAGE" package/dist/gateway.mjs
 mv "$STAGE/package/dist/gateway.mjs" "$STAGE/gateway.mjs"
 
