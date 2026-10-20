@@ -2,6 +2,11 @@ import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebar } from './useControlsSidebar';
@@ -14,8 +19,8 @@ const getTabSelector = (tabUuid: string) =>
 
 export const TabCounts: FC = () => {
     const { editingRule, isPlaceholder, activeFieldId } = useControlsSidebar();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

@@ -28,6 +28,12 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTab,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
+import {
     getCandidateOptions,
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
@@ -365,9 +371,9 @@ const EditedTileOverlays: FC = () => {
     const waitingFieldIds = useControlsSidebarSelector(
         (c) => c.waitingFieldIds,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const activeTab = useDashboardContext((c) => c.activeTab);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const activeTab = useDashboardSelector(selectActiveTab);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

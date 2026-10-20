@@ -61,13 +61,24 @@ import {
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import {
     getSafeTemporaryFilters,
+    selectActiveTab,
+    selectDashboardCustomMetrics,
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardParameters,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectHasDefaultDateZoomGranularityChanged,
     selectHasParameterOrderChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
     selectMissingRequiredParameters,
     selectOldestCacheTime,
     selectParameterOrder,
@@ -76,9 +87,14 @@ import {
     selectPinnedParameters,
     selectRawTemporaryFilters,
     useAreAllChartsLoaded,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
     useDashboardSelector,
     useDashboardStore,
+    useDefaultDateZoomGranularity,
     useHasDashboardTemporaryFilters,
+    useHasDateZoomConfigChanged,
+    useRequiredFiltersNote,
 } from '../features/dashboard/store';
 import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
@@ -162,35 +178,35 @@ const Dashboard: FC = () => {
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const dashboardCustomMetrics = useDashboardContext(
-        (c) => c.dashboardCustomMetrics,
+    const dashboardCustomMetrics = useDashboardSelector(
+        selectDashboardCustomMetrics,
     );
     const setDashboardCustomMetrics = useDashboardContext(
         (c) => c.setDashboardCustomMetrics,
     );
-    const haveCustomMetricsChanged = useDashboardContext(
-        (c) => c.haveCustomMetricsChanged,
+    const haveCustomMetricsChanged = useDashboardSelector(
+        selectHaveCustomMetricsChanged,
     );
     const setHaveCustomMetricsChanged = useDashboardContext(
         (c) => c.setHaveCustomMetricsChanged,
     );
 
-    const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
+    const haveTabsChanged = useDashboardSelector(selectHaveTabsChanged);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
@@ -198,13 +214,9 @@ const Dashboard: FC = () => {
     const setDashboardTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
-    );
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
-    );
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const requiredFiltersNote = useRequiredFiltersNote();
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
@@ -265,11 +277,9 @@ const Dashboard: FC = () => {
     const setHasParameterOrderChanged = useDashboardContext(
         (c) => c.setHasParameterOrderChanged,
     );
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
-    const haveDateZoomGranularitiesChanged = useDashboardContext(
-        (c) => c.haveDateZoomGranularitiesChanged,
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
+    const haveDateZoomGranularitiesChanged = useDashboardSelector(
+        selectHaveDateZoomGranularitiesChanged,
     );
     const setDateZoomGranularities = useDashboardContext(
         (c) => c.setDateZoomGranularities,
@@ -277,11 +287,9 @@ const Dashboard: FC = () => {
     const setHaveDateZoomGranularitiesChanged = useDashboardContext(
         (c) => c.setHaveDateZoomGranularitiesChanged,
     );
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
-    const hasDefaultDateZoomGranularityChanged = useDashboardContext(
-        (c) => c.hasDefaultDateZoomGranularityChanged,
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
+    const hasDefaultDateZoomGranularityChanged = useDashboardSelector(
+        selectHasDefaultDateZoomGranularityChanged,
     );
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
@@ -289,9 +297,7 @@ const Dashboard: FC = () => {
     const setHasDefaultDateZoomGranularityChanged = useDashboardContext(
         (c) => c.setHasDefaultDateZoomGranularityChanged,
     );
-    const hasDateZoomConfigChanged = useDashboardContext(
-        (c) => c.hasDateZoomConfigChanged,
-    );
+    const hasDateZoomConfigChanged = useHasDateZoomConfigChanged();
     const setHasDateZoomConfigChanged = useDashboardContext(
         (c) => c.setHasDateZoomConfigChanged,
     );

@@ -1,6 +1,8 @@
 import {
     type ChartZoomableField,
+    type Dashboard,
     type DashboardFilters,
+    type DateZoomConfig,
     type DateGranularity,
     type DashboardParameters,
     type ParameterDefinitions,
@@ -9,6 +11,8 @@ import {
 import {
     buildInitialDashboardState,
     createDashboardStore,
+    dashboardEditActions,
+    getSavedDateZoomSettings,
     type DashboardStore,
 } from '../features/dashboard/store';
 import { toDashboardParameters } from '../providers/Dashboard/dashboardParametersUrl';
@@ -116,5 +120,106 @@ export const createDashboardTestStore = (
                   sqlChartTilesMetadata: values.sqlChartTilesMetadata,
               }
             : state.tileStatus,
+        edit: state.edit,
     });
+};
+
+/** Edit state as component tests used to pass it on the dashboard context */
+export type DashboardEditTestValues = Partial<{
+    dashboard: Pick<Dashboard, 'config'> | undefined;
+    dashboardTiles: Dashboard['tiles'] | undefined;
+    dashboardTabs: Dashboard['tabs'];
+    activeTab: Dashboard['tabs'][number] | undefined;
+    haveTilesChanged: boolean;
+    haveTabsChanged: boolean;
+    isDateZoomDisabled: boolean;
+    isAddFilterDisabled: boolean;
+    requiredFiltersNote: string;
+    dateZoomConfig: DateZoomConfig;
+    dateZoomGranularities: (DateGranularity | string)[];
+    defaultDateZoomGranularity: DateGranularity | string;
+}>;
+
+/**
+ * Writes the edit state of a context fixture into a real store through its
+ * actions, so a test keeps one fixture for both and can re-seed on rerender.
+ */
+export const seedDashboardEditState = (
+    store: DashboardStore,
+    values: DashboardEditTestValues,
+) => {
+    const saved = getSavedDateZoomSettings(values.dashboard?.config);
+    const { dispatch } = store;
+    if ('dashboardTiles' in values) {
+        dispatch(dashboardEditActions.setTiles(values.dashboardTiles));
+    }
+    if (values.dashboardTabs) {
+        dispatch(dashboardEditActions.setTabs(values.dashboardTabs));
+    }
+    if ('activeTab' in values) {
+        dispatch(dashboardEditActions.setActiveTab(values.activeTab));
+    }
+    if (values.haveTilesChanged !== undefined) {
+        dispatch(
+            dashboardEditActions.setHaveTilesChanged(values.haveTilesChanged),
+        );
+    }
+    if (values.haveTabsChanged !== undefined) {
+        dispatch(
+            dashboardEditActions.setHaveTabsChanged(values.haveTabsChanged),
+        );
+    }
+    if (values.isDateZoomDisabled !== undefined) {
+        dispatch(
+            dashboardEditActions.setIsDateZoomDisabled(
+                values.isDateZoomDisabled,
+            ),
+        );
+    }
+    if (values.isAddFilterDisabled !== undefined) {
+        dispatch(
+            dashboardEditActions.setIsAddFilterDisabled(
+                values.isAddFilterDisabled,
+            ),
+        );
+    }
+    if (values.requiredFiltersNote !== undefined) {
+        dispatch(
+            dashboardEditActions.setRequiredFiltersNote(
+                values.requiredFiltersNote,
+            ),
+        );
+    }
+    if (values.dateZoomConfig) {
+        dispatch(
+            dashboardEditActions.setDateZoomConfig({
+                value: values.dateZoomConfig,
+                changed: false,
+                saved: saved.dateZoomConfig,
+            }),
+        );
+    }
+    if (values.dateZoomGranularities) {
+        dispatch(
+            dashboardEditActions.setDateZoomGranularities({
+                value: values.dateZoomGranularities,
+                saved: saved.dateZoomGranularities,
+            }),
+        );
+        dispatch(
+            dashboardEditActions.setHaveDateZoomGranularitiesChanged(false),
+        );
+    }
+    if ('defaultDateZoomGranularity' in values) {
+        dispatch(
+            dashboardEditActions.setDefaultDateZoomGranularity({
+                value: values.defaultDateZoomGranularity,
+                saved: saved.defaultDateZoomGranularity,
+            }),
+        );
+        dispatch(
+            dashboardEditActions.setHasDefaultDateZoomGranularityChanged(false),
+        );
+    }
+    return store;
 };

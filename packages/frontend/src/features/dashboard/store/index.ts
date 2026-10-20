@@ -4,6 +4,10 @@ import {
     type DashboardDateZoomState,
 } from './dashboardDateZoomReducer';
 import {
+    dashboardEditReducer,
+    type DashboardEditState,
+} from './dashboardEditReducer';
+import {
     dashboardFiltersReducer,
     type DashboardFiltersState,
 } from './dashboardFiltersReducer';
@@ -21,6 +25,7 @@ export type DashboardStoreState = {
     parameters: DashboardParametersState;
     dateZoom: DashboardDateZoomState;
     tileStatus: DashboardTileStatusState;
+    edit: DashboardEditState;
 };
 
 // One store per mounted dashboard
@@ -31,6 +36,7 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
             parameters: dashboardParametersReducer,
             dateZoom: dashboardDateZoomReducer,
             tileStatus: dashboardTileStatusReducer,
+            edit: dashboardEditReducer,
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
@@ -51,6 +57,13 @@ export {
 export { dashboardParametersActions } from './dashboardParametersReducer';
 export { dashboardDateZoomActions } from './dashboardDateZoomReducer';
 export { dashboardTileStatusActions } from './dashboardTileStatusReducer';
+export {
+    dashboardEditActions,
+    getSavedDateZoomSettings,
+} from './dashboardEditReducer';
+export type { DashboardEditState } from './dashboardEditReducer';
+export * from './dashboardEditSelectors';
+export * from './editHooks';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';
 export * from './selectors';

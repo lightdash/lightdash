@@ -7,11 +7,23 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { fireEvent, renderHook, screen, within } from '@testing-library/react';
+import {
+    fireEvent,
+    renderHook,
+    screen,
+    within,
+    act,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ReactNode } from 'react';
+import { type ReactNode, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+    type DashboardEditTestValues,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FieldTilesBar } from './FieldTilesBar';
 import { useFieldTileActions } from './useFieldTileActions';
 
@@ -133,6 +145,32 @@ const queryButtonTexts = () =>
 const getUpdatedRule = (): DashboardFilterRule => {
     expect(updateFilter).toHaveBeenCalledTimes(1);
     return updateFilter.mock.calls[0][0];
+};
+
+// Seeds a real dashboard store from the context fixture, again on rerender
+const renderWithProviders = (ui: ReactElement) => {
+    const store = seedDashboardEditState(
+        createDashboardTestStore(),
+        mockDashboardContext.current as DashboardEditTestValues,
+    );
+    const wrap = (node: ReactElement) => (
+        <DashboardStoreTestProvider store={store}>
+            {node}
+        </DashboardStoreTestProvider>
+    );
+    const result = renderWithAppProviders(wrap(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => {
+            act(() => {
+                seedDashboardEditState(
+                    store,
+                    mockDashboardContext.current as DashboardEditTestValues,
+                );
+            });
+            result.rerender(wrap(node));
+        },
+    };
 };
 
 describe('FieldTilesBar', () => {
@@ -1032,8 +1070,19 @@ describe('FieldTilesBar', () => {
     it('hands back the same actions while nothing they read has changed', () => {
         setSidebar(rule('orders_status'));
         const columns = {};
-        const { result, rerender } = renderHook(() =>
-            useFieldTileActions(columns),
+        const store = seedDashboardEditState(
+            createDashboardTestStore(),
+            mockDashboardContext.current as DashboardEditTestValues,
+        );
+        const { result, rerender } = renderHook(
+            () => useFieldTileActions(columns),
+            {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <DashboardStoreTestProvider store={store}>
+                        {children}
+                    </DashboardStoreTestProvider>
+                ),
+            },
         );
         const first = result.current;
         expect(first).not.toBeNull();

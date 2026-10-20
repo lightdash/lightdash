@@ -41,8 +41,24 @@ import {
     selectParameterValues,
     selectPinnedParameters,
     selectTileParameterReferences,
+    selectActiveTab,
+    selectDashboardCustomMetrics,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
     useDashboardAllFilters,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
     useDashboardDispatch,
+    useDefaultDateZoomGranularity,
+    useHasDateZoomConfigChanged,
+    useRequiredFiltersNote,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -178,35 +194,27 @@ const useReportCustomGranularities = () => {
 
 // Editable dashboard state staged until save or cancel
 const useEditValues = () => ({
-    dashboardTiles: useDashboardContext((c) => c.dashboardTiles),
-    haveTilesChanged: useDashboardContext((c) => c.haveTilesChanged),
-    dashboardTabs: useDashboardContext((c) => c.dashboardTabs),
-    haveTabsChanged: useDashboardContext((c) => c.haveTabsChanged),
-    activeTab: useDashboardContext((c) => c.activeTab),
-    dashboardCustomMetrics: useDashboardContext(
-        (c) => c.dashboardCustomMetrics,
+    dashboardTiles: useDashboardSelector(selectDashboardTiles),
+    haveTilesChanged: useDashboardSelector(selectHaveTilesChanged),
+    dashboardTabs: useDashboardSelector(selectDashboardTabs),
+    haveTabsChanged: useDashboardSelector(selectHaveTabsChanged),
+    activeTab: useDashboardSelector(selectActiveTab),
+    dashboardCustomMetrics: useDashboardSelector(selectDashboardCustomMetrics),
+    haveCustomMetricsChanged: useDashboardSelector(
+        selectHaveCustomMetricsChanged,
     ),
-    haveCustomMetricsChanged: useDashboardContext(
-        (c) => c.haveCustomMetricsChanged,
+    isDateZoomDisabled: useDashboardSelector(selectIsDateZoomDisabled),
+    isAddFilterDisabled: useDashboardSelector(selectIsAddFilterDisabled),
+    requiredFiltersNote: useRequiredFiltersNote(),
+    dateZoomConfig: useDashboardDateZoomConfig(),
+    hasDateZoomConfigChanged: useHasDateZoomConfigChanged(),
+    dateZoomGranularities: useDashboardDateZoomGranularities(),
+    haveDateZoomGranularitiesChanged: useDashboardSelector(
+        selectHaveDateZoomGranularitiesChanged,
     ),
-    isDateZoomDisabled: useDashboardContext((c) => c.isDateZoomDisabled),
-    isAddFilterDisabled: useDashboardContext((c) => c.isAddFilterDisabled),
-    requiredFiltersNote: useDashboardContext((c) => c.requiredFiltersNote),
-    dateZoomConfig: useDashboardContext((c) => c.dateZoomConfig),
-    hasDateZoomConfigChanged: useDashboardContext(
-        (c) => c.hasDateZoomConfigChanged,
-    ),
-    dateZoomGranularities: useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    ),
-    haveDateZoomGranularitiesChanged: useDashboardContext(
-        (c) => c.haveDateZoomGranularitiesChanged,
-    ),
-    defaultDateZoomGranularity: useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    ),
-    hasDefaultDateZoomGranularityChanged: useDashboardContext(
-        (c) => c.hasDefaultDateZoomGranularityChanged,
+    defaultDateZoomGranularity: useDefaultDateZoomGranularity(),
+    hasDefaultDateZoomGranularityChanged: useDashboardSelector(
+        selectHasDefaultDateZoomGranularityChanged,
     ),
 });
 
@@ -232,7 +240,7 @@ type ProviderOptions = {
 const DashboardPageLoader = () => {
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
@@ -2511,10 +2519,7 @@ describe('edit state: tabs and the active tab', () => {
         expect(result.current.dashboardTabs).toEqual([tabA, tabB]);
         const tabC = { uuid: 'tab-c', name: 'C', order: -1 };
         act(() =>
-            result.current.setDashboardTabs((previous) => [
-                ...previous,
-                tabC,
-            ]),
+            result.current.setDashboardTabs((previous) => [...previous, tabC]),
         );
         expect(result.current.dashboardTabs.map((t) => t.uuid)).toEqual([
             'tab-c',
@@ -2528,7 +2533,9 @@ describe('edit state: tabs and the active tab', () => {
 
     it('starts on the URL tab, else the first tab', () => {
         mocks.dashboard = makeDashboard({ tabs: [tabA, tabB] });
-        const fromUrl = renderDashboard('/dashboard/dashboard-uuid/view/tabs/tab-b');
+        const fromUrl = renderDashboard(
+            '/dashboard/dashboard-uuid/view/tabs/tab-b',
+        );
         expect(fromUrl.result.current.activeTab).toEqual(tabB);
         fromUrl.unmount();
 
@@ -2541,11 +2548,15 @@ describe('edit state: tabs and the active tab', () => {
     it('skips hidden tabs in view mode but not in edit mode', () => {
         const hiddenA = { ...tabA, hidden: true };
         mocks.dashboard = makeDashboard({ tabs: [hiddenA, tabB] });
-        const view = renderDashboard('/dashboard/dashboard-uuid/view/tabs/tab-a');
+        const view = renderDashboard(
+            '/dashboard/dashboard-uuid/view/tabs/tab-a',
+        );
         expect(view.result.current.activeTab).toEqual(tabB);
         view.unmount();
 
-        const edit = renderDashboard('/dashboard/dashboard-uuid/edit/tabs/tab-a');
+        const edit = renderDashboard(
+            '/dashboard/dashboard-uuid/edit/tabs/tab-a',
+        );
         expect(edit.result.current.activeTab).toEqual(hiddenA);
     });
 
@@ -2618,10 +2629,7 @@ describe('edit state: custom metrics', () => {
             config: { isDateZoomDisabled: false, customMetrics: [] },
         });
         rerender();
-        expect(result.current.dashboardCustomMetrics).toEqual([
-            metric,
-            other,
-        ]);
+        expect(result.current.dashboardCustomMetrics).toEqual([metric, other]);
 
         act(() => result.current.setHaveCustomMetricsChanged(false));
         expect(result.current.dashboardCustomMetrics).toEqual([]);
@@ -2638,10 +2646,7 @@ describe('edit state: custom metrics', () => {
                 other,
             ]),
         );
-        expect(result.current.dashboardCustomMetrics).toEqual([
-            metric,
-            other,
-        ]);
+        expect(result.current.dashboardCustomMetrics).toEqual([metric, other]);
         mocks.dashboard = makeDashboard({
             config: { isDateZoomDisabled: false, customMetrics: [other] },
         });
@@ -2781,7 +2786,10 @@ describe('edit state: date zoom settings', () => {
         act(() =>
             result.current.setDateZoomConfig({ controls: [], tileTargets: {} }),
         );
-        const saved = { ...zoomConfig, controls: [{ ...control, name: 'New' }] };
+        const saved = {
+            ...zoomConfig,
+            controls: [{ ...control, name: 'New' }],
+        };
         mocks.dashboard = withConfig({ dateZoomConfig: saved });
         rerender();
         expect(result.current.dateZoomConfig).toEqual(saved);
@@ -2899,9 +2907,9 @@ describe('edit state: date zoom settings', () => {
             DateGranularity.DAY,
             'fiscal_quarter',
         ]);
-        act(() =>
-            result.current.reportCustomGranularities({ fiscal_year: 'FY' }),
-        );
+        act(() => {
+            result.current.reportCustomGranularities({ fiscal_year: 'FY' });
+        });
         expect(result.current.dateZoomGranularities).toEqual([
             DateGranularity.DAY,
         ]);
@@ -2941,9 +2949,7 @@ describe('edit state: setters', () => {
             result.current.setDateZoomGranularities([DateGranularity.DAY]);
             result.current.setRequiredFiltersNote('note');
         });
-        expect(setterNames.map((name) => result.current[name])).toEqual(
-            before,
-        );
+        expect(setterNames.map((name) => result.current[name])).toEqual(before);
     });
 });
 
@@ -2956,7 +2962,9 @@ describe('edit state: multiple dashboards', () => {
             first.result.current.setDashboardTiles([chartTile('only-first')]);
             first.result.current.setHaveTilesChanged(true);
             first.result.current.setActiveTab(tabB);
-            first.result.current.setDateZoomGranularities([DateGranularity.DAY]);
+            first.result.current.setDateZoomGranularities([
+                DateGranularity.DAY,
+            ]);
         });
         expect(second.result.current.dashboardTiles).toBe(
             (mocks.dashboard as Dashboard).tiles,

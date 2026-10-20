@@ -48,7 +48,10 @@ import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
 import {
     selectDashboardFilters,
+    selectDashboardTabs,
     selectDateZoomGranularity,
+    selectIsDateZoomDisabled,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -349,7 +352,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setHaveTilesChanged = useDashboardContext(
@@ -362,13 +365,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const unmetFilterRequirements = useDashboardUnmetFilterRequirements();
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();

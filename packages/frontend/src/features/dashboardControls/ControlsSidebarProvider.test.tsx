@@ -17,7 +17,11 @@ import {
     type SetStateAction,
 } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { EventName } from '../../types/Events';
 import {
@@ -120,7 +124,6 @@ const DashboardState: FC<
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
         dashboard: { tiles: mockTiles.saved },
-        dashboardTiles: mockTiles.current,
     };
     latest.filters = dashboardFilters;
     latest.changed = haveFiltersChanged;
@@ -130,7 +133,10 @@ const DashboardState: FC<
 // Real dashboard store behind the mocked dashboard context so edits re-render
 const Wrapper: FC<PropsWithChildren> = ({ children }) => {
     const [store] = useState(() =>
-        createDashboardTestStore({ dashboardFilters: initialFilters }),
+        seedDashboardEditState(
+            createDashboardTestStore({ dashboardFilters: initialFilters }),
+            { dashboardTiles: mockTiles.current } as DashboardEditTestValues,
+        ),
     );
     const [setters] = useState(() => storeSetters(store));
     return (

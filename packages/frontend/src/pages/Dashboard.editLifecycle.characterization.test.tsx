@@ -6,9 +6,9 @@ import {
     type DashboardTile,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { type Layout } from 'react-grid-layout';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -73,7 +73,9 @@ const makeDashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
         isDateZoomDisabled: false,
         pinnedParameters: [],
         dateZoomConfig: {
-            controls: [{ uuid: 'control-1', name: 'Zoom', granularity: 'MONTH' }],
+            controls: [
+                { uuid: 'control-1', name: 'Zoom', granularity: 'MONTH' },
+            ],
             tileTargets: { 'tile-1': target },
         },
     },
@@ -425,7 +427,11 @@ describe('edit lifecycle: layout edits and save', () => {
                 pinnedParameters: [],
                 dateZoomConfig: {
                     controls: [
-                        { uuid: 'control-1', name: 'Zoom', granularity: 'MONTH' },
+                        {
+                            uuid: 'control-1',
+                            name: 'Zoom',
+                            granularity: 'MONTH',
+                        },
                     ],
                     tileTargets: { 'tile-1': target },
                 },
@@ -573,9 +579,7 @@ describe('edit lifecycle: tabs', () => {
             ),
         ).toEqual(['tab-a', 'tab-b']);
         await waitFor(() =>
-            expect(screen.getByTestId('active-tab').textContent).toBe(
-                'tab-b',
-            ),
+            expect(screen.getByTestId('active-tab').textContent).toBe('tab-b'),
         );
 
         await click('Add tile');
@@ -589,9 +593,7 @@ describe('edit lifecycle: tabs', () => {
             { uuid: 'tab-a', name: 'A', order: 0 },
             { uuid: 'tab-b', name: 'B', order: 1 },
         ]);
-        await waitFor(() =>
-            expect(url()).toBe(`${SLUG_PATH}/view/tabs/tab-b`),
-        );
+        await waitFor(() => expect(url()).toBe(`${SLUG_PATH}/view/tabs/tab-b`));
     });
 
     it('falls back to the first visible tab in view mode', async () => {
@@ -604,9 +606,7 @@ describe('edit lifecycle: tabs', () => {
         renderDashboard(`${DASHBOARD_PATH}/view/tabs/tab-a`);
         await waitForLoaded();
         await waitFor(() =>
-            expect(screen.getByTestId('active-tab').textContent).toBe(
-                'tab-b',
-            ),
+            expect(screen.getByTestId('active-tab').textContent).toBe('tab-b'),
         );
     });
 
@@ -615,9 +615,7 @@ describe('edit lifecycle: tabs', () => {
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();
         await waitFor(() =>
-            expect(screen.getByTestId('active-tab').textContent).toBe(
-                'tab-a',
-            ),
+            expect(screen.getByTestId('active-tab').textContent).toBe('tab-a'),
         );
 
         await click('Switch to B');
@@ -678,10 +676,10 @@ describe('edit lifecycle: refetches and drafts', () => {
             const handlers = addListener.mock.calls.filter(
                 ([type]) => type === 'beforeunload',
             );
-            const latest = handlers[handlers.length - 1][1] as (
-                event: { returnValue?: string },
-            ) => string | undefined;
-            return latest({});
+            const latest = handlers[handlers.length - 1][1];
+            const event = { returnValue: undefined } as BeforeUnloadEvent;
+            if (typeof latest === 'function') latest(event);
+            return event.returnValue;
         };
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();

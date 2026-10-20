@@ -20,6 +20,9 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
+    selectDashboardTabs,
+    selectDashboardTiles,
     selectSqlChartTilesMetadata,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -95,9 +98,9 @@ export const FieldsAndTiles: FC = () => {
         hoveredFieldId,
         setHoveredFieldId,
     } = useControlsSidebar();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

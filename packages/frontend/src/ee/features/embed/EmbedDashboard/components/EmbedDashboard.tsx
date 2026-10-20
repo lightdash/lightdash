@@ -24,8 +24,14 @@ import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlC
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import {
+    selectActiveTab,
     selectDashboardFilters,
+    selectDashboardTabs,
+    selectDashboardTiles,
     selectHaveFiltersChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectIsAddFilterDisabled,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -322,14 +328,14 @@ const EmbedDashboard: FC<{
     onEditModeChange,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const setActiveTab = useDashboardContext((c) => c.setActiveTab);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
-    const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
+    const haveTilesChanged = useDashboardSelector(selectHaveTilesChanged);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
@@ -339,13 +345,11 @@ const EmbedDashboard: FC<{
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
-    );
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
-    const haveTabsChanged = useDashboardContext((c) => c.haveTabsChanged);
+    const haveTabsChanged = useDashboardSelector(selectHaveTabsChanged);
 
     const {
         dashboardUuid: embedDashboardUuid,

@@ -1,7 +1,7 @@
 # Dashboard store
 
-Filter, parameter, runtime date zoom and tile status state for one mounted
-dashboard. `DashboardProvider`
+Filter, parameter, runtime date zoom, tile status and edit state for one
+mounted dashboard. `DashboardProvider`
 creates the store with `createDashboardStore(buildInitialDashboardState(...))`
 and mounts it on `DashboardStoreContext`.
 
@@ -33,9 +33,19 @@ and mounts it on `DashboardStoreContext`.
   subscribing (see `pages/Dashboard.tsx` save and add-tile handlers).
 - **Select per tile, not the whole map.** Tiles read their own applied zoom with
   `selectIsDateZoomAppliedToTile`, so one tile's report doesn't re-render the rest.
-- **The date zoom config stays on the context.** Editor-authored settings
-  (`dateZoomConfig`, allowed and default granularities, `isDateZoomDisabled`)
-  move with the rest of the edit-mode state, not with the runtime grains.
+- **Edit state is staged in the store until save or cancel.** Tiles, tabs,
+  the active tab, custom metrics, the disabled flags, the required filters
+  note and their changed flags live in `edit`. The provider subscribes only
+  to keys (`selectTileUuidsKey`, `selectSavedChartUuidsAndTileUuidsKey`), so
+  moving a tile or switching tab doesn't re-render it.
+- **Editor-authored date zoom settings are drafts of the saved config.**
+  `dateZoomConfig` and the allowed and default granularities are stored as
+  `{ value, basedOn }` and resolved against the saved config at read time,
+  so a changed saved config replaces the draft in the same render. Read them
+  with `useDashboardDateZoomConfig`, `useDashboardDateZoomGranularities` and
+  `useDefaultDateZoomGranularity`; a component that also gets
+  `isDashboardLoaded` by prop must get the config by prop too (see
+  `ConnectedDashboardDateZoomSync`).
 - **URL, session storage and embed sync** live in
   `providers/Dashboard/DashboardFiltersSync.tsx`, `DashboardParametersSync.tsx`
   and `DashboardDateZoomSync.tsx`.
@@ -47,5 +57,9 @@ and mounts it on `DashboardStoreContext`.
   never to make it pass.
 - `DashboardProvider.renderBenchmark.test.tsx` asserts render counts per edit; a
   rise is a performance regression.
+- `pages/Dashboard.editLifecycle.characterization.test.tsx` pins the edit
+  lifecycle (save payloads, dirty state, cancel, failed saves, refetches,
+  drafts from session storage) with the real provider and page.
 - Component tests seed a real store with `createDashboardTestStore` and
   `DashboardStoreTestProvider` from `src/testing/`; don't mock the selectors.
+  `seedDashboardEditState` writes a context-shaped fixture into the store.

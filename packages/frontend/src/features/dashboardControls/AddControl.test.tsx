@@ -2,7 +2,11 @@ import { fireEvent, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    type DashboardEditTestValues,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { AddControl } from './AddControl';
@@ -19,14 +23,17 @@ const mockTileStatus = vi.hoisted(() => ({
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore({
-                haveFiltersChanged: false,
-                sqlChartTilesMetadata: mockTileStatus.current
-                    .sqlChartTilesMetadata as Record<
-                    string,
-                    SqlChartTileMetadata
-                >,
-            })}
+            store={seedDashboardEditState(
+                createDashboardTestStore({
+                    haveFiltersChanged: false,
+                    sqlChartTilesMetadata: mockTileStatus.current
+                        .sqlChartTilesMetadata as Record<
+                        string,
+                        SqlChartTileMetadata
+                    >,
+                }),
+                mockDashboardContext.current as DashboardEditTestValues,
+            )}
         >
             {ui}
         </DashboardStoreTestProvider>,

@@ -32,11 +32,13 @@ import {
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     selectAvailableCustomGranularities,
     selectChartZoomableFieldsByTileUuid,
+    selectDashboardTabs,
+    selectDashboardTiles,
     selectTileParameterReferences,
+    useDashboardDateZoomGranularities,
     useDashboardSelector,
 } from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
@@ -71,8 +73,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     onSave,
     popoverProps,
 }) => {
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const chartZoomableFieldsByTileUuid = useDashboardSelector(
         selectChartZoomableFieldsByTileUuid,
     );
@@ -88,9 +90,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     );
     // The dashboard's enabled granularities (set in the default picker); every
     // control offers only these.
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
 
     const [selectedTab, setSelectedTab] = useState<ControlTab>(
         ControlTab.SETTINGS,

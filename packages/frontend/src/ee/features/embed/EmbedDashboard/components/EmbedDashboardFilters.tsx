@@ -5,6 +5,8 @@ import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
+    selectActiveTab,
+    selectDashboardTiles,
     selectHaveFiltersChanged,
     selectParameterValues,
     useDashboardAllFilters,
@@ -34,12 +36,12 @@ const EmbedDashboardFilters: FC<Props> = ({
     const [openPopoverId, setPopoverId] = useState<string>();
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

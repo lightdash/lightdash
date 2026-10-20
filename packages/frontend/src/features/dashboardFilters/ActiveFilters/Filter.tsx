@@ -22,6 +22,12 @@ import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { getFieldColor } from '../../../utils/fieldColors';
+import {
+    selectActiveTab,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import FilterConfiguration from '../FilterConfiguration';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
@@ -65,9 +71,9 @@ const Filter: FC<Props> = ({
     const popoverId = useId();
 
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const activeTab = useDashboardContext((c) => c.activeTab);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTab = useDashboardSelector(selectActiveTab);
     const activeTabUuid = activeTab?.uuid;
     const hasTabs = (dashboardTabs?.length ?? 0) > 0;
     const allFilterableFields = useDashboardContext(

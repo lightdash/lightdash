@@ -8,7 +8,10 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectDashboardTabs,
+    selectDashboardTiles,
     selectHaveFiltersChanged,
+    selectIsAddFilterDisabled,
     selectSqlChartTilesMetadata,
     useDashboardSelector,
     useHasDashboardTemporaryFilters,
@@ -47,14 +50,12 @@ const AddFilterButton: FC<Props> = ({
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
-    );
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const setIsAddFilterDisabled = useDashboardContext(
         (c) => c.setIsAddFilterDisabled,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );

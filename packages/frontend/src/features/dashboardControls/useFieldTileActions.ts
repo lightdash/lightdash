@@ -8,6 +8,12 @@ import {
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectActiveTabUuid,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
 import {
     applyFieldToUnfilteredTiles,
@@ -171,9 +177,9 @@ export const useFieldTileActions = (
     const removeWaitingField = useControlsSidebarSelector(
         (c) => c.removeWaitingField,
     );
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

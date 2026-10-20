@@ -6,6 +6,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { type DashboardStoreState } from '.';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
+import { initialDashboardEditState } from './dashboardEditReducer';
 import { initialDashboardFiltersState } from './dashboardFiltersReducer';
 import {
     initialDashboardParametersState,
@@ -29,6 +30,7 @@ const stateWith = (
     parameters: { ...initialDashboardParametersState, ...parameters },
     dateZoom: initialDashboardDateZoomState,
     tileStatus: initialDashboardTileStatusState,
+    edit: initialDashboardEditState,
 });
 
 const rule = (

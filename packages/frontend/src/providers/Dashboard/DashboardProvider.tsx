@@ -1,20 +1,16 @@
 import {
     applyDimensionOverrides,
-    DashboardTileTypes,
-    DateGranularity,
-    EMPTY_DATE_ZOOM_CONFIG,
     getItemId,
-    isDashboardChartTileType,
     isStandardDateGranularity,
-    isSubDayGranularity,
-    normalizeDateZoomConfig,
     type AdditionalMetric,
     type ChartZoomableField,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardConfig,
     type DashboardParameters,
+    type DateGranularity,
     type DateZoomConfig,
     type FilterableDimension,
     type InteractivityOptions,
@@ -23,17 +19,17 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
-    type SavedChartsInfoForDashboardAvailableFilters,
     type SortField,
 } from '@lightdash/common';
-import isEqual from 'lodash/isEqual';
-import sortBy from 'lodash/sortBy';
 import React, {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
+    useSyncExternalStore,
+    type ComponentProps,
 } from 'react';
 import { Provider } from 'react-redux';
 import { useLocation, useParams } from 'react-router';
@@ -47,11 +43,35 @@ import {
     buildInitialDashboardState,
     createDashboardStore,
     dashboardDateZoomActions,
+    dashboardEditActions,
     dashboardFiltersActions,
     dashboardParametersActions,
     DashboardStoreContext,
     emptyDashboardFilters,
+    getSavedDateZoomSettings,
+    selectActiveTab,
+    selectDashboardCustomMetrics,
     selectDashboardFilters,
+    selectDashboardTabs,
+    selectDashboardTiles,
+    selectDateZoomConfig,
+    selectDateZoomGranularities,
+    selectDefaultDateZoomGranularity,
+    selectHasDateZoomConfigChanged,
+    selectHasDefaultDateZoomGranularityChanged,
+    selectHasTilesThatSupportFilters,
+    selectHaveCustomMetricsChanged,
+    selectHaveDateZoomGranularitiesChanged,
+    selectHaveTabsChanged,
+    selectHaveTilesChanged,
+    selectEditedRequiredFiltersNote,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
+    selectSavedChartUuidsAndTileUuids,
+    selectSavedChartUuidsAndTileUuidsKey,
+    selectTileUuidsKey,
+    useDashboardDateZoomGranularities,
+    useDefaultDateZoomGranularity,
     selectDateZoomGranularity,
     selectHasParameterOrderChanged,
     selectHaveFiltersChanged,
@@ -62,6 +82,7 @@ import {
     selectTilesWithDateZoomApplied,
     useAreAllChartsLoaded,
     useDashboardSelector,
+    type DashboardStore,
     type TemporaryFilterLocks,
 } from '../../features/dashboard/store';
 import {
@@ -199,31 +220,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [dashboardComments],
     );
 
-    const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
-    const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
-    const [dashboardCustomMetrics, setDashboardCustomMetrics] = useState<
-        AdditionalMetric[]
-    >([]);
-    const [haveCustomMetricsChanged, setHaveCustomMetricsChanged] =
-        useState<boolean>(false);
-    const [haveTabsChanged, setHaveTabsChanged] = useState<boolean>(false);
-    const [dashboardTabs, setDashboardTabsInternal] = useState<
-        Dashboard['tabs']
-    >([]);
-    const setDashboardTabs = useCallback<
-        React.Dispatch<React.SetStateAction<Dashboard['tabs']>>
-    >((tabs) => {
-        setDashboardTabsInternal((prevTabs) => {
-            const newTabs = typeof tabs === 'function' ? tabs(prevTabs) : tabs;
-            return sortBy(newTabs, 'order');
-        });
-    }, []);
-    const [activeTab, setActiveTab] = useState<
-        Dashboard['tabs'][number] | undefined
-    >();
-
-    // Filter, parameter and date zoom state lives in a per-mount store so edits only
-    // re-render the components that select it, not every context consumer.
+    // Filter, parameter, date zoom and edit state lives in a per-mount store so
+    // edits only re-render the components that select it, not every context consumer.
     const [{ store, urlRestoreErrors }] = useState(() => {
         const initial = buildInitialDashboardState({
             search,
@@ -257,33 +255,18 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [store],
     );
 
-    // Allows users to disable date zoom on view mode,
-    // by default it is enabled
-    const [isDateZoomDisabled, setIsDateZoomDisabled] =
-        useState<boolean>(false);
+    const editSetters = useEditSetters(store, currentDashboardConfig);
+
+    // Allows users to disable date zoom and the add filter button on view mode;
+    // config can switch them on, never back off
     useEffect(() => {
         if (dashboard?.config?.isDateZoomDisabled === true) {
-            setIsDateZoomDisabled(true);
+            store.dispatch(dashboardEditActions.setIsDateZoomDisabled(true));
         }
-    }, [dashboard]);
-
-    // Allows users to disable add filter button on view mode,
-    // by default it is enabled
-    const [isAddFilterDisabled, setIsAddFilterDisabled] =
-        useState<boolean>(false);
-    useEffect(() => {
         if (dashboard?.config?.isAddFilterDisabled === true) {
-            setIsAddFilterDisabled(true);
+            store.dispatch(dashboardEditActions.setIsAddFilterDisabled(true));
         }
-    }, [dashboard]);
-
-    // Editor-authored note shown to viewers while filter rules are unmet;
-    // unsaved edits win over the saved config value
-    const [editedRequiredFiltersNote, setRequiredFiltersNote] =
-        useState<string>();
-    const requiredFiltersNote =
-        editedRequiredFiltersNote ??
-        currentDashboardConfig?.requiredFiltersNote;
+    }, [store, dashboard]);
 
     useEffect(() => {
         store.dispatch(
@@ -301,60 +284,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         },
         [store],
     );
-
-    // Date zoom granularities state.
-    // Default offers every standard granularity except sub-day ones; editors can
-    // still enable sub-day granularities (Second/Minute/Hour) explicitly.
-    const defaultStandardGranularities = useMemo(
-        () =>
-            Object.values(DateGranularity).filter(
-                (g) => !isSubDayGranularity(g),
-            ),
-        [],
-    );
-
-    const [dateZoomGranularities, setDateZoomGranularitiesState] = useState<
-        (DateGranularity | string)[]
-    >(defaultStandardGranularities);
-    const [
-        haveDateZoomGranularitiesChanged,
-        setHaveDateZoomGranularitiesChanged,
-    ] = useState<boolean>(false);
-
-    const [defaultDateZoomGranularity, setDefaultDateZoomGranularityState] =
-        useState<DateGranularity | string | undefined>(undefined);
-    const [
-        hasDefaultDateZoomGranularityChanged,
-        setHasDefaultDateZoomGranularityChanged,
-    ] = useState<boolean>(false);
-
-    // Configurable date zoom controls (named controls + per-tile targets).
-    const [dateZoomConfig, setDateZoomConfigState] = useState<DateZoomConfig>(
-        EMPTY_DATE_ZOOM_CONFIG,
-    );
-    const [hasDateZoomConfigChanged, setHasDateZoomConfigChanged] =
-        useState(false);
-
-    const setDateZoomConfig = useCallback((config: DateZoomConfig) => {
-        setDateZoomConfigState(config);
-        setHasDateZoomConfigChanged(true);
-    }, []);
-
-    // Persisted config, used to seed editable state on load and after save.
-    const persistedDateZoomConfig = useMemo(
-        () => normalizeDateZoomConfig(currentDashboardConfig),
-        [currentDashboardConfig],
-    );
-    const [syncedDateZoomConfig, setSyncedDateZoomConfig] =
-        useState<DateZoomConfig | null>(null);
-
-    // Re-seed editable state when persisted content changes (load + post-save),
-    // adjusting during render so a no-op refetch can't clobber in-progress edits.
-    if (!isEqual(persistedDateZoomConfig, syncedDateZoomConfig)) {
-        setSyncedDateZoomConfig(persistedDateZoomConfig);
-        setDateZoomConfigState(persistedDateZoomConfig);
-        setHasDateZoomConfigChanged(false);
-    }
 
     // Per-control runtime grain overrides only; an absent entry means "use the
     // control's persisted default" (the resolver applies `?? control.granularity`).
@@ -414,57 +343,23 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [store, dashboard?.config?.parameterOrder, dashboard?.config]);
 
-    // Sync date zoom granularities from dashboard config during render, so the
-    // URL granularity is never validated against a stale list
-    // Note: Custom granularities from explores are added by DashboardGranularitySync
-    const persistedDateZoomGranularities =
-        currentDashboardConfig?.dateZoomGranularities ??
-        defaultStandardGranularities;
-    const [syncedDateZoomGranularities, setSyncedDateZoomGranularities] =
-        useState<(DateGranularity | string)[]>(defaultStandardGranularities);
-    if (persistedDateZoomGranularities !== syncedDateZoomGranularities) {
-        setSyncedDateZoomGranularities(persistedDateZoomGranularities);
-        setDateZoomGranularitiesState(persistedDateZoomGranularities);
-    }
-
     // Seed the staged custom-metrics registry from config; keep user edits
     // until save/cancel resets the changed flag.
+    const haveCustomMetricsChanged = useStoreValue(
+        store,
+        selectHaveCustomMetricsChanged,
+    );
     useEffect(() => {
-        if (haveCustomMetricsChanged) return;
-        setDashboardCustomMetrics(currentDashboardConfig?.customMetrics ?? []);
-    }, [currentDashboardConfig?.customMetrics, haveCustomMetricsChanged]);
-
-    // Sync default date zoom granularity from dashboard config, also during render
-    const persistedDefaultDateZoomGranularity =
-        currentDashboardConfig?.defaultDateZoomGranularity;
-    const [
-        syncedDefaultDateZoomGranularity,
-        setSyncedDefaultDateZoomGranularity,
-    ] = useState<DateGranularity | string | undefined>(undefined);
-    if (
-        persistedDefaultDateZoomGranularity !== syncedDefaultDateZoomGranularity
-    ) {
-        setSyncedDefaultDateZoomGranularity(
-            persistedDefaultDateZoomGranularity,
+        store.dispatch(
+            dashboardEditActions.syncCustomMetrics(
+                currentDashboardConfig?.customMetrics ?? [],
+            ),
         );
-        setDefaultDateZoomGranularityState(persistedDefaultDateZoomGranularity);
-    }
-
-    // Set active tab when dashboard and tabs are loaded.
-    // In view mode, hidden tabs are not selectable — fall back to the first
-    // visible tab if the URL points at a hidden tab. In edit mode all tabs are selectable.
-    useEffect(() => {
-        if (dashboardTabs && dashboardTabs.length > 0) {
-            setActiveTab((currentActiveTab) =>
-                getActiveTabForTabs(
-                    dashboardTabs,
-                    tabUuid,
-                    isEditMode,
-                    currentActiveTab,
-                ),
-            );
-        }
-    }, [dashboardTabs, tabUuid, isEditMode]);
+    }, [
+        store,
+        currentDashboardConfig?.customMetrics,
+        haveCustomMetricsChanged,
+    ]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
     useEffect(() => {
@@ -574,22 +469,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [store],
     );
 
-    const setDateZoomGranularities = useCallback(
-        (granularities: (DateGranularity | string)[]) => {
-            setDateZoomGranularitiesState(granularities);
-            setHaveDateZoomGranularitiesChanged(true);
-        },
-        [],
-    );
-
-    const setDefaultDateZoomGranularity = useCallback(
-        (granularity: DateGranularity | string | undefined) => {
-            setDefaultDateZoomGranularityState(granularity);
-            setHasDefaultDateZoomGranularityChanged(true);
-        },
-        [],
-    );
-
     const addParameterReferences = useCallback(
         (tileUuid: string, references: string[]) => {
             store.dispatch(
@@ -614,16 +493,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         [store],
     );
 
-    // Remove parameter references for tiles that are no longer in the dashboard
+    // Remove parameter references and zoomable fields for tiles that are no
+    // longer in the dashboard
+    const tileUuidsKey = useStoreValue(store, selectTileUuidsKey);
     useEffect(() => {
-        if (dashboardTiles) {
-            store.dispatch(
-                dashboardParametersActions.keepTileParameterState(
-                    dashboardTiles.map((tile) => tile.uuid),
-                ),
-            );
-        }
-    }, [store, dashboardTiles]);
+        if (tileUuidsKey === undefined) return;
+        const tileUuids = tileUuidsKey === '' ? [] : tileUuidsKey.split(',');
+        store.dispatch(
+            dashboardParametersActions.keepTileParameterState(tileUuids),
+        );
+        store.dispatch(
+            dashboardDateZoomActions.keepTileDateZoomState(tileUuids),
+        );
+    }, [store, tileUuidsKey]);
 
     // The date fields each chart tile can actually be zoomed on, reported up
     // from each tile (it has the explore + metricQuery). The date-zoom control
@@ -640,17 +522,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         },
         [store],
     );
-
-    // Drop zoomable fields for tiles no longer on the dashboard
-    useEffect(() => {
-        if (dashboardTiles) {
-            store.dispatch(
-                dashboardDateZoomActions.keepTileDateZoomState(
-                    dashboardTiles.map((tile) => tile.uuid),
-                ),
-            );
-        }
-    }, [store, dashboardTiles]);
 
     const setTilesWithDateZoomApplied = useCallback<
         React.Dispatch<React.SetStateAction<Set<string> | undefined>>
@@ -679,41 +550,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [showToastWarning, urlRestoreErrors]);
 
-    // Stable key that only changes when the chart-tile mapping changes,
-    // not when tiles are repositioned/resized (x/y/w/h changes).
-    // This prevents unnecessary re-renders of the entire filter chain
-    // during drag/resize operations.
-    const savedChartUuidsAndTileUuidsKey = useMemo(
-        () =>
-            dashboardTiles
-                ?.filter(isDashboardChartTileType)
-                .map(
-                    (tile) =>
-                        `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`,
-                )
-                .sort()
-                .join(',') ?? '',
-        [dashboardTiles],
+    // Only changes with the chart-tile mapping, not when tiles move or resize
+    const savedChartUuidsAndTileUuidsKey = useStoreValue(
+        store,
+        selectSavedChartUuidsAndTileUuidsKey,
     );
-
     const savedChartUuidsAndTileUuids = useMemo(
-        () =>
-            dashboardTiles
-                ?.filter(isDashboardChartTileType)
-                .reduce<SavedChartsInfoForDashboardAvailableFilters>(
-                    (acc, tile) => {
-                        if (tile.properties.savedChartUuid) {
-                            acc.push({
-                                tileUuid: tile.uuid,
-                                savedChartUuid: tile.properties.savedChartUuid,
-                            });
-                        }
-                        return acc;
-                    },
-                    [],
-                ),
+        () => selectSavedChartUuidsAndTileUuids(store.getState()),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [savedChartUuidsAndTileUuidsKey],
+        [store, savedChartUuidsAndTileUuidsKey],
     );
 
     const {
@@ -844,15 +689,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         );
     }, [store, dashboard?.filters, embedDashboard]);
 
-    const hasTilesThatSupportFilters = useMemo(() => {
-        const tileTypesThatSupportFilters = [
-            DashboardTileTypes.SQL_CHART,
-            DashboardTileTypes.SAVED_CHART,
-        ];
-        return !!dashboardTiles?.some(({ type }) =>
-            tileTypesThatSupportFilters.includes(type),
-        );
-    }, [dashboardTiles]);
+    const hasTilesThatSupportFilters = useStoreValue(
+        store,
+        selectHasTilesThatSupportFilters,
+    );
 
     const setDashboardFilters = useCallback<
         React.Dispatch<React.SetStateAction<DashboardFilters>>
@@ -1011,21 +851,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             // Only update local state if we got fresh data back
             // (null means dashboard was already up-to-date)
             if (freshDashboard) {
-                setDashboardTiles(freshDashboard.tiles);
-                setDashboardTabs(freshDashboard.tabs);
+                store.dispatch(
+                    dashboardEditActions.setTiles(freshDashboard.tiles),
+                );
+                store.dispatch(
+                    dashboardEditActions.setTabs(freshDashboard.tabs),
+                );
                 setSavedParameters(freshDashboard.parameters ?? {});
             }
         } catch (error) {
             console.error('Failed to refresh dashboard:', error);
             // Could optionally show a toast error here
         }
-    }, [
-        versionRefresh,
-        dashboard,
-        setDashboardTiles,
-        setDashboardTabs,
-        setSavedParameters,
-    ]);
+    }, [store, versionRefresh, dashboard, setSavedParameters]);
 
     const value = {
         projectUuid,
@@ -1034,20 +872,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboard: dashboard || embedDashboard,
         setEmbedDashboard,
         dashboardError,
-        dashboardTiles,
-        setDashboardTiles,
-        haveTilesChanged,
-        setHaveTilesChanged,
-        dashboardCustomMetrics,
-        setDashboardCustomMetrics,
-        haveCustomMetricsChanged,
-        setHaveCustomMetricsChanged,
-        haveTabsChanged,
-        setHaveTabsChanged,
-        dashboardTabs,
-        setDashboardTabs,
-        activeTab,
-        setActiveTab,
+        ...editSetters,
         setDashboardTemporaryFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
@@ -1074,20 +899,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setChartSort,
         setDateZoomGranularity,
         setTilesWithDateZoomApplied,
-        dateZoomConfig,
-        setDateZoomConfig,
-        hasDateZoomConfigChanged,
-        setHasDateZoomConfigChanged,
         setControlGranularity,
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
-        isDateZoomDisabled,
-        setIsDateZoomDisabled,
-        isAddFilterDisabled,
-        setIsAddFilterDisabled,
-        requiredFiltersNote,
-        setRequiredFiltersNote,
         setSavedParameters,
         setParameter,
         clearAllParameters,
@@ -1098,14 +913,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setHavePinnedParametersChanged,
         setParameterOrder,
         setHasParameterOrderChanged,
-        dateZoomGranularities,
-        setDateZoomGranularities,
-        haveDateZoomGranularitiesChanged,
-        setHaveDateZoomGranularitiesChanged,
-        defaultDateZoomGranularity,
-        setDefaultDateZoomGranularity,
-        hasDefaultDateZoomGranularityChanged,
-        setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
@@ -1113,21 +920,17 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     return (
         <Provider store={store} context={DashboardStoreContext}>
             <DashboardContext.Provider value={value}>
-                <DashboardTileStatusProvider
-                    dashboardTiles={dashboardTiles}
-                    dashboardTabs={dashboardTabs}
-                    activeTab={activeTab}
+                <ConnectedDashboardTileStatusProvider
                     schedulerTabsSelected={schedulerTabsSelected}
                 >
                     <DashboardGranularitySync />
                     {children}
-                </DashboardTileStatusProvider>
+                </ConnectedDashboardTileStatusProvider>
                 {/* After children so their effects run after the page's, as when they lived in this provider */}
-                <DashboardFiltersSync
+                <ConnectedDashboardFiltersSync
                     dashboardIdentifier={dashboardIdentifier}
                     dashboard={dashboard}
                     embedDashboard={embedDashboard}
-                    activeTab={activeTab}
                     savedChartUuidsAndTileUuids={savedChartUuidsAndTileUuids}
                     filterableFieldsByTileUuid={filterableFieldsByTileUuid}
                     temporaryFilterLocks={temporaryFilterLocks}
@@ -1136,7 +939,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     projectUuid={projectUuid}
                     isEditMode={isEditMode}
                 />
-                <DashboardDateZoomSync
+                <ConnectedDashboardDateZoomSync
+                    dashboardConfig={currentDashboardConfig}
                     dashboardUuid={dashboard?.uuid}
                     isDashboardLoaded={!!(dashboard ?? embedDashboard)}
                     isEditMode={isEditMode}
@@ -1146,8 +950,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     isDateZoomDisabledInConfig={
                         currentDashboardConfig?.isDateZoomDisabled
                     }
-                    dateZoomGranularities={dateZoomGranularities}
-                    defaultDateZoomGranularity={defaultDateZoomGranularity}
+                />
+                <DashboardActiveTabSync
+                    tabUuid={tabUuid}
+                    isEditMode={isEditMode}
                 />
             </DashboardContext.Provider>
         </Provider>
@@ -1170,15 +976,11 @@ const DashboardGranularitySync: React.FC = () => {
     // Reading dateZoomGranularities directly in the dep array would cause an
     // infinite loop: effect filters → setDateZoomGranularities (which also sets
     // haveDateZoomGranularitiesChanged) → new context value → effect re-fires.
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
     const dateZoomGranularitiesRef = useRef(dateZoomGranularities);
     dateZoomGranularitiesRef.current = dateZoomGranularities;
 
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const defaultDateZoomGranularityRef = useRef(defaultDateZoomGranularity);
     defaultDateZoomGranularityRef.current = defaultDateZoomGranularity;
 
@@ -1248,6 +1050,276 @@ const DashboardGranularitySync: React.FC = () => {
         setDateZoomGranularity,
     ]);
 
+    return null;
+};
+
+/** The provider renders the store's Provider, so it subscribes directly */
+const useStoreValue = <T,>(
+    store: DashboardStore,
+    selector: (state: ReturnType<DashboardStore['getState']>) => T,
+) => useSyncExternalStore(store.subscribe, () => selector(store.getState()));
+
+const resolve = <T,>(value: React.SetStateAction<T>, previous: () => T): T =>
+    typeof value === 'function' ? (value as (prev: T) => T)(previous()) : value;
+
+/** Stable context setters for the edit state; they read the store at call time */
+const useEditSetters = (
+    store: DashboardStore,
+    config: DashboardConfig | undefined,
+) => {
+    const savedSettings = useMemo(
+        () => getSavedDateZoomSettings(config),
+        [config],
+    );
+    const savedSettingsRef = useRef(savedSettings);
+    useLayoutEffect(() => {
+        savedSettingsRef.current = savedSettings;
+    }, [savedSettings]);
+
+    // A changed saved config replaces drafts of its settings
+    useEffect(() => {
+        store.dispatch(dashboardEditActions.dropStaleDrafts(savedSettings));
+    }, [store, savedSettings]);
+
+    return useMemo(() => {
+        const { dispatch, getState } = store;
+        const savedDateZoomConfig = () =>
+            savedSettingsRef.current.dateZoomConfig;
+        return {
+            setDashboardTiles: (
+                value: React.SetStateAction<Dashboard['tiles'] | undefined>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setTiles(
+                        resolve(value, () => selectDashboardTiles(getState())),
+                    ),
+                ),
+            setHaveTilesChanged: (value: React.SetStateAction<boolean>) =>
+                dispatch(
+                    dashboardEditActions.setHaveTilesChanged(
+                        resolve(value, () =>
+                            selectHaveTilesChanged(getState()),
+                        ),
+                    ),
+                ),
+            setDashboardTabs: (
+                value: React.SetStateAction<Dashboard['tabs']>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setTabs(
+                        resolve(value, () => selectDashboardTabs(getState())),
+                    ),
+                ),
+            setHaveTabsChanged: (value: React.SetStateAction<boolean>) =>
+                dispatch(
+                    dashboardEditActions.setHaveTabsChanged(
+                        resolve(value, () => selectHaveTabsChanged(getState())),
+                    ),
+                ),
+            setActiveTab: (
+                value: React.SetStateAction<
+                    Dashboard['tabs'][number] | undefined
+                >,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setActiveTab(
+                        resolve(value, () => selectActiveTab(getState())),
+                    ),
+                ),
+            setDashboardCustomMetrics: (
+                value: React.SetStateAction<AdditionalMetric[]>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setCustomMetrics(
+                        resolve(value, () =>
+                            selectDashboardCustomMetrics(getState()),
+                        ),
+                    ),
+                ),
+            setHaveCustomMetricsChanged: (
+                value: React.SetStateAction<boolean>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setHaveCustomMetricsChanged(
+                        resolve(value, () =>
+                            selectHaveCustomMetricsChanged(getState()),
+                        ),
+                    ),
+                ),
+            setIsDateZoomDisabled: (value: React.SetStateAction<boolean>) =>
+                dispatch(
+                    dashboardEditActions.setIsDateZoomDisabled(
+                        resolve(value, () =>
+                            selectIsDateZoomDisabled(getState()),
+                        ),
+                    ),
+                ),
+            setIsAddFilterDisabled: (value: React.SetStateAction<boolean>) =>
+                dispatch(
+                    dashboardEditActions.setIsAddFilterDisabled(
+                        resolve(value, () =>
+                            selectIsAddFilterDisabled(getState()),
+                        ),
+                    ),
+                ),
+            setRequiredFiltersNote: (
+                value: React.SetStateAction<string | undefined>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setRequiredFiltersNote(
+                        resolve(value, () =>
+                            selectEditedRequiredFiltersNote(getState()),
+                        ),
+                    ),
+                ),
+            setDateZoomConfig: (dateZoomConfig: DateZoomConfig) =>
+                dispatch(
+                    dashboardEditActions.setDateZoomConfig({
+                        value: dateZoomConfig,
+                        changed: true,
+                        saved: savedDateZoomConfig(),
+                    }),
+                ),
+            setHasDateZoomConfigChanged: (
+                value: React.SetStateAction<boolean>,
+            ) => {
+                const saved = savedDateZoomConfig();
+                const state = getState();
+                dispatch(
+                    dashboardEditActions.setDateZoomConfig({
+                        value: selectDateZoomConfig(state, saved),
+                        changed: resolve(value, () =>
+                            selectHasDateZoomConfigChanged(state, saved),
+                        ),
+                        saved,
+                    }),
+                );
+            },
+            setDateZoomGranularities: (
+                granularities: (DateGranularity | string)[],
+            ) =>
+                dispatch(
+                    dashboardEditActions.setDateZoomGranularities({
+                        value: granularities,
+                        saved: savedSettingsRef.current.dateZoomGranularities,
+                    }),
+                ),
+            setHaveDateZoomGranularitiesChanged: (
+                value: React.SetStateAction<boolean>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setHaveDateZoomGranularitiesChanged(
+                        resolve(value, () =>
+                            selectHaveDateZoomGranularitiesChanged(getState()),
+                        ),
+                    ),
+                ),
+            setDefaultDateZoomGranularity: (
+                granularity: DateGranularity | string | undefined,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setDefaultDateZoomGranularity({
+                        value: granularity,
+                        saved: savedSettingsRef.current
+                            .defaultDateZoomGranularity,
+                    }),
+                ),
+            setHasDefaultDateZoomGranularityChanged: (
+                value: React.SetStateAction<boolean>,
+            ) =>
+                dispatch(
+                    dashboardEditActions.setHasDefaultDateZoomGranularityChanged(
+                        resolve(value, () =>
+                            selectHasDefaultDateZoomGranularityChanged(
+                                getState(),
+                            ),
+                        ),
+                    ),
+                ),
+        };
+    }, [store]);
+};
+
+// The wrappers below select edit state so the provider itself doesn't
+// re-render when tiles, tabs or the active tab change.
+
+const ConnectedDashboardTileStatusProvider: React.FC<
+    Omit<
+        ComponentProps<typeof DashboardTileStatusProvider>,
+        'dashboardTiles' | 'dashboardTabs' | 'activeTab'
+    >
+> = (props) => (
+    <DashboardTileStatusProvider
+        {...props}
+        dashboardTiles={useDashboardSelector(selectDashboardTiles)}
+        dashboardTabs={useDashboardSelector(selectDashboardTabs)}
+        activeTab={useDashboardSelector(selectActiveTab)}
+    />
+);
+
+const ConnectedDashboardFiltersSync: React.FC<
+    Omit<ComponentProps<typeof DashboardFiltersSync>, 'activeTab'>
+> = (props) => (
+    <DashboardFiltersSync
+        {...props}
+        activeTab={useDashboardSelector(selectActiveTab)}
+    />
+);
+
+// Takes the config by prop, not context, so the allowed list arrives in the
+// same render as `isDashboardLoaded` and a URL value is never checked against
+// the placeholder list
+const ConnectedDashboardDateZoomSync: React.FC<
+    Omit<
+        ComponentProps<typeof DashboardDateZoomSync>,
+        'dateZoomGranularities' | 'defaultDateZoomGranularity'
+    > & { dashboardConfig: DashboardConfig | undefined }
+> = ({ dashboardConfig, ...props }) => {
+    const saved = useMemo(
+        () => getSavedDateZoomSettings(dashboardConfig),
+        [dashboardConfig],
+    );
+    const dateZoomGranularities = useDashboardSelector((state) =>
+        selectDateZoomGranularities(state, saved.dateZoomGranularities),
+    );
+    const defaultDateZoomGranularity = useDashboardSelector((state) =>
+        selectDefaultDateZoomGranularity(
+            state,
+            saved.defaultDateZoomGranularity,
+        ),
+    );
+    return (
+        <DashboardDateZoomSync
+            {...props}
+            dateZoomGranularities={dateZoomGranularities}
+            defaultDateZoomGranularity={defaultDateZoomGranularity}
+        />
+    );
+};
+
+/**
+ * Picks the active tab when the tabs or the URL tab change. In view mode,
+ * hidden tabs are not selectable: a URL pointing at one falls back to the first
+ * visible tab. In edit mode all tabs are selectable.
+ */
+const DashboardActiveTabSync: React.FC<{
+    tabUuid: string | undefined;
+    isEditMode: boolean;
+}> = ({ tabUuid, isEditMode }) => {
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const setActiveTab = useDashboardContext((c) => c.setActiveTab);
+    useEffect(() => {
+        if (dashboardTabs && dashboardTabs.length > 0) {
+            setActiveTab((currentActiveTab) =>
+                getActiveTabForTabs(
+                    dashboardTabs,
+                    tabUuid,
+                    isEditMode,
+                    currentActiveTab,
+                ),
+            );
+        }
+    }, [dashboardTabs, tabUuid, isEditMode, setActiveTab]);
     return null;
 };
 

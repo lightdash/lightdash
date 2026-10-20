@@ -23,6 +23,7 @@ import {
     selectIsAutoRefresh,
     selectParameterValues,
     selectTileParameterReferences,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -121,7 +122,7 @@ export const useDashboardChartReadyQuery = (
     // Configurable date zoom: tiles with a control resolve their control's
     // grain; unassigned tiles (and dashboards with no config) fall through to
     // the Default branch — the existing global picker.
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const controlGranularities = useDashboardSelector(
         selectControlGranularities,
     );

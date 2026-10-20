@@ -23,6 +23,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
+    selectDashboardTabs,
     useDashboardSelector,
 } from '../dashboard/store';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
@@ -113,7 +114,7 @@ export const ViewerControls: FC<Props> = ({
     const getUiString = useUiStrings();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,

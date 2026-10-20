@@ -27,6 +27,7 @@ import { EventName } from '../../../types/Events';
 import {
     selectDashboardFilters,
     useDashboardSelector,
+    useRequiredFiltersNote,
 } from '../../dashboard/store';
 import classes from './FilterRequirements.module.css';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
@@ -128,9 +129,7 @@ const FilterRequirementsButton: FC = () => {
 
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
-    );
+    const requiredFiltersNote = useRequiredFiltersNote();
     const { track } = useTracking();
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,

@@ -12,6 +12,7 @@ import {
     toDashboardParameters,
 } from '../../../providers/Dashboard/dashboardParametersUrl';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
+import { initialDashboardEditState } from './dashboardEditReducer';
 import {
     emptyDashboardFilters,
     initialDashboardFiltersState,
@@ -112,6 +113,7 @@ export const buildInitialDashboardState = ({
                 controlGranularities,
             },
             tileStatus: { ...initialDashboardTileStatusState, invalidateCache },
+            edit: initialDashboardEditState,
         },
         urlRestoreErrors: {
             savedFilterOverrides: savedFilterOverrides === null,

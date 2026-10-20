@@ -21,6 +21,8 @@ import {
     selectChartZoomableFieldsByTileUuid,
     selectControlGranularities,
     selectDashboardFilters,
+    selectActiveTab,
+    selectDashboardTiles,
     selectDateZoomGranularity,
     selectIsDateZoomAppliedToTile,
     selectDashboardParameters,
@@ -81,8 +83,8 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 
 const useWholeContext = () => useDashboardContext((c) => c);
 const useTileState = (tileUuid: string) => ({
-    tiles: useDashboardContext((c) => c.dashboardTiles),
-    activeTab: useDashboardContext((c) => c.activeTab),
+    tiles: useDashboardSelector(selectDashboardTiles),
+    activeTab: useDashboardSelector(selectActiveTab),
     dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
     controlGranularities: useDashboardSelector(selectControlGranularities),
     isDateZoomApplied: useDashboardSelector((state) =>
@@ -171,7 +173,7 @@ const useActions = (): Actions => ({
 
 const DashboardPageLoader = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
     const setSavedParameters = useDashboardContext((c) => c.setSavedParameters);
@@ -478,14 +480,14 @@ describe('dashboard render benchmark', () => {
     });
 });
 
-// Filter, parameter and date zoom state comes from the dashboard store, so
-// tiles only re-render for the state they read and for the router update a URL
-// write causes (the context provider re-ran every consumer on each of its 1-3
-// renders per edit, and once per tile report while tiles loaded).
+// Filter, parameter, date zoom and edit state comes from the dashboard store,
+// so tiles only re-render for the state they read and for the router update a
+// URL write causes. Moving a tile, switching tab or editing a date zoom setting
+// no longer re-renders the provider and with it every context consumer.
 const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 2,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -493,7 +495,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'add a temporary filter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 2,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -501,7 +503,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set one parameter': {
         wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
+        tiles: 0,
         filterBar: 1,
         parameterBar: 1,
         dateZoomControl: 0,
@@ -517,7 +519,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set the date zoom granularity': {
         wholeContextConsumer: 1,
-        tiles: 2 * TILE_COUNT,
+        tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 1,
@@ -525,7 +527,7 @@ const BASELINE: Record<string, Counts> = {
     },
     'set a date zoom control granularity': {
         wholeContextConsumer: 1,
-        tiles: 2 * TILE_COUNT,
+        tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
         dateZoomControl: 0,
@@ -548,15 +550,15 @@ const BASELINE: Record<string, Counts> = {
         page: 0,
     },
     'drop one dragged tile': {
-        wholeContextConsumer: 1,
+        wholeContextConsumer: 0,
         tiles: TILE_COUNT,
-        filterBar: 1,
+        filterBar: 0,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 1,
+        page: 0,
     },
     'switch the active tab': {
-        wholeContextConsumer: 1,
+        wholeContextConsumer: 0,
         tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 0,
@@ -564,16 +566,16 @@ const BASELINE: Record<string, Counts> = {
         page: 1,
     },
     'edit the allowed date zoom granularities': {
-        wholeContextConsumer: 1,
-        tiles: TILE_COUNT,
-        filterBar: 1,
+        wholeContextConsumer: 0,
+        tiles: 0,
+        filterBar: 0,
         parameterBar: 0,
         dateZoomControl: 0,
-        page: 1,
+        page: 0,
     },
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
-        tiles: 10 * TILE_COUNT,
+        tiles: 0,
         filterBar: 20,
         parameterBar: 0,
         dateZoomControl: 0,
