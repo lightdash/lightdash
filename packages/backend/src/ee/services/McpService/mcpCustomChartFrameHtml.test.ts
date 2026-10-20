@@ -1,3 +1,4 @@
+import { JSDOM } from 'jsdom';
 import {
     prepareMcpCustomChartTypeHtml,
     toMetaContentSecurityPolicy,
@@ -24,82 +25,77 @@ describe('prepareMcpCustomChartTypeHtml', () => {
             baseUrl: indexUrl,
         });
 
-    it('puts the policy and base url right after the doctype', () => {
+    it('starts the document with its own doctype, policy and base url', () => {
         expect(
             prepare(
-                '<!doctype html><html lang="en"><HEAD data-x="1"><link rel="stylesheet" href="./assets/a.css"></HEAD></html>',
+                '<!doctype html><html lang="en"><head><link rel="stylesheet" href="./assets/a.css"></head></html>',
             ),
         ).toBe(
-            `<!doctype html>${tags}<html lang="en"><HEAD data-x="1"><link rel="stylesheet" href="${indexUrl}assets/a.css"></HEAD></html>`,
-        );
-    });
-
-    it('keeps an uppercase doctype first', () => {
-        expect(
-            prepare('<!DOCTYPE HTML PUBLIC "x">\n<html><head></head></html>'),
-        ).toBe(`<!DOCTYPE HTML PUBLIC "x">${tags}\n<html><head></head></html>`);
-    });
-
-    it('keeps a doctype that follows a comment first', () => {
-        expect(
-            prepare(
-                '<!-- build 1 -->\n<!doctype html><html><head></head></html>',
-            ),
-        ).toBe(
-            `<!-- build 1 -->\n<!doctype html>${tags}<html><head></head></html>`,
+            `<!doctype html>${tags}<!doctype html><html lang="en"><head><link rel="stylesheet" href="${indexUrl}assets/a.css"></head></html>`,
         );
     });
 
     it.each([
+        [
+            'a plain bundle',
+            '<!doctype html><html lang="en"><head><script>1</script></head></html>',
+        ],
+        [
+            'a legacy doctype',
+            '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"><html><head></head></html>',
+        ],
+        [
+            'a leading comment',
+            '<!-- build 1 -->\n<!doctype html><html><head></head></html>',
+        ],
         [
             'a commented-out head',
             '<!doctype html><!-- <head> --><html><head><script>1</script></head></html>',
         ],
         [
             'a script before head',
-            '<!doctype html><script>alert(1)</script><html><head></head></html>',
+            '<!doctype html><script>1</script><html><head></head></html>',
         ],
-        ['no head', '<!doctype html><body><header></header></body>'],
+        ['no doctype', '<script>1</script><head></head>'],
         [
-            'a comment the parser closes early',
-            '<!doctype html><!--><script>1</script>--><html></html>',
+            'an early-closing <!--> comment',
+            '<!--><script>1</script>--><!doctype html>',
         ],
-    ])('puts the policy ahead of the bundle with %s', (_case, indexHtml) => {
-        const html = prepare(indexHtml);
-        expect(html.startsWith(`<!doctype html>${tags}`)).toBe(true);
-        expect(html.slice(`<!doctype html>${tags}`.length)).toBe(
-            indexHtml.slice('<!doctype html>'.length),
-        );
-    });
-
-    it.each([
-        '<!--><script>1</script>--><!doctype html>',
-        '<!---><script>1</script>--><!doctype html>',
-        '<!-- --!><script>1</script>--><!doctype html>',
+        [
+            'an early-closing <!---> comment',
+            '<!---><script>1</script>--><!doctype html>',
+        ],
+        [
+            'an early-closing --!> comment',
+            '<!-- --!><script>1</script>--><!doctype html>',
+        ],
+        [
+            'a leading no-break space',
+            `${String.fromCharCode(0xa0)}<!doctype html><head><script>1</script></head>`,
+        ],
+        [
+            'a leading vertical tab',
+            `${String.fromCharCode(0x0b)}<!doctype html><head><script>1</script></head>`,
+        ],
+        [
+            'a leading line separator',
+            `${String.fromCharCode(0x2028)}<!doctype html><head><script>1</script></head>`,
+        ],
+        [
+            'a leading byte order mark',
+            `${String.fromCharCode(0xfeff)}<!doctype html><head><script>1</script></head>`,
+        ],
     ])(
-        'keeps the policy first when %s closes its comment early',
-        (indexHtml) => {
-            expect(prepare(indexHtml)).toBe(`${tags}${indexHtml}`);
+        'parses with the policy first in head in standards mode for %s',
+        (_case, indexHtml) => {
+            const { document } = new JSDOM(prepare(indexHtml)).window;
+
+            expect(document.compatMode).toBe('CSS1Compat');
+            expect(document.head.firstElementChild?.outerHTML).toBe(
+                `<meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy}">`,
+            );
         },
     );
-
-    it.each([
-        ['a no-break space', String.fromCharCode(0xa0)],
-        ['a vertical tab', String.fromCharCode(0x0b)],
-        ['a line separator', String.fromCharCode(0x2028)],
-    ])(
-        'keeps the policy first when %s, which html treats as text, precedes the doctype',
-        (_case, prefix) => {
-            const indexHtml = `${prefix}<!doctype html><html><head></head></html>`;
-            expect(prepare(indexHtml)).toBe(`${tags}${indexHtml}`);
-        },
-    );
-
-    it('starts the document with the policy when there is no doctype', () => {
-        expect(prepare('<script>alert(1)</script><head></head>')).toBe(
-            `${tags}<script>alert(1)</script><head></head>`,
-        );
-    });
 
     it('makes relative asset urls absolute', () => {
         const html = prepare(

@@ -27,14 +27,9 @@ export const toMetaContentSecurityPolicy = (cspHeader: string): string =>
         )
         .join('; ');
 
-// A comment can't span '>', since the parser also ends comments at <!--> and --!>.
-// Only html whitespace may precede the doctype: anything else starts the body.
-const LEADING_DOCTYPE =
-    /^﻿?(?:[\t\n\f\r ]*<!--[^>]*-->)*[\t\n\f\r ]*<!doctype[^>]*>/i;
-
 /**
- * The chart view runs the bundle from a blob: URL, so the bundle's own policy
- * and base URL go first in the document, where nothing in the bundle precedes them.
+ * The chart view runs the bundle from a blob: URL, so the policy and base URL
+ * open the document. The bundle's own doctype becomes an ignored parse error.
  */
 export const prepareMcpCustomChartTypeHtml = (
     html: string,
@@ -49,14 +44,7 @@ export const prepareMcpCustomChartTypeHtml = (
         (_match, attribute: string, path: string) =>
             `${attribute}="${escapeHtmlAttribute(new URL(path, baseUrl).toString())}"`,
     );
-    // The parser hoists these into the implied <head> ahead of any bundle markup.
-    const insertAt = LEADING_DOCTYPE.exec(withAbsoluteAssets)?.[0].length ?? 0;
-    const tags = `<meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttribute(
+    return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${escapeHtmlAttribute(
         contentSecurityPolicy,
-    )}"><base href="${escapeHtmlAttribute(baseUrl)}">`;
-    return (
-        withAbsoluteAssets.slice(0, insertAt) +
-        tags +
-        withAbsoluteAssets.slice(insertAt)
-    );
+    )}"><base href="${escapeHtmlAttribute(baseUrl)}">${withAbsoluteAssets}`;
 };
