@@ -2,9 +2,7 @@ import {
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
-    parseAiArtifactChartConfig,
     QuerySourceType,
-    type AiArtifact,
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
@@ -53,49 +51,6 @@ const makeSlackPrompt = (): SlackPrompt => ({
     promptSlackTs: 'prompt-ts',
     slackThreadTs: 'thread-ts',
 });
-
-const toArtifact = ({
-    title,
-    vizConfig,
-}: {
-    title?: string;
-    vizConfig: Record<string, unknown>;
-}): AiArtifact => ({
-    artifactUuid: 'artifact-uuid',
-    threadUuid: 'thread-uuid',
-    artifactType: 'chart',
-    savedQueryUuid: null,
-    savedSqlUuid: null,
-    savedDashboardUuid: null,
-    createdAt: new Date(),
-    versionNumber: 1,
-    versionUuid: 'version-uuid',
-    title: title ?? null,
-    description: null,
-    chartConfig: parseAiArtifactChartConfig(vizConfig),
-    dashboardConfig: null,
-    promptUuid: 'prompt-uuid',
-    versionCreatedAt: new Date(),
-    verifiedByUserUuid: null,
-    verifiedAt: null,
-});
-
-// Fake artifact store: keeps saved versions as the database would.
-const makeArtifactStore = () => {
-    const artifacts: AiArtifact[] = [];
-    const createOrUpdateArtifact = async ({
-        title,
-        vizConfig,
-    }: {
-        title?: string;
-        vizConfig: Record<string, unknown>;
-    }): Promise<AiArtifact> => {
-        const artifact = toArtifact({ title, vizConfig });
-        artifacts.push(artifact);
-        return artifact;
-    };
-    return { artifacts, createOrUpdateArtifact };
-};
 
 // In-memory thread composer query nodes, with the model's register semantics.
 const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
@@ -244,7 +199,6 @@ const makeTool = ({
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
 } = {}) => {
-    const artifactStore = makeArtifactStore();
     const dependencies = {
         agentContext,
         reviewQuery,
@@ -286,7 +240,6 @@ const makeTool = ({
         listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: vi.fn(artifactStore.createOrUpdateArtifact),
         listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
         registerThreadComposerQueryNodes:
             registry.registerThreadComposerQueryNodes,
@@ -303,28 +256,22 @@ const makeTool = ({
         tool: getRunComposerQueries(dependencies),
         dependencies,
         registry,
-        artifacts: artifactStore.artifacts,
     };
 };
 
 describe('getRunComposerQueries', () => {
-    it('in Slack, the reply can show the terminal result as a table that links to the thread', async () => {
+    it('in Slack, the reply can show the terminal result as a table that links to the thread, without an artifact', async () => {
         const agentContext = new AgentContext([]);
-        const { tool, artifacts } = makeTool({
+        const { tool, registry } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
             agentContext,
         });
 
         const output = await executeTool(tool, makeArgs(), 'composer-call');
-        expect(artifacts).toHaveLength(1);
-        const [artifact] = artifacts;
-        expect(successMetadata(output).artifactVersionUuid).toBe(
-            artifact.versionUuid,
-        );
         expect(output.result).not.toContain('<show');
         // The model selects the table using the queryUuid it was given.
-        const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
+        const queryUuid = output.result.match(/queryUuid="([^"]+)"/)?.[1];
 
         const previews = await getSlackTablePreviews({
             enableDataAccess: true,
@@ -345,7 +292,8 @@ describe('getRunComposerQueries', () => {
                     metadata: output.metadata,
                 },
             ],
-            artifacts: [artifact],
+            artifacts: [],
+            threadNodes: registry.nodes('thread-uuid'),
             url: 'https://lightdash.test/threads/thread-uuid',
             runtimeResults: agentContext.getSlackTableResults(),
             authorize: vi.fn().mockResolvedValue(undefined),
@@ -368,7 +316,7 @@ describe('getRunComposerQueries', () => {
     });
 
     it('runs the pipeline and returns the terminal without presenting it', async () => {
-        const { tool, dependencies, artifacts } = makeTool({
+        const { tool, dependencies } = makeTool({
             autoApproveSql: true,
         });
 
@@ -383,7 +331,6 @@ describe('getRunComposerQueries', () => {
             terminalNodeId: 'joined',
             onNodeStatus: expect.any(Function),
         });
-        expect(artifacts).toEqual([]);
         expect(successMetadata(output)).toEqual({
             status: 'success',
             queryUuid: 'query-3',
@@ -651,38 +598,6 @@ describe('getRunComposerQueries', () => {
         );
 
         expect(failed.metadata?.status).toBe('error');
-        expect(corrected.metadata?.status).toBe('success');
-        expect(
-            registry
-                .nodes('thread-uuid')
-                .find((node) => node.nodeId === 'joined'),
-        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
-    });
-
-    it('registers nothing when the Slack artifact fails, so the node id can be resubmitted corrected', async () => {
-        const { tool, dependencies, registry } = makeTool({
-            autoApproveSql: true,
-            prompt: makeSlackPrompt(),
-        });
-        dependencies.createOrUpdateArtifact.mockRejectedValueOnce(
-            new Error('artifact store unavailable'),
-        );
-
-        const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
-        expect(failed.metadata?.status).toBe('error');
-        expect(registry.nodes('thread-uuid')).toEqual([]);
-
-        const corrected = await executeTool(
-            tool,
-            makeArgs({
-                queries: [
-                    semanticNode,
-                    sqlNode,
-                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
-                ],
-            }),
-            'tool-call-2',
-        );
         expect(corrected.metadata?.status).toBe('success');
         expect(
             registry

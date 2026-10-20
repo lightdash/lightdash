@@ -2026,7 +2026,6 @@ export const getAgentTools = (
               listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
               trackSqlApprovalTimeout,
               storeToolResults: dependencies.storeToolResults,
-              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
               listThreadComposerQueryNodes:
                   dependencies.listThreadComposerQueryNodes,
               registerThreadComposerQueryNodes:

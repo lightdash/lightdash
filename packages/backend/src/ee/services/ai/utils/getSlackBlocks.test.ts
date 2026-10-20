@@ -2331,7 +2331,6 @@ describe('getFeedbackBlocks', () => {
                 ? {
                       status,
                       queryUuid: 'query-uuid',
-                      artifactVersionUuid: 'version-uuid',
                   }
                 : { status },
     });

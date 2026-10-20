@@ -7,7 +7,6 @@ import {
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
-    toComposerArtifactVersion,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type SourceQuery,
@@ -19,7 +18,6 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import type {
-    CreateOrUpdateArtifactFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -63,7 +61,6 @@ type Dependencies = {
     listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     storeToolResults: StoreToolResultsFn;
-    createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
     maxQueryLimit: number;
@@ -165,7 +162,6 @@ export const getRunComposerQueries = ({
     listSqlApprovalDecisions,
     trackSqlApprovalTimeout,
     storeToolResults,
-    createOrUpdateArtifact,
     listThreadComposerQueryNodes,
     registerThreadComposerQueryNodes,
     maxQueryLimit,
@@ -366,21 +362,6 @@ export const getRunComposerQueries = ({
                 // Slack renders composer results as a native table.
                 const isSlack = isSlackPrompt(prompt);
                 const artifactTitle = title ?? 'Composer query results';
-                // Web saves an artifact version only when the answer presents
-                // the terminal node; Slack tables still need one per call.
-                const slackArtifact = isSlack
-                    ? await createOrUpdateArtifact({
-                          threadUuid: prompt.threadUuid,
-                          promptUuid: prompt.promptUuid,
-                          ...toComposerArtifactVersion({
-                              title: artifactTitle,
-                              description: description ?? null,
-                              queries,
-                              terminalNodeId: resolvedTerminalNodeId,
-                              vizConfig: null,
-                          }),
-                      })
-                    : null;
                 if (isSlack && enableDataAccess) {
                     agentContext.registerSlackTableResults(terminal.queryUuid, {
                         rows: terminal.rows,
@@ -393,9 +374,6 @@ export const getRunComposerQueries = ({
                     terminalNodeId: resolvedTerminalNodeId,
                     title: artifactTitle,
                     description: description ?? null,
-                    ...(slackArtifact
-                        ? { artifactVersionUuid: slackArtifact.versionUuid }
-                        : {}),
                 };
 
                 const nodes = queries.map((node) => ({
@@ -435,7 +413,7 @@ export const getRunComposerQueries = ({
                     `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     isSlack
-                        ? `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`
+                        ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
                         : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),

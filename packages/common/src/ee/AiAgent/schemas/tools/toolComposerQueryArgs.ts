@@ -27,7 +27,7 @@ export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more queries submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} queries join or transform the others' results. The terminal node's rows are returned to you; the result is not shown to the user until you present it.
+} queries join or transform the others' results. The terminal node's rows are returned to you.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -44,7 +44,7 @@ Every node has a "nodeId" (for references) and a "title" (what users see). The t
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
 
-Presenting results: results are hidden from the user by default. Each successful result says how to present it.`;
+Results stay hidden until you present one; each successful result says how.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
@@ -519,8 +519,6 @@ const toolComposerQueriesSuccessMetadataSchema = z.object({
     terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
     title: z.string(),
     description: z.string().nullable(),
-    // Slack saves an artifact version per call; web saves on presentation.
-    artifactVersionUuid: z.string().optional(),
 });
 
 export type ToolComposerQueriesSuccessMetadata = z.infer<

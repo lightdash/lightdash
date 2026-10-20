@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     buildComposerArtifactPipeline,
     parseToolComposerQueriesSuccessMetadata,
     runComposerQueriesToolDefinition,
@@ -12,6 +13,10 @@ import {
 } from '@lightdash/common';
 import Logger from '../../../../logging/logger';
 import { type PlanComposerViz } from '../decisions/vizPlanner';
+import {
+    parseSlackVisualizationSelection,
+    stripSlackVisualizationSelection,
+} from './slackVisualizationSelection';
 
 const SHOW_MARKER_REGEX =
     /<show[ \t]+node[ \t]*=[ \t]*"([^"<>\s]+)"[ \t]*\/?>/g;
@@ -40,48 +45,68 @@ const stripComposerPresentationMarkers = (response: string): string =>
             .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n'),
     ).trim();
 
-/** Resolves `<show node="..."/>` markers against this prompt's successful
- * composer terminal nodes; anything else is ignored. */
+/** Resolves presentation markers against this prompt's successful composer
+ * results: web `<show node>` by terminal node, Slack `<slack-table queryUuid>`
+ * by execution. Anything else is ignored. */
 export const resolveComposerPresentations = ({
+    channel,
     response,
     promptUuid,
     toolResults,
 }: {
+    channel: 'web' | 'slack';
     response: string;
     promptUuid: string;
     toolResults: TurnToolResult[];
 }): { presented: ToolComposerQueriesSuccessMetadata[]; response: string } => {
-    // Later calls win when two calls end at the same node.
-    const presentable = new Map<string, ToolComposerQueriesSuccessMetadata>(
-        toolResults.flatMap((result) => {
-            if (
-                result.promptUuid !== promptUuid ||
-                result.toolName !== runComposerQueriesToolDefinition.name
-            ) {
-                return [];
-            }
-            const metadata = parseToolComposerQueriesSuccessMetadata(
-                result.metadata,
-            );
-            return metadata
-                ? [[metadata.terminalNodeId, metadata] as const]
-                : [];
-        }),
-    );
-    const prose = response
-        .split(FENCED_CODE_BLOCK_REGEX)
-        .filter((_, index) => index % 2 === 0)
-        .join('\n');
-    const nodeIds = [
-        ...new Set([...prose.matchAll(SHOW_MARKER_REGEX)].map((m) => m[1])),
-    ];
-    return {
-        presented: nodeIds.flatMap((nodeId) => {
-            const metadata = presentable.get(nodeId);
+    const results = toolResults.flatMap((result) => {
+        if (
+            result.promptUuid !== promptUuid ||
+            result.toolName !== runComposerQueriesToolDefinition.name
+        ) {
+            return [];
+        }
+        const metadata = parseToolComposerQueriesSuccessMetadata(
+            result.metadata,
+        );
+        return metadata ? [metadata] : [];
+    });
+    const present = (
+        keys: string[],
+        keyOf: (metadata: ToolComposerQueriesSuccessMetadata) => string,
+    ) => {
+        // Later calls win when two share a key.
+        const byKey = new Map(results.map((m) => [keyOf(m), m] as const));
+        return [...new Set(keys)].flatMap((key) => {
+            const metadata = byKey.get(key);
             return metadata ? [metadata] : [];
-        }),
-        response: stripComposerPresentationMarkers(response),
+        });
     };
+    switch (channel) {
+        case 'web': {
+            const prose = response
+                .split(FENCED_CODE_BLOCK_REGEX)
+                .filter((_, index) => index % 2 === 0)
+                .join('\n');
+            return {
+                presented: present(
+                    [...prose.matchAll(SHOW_MARKER_REGEX)].map((m) => m[1]),
+                    (metadata) => metadata.terminalNodeId,
+                ),
+                response: stripComposerPresentationMarkers(response),
+            };
+        }
+        case 'slack':
+            return {
+                presented: present(
+                    parseSlackVisualizationSelection(response).tableQueryUuids,
+                    (metadata) => metadata.queryUuid,
+                ),
+                response: stripSlackVisualizationSelection(response),
+            };
+        default:
+            return assertUnreachable(channel, 'Unknown presentation channel');
+    }
 };
 
 export type ComposerExecutionResult = {

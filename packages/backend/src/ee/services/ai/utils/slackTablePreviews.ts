@@ -1,10 +1,13 @@
 import {
+    buildComposerArtifactPipeline,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    parseToolComposerQueriesSuccessMetadata,
     QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
     type ItemsMap,
+    type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
@@ -51,6 +54,34 @@ export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
     );
 };
 
+/** Semantic explores the presented node reads, through every node it reads;
+ * null when its closure is not registered. */
+const getComposerExploreNames = (
+    terminalNodeId: string,
+    threadNodes: ThreadComposerQueryNode[],
+): string[] | null => {
+    const terminalNode = threadNodes.find(
+        (node) => node.nodeId === terminalNodeId,
+    );
+    if (!terminalNode) return null;
+    try {
+        return [
+            ...new Set(
+                buildComposerArtifactPipeline({
+                    queries: [terminalNode],
+                    threadNodes,
+                }).flatMap((node) =>
+                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? [node.exploreName]
+                        : [],
+                ),
+            ),
+        ];
+    } catch {
+        return null;
+    }
+};
+
 export const getSlackTablePreviews = async ({
     enableDataAccess,
     slackLinksOnly,
@@ -58,6 +89,7 @@ export const getSlackTablePreviews = async ({
     toolCalls,
     toolResults,
     artifacts,
+    threadNodes,
     url,
     runtimeResults = new Map(),
     authorize,
@@ -78,6 +110,8 @@ export const getSlackTablePreviews = async ({
         }
     >;
     artifacts: AiArtifact[];
+    /** The thread's registered composer query nodes. */
+    threadNodes: ThreadComposerQueryNode[];
     url: string;
     runtimeResults?: ReadonlyMap<string, SlackTableQueryResults>;
     authorize: (input: {
@@ -106,7 +140,14 @@ export const getSlackTablePreviews = async ({
     const artifactsByVersion = new Map(
         artifacts.map((artifact) => [artifact.versionUuid, artifact]),
     );
-    const tableCalls = toolCalls.flatMap((call) => {
+    type TableCall = {
+        call: (typeof toolCalls)[number];
+        title: string | null;
+        exploreNames: string[];
+        metadata: { queryUuid: string };
+        artifact: AiArtifact | undefined;
+    };
+    const tableCalls = toolCalls.flatMap((call): TableCall[] => {
         if (
             ![
                 'runQuery',
@@ -116,35 +157,32 @@ export const getSlackTablePreviews = async ({
         ) {
             return [];
         }
-        const metadata = queryResultMetadataSchema.safeParse(
-            resultsByCall.get(call.tool_call_id)?.metadata,
-        );
+        const toolMetadata = resultsByCall.get(call.tool_call_id)?.metadata;
+        if (call.tool_name === 'runComposerQueries') {
+            const composer =
+                parseToolComposerQueriesSuccessMetadata(toolMetadata);
+            if (!composer) return [];
+            const exploreNames = getComposerExploreNames(
+                composer.terminalNodeId,
+                threadNodes,
+            );
+            if (!exploreNames) return [];
+            return [
+                {
+                    call,
+                    title: composer.title,
+                    exploreNames,
+                    metadata: { queryUuid: composer.queryUuid },
+                    artifact: undefined,
+                },
+            ];
+        }
+        const metadata = queryResultMetadataSchema.safeParse(toolMetadata);
         if (!metadata.success) return [];
         const artifact = metadata.data.artifactVersionUuid
             ? artifactsByVersion.get(metadata.data.artifactVersionUuid)
             : undefined;
         const chartConfig = artifact?.chartConfig;
-        if (call.tool_name === 'runComposerQueries') {
-            if (!isAiComposerChartArtifactConfig(chartConfig)) return [];
-            return [
-                {
-                    call,
-                    title: artifact?.title || null,
-                    exploreNames: [
-                        ...new Set(
-                            chartConfig.queries.flatMap((query) =>
-                                query.sourceType ===
-                                QuerySourceType.SEMANTIC_LAYER
-                                    ? [query.exploreName]
-                                    : [],
-                            ),
-                        ),
-                    ],
-                    metadata: metadata.data,
-                    artifact,
-                },
-            ];
-        }
         if (
             chartConfig &&
             (isAiSqlChartArtifactConfig(chartConfig) ||
