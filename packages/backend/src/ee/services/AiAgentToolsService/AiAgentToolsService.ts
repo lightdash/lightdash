@@ -1417,11 +1417,12 @@ export class AiAgentToolsService extends BaseService {
         dataAppVizUuid: string;
         version: number;
     }): Promise<string> {
-        return this.appGenerateService.getMcpDataAppVizPreviewToken(
+        return this.appGenerateService.getDataAppVizPreviewToken(
             context.user,
             context.projectUuid,
             context.dataAppVizUuid,
             context.version,
+            'mcp',
         );
     }
 

@@ -1486,11 +1486,12 @@ describe('AppGenerateService data app vizs', () => {
             };
             const service = buildService(appModel);
 
-            const token = await service.getMcpDataAppVizPreviewToken(
+            const token = await service.getDataAppVizPreviewToken(
                 USER,
                 'project-1',
                 'data-app-viz-1',
                 2,
+                'mcp',
             );
 
             expect(
@@ -1520,11 +1521,12 @@ describe('AppGenerateService data app vizs', () => {
             );
 
             await expect(
-                service.getMcpDataAppVizPreviewToken(
+                service.getDataAppVizPreviewToken(
                     user,
                     'project-1',
                     'data-app-viz-1',
                     1,
+                    'mcp',
                 ),
             ).rejects.toThrow(ForbiddenError);
             expect(appModel.getVersion).not.toHaveBeenCalled();
