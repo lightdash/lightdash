@@ -664,6 +664,14 @@ import {
     AiThreadFileTableName,
 } from '../ee/database/entities/aiThreadFile';
 import {
+    AppSharedStateHistoryTable,
+    AppSharedStateHistoryTableName,
+    AppSharedStateTable,
+    AppSharedStateTableName,
+    AppUserStateTable,
+    AppUserStateTableName,
+} from '../ee/database/entities/appState';
+import {
     ComposerQueryNodesTable,
     ComposerQueryNodesTableName,
 } from '../ee/database/entities/composerQueryNodes';
@@ -1016,6 +1024,9 @@ declare module 'knex/types/tables' {
         [AppExternalConnectionsTableName]: AppExternalConnectionsTable;
         [ExternalConnectionRateCountersTableName]: ExternalConnectionRateCountersTable;
         [ExternalConnectionSamplesTableName]: ExternalConnectionSamplesTable;
+        [AppUserStateTableName]: AppUserStateTable;
+        [AppSharedStateTableName]: AppSharedStateTable;
+        [AppSharedStateHistoryTableName]: AppSharedStateHistoryTable;
         [SchedulerAiAugmentationTableName]: SchedulerAiAugmentationTable;
         [LearnWorkspaceFilesTableName]: LearnWorkspaceFilesTable;
         [LearnCommandsTableName]: LearnCommandsTable;

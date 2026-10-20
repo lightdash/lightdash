@@ -158,6 +158,14 @@ export enum FeatureFlags {
     EnableDataAppAutomaticThumbnails = 'enable-data-app-automatic-thumbnails',
 
     /**
+     * Per-user / per-organization gate for the data app state store
+     * (`useAppState` / `useSharedAppState` in the SDK and its endpoints).
+     * Resolves user override, then organization, then instance default.
+     * Disabled by default on Cloud and self-hosted.
+     */
+    EnableDataAppState = 'enable-data-app-state',
+
+    /**
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',

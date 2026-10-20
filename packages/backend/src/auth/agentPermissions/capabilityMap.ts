@@ -744,6 +744,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'DashboardControllerV2.getDashboardSchedulers': [
         AgentCapability.ReadDiscover,
     ],
+    'AppStateController.deleteSharedState': [AgentCapability.Delete],
+    'AppStateController.deleteUserState': [AgentCapability.ContentWrite],
+    'AppStateController.getAppState': [AgentCapability.ReadDiscover],
+    'AppStateController.getSharedHistory': [AgentCapability.ReadDiscover],
+    'AppStateController.setSharedState': [AgentCapability.ContentWrite],
+    'AppStateController.setUserState': [AgentCapability.ContentWrite],
     'DataAppAnalysisController.detect': [AgentCapability.Query],
     'DataAppAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.investigate': [AgentCapability.Query],
