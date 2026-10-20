@@ -118,6 +118,10 @@
                     "mcp": []
                 }
             }
+        },
+        "ai-agent-thread-first-message-nullable": {
+            "reason": "AI agent thread responses (thread create, get and list, and the SDK LightdashAiAgentThread type) now return firstMessage as null for a thread created with a binding or threadContext and no prompt. Creating such a thread was rejected before, so existing threads and threads created with a prompt still return a firstMessage. API clients and SDK hosts that pre-create threads this way must handle null until the first message is sent.",
+            "requiredStop": false
         }
     }
 }

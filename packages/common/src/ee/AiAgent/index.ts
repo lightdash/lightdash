@@ -403,6 +403,11 @@ export type AiAgentThreadLiveStatus = {
     source: AiAgentThreadStateSource;
 };
 
+export type AiAgentThreadFirstMessage = {
+    uuid: string;
+    message: string;
+};
+
 export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
@@ -412,10 +417,8 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     titleGeneratedAt: string | null;
     pinnedAt: string | null;
     battleProfile: AiAgentBattleProfile | null;
-    firstMessage: {
-        uuid: string;
-        message: string;
-    };
+    /** Null when the thread was created with a binding or context and no prompt yet. */
+    firstMessage: AiAgentThreadFirstMessage | null;
     user: TUser;
     liveStatus: AiAgentThreadLiveStatus | null;
     binding: AiThreadBinding | null;
@@ -889,6 +892,7 @@ export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
 export const AI_THREAD_CONTEXT_MAX_LENGTH = 10_000;
 
 export type ApiAiAgentThreadCreateRequest = {
+    /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;

@@ -220,15 +220,93 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
         expect(resp.status).toBe(400);
     });
 
-    it('requires a prompt with a binding', async () => {
-        const resp = await new ApiClient().post(
+    it('creates a bound thread without a prompt that the tenant can continue', async () => {
+        const threadContext = 'Summary of the sandbox conversation';
+        const created = await new ApiClient().post<Body<AiAgentThreadSummary>>(
             threadsUrl(),
             {
                 binding: {
                     type: 'dashboard',
                     dashboardUuid: tenantBDashboardUuid,
                 },
+                threadContext,
             },
+            asTenant(tenantBToken),
+        );
+        expect(created.status).toBe(200);
+        expect(created.body.results).toMatchObject({
+            binding: {
+                type: 'dashboard',
+                dashboardUuid: tenantBDashboardUuid,
+            },
+            threadContext,
+            firstMessage: null,
+        });
+        const threadUuid = created.body.results.uuid;
+
+        const openedByB = await new ApiClient().get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${threadUuid}`,
+            asTenant(tenantBToken),
+        );
+        expect(openedByB.status).toBe(200);
+        expect(openedByB.body.results).toMatchObject({
+            uuid: threadUuid,
+            firstMessage: null,
+            messages: [],
+        });
+
+        const listedByB = await new ApiClient().get<
+            Body<AiAgentThreadSummary[]>
+        >(threadsUrl(), asTenant(tenantBToken));
+        expect(listedByB.status).toBe(200);
+        expect(listedByB.body.results.map((t) => t.uuid)).toContain(threadUuid);
+
+        const openedByA = await new ApiClient().get(
+            `${threadsUrl()}/${threadUuid}`,
+            asTenant(tenantAToken),
+        );
+        expect(openedByA.status).toBe(403);
+
+        const prompt = 'Why was the revenue column renamed?';
+        const sent = await new ApiClient().post(
+            `${threadsUrl()}/${threadUuid}/messages`,
+            { prompt },
+            asTenant(tenantBToken),
+        );
+        expect(sent.status).toBe(200);
+
+        const continued = await new ApiClient().get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${threadUuid}`,
+            asTenant(tenantBToken),
+        );
+        expect(continued.status).toBe(200);
+        expect(continued.body.results.firstMessage).toMatchObject({
+            message: prompt,
+        });
+        expect(continued.body.results.messages[0]).toMatchObject({
+            role: 'user',
+            message: prompt,
+        });
+    });
+
+    it('creates a context-only thread without a prompt', async () => {
+        const created = await new ApiClient().post<Body<AiAgentThreadSummary>>(
+            threadsUrl(),
+            { threadContext: 'Only context, no binding' },
+            asTenant(tenantBToken),
+        );
+        expect(created.status).toBe(200);
+        expect(created.body.results).toMatchObject({
+            binding: null,
+            threadContext: 'Only context, no binding',
+            firstMessage: null,
+        });
+    });
+
+    it('still rejects a thread with no prompt, binding or context', async () => {
+        const resp = await new ApiClient().post(
+            threadsUrl(),
+            {},
             asTenant(tenantBToken),
         );
         expect(resp.status).toBe(400);
