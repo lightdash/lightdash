@@ -44,47 +44,55 @@ const nodeDefinition = (node: SourceQuery): string =>
             : node,
     );
 
-const describeNodes = (nodes: SourceQuery[]): string =>
+export const isSameComposerNodeDefinition = (
+    a: SourceQuery,
+    b: SourceQuery,
+): boolean => nodeDefinition(a) === nodeDefinition(b);
+
+export const getComposerNodeConflictMessage = (
+    existing: ThreadComposerQueryNode,
+): string =>
+    `Node id "${existing.nodeId}" already names a different node in this thread ("${existing.title ?? existing.nodeId}"). To reuse it, read "${existing.nodeId}" without resubmitting it; to define a new node, give it a different node id.`;
+
+const describeNodes = (nodes: ThreadComposerQueryNode[]): string =>
     nodes.length === 0
-        ? 'There are no nodes from earlier versions in this thread.'
-        : `Nodes from earlier versions: ${nodes
+        ? 'No nodes have been defined earlier in this thread.'
+        : `Nodes defined earlier in this thread: ${nodes
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
-/**
- * Builds a version's pipeline from a submission: submitted nodes plus every
- * reused node from earlier versions and everything it reads, in dependency
- * order. Node ids name one definition for the whole thread.
- */
 /** A node of a built pipeline; building guarantees every node a node id. */
 export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
+
+/** A node a thread defined through a successful composer query. */
+export type ThreadComposerQueryNode = ComposerPipelineNode;
 
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;
 
+/**
+ * Builds a submission's pipeline: submitted nodes plus every reused thread
+ * node and everything it reads, in dependency order. A node id names one
+ * definition for the whole thread.
+ */
 export const buildComposerArtifactPipeline = ({
     queries,
-    earlierPipelines,
+    threadNodes: threadNodeList,
 }: {
     queries: SourceQuery[];
-    earlierPipelines: AiComposerChartArtifactConfig[];
+    threadNodes: ThreadComposerQueryNode[];
 }): ComposerPipelineNode[] => {
-    const threadNodes = new Map<QueryNodeId, SourceQuery>();
-    earlierPipelines.forEach((pipeline) =>
-        pipeline.queries.forEach((node) => {
-            if (node.nodeId) threadNodes.set(node.nodeId, node);
-        }),
+    const threadNodes = new Map<QueryNodeId, ThreadComposerQueryNode>(
+        threadNodeList.map((node) => [node.nodeId, node]),
     );
     const submittedNodes = new Map<QueryNodeId, SourceQuery>(
         queries.flatMap((node) => (node.nodeId ? [[node.nodeId, node]] : [])),
     );
 
     submittedNodes.forEach((node, nodeId) => {
-        const earlier = threadNodes.get(nodeId);
-        if (earlier && nodeDefinition(earlier) !== nodeDefinition(node)) {
-            throw new ParameterError(
-                `Node id "${nodeId}" already names a different node in this thread ("${earlier.title ?? nodeId}"). To reuse it, read "${nodeId}" without resubmitting it; to define a new node, give it a different node id.`,
-            );
+        const existing = threadNodes.get(nodeId);
+        if (existing && !isSameComposerNodeDefinition(existing, node)) {
+            throw new ParameterError(getComposerNodeConflictMessage(existing));
         }
     });
     queries.forEach((node) =>
@@ -95,7 +103,7 @@ export const buildComposerArtifactPipeline = ({
                     !threadNodes.has(reference)
                 ) {
                     throw new ParameterError(
-                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier version in this thread. ${describeNodes([...threadNodes.values()])}`,
+                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier call in this thread. ${describeNodes(threadNodeList)}`,
                     );
                 }
             },

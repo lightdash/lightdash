@@ -1,5 +1,8 @@
 import {
     ChartKind,
+    getComposerNodeConflictMessage,
+    isSameComposerNodeDefinition,
+    ParameterError,
     parseAiArtifactChartConfig,
     QuerySourceType,
     VizAggregationOptions,
@@ -7,9 +10,9 @@ import {
     type AiArtifact,
     type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
-    type SemanticLayerSourceQuery,
     type SlackPrompt,
     type SourceQuery,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
 } from '@lightdash/common';
@@ -82,6 +85,44 @@ const storeArtifact = async ({
     verifiedByUserUuid: null,
     verifiedAt: null,
 });
+
+// In-memory thread composer query nodes, with the model's register semantics.
+const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
+    const byThread = new Map<string, ThreadComposerQueryNode[]>([
+        ['thread-uuid', [...initial]],
+    ]);
+    const list = (threadUuid: string) => byThread.get(threadUuid) ?? [];
+    return {
+        nodes: list,
+        listThreadComposerQueryNodes: async (threadUuid: string) =>
+            list(threadUuid),
+        registerThreadComposerQueryNodes: async ({
+            threadUuid,
+            nodes,
+        }: {
+            threadUuid: string;
+            nodes: ThreadComposerQueryNode[];
+        }) => {
+            const registered = list(threadUuid);
+            nodes.forEach((node) => {
+                const existing = registered.find(
+                    (r) => r.nodeId === node.nodeId,
+                );
+                if (existing && !isSameComposerNodeDefinition(existing, node)) {
+                    throw new ParameterError(
+                        getComposerNodeConflictMessage(existing),
+                    );
+                }
+            });
+            byThread.set(threadUuid, [
+                ...registered,
+                ...nodes.filter(
+                    (node) => !registered.some((r) => r.nodeId === node.nodeId),
+                ),
+            ]);
+        },
+    };
+};
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
 
@@ -172,6 +213,8 @@ const makeTool = ({
     prompt = makePrompt(),
     agentContext = new AgentContext([]),
     useSlackStreamCard = false,
+    registry = makeNodeRegistry(),
+    latestComposerVizConfig = null,
 }: {
     reviewQuery?: QueryReviewer;
     planViz?: PlanComposerViz;
@@ -184,6 +227,8 @@ const makeTool = ({
     prompt?: AiWebAppPrompt | SlackPrompt;
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
+    registry?: ReturnType<typeof makeNodeRegistry>;
+    latestComposerVizConfig?: AiComposerChartArtifactConfig['vizConfig'];
 } = {}) => {
     const dependencies = {
         agentContext,
@@ -228,7 +273,12 @@ const makeTool = ({
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn(storeArtifact),
-        listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
+        listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
+        registerThreadComposerQueryNodes:
+            registry.registerThreadComposerQueryNodes,
+        getLatestComposerVizConfig: vi
+            .fn()
+            .mockResolvedValue(latestComposerVizConfig),
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
@@ -241,6 +291,7 @@ const makeTool = ({
     return {
         tool: getRunComposerQueries(dependencies),
         dependencies,
+        registry,
     };
 };
 
@@ -564,6 +615,65 @@ describe('getRunComposerQueries', () => {
         expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
+    it('registers every node of a successful pipeline for later calls in the thread', async () => {
+        const { tool, registry } = makeTool({ autoApproveSql: true });
+
+        await executeTool(tool, makeArgs());
+
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+            'signups',
+            'joined',
+        ]);
+    });
+
+    it.each([
+        ['rejected', 'rejected'],
+        ['times out', 'timeout'],
+    ] as const)(
+        'registers nothing when the SQL approval is %s',
+        async (_, outcome) => {
+            const { tool, registry } = makeTool({
+                waitForSqlApproval: vi.fn().mockResolvedValue(outcome),
+            });
+
+            const output = await executeTool(tool, makeArgs());
+
+            expect(output.metadata?.status).toBe(outcome);
+            expect(registry.nodes('thread-uuid')).toEqual([]);
+        },
+    );
+
+    it('registers nothing when the run fails, so the node id can be resubmitted corrected', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockRejectedValueOnce(
+            new Error('Composer query failed on node(s): "joined"'),
+        );
+
+        const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+        const corrected = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    semanticNode,
+                    sqlNode,
+                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                ],
+            }),
+            'tool-call-2',
+        );
+
+        expect(failed.metadata?.status).toBe('error');
+        expect(corrected.metadata?.status).toBe('success');
+        expect(
+            registry
+                .nodes('thread-uuid')
+                .find((node) => node.nodeId === 'joined'),
+        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
+    });
+
     it('does not open another approval wait after approval times out', async () => {
         const waitForSqlApproval = vi.fn().mockResolvedValue('timeout');
         const { tool, dependencies } = makeTool({ waitForSqlApproval });
@@ -753,7 +863,7 @@ describe('getRunComposerQueries', () => {
     });
 });
 
-const ordersNode: SemanticLayerSourceQuery = {
+const ordersNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'orders',
     title: 'Orders by customer',
@@ -763,7 +873,7 @@ const ordersNode: SemanticLayerSourceQuery = {
     limit: 500,
 };
 
-const customersNode: SemanticLayerSourceQuery = {
+const customersNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'customers',
     title: 'Customers',
@@ -773,7 +883,7 @@ const customersNode: SemanticLayerSourceQuery = {
     limit: 500,
 };
 
-const enrichedNode: SourceQuery = {
+const enrichedNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'enriched',
     title: 'Orders with customer names',
@@ -782,7 +892,7 @@ const enrichedNode: SourceQuery = {
     limit: 500,
 };
 
-const rankedNode: SourceQuery = {
+const rankedNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'ranked',
     title: 'Customers ranked by spend',
@@ -791,21 +901,7 @@ const rankedNode: SourceQuery = {
     limit: 500,
 };
 
-const version1: AiComposerChartArtifactConfig = {
-    source: 'composer',
-    schemaVersion: 1,
-    queries: [ordersNode, customersNode, enrichedNode],
-    terminalNodeId: 'enriched',
-    vizConfig: null,
-};
-
-const version2: AiComposerChartArtifactConfig = {
-    source: 'composer',
-    schemaVersion: 1,
-    queries: [ordersNode, customersNode, enrichedNode, rankedNode],
-    terminalNodeId: 'ranked',
-    vizConfig: null,
-};
+const enrichedPipeline = [ordersNode, customersNode, enrichedNode];
 
 const readerNode = (references: Record<string, string>): ComposerNode => ({
     sourceType: QuerySourceType.DUCKDB,
@@ -832,17 +928,15 @@ const resubmittedOrders = (limit: number): ComposerNode => ({
 
 const runReuse = async ({
     queries,
-    earlierPipelines,
+    threadNodes,
     terminalNodeId = null,
 }: {
     queries: ComposerNode[];
-    earlierPipelines: AiComposerChartArtifactConfig[];
+    threadNodes: ThreadComposerQueryNode[];
     terminalNodeId?: string | null;
 }) => {
-    const { tool, dependencies } = makeTool();
-    dependencies.listThreadComposerPipelines.mockResolvedValue(
-        earlierPipelines,
-    );
+    const registry = makeNodeRegistry(threadNodes);
+    const { tool, dependencies } = makeTool({ registry });
     // Warehouse boundary: every node gets a query id, the terminal returns one row
     dependencies.runComposerQueries.mockImplementation(
         async (args: { queries: SourceQuery[]; terminalNodeId: string }) => ({
@@ -872,17 +966,49 @@ const runReuse = async ({
     const executed = dependencies.runComposerQueries.mock.calls[0]?.[0] as
         | { queries: SourceQuery[]; terminalNodeId: string }
         | undefined;
-    return { output, stored, executed, dependencies };
+    return { output, stored, executed, dependencies, registry };
 };
 
 const nodeIdsOf = (queries: SourceQuery[] | undefined) =>
     queries?.map((node) => node.nodeId);
 
 describe('composer artifact with reused nodes', () => {
+    it('reads a node an earlier call in the thread registered', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        await executeTool(tool, makeArgs(), 'tool-call-1');
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [readerNode({ o: 'joined' })],
+            }),
+            'tool-call-2',
+        );
+
+        expect(output.metadata?.status).toBe('success');
+        expect(
+            nodeIdsOf(dependencies.runComposerQueries.mock.calls[1][0].queries),
+        ).toEqual(['revenue', 'signups', 'joined', 'summary']);
+    });
+
+    it('registers reused nodes alongside the new ones', async () => {
+        const { registry } = await runReuse({
+            queries: [readerNode({ o: 'enriched' })],
+            threadNodes: enrichedPipeline,
+        });
+
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'orders',
+            'customers',
+            'enriched',
+            'summary',
+        ]);
+    });
+
     it('runs and stores a reused node and what it reads, without query ids', async () => {
         const { output, stored, executed } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(executed?.terminalNodeId).toBe('summary');
@@ -925,7 +1051,7 @@ describe('composer artifact with reused nodes', () => {
     it('copies a node reached directly and transitively once', async () => {
         const { executed } = await runReuse({
             queries: [readerNode({ o: 'orders', r: 'ranked' })],
-            earlierPipelines: [version1, version2],
+            threadNodes: [...enrichedPipeline, rankedNode],
         });
 
         expect(nodeIdsOf(executed?.queries)).toEqual([
@@ -940,7 +1066,7 @@ describe('composer artifact with reused nodes', () => {
     it('shows a reused node when it is named as the terminal node', async () => {
         const { stored } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
             terminalNodeId: 'enriched',
         });
 
@@ -950,7 +1076,7 @@ describe('composer artifact with reused nodes', () => {
     it('accepts an unchanged earlier node resubmitted under its node id', async () => {
         const { output, executed } = await runReuse({
             queries: [resubmittedOrders(500), readerNode({ o: 'orders' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('success');
@@ -960,7 +1086,7 @@ describe('composer artifact with reused nodes', () => {
     it('refuses a node id redefined with a different definition', async () => {
         const { output, executed, stored } = await runReuse({
             queries: [resubmittedOrders(10), readerNode({ o: 'orders' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('error');
@@ -974,12 +1100,12 @@ describe('composer artifact with reused nodes', () => {
     it("refuses an unknown node id, listing the thread's node ids and titles", async () => {
         const { output, executed } = await runReuse({
             queries: [readerNode({ o: 'ordrs' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain(
-            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier version in this thread. Nodes from earlier versions: orders ("Orders by customer"), customers ("Customers"), enriched ("Orders with customer names").',
+            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier call in this thread. Nodes defined earlier in this thread: orders ("Orders by customer"), customers ("Customers"), enriched ("Orders with customer names").',
         );
         expect(executed).toBeUndefined();
     });
@@ -1000,7 +1126,7 @@ describe('composer artifact with reused nodes', () => {
     });
 
     it('does not ask again for approval of sql it reuses from an earlier version', async () => {
-        const approvedSql: SourceQuery = {
+        const approvedSql: ThreadComposerQueryNode = {
             sourceType: QuerySourceType.SQL,
             nodeId: 'signups',
             title: 'Signups by month',
@@ -1009,13 +1135,7 @@ describe('composer artifact with reused nodes', () => {
         };
         const { output, executed, dependencies } = await runReuse({
             queries: [readerNode({ o: 'signups' })],
-            earlierPipelines: [
-                {
-                    ...version1,
-                    queries: [approvedSql],
-                    terminalNodeId: 'signups',
-                },
-            ],
+            threadNodes: [approvedSql],
         });
 
         expect(output.metadata?.status).toBe('success');
@@ -1084,6 +1204,30 @@ describe('composer query review', () => {
 });
 
 describe('composer viz config', () => {
+    it('plans from the thread’s latest composer viz config', async () => {
+        const previousVizConfig: AiComposerChartArtifactConfig['vizConfig'] = {
+            type: ChartKind.LINE,
+            metadata: { version: 1 },
+            fieldConfig: {
+                x: { reference: 'month', type: VizIndexType.CATEGORY },
+                y: [],
+                groupBy: [],
+            },
+            display: undefined,
+        };
+        const planViz = vi.fn().mockResolvedValue(null);
+        const { tool } = makeTool({
+            planViz,
+            latestComposerVizConfig: previousVizConfig,
+        });
+
+        await executeTool(tool, makeArgs());
+
+        expect(planViz).toHaveBeenCalledWith(
+            expect.objectContaining({ previousVizConfig }),
+        );
+    });
+
     it('stores the planned viz config on the artifact and names it in the result', async () => {
         const vizConfig = {
             type: ChartKind.VERTICAL_BAR,

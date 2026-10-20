@@ -62,6 +62,7 @@ import {
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
+    GetLatestComposerVizConfigFn,
     GetProjectInfoFn,
     GetProjectParameterDefinitionsFn,
     GetPromptFn,
@@ -80,7 +81,7 @@ import {
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
-    ListThreadComposerPipelinesFn,
+    ListThreadComposerQueryNodesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -90,6 +91,7 @@ import {
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
     RecordSqlApprovalFn,
+    RegisterThreadComposerQueryNodesFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
@@ -420,7 +422,9 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
+    listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
+    getLatestComposerVizConfig: GetLatestComposerVizConfigFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;

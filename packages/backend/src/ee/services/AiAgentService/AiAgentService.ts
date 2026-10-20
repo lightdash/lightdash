@@ -361,6 +361,7 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
+import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
@@ -17224,12 +17225,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         return artifact;
                     },
 
-                    listThreadComposerPipelines: async (threadUuid) =>
+                    listThreadComposerQueryNodes: (threadUuid) =>
+                        this.aiAgentModel.listComposerQueryNodes(
+                            threadComposerQueryScope(threadUuid),
+                        ),
+                    registerThreadComposerQueryNodes: ({ threadUuid, nodes }) =>
+                        this.aiAgentModel.registerComposerQueryNodes({
+                            scope: threadComposerQueryScope(threadUuid),
+                            nodes,
+                        }),
+                    getLatestComposerVizConfig: async (threadUuid) =>
                         (
                             await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
                                 threadUuid,
                             )
-                        ).filter(isAiComposerChartArtifactConfig),
+                        )
+                            .filter(isAiComposerChartArtifactConfig)
+                            .at(-1)?.vizConfig ?? null,
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
                         this.aiAgentModel.waitForSqlApproval(
