@@ -414,6 +414,7 @@ export class DepartmentModel {
                 `${OrganizationTableName}.organization_uuid`,
                 organizationUuid,
             )
+            .where(`${UserTableName}.is_internal`, false)
             .whereIn(`${UserTableName}.user_uuid`, userUuids)
             .select<{ user_uuid: string }[]>(`${UserTableName}.user_uuid`);
         const foundSet = new Set(found.map((u) => u.user_uuid));

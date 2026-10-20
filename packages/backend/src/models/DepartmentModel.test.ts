@@ -64,6 +64,34 @@ describe('DepartmentModel', () => {
         );
     });
 
+    it('excludes internal users from the membership check used by members and owners', async () => {
+        tracker.on.select(OrganizationMembershipsTableName).response([]);
+        await expect(
+            model.setMembers('org', 'dep', ['internal-user']),
+        ).rejects.toThrow(
+            new ParameterError(
+                'User internal-user is not in this organization',
+            ),
+        );
+        await expect(
+            model.setOwners('org', 'dep', [
+                { type: 'user', uuid: 'internal-user' },
+            ]),
+        ).rejects.toThrow(
+            new ParameterError(
+                'User internal-user is not in this organization',
+            ),
+        );
+        const selects = tracker.history.select.filter((q) =>
+            q.sql.includes(OrganizationMembershipsTableName),
+        );
+        expect(selects).toHaveLength(2);
+        selects.forEach((q) => {
+            expect(q.sql).toContain('"users"."is_internal" = $');
+            expect(q.bindings).toContain(false);
+        });
+    });
+
     it('rejects a user owner who is not in the org', async () => {
         tracker.on.select(OrganizationMembershipsTableName).responseOnce([]);
         await expect(

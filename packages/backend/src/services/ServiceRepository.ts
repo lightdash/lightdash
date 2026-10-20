@@ -243,6 +243,7 @@ interface ServiceManifest {
     dataAppAnalysisService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
+    departmentService: unknown;
     scimService: unknown;
     releaseHighlightsService: unknown;
     supportService: unknown;
@@ -2090,6 +2091,12 @@ export class ServiceRepository
 
     public getRoadmapService<RoadmapServiceImplT>(): RoadmapServiceImplT {
         return this.getService('roadmapService');
+    }
+
+    public getDepartmentService<
+        DepartmentServiceImplT,
+    >(): DepartmentServiceImplT {
+        return this.getService('departmentService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
