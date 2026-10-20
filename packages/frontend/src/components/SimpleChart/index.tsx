@@ -308,6 +308,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             },
             [onChartReady],
         );
+        // Error, loading and empty states unmount the chart, which disposes its instance
+        const isChartMounted =
+            !resultsData?.error && !isLoading && !!eChartsOptions;
+        if (!isChartMounted && eChartsInstance) setEChartsInstance(null);
 
         useEffect(() => {
             const dom = eChartsInstance?.getDom();
@@ -324,6 +328,8 @@ const SimpleChart: FC<SimpleChartProps> = memo(
 
             // Observe container size changes (e.g., collapsible card expand/collapse)
             const observer = new ResizeObserver((entries) => {
+                // A target detached before cleanup reports 0x0
+                if (entries[0] && !entries[0].target.isConnected) return;
                 const width = entries[0]?.contentRect.width;
                 if (width !== undefined) setChartWidth(Math.round(width));
                 resizeChart();

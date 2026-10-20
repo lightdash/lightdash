@@ -75,6 +75,9 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
             },
             [onChartReady],
         );
+        // Loading and empty states unmount the chart, which disposes its instance
+        const isChartMounted = !isLoading && !!gaugeOptions;
+        if (!isChartMounted && eChartsInstance) setEChartsInstance(null);
 
         useEffect(() => {
             const dom = eChartsInstance?.getDom();
@@ -83,6 +86,8 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
                 if (!eChartsInstance.isDisposed()) eChartsInstance.resize();
             };
             const observer = new ResizeObserver(([entry]) => {
+                // A target detached before cleanup reports 0x0
+                if (!entry.target.isConnected) return;
                 const { width, height } = entry.contentRect;
                 setChartWidth(width);
                 setChartHeight(height);

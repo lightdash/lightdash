@@ -19,6 +19,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SimpleChart from '.';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import {
+    fakeResizeObserverEntry,
+    FakeResizeObserver,
+    resizeObservers,
+    resizeTarget,
+} from '../../testing/fakeResizeObserver';
 import { renderWithProviders } from '../../testing/testUtils';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 
@@ -60,6 +66,25 @@ vi.mock('@lightdash/visualization/editor', async (importOriginal) => {
         },
     };
 });
+
+const measuredWidths = vi.hoisted(() => [] as (number | null)[]);
+vi.mock(
+    '../../hooks/echarts/useEchartsCartesianConfig',
+    async (importOriginal) => {
+        const actual = await importOriginal<{
+            default: (...args: unknown[]) => unknown;
+        }>();
+        return {
+            ...actual,
+            default: (...args: unknown[]) => {
+                measuredWidths.push(
+                    (args[2] as number | null | undefined) ?? null,
+                );
+                return actual.default(...args);
+            },
+        };
+    },
+);
 
 vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
@@ -692,5 +717,90 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         expect(snapshot().alive).toBe(2);
         view.rerender(wrap(<Chart results={first} isDashboard />, false));
         expect(snapshot()).toMatchObject({ alive: 1, listeners: 5 });
+    });
+});
+
+describe('cartesian measurement across a reload', () => {
+    beforeEach(() => {
+        resizeObservers.clear();
+        measuredWidths.length = 0;
+        vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
+
+    it('stops observing the unmounted chart while loading and measures the new one', () => {
+        const ready: LiveInstance[] = [];
+        const onChartReady = (instance: unknown) =>
+            ready.push(instance as LiveInstance);
+        const results = makeResults(1);
+        const view = renderWithProviders(
+            wrap(
+                <Chart results={results} onChartReady={onChartReady} />,
+                false,
+            ),
+        );
+        const firstDom = ready[0].getDom();
+        resizeTarget(firstDom, 640, 400);
+        expect(measuredWidths.at(-1)).toBe(640);
+        const [firstObserver] = resizeObservers;
+
+        view.rerender(
+            wrap(
+                <Chart
+                    results={results}
+                    isLoading
+                    onChartReady={onChartReady}
+                />,
+                false,
+            ),
+        );
+        expect(firstDom.isConnected).toBe(false);
+        expect(resizeObservers.size).toBe(0);
+        // An observation of the detached target delivered before cleanup ran
+        act(() => {
+            firstObserver.callback(
+                [fakeResizeObserverEntry(firstDom, 0, 0)],
+                firstObserver,
+            );
+        });
+        expect(measuredWidths.at(-1)).toBe(640);
+
+        view.rerender(
+            wrap(
+                <Chart results={results} onChartReady={onChartReady} />,
+                false,
+            ),
+        );
+        expect(ready).toHaveLength(2);
+        const secondDom = ready[1].getDom();
+        expect(secondDom).not.toBe(firstDom);
+        expect([...resizeObservers].map((o) => [...o.targets])).toEqual([
+            [secondDom],
+        ]);
+        resizeTarget(secondDom, 320, 200);
+        expect(measuredWidths.at(-1)).toBe(320);
+    });
+
+    it('applies a zero width from a connected, hidden container', () => {
+        const ready: LiveInstance[] = [];
+        renderWithProviders(
+            wrap(
+                <Chart
+                    results={makeResults(1)}
+                    onChartReady={(instance) =>
+                        ready.push(instance as LiveInstance)
+                    }
+                />,
+                false,
+            ),
+        );
+        const dom = ready[0].getDom();
+        resizeTarget(dom, 640, 400);
+        resizeTarget(dom, 0, 0);
+        expect(measuredWidths.at(-1)).toBe(0);
     });
 });
