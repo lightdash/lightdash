@@ -119,13 +119,17 @@ const getCapabilitySections = (
             : '',
         contentTools: sections.has('contentTools')
             ? [
-                  getContentToolsSection(fastMetadata, composer),
+                  getContentToolsSection({
+                      answerWithRunQuery: fastMetadata,
+                      viaComposerQueries: composer,
+                  }),
                   sections.has('documents')
-                      ? getDocumentToolsSection(
-                            args.enableDocumentCustomCharts ?? false,
-                            args.enableDocumentNudges ?? false,
-                            composer,
-                        )
+                      ? getDocumentToolsSection({
+                            customCharts:
+                                args.enableDocumentCustomCharts ?? false,
+                            nudges: args.enableDocumentNudges ?? false,
+                            viaComposerQueries: composer,
+                        })
                       : '',
               ]
                   .filter(Boolean)
@@ -396,12 +400,12 @@ export const getSystemPromptV2 = (
         .replace(
             '{{ai_writeback_section}}',
             promptSections.has('aiWriteback')
-                ? getAiWritebackSection(
-                      writebackAttribution,
+                ? getAiWritebackSection({
+                      attribution: writebackAttribution,
                       siteUrl,
-                      contentToolsEnabled,
-                      composer,
-                  )
+                      canEditContent: contentToolsEnabled,
+                      viaComposerQueries: composer,
+                  })
                 : '',
         )
         .replace(

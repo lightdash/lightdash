@@ -154,20 +154,25 @@ const NO_CONTENT_EDIT_GUIDANCE = `You can report this impact, but you do **not**
  * be attributed to. `siteUrl` is only used to build an absolute settings link.
  * `canEditContent` gates the post-merge migration offer — when the agent has no
  * content-editing tool, it reports impact but never offers to repoint.
- * `composer` names the query path used to check values.
+ * `viaComposerQueries` names the query path used to check values.
  */
-export const getAiWritebackSection = (
-    attribution: AiWritebackAttribution | null,
-    siteUrl: string,
-    canEditContent: boolean,
-    composer: boolean,
-): string =>
+export const getAiWritebackSection = ({
+    attribution,
+    siteUrl,
+    canEditContent,
+    viaComposerQueries,
+}: {
+    attribution: AiWritebackAttribution | null;
+    siteUrl: string;
+    canEditContent: boolean;
+    viaComposerQueries: boolean;
+}): string =>
     `${AI_WRITEBACK_BASE_SECTION.replace(
         '{{content_migration_guidance}}',
         canEditContent ? CONTENT_MIGRATION_GUIDANCE : NO_CONTENT_EDIT_GUIDANCE,
     ).replace(
         '{{data_check_query}}',
-        composer
+        viaComposerQueries
             ? 'semanticLayer nodes in runComposerQueries'
             : '`runQuery` (or `generateVisualization`)',
     )}${buildAttributionBlock(attribution, siteUrl)}`;

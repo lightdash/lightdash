@@ -14,13 +14,16 @@ const getAnswerGuidance = (
         : "Use generateVisualization when the user's intent is to answer a data question or produce an ad hoc chart.";
 };
 
-export const getContentToolsSection = (
-    answerWithRunQuery: boolean,
-    composer: boolean,
-) => `
+export const getContentToolsSection = ({
+    answerWithRunQuery,
+    viaComposerQueries,
+}: {
+    answerWithRunQuery: boolean;
+    viaComposerQueries: boolean;
+}) => `
 ## Content tools
 
-- ${getAnswerGuidance(composer, answerWithRunQuery)}
+- ${getAnswerGuidance(viaComposerQueries, answerWithRunQuery)}
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.
@@ -32,11 +35,15 @@ const CONVERSATION_CHART_PLACEMENT = `
   - <artifact-chart version="VERSION_UUID"> places a chart from this conversation. VERSION_UUID is the artifact versionUuid returned by generateVisualization. Prefer this: the chart is copied as drawn, so you never retype its query or chartConfig.
   - <query-result version="VERSION_UUID" display="table"> places a runQuery answer as a table, or display="big_number" as a single number. On a runSql result it places the SQL as a SQL table (display table only).`;
 
-export const getDocumentToolsSection = (
-    customCharts: boolean,
-    nudges: boolean,
-    composer: boolean,
-) => `
+export const getDocumentToolsSection = ({
+    customCharts,
+    nudges,
+    viaComposerQueries,
+}: {
+    customCharts: boolean;
+    nudges: boolean;
+    viaComposerQueries: boolean;
+}) => `
 ## Documents
 
 - ${
@@ -48,11 +55,11 @@ export const getDocumentToolsSection = (
 - Do not ask where to save a Document. Call createContent with type document and content: { schemaVersion 2, name, slug, description, spaceSlug, markdown, charts }. Pass spaceSlug only for a Space the user named or established unambiguously in the conversation: the Space slug, or the Space name exactly as the user gave it; createContent resolves the name and lists the closest Spaces when it cannot. Otherwise pass spaceSlug: null to create a personal Document that only the user and admins can see. A Space returned by listContent/findContent is not a user-selected destination, even if it is the only Space containing results. Never infer a Space from the project name or choose the first available Space.
 - After creating a personal Document, say it is personal and can be saved to a Space later. When the user asks to save it to a Space, use editContent with documentEdit: { type: "metadata", spaceSlug }, resolving the Space the same way. Only personal Documents can be saved this way.
 - Write the Document as Markdown. Use H1 for sections in the table of contents, H2/H3 for subsections. Place each chart as its own block (a line containing only the tag, with blank lines around it):${
-    composer ? '' : CONVERSATION_CHART_PLACEMENT
+    viaComposerQueries ? '' : CONVERSATION_CHART_PLACEMENT
 }
   - <document-chart id="KEY"> places a chart defined in charts[KEY] as full chart-as-code, or keeps an existing chart (c1, c2, …) when editing.
 ${
-    composer
+    viaComposerQueries
         ? '- Define each new chart in full under charts.'
         : `  - <artifact-chart> and <query-result> accept optional title="…" and description="…" overrides. Pass charts: {} when every chart comes from an artifact or query result.
 - For a new chart that is not in the conversation yet, run it with generateVisualization first, then place it with <artifact-chart>. Write a full chart in charts only when that is not possible.`
@@ -66,7 +73,7 @@ ${
 - For chart-as-code queries, use filters: {} when there are no filters (not null or arrays).
 - Read an existing Document with readContent, type document, and its slug. Charts come back as short tags; add chartId to read one chart in full.
 - Before editing, read the latest Document. To change text, move or remove charts, use editContent with documentEdit: { type: "content", baseVersionUuid, markdown, charts: {} }, keeping every unchanged chart as its <document-chart id="cN"> tag. To change a chart's presentation, use documentEdit: { type: "chart", baseVersionUuid, chartId, patch }. To change a chart's query or type, ${
-    composer
+    viaComposerQueries
         ? 'replace its tag with a new chart defined in full under charts'
         : 'run it in chat and replace its tag with <artifact-chart>'
 }. On a conflict, reread and safely reapply the user's change; do not overwrite concurrent work.
