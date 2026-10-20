@@ -14,6 +14,7 @@ import {
     type WarehouseClient,
 } from '@lightdash/common';
 import { type DbtProjectScan } from '../../dbt/dbtProjectScan';
+import Logger from '../../logging/logger';
 import {
     type BoundExplore,
     type MultiConnectionCarry,
@@ -384,6 +385,33 @@ const expectOriginalExplores = async (
 
 describe('cross-connection dbt ref diagnostics', () => {
     afterEach(() => vi.restoreAllMocks());
+
+    it.each([true, false])(
+        'includes final disk counts with compile failure=%s',
+        async (failsCompile) => {
+            const h = harness();
+            const log = vi.spyOn(Logger, 'info');
+            const failure = new DbtError('leaf_a failed');
+            h.input.diskStats = { diskEvictions: 7, diskRecreations: 3 };
+            if (failsCompile) {
+                h.fetchSourceManifest.mockRejectedValue(failure);
+                await expect(h.compiler.compile(h.input)).rejects.toThrow(
+                    'leaf_a failed',
+                );
+            } else {
+                await h.compiler.compile(h.input);
+            }
+            const status = failsCompile ? 'failed' : 'done';
+            expect(log).toHaveBeenLastCalledWith(
+                `dbt.compile.crossSourceRefsResolved diskEvictions=7 diskRecreations=3 status=${status}`,
+                expect.objectContaining({
+                    diskEvictions: 7,
+                    diskRecreations: 3,
+                    status,
+                }),
+            );
+        },
+    );
 
     it('names both connections and carries the failed Trino group', async () => {
         const h = harness();

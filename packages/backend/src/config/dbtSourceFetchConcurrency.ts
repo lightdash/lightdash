@@ -1,6 +1,6 @@
 import fs from 'fs';
 import os from 'os';
-import { DBT_PARTIAL_PARSE_BASELINE_LIMITS } from '../dbt/dbtPartialParseBaseline';
+import { getDbtPartialParseBaselineSize } from '../dbt/dbtPartialParseBaseline';
 
 export const DBT_SOURCE_FETCH_MEMORY_RESERVE_BYTES = 3 * 1024 * 1024 * 1024;
 export const DBT_SOURCE_FETCH_MEMORY_PER_SOURCE_BYTES = 1024 * 1024 * 1024;
@@ -13,8 +13,7 @@ export const DBT_SOURCE_FETCH_MAX_CONCURRENCY = 8;
 export const DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY = 2;
 
 export const DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = 256 * 1024 ** 2;
-export const DBT_SOURCE_FETCH_DISK_RESERVE_BYTES =
-    256 * 1024 ** 2 + DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes;
+export const DBT_SOURCE_FETCH_DISK_RESERVE_BYTES = 256 * 1024 ** 2;
 
 export type DbtSourceFetchDiskConfig = {
     sourceFetchDiskBudgetBytes?: number;
@@ -54,6 +53,7 @@ export const resolveDbtSourceFetchConcurrency = (
         availableParallelism: () => number;
         constrainedMemory: () => number | undefined;
         statfs?: () => { bavail: number; bsize: number };
+        baselineSize?: () => number;
     } = {
         availableParallelism: () => os.availableParallelism(),
         constrainedMemory: () =>
@@ -94,7 +94,9 @@ export const resolveDbtSourceFetchConcurrency = (
                   1,
                   Math.floor(
                       (diskAvailableBytes -
-                          DBT_SOURCE_FETCH_DISK_RESERVE_BYTES) /
+                          DBT_SOURCE_FETCH_DISK_RESERVE_BYTES -
+                          (runtime.baselineSize?.() ??
+                              getDbtPartialParseBaselineSize())) /
                           Math.max(
                               1,
                               disk.sourceFetchDiskPerSourceBytes ??

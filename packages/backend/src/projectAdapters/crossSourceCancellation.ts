@@ -15,6 +15,25 @@ export const DEFAULT_CROSS_SOURCE_TIMEOUTS: CrossSourceTimeouts = {
 
 export const CROSS_SOURCE_SETTLE_GRACE_MS = 10000;
 
+export const waitForDbtSourceCleanup = async (
+    cleanup: Promise<unknown>,
+): Promise<void> => {
+    let timer: NodeJS.Timeout | undefined;
+    try {
+        await Promise.race([
+            cleanup.catch((error: unknown) => {
+                Logger.warn('dbt.compile.crossSourceCleanupFailed', { error });
+                throw error;
+            }),
+            new Promise<void>((resolve) => {
+                timer = setTimeout(resolve, CROSS_SOURCE_SETTLE_GRACE_MS);
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 export class CrossSourceCancellation {
     readonly controller = new AbortController();
 

@@ -42,6 +42,7 @@ import {
 import {
     CrossSourceCancellation,
     DEFAULT_CROSS_SOURCE_TIMEOUTS,
+    waitForDbtSourceCleanup,
     type CrossSourceTimeouts,
 } from '../../projectAdapters/crossSourceCancellation';
 import { validateCrossSourceProjectScans } from '../../projectAdapters/crossSourcePreflight';
@@ -109,7 +110,7 @@ type SourceDiskLifecycle = {
         credentials: CreateWarehouseCredentials,
         connection: ScopedWarehouseConnection,
         options: { signal: AbortSignal },
-    ) => Promise<void>;
+    ) => Promise<DbtProjectScan | null | void>;
     releaseSourceDisk?: (source: CompilableDbtSource) => Promise<void>;
     releaseAllSourceDisk?: () => Promise<void>;
     diskStats?: { diskEvictions: number; diskRecreations: number };
@@ -273,13 +274,17 @@ export class MultiConnectionCompiler {
     ): Promise<SourceManifest[]> {
         const activeFetches = new Set<Promise<CrossSourceFetchResult>>();
         const releaseFailed = async (error: unknown): Promise<never> => {
-            await Promise.allSettled([...activeFetches]);
-            await Promise.allSettled(
-                sources.map(async (source) =>
-                    resolutionOptions.releaseSourceDisk?.(source),
-                ),
-            );
-            await primaryTask?.releaseDisk?.();
+            const cleanup = (async () => {
+                await Promise.allSettled([...activeFetches]);
+                await Promise.allSettled(
+                    sources.map(async (source) =>
+                        resolutionOptions.releaseSourceDisk?.(source),
+                    ),
+                );
+                await primaryTask?.releaseDisk?.();
+            })();
+            if (enabled) await waitForDbtSourceCleanup(cleanup);
+            else await cleanup;
             throw error;
         };
         const sourceTasks = sources.map((source) => ({
@@ -408,23 +413,29 @@ export class MultiConnectionCompiler {
         }).catch(releaseFailed);
         warnings.push(...resolution.warnings);
         if (enabled) {
-            Logger.info('dbt.compile.crossSourceRefsResolved', {
-                ...resolutionOptions.diskStats,
-                event: 'dbt.compile.crossSourceRefsResolved',
-                projectUuid,
-                rounds: resolution.rounds,
-                scannedEdges: resolution.scan.known,
-                firstAttemptInjected: resolution.firstAttemptInjected,
-                dbtLsRuns: resolution.attempts,
-                preflightWarnings: resolution.preflightWarnings,
-                timeouts:
-                    resolutionOptions.timeouts ?? DEFAULT_CROSS_SOURCE_TIMEOUTS,
-                signatureExhausted: resolution.signatureExhausted,
-                sources: resolution.results.map(({ task, injectedFrom }) => ({
-                    name: task.key,
-                    injectedFrom,
-                })),
-            });
+            Logger.info(
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${resolutionOptions.diskStats?.diskEvictions ?? 0} diskRecreations=${resolutionOptions.diskStats?.diskRecreations ?? 0}`,
+                {
+                    ...resolutionOptions.diskStats,
+                    event: 'dbt.compile.crossSourceRefsResolved',
+                    projectUuid,
+                    rounds: resolution.rounds,
+                    scannedEdges: resolution.scan.known,
+                    firstAttemptInjected: resolution.firstAttemptInjected,
+                    dbtLsRuns: resolution.attempts,
+                    preflightWarnings: resolution.preflightWarnings,
+                    timeouts:
+                        resolutionOptions.timeouts ??
+                        DEFAULT_CROSS_SOURCE_TIMEOUTS,
+                    signatureExhausted: resolution.signatureExhausted,
+                    sources: resolution.results.map(
+                        ({ task, injectedFrom }) => ({
+                            name: task.key,
+                            injectedFrom,
+                        }),
+                    ),
+                },
+            );
         }
         return resolution.results.map(({ task, result }) => ({
             ...task.context,
@@ -651,19 +662,37 @@ export class MultiConnectionCompiler {
                 callerSignal,
                 resolutionStartedAt,
             );
+        let status: 'done' | 'failed' = 'failed';
         try {
-            return cancellation
+            const result = cancellation
                 ? await cancellation.wait('connections', compile)
                 : await compile();
+            status = 'done';
+            return result;
         } catch (error) {
             try {
                 if (cancellation) await cancellation.fail(error);
             } finally {
-                await input.releaseAllSourceDisk?.();
+                if (cancellation) {
+                    await waitForDbtSourceCleanup(
+                        input.releaseAllSourceDisk?.() ?? Promise.resolve(),
+                    );
+                } else await input.releaseAllSourceDisk?.();
             }
             throw error;
         } finally {
             cancellation?.dispose();
+            if (cancellation) {
+                Logger.info(
+                    `dbt.compile.crossSourceRefsResolved diskEvictions=${input.diskStats?.diskEvictions ?? 0} diskRecreations=${input.diskStats?.diskRecreations ?? 0} status=${status}`,
+                    {
+                        event: 'dbt.compile.crossSourceRefsResolved',
+                        projectUuid: input.projectUuid,
+                        ...input.diskStats,
+                        status,
+                    },
+                );
+            }
         }
     }
 
@@ -800,9 +829,11 @@ export class MultiConnectionCompiler {
                         try {
                             await groupCancellation.fail(error);
                         } finally {
-                            await Promise.allSettled(
-                                plan.sources.map(async (source) =>
-                                    releaseSourceDisk?.(source),
+                            await waitForDbtSourceCleanup(
+                                Promise.allSettled(
+                                    plan.sources.map(async (source) =>
+                                        releaseSourceDisk?.(source),
+                                    ),
                                 ),
                             );
                         }

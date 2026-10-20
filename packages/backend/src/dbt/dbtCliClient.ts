@@ -248,6 +248,8 @@ export class DbtCliClient implements DbtClient {
         if (signal?.aborted) throw new DbtAbortError(signal.reason);
         const dbtExec = this.getDbtExec();
         const targetPath = await this._getTargetDirectory();
+        const temporaryPath = path.join(targetPath, 'tmp');
+        await fs.mkdir(temporaryPath, { recursive: true, mode: 0o700 });
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -282,17 +284,20 @@ export class DbtCliClient implements DbtClient {
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 extendEnv: false,
-                env: getDbtProcessEnvironment({
-                    processEnvironment: process.env,
-                    explicitCredentials: this.explicitCredentials,
-                    environmentVariableAllowlist:
-                        this.environmentVariableAllowlist,
-                    projectEnvironment: this.environment,
-                    pluginEnvironment,
-                    targetPath,
-                    partialParse: this.partialParseBaselinePath !== null,
-                    gitConfigGlobalPath: this.gitConfigGlobalPath,
-                }),
+                env: {
+                    ...getDbtProcessEnvironment({
+                        processEnvironment: process.env,
+                        explicitCredentials: this.explicitCredentials,
+                        environmentVariableAllowlist:
+                            this.environmentVariableAllowlist,
+                        projectEnvironment: this.environment,
+                        pluginEnvironment,
+                        targetPath,
+                        partialParse: this.partialParseBaselinePath !== null,
+                        gitConfigGlobalPath: this.gitConfigGlobalPath,
+                    }),
+                    TMPDIR: temporaryPath,
+                },
             });
             const dbtProcess = signal
                 ? await awaitDetachedProcess(subprocess, signal)

@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { type DbtManifestFetchOptions, type ProjectAdapter } from '../types';
+import { CROSS_SOURCE_SETTLE_GRACE_MS } from './crossSourceCancellation';
 import { resolveCrossSourceManifests } from './crossSourceRefs';
 import { DbtSourceDiskPool } from './DbtSourceDiskPool';
 
@@ -28,6 +29,140 @@ const result = (key: string) => ({
 });
 
 describe('DbtSourceDiskPool', () => {
+    it('returns a compile timeout before creation settles and cleans up later', async () => {
+        vi.useFakeTimers();
+        const pool = new DbtSourceDiskPool(1);
+        let finish!: (adapter: ProjectAdapter) => void;
+        const remove = vi.fn(async () => undefined);
+        const fetch = vi.fn(async () => result('leaf_a'));
+        let failed = false;
+        const compile = resolveCrossSourceManifests({
+            enabled: true,
+            concurrency: 1,
+            timeouts: { prepareMs: 1, lsMs: 1000, resolutionMs: 100000 },
+            tasks: [
+                {
+                    key: 'leaf_a',
+                    context: null,
+                    fetch,
+                    prepare: ({ signal } = {}) =>
+                        pool.run(
+                            'leaf_a',
+                            () =>
+                                new Promise<ProjectAdapter>((resolve) => {
+                                    finish = resolve;
+                                }),
+                            async () => null,
+                            signal,
+                        ),
+                },
+            ],
+        }).catch(async (error: unknown) => {
+            await pool.release('leaf_a');
+            failed = true;
+            return error;
+        });
+        try {
+            await vi.advanceTimersByTimeAsync(
+                1 + 2 * CROSS_SOURCE_SETTLE_GRACE_MS,
+            );
+            expect(failed).toBe(true);
+            expect(await compile).toMatchObject({
+                message: expect.stringContaining('timed out'),
+            });
+            expect(remove).not.toHaveBeenCalled();
+            finish({ releaseDisk: remove } as unknown as ProjectAdapter);
+            await vi.advanceTimersByTimeAsync(0);
+            expect(remove).toHaveBeenCalledOnce();
+            expect(fetch).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it.each(['projectName', 'declaredUpstreams'] as const)(
+        'rejects a recreated source when its %s changes',
+        async (field) => {
+            const pool = new DbtSourceDiskPool(1);
+            const scan = {
+                projectName: 'leaf_a',
+                declaredUpstreams: [],
+                installedPackages: [],
+                referencedProjects: [],
+            };
+            const rescan = vi.fn(async () => ({
+                ...scan,
+                [field]: field === 'projectName' ? 'leaf_changed' : ['leaf_b'],
+            }));
+            const fetch = vi.fn(async () => result('leaf_a'));
+            await expect(
+                resolveCrossSourceManifests({
+                    enabled: true,
+                    concurrency: 1,
+                    tasks: [
+                        {
+                            key: 'leaf_a',
+                            context: null,
+                            withDisk: (operation, signal) =>
+                                pool.run(
+                                    'leaf_a',
+                                    async () =>
+                                        ({
+                                            releaseDisk: vi.fn(),
+                                        }) as unknown as ProjectAdapter,
+                                    operation,
+                                    signal,
+                                ),
+                            prepare: async () => {
+                                await pool.run(
+                                    'leaf_a',
+                                    async () =>
+                                        ({
+                                            releaseDisk: vi.fn(),
+                                        }) as unknown as ProjectAdapter,
+                                    async () => {},
+                                );
+                                await pool.run(
+                                    'leaf_b',
+                                    async () =>
+                                        ({
+                                            releaseDisk: vi.fn(),
+                                        }) as unknown as ProjectAdapter,
+                                    async () => {},
+                                );
+                                return scan;
+                            },
+                            prepareFetch: rescan,
+                            fetch,
+                        },
+                    ],
+                }),
+            ).rejects.toThrow(
+                'dbt source "leaf_a" changed while this project was compiling. Refresh dbt again.',
+            );
+            expect(rescan).toHaveBeenCalledOnce();
+            expect(pool.stats.diskRecreations).toBe(1);
+            expect(fetch).not.toHaveBeenCalled();
+            await pool.release('leaf_a');
+        },
+    );
+
+    it('preserves disk release errors that settle within the grace period', async () => {
+        const pool = new DbtSourceDiskPool(1);
+        const failure = new Error('leaf_a disk release failed');
+        await pool.run(
+            'leaf_a',
+            async () =>
+                ({
+                    releaseDisk: vi.fn(async () => {
+                        throw failure;
+                    }),
+                }) as unknown as ProjectAdapter,
+            async () => {},
+        );
+        await expect(pool.release('leaf_a')).rejects.toBe(failure);
+    });
+
     it('bounds 16 scanned sources through eviction, recreation and a retry', async () => {
         const root = await fs.mkdtemp(path.join(os.tmpdir(), 'disk-pool-'));
         await fs.mkdir(path.join(root, 'primary'));

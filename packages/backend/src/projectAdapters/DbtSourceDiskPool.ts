@@ -1,5 +1,6 @@
 import pLimit from 'p-limit';
 import { type ProjectAdapter } from '../types';
+import { waitForDbtSourceCleanup } from './crossSourceCancellation';
 
 type DiskEntry = {
     adapter: ProjectAdapter | null;
@@ -106,6 +107,10 @@ export class DbtSourceDiskPool {
     }
 
     async release(key: string): Promise<void> {
+        await waitForDbtSourceCleanup(this.releaseWhenIdle(key));
+    }
+
+    private async releaseWhenIdle(key: string): Promise<void> {
         let wake = () => {};
         const available = new Promise<void>((resolve) => {
             wake = resolve;
@@ -124,7 +129,7 @@ export class DbtSourceDiskPool {
         });
         if (!released) {
             await available;
-            return this.release(key);
+            return this.releaseWhenIdle(key);
         }
         this.notify();
     }

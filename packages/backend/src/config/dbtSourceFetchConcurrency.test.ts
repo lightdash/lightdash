@@ -8,6 +8,7 @@ const GIB = 1024 * 1024 * 1024;
 const runtime = (cores: number, memoryBytes: number | undefined) => ({
     availableParallelism: () => cores,
     constrainedMemory: () => memoryBytes,
+    baselineSize: () => 0,
     statfs: () => {
         throw new Error('unknown');
     },
@@ -112,6 +113,27 @@ describe('resolveDbtSourceFetchConcurrency', () => {
 });
 
 describe('disk concurrency bound', () => {
+    it('allows three sources with a 1 GiB budget and an empty cache', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined), {
+                sourceFetchDiskBudgetBytes: GIB,
+            }),
+        ).toMatchObject({ diskDerivedLimit: 3, chosen: 3 });
+    });
+    it('reserves the current cache bytes in addition to working space', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(
+                undefined,
+                {
+                    ...runtime(8, undefined),
+                    baselineSize: () => GIB / 2,
+                },
+                {
+                    sourceFetchDiskBudgetBytes: GIB,
+                },
+            ),
+        ).toMatchObject({ diskDerivedLimit: 1, chosen: 1 });
+    });
     it('uses the explicit budget before querying the filesystem', () => {
         const statfs = vi.fn(() => ({ bavail: 1000, bsize: GIB }));
         const result = resolveDbtSourceFetchConcurrency(
@@ -140,8 +162,8 @@ describe('disk concurrency bound', () => {
         expect(result).toMatchObject({
             diskAvailableBytes: 3 * GIB,
             diskBudgetSource: 'statfs',
-            diskDerivedLimit: 3,
-            chosen: 3,
+            diskDerivedLimit: 11,
+            chosen: 8,
         });
     });
     it('keeps the existing bound when statfs fails', () => {
@@ -164,7 +186,7 @@ describe('disk concurrency bound', () => {
     it('floors at one even when the reserve exceeds the budget', () => {
         expect(
             resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined), {
-                sourceFetchDiskBudgetBytes: GIB,
+                sourceFetchDiskBudgetBytes: 1,
             }),
         ).toMatchObject({ diskDerivedLimit: 1, chosen: 1 });
     });

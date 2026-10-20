@@ -14050,6 +14050,66 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         return (await adapter).adapter;
     };
 
+    it('fails a compile before adapter creation settles and releases its disk later', async () => {
+        vi.useFakeTimers();
+        const { projectService } = buildServiceWithMocks(true, []);
+        projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
+            id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
+            enabled: true,
+        }));
+        const sourceAdapter = buildAdapterWithManifest(buildManifest([]));
+        let finish!: (adapter: ProjectAdapter) => void;
+        vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
+            () =>
+                new Promise<ProjectAdapter>((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        const log = vi.spyOn(projectService.logger, 'info');
+        let failed = false;
+        const compile = projectService
+            .buildMergedManifestAdapter({
+                userUuid: 'user-uuid',
+                projectUuid: 'project-uuid',
+                organizationUuid: 'org-uuid',
+                primary: {
+                    ...primary,
+                    adapter: buildAdapterWithManifest(buildManifest([])),
+                },
+                sources: [buildSource('leaf_a')],
+                manifestFetchAdapters: [],
+            })
+            .catch((error: unknown) => {
+                failed = true;
+                return error;
+            });
+        try {
+            await vi.advanceTimersByTimeAsync(
+                lightdashConfigWithGoogleOAuthMock.dbt
+                    .crossSourcePrepareTimeoutMs + 20000,
+            );
+            expect(failed).toBe(true);
+            expect(log).toHaveBeenCalledWith(
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 status=failed',
+                expect.objectContaining({
+                    status: 'failed',
+                    diskEvictions: 0,
+                    diskRecreations: 0,
+                }),
+            );
+            expect(await compile).toMatchObject({
+                message: expect.stringContaining('timed out'),
+            });
+            expect(sourceAdapter.releaseDisk).not.toHaveBeenCalled();
+            finish(sourceAdapter);
+            await vi.advanceTimersByTimeAsync(0);
+            expect(sourceAdapter.releaseDisk).toHaveBeenCalledOnce();
+            expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('names a source preparation failure before fetching any manifest', async () => {
         const { projectService } = buildServiceWithMocks(true, []);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({

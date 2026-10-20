@@ -40,7 +40,9 @@ export type CrossSourceFetchTask<T> = {
         operation: () => Promise<R>,
         signal: AbortSignal,
     ) => Promise<R>;
-    prepareFetch?: (options: { signal: AbortSignal }) => Promise<void>;
+    prepareFetch?: (options: {
+        signal: AbortSignal;
+    }) => Promise<DbtProjectScan | null | void>;
     prepare?: (options?: {
         signal?: AbortSignal;
     }) => Promise<DbtProjectScan | null>;
@@ -326,8 +328,32 @@ export const resolveCrossSourceManifests = async <T>({
                         await cancellation.run(
                             task.key,
                             'prepare',
-                            (prepareSignal) =>
-                                task.prepareFetch!({ signal: prepareSignal }),
+                            async (prepareSignal) => {
+                                const current = await task.prepareFetch!({
+                                    signal: prepareSignal,
+                                });
+                                const original = scans.get(task);
+                                if (
+                                    current &&
+                                    original &&
+                                    (current.projectName !==
+                                        original.projectName ||
+                                        JSON.stringify(
+                                            [
+                                                ...current.declaredUpstreams,
+                                            ].sort(),
+                                        ) !==
+                                            JSON.stringify(
+                                                [
+                                                    ...original.declaredUpstreams,
+                                                ].sort(),
+                                            ))
+                                ) {
+                                    throw new ParameterError(
+                                        `dbt source "${task.key}" changed while this project was compiling. Refresh dbt again.`,
+                                    );
+                                }
+                            },
                         );
                     }
                     return cancellation.run(task.key, 'ls', (fetchSignal) => {

@@ -3,7 +3,9 @@ import os from 'os';
 import path from 'path';
 import {
     DBT_PARTIAL_PARSE_FILE,
+    getDbtPartialParseBaselineLimits,
     getDbtPartialParseBaselinePath,
+    getDbtPartialParseBaselineSize,
     pruneDbtPartialParseBaselines,
     saveDbtPartialParse,
     seedDbtPartialParse,
@@ -24,6 +26,7 @@ describe('dbt partial parse baselines', () => {
     });
 
     afterEach(async () => {
+        vi.unstubAllEnvs();
         await fs.rm(root, { recursive: true, force: true });
     });
 
@@ -37,6 +40,48 @@ describe('dbt partial parse baselines', () => {
         const time = new Date(Date.now() - ageMs);
         await fs.utimes(filePath, time, time);
     };
+
+    it('counts current cache bytes recursively and returns zero on errors', async () => {
+        expect(getDbtPartialParseBaselineSize(store)).toBe(0);
+        await fs.mkdir(path.join(store, 'nested'), { recursive: true });
+        await fs.writeFile(path.join(store, 'leaf_a.msgpack'), Buffer.alloc(7));
+        await fs.writeFile(
+            path.join(store, 'nested', 'leaf_b.tmp'),
+            Buffer.alloc(11),
+        );
+        expect(getDbtPartialParseBaselineSize(store)).toBe(18);
+        expect(
+            getDbtPartialParseBaselineSize(path.join(store, 'leaf_a.msgpack')),
+        ).toBe(0);
+    });
+
+    it('caps the cache at a quarter of the explicit budget up to 2 GiB', () => {
+        expect(getDbtPartialParseBaselineLimits(1024 ** 3).maxBytes).toBe(
+            256 * 1024 ** 2,
+        );
+        expect(getDbtPartialParseBaselineLimits(16 * 1024 ** 3).maxBytes).toBe(
+            2 * 1024 ** 3,
+        );
+        expect(getDbtPartialParseBaselineLimits(Number.NaN).maxBytes).toBe(
+            2 * 1024 ** 3,
+        );
+    });
+
+    it('prunes saved baselines against the configured disk budget', async () => {
+        vi.stubEnv('DBT_SOURCE_FETCH_DISK_BUDGET_BYTES', '16');
+        await fs.mkdir(store);
+        await writeBaseline('leaf_a.msgpack', 3, HOUR);
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            'abc',
+        );
+        await saveDbtPartialParse(
+            path.join(store, 'leaf_b.msgpack'),
+            targetDirectory,
+        );
+        expect(await fs.readdir(store)).toEqual(['leaf_b.msgpack']);
+        expect(getDbtPartialParseBaselineSize(store)).toBeLessThanOrEqual(4);
+    });
 
     it('keys a baseline by project and dbt source', () => {
         const projectConnection = getDbtPartialParseBaselinePath({

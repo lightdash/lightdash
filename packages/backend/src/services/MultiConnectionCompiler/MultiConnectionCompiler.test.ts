@@ -451,7 +451,7 @@ describe('cross-source compilation', () => {
                 expect.objectContaining({ concurrency: 1 }),
             );
             expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved',
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0',
                 expect.objectContaining({
                     projectUuid: 'project-uuid',
                     rounds: 2,

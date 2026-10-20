@@ -423,7 +423,10 @@ import {
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { type CompilableDbtSource } from '../../projectAdapters/CompileGroup';
-import { CrossSourceCancellation } from '../../projectAdapters/crossSourceCancellation';
+import {
+    CrossSourceCancellation,
+    waitForDbtSourceCleanup,
+} from '../../projectAdapters/crossSourceCancellation';
 import { resolveCrossSourceManifests } from '../../projectAdapters/crossSourceRefs';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { DbtSourceDiskPool } from '../../projectAdapters/DbtSourceDiskPool';
@@ -8546,11 +8549,11 @@ export class ProjectService
                         withDisk,
                         prepareFetch: async (options: {
                             signal: AbortSignal;
-                        }) => {
-                            await (
-                                await getAdapter()
-                            ).prepareDbtSource(options);
-                        },
+                        }) =>
+                            ProjectService.scanAdapter(
+                                await getAdapter(),
+                                options,
+                            ),
                         prepare: async (options?: { signal?: AbortSignal }) => {
                             try {
                                 return await withDisk(
@@ -8604,38 +8607,61 @@ export class ProjectService
                 }),
             ],
         }).catch(async (error: unknown) => {
-            await Promise.allSettled([
-                ...activeFetches,
-                ...sourceAdapterBuilds,
-            ]);
-            await Promise.allSettled(
-                manifestFetchAdapters.map((adapter) => adapter.releaseDisk()),
-            );
+            const cleanup = (async () => {
+                await Promise.allSettled([
+                    ...activeFetches,
+                    ...sourceAdapterBuilds,
+                ]);
+                await Promise.allSettled(
+                    manifestFetchAdapters.map((adapter) =>
+                        adapter.releaseDisk(),
+                    ),
+                );
+            })();
+            if (crossSourceRefsEnabled) {
+                await waitForDbtSourceCleanup(cleanup);
+                this.logger.info(
+                    `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations} status=failed`,
+                    {
+                        event: 'dbt.compile.crossSourceRefsResolved',
+                        projectUuid,
+                        ...diskPool.stats,
+                        status: 'failed',
+                    },
+                );
+            } else await cleanup;
             throw error;
         });
         if (crossSourceRefsEnabled) {
-            this.logger.info('dbt.compile.crossSourceRefsResolved', {
-                ...diskPool.stats,
-                event: 'dbt.compile.crossSourceRefsResolved',
-                projectUuid,
-                rounds: resolution.rounds,
-                scannedEdges: resolution.scan.known,
-                firstAttemptInjected: resolution.firstAttemptInjected,
-                dbtLsRuns: resolution.attempts,
-                preflightWarnings: resolution.preflightWarnings,
-                signatureExhausted: resolution.signatureExhausted,
-                timeouts: {
-                    prepareMs:
-                        this.lightdashConfig.dbt.crossSourcePrepareTimeoutMs,
-                    lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
-                    resolutionMs:
-                        this.lightdashConfig.dbt.crossSourceResolutionTimeoutMs,
+            this.logger.info(
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations}`,
+                {
+                    ...diskPool.stats,
+                    event: 'dbt.compile.crossSourceRefsResolved',
+                    projectUuid,
+                    rounds: resolution.rounds,
+                    scannedEdges: resolution.scan.known,
+                    firstAttemptInjected: resolution.firstAttemptInjected,
+                    dbtLsRuns: resolution.attempts,
+                    preflightWarnings: resolution.preflightWarnings,
+                    signatureExhausted: resolution.signatureExhausted,
+                    timeouts: {
+                        prepareMs:
+                            this.lightdashConfig.dbt
+                                .crossSourcePrepareTimeoutMs,
+                        lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                        resolutionMs:
+                            this.lightdashConfig.dbt
+                                .crossSourceResolutionTimeoutMs,
+                    },
+                    sources: resolution.results.map(
+                        ({ task, injectedFrom }) => ({
+                            name: task.key,
+                            injectedFrom,
+                        }),
+                    ),
                 },
-                sources: resolution.results.map(({ task, injectedFrom }) => ({
-                    name: task.key,
-                    injectedFrom,
-                })),
-            });
+            );
         }
         const fetched = resolution.results.map(({ task, result }) => {
             const { manifest, selectedModelIds } = result;
@@ -8931,12 +8957,17 @@ export class ProjectService
             concurrency: concurrencyDecision.chosen,
             diskStats: diskPool.stats,
             releaseAllSourceDisk: async () => {
-                await Promise.allSettled([...sourceAdapterBuilds]);
-                await Promise.allSettled(
-                    [primary.adapter, ...sourceAdapters.values()].map(
-                        (adapter) => adapter.releaseDisk(),
-                    ),
-                );
+                const cleanup = (async () => {
+                    await Promise.allSettled([...sourceAdapterBuilds]);
+                    await Promise.allSettled(
+                        [primary.adapter, ...sourceAdapters.values()].map(
+                            (adapter) => adapter.releaseDisk(),
+                        ),
+                    );
+                })();
+                if (crossSourceRefsEnabled)
+                    await waitForDbtSourceCleanup(cleanup);
+                else await cleanup;
             },
             withSourceDisk: (
                 source,
@@ -8962,11 +8993,11 @@ export class ProjectService
                 credentials,
                 connection,
                 options,
-            ) => {
-                await (
-                    await getSourceAdapter(source, credentials, connection)
-                ).prepareDbtSource(options);
-            },
+            ) =>
+                ProjectService.scanAdapter(
+                    await getSourceAdapter(source, credentials, connection),
+                    options,
+                ),
             primary: {
                 releaseDisk: () =>
                     primary.adapter.releaseDisk({ keepProject: true }),
