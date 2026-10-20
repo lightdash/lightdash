@@ -3,6 +3,7 @@ import {
     NotFoundError,
     ParameterError,
     PersistentDownloadFileAccessMode,
+    PersistentDownloadFileStorage,
     PossibleAbilities,
     type Account,
 } from '@lightdash/common';
@@ -19,8 +20,14 @@ import { PersistentDownloadFileService } from './PersistentDownloadFileService';
 
 const mockS3GetFileUrl = vi.fn();
 const mockS3GetFileStream = vi.fn();
+const mockS3UploadImage = vi.fn();
+const mockS3DeleteFile = vi.fn();
+const mockUploadsGetFileStream = vi.fn();
+const mockUploadsUploadImage = vi.fn();
+const mockUploadsDeleteFile = vi.fn();
 const mockModelCreate = vi.fn();
 const mockModelGet = vi.fn();
+const mockModelDelete = vi.fn();
 const mockTrack = vi.fn();
 
 const baseData = {
@@ -35,6 +42,7 @@ const baseData = {
 const createService = (
     configOverrides: Partial<LightdashConfig['persistentDownloadUrls']> = {},
     lightdashSecrets: LightdashConfig['lightdashSecrets'] = lightdashConfigMock.lightdashSecrets,
+    { uploadsBucketConfigured = true }: { uploadsBucketConfigured?: boolean } = {},
 ) =>
     new PersistentDownloadFileService({
         analytics: {
@@ -52,11 +60,21 @@ const createService = (
         persistentDownloadFileModel: {
             create: mockModelCreate,
             get: mockModelGet,
+            delete: mockModelDelete,
         } as unknown as PersistentDownloadFileModel,
         fileStorageClient: {
             getFileUrl: mockS3GetFileUrl,
             getFileStream: mockS3GetFileStream,
+            uploadImage: mockS3UploadImage,
+            deleteFile: mockS3DeleteFile,
         } as unknown as FileStorageClient,
+        uploadsFileStorageClient: uploadsBucketConfigured
+            ? ({
+                  getFileStream: mockUploadsGetFileStream,
+                  uploadImage: mockUploadsUploadImage,
+                  deleteFile: mockUploadsDeleteFile,
+              } as unknown as FileStorageClient)
+            : null,
     });
 
 const requestContext = (account?: Account, downloadToken?: string) => ({
@@ -77,10 +95,19 @@ const fileRow = (
     project_uuid: 'test-project-uuid',
     created_by_user_uuid: 'test-user-uuid',
     access_mode: accessMode,
+    storage: PersistentDownloadFileStorage.EXPORTS,
     created_at: new Date(),
     expires_at: new Date(Date.now() + 60 * 60 * 1000),
     ...overrides,
 });
+
+const uploadRow = (overrides: Partial<DbPersistentDownloadFile> = {}) =>
+    fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT, {
+        s3_key: 'ai-agents/agent-uuid/avatar.png',
+        file_type: 'image',
+        storage: PersistentDownloadFileStorage.UPLOADS,
+        ...overrides,
+    });
 
 const accountWith = ({
     userUuid = 'test-user-uuid',
@@ -117,6 +144,92 @@ describe('PersistentDownloadFileService', () => {
             stream: Readable.from(['hello,world\n']),
             contentDisposition: null,
         });
+        mockUploadsGetFileStream.mockResolvedValue({
+            stream: Readable.from(['png']),
+            contentDisposition: null,
+        });
+    });
+
+    describe('uploadPersistentImage', () => {
+        const uploadData = {
+            image: Buffer.from('png'),
+            storageId: 'ai-agents/agent-uuid/avatar',
+            organizationUuid: 'test-org-uuid',
+            projectUuid: 'test-project-uuid',
+            createdByUserUuid: 'test-user-uuid',
+            accessMode:
+                PersistentDownloadFileAccessMode.AUTHENTICATED_PROJECT as const,
+            expirationSeconds: 10 * 365 * 24 * 60 * 60,
+        };
+
+        it('stores the image in the uploads bucket and records that on the link', async () => {
+            const url = await createService().uploadPersistentImage(uploadData);
+
+            expect(url).toMatch(
+                /^https:\/\/test\.lightdash\.cloud\/api\/v1\/file\/[\w-]{21}$/,
+            );
+            expect(mockUploadsUploadImage).toHaveBeenCalledWith(
+                uploadData.image,
+                uploadData.storageId,
+            );
+            expect(mockS3UploadImage).not.toHaveBeenCalled();
+            expect(mockModelCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    s3Key: 'ai-agents/agent-uuid/avatar.png',
+                    fileType: 'image',
+                    storage: PersistentDownloadFileStorage.UPLOADS,
+                }),
+            );
+        });
+
+        it('keeps the image in the exports bucket when no uploads bucket is configured', async () => {
+            await createService({}, undefined, {
+                uploadsBucketConfigured: false,
+            }).uploadPersistentImage(uploadData);
+
+            expect(mockS3UploadImage).toHaveBeenCalledWith(
+                uploadData.image,
+                uploadData.storageId,
+            );
+            expect(mockUploadsUploadImage).not.toHaveBeenCalled();
+            expect(mockModelCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    storage: PersistentDownloadFileStorage.EXPORTS,
+                }),
+            );
+        });
+    });
+
+    describe('deleteFileWithKeyPrefix', () => {
+        it('deletes an upload from the uploads bucket', async () => {
+            mockModelGet.mockResolvedValue(uploadRow());
+
+            await createService().deleteFileWithKeyPrefix(
+                'test-nanoid-123456789',
+                'ai-agents/agent-uuid/',
+            );
+
+            expect(mockUploadsDeleteFile).toHaveBeenCalledWith(
+                'ai-agents/agent-uuid/avatar.png',
+            );
+            expect(mockS3DeleteFile).not.toHaveBeenCalled();
+            expect(mockModelDelete).toHaveBeenCalledWith(
+                'test-nanoid-123456789',
+            );
+        });
+
+        it('refuses to delete a file outside the caller prefix', async () => {
+            mockModelGet.mockResolvedValue(uploadRow());
+
+            await expect(
+                createService().deleteFileWithKeyPrefix(
+                    'test-nanoid-123456789',
+                    'announcements/',
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(mockUploadsDeleteFile).not.toHaveBeenCalled();
+            expect(mockModelDelete).not.toHaveBeenCalled();
+        });
     });
 
     afterEach(() => {
@@ -124,6 +237,16 @@ describe('PersistentDownloadFileService', () => {
     });
 
     describe('createPersistentUrl', () => {
+        it('records the link as an export', async () => {
+            await createService().createPersistentUrl(baseData);
+
+            expect(mockModelCreate).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    storage: PersistentDownloadFileStorage.EXPORTS,
+                }),
+            );
+        });
+
         it('always creates an access-controlled persistent URL', async () => {
             const service = createService({ enabled: false });
 
@@ -284,6 +407,39 @@ describe('PersistentDownloadFileService', () => {
     });
 
     describe('getFileStream', () => {
+        it('streams an upload from the exports bucket after the uploads bucket is removed', async () => {
+            mockModelGet.mockResolvedValue(uploadRow());
+
+            await createService({}, undefined, {
+                uploadsBucketConfigured: false,
+            }).getFileStream(
+                'test-nanoid-123456789',
+                requestContext(accountWith()),
+            );
+
+            expect(mockS3GetFileStream).toHaveBeenCalledWith(
+                'ai-agents/agent-uuid/avatar.png',
+            );
+        });
+
+        it('streams an upload from the uploads bucket', async () => {
+            mockModelGet.mockResolvedValue(uploadRow());
+
+            await expect(
+                createService().getFileStream(
+                    'test-nanoid-123456789',
+                    requestContext(accountWith()),
+                ),
+            ).resolves.toMatchObject({
+                fileType: 'image',
+                s3Key: 'ai-agents/agent-uuid/avatar.png',
+            });
+            expect(mockUploadsGetFileStream).toHaveBeenCalledWith(
+                'ai-agents/agent-uuid/avatar.png',
+            );
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
         it('allows a creator who can still view the project', async () => {
             mockModelGet.mockResolvedValue(
                 fileRow(PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR),

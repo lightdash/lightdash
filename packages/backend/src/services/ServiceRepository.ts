@@ -901,6 +901,10 @@ export class ServiceRepository
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
+                    uploadsFileStorageClient: this.context.lightdashConfig
+                        .uploads.s3
+                        ? this.clients.getUploadsFileStorageClient()
+                        : null,
                 }),
         );
     }

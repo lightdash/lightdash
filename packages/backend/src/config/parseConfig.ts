@@ -1057,6 +1057,28 @@ export const parseStaticAssetsS3Config = ():
     };
 };
 
+// Null means no dedicated bucket: uploads then stay in S3_BUCKET and are
+// recorded as exports, so enabling this later never orphans earlier uploads.
+export const parseUploadsS3Config = (): LightdashConfig['uploads']['s3'] => {
+    const bucket = process.env.UPLOADS_S3_BUCKET;
+    const base = parseBaseS3Config();
+    if (!bucket || !base) {
+        return null;
+    }
+    const forcePathStyle = process.env.UPLOADS_S3_FORCE_PATH_STYLE;
+    return {
+        ...base,
+        bucket,
+        endpoint: process.env.UPLOADS_S3_ENDPOINT || base.endpoint,
+        region: process.env.UPLOADS_S3_REGION || base.region,
+        accessKey: process.env.UPLOADS_S3_ACCESS_KEY || base.accessKey,
+        secretKey: process.env.UPLOADS_S3_SECRET_KEY || base.secretKey,
+        forcePathStyle: forcePathStyle
+            ? forcePathStyle === 'true'
+            : base.forcePathStyle,
+    };
+};
+
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
 
@@ -1781,6 +1803,7 @@ export type LightdashConfig = {
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     staticAssets: { s3?: Omit<S3Config, 'expirationTime'> };
+    uploads: { s3: S3Config | null };
     natsWorker: {
         enabled: boolean;
         url: string | undefined;
@@ -3825,6 +3848,7 @@ export const parseConfig = (): LightdashConfig => {
             s3: parseResultsS3Config(),
         },
         staticAssets: { s3: parseStaticAssetsS3Config() },
+        uploads: { s3: parseUploadsS3Config() },
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,

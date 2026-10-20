@@ -7708,15 +7708,10 @@ export class AiAgentService extends BaseService {
         );
         const normalizedAvatar =
             await AiAgentService.normalizeAvatarImage(bufferedUpload);
-        const storageId = `ai-agents/${agentUuid}/avatar`;
-        const s3Key = `${storageId}.png`;
-
-        await this.fileStorageClient.uploadImage(normalizedAvatar, storageId);
-
         const imageUrl =
-            await this.persistentDownloadFileService.createPersistentUrl({
-                s3Key,
-                fileType: 'image',
+            await this.persistentDownloadFileService.uploadPersistentImage({
+                image: normalizedAvatar,
+                storageId: `ai-agents/${agentUuid}/avatar`,
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 createdByUserUuid: user.userUuid,

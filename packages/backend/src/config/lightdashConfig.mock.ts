@@ -200,6 +200,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     staticAssets: {},
+    uploads: { s3: null },
     natsWorker: {
         enabled: false,
         url: undefined,
