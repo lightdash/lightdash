@@ -42,9 +42,10 @@ const AnomalyLine: FC<{ anomaly: DataAppAnomaly }> = ({ anomaly }) => (
 const StoredAnalysisCard: FC<{
     analysis: DataAppAnalysis;
     stale: boolean;
+    canRerun: boolean;
     onOpen: () => void;
     onRerun: () => void;
-}> = ({ analysis, stale, onOpen, onRerun }) => {
+}> = ({ analysis, stale, canRerun, onOpen, onRerun }) => {
     const timeAgo = useTimeAgo(analysis.generatedAt);
     const anomalies = analysis.anomalies.slice(0, TEASER_ANOMALY_COUNT);
     const remaining = analysis.anomalies.length - anomalies.length;
@@ -94,6 +95,7 @@ const StoredAnalysisCard: FC<{
                         size="compact-xs"
                         variant="subtle"
                         color="gray"
+                        disabled={!canRerun}
                         onClick={onRerun}
                     >
                         Re-run
@@ -120,6 +122,9 @@ export const AnalysisTeaserContent: FC<{
         void controller.analyse();
         openAnalysis();
     };
+    // Same eligibility as the full panel: analysing settling sources would
+    // spend a run on a view that is already changing under it.
+    const canAnalyse = controller.sources.length > 0 && !controller.inFlight;
 
     // No CTA that cannot work: gates failed, or the view errored out.
     if (adapter.availability.status !== 'available') return null;
@@ -130,6 +135,7 @@ export const AnalysisTeaserContent: FC<{
             <StoredAnalysisCard
                 analysis={state.analysis}
                 stale={state.stale}
+                canRerun={canAnalyse}
                 onOpen={openAnalysis}
                 onRerun={analyseAndOpen}
             />

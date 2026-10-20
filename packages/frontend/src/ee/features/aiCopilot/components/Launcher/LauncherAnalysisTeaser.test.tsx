@@ -159,6 +159,19 @@ describe('AnalysisTeaserContent', () => {
         expect(store.getState().aiAgentLauncher.view).toBe('analysis');
     });
 
+    it('lookup hit: Re-run is disabled while queries are settling', () => {
+        renderTeaser(
+            buildAdapter({
+                state: { status: 'ready', analysis, stale: false },
+                inFlight: true,
+            }),
+        );
+        expect(screen.getByRole('button', { name: 'Re-run' })).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Open analysis' }),
+        ).toBeEnabled();
+    });
+
     it('lookup hit: Re-run regenerates and opens the analysis panel', () => {
         renderTeaser(
             buildAdapter({
