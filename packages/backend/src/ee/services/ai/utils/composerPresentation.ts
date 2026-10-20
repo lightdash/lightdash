@@ -33,9 +33,7 @@ export type TurnToolResult = {
     metadata: unknown;
 };
 
-export type ComposerPresentation = AiComposerArtifactVersion;
-
-export const stripComposerPresentationMarkers = (response: string): string =>
+const stripComposerPresentationMarkers = (response: string): string =>
     mapProse(response, (prose) =>
         prose
             .replace(SHOW_MARKER_STRIP_REGEX, '')
@@ -108,7 +106,7 @@ export const buildComposerPresentations = async ({
     getExecutionResult: (queryUuid: string) => Promise<ComposerExecutionResult>;
     previousVizConfig: AllVizChartConfig | null;
     enableDataAccess: boolean;
-}): Promise<ComposerPresentation[]> => {
+}): Promise<AiComposerArtifactVersion[]> => {
     const planViz = async (
         metadata: ToolComposerQueriesSuccessMetadata,
         node: ThreadComposerQueryNode,
@@ -137,7 +135,7 @@ export const buildComposerPresentations = async ({
     // Sequential so each plan starts from the one before it.
     const { presentations } = await presented.reduce<
         Promise<{
-            presentations: ComposerPresentation[];
+            presentations: AiComposerArtifactVersion[];
             previous: AllVizChartConfig | null;
         }>
     >(

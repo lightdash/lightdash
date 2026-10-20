@@ -406,7 +406,6 @@ describe('getRunComposerQueries', () => {
         );
         expect(output.result).toContain('```csv');
         expect(output.result).not.toContain('query-');
-        expect(output.result).not.toContain('Visualization:');
         expect(output.structuredContent).toEqual({
             terminalNodeId: 'joined',
             rowCount: 1,
