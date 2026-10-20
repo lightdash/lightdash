@@ -392,7 +392,12 @@ describe('AnalyticsProjectService', () => {
         expect(upsertDashboard.mock.calls[0][3]).toEqual({
             ...dashboard,
             tiles: [],
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
         });
+        for (const [, , , content] of upsertDashboard.mock.calls) {
+            if (content.tiles.length === 0)
+                expect(content.filters?.dimensions).toEqual([]);
+        }
         expect(upsertDashboard.mock.invocationCallOrder[0]).toBeLessThan(
             upsertChart.mock.invocationCallOrder[0],
         );
