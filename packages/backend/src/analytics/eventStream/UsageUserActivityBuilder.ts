@@ -69,7 +69,7 @@ export const validateUserActivityRange = (
     );
 };
 
-const buildUserActivitySql = (
+export const buildUserActivitySql = (
     orgId: string,
     stream: StreamName,
     date: string,
@@ -98,6 +98,7 @@ const buildUserActivitySql = (
             ${tokens.map((name) => `${stream === 'ai_usage' ? `sum("${name}")` : 'NULL'}::BIGINT AS "${name}"`).join(', ')}
         FROM (${input}) events
         WHERE org_id = ${literal(orgId)}
+            ${stream === 'data_app_events' ? "AND event_name <> 'data_app.view_outcome'" : ''}
             AND event_ts >= ${literal(date)}::TIMESTAMP
             AND event_ts < ${literal(date)}::TIMESTAMP + INTERVAL 1 DAY
         GROUP BY org_id, project_id, user_id, event_name${stream === 'export_events' ? ', format' : ''}

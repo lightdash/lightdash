@@ -69,6 +69,7 @@ import {
     type DataAppCreationExperience,
     type DataAppTemplate,
     type DataAppViewContext,
+    type DataAppViewOutcome,
     type FunnelChartDataInput,
     type MapChartLocation,
     type MapChartType,
@@ -2394,6 +2395,22 @@ export type DataAppViewedEvent = BaseTrack & {
         projectId: string;
         appUuid: string;
         viewContext?: DataAppViewContext | 'embed';
+        version?: number;
+        navigationId?: string | null;
+    };
+};
+
+export type DataAppViewOutcomeEvent = BaseTrack & {
+    event: 'data_app.view_outcome';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        viewContext: DataAppViewContext | 'embed';
+        navigationId: string | null;
+        outcome: DataAppViewOutcome;
     };
 };
 
@@ -2576,6 +2593,7 @@ export type DataAppEvent =
     | DataAppVersionFailedEvent
     | DataAppFileUploadedEvent
     | DataAppViewedEvent
+    | DataAppViewOutcomeEvent
     | DataAppVersionRestoredEvent
     | DataAppThreadClearedEvent
     | DataAppThreadSessionLostEvent
