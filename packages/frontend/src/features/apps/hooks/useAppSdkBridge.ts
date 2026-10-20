@@ -33,6 +33,7 @@ import {
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { validate as isValidUuid } from 'uuid';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
@@ -242,6 +243,7 @@ export type SdkManifest = {
     sdkVersion: string;
     features: string[];
     fixes: string[];
+    navigationId?: string;
 };
 
 export type ElementSelectedEvent = {
@@ -322,6 +324,7 @@ export type UseAppSdkBridgeParams = {
      * yet" timeout that classifies them as legacy.
      */
     onSdkManifest?: (manifest: SdkManifest) => void;
+    onRuntimeError?: (navigationId: string) => void;
     /**
      * Called when the iframe acknowledges painting the matching render context.
      */
@@ -442,6 +445,7 @@ export function useAppSdkBridge({
     onVizSubtotalsIntent,
     onUrlStateChange,
     onSdkManifest,
+    onRuntimeError,
     onVizRendered,
     vizRenderId,
     onVizContextRequest,
@@ -532,6 +536,16 @@ export function useAppSdkBridge({
 
             const { data } = event;
 
+            if (data?.type === 'lightdash:sdk:runtime-error') {
+                if (
+                    typeof data.navigationId === 'string' &&
+                    isValidUuid(data.navigationId)
+                ) {
+                    onRuntimeError?.(data.navigationId);
+                }
+                return;
+            }
+
             if (data?.type === 'lightdash:inspect:available') {
                 onInspectorAvailable?.();
                 return;
@@ -574,7 +588,15 @@ export function useAppSdkBridge({
                     )
                         ? []
                         : fixes;
-                onSdkManifest({ sdkVersion, features, fixes: validFixes });
+                onSdkManifest({
+                    sdkVersion,
+                    features,
+                    fixes: validFixes,
+                    ...(typeof data.navigationId === 'string' &&
+                    isValidUuid(data.navigationId)
+                        ? { navigationId: data.navigationId }
+                        : {}),
+                });
                 return;
             }
 
@@ -1384,6 +1406,7 @@ export function useAppSdkBridge({
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
+            onRuntimeError,
             onVizRendered,
             vizRenderId,
             onVizContextRequest,

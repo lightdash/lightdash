@@ -46,6 +46,8 @@ describe('preview storage connection lifecycle', () => {
     let cancelOnStorageHeaders: boolean;
     let previewResponse: express.Response;
     const downloads: IncomingMessage[] = [];
+    const onPreviewView = vi.fn();
+    const onPreviewOutcome = vi.fn();
 
     const download = async (url: string) =>
         new Promise<{ status: number | undefined; body: string }>(
@@ -150,6 +152,8 @@ describe('preview storage connection lifecycle', () => {
                 },
                 lightdashConfigMock.lightdashSecrets,
                 ["'self'"],
+                onPreviewView,
+                onPreviewOutcome,
             ),
         );
         preview = app.listen(0, '127.0.0.1');
@@ -237,6 +241,18 @@ describe('preview storage connection lifecycle', () => {
             });
             await expectNextDownload();
             expect(storageConnections).toBe(1);
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.objectContaining({ appUuid: APP_UUID }),
+                        null,
+                        'html_loaded',
+                    ),
+                );
+                expect(onPreviewView).toHaveBeenCalledTimes(1);
+            } else {
+                expect(onPreviewOutcome).not.toHaveBeenCalled();
+            }
         });
 
         it('terminates the browser response when the storage stream fails', async () => {
@@ -255,6 +271,16 @@ describe('preview storage connection lifecycle', () => {
             storageResponse!.destroy();
 
             await vi.waitFor(() => expect(response.destroyed).toBe(true));
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.anything(),
+                        null,
+                        'html_error',
+                    ),
+                );
+                expect(onPreviewView).toHaveBeenCalledTimes(1);
+            }
             await expectNextDownload();
         });
 
@@ -268,7 +294,38 @@ describe('preview storage connection lifecycle', () => {
                     error: { message: 'Not found' },
                 }),
             );
+            if (route === '') {
+                await vi.waitFor(() =>
+                    expect(onPreviewOutcome).toHaveBeenCalledWith(
+                        expect.anything(),
+                        null,
+                        'html_error',
+                    ),
+                );
+                expect(onPreviewView).not.toHaveBeenCalled();
+            }
             await expectNextDownload();
         });
+    });
+
+    it('correlates an HTML load without letting tracking failure break streaming', async () => {
+        completeDownload = true;
+        const navigationId = '11111111-1111-4111-8111-111111111111';
+        onPreviewView.mockImplementationOnce(() => {
+            throw new Error('unavailable');
+        });
+        onPreviewOutcome.mockImplementationOnce(() => {
+            throw new Error('unavailable');
+        });
+        expect(
+            await download(`${baseUrl}?navigationId=${navigationId}`),
+        ).toEqual({ status: 200, body: SMALL_BODY });
+        await vi.waitFor(() =>
+            expect(onPreviewOutcome).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ version: 1 }),
+                navigationId,
+                'html_loaded',
+            ),
+        );
     });
 });
