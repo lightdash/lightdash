@@ -211,7 +211,9 @@ const userDetailsQueryBuilder = (
                     'project_uuid as training_project_uuid',
                     'created_by_user_uuid as training_project_created_by_user_uuid',
                 )
-                .where('project_type', ProjectType.TRAINING)
+                // A literal, not a binding: a parameter here would renumber
+                // every placeholder after it in queries built on this one.
+                .whereRaw(`project_type = '${ProjectType.TRAINING}'`)
                 .orderBy(['organization_id', 'project_id'])
                 .as('org_training_projects'),
             'organizations.organization_id',
