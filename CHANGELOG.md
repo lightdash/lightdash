@@ -1,3 +1,10 @@
+## [2.631.5](https://github.com/lightdash/lightdash/compare/2.631.4...2.631.5) (2026-10-20)
+
+
+### Performance Improvements
+
+* **dashboard:** move dashboard edit state into the dashboard store ([#31258](https://github.com/lightdash/lightdash/issues/31258)) ([489b813](https://github.com/lightdash/lightdash/commit/489b813c17ec3aaaae388f7845984284eff07fea))
+
 ## [2.631.4](https://github.com/lightdash/lightdash/compare/2.631.3...2.631.4) (2026-10-20)
 
 
