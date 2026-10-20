@@ -17,9 +17,15 @@ const context = vi.hoisted(() => ({
     chartRef: { current: null },
     isLoading: false,
 }));
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => context,
-}));
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => context;
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 const gaugeConfigCalls = vi.hoisted(() => [] as object[]);
 vi.mock('../../hooks/echarts/useEchartsGaugeConfig', () => ({
     default: (args: object) => {

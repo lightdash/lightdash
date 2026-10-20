@@ -26,7 +26,10 @@ import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
 import { RowLimitControls } from '../../common/RowLimitControls';
@@ -38,8 +41,8 @@ type Props = {
 };
 
 export const Layout: FC<Props> = ({ items }) => {
-    const { visualizationConfig, pivotDimensions, setPivotDimensions } =
-        useVisualizationContext();
+    const { setPivotDimensions } = useVisualizationServices();
+    const { visualizationConfig, pivotDimensions } = useVisualizationState();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
 

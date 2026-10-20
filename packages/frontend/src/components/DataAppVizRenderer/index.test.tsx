@@ -208,79 +208,83 @@ vi.mock('../LightdashVisualization/types', () => ({
 }));
 vi.mock('../LightdashVisualization/useVisualizationContext', async () => {
     const { useMemo } = await import('react');
-    return {
-        useVisualizationContext: () => {
-            const dataAppVizUuid = mocks.dataAppVizUuid.current;
-            const dataAppVizVersion = mocks.dataAppVizVersion.current;
-            const fieldMapping = mocks.fieldMapping.current;
-            const isLoading = mocks.isLoading.current;
-            const vizContextOverrides = mocks.vizContextOverrides.current;
-            return useMemo(
-                () => ({
-                    visualizationConfig: {
-                        chartConfig: {
-                            validConfig:
-                                dataAppVizUuid === null
-                                    ? null
-                                    : {
-                                          dataAppVizUuid: dataAppVizUuid,
-                                          dataAppVizVersion: dataAppVizVersion,
-                                          fieldMapping: fieldMapping,
-                                          optionValues: { title: 12 },
-                                      },
-                            setDataAppVizVersion: mocks.setDataAppVizVersion,
-                        },
+    const useVisualizationContext = () => {
+        const dataAppVizUuid = mocks.dataAppVizUuid.current;
+        const dataAppVizVersion = mocks.dataAppVizVersion.current;
+        const fieldMapping = mocks.fieldMapping.current;
+        const isLoading = mocks.isLoading.current;
+        const vizContextOverrides = mocks.vizContextOverrides.current;
+        return useMemo(
+            () => ({
+                visualizationConfig: {
+                    chartConfig: {
+                        validConfig:
+                            dataAppVizUuid === null
+                                ? null
+                                : {
+                                      dataAppVizUuid: dataAppVizUuid,
+                                      dataAppVizVersion: dataAppVizVersion,
+                                      fieldMapping: fieldMapping,
+                                      optionValues: { title: 12 },
+                                  },
+                        setDataAppVizVersion: mocks.setDataAppVizVersion,
                     },
-                    savedChartUuid: 'saved-chart-uuid',
-                    resultsData: {
-                        rows: [
-                            {
-                                orders_category: {
-                                    value: {
-                                        raw: 'Hardware',
-                                        formatted: 'Hardware',
-                                    },
+                },
+                savedChartUuid: 'saved-chart-uuid',
+                resultsData: {
+                    rows: [
+                        {
+                            orders_category: {
+                                value: {
+                                    raw: 'Hardware',
+                                    formatted: 'Hardware',
                                 },
                             },
-                        ],
-                        setFetchAll: mocks.setFetchAll,
-                    },
-                    itemsMap: {
-                        orders_category: {
-                            fieldType: FieldType.DIMENSION,
-                            type: DimensionType.STRING,
-                            name: 'category',
-                            label: 'Category',
-                            table: 'orders',
-                            tableLabel: 'Orders',
-                            sql: '${TABLE}.category',
-                            hidden: false,
-                            colors: { Hardware: '#00ff00' },
                         },
-                        orders_count: {
-                            fieldType: FieldType.METRIC,
-                            type: MetricType.COUNT,
-                            name: 'count',
-                            label: 'Count',
-                            table: 'orders',
-                            tableLabel: 'Orders',
-                            sql: '${TABLE}.count',
-                            hidden: false,
-                        },
+                    ],
+                    setFetchAll: mocks.setFetchAll,
+                },
+                itemsMap: {
+                    orders_category: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                        name: 'category',
+                        label: 'Category',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.category',
+                        hidden: false,
+                        colors: { Hardware: '#00ff00' },
                     },
-                    colorPalette: ['#7162FF'],
-                    isLoading: isLoading,
-                    ...vizContextOverrides,
-                }),
-                [
-                    dataAppVizUuid,
-                    dataAppVizVersion,
-                    fieldMapping,
-                    isLoading,
-                    vizContextOverrides,
-                ],
-            );
-        },
+                    orders_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                        name: 'count',
+                        label: 'Count',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.count',
+                        hidden: false,
+                    },
+                },
+                colorPalette: ['#7162FF'],
+                isLoading: isLoading,
+                ...vizContextOverrides,
+            }),
+            [
+                dataAppVizUuid,
+                dataAppVizVersion,
+                fieldMapping,
+                isLoading,
+                vizContextOverrides,
+            ],
+        );
+    };
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
     };
 });
 vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({

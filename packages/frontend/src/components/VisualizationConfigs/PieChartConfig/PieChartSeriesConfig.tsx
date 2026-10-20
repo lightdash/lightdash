@@ -11,7 +11,7 @@ import {
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { GroupItem } from './GroupItem';
@@ -19,7 +19,7 @@ import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
     const { visualizationConfig, colorPalette, getGroupColor, itemsMap } =
-        useVisualizationContext();
+        useVisualizationState();
 
     const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
 

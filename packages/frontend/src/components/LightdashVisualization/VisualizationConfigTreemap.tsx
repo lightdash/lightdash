@@ -7,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
 import useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
-import { type VisualizationConfigTreemapProps } from './types';
+import {
+    type VisualizationConfigTreemapProps,
+    type VisualizationConfigTreemap,
+} from './types';
 
 const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     itemsMap,
@@ -44,14 +47,17 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
         });
     }, [treemapConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigTreemap = useMemo(
+        () => ({
             chartType: ChartType.TREEMAP,
             chartConfig: treemapConfig,
             dimensions,
             numericMetrics,
-        },
-    });
+        }),
+        [treemapConfig, dimensions, numericMetrics],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationConfigTreemap;

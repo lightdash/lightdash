@@ -53,7 +53,10 @@ import Callout from '../common/Callout';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 import HeatmapLayer from './HeatmapLayer';
 import { MAX_HEXBIN_POINTS } from './hexbin/hexbinUtils';
 import MapContextMenu from './MapContextMenu';
@@ -513,15 +516,15 @@ type SimpleMapProps = {
 
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { leafletMapRef } = useVisualizationServices();
         const {
             isLoading,
             visualizationConfig,
             resultsData,
-            leafletMapRef,
             minimal,
             colorPalette,
             savedChartUuid,
-        } = useVisualizationContext();
+        } = useVisualizationState();
         const mapConfig = useLeafletMapConfig({
             isInDashboard: props.isInDashboard,
         });

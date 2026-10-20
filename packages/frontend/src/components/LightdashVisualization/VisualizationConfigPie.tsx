@@ -7,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
-import { type VisualizationConfigPieProps } from './types';
+import {
+    type VisualizationConfigPieProps,
+    type VisualizationConfigPie,
+} from './types';
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     resultsData,
@@ -50,14 +53,17 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
         });
     }, [pieChartConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigPie = useMemo(
+        () => ({
             chartType: ChartType.PIE,
             chartConfig: pieChartConfig,
             dimensions,
             numericMetrics,
-        },
-    });
+        }),
+        [pieChartConfig, dimensions, numericMetrics],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationPieConfig;

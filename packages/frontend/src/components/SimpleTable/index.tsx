@@ -16,7 +16,7 @@ import {
     type HeaderProps,
 } from '../common/Table/types';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
@@ -57,7 +57,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isEditMode,
         parameters,
         hasExplorerStore,
-    } = useVisualizationContext();
+    } = useVisualizationState();
 
     const hasSignaledScreenshotReady = useRef(false);
 

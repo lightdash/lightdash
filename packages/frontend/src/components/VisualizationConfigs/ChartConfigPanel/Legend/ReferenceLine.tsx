@@ -43,7 +43,7 @@ import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils
 import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
@@ -214,7 +214,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
-    const { visualizationConfig, colorPalette } = useVisualizationContext();
+    const { visualizationConfig, colorPalette } = useVisualizationState();
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);

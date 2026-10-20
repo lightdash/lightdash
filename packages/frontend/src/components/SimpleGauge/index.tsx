@@ -15,7 +15,10 @@ import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -39,7 +42,8 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleGauge: FC<SimpleGaugeProps> = memo(
     ({ onScreenshotReady, onScreenshotError, onChartReady, ...props }) => {
-        const { chartRef, isLoading } = useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading } = useVisualizationState();
         const [chartWidth, setChartWidth] = useState(0);
         const [chartHeight, setChartHeight] = useState(0);
 

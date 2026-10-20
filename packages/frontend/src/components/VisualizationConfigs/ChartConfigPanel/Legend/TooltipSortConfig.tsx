@@ -2,7 +2,7 @@ import { TooltipSortByOptions, type TooltipSortBy } from '@lightdash/common';
 import { Group, Select } from '@mantine/core';
 import { type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 
 const TOOLTIP_SORT_OPTIONS = [
@@ -16,7 +16,7 @@ const TOOLTIP_SORT_OPTIONS = [
 ];
 
 export const TooltipSortConfig: FC = () => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 

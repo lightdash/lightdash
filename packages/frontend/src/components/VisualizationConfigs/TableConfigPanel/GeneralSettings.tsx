@@ -4,7 +4,10 @@ import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { RowLimitControls } from '../common/RowLimitControls';
 import { MAX_PIVOTS } from './constants';
@@ -17,13 +20,9 @@ enum DroppableIds {
 }
 
 const GeneralSettings: FC = () => {
-    const {
-        resultsData,
-        pivotDimensions,
-        visualizationConfig,
-        setPivotDimensions,
-        columnOrder,
-    } = useVisualizationContext();
+    const { setPivotDimensions } = useVisualizationServices();
+    const { resultsData, pivotDimensions, visualizationConfig, columnOrder } =
+        useVisualizationState();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
 

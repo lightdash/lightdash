@@ -17,7 +17,10 @@ import { useAbilityContext } from '../../../providers/Ability/useAbilityContext'
 import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../LightdashVisualization/useVisualizationContext';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -46,14 +49,14 @@ export type ChartDownloadMenuProps = {
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getDownloadQueryUuid, getGsheetLink, projectUuid, chartName }) => {
+        const { chartRef } = useVisualizationServices();
         const {
-            chartRef,
             visualizationConfig,
             resultsData,
             pivotDimensions,
             chartConfig,
             columnOrder,
-        } = useVisualizationContext();
+        } = useVisualizationState();
 
         const eChartsOptions = useEchartsCartesianConfig();
 

@@ -76,9 +76,15 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         data: { enabled: featureFlags.current[flag] === true },
     }),
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({ itemsMap }),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({ itemsMap });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 vi.mock(
     '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType',
     () => ({

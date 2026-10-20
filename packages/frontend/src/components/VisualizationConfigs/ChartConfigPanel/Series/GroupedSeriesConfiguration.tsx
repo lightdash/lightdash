@@ -24,7 +24,7 @@ import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
@@ -105,7 +105,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
-    const { resolvedTimezone } = useVisualizationContext();
+    const { resolvedTimezone } = useVisualizationState();
 
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined

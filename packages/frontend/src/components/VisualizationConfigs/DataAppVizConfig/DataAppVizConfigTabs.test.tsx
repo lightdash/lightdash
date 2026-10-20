@@ -184,9 +184,15 @@ vi.mock('../../common/FieldSelect', () => ({
         );
     },
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: vi.fn(),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = vi.fn();
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 // Self-wiring against the Explorer store, which this panel test doesn't mount.
 vi.mock('../common/ColorPaletteSection', () => ({
     ColorPaletteSection: () => <div data-testid="color-palette-section" />,

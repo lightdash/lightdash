@@ -6,7 +6,10 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isTreemapVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -36,8 +39,9 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
         onChartReady,
         ...props
     }) => {
-        const { chartRef, isLoading, resultsData, visualizationConfig } =
-            useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData, visualizationConfig } =
+            useVisualizationState();
         const treemapConfig = isTreemapVisualizationConfig(visualizationConfig)
             ? visualizationConfig.chartConfig
             : undefined;

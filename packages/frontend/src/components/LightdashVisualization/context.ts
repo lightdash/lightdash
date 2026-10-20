@@ -28,10 +28,33 @@ export type SavedChartReference = {
     chartConfig: ChartConfig;
 };
 
-type VisualizationContext = {
-    minimal: boolean;
+// Refs and actions: identities never change for the provider's lifetime,
+// except that an optional caller callback is undefined while absent.
+export type VisualizationServices = {
     chartRef: RefObject<EChartsReact | null>;
     leafletMapRef: RefObject<LeafletMap | null>;
+    // cartesian config related
+    setStacking: (value: boolean | StackType | undefined) => void;
+    setCartesianType(args: CartesianTypeOptions | undefined): void;
+    // --
+    onSeriesContextMenu?: (
+        e: EchartsSeriesClickEvent,
+        series: EChartsSeries[],
+    ) => void;
+    setChartType: (value: ChartType) => void;
+    setPivotDimensions: (value: string[] | undefined) => void;
+    // Touch device detection for tooltip positioning
+    isTouchDevice: boolean;
+};
+
+// Container dimensions for responsive visualizations; change on every resize.
+export type VisualizationLayout = {
+    containerWidth?: number;
+    containerHeight?: number;
+};
+
+export type VisualizationState = {
+    minimal: boolean;
     pivotDimensions: string[] | undefined;
     resultsData:
         | (InfiniteQueryResults & {
@@ -44,17 +67,6 @@ type VisualizationContext = {
     columnOrder: string[];
     itemsMap: ItemsMap | undefined;
     visualizationConfig: VisualizationConfig;
-    // cartesian config related
-    setStacking: (value: boolean | StackType | undefined) => void;
-    setCartesianType(args: CartesianTypeOptions | undefined): void;
-    // --
-    onSeriesContextMenu?: (
-        e: EchartsSeriesClickEvent,
-        series: EChartsSeries[],
-    ) => void;
-    setChartType: (value: ChartType) => void;
-    setPivotDimensions: (value: string[] | undefined) => void;
-
     getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
@@ -63,21 +75,26 @@ type VisualizationContext = {
     savedChartReference?: SavedChartReference;
     apiErrorDetail?: ApiErrorDetail | null;
     parameters?: ParametersValuesMap;
-    // Container dimensions for responsive visualizations
-    containerWidth?: number;
-    containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
     hasExplorerStore: boolean;
-    // Touch device detection for tooltip positioning
-    isTouchDevice: boolean;
     // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
     resolvedTimezone?: string;
     // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
     dateZoom?: DateZoom;
 };
 
-const Context = createContext<VisualizationContext | undefined>(undefined);
+export const ServicesContext = createContext<VisualizationServices | undefined>(
+    undefined,
+);
+export const LayoutContext = createContext<VisualizationLayout | undefined>(
+    undefined,
+);
+export const StateContext = createContext<VisualizationState | undefined>(
+    undefined,
+);
 
-export default Context;
+export type VisualizationContextValue = VisualizationServices &
+    VisualizationLayout &
+    VisualizationState;

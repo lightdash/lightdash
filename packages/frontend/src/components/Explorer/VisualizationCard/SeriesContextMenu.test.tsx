@@ -28,12 +28,18 @@ vi.mock('../../../hooks/user/useAccount', () => ({
 vi.mock('../../../providers/Ability', () => ({
     Can: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         resultsData: { metricQuery },
         itemsMap: { orders_revenue: revenue },
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 vi.mock('../../MetricQueryData/useMetricQueryDataContext', () => ({
     useMetricQueryDataContext: () => ({
         tableName: 'orders',
