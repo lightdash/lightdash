@@ -27,7 +27,7 @@ export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more queries submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
+} queries join or transform the others' results. The terminal node's rows are returned to you; the result is not shown to the user until you present it.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -42,7 +42,9 @@ Node kinds:
 
 Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.`;
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
+
+Presenting results: results are hidden from the user by default. Each successful result says how to present it.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
@@ -230,7 +232,9 @@ export const createToolComposerQueriesArgsSchema = ({
             title: z
                 .string()
                 .nullable()
-                .describe('A short title for the results artifact.'),
+                .describe(
+                    'A short title for the result, used when it is presented.',
+                ),
             description: z
                 .string()
                 .nullable()
@@ -249,7 +253,7 @@ export const createToolComposerQueriesArgsSchema = ({
                 .string()
                 .nullable()
                 .describe(
-                    "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
+                    "Which node's result this tool returns and you can present. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
                 ),
         })
         .build();
@@ -474,7 +478,7 @@ const composerQueryColumnSchema = z.object({
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
     terminalNodeId: nodeIdSchema.describe(
-        'Node whose result the artifact shows and whose rows are returned.',
+        'Node whose rows are returned and which a presentation can show.',
     ),
     rowCount: z
         .number()
@@ -506,17 +510,35 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
         .describe(
             'Raw values of the preview rows rendered as CSV in the result; null when data access is disabled or the terminal result is empty.',
         ),
-    visualization: z.string().nullable(),
     review: z.string().nullable(),
 });
 
+const toolComposerQueriesSuccessMetadataSchema = z.object({
+    status: z.literal('success'),
+    queryUuid: z.string(),
+    terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
+    title: z.string(),
+    description: z.string().nullable(),
+    // Slack saves an artifact version per call; web saves on presentation.
+    artifactVersionUuid: z.string().optional(),
+});
+
+export type ToolComposerQueriesSuccessMetadata = z.infer<
+    typeof toolComposerQueriesSuccessMetadataSchema
+>;
+
+export const parseToolComposerQueriesSuccessMetadata = (
+    metadata: unknown,
+): ToolComposerQueriesSuccessMetadata | null => {
+    const parsed = toolComposerQueriesSuccessMetadataSchema.safeParse(metadata);
+    return parsed.success ? parsed.data : null;
+};
+
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
-    metadata: z.object({
-        status: z.enum(['success', 'error', 'rejected', 'timeout']),
-        // Set on success: the terminal execution and the artifact version it saved.
-        queryUuid: z.string().optional(),
-        artifactVersionUuid: z.string().optional(),
-    }),
+    metadata: z.discriminatedUnion('status', [
+        toolComposerQueriesSuccessMetadataSchema,
+        z.object({ status: z.enum(['error', 'rejected', 'timeout']) }),
+    ]),
     structuredContent: toolComposerQueriesStructuredContentSchema,
     // Rejection and timeout are failures for this tool: they carry an error,
     // not a result set.

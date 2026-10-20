@@ -191,6 +191,7 @@ import {
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiComposerChartArtifactConfig,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -214,6 +215,7 @@ import {
     type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
+    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -430,6 +432,10 @@ import {
 } from '../ai/attachmentFs/attachmentFileSystem';
 import { Compaction } from '../ai/compaction';
 import {
+    getAgentDecisionContext,
+    getAgentQuestion,
+} from '../ai/decisions/agentQuestion';
+import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
@@ -477,6 +483,10 @@ import {
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
+import {
+    createVizPlanner,
+    type PlanComposerViz,
+} from '../ai/decisions/vizPlanner';
 import {
     getCompactionModelMetadata,
     getDefaultModel,
@@ -575,6 +585,12 @@ import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
+import {
+    buildComposerPresentations,
+    resolveComposerPresentations,
+    type ComposerExecutionResult,
+    type TurnToolResult,
+} from '../ai/utils/composerPresentation';
 import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
@@ -8224,6 +8240,108 @@ export class AiAgentService extends BaseService {
         }
     }
 
+    /** One composer artifact version per presented node, in answer order. */
+    private async saveComposerPresentations({
+        user,
+        prompt,
+        presented,
+        planViz,
+        enableDataAccess,
+        onArtifactReady,
+    }: {
+        user: SessionUser;
+        prompt: AiPrompt;
+        presented: ToolComposerQueriesSuccessMetadata[];
+        planViz: PlanComposerViz | null;
+        enableDataAccess: boolean;
+        onArtifactReady: (artifact: AiArtifact) => void;
+    }): Promise<void> {
+        if (presented.length === 0) return;
+        const { threadUuid, promptUuid } = prompt;
+        try {
+            const [threadNodes, previousVizConfig] = await Promise.all([
+                this.aiAgentModel.listComposerQueryNodes(
+                    threadComposerQueryScope(threadUuid),
+                ),
+                planViz ? this.getLatestComposerVizConfig(threadUuid) : null,
+            ]);
+            const presentations = await buildComposerPresentations({
+                presented,
+                threadNodes,
+                planViz,
+                getExecutionResult: (queryUuid) =>
+                    this.getComposerExecutionResult(user, prompt, queryUuid),
+                previousVizConfig,
+                enableDataAccess,
+            });
+            await presentations.reduce<Promise<void>>(
+                (previous, presentation) =>
+                    previous.then(async () => {
+                        const artifact =
+                            await this.aiAgentModel.createOrUpdateArtifact({
+                                threadUuid,
+                                promptUuid,
+                                ...presentation,
+                            });
+                        onArtifactReady(artifact);
+                    }),
+                Promise.resolve(),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to save composer presentations for prompt ${promptUuid}`,
+                error,
+            );
+        }
+    }
+
+    private async getLatestComposerVizConfig(
+        threadUuid: string,
+    ): Promise<AiComposerChartArtifactConfig['vizConfig']> {
+        return (
+            (
+                await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
+                    threadUuid,
+                )
+            )
+                .filter(isAiComposerChartArtifactConfig)
+                .at(-1)?.vizConfig ?? null
+        );
+    }
+
+    /** The presented execution's columns and rows, read as the agent read them. */
+    private async getComposerExecutionResult(
+        user: SessionUser,
+        prompt: AiPrompt,
+        queryUuid: string,
+    ): Promise<ComposerExecutionResult> {
+        const account = fromSession(user);
+        const results = await this.asyncQueryService.getAsyncQueryResults({
+            account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.AI,
+                querySurfaceFromPrompt(prompt),
+            ),
+            projectUuid: prompt.projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            page: 1,
+            pageSize: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+        if (results.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Composer query ${queryUuid} is not ready`,
+            );
+        }
+        const rows = results.rows.map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
+            ),
+        );
+        return { columns: results.columns, rows, rowCount: rows.length };
+    }
+
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
         classificationContext?: {
@@ -15613,6 +15731,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+        // This turn's tool results, so the final answer can present composer nodes.
+        const turnToolResults: TurnToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -16920,6 +17040,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                 };
 
+                // Data access only gates the row-derived stats the planner sends.
+                const planComposerViz: PlanComposerViz | null =
+                    args.decisions && args.execution.mode === 'standard'
+                        ? createVizPlanner({
+                              decisions: args.decisions,
+                              question: getAgentQuestion(args),
+                              conversation: getAgentDecisionContext(args),
+                              usage: args.decisionUsage,
+                              recordDecision: args.recordPromptDecision,
+                          })
+                        : null;
                 const dependencies: AiAgentDependencies = {
                     assertToolOperation: (kind, key, connectedTool) =>
                         this.agentPermissionService.assertOperation({
@@ -17007,7 +17138,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateSlackMessage,
                     storeToolCall,
                     storeToolCallError,
-                    storeToolResults,
+                    storeToolResults: (results) => {
+                        turnToolResults.push(
+                            ...results.map(
+                                ({ promptUuid, toolName, metadata }) => ({
+                                    promptUuid,
+                                    toolName,
+                                    metadata,
+                                }),
+                            ),
+                        );
+                        return storeToolResults(results);
+                    },
                     storeReasoning,
                     isPromptInterrupted,
                     consumePromptSteers,
@@ -17042,17 +17184,32 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // Generation saves step and terminal responses before Slack
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
-                        const visibleUpdate =
+                        const composerPresentation =
+                            !isSlackPrompt(prompt) &&
+                            update.response !== undefined
+                                ? resolveComposerPresentations({
+                                      response: update.response,
+                                      promptUuid: prompt.promptUuid,
+                                      toolResults: turnToolResults,
+                                  })
+                                : null;
+                        let visibleUpdate = update;
+                        if (composerPresentation) {
+                            visibleUpdate = {
+                                ...update,
+                                response: composerPresentation.response,
+                            };
+                        } else if (
                             isSlackPrompt(prompt) &&
                             update.response !== undefined
-                                ? {
-                                      ...update,
-                                      response:
-                                          stripSlackVisualizationSelection(
-                                              update.response,
-                                          ),
-                                  }
-                                : update;
+                        ) {
+                            visibleUpdate = {
+                                ...update,
+                                response: stripSlackVisualizationSelection(
+                                    update.response,
+                                ),
+                            };
+                        }
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17067,6 +17224,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!updatePromise) {
                             return Promise.resolve();
                         }
+                        const presentationPromise = updatePromise.then(
+                            async (persisted) => {
+                                if (!persisted || !composerPresentation) return;
+                                await this.saveComposerPresentations({
+                                    user,
+                                    prompt,
+                                    presented: composerPresentation.presented,
+                                    planViz: planComposerViz,
+                                    enableDataAccess: args.enableDataAccess,
+                                    onArtifactReady: (artifact) => {
+                                        if (decisions) {
+                                            stepProgressEmitter?.emit(
+                                                'artifactReady',
+                                                {
+                                                    promptUuid:
+                                                        prompt.promptUuid,
+                                                    artifactUuid:
+                                                        artifact.artifactUuid,
+                                                    versionUuid:
+                                                        artifact.versionUuid,
+                                                },
+                                            );
+                                        }
+                                    },
+                                });
+                            },
+                        );
                         const updateWithCitationTelemetryPromise =
                             aiAgentMemoryEnabled &&
                             update.response !== undefined &&
@@ -17202,9 +17386,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 });
                         }
 
-                        return updateWithCitationTelemetryPromise.then(
-                            () => undefined,
-                        );
+                        return Promise.all([
+                            updateWithCitationTelemetryPromise,
+                            presentationPromise,
+                        ]).then(() => undefined);
                     },
                     trackEvent: (event) => this.analytics.track(event),
 
@@ -17234,14 +17419,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             scope: threadComposerQueryScope(threadUuid),
                             nodes,
                         }),
-                    getLatestComposerVizConfig: async (threadUuid) =>
-                        (
-                            await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
-                                threadUuid,
-                            )
-                        )
-                            .filter(isAiComposerChartArtifactConfig)
-                            .at(-1)?.vizConfig ?? null,
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
                         this.aiAgentModel.waitForSqlApproval(

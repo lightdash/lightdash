@@ -5,7 +5,6 @@ import {
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
     AiArtifact,
-    AiComposerChartArtifactConfig,
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
@@ -696,11 +695,6 @@ export type RegisterThreadComposerQueryNodesFn = (args: {
     threadUuid: string;
     nodes: ThreadComposerQueryNode[];
 }) => Promise<void>;
-
-/** The viz config of the thread's latest composer artifact version. */
-export type GetLatestComposerVizConfigFn = (
-    threadUuid: string,
-) => Promise<AiComposerChartArtifactConfig['vizConfig']>;
 
 type RecordedPromptDecisionField =
     | 'operation'

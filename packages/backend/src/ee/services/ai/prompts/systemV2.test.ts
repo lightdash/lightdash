@@ -556,6 +556,34 @@ describe('getSystemPromptV2 composer queries', () => {
         );
     });
 
+    test('web answers present composer results with a show marker', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableComposerQueries: true,
+        });
+
+        expect(content).toContain(
+            'Composer results are hidden from the user by default.',
+        );
+        expect(content).toContain('<show node="<nodeId>"/>');
+        expect(content).toContain(
+            'the terminal node is the result you can present',
+        );
+    });
+
+    test('Slack answers keep selecting composer tables without show markers', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableComposerQueries: true,
+            slackChannelId: 'channel',
+        });
+
+        expect(content).not.toContain('<show node=');
+        expect(content).toContain(
+            'the terminal node is the table the user sees',
+        );
+    });
+
     test('keeps the standalone runSql wording when composer queries are off', () => {
         const content = promptText({
             availableExplores: [],

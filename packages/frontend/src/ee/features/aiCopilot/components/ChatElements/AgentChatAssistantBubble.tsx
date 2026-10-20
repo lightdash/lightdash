@@ -408,11 +408,14 @@ const AssistantBubbleContent: FC<{
     // keep it as a fallback to avoid flashing an empty bubble (and a spurious
     // "No response" notice) until the persisted text arrives.
     const streamedContent = streamingState?.content ?? '';
+    // A presented composer chart with no prose is a complete answer.
+    const hasArtifacts = !!message.artifacts?.length;
     const hasNoResponse =
         !isStreaming &&
         !streamingError &&
         !message.message &&
         !streamedContent &&
+        !hasArtifacts &&
         !isPending &&
         !message.interrupted;
     const shouldShowRetry = hasError || hasNoResponse || !!streamingError;

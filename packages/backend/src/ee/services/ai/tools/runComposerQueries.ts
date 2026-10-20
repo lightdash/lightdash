@@ -1,31 +1,25 @@
 import {
     buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
-    getComposerVizPlan,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
+    toComposerArtifactVersion,
     toolComposerQueryNodeToSourceQuery,
-    type AiComposerChartArtifactConfig,
     type AnyType,
     type SourceQuery,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesStructuredContent,
+    type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
-import {
-    getDefaultVizNote,
-    getVizConfigNote,
-    type PlanComposerViz,
-} from '../decisions/vizPlanner';
 import type {
     CreateOrUpdateArtifactFn,
-    GetLatestComposerVizConfigFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -58,7 +52,6 @@ import {
 type Dependencies = {
     agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
-    planViz?: PlanComposerViz;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -73,7 +66,6 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
-    getLatestComposerVizConfig: GetLatestComposerVizConfigFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
     canRunSql: boolean;
@@ -99,16 +91,10 @@ const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
         'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
 };
 
-type ComposerQueriesSuccessMetadata = {
-    status: 'success';
-    queryUuid: string;
-    artifactVersionUuid: string;
-};
-
 type ComposerQueriesOutput =
     | ExecuteStructuredToolResult<
           ToolComposerQueriesStructuredContent,
-          ComposerQueriesSuccessMetadata
+          ToolComposerQueriesSuccessMetadata
       >
     | ExecuteToolErrorResult<{ status: 'error' | 'rejected' | 'timeout' }>;
 
@@ -159,7 +145,7 @@ export const resolveTerminalNodeId = (
         throw new Error(
             `The pipeline has ${sinks.length} sinks (${sinks.join(
                 ', ',
-            )}); pass terminalNodeId to pick which node's result the artifact shows`,
+            )}); pass terminalNodeId to pick which node's result this tool returns`,
         );
     }
     return sinks[0];
@@ -168,7 +154,6 @@ export const resolveTerminalNodeId = (
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
-    planViz,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -183,7 +168,6 @@ export const getRunComposerQueries = ({
     createOrUpdateArtifact,
     listThreadComposerQueryNodes,
     registerThreadComposerQueryNodes,
-    getLatestComposerVizConfig,
     maxQueryLimit,
     enableDataAccess,
     canRunSql,
@@ -369,11 +353,6 @@ export const getRunComposerQueries = ({
                         : '',
                 ]);
 
-                await registerThreadComposerQueryNodes({
-                    threadUuid: prompt.threadUuid,
-                    nodes: queries,
-                });
-
                 if (approvalSql !== null) {
                     await renderState({
                         kind: 'success',
@@ -384,67 +363,39 @@ export const getRunComposerQueries = ({
                     });
                 }
 
-                // Slack renders composer results as a native table, so it skips
-                // viz planning; the artifact backs the thread link.
+                // Slack renders composer results as a native table.
                 const isSlack = isSlackPrompt(prompt);
-                const terminalNode = queries.find(
-                    (query) => query.nodeId === resolvedTerminalNodeId,
-                );
-                let vizNote: string | null = null;
-                let vizConfig: AiComposerChartArtifactConfig['vizConfig'] =
-                    null;
-                if (!isSlack) {
-                    vizConfig =
-                        (await planViz?.({
-                            title: title ?? null,
-                            description: description ?? null,
-                            terminalNode: {
-                                title: terminalNode?.title ?? null,
-                                description: terminalNode?.description ?? null,
-                            },
-                            columns: terminal.columns,
-                            rows: terminal.rows,
-                            rowCount: terminal.rowCount,
-                            enableDataAccess,
-                            previousVizConfig: await getLatestComposerVizConfig(
-                                prompt.threadUuid,
-                            ),
-                        })) ?? null;
-                    vizNote = vizConfig
-                        ? getVizConfigNote(vizConfig)
-                        : getDefaultVizNote(
-                              getComposerVizPlan({
-                                  columns: Object.values(terminal.columns),
-                                  rows: terminal.rows,
-                                  node: terminalNode ?? null,
-                                  vizConfig: null,
-                              }),
-                          );
-                }
-                const artifact = await createOrUpdateArtifact({
-                    threadUuid: prompt.threadUuid,
-                    promptUuid: prompt.promptUuid,
-                    artifactType: 'chart',
-                    title: title ?? 'Composer query results',
-                    ...(description ? { description } : {}),
-                    vizConfig: {
-                        source: 'composer',
-                        schemaVersion: 1,
-                        queries,
-                        terminalNodeId: resolvedTerminalNodeId,
-                        vizConfig,
-                    } satisfies AiComposerChartArtifactConfig,
-                });
+                const artifactTitle = title ?? 'Composer query results';
+                // Web saves an artifact version only when the answer presents
+                // the terminal node; Slack tables still need one per call.
+                const slackArtifact = isSlack
+                    ? await createOrUpdateArtifact({
+                          threadUuid: prompt.threadUuid,
+                          promptUuid: prompt.promptUuid,
+                          ...toComposerArtifactVersion({
+                              title: artifactTitle,
+                              description: description ?? null,
+                              queries,
+                              terminalNodeId: resolvedTerminalNodeId,
+                              vizConfig: null,
+                          }),
+                      })
+                    : null;
                 if (isSlack && enableDataAccess) {
                     agentContext.registerSlackTableResults(terminal.queryUuid, {
                         rows: terminal.rows,
                         fields: {},
                     });
                 }
-                const metadata: ComposerQueriesSuccessMetadata = {
+                const metadata: ToolComposerQueriesSuccessMetadata = {
                     status: 'success',
                     queryUuid: terminal.queryUuid,
-                    artifactVersionUuid: artifact.versionUuid,
+                    terminalNodeId: resolvedTerminalNodeId,
+                    title: artifactTitle,
+                    description: description ?? null,
+                    ...(slackArtifact
+                        ? { artifactVersionUuid: slackArtifact.versionUuid }
+                        : {}),
                 };
 
                 const nodes = queries.map((node) => ({
@@ -483,11 +434,9 @@ export const getRunComposerQueries = ({
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
-                    ...(isSlack
-                        ? [
-                              `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`,
-                          ]
-                        : []),
+                    isSlack
+                        ? `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`
+                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
@@ -496,51 +445,58 @@ export const getRunComposerQueries = ({
                     rowCount: terminal.rowCount,
                     nodes,
                     columns,
-                    visualization: vizNote,
                     review:
                         terminal.rowCount === 0 ? emptyReview : review || null,
                 };
 
-                const vizLine = vizNote ? `\n${vizNote}` : '';
-                if (!enableDataAccess || terminal.rowCount === 0) {
-                    return await persistIfResumed({
-                        result: `${resultSummary}${vizLine}`,
-                        metadata,
-                        structuredContent: { ...summary, preview: null },
+                const buildOutput = (): ComposerQueriesOutput => {
+                    if (!enableDataAccess || terminal.rowCount === 0) {
+                        return {
+                            result: resultSummary,
+                            metadata,
+                            structuredContent: { ...summary, preview: null },
+                        };
+                    }
+                    const previewRows = terminal.rows
+                        .slice(0, PREVIEW_ROW_LIMIT)
+                        .map((row) =>
+                            columnReferences.reduce<Record<string, AnyType>>(
+                                (acc, col) => {
+                                    acc[col] = row[col];
+                                    return acc;
+                                },
+                                {},
+                            ),
+                        );
+                    const previewCsv = stringify(previewRows, {
+                        header: true,
+                        columns: columnReferences,
                     });
-                }
+                    const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
+                    const truncatedNote = truncated
+                        ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
+                        : '';
+                    return {
+                        result: `${resultSummary}${truncatedNote}\n${serializeData(
+                            previewCsv,
+                            'csv',
+                        )}`,
+                        metadata,
+                        structuredContent: {
+                            ...summary,
+                            preview: { rows: previewRows, truncated },
+                        },
+                    };
+                };
+                const output = buildOutput();
 
-                const previewRows = terminal.rows
-                    .slice(0, PREVIEW_ROW_LIMIT)
-                    .map((row) =>
-                        columnReferences.reduce<Record<string, AnyType>>(
-                            (acc, col) => {
-                                acc[col] = row[col];
-                                return acc;
-                            },
-                            {},
-                        ),
-                    );
-                const previewCsv = stringify(previewRows, {
-                    header: true,
-                    columns: columnReferences,
+                // Last fallible step: a failure anywhere above registers nothing.
+                await registerThreadComposerQueryNodes({
+                    threadUuid: prompt.threadUuid,
+                    nodes: queries,
                 });
-                const truncated = terminal.rowCount > PREVIEW_ROW_LIMIT;
-                const truncatedNote = truncated
-                    ? `\n(Showing first ${PREVIEW_ROW_LIMIT} of ${terminal.rowCount} rows.)`
-                    : '';
 
-                return await persistIfResumed({
-                    result: `${resultSummary}${truncatedNote}\n${serializeData(
-                        previewCsv,
-                        'csv',
-                    )}${vizLine}`,
-                    metadata,
-                    structuredContent: {
-                        ...summary,
-                        preview: { rows: previewRows, truncated },
-                    },
-                });
+                return await persistIfResumed(output);
             } catch (e) {
                 if (approvalSql !== null) {
                     await renderState({

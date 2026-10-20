@@ -1,14 +1,10 @@
 import {
-    ChartKind,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
     parseAiArtifactChartConfig,
     QuerySourceType,
-    VizAggregationOptions,
-    VizIndexType,
     type AiArtifact,
-    type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
@@ -19,7 +15,6 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
-import type { PlanComposerViz } from '../decisions/vizPlanner';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import {
@@ -59,14 +54,13 @@ const makeSlackPrompt = (): SlackPrompt => ({
     slackThreadTs: 'thread-ts',
 });
 
-// Fake artifact store: returns the saved version as the database would.
-const storeArtifact = async ({
+const toArtifact = ({
     title,
     vizConfig,
 }: {
     title?: string;
     vizConfig: Record<string, unknown>;
-}): Promise<AiArtifact> => ({
+}): AiArtifact => ({
     artifactUuid: 'artifact-uuid',
     threadUuid: 'thread-uuid',
     artifactType: 'chart',
@@ -85,6 +79,23 @@ const storeArtifact = async ({
     verifiedByUserUuid: null,
     verifiedAt: null,
 });
+
+// Fake artifact store: keeps saved versions as the database would.
+const makeArtifactStore = () => {
+    const artifacts: AiArtifact[] = [];
+    const createOrUpdateArtifact = async ({
+        title,
+        vizConfig,
+    }: {
+        title?: string;
+        vizConfig: Record<string, unknown>;
+    }): Promise<AiArtifact> => {
+        const artifact = toArtifact({ title, vizConfig });
+        artifacts.push(artifact);
+        return artifact;
+    };
+    return { artifacts, createOrUpdateArtifact };
+};
 
 // In-memory thread composer query nodes, with the model's register semantics.
 const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
@@ -201,9 +212,15 @@ const executeTool = (
         context: {},
     }) as Promise<ComposerOutput>;
 
+const successMetadata = (output: ComposerOutput) => {
+    if (output.metadata.status !== 'success') {
+        throw new Error(`Expected success, got ${output.metadata.status}`);
+    }
+    return output.metadata;
+};
+
 const makeTool = ({
     reviewQuery,
-    planViz,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
@@ -214,10 +231,8 @@ const makeTool = ({
     agentContext = new AgentContext([]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
-    latestComposerVizConfig = null,
 }: {
     reviewQuery?: QueryReviewer;
-    planViz?: PlanComposerViz;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
@@ -228,12 +243,11 @@ const makeTool = ({
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
-    latestComposerVizConfig?: AiComposerChartArtifactConfig['vizConfig'];
 } = {}) => {
+    const artifactStore = makeArtifactStore();
     const dependencies = {
         agentContext,
         reviewQuery,
-        planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -272,13 +286,10 @@ const makeTool = ({
         listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: vi.fn(storeArtifact),
+        createOrUpdateArtifact: vi.fn(artifactStore.createOrUpdateArtifact),
         listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
         registerThreadComposerQueryNodes:
             registry.registerThreadComposerQueryNodes,
-        getLatestComposerVizConfig: vi
-            .fn()
-            .mockResolvedValue(latestComposerVizConfig),
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
@@ -292,24 +303,26 @@ const makeTool = ({
         tool: getRunComposerQueries(dependencies),
         dependencies,
         registry,
+        artifacts: artifactStore.artifacts,
     };
 };
 
 describe('getRunComposerQueries', () => {
     it('in Slack, the reply can show the terminal result as a table that links to the thread', async () => {
         const agentContext = new AgentContext([]);
-        const { tool, dependencies } = makeTool({
+        const { tool, artifacts } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
             agentContext,
         });
 
         const output = await executeTool(tool, makeArgs(), 'composer-call');
-        const [artifact] = await Promise.all(
-            dependencies.createOrUpdateArtifact.mock.results.map(
-                (result) => result.value,
-            ),
+        expect(artifacts).toHaveLength(1);
+        const [artifact] = artifacts;
+        expect(successMetadata(output).artifactVersionUuid).toBe(
+            artifact.versionUuid,
         );
+        expect(output.result).not.toContain('<show');
         // The model selects the table using the queryUuid it was given.
         const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
 
@@ -354,8 +367,10 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
-        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+    it('runs the pipeline and returns the terminal without presenting it', async () => {
+        const { tool, dependencies, artifacts } = makeTool({
+            autoApproveSql: true,
+        });
 
         const output = await executeTool(tool, makeArgs());
 
@@ -368,45 +383,17 @@ describe('getRunComposerQueries', () => {
             terminalNodeId: 'joined',
             onNodeStatus: expect.any(Function),
         });
-        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
-            expect.objectContaining({
-                threadUuid: 'thread-uuid',
-                promptUuid: 'prompt-uuid',
-                artifactType: 'chart',
-                title: 'Revenue vs signups',
-            }),
-        );
-        const [{ vizConfig }] =
-            dependencies.createOrUpdateArtifact.mock.calls[0];
-        expect(Object.keys(vizConfig)).toEqual([
-            'source',
-            'schemaVersion',
-            'queries',
-            'terminalNodeId',
-            'vizConfig',
-        ]);
-        expect(vizConfig).toEqual({
-            source: 'composer',
-            schemaVersion: 1,
-            queries: [
-                expect.objectContaining({
-                    nodeId: 'revenue',
-                    title: 'Revenue by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'signups',
-                    title: 'Signups by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'joined',
-                    title: 'Revenue vs signups',
-                    description: 'Joins monthly revenue with monthly signups.',
-                }),
-            ],
+        expect(artifacts).toEqual([]);
+        expect(successMetadata(output)).toEqual({
+            status: 'success',
+            queryUuid: 'query-3',
             terminalNodeId: 'joined',
-            vizConfig: null,
+            title: 'Revenue vs signups',
+            description: null,
         });
-        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toContain(
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer.',
+        );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
@@ -443,7 +430,6 @@ describe('getRunComposerQueries', () => {
                 { reference: 'month', type: 'string' },
                 { reference: 'signups', type: 'number' },
             ],
-            visualization: expect.any(String),
             review: null,
             preview: {
                 rows: [{ month: '2026-01', signups: 12 }],
@@ -612,7 +598,6 @@ describe('getRunComposerQueries', () => {
 
         expect(output.metadata?.status).toBe('rejected');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
-        expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
     });
 
     it('registers every node of a successful pipeline for later calls in the thread', async () => {
@@ -666,6 +651,38 @@ describe('getRunComposerQueries', () => {
         );
 
         expect(failed.metadata?.status).toBe('error');
+        expect(corrected.metadata?.status).toBe('success');
+        expect(
+            registry
+                .nodes('thread-uuid')
+                .find((node) => node.nodeId === 'joined'),
+        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
+    });
+
+    it('registers nothing when the Slack artifact fails, so the node id can be resubmitted corrected', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+            prompt: makeSlackPrompt(),
+        });
+        dependencies.createOrUpdateArtifact.mockRejectedValueOnce(
+            new Error('artifact store unavailable'),
+        );
+
+        const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+        expect(failed.metadata?.status).toBe('error');
+        expect(registry.nodes('thread-uuid')).toEqual([]);
+
+        const corrected = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    semanticNode,
+                    sqlNode,
+                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                ],
+            }),
+            'tool-call-2',
+        );
         expect(corrected.metadata?.status).toBe('success');
         expect(
             registry
@@ -961,8 +978,8 @@ const runReuse = async ({
         makeArgs({ queries, terminalNodeId }),
     );
 
-    const stored = dependencies.createOrUpdateArtifact.mock.calls[0]?.[0]
-        ?.vizConfig as AiComposerChartArtifactConfig | undefined;
+    const stored =
+        output.metadata.status === 'success' ? output.metadata : undefined;
     const executed = dependencies.runComposerQueries.mock.calls[0]?.[0] as
         | { queries: SourceQuery[]; terminalNodeId: string }
         | undefined;
@@ -1006,7 +1023,7 @@ describe('composer artifact with reused nodes', () => {
     });
 
     it('runs and stores a reused node and what it reads, without query ids', async () => {
-        const { output, stored, executed } = await runReuse({
+        const { output, stored, executed, registry } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
         });
@@ -1021,14 +1038,11 @@ describe('composer artifact with reused nodes', () => {
                 references: { o: 'enriched' },
             }),
         ]);
-        expect(stored).toEqual({
-            source: 'composer',
-            schemaVersion: 1,
-            queries: executed?.queries,
-            terminalNodeId: 'summary',
-            vizConfig: null,
-        });
-        expect(JSON.stringify(stored)).not.toContain('run-query');
+        expect(stored?.terminalNodeId).toBe('summary');
+        expect(registry.nodes('thread-uuid')).toEqual(executed?.queries);
+        expect(JSON.stringify(registry.nodes('thread-uuid'))).not.toContain(
+            'run-query',
+        );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
@@ -1063,7 +1077,7 @@ describe('composer artifact with reused nodes', () => {
         ]);
     });
 
-    it('shows a reused node when it is named as the terminal node', async () => {
+    it('can present a reused node named as the terminal node', async () => {
         const { stored } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
@@ -1200,64 +1214,6 @@ describe('composer query review', () => {
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');
         expect(output.result).toContain('check conditions');
-    });
-});
-
-describe('composer viz config', () => {
-    it('plans from the thread’s latest composer viz config', async () => {
-        const previousVizConfig: AiComposerChartArtifactConfig['vizConfig'] = {
-            type: ChartKind.LINE,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [],
-                groupBy: [],
-            },
-            display: undefined,
-        };
-        const planViz = vi.fn().mockResolvedValue(null);
-        const { tool } = makeTool({
-            planViz,
-            latestComposerVizConfig: previousVizConfig,
-        });
-
-        await executeTool(tool, makeArgs());
-
-        expect(planViz).toHaveBeenCalledWith(
-            expect.objectContaining({ previousVizConfig }),
-        );
-    });
-
-    it('stores the planned viz config on the artifact and names it in the result', async () => {
-        const vizConfig = {
-            type: ChartKind.VERTICAL_BAR,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [
-                    {
-                        reference: 'signups',
-                        aggregation: VizAggregationOptions.ANY,
-                    },
-                ],
-                groupBy: [],
-            },
-            display: undefined,
-        } as const;
-        const planViz = vi.fn().mockResolvedValue(vizConfig);
-        const { tool, dependencies } = makeTool({ planViz });
-
-        const output = await executeTool(tool, makeArgs());
-
-        expect(
-            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig
-                .vizConfig,
-        ).toEqual(vizConfig);
-        expect(
-            output.result.endsWith(
-                'Visualization: bar chart, x = month, y = signups.',
-            ),
-        ).toBe(true);
     });
 });
 
