@@ -59,14 +59,14 @@ read it; they no longer evaluate `enable*` flags for membership.
 
 | Base | Chosen when | Query path | Accepts |
 |---|---|---|---|
-| `classic` | default | `runQuery`, `generateVisualization`, `runSql` when `canRunSql` | all add-ons |
+| `classic` | default | `generateVisualization`; `runQuery` and `exportChartAsCode` when the decisions client is present; `runSql` when `canRunSql` | all add-ons |
 | `composer` | composer flag on, data access on, standard mode | `runComposerQueries`; no `runQuery`, `generateVisualization`, `runSql` | all add-ons |
 | `no_data_access` | agent setting off | metadata tools only | skills, mcp, userIdentity |
 | `deep_research_worker` | deep research, worker role | per existing worker name set | mcp |
 | `deep_research_coordinator` | deep research, coordinator role | per existing coordinator name set, plus `delegateResearchTask` | mcp |
 
 Query-path variants are branches inside the base function, not add-ons:
-filter expressions, Python nodes, SQL on or off, warehouse connection count.
+filter expressions, Python nodes, SQL on or off, the decisions client, warehouse connection count.
 
 ## Add-ons
 
@@ -84,21 +84,17 @@ filter expressions, Python nodes, SQL on or off, warehouse connection count.
 | `previewDeploySetup` | flag and writeback | setupPreviewDeploy | none |
 | `editProjectContext` | review remediation thread | editProjectContext | none |
 | `readAttachments` | thread has files | readAttachments | none |
-| `intentRouting` | decisions client present, standard mode | runQuery, exportChartAsCode, loadAgentTools | fast_metadata blocks |
+| `intentRouting` | decisions client present, standard mode | loadAgentTools | fast_metadata blocks |
 | `skills` | any skill available | loadSkill | skills |
 | `mcp` | any MCP server | loadMcpTools and the server tools | mcp_tools |
 | `projectContext` | project context or memory enabled | loadProjectContext | project_context |
 | `customChartTypes` | library non-empty | findCustomChartTypes | available_custom_chart_types |
 | `userIdentity` | requesting user known | updateUserName | requesting_user |
 
-`documents` contributes a section only, and `intentRouting` is in the loadout
-because it changes membership even though it reads like a wording flag.
-`runQuery` listed under `intentRouting` is subject to the base: `composer`
-does not accept it, so the `composer` base's `accepts` omits the query tools
-of that add-on; resolve this by splitting `intentRouting` into
-`intentRouting` (loadAgentTools, fast metadata blocks) and `classicQuery`
-(runQuery, exportChartAsCode) accepted by `classic` only, if the simpler
-split reads better during implementation.
+`documents` contributes a section only. `intentRouting` is in the loadout
+because it changes membership even though it reads like a wording flag; the
+classic query tools it used to gate (`runQuery`, `exportChartAsCode`) belong
+to the `classic` base, so `composer` never sees them.
 
 ## Plain conditionals
 
