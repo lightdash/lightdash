@@ -1,11 +1,6 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
-import {
-    IconAppsOff,
-    IconMaximize,
-    IconMinimize,
-    IconSparkles,
-} from '@tabler/icons-react';
+import { IconAppsOff, IconMaximize, IconMinimize } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
@@ -19,10 +14,7 @@ import {
 } from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import {
-    UNAVAILABLE_COPY,
-    useDataAppAnalysisAvailability,
-} from '../features/apps/analysis/useDataAppAnalysisAvailability';
+import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import AppIframePreview, {
     type AppIframePreviewHandle,
@@ -377,36 +369,6 @@ export default function AppPreviewTest() {
                     rightSection={
                         <AppHeaderActions
                             capturedQueryCount={inspector.readyQueryCount}
-                            analysisToggle={
-                                showAnalysis ? (
-                                    <Tooltip
-                                        label={
-                                            analysisAvailability.status ===
-                                            'unavailable'
-                                                ? UNAVAILABLE_COPY[
-                                                      analysisAvailability
-                                                          .reason
-                                                  ]
-                                                : 'Analyse this view'
-                                        }
-                                        position="bottom"
-                                        openDelay={200}
-                                    >
-                                        <ActionIcon
-                                            variant="light"
-                                            color="indigo"
-                                            size="md"
-                                            onClick={openAnalysis}
-                                            aria-label="Analyse this view"
-                                        >
-                                            <MantineIcon
-                                                icon={IconSparkles}
-                                                size="md"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                ) : null
-                            }
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (

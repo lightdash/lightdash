@@ -24,11 +24,9 @@ export const useIsLauncherMounted = (
         currentDashboard?.projectUuid === projectUuid ||
         currentDataApp?.projectUuid === projectUuid ||
         currentDocument?.projectUuid === projectUuid;
-    // Analysis is agentless, so an available adapter mounts the launcher even
+    // Analysis is agentless, so a registered adapter mounts the launcher even
     // for viewers with no AI-agent access.
-    const hasAnalysis =
-        useLauncherAnalysisAdapter(projectUuid)?.availability.status ===
-        'available';
+    const hasAnalysis = useLauncherAnalysisAdapter(projectUuid) !== null;
     return (
         isPanelOpen ||
         dock.length > 0 ||

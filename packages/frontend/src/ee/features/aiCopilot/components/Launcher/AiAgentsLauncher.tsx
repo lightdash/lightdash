@@ -242,8 +242,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         !activeProjectUuid ||
         !shouldRenderAiAgentsLauncherContent({
             dockItemCount: dock.length,
-            hasAnalysisTab:
-                analysisAdapter?.availability.status === 'available',
+            hasAnalysisTab: analysisAdapter !== null,
             hasSelectedAgent: !!selectedAgent,
             isAllowed,
             isContentPage,
