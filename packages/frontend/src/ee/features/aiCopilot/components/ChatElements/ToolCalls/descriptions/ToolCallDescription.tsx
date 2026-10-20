@@ -5,7 +5,6 @@ import type {
     ToolGetMetadataArgs,
 } from '@lightdash/common';
 import {
-    assertUnreachable,
     getPatchedSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
@@ -37,7 +36,7 @@ import {
     type ToolSearchFieldValuesArgs,
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
-import type { FC } from 'react';
+import type { FC, ReactNode } from 'react';
 import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
 import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import type { ToolCallSummary } from '../utils/types';
@@ -86,6 +85,398 @@ type ToolCreateContentArgs = {
     type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
 };
 
+type ToolCallDescriptionContext = {
+    toolCall: ToolCallSummary;
+    toolResult?: AiAgentToolResult;
+    composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
+    approval?: SqlApprovalTarget;
+};
+
+type ToolCallDescriptionHandler = (
+    ctx: ToolCallDescriptionContext,
+) => ReactNode;
+
+const emptyToolCallDescription: ToolCallDescriptionHandler = () => <> </>;
+
+const repoShellToolCallDescription: ToolCallDescriptionHandler = ({
+    toolCall,
+}) => {
+    const toolArgsExploreRepo = toolCall.toolArgs as {
+        command?: string;
+    };
+    return (
+        <RepoShellToolCallDescription
+            command={toolArgsExploreRepo.command ?? null}
+        />
+    );
+};
+
+const queryResultToolCallDescription: ToolCallDescriptionHandler = ({
+    toolCall,
+}) => {
+    // Persisted args may be V1 or V2; normalize to V2 so the
+    // description reads everything from queryConfig.
+    const rawQueryToolArgs = toolCall.toolArgs as
+        | ToolRunQueryArgsV1
+        | ToolRunQueryArgsV2;
+    const queryToolArgs = isRunQueryArgsV1(rawQueryToolArgs)
+        ? migrateRunQueryArgsV1ToV2(rawQueryToolArgs)
+        : rawQueryToolArgs;
+    return (
+        <QueryResultToolCallDescription
+            title={queryToolArgs.title}
+            queryConfig={queryToolArgs.queryConfig}
+            chartConfig={queryToolArgs.chartConfig}
+        />
+    );
+};
+
+/**
+ * Per-tool activity descriptions. Same case bodies as the previous switch;
+ * tools that rendered an empty fragment still do. `Record<ToolName, …>`
+ * is the exhaustiveness check that used to live in the switch default.
+ */
+const DESCRIPTION_BY_TOOL: Record<ToolName, ToolCallDescriptionHandler> = {
+    findExplores: ({ toolCall }) => {
+        const toolArgsFindExplores = toolCall.toolArgs as
+            | ToolFindExploresArgsV3
+            | ToolFindExploresArgsV2
+            | ToolFindExploresArgsV1;
+        return (
+            <ExploreToolCallDescription
+                exploreName={
+                    'exploreName' in toolArgsFindExplores
+                        ? toolArgsFindExplores.exploreName
+                        : null
+                }
+                searchQuery={
+                    'searchQuery' in toolArgsFindExplores
+                        ? toolArgsFindExplores.searchQuery
+                        : null
+                }
+            />
+        );
+    },
+    findFields: ({ toolCall }) => {
+        const toolArgsFindFields = toolCall.toolArgs as ToolFindFieldsArgs;
+        return (
+            <FieldSearchToolCallDescription
+                searchQueries={toolArgsFindFields.fieldSearchQueries}
+            />
+        );
+    },
+    discoverFields: ({ toolCall }) => {
+        const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
+        return (
+            <DiscoverFieldsToolCallDescription
+                userQuery={discoverFieldsArgs.userQuery}
+            />
+        );
+    },
+    grepFields: ({ toolCall }) => {
+        const grepFieldsArgs = toolCall.toolArgs as ToolGrepFieldsArgs;
+        return (
+            <GrepFieldsToolCallDescription
+                patterns={grepFieldsArgs.patterns ?? []}
+                exploreName={grepFieldsArgs.exploreName}
+            />
+        );
+    },
+    getMetadata: ({ toolCall }) => {
+        const getMetadataArgs = toolCall.toolArgs as ToolGetMetadataArgs;
+        return (
+            <GetMetadataToolCallDescription
+                requests={getMetadataArgs.requests ?? []}
+            />
+        );
+    },
+    searchFieldValues: ({ toolCall }) => {
+        const searchFieldValuesArgs =
+            toolCall.toolArgs as ToolSearchFieldValuesArgs;
+        return (
+            <FieldValuesSearchToolCallDescription
+                fieldId={searchFieldValuesArgs.fieldId}
+                query={searchFieldValuesArgs.query}
+            />
+        );
+    },
+    findContent: ({ toolCall }) => {
+        const findContentToolArgs = toolCall.toolArgs as ToolFindContentArgs;
+        return (
+            <ContentSearchToolCallDescription
+                searchType="content"
+                searchQueries={findContentToolArgs.searchQueries}
+            />
+        );
+    },
+    findDashboards: ({ toolCall }) => {
+        const findDashboardsToolArgs =
+            toolCall.toolArgs as ToolFindDashboardsArgs;
+        return (
+            <ContentSearchToolCallDescription
+                searchType="dashboards"
+                searchQueries={findDashboardsToolArgs.dashboardSearchQueries}
+            />
+        );
+    },
+    findCharts: ({ toolCall }) => {
+        const findChartsToolArgs = toolCall.toolArgs as ToolFindChartsArgs;
+        return (
+            <ContentSearchToolCallDescription
+                searchType="charts"
+                searchQueries={findChartsToolArgs.chartSearchQueries}
+            />
+        );
+    },
+    getDashboardCharts: ({ toolCall }) => {
+        const getDashboardChartsArgs =
+            toolCall.toolArgs as ToolGetDashboardChartsArgs;
+        return (
+            <DashboardChartsToolCallDescription
+                dashboardName={
+                    getDashboardChartsArgs.dashboardName ??
+                    getDashboardChartsArgs.dashboardUuid
+                }
+                page={getDashboardChartsArgs.page ?? null}
+            />
+        );
+    },
+    generateDashboard: ({ toolCall }) => {
+        const dashboardToolArgs = toolCall.toolArgs as ToolDashboardV2Args;
+        return (
+            <DashboardToolCallDescription
+                title={dashboardToolArgs.title}
+                description={dashboardToolArgs.description}
+            />
+        );
+    },
+    generateVisualization: queryResultToolCallDescription,
+    runQuery: queryResultToolCallDescription,
+    runSql: ({ toolCall, approval }) => {
+        const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
+        return (
+            <SqlRunToolCallDescription
+                sql={sqlToolArgs.sql}
+                limit={sqlToolArgs.limit}
+                approval={approval}
+            />
+        );
+    },
+    runComposerQueries: ({ toolCall, composerNodeStatuses, approval }) => {
+        const composerToolArgs = toolCall.toolArgs as ToolComposerQueriesArgs;
+        return (
+            <ComposerQueriesToolCallDescription
+                queries={composerToolArgs.queries ?? []}
+                nodeStatuses={composerNodeStatuses}
+                approval={approval}
+            />
+        );
+    },
+    readContent: ({ toolCall }) => {
+        const readContentToolArgs = toolCall.toolArgs as ToolReadContentArgs;
+        const readContentIdentifier =
+            readContentToolArgs.slug ?? readContentToolArgs.documentUuid;
+        return readContentIdentifier && readContentToolArgs.type ? (
+            <ContentEditorToolCallDescription
+                action="read"
+                slug={readContentIdentifier}
+                type={readContentToolArgs.type}
+            />
+        ) : (
+            <> </>
+        );
+    },
+    editContent: ({ toolCall, approval }) => {
+        const editContentToolArgs = toolCall.toolArgs as ToolEditContentArgs;
+        if (
+            editContentToolArgs.type === 'sql_chart' &&
+            editContentToolArgs.slug
+        ) {
+            return (
+                <SqlChartToolCallDescription
+                    action="edit"
+                    slug={editContentToolArgs.slug}
+                    chart={{
+                        sql:
+                            getPatchedSql(editContentToolArgs.patch) ??
+                            undefined,
+                    }}
+                    approval={approval ?? null}
+                />
+            );
+        }
+        return editContentToolArgs.slug && editContentToolArgs.type ? (
+            <ContentEditorToolCallDescription
+                action="edit"
+                slug={editContentToolArgs.slug}
+                type={editContentToolArgs.type}
+            />
+        ) : (
+            <> </>
+        );
+    },
+    createContent: ({ toolCall, approval }) => {
+        const createContentToolArgs =
+            toolCall.toolArgs as ToolCreateContentArgs;
+        if (
+            createContentToolArgs.type === 'sql_chart' &&
+            createContentToolArgs.content?.slug
+        ) {
+            return (
+                <SqlChartToolCallDescription
+                    action="create"
+                    slug={createContentToolArgs.content.slug}
+                    chart={createContentToolArgs.content}
+                    approval={approval ?? null}
+                />
+            );
+        }
+        return createContentToolArgs.content?.slug &&
+            createContentToolArgs.type ? (
+            <ContentEditorToolCallDescription
+                action="create"
+                slug={createContentToolArgs.content.slug}
+                type={createContentToolArgs.type}
+            />
+        ) : (
+            <> </>
+        );
+    },
+    listWarehouseTables: ({ toolCall }) => {
+        const listWarehouseTablesArgs =
+            toolCall.toolArgs as ToolListWarehouseTablesArgs;
+        return (
+            <ListWarehouseTablesToolCallDescription
+                schema={listWarehouseTablesArgs.schema ?? null}
+                search={listWarehouseTablesArgs.search ?? null}
+            />
+        );
+    },
+    listContent: ({ toolCall }) => {
+        const listContentArgs = toolCall.toolArgs as ToolListContentArgs;
+        return (
+            <ListContentToolCallDescription
+                page={listContentArgs.page}
+                spaceSlug={listContentArgs.spaceSlug}
+            />
+        );
+    },
+    runContentQuery: ({ toolCall, approval }) => {
+        const runContentQueryArgs =
+            toolCall.toolArgs as ToolRunContentQueryArgs;
+        return (
+            <RunContentQueryToolCallDescription
+                source={runContentQueryArgs.source}
+                approval={approval}
+            />
+        );
+    },
+    describeWarehouseTable: ({ toolCall }) => {
+        const describeWarehouseTableArgs =
+            toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
+        return (
+            <DescribeWarehouseTableToolCallDescription
+                table={describeWarehouseTableArgs.table}
+                schema={describeWarehouseTableArgs.schema ?? null}
+            />
+        );
+    },
+    getKnowledgeDocumentContent: ({ toolCall }) => {
+        const getKnowledgeDocumentContentArgs =
+            toolCall.toolArgs as ToolGetKnowledgeDocumentContentArgs;
+        const knowledgeDocumentOutput = toolCall.toolOutput as
+            | ToolGetKnowledgeDocumentContentOutput
+            | undefined;
+        return (
+            <KnowledgeDocumentToolCallDescription
+                documentUuid={getKnowledgeDocumentContentArgs.documentUuid}
+                toolOutput={knowledgeDocumentOutput}
+            />
+        );
+    },
+    searchSemanticLayer: ({ toolCall }) => {
+        const searchSemanticLayerArgs =
+            toolCall.toolArgs as ToolSearchSemanticLayerArgs;
+        return (
+            <SemanticLayerSearchToolCallDescription
+                page={searchSemanticLayerArgs.page}
+                searchQuery={searchSemanticLayerArgs.searchQuery}
+                type={searchSemanticLayerArgs.type}
+            />
+        );
+    },
+    analyzeFieldImpact: ({ toolCall }) => {
+        const analyzeFieldImpactArgs =
+            toolCall.toolArgs as ToolAnalyzeFieldImpactArgs;
+        return (
+            <FieldImpactToolCallDescription
+                fieldId={analyzeFieldImpactArgs.fieldId}
+            />
+        );
+    },
+    listKnowledgeDocuments: repoShellToolCallDescription,
+    listProjects: repoShellToolCallDescription,
+    getProjectInfo: repoShellToolCallDescription,
+    generateHashes: repoShellToolCallDescription,
+    generateUuids: repoShellToolCallDescription,
+    loadProjectContext: repoShellToolCallDescription,
+    exploreRepo: repoShellToolCallDescription,
+    loadSkill: ({ toolCall, toolResult }) => {
+        const args = toolCall.toolArgs as Partial<ToolLoadSkillArgs>;
+        const servedSkill =
+            toolResult &&
+            toolResult.toolName === 'loadSkill' &&
+            'metadata' in toolResult
+                ? (toolResult.metadata as ToolLoadSkillOutput['metadata']).skill
+                : undefined;
+        return (
+            <LoadSkillToolCallDescription
+                name={args.name ?? null}
+                resourceName={args.resourceName ?? null}
+                servedSkill={servedSkill ?? null}
+            />
+        );
+    },
+    createScheduledDelivery: ({ toolCall, toolResult }) => {
+        const args = toolCall.toolArgs as { name?: string };
+        const metadata =
+            toolResult &&
+            toolResult.toolName === 'createScheduledDelivery' &&
+            'metadata' in toolResult
+                ? (toolResult.metadata as ToolCreateScheduledDeliveryOutput['metadata'])
+                : undefined;
+        return (
+            <ScheduledDeliveryToolCallDescription
+                name={args.name ?? null}
+                href={metadata?.status === 'success' ? metadata.href : null}
+            />
+        );
+    },
+    discoverRepos: emptyToolCallDescription,
+    listWorkstreams: emptyToolCallDescription,
+    closePullRequest: emptyToolCallDescription,
+    getPullRequestDiff: emptyToolCallDescription,
+    generateDataApp: emptyToolCallDescription,
+    iterateDataApp: emptyToolCallDescription,
+    listDataAppThemes: emptyToolCallDescription,
+    listDataAppConnections: emptyToolCallDescription,
+    editDbtProject: emptyToolCallDescription,
+    editProjectContext: emptyToolCallDescription,
+    editRepo: emptyToolCallDescription,
+    updateUserName: emptyToolCallDescription,
+    syncDbtProject: emptyToolCallDescription,
+    setupPreviewDeploy: emptyToolCallDescription,
+    runSavedChart: emptyToolCallDescription,
+    readPinnedThread: emptyToolCallDescription,
+    readAttachments: emptyToolCallDescription,
+    submitResearchReport: emptyToolCallDescription,
+    delegateResearchTask: emptyToolCallDescription,
+    submitWorkerFindings: emptyToolCallDescription,
+    loadMcpTools: emptyToolCallDescription,
+    resolveUrl: emptyToolCallDescription,
+    findCustomChartTypes: emptyToolCallDescription,
+};
+
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
@@ -105,354 +496,10 @@ export const ToolCallDescription: FC<{
     if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
         return <> </>;
     }
-    switch (toolName) {
-        case 'findExplores':
-            const toolArgsFindExplores = toolCall.toolArgs as
-                | ToolFindExploresArgsV3
-                | ToolFindExploresArgsV2
-                | ToolFindExploresArgsV1;
-            return (
-                <ExploreToolCallDescription
-                    exploreName={
-                        'exploreName' in toolArgsFindExplores
-                            ? toolArgsFindExplores.exploreName
-                            : null
-                    }
-                    searchQuery={
-                        'searchQuery' in toolArgsFindExplores
-                            ? toolArgsFindExplores.searchQuery
-                            : null
-                    }
-                />
-            );
-        case 'findFields':
-            const toolArgsFindFields = toolCall.toolArgs as ToolFindFieldsArgs;
-            return (
-                <FieldSearchToolCallDescription
-                    searchQueries={toolArgsFindFields.fieldSearchQueries}
-                />
-            );
-        case 'discoverFields':
-            const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
-            return (
-                <DiscoverFieldsToolCallDescription
-                    userQuery={discoverFieldsArgs.userQuery}
-                />
-            );
-        case 'grepFields':
-            const grepFieldsArgs = toolCall.toolArgs as ToolGrepFieldsArgs;
-            return (
-                <GrepFieldsToolCallDescription
-                    patterns={grepFieldsArgs.patterns ?? []}
-                    exploreName={grepFieldsArgs.exploreName}
-                />
-            );
-        case 'getMetadata':
-            const getMetadataArgs = toolCall.toolArgs as ToolGetMetadataArgs;
-            return (
-                <GetMetadataToolCallDescription
-                    requests={getMetadataArgs.requests ?? []}
-                />
-            );
-        case 'searchFieldValues':
-            const searchFieldValuesArgs =
-                toolCall.toolArgs as ToolSearchFieldValuesArgs;
-            return (
-                <FieldValuesSearchToolCallDescription
-                    fieldId={searchFieldValuesArgs.fieldId}
-                    query={searchFieldValuesArgs.query}
-                />
-            );
-        case 'findContent':
-            const findContentToolArgs =
-                toolCall.toolArgs as ToolFindContentArgs;
-            return (
-                <ContentSearchToolCallDescription
-                    searchType="content"
-                    searchQueries={findContentToolArgs.searchQueries}
-                />
-            );
-        case 'findDashboards':
-            const findDashboardsToolArgs =
-                toolCall.toolArgs as ToolFindDashboardsArgs;
-            return (
-                <ContentSearchToolCallDescription
-                    searchType="dashboards"
-                    searchQueries={
-                        findDashboardsToolArgs.dashboardSearchQueries
-                    }
-                />
-            );
-        case 'findCharts':
-            const findChartsToolArgs = toolCall.toolArgs as ToolFindChartsArgs;
-            return (
-                <ContentSearchToolCallDescription
-                    searchType="charts"
-                    searchQueries={findChartsToolArgs.chartSearchQueries}
-                />
-            );
-        case 'getDashboardCharts':
-            const getDashboardChartsArgs =
-                toolCall.toolArgs as ToolGetDashboardChartsArgs;
-            return (
-                <DashboardChartsToolCallDescription
-                    dashboardName={
-                        getDashboardChartsArgs.dashboardName ??
-                        getDashboardChartsArgs.dashboardUuid
-                    }
-                    page={getDashboardChartsArgs.page ?? null}
-                />
-            );
-        case 'generateDashboard':
-            const dashboardToolArgs = toolCall.toolArgs as ToolDashboardV2Args;
-            return (
-                <DashboardToolCallDescription
-                    title={dashboardToolArgs.title}
-                    description={dashboardToolArgs.description}
-                />
-            );
-        case 'generateVisualization':
-        case 'runQuery':
-            // Persisted args may be V1 or V2; normalize to V2 so the
-            // description reads everything from queryConfig.
-            const rawQueryToolArgs = toolCall.toolArgs as
-                | ToolRunQueryArgsV1
-                | ToolRunQueryArgsV2;
-            const queryToolArgs = isRunQueryArgsV1(rawQueryToolArgs)
-                ? migrateRunQueryArgsV1ToV2(rawQueryToolArgs)
-                : rawQueryToolArgs;
-            return (
-                <QueryResultToolCallDescription
-                    title={queryToolArgs.title}
-                    queryConfig={queryToolArgs.queryConfig}
-                    chartConfig={queryToolArgs.chartConfig}
-                />
-            );
-        case 'runSql':
-            const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
-            return (
-                <SqlRunToolCallDescription
-                    sql={sqlToolArgs.sql}
-                    limit={sqlToolArgs.limit}
-                    approval={approval}
-                />
-            );
-        case 'runComposerQueries':
-            const composerToolArgs =
-                toolCall.toolArgs as ToolComposerQueriesArgs;
-            return (
-                <ComposerQueriesToolCallDescription
-                    queries={composerToolArgs.queries ?? []}
-                    nodeStatuses={composerNodeStatuses}
-                    approval={approval}
-                />
-            );
-        case 'readContent':
-            const readContentToolArgs =
-                toolCall.toolArgs as ToolReadContentArgs;
-            const readContentIdentifier =
-                readContentToolArgs.slug ?? readContentToolArgs.documentUuid;
-            return readContentIdentifier && readContentToolArgs.type ? (
-                <ContentEditorToolCallDescription
-                    action="read"
-                    slug={readContentIdentifier}
-                    type={readContentToolArgs.type}
-                />
-            ) : (
-                <> </>
-            );
-        case 'editContent':
-            const editContentToolArgs =
-                toolCall.toolArgs as ToolEditContentArgs;
-            if (
-                editContentToolArgs.type === 'sql_chart' &&
-                editContentToolArgs.slug
-            ) {
-                return (
-                    <SqlChartToolCallDescription
-                        action="edit"
-                        slug={editContentToolArgs.slug}
-                        chart={{
-                            sql:
-                                getPatchedSql(editContentToolArgs.patch) ??
-                                undefined,
-                        }}
-                        approval={approval ?? null}
-                    />
-                );
-            }
-            return editContentToolArgs.slug && editContentToolArgs.type ? (
-                <ContentEditorToolCallDescription
-                    action="edit"
-                    slug={editContentToolArgs.slug}
-                    type={editContentToolArgs.type}
-                />
-            ) : (
-                <> </>
-            );
-        case 'createContent':
-            const createContentToolArgs =
-                toolCall.toolArgs as ToolCreateContentArgs;
-            if (
-                createContentToolArgs.type === 'sql_chart' &&
-                createContentToolArgs.content?.slug
-            ) {
-                return (
-                    <SqlChartToolCallDescription
-                        action="create"
-                        slug={createContentToolArgs.content.slug}
-                        chart={createContentToolArgs.content}
-                        approval={approval ?? null}
-                    />
-                );
-            }
-            return createContentToolArgs.content?.slug &&
-                createContentToolArgs.type ? (
-                <ContentEditorToolCallDescription
-                    action="create"
-                    slug={createContentToolArgs.content.slug}
-                    type={createContentToolArgs.type}
-                />
-            ) : (
-                <> </>
-            );
-        case 'listWarehouseTables':
-            const listWarehouseTablesArgs =
-                toolCall.toolArgs as ToolListWarehouseTablesArgs;
-            return (
-                <ListWarehouseTablesToolCallDescription
-                    schema={listWarehouseTablesArgs.schema ?? null}
-                    search={listWarehouseTablesArgs.search ?? null}
-                />
-            );
-        case 'listContent':
-            const listContentArgs = toolCall.toolArgs as ToolListContentArgs;
-            return (
-                <ListContentToolCallDescription
-                    page={listContentArgs.page}
-                    spaceSlug={listContentArgs.spaceSlug}
-                />
-            );
-        case 'runContentQuery':
-            const runContentQueryArgs =
-                toolCall.toolArgs as ToolRunContentQueryArgs;
-            return (
-                <RunContentQueryToolCallDescription
-                    source={runContentQueryArgs.source}
-                    approval={approval}
-                />
-            );
-        case 'describeWarehouseTable':
-            const describeWarehouseTableArgs =
-                toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
-            return (
-                <DescribeWarehouseTableToolCallDescription
-                    table={describeWarehouseTableArgs.table}
-                    schema={describeWarehouseTableArgs.schema ?? null}
-                />
-            );
-        case 'getKnowledgeDocumentContent':
-            const getKnowledgeDocumentContentArgs =
-                toolCall.toolArgs as ToolGetKnowledgeDocumentContentArgs;
-            const knowledgeDocumentOutput = toolCall.toolOutput as
-                | ToolGetKnowledgeDocumentContentOutput
-                | undefined;
-            return (
-                <KnowledgeDocumentToolCallDescription
-                    documentUuid={getKnowledgeDocumentContentArgs.documentUuid}
-                    toolOutput={knowledgeDocumentOutput}
-                />
-            );
-        case 'searchSemanticLayer':
-            const searchSemanticLayerArgs =
-                toolCall.toolArgs as ToolSearchSemanticLayerArgs;
-            return (
-                <SemanticLayerSearchToolCallDescription
-                    page={searchSemanticLayerArgs.page}
-                    searchQuery={searchSemanticLayerArgs.searchQuery}
-                    type={searchSemanticLayerArgs.type}
-                />
-            );
-        case 'analyzeFieldImpact':
-            const analyzeFieldImpactArgs =
-                toolCall.toolArgs as ToolAnalyzeFieldImpactArgs;
-            return (
-                <FieldImpactToolCallDescription
-                    fieldId={analyzeFieldImpactArgs.fieldId}
-                />
-            );
-        case 'listKnowledgeDocuments':
-        case 'listProjects':
-        case 'getProjectInfo':
-        case 'generateHashes':
-        case 'generateUuids':
-        case 'loadProjectContext':
-        case 'exploreRepo':
-            const toolArgsExploreRepo = toolCall.toolArgs as {
-                command?: string;
-            };
-            return (
-                <RepoShellToolCallDescription
-                    command={toolArgsExploreRepo.command ?? null}
-                />
-            );
-        case 'loadSkill': {
-            const args = toolCall.toolArgs as Partial<ToolLoadSkillArgs>;
-            const servedSkill =
-                toolResult &&
-                toolResult.toolName === 'loadSkill' &&
-                'metadata' in toolResult
-                    ? (toolResult.metadata as ToolLoadSkillOutput['metadata'])
-                          .skill
-                    : undefined;
-            return (
-                <LoadSkillToolCallDescription
-                    name={args.name ?? null}
-                    resourceName={args.resourceName ?? null}
-                    servedSkill={servedSkill ?? null}
-                />
-            );
-        }
-        case 'createScheduledDelivery': {
-            const args = toolCall.toolArgs as { name?: string };
-            const metadata =
-                toolResult &&
-                toolResult.toolName === 'createScheduledDelivery' &&
-                'metadata' in toolResult
-                    ? (toolResult.metadata as ToolCreateScheduledDeliveryOutput['metadata'])
-                    : undefined;
-            return (
-                <ScheduledDeliveryToolCallDescription
-                    name={args.name ?? null}
-                    href={metadata?.status === 'success' ? metadata.href : null}
-                />
-            );
-        }
-        case 'discoverRepos':
-        case 'listWorkstreams':
-        case 'closePullRequest':
-        case 'getPullRequestDiff':
-        case 'generateDataApp':
-        case 'iterateDataApp':
-        case 'listDataAppThemes':
-        case 'listDataAppConnections':
-        case 'editDbtProject':
-        case 'editProjectContext':
-        case 'editRepo':
-        case 'updateUserName':
-        case 'syncDbtProject':
-        case 'setupPreviewDeploy':
-        case 'runSavedChart':
-        case 'readPinnedThread':
-        case 'readAttachments':
-        case 'submitResearchReport':
-        case 'delegateResearchTask':
-        case 'submitWorkerFindings':
-        case 'loadMcpTools':
-        case 'resolveUrl':
-        case 'findCustomChartTypes':
-            return <> </>;
-        default:
-            return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
-    }
+    return DESCRIPTION_BY_TOOL[toolName]({
+        toolCall,
+        toolResult,
+        composerNodeStatuses,
+        approval,
+    });
 };
