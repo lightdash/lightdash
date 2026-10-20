@@ -10,7 +10,7 @@ export {
     resolveLoadout,
     selectLoadoutBase,
 } from './resolveLoadout';
-export { AGENT_TOOL_NAMES, DEFERRED_PROMPT_SECTIONS } from './types';
+export { AGENT_TOOL_NAMES } from './types';
 export type {
     AddOnDefinition,
     AddOnName,
