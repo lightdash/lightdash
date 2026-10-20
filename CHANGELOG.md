@@ -1,3 +1,10 @@
+## [2.622.1](https://github.com/lightdash/lightdash/compare/2.622.0...2.622.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **documents:** draw split chart series saved without pivot values ([#31216](https://github.com/lightdash/lightdash/issues/31216)) ([d20f078](https://github.com/lightdash/lightdash/commit/d20f078d61bf1629a5b6ae26a7c01894ac8024e7))
+
 # [2.622.0](https://github.com/lightdash/lightdash/compare/2.621.1...2.622.0) (2026-10-20)
 
 
