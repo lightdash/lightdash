@@ -3,7 +3,11 @@ import {
     CUSTOM_CHART_REQUEST_UNAVAILABLE_ERROR,
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
+    getCustomChartRenderDeadlineAction,
     handleCustomChartFrameMessage,
+    INITIAL_CUSTOM_CHART_RENDER_READINESS,
+    shouldShowTableOnRenderTimeout,
+    updateCustomChartRenderReadiness,
 } from './mcpCustomChartFrameProtocol';
 
 const vizContext: DataAppVizContext = {
@@ -111,4 +115,88 @@ describe('mcp custom chart frame protocol', () => {
             kind: 'ignore',
         });
     });
+});
+
+describe('mcp custom chart render deadline', () => {
+    const afterMessages = (messages: unknown[]) =>
+        shouldShowTableOnRenderTimeout(
+            messages.reduce(
+                updateCustomChartRenderReadiness,
+                INITIAL_CUSTOM_CHART_RENDER_READINESS,
+            ),
+        );
+    const manifest = (features: unknown) => ({
+        type: 'lightdash:sdk:manifest',
+        sdkVersion: '0.1.0',
+        features,
+    });
+
+    const contextRequest = { type: 'lightdash:sdk:viz-context-request' };
+
+    it.each([
+        ['a frame that never speaks the SDK', true, []],
+        [
+            'a frame that sends only unrelated messages',
+            true,
+            [{ type: 'something-else' }, null],
+        ],
+        ['a legacy bundle that requested the context', false, [contextRequest]],
+        [
+            'a bundle whose manifest lacks viz-rendered',
+            false,
+            [manifest(['theme']), contextRequest],
+        ],
+        [
+            'a signalling bundle that never acknowledges',
+            true,
+            [manifest(['viz-rendered']), contextRequest],
+        ],
+        [
+            'a signalling bundle that declares the feature late',
+            true,
+            [contextRequest, manifest(['viz-rendered'])],
+        ],
+        [
+            'a signalling bundle that acknowledged its paint',
+            false,
+            [
+                manifest(['viz-rendered']),
+                contextRequest,
+                { type: 'lightdash:sdk:viz-rendered', renderId: 'r1' },
+            ],
+        ],
+        ['a manifest without features', true, [manifest(undefined)]],
+        ['a manifest with string features', true, [manifest('viz-rendered')]],
+        ['a manifest with non-string features', true, [manifest([1])]],
+    ])('for %s shows the table: %s', (_case, showTable, messages) => {
+        expect(afterMessages(messages)).toBe(showTable);
+    });
+});
+
+describe('mcp custom chart render deadline while hidden', () => {
+    const unacknowledged = {
+        sdkSeen: true,
+        supportsRenderSignal: true,
+        rendered: false,
+    };
+
+    const rendered = { ...unacknowledged, rendered: true };
+    const legacy = { ...unacknowledged, supportsRenderSignal: false };
+
+    it.each([
+        ['an unacknowledged chart', true, 'wait-for-visible', unacknowledged],
+        ['an unacknowledged chart', false, 'show-table', unacknowledged],
+        ['an acknowledged chart', true, 'keep-chart', rendered],
+        ['an acknowledged chart', false, 'keep-chart', rendered],
+        ['a legacy bundle', true, 'keep-chart', legacy],
+    ] as const)(
+        'for %s with documentHidden=%s returns %s',
+        (_case, documentHidden, action, readiness) => {
+            expect(
+                getCustomChartRenderDeadlineAction(readiness, {
+                    documentHidden,
+                }),
+            ).toBe(action);
+        },
+    );
 });

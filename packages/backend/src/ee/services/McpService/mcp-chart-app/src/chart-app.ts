@@ -15,8 +15,11 @@ import { fetchMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
 import {
     getCustomChartFrameHandshake,
     getCustomChartFrameUrl,
+    getCustomChartRenderDeadlineAction,
     getCustomChartThemeMessage,
     handleCustomChartFrameMessage,
+    INITIAL_CUSTOM_CHART_RENDER_READINESS,
+    updateCustomChartRenderReadiness,
     type CustomChartColorScheme,
     type CustomChartHostMessage,
 } from '../../mcpCustomChartFrameProtocol';
@@ -240,6 +243,8 @@ type ChartToolResult = {
 };
 
 const CUSTOM_CHART_RENDER_TIMEOUT_MS = 10_000;
+// Covers a stalled bundle fetch, and then a frame whose load never fires
+const CUSTOM_CHART_LOAD_TIMEOUT_MS = 20_000;
 
 let teardownCustomChart: (() => void) | null = null;
 let postToCustomChart: ((message: CustomChartHostMessage) => void) | null =
@@ -281,14 +286,49 @@ function renderCustomChart(
 
     const post = (message: CustomChartHostMessage) =>
         iframe.contentWindow?.postMessage(message, '*');
-    const timeout = setTimeout(() => {
-        clearCustomChart();
-        onFailure();
-    }, CUSTOM_CHART_RENDER_TIMEOUT_MS);
-    const onLoad = () =>
+    let readiness = INITIAL_CUSTOM_CHART_RENDER_READINESS;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const stopDeadline = () => {
+        if (timeout !== null) clearTimeout(timeout);
+        timeout = null;
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+    const onDeadline = () => {
+        timeout = null;
+        const action = getCustomChartRenderDeadlineAction(readiness, {
+            documentHidden: document.visibilityState === 'hidden',
+        });
+        switch (action) {
+            case 'keep-chart':
+                return;
+            case 'wait-for-visible':
+                document.addEventListener(
+                    'visibilitychange',
+                    onVisibilityChange,
+                );
+                return;
+            case 'show-table':
+                clearCustomChart();
+                onFailure();
+                return;
+            default:
+                assertUnreachable(action, 'Unknown render deadline action');
+        }
+    };
+    const startDeadline = (ms = CUSTOM_CHART_RENDER_TIMEOUT_MS) => {
+        stopDeadline();
+        timeout = setTimeout(onDeadline, ms);
+    };
+    const onVisibilityChange = () => {
+        if (document.visibilityState !== 'hidden') startDeadline();
+    };
+    const onLoad = () => {
         getCustomChartFrameHandshake(getHostColorScheme()).forEach(post);
+        startDeadline();
+    };
     const onMessage = (event: MessageEvent) => {
         if (event.source !== iframe.contentWindow) return;
+        readiness = updateCustomChartRenderReadiness(readiness, event.data);
         const action = handleCustomChartFrameMessage(event.data, {
             vizContext: customChartType.vizContext,
             colorScheme: getHostColorScheme(),
@@ -298,7 +338,7 @@ function renderCustomChart(
                 post(action.message);
                 return;
             case 'rendered':
-                clearTimeout(timeout);
+                stopDeadline();
                 return;
             case 'ignore':
                 return;
@@ -310,9 +350,10 @@ function renderCustomChart(
     iframe.addEventListener('load', onLoad);
     window.addEventListener('message', onMessage);
     customChartContainer.appendChild(iframe);
+    startDeadline(CUSTOM_CHART_LOAD_TIMEOUT_MS);
     postToCustomChart = post;
     teardownCustomChart = () => {
-        clearTimeout(timeout);
+        stopDeadline();
         window.removeEventListener('message', onMessage);
         iframe.removeEventListener('load', onLoad);
         iframe.remove();
@@ -342,12 +383,23 @@ function loadCustomChart(
     customChartContainer.style.display = 'block';
 
     const controller = new AbortController();
-    teardownCustomChart = () => controller.abort();
+    let superseded = false;
+    // A timed-out fetch rejects, so it lands on the unavailable path below.
+    const fetchTimeout = setTimeout(
+        () => controller.abort(),
+        CUSTOM_CHART_LOAD_TIMEOUT_MS,
+    );
+    teardownCustomChart = () => {
+        superseded = true;
+        clearTimeout(fetchTimeout);
+        controller.abort();
+    };
     void fetchMcpCustomChartFrameHtml(customChartType, {
         fetchFn: (url, init) => fetch(url, init),
         signal: controller.signal,
     }).then((result) => {
-        if (controller.signal.aborted) return;
+        clearTimeout(fetchTimeout);
+        if (superseded) return;
         switch (result.kind) {
             case 'html':
                 renderCustomChart(result.html, customChartType, onFailure);
