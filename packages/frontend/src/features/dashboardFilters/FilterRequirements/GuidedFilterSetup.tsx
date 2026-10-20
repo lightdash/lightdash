@@ -16,9 +16,8 @@ import {
     Progress,
     Stack,
     Text,
-    ThemeIcon,
 } from '@mantine/core';
-import { IconCheck, IconCircleDashed } from '@tabler/icons-react';
+import { IconCircleCheck, IconCircleDashed } from '@tabler/icons-react';
 import {
     Fragment,
     useCallback,
@@ -34,6 +33,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { getFieldColor } from '../../../utils/fieldColors';
 import { useDashboardAllFilters } from '../../dashboard/store';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import LockedFilter from '../LockedFilter';
@@ -62,13 +62,18 @@ const getMemberFilterType = (
               member.target.fallbackType ?? DimensionType.STRING,
           );
 
-const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
+const RuleStatusIcon: FC<{ satisfied: boolean; field?: FilterableItem }> = ({
+    satisfied,
+    field,
+}) =>
     satisfied ? (
-        <ThemeIcon size={16} radius="xl" color="green" variant="filled">
-            <MantineIcon icon={IconCheck} size={10} />
-        </ThemeIcon>
+        <MantineIcon
+            icon={IconCircleCheck}
+            size={16}
+            color={field ? getFieldColor(field) : 'dimmed'}
+        />
     ) : (
-        <MantineIcon icon={IconCircleDashed} size={16} color="ldGray.5" />
+        <MantineIcon icon={IconCircleDashed} size={16} color="yellow.7" />
     );
 
 type MemberInputProps = {
@@ -156,7 +161,7 @@ const RuleSummary: FC<RuleSummaryProps> = ({ rule, getField, onChange }) => {
 
     return (
         <Group gap="xs" wrap="nowrap" className={classes.summaryRow}>
-            <RuleStatusIcon satisfied />
+            <RuleStatusIcon satisfied field={field} />
             <Text size="xs" fw={500} truncate>
                 {getDashboardFilterRuleLabel(setMember, getField)}
             </Text>
@@ -266,6 +271,9 @@ const GuidedFilterSetup: FC<Props> = ({
                         const isMultiMember = rule.members.length > 1;
                         const firstMember = rule.members[0];
                         const firstMemberField = getField(firstMember);
+                        const satisfiedMember = rule.members.find(
+                            (member) => !isValuelessDashboardFilterRule(member),
+                        );
 
                         return (
                             <Fragment key={rule.id}>
@@ -290,6 +298,10 @@ const GuidedFilterSetup: FC<Props> = ({
                                             <Group gap={6} wrap="nowrap">
                                                 <RuleStatusIcon
                                                     satisfied={isSatisfied}
+                                                    field={getField(
+                                                        satisfiedMember ??
+                                                            firstMember,
+                                                    )}
                                                 />
                                                 <Group
                                                     gap={6}
