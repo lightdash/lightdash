@@ -1,3 +1,11 @@
+# [2.631.0](https://github.com/lightdash/lightdash/compare/2.630.0...2.631.0) (2026-10-20)
+
+
+### Features
+
+* **ai-agents:** create a bound or context thread without a first prompt ([#31243](https://github.com/lightdash/lightdash/issues/31243)) ([8d29342](https://github.com/lightdash/lightdash/commit/8d2934299babdd69eb466bae83fbe4dba7b2893d))
+* **dbt:** resolve cross-source dbt refs when projects form a cycle ([#31233](https://github.com/lightdash/lightdash/issues/31233)) ([8379b0b](https://github.com/lightdash/lightdash/commit/8379b0b63b1bd2f0869cefcc5445b3032cbfe1c9)), closes [#31113](https://github.com/lightdash/lightdash/issues/31113)
+
 # [2.630.0](https://github.com/lightdash/lightdash/compare/2.629.4...2.630.0) (2026-10-20)
 
 

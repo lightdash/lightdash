@@ -1,25 +1,64 @@
 {
   "schemaVersion": "2",
-  "version": "2.630.0",
-  "previousVersion": "2.629.4",
-  "releaseDate": "2026-10-20T16:05:35.323Z",
+  "version": "2.631.0",
+  "previousVersion": "2.630.0",
+  "releaseDate": "2026-10-20T16:26:52.547Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261020154000_add_dbt_source_ref_catalogs.ts",
+        "edition": "core",
+        "tables": [
+          "dbt_source_ref_catalogs",
+          "projects"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — the response property `results/firstMessage` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — the `results/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — removed the required property `results/firstMessage/message` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — removed the required property `results/firstMessage/uuid` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — the response property `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — removed the required property `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage/message` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — removed the required property `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage/uuid` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — the response property `results/items/firstMessage` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — the `results/items/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — removed the required property `results/items/firstMessage/message` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — removed the required property `results/items/firstMessage/uuid` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — the response property `results/firstMessage` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — the `results/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — removed the required property `results/firstMessage/message` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — removed the required property `results/firstMessage/uuid` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — the response property `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage` became nullable for the status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — removed the required property `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage/message` from the response with the `200` status",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — removed the required property `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/firstMessage/uuid` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — the response property `results/firstMessage` became nullable for the status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — the `results/firstMessage` response's property `type` changed from `object` to `any` for status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — removed the required property `results/firstMessage/message` from the response with the `200` status",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — removed the required property `results/firstMessage/uuid` from the response with the `200` status"
+      ],
+      "breakingCount": 24,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -41,6 +80,12 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [],
+  "declaredBreaks": [
+    {
+      "id": "ai-agent-thread-first-message-nullable",
+      "reason": "AI agent thread responses (thread create, get and list, and the SDK LightdashAiAgentThread type) now return firstMessage as null for a thread created with a binding or threadContext and no prompt. Creating such a thread was rejected before, so existing threads and threads created with a prompt still return a firstMessage. API clients and SDK hosts that pre-create threads this way must handle null until the first message is sent.",
+      "requiredStop": false
+    }
+  ],
   "declaredAdvisories": []
 }

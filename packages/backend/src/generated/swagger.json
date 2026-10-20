@@ -29800,6 +29800,18 @@
                 "enum": ["fast", "baseline", "luna"],
                 "description": "`fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions."
             },
+            "AiAgentThreadFirstMessage": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message", "uuid"],
+                "type": "object"
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -29881,16 +29893,13 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadFirstMessage"
                             }
-                        },
-                        "required": ["message", "uuid"],
-                        "type": "object"
+                        ],
+                        "nullable": true,
+                        "description": "Null when the thread was created with a binding or context and no prompt yet."
                     },
                     "battleProfile": {
                         "allOf": [
@@ -31294,16 +31303,13 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadFirstMessage"
                             }
-                        },
-                        "required": ["message", "uuid"],
-                        "type": "object"
+                        ],
+                        "nullable": true,
+                        "description": "Null when the thread was created with a binding or context and no prompt yet."
                     },
                     "battleProfile": {
                         "allOf": [
@@ -36357,7 +36363,8 @@
                         "$ref": "#/components/schemas/AiPromptContextInput"
                     },
                     "prompt": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "First message. Optional when `binding` or `threadContext` is set; the thread then starts empty."
                     }
                 },
                 "type": "object"
@@ -73339,7 +73346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.630.0",
+        "version": "2.631.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
