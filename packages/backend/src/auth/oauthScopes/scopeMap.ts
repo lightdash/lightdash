@@ -75,6 +75,7 @@ export const OAUTH_OPERATIONS: Partial<
     Learn: ['view'],
     MetricsTree: OAUTH_ACTIONS,
     Organization: OAUTH_ACTIONS,
+    OrganizationAdoption: OAUTH_ACTIONS,
     OrganizationAiAgent: OAUTH_ACTIONS,
     OrganizationColorPalette: OAUTH_ACTIONS,
     OrganizationDesign: OAUTH_ACTIONS,

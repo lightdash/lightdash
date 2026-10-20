@@ -253,6 +253,11 @@ import {
 } from './dashboard';
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
+import {
+    type ApiDepartmentMembershipResponse,
+    type ApiDepartmentResponse,
+    type ApiOrganizationAdoptionSummaryResponse,
+} from './departments';
 import type {
     Document,
     DocumentAsCodeList,
@@ -1500,6 +1505,9 @@ type ApiResults =
     | ValidationResponse[]
     | ApiPaginatedValidateResponse['results']
     | ApiValidationSummaryResponse['results']
+    | ApiOrganizationAdoptionSummaryResponse['results']
+    | ApiDepartmentResponse['results']
+    | ApiDepartmentMembershipResponse['results']
     | ApiRoadmapResponse['results']
     | ApiRoadmapProjectResponse['results']
     | ApiRoadmapFollowProjectResponse['results']

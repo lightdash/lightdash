@@ -205,6 +205,11 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
+     * Show the adoption-by-department page and its API.
+     */
+    OrganizationAdoption = 'organization-adoption',
+
+    /**
      * Enable the AI writeback sandbox agent's preview-deploy secondary task:
      * detecting whether a repo deploys Lightdash preview projects via GitHub
      * Actions, offering to set it up during a writeback, and the
