@@ -138,9 +138,25 @@ export class DbtGitProjectAdapter
         }
     }
 
-    private async _refreshRepo() {
+    private async _refreshRepo(signal?: AbortSignal) {
+        signal?.throwIfAborted();
+        const git = signal
+            ? simpleGit({
+                  allowEnvironment: GIT_REPOSITORY_ENVIRONMENT,
+                  abort: signal,
+                  progress({
+                      method,
+                      stage,
+                      progress,
+                  }: SimpleGitProgressEvent) {
+                      Logger.debug(
+                          `git.${method} ${stage} stage ${progress}% complete`,
+                      );
+                  },
+              })
+            : this.git;
         await new GitRepository(
-            this.git,
+            git,
             this.localRepositoryDir,
             this.remoteRepositoryUrl,
             this.repository,
@@ -166,24 +182,38 @@ export class DbtGitProjectAdapter
         await super.test();
     }
 
-    private prepareRepository(): Promise<number> {
+    private async prepareRepository(signal?: AbortSignal): Promise<number> {
+        signal?.throwIfAborted();
         this.gitRefresh ??= (async () => {
             const startedAt = Date.now();
-            await this._refreshRepo();
+            await this._refreshRepo(signal);
             return Date.now() - startedAt;
         })();
-        return this.gitRefresh;
+        try {
+            return await this.gitRefresh;
+        } catch (error) {
+            if (signal?.aborted) this.gitRefresh = null;
+            throw error;
+        }
     }
 
-    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+    public async prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
+        options?.signal?.throwIfAborted();
         this.gitPreparation ??= (async () => {
-            const gitRefreshMs = await this.prepareRepository();
-            const preparation = await super.prepareDbtSource();
+            const gitRefreshMs = await this.prepareRepository(options?.signal);
+            const preparation = await super.prepareDbtSource(options);
             return {
                 ...preparation,
                 timings: { ...preparation.timings, gitRefreshMs },
             };
         })();
-        return this.gitPreparation;
+        try {
+            return await this.gitPreparation;
+        } catch (error) {
+            if (options?.signal?.aborted) this.gitPreparation = null;
+            throw error;
+        }
     }
 }

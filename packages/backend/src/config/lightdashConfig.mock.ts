@@ -127,6 +127,9 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
+        crossSourcePrepareTimeoutMs: 180000,
+        crossSourceLsTimeoutMs: 300000,
+        crossSourceResolutionTimeoutMs: 1200000,
     },
     dashboard: {
         maxTilesPerTab: 50,

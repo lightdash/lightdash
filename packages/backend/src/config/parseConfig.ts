@@ -1724,6 +1724,9 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        crossSourcePrepareTimeoutMs: number;
+        crossSourceLsTimeoutMs: number;
+        crossSourceResolutionTimeoutMs: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -3691,6 +3694,17 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            crossSourcePrepareTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_PREPARE_TIMEOUT_MS',
+                ) ?? 180000,
+            crossSourceLsTimeoutMs:
+                getIntegerFromEnvironmentVariable('DBT_SOURCE_LS_TIMEOUT_MS') ??
+                300000,
+            crossSourceResolutionTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
+                ) ?? 1200000,
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),

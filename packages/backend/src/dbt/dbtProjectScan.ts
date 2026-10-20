@@ -8,6 +8,7 @@ export type DbtProjectScan = {
     referencesOwnProject?: boolean;
     referencedProjects: string[];
     declaredUpstreams: string[];
+    installedPackages: string[];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -95,11 +96,42 @@ export const scanDbtProject = async (
             return [];
         }
     };
+    const packageDirectories = await fs
+        .readdir(path.join(projectDir, 'dbt_packages'), { withFileTypes: true })
+        .catch(() => []);
+    const installedPackages = [
+        ...new Set(
+            (
+                await Promise.all(
+                    packageDirectories
+                        .filter(
+                            (entry) =>
+                                entry.isDirectory() || entry.isSymbolicLink(),
+                        )
+                        .map(async (entry) => {
+                            const installed = await readYaml(
+                                path.join(
+                                    projectDir,
+                                    'dbt_packages',
+                                    entry.name,
+                                    'dbt_project.yml',
+                                ),
+                            );
+                            return isRecord(installed) &&
+                                typeof installed.name === 'string'
+                                ? [installed.name]
+                                : [];
+                        }),
+                )
+            ).flat(),
+        ),
+    ];
     const references = [...new Set(await walk(projectDir))];
     return {
         projectName,
         referencedProjects: references.filter((name) => name !== projectName),
         declaredUpstreams,
+        installedPackages,
         ...(projectName !== null && references.includes(projectName)
             ? { referencesOwnProject: true }
             : {}),

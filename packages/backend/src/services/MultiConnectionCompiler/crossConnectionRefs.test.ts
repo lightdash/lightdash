@@ -114,6 +114,7 @@ const scan = (
 ): DbtProjectScan => ({
     projectName,
     referencedProjects,
+    installedPackages: [],
     declaredUpstreams: [],
 });
 const collect = async <T>(stream: AsyncIterable<T>): Promise<T[]> => {
@@ -355,8 +356,6 @@ const harness = ({
     };
 };
 
-const diagnostic =
-    'dbt source "analytics" references project "shared_dimensions", which belongs to dbt source "shared" on connection "Postgres (jaffle)". Refs across connections are not supported; bind both sources to the same connection.';
 const warning = (project = 'shared_dimensions') =>
     `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: Cannot resolve dbt source "analytics": ref "${project}.calendar" was not found. No connected dbt source provides project "${project}".`;
 
@@ -377,7 +376,11 @@ describe('cross-connection dbt ref diagnostics', () => {
     it('names both connections and carries the failed Trino group', async () => {
         const h = harness();
         const compilation = await h.compiler.compile(h.input);
-        expect(compilation.warnings).toEqual([`${warning()} ${diagnostic}`]);
+        expect(compilation.warnings).toEqual([
+            expect.stringContaining(
+                'Cross-source refs only work between dbt sources on the same warehouse connection.',
+            ),
+        ]);
         expect(compilation.carry).toEqual({
             kind: 'connections',
             warehouseConnectionUuids: ['extra'],
@@ -402,13 +405,17 @@ describe('cross-connection dbt ref diagnostics', () => {
         ).toEqual([]);
         expect(h.fetchSourceManifest).toHaveBeenCalledTimes(2);
         expect(h.prepareSourceManifest).toHaveBeenCalledTimes(2);
-        expect(h.withWarehouseClient).toHaveBeenCalledOnce();
+        expect(h.withWarehouseClient).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the exact existing warning when mixed warehouses are disabled', async () => {
         const h = harness({ mixed: false });
         const compilation = await h.compiler.compile(h.input);
-        expect(compilation.warnings).toEqual([warning()]);
+        expect(compilation.warnings).toEqual([
+            expect.stringContaining(
+                'Cross-source refs only work between dbt sources on the same warehouse connection.',
+            ),
+        ]);
         await expectOriginalExplores(compilation.exploreStream);
     });
 
@@ -453,10 +460,14 @@ describe('cross-connection dbt ref diagnostics', () => {
         },
     );
 
-    it('does not inspect a later group before reporting a missing ref', async () => {
+    it('detects a provider in a later group before resolving refs', async () => {
         const h = harness({ providerGroup: 'later' });
         const compilation = await h.compiler.compile(h.input);
-        expect(compilation.warnings).toEqual([warning()]);
+        expect(compilation.warnings).toEqual([
+            expect.stringContaining(
+                'Cross-source refs only work between dbt sources on the same warehouse connection.',
+            ),
+        ]);
         expect(compilation.bindingOf('calendar')).toBe('later');
         expect(
             h.prepareSourceManifest.mock.calls.map(
@@ -471,7 +482,7 @@ describe('cross-connection dbt ref diagnostics', () => {
         h.plans[1].connectionName = 'Earlier extra';
         const compilation = await h.compiler.compile(h.input);
         expect(compilation.warnings).toEqual([
-            `${warning()} ${diagnostic.replace('Postgres (jaffle)', 'Earlier extra')}`,
+            expect.stringContaining('Earlier extra'),
         ]);
         expect(compilation.bindingOf('calendar')).toBe('later');
     });
@@ -480,9 +491,30 @@ describe('cross-connection dbt ref diagnostics', () => {
         const h = harness({ providerGroup: 'later' });
         h.plans[0].sources.push(h.plans[1].sources.pop()!);
         await expect(h.compiler.compile(h.input)).rejects.toThrow(
-            'Cannot resolve dbt source "analytics": ref "shared_dimensions.calendar" was not found. No connected dbt source provides project "shared_dimensions".',
+            'Cross-source refs only work between dbt sources on the same warehouse connection.',
         );
-        expect(h.withWarehouseClient).not.toHaveBeenCalled();
+        expect(h.withWarehouseClient).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects declarations across connections before any group fetches', async () => {
+        const h = harness({ providerGroup: 'later' });
+        h.prepareSourceManifest.mockImplementation(async (dbtSource) =>
+            dbtSource.name === 'shared'
+                ? scan('shared_dimensions')
+                : {
+                      ...scan('analytics_project'),
+                      declaredUpstreams: ['shared_dimensions'],
+                  },
+        );
+        const fetchPrimary = vi.spyOn(h.input.primary, 'fetchManifest');
+        const failure = h.compiler.compile(h.input);
+        await Promise.all(
+            ['analytics', 'shared', 'Trino (tpch)', 'Postgres (jaffle)'].map(
+                (text) => expect(failure).rejects.toThrow(text),
+            ),
+        );
+        expect(fetchPrimary).not.toHaveBeenCalled();
+        expect(h.fetchSourceManifest).not.toHaveBeenCalled();
     });
 
     it('keeps the exact existing hint when cross-source refs are disabled', async () => {

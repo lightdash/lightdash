@@ -16103,7 +16103,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 expect(info).toHaveBeenCalledWith(
                     'dbt.test.deferredCrossSourceRefs',
                     {
-                        refs: [{ packageName: 'upstream', model: 'orders' }],
+                        refs: [
+                            {
+                                packageName: 'upstream',
+                                model: 'orders',
+                                version: null,
+                            },
+                        ],
                     },
                 );
                 expect(flags.get).toHaveBeenCalledWith({

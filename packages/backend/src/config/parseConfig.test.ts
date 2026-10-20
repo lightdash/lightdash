@@ -3141,3 +3141,23 @@ describe('database slow transaction threshold', () => {
         expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
     });
 });
+
+describe('cross-source dbt deadlines', () => {
+    it('uses the default deadlines', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            crossSourcePrepareTimeoutMs: 180000,
+            crossSourceLsTimeoutMs: 300000,
+            crossSourceResolutionTimeoutMs: 1200000,
+        });
+    });
+    it('reads each deadline from the environment', () => {
+        process.env.DBT_SOURCE_PREPARE_TIMEOUT_MS = '120';
+        process.env.DBT_SOURCE_LS_TIMEOUT_MS = '240';
+        process.env.DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS = '480';
+        expect(parseConfig().dbt).toMatchObject({
+            crossSourcePrepareTimeoutMs: 120,
+            crossSourceLsTimeoutMs: 240,
+            crossSourceResolutionTimeoutMs: 480,
+        });
+    });
+});

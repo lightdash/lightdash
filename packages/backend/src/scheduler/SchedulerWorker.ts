@@ -34,6 +34,11 @@ import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
 import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from './compileShutdown';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
 import {
@@ -180,6 +185,13 @@ export class SchedulerWorker extends SchedulerTask {
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly usageDimensionsModel: UsageDimensionsModel;
+
+    private readonly activeCompiles = new Set<CompileShutdownContext>();
+
+    private readonly interruptedCompileFailures = new WeakMap<
+        CompileShutdownContext,
+        Promise<void>
+    >();
 
     private readonly managedRunners = new Set<ManagedRunner>();
 
@@ -409,11 +421,65 @@ export class SchedulerWorker extends SchedulerTask {
         }
     }
 
+    private async runCompileTask(
+        jobUuid: string | null,
+        task: () => Promise<void>,
+    ): Promise<void> {
+        const context: CompileShutdownContext = {
+            controller: new AbortController(),
+            jobUuid,
+            armed: false,
+        };
+        this.activeCompiles.add(context);
+        try {
+            await compileShutdown.run(context, task);
+        } catch (error) {
+            if (context.armed && context.controller.signal.aborted)
+                await this.failInterruptedCompile(context);
+            throw error;
+        } finally {
+            this.activeCompiles.delete(context);
+        }
+    }
+
+    private async failInterruptedCompile(
+        context: CompileShutdownContext,
+    ): Promise<void> {
+        if (!context.armed || context.jobUuid === null) return;
+        let failure = this.interruptedCompileFailures.get(context);
+        if (!failure) {
+            failure = this.projectService._markJobAsFailed(
+                context.jobUuid,
+                new CompileInterruptedError().message,
+            );
+            this.interruptedCompileFailures.set(context, failure);
+        }
+        await failure;
+    }
+
+    private async failInterruptedCompiles(): Promise<void> {
+        await Promise.all(
+            [...this.activeCompiles].map((context) =>
+                this.failInterruptedCompile(context),
+            ),
+        );
+    }
+
     async stop() {
         this.isStopping = true;
         this.migrationQuiesce?.stop();
         this.stopPgPing();
+        for (const context of this.activeCompiles) {
+            if (context.armed) {
+                Logger.warn('dbt.compile.crossSourceInterrupted', {
+                    event: 'dbt.compile.crossSourceInterrupted',
+                    jobUuid: context.jobUuid,
+                });
+                context.controller.abort(new CompileInterruptedError());
+            }
+        }
         await this.drainManagedRunners();
+        await this.failInterruptedCompiles();
         this.isRunning = false;
         this.isQuiesced = false;
     }
@@ -429,6 +495,7 @@ export class SchedulerWorker extends SchedulerTask {
             return;
         }
         if (this.workerHealth?.isPoolDead()) {
+            await this.failInterruptedCompiles();
             await this.stopManagedRunnersForRetry(
                 'Scheduler worker stopping with dead pool',
             );
@@ -455,6 +522,7 @@ export class SchedulerWorker extends SchedulerTask {
 
         const outcome = await Promise.race([drained, deadline]);
         if (outcome === 'timeout') {
+            await this.failInterruptedCompiles();
             Logger.warn(
                 `Scheduler shutdown drain exceeded ${shutdownTimeout}ms; releasing in-flight jobs for retry`,
             );
@@ -1445,18 +1513,20 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.COMPILE_PROJECT]: async (payload, helpers) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.compileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.compileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (
@@ -1502,18 +1572,20 @@ export class SchedulerWorker extends SchedulerTask {
                 payload,
                 helpers,
             ) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.testAndCompileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.testAndCompileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.VALIDATE_PROJECT]: async (payload, helpers) => {

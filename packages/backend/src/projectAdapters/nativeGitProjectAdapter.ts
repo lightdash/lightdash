@@ -228,12 +228,16 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    async prepareDbtSource(): Promise<DbtSourcePreparation> {
+    async prepareDbtSource(_options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
         return this.sourcePreparation;
     }
 
-    async getDbtManifest(_options?: DbtManifestFetchOptions): Promise<never> {
-        await this.prepareDbtSource();
+    async getDbtManifest(options?: DbtManifestFetchOptions): Promise<never> {
+        await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
         throw new ParameterError(
             'Native YAML projects cannot be combined with additional dbt sources.',
         );

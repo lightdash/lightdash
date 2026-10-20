@@ -1,10 +1,15 @@
-import { ALL_TASK_NAMES } from '@lightdash/common';
+import { ALL_TASK_NAMES, SCHEDULER_TASKS } from '@lightdash/common';
 import {
     run as runGraphileWorker,
     type Runner,
     type WorkerPool,
 } from 'graphile-worker';
 import { type LightdashConfig } from '../config/parseConfig';
+import {
+    armCompileShutdown,
+    compileShutdown,
+    type CompileShutdownContext,
+} from './compileShutdown';
 import {
     SchedulerWorker,
     type SchedulerWorkerArguments,
@@ -92,7 +97,10 @@ const makeFakeGraphileRunner = (): FakeGraphileRunner => {
     return { runner, workerPool, finishActiveJobs };
 };
 
-const makeWorker = (workerHealth?: SchedulerWorkerHealth): SchedulerWorker => {
+const makeWorker = (
+    workerHealth?: SchedulerWorkerHealth,
+    markFailed = vi.fn(),
+): SchedulerWorker => {
     const query = vi.fn(async () => ({ rows: [{ active: false }] }));
     const graphileUtils = Promise.resolve({
         addJob: vi.fn(),
@@ -103,6 +111,7 @@ const makeWorker = (workerHealth?: SchedulerWorkerHealth): SchedulerWorker => {
         lightdashConfig: makeConfig(),
         schedulerClient: { graphileUtils },
         workerHealth,
+        projectService: { _markJobAsFailed: markFailed },
     } as unknown as SchedulerWorkerArguments);
 };
 
@@ -181,5 +190,122 @@ describe('SchedulerWorker ordinary shutdown', () => {
         ).toHaveBeenCalledExactlyOnceWith(
             'Scheduler worker stopping with dead pool',
         );
+    });
+    it.each([
+        SCHEDULER_TASKS.COMPILE_PROJECT,
+        SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
+    ])('fails an armed %s before the drain deadline', async (taskName) => {
+        const markFailed = vi.fn().mockResolvedValue(undefined);
+        const worker = makeWorker(undefined, markFailed);
+        await worker.run();
+        const [fakeRunner] = fakeRunners;
+        let signal: AbortSignal | undefined;
+        const interrupted = async () => {
+            signal = armCompileShutdown();
+            await new Promise<void>((_resolve, reject) => {
+                signal!.addEventListener(
+                    'abort',
+                    () => reject(signal!.reason),
+                    { once: true },
+                );
+            });
+        };
+        const methods = worker as unknown as {
+            compileProject: typeof interrupted;
+            testAndCompileProject: typeof interrupted;
+            getFullTaskList(): Record<
+                string,
+                (payload: unknown, helpers: unknown) => Promise<void>
+            >;
+        };
+        methods.compileProject = interrupted;
+        methods.testAndCompileProject = interrupted;
+        const work = methods
+            .getFullTaskList()
+            [taskName](
+                { jobUuid: 'leaf_a' },
+                { job: { id: '1', run_at: new Date() } },
+            )
+            .catch((error: unknown) => error)
+            .finally(() => fakeRunner.finishActiveJobs());
+        await vi.advanceTimersByTimeAsync(0);
+        const stopping = worker.stop();
+        await stopping;
+        const error = await work;
+        expect(signal?.aborted).toBe(true);
+        expect(error).toHaveProperty(
+            'message',
+            'The worker shut down while this project was compiling. Refresh dbt again.',
+        );
+        expect(markFailed).toHaveBeenCalledExactlyOnceWith(
+            'leaf_a',
+            signal?.reason.message,
+        );
+        expect(fakeRunner.workerPool.gracefulShutdown).not.toHaveBeenCalled();
+    });
+
+    it('fails the job before releasing a compile that does not settle on abort', async () => {
+        const markFailed = vi.fn().mockResolvedValue(undefined);
+        const worker = makeWorker(undefined, markFailed);
+        await worker.run();
+        const [fakeRunner] = fakeRunners;
+        const run = (
+            worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            }
+        ).runCompileTask.bind(worker);
+        let release!: () => void;
+        const work = run('leaf_a', async () => {
+            armCompileShutdown();
+            await new Promise<void>((done) => {
+                release = done;
+            });
+        });
+        try {
+            const stopping = worker.stop();
+            await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS);
+            await stopping;
+            expect(markFailed).toHaveBeenCalledExactlyOnceWith(
+                'leaf_a',
+                'The worker shut down while this project was compiling. Refresh dbt again.',
+            );
+            expect(markFailed.mock.invocationCallOrder[0]).toBeLessThan(
+                vi.mocked(fakeRunner.workerPool.gracefulShutdown).mock
+                    .invocationCallOrder[0],
+            );
+        } finally {
+            release();
+            await work;
+        }
+    });
+
+    it('leaves an unarmed compile controller untouched', async () => {
+        const worker = makeWorker();
+        const run = (
+            worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            }
+        ).runCompileTask.bind(worker);
+        let context: CompileShutdownContext | undefined;
+        let release!: () => void;
+        const work = run('leaf_a', async () => {
+            context = compileShutdown.getStore();
+            await new Promise<void>((done) => {
+                release = done;
+            });
+        });
+        try {
+            await worker.stop();
+            expect(context?.controller.signal.aborted).toBe(false);
+        } finally {
+            release();
+            await work;
+        }
     });
 });

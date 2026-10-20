@@ -40,16 +40,24 @@ import {
     type SourceManifest,
 } from '../../projectAdapters/CompileGroup';
 import {
+    CrossSourceCancellation,
+    DEFAULT_CROSS_SOURCE_TIMEOUTS,
+    type CrossSourceTimeouts,
+} from '../../projectAdapters/crossSourceCancellation';
+import { validateCrossSourceProjectScans } from '../../projectAdapters/crossSourcePreflight';
+import {
     resolveCrossSourceManifests,
     type CrossSourceFetchResult,
     type CrossSourceFetchTask,
 } from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
+import { armCompileShutdown } from '../../scheduler/compileShutdown';
 import {
     type CachedWarehouse,
     type DbtManifestFetchOptions,
     type TrackingParams,
 } from '../../types';
+import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
 import {
@@ -78,6 +86,7 @@ export type PrepareSourceManifest = (
     source: CompilableDbtSource,
     warehouseCredentials: CreateWarehouseCredentials,
     connection: ScopedWarehouseConnection,
+    options?: { signal?: AbortSignal },
 ) => Promise<DbtProjectScan | null>;
 
 export type LoadExtraConnectionCredentials = (
@@ -85,7 +94,9 @@ export type LoadExtraConnectionCredentials = (
 ) => Promise<CreateWarehouseCredentials>;
 
 export type PrimaryCompileInput = {
-    prepare?: () => Promise<DbtProjectScan | null>;
+    prepare?: (options?: {
+        signal?: AbortSignal;
+    }) => Promise<DbtProjectScan | null>;
     connection: ScopedWarehouseConnection;
     fetchManifest: (
         options: DbtManifestFetchOptions,
@@ -206,15 +217,26 @@ export class MultiConnectionCompiler {
         >,
         prepareSourceManifest?: PrepareSourceManifest,
         warnings: string[] = [],
+        resolutionOptions: {
+            signal?: AbortSignal;
+            timeouts?: CrossSourceTimeouts;
+            connectionName?: string;
+            otherConnectionProjects?: {
+                projectName: string;
+                sourceKey: string;
+                connectionName: string;
+            }[];
+        } = {},
     ): Promise<SourceManifest[]> {
         const sourceTasks = sources.map((source) => ({
             prepare: prepareSourceManifest
-                ? async () => {
+                ? async (options?: { signal?: AbortSignal }) => {
                       try {
                           return await prepareSourceManifest(
                               source,
                               warehouseCredentials,
                               connection,
+                              options,
                           );
                       } catch (error) {
                           const repoSuffix =
@@ -285,6 +307,8 @@ export class MultiConnectionCompiler {
             enabled,
             concurrency,
             tasks: [...(primaryTask ? [primaryTask] : []), ...sourceTasks],
+            signal: armCompileShutdown(),
+            ...resolutionOptions,
         });
         warnings.push(...resolution.warnings);
         if (enabled) {
@@ -295,6 +319,10 @@ export class MultiConnectionCompiler {
                 scannedEdges: resolution.scan.known,
                 firstAttemptInjected: resolution.firstAttemptInjected,
                 dbtLsRuns: resolution.attempts,
+                preflightWarnings: resolution.preflightWarnings,
+                timeouts:
+                    resolutionOptions.timeouts ?? DEFAULT_CROSS_SOURCE_TIMEOUTS,
+                signatureExhausted: resolution.signatureExhausted,
                 sources: resolution.results.map(({ task, injectedFrom }) => ({
                     name: task.key,
                     injectedFrom,
@@ -321,6 +349,7 @@ export class MultiConnectionCompiler {
         beforeAcquireClient,
         trackingParams,
         warnings,
+        resolutionOptions,
     }: {
         projectUuid: string;
         context: ConnectionContext;
@@ -334,6 +363,9 @@ export class MultiConnectionCompiler {
         beforeAcquireClient?: () => Promise<void>;
         trackingParams: TrackingParams | undefined;
         warnings: string[];
+        resolutionOptions?: Parameters<
+            typeof MultiConnectionCompiler.fetchSourceManifests
+        >[10];
     }): Promise<CompiledExtraGroup> {
         const credentials = await loadExtraCredentials(
             plan.warehouseConnectionUuid,
@@ -375,6 +407,7 @@ export class MultiConnectionCompiler {
                         undefined,
                         prepareSourceManifest,
                         warnings,
+                        resolutionOptions,
                     );
                 const { manifest, selectedModelIds } =
                     mergeCompileGroupManifests(sourceManifests);
@@ -516,6 +549,7 @@ export class MultiConnectionCompiler {
         beforeLoadExtraCredentials,
         trackingParams,
         analytics,
+        crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
     }: {
         projectUuid: string;
         context: ConnectionContext;
@@ -531,6 +565,7 @@ export class MultiConnectionCompiler {
         beforeLoadExtraCredentials?: () => Promise<void>;
         trackingParams?: TrackingParams;
         analytics?: LightdashAnalytics;
+        crossSourceTimeouts?: CrossSourceTimeouts;
     }): Promise<MultiConnectionCompilation> {
         const [originalPlan, ...extraPlans] = await this.planGroups(
             projectUuid,
@@ -540,283 +575,460 @@ export class MultiConnectionCompiler {
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];
 
-        const originalSources =
-            await MultiConnectionCompiler.fetchSourceManifests(
-                originalPlan.sources,
-                primary.warehouseCredentials,
-                primary.connection,
-                fetchSourceManifest,
-                crossSourceRefsEnabled,
-                concurrency,
-                projectUuid,
-                {
-                    prepare: primary.prepare,
-                    key: identity.dbtSourceName,
-                    context: {
-                        name: identity.dbtSourceName,
-                        precedence: 0,
-                        dbtSourceUuid: identity.dbtSourceUuid,
-                    },
-                    fetch: async (options) => {
-                        try {
-                            return await primary.fetchManifest(options);
-                        } catch (error) {
-                            throw withCrossSourceRefsHint(
-                                error,
-                                crossSourceRefsEnabled,
-                            );
-                        }
-                    },
-                },
-                prepareSourceManifest,
-                warnings,
-            );
-        const originalMerged = mergeCompileGroupManifests(originalSources);
-        const originalAdapter = new DbtManifestProjectAdapter({
-            parsedManifest: originalMerged.manifest,
-            warehouseClient: primary.connection.deriveClient(
-                primary.warehouseCredentials,
-                {
-                    compileGroup: {
-                        listedDatabases: originalPlan.listedDatabases,
-                        onSkippedDatabase: (database) => {
-                            warnings.push(
-                                `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
-                            );
-                        },
-                    },
-                },
-            ),
-            cachedWarehouse: primary.cachedWarehouse,
-            dbtVersion,
-            analytics,
-            dbtProjectDir: primary.dbtProjectDir,
-            selectedModelIds: originalMerged.selectedModelIds,
-        });
-        const originalStream = await originalAdapter.prepareExploreStream(
-            trackingParams,
-            false,
-            true,
-        );
-
-        const compiledExtraGroups: CompiledExtraGroup[] = [];
-        const failedConnectionUuids: string[] = [];
-        await extraPlans.reduce(async (previous, plan) => {
-            await previous;
-            const extraPlan = plan as CompileGroupPlan & {
-                warehouseConnectionUuid: string;
-            };
-            if (beforeLoadExtraCredentials) await beforeLoadExtraCredentials();
-            let extraWarehouseType: CreateWarehouseCredentials['type'] | null =
-                null;
-            const sourceErrors = new Map<string | null, unknown>();
-            try {
-                compiledExtraGroups.push(
-                    await this.compileExtraGroup({
-                        projectUuid,
-                        context,
-                        plan: extraPlan,
-                        dbtVersion,
-                        fetchSourceManifest:
-                            mixedWarehouseConnectionsEnabled &&
-                            crossSourceRefsEnabled
-                                ? async (...args) => {
-                                      try {
-                                          const result =
-                                              await fetchSourceManifest(
-                                                  ...args,
-                                              );
-                                          sourceErrors.delete(args[0].name);
-                                          return result;
-                                      } catch (error) {
-                                          sourceErrors.set(args[0].name, error);
-                                          throw error;
-                                      }
-                                  }
-                                : fetchSourceManifest,
-                        prepareSourceManifest,
-                        crossSourceRefsEnabled,
+        const cancellation = crossSourceRefsEnabled
+            ? new CrossSourceCancellation(
+                  armCompileShutdown(),
+                  crossSourceTimeouts,
+              )
+            : null;
+        let preparedPrimary = primary;
+        let preparedSourceManifest = prepareSourceManifest;
+        try {
+            const projects: {
+                projectName: string;
+                sourceKey: string;
+                connectionName: string;
+                connectionUuid: string | null;
+            }[] = [];
+            if (cancellation) {
+                const scans = new Map<string, DbtProjectScan | null>();
+                const prepare = prepareSourceManifest;
+                const primaryPrepare = primary.prepare;
+                const scanGroup = async (
+                    plan: CompileGroupPlan,
+                    credentials: CreateWarehouseCredentials,
+                    connection: ScopedWarehouseConnection,
+                    includePrimary: boolean,
+                ) => {
+                    const tasks = [
+                        ...(includePrimary
+                            ? [
+                                  {
+                                      key: identity.dbtSourceName,
+                                      uuid: identity.dbtSourceUuid,
+                                      prepare: (options: {
+                                          signal: AbortSignal;
+                                      }) =>
+                                          primaryPrepare?.(options) ??
+                                          Promise.resolve(null),
+                                  },
+                              ]
+                            : []),
+                        ...plan.sources.map((source) => ({
+                            key: source.name,
+                            uuid: source.projectDbtSourceUuid,
+                            prepare: (options: { signal: AbortSignal }) =>
+                                prepare?.(
+                                    source,
+                                    credentials,
+                                    connection,
+                                    options,
+                                ) ?? Promise.resolve(null),
+                        })),
+                    ];
+                    await runWithConcurrency(
+                        tasks,
                         concurrency,
-                        loadExtraCredentials: async (uuid) => {
-                            const credentials =
-                                await loadExtraCredentials(uuid);
-                            extraWarehouseType = credentials.type;
-                            return credentials;
+                        async (task) => {
+                            const scan = await cancellation.run(
+                                task.key,
+                                'prepare',
+                                (signal) => task.prepare({ signal }),
+                            );
+                            scans.set(task.uuid, scan);
+                            if (scan?.projectName)
+                                projects.push({
+                                    projectName: scan.projectName,
+                                    sourceKey: task.key,
+                                    connectionName: plan.connectionName,
+                                    connectionUuid:
+                                        plan.warehouseConnectionUuid,
+                                });
                         },
-                        beforeAcquireClient: beforeLoadExtraCredentials,
-                        trackingParams,
-                        warnings,
-                    }),
+                    );
+                };
+                await scanGroup(
+                    originalPlan,
+                    primary.warehouseCredentials,
+                    primary.connection,
+                    true,
                 );
-            } catch (error) {
-                if (error instanceof ExtraConnectionCheckError)
-                    throw error.refusal;
-                if (error instanceof ManifestCollisionError) throw error;
-                failedConnectionUuids.push(extraPlan.warehouseConnectionUuid);
-                if (analytics) {
-                    if (extraWarehouseType === null) {
+                await extraPlans.reduce(async (previous, plan) => {
+                    await previous;
+                    if (beforeLoadExtraCredentials)
+                        await beforeLoadExtraCredentials();
+                    const credentials = await loadExtraCredentials(
+                        plan.warehouseConnectionUuid!,
+                    );
+                    await this.warehouseClientFactory.withWarehouseClient(
+                        { kind: 'compile', projectUuid, credentials },
+                        context,
+                        (connection) =>
+                            scanGroup(
+                                plan,
+                                connection.connectionCredentials,
+                                connection,
+                                false,
+                            ),
+                    );
+                }, Promise.resolve());
+                for (const plan of [originalPlan, ...extraPlans]) {
+                    validateCrossSourceProjectScans(
+                        [
+                            ...(plan === originalPlan
+                                ? [
+                                      {
+                                          key: identity.dbtSourceName,
+                                          scan:
+                                              scans.get(
+                                                  identity.dbtSourceUuid,
+                                              ) ?? null,
+                                      },
+                                  ]
+                                : []),
+                            ...plan.sources.map((source) => ({
+                                key: source.name,
+                                scan:
+                                    scans.get(source.projectDbtSourceUuid) ??
+                                    null,
+                            })),
+                        ],
+                        projects.filter(
+                            (project) =>
+                                project.connectionUuid !==
+                                plan.warehouseConnectionUuid,
+                        ),
+                        plan.connectionName,
+                    );
+                }
+                preparedPrimary = {
+                    ...primary,
+                    prepare: async () =>
+                        scans.get(identity.dbtSourceUuid) ?? null,
+                };
+                preparedSourceManifest = async (source) =>
+                    scans.get(source.projectDbtSourceUuid) ?? null;
+            }
+            const resolutionOptions = (plan: CompileGroupPlan) =>
+                crossSourceRefsEnabled
+                    ? {
+                          signal: cancellation!.controller.signal,
+                          timeouts: crossSourceTimeouts,
+                          connectionName: plan.connectionName,
+                          otherConnectionProjects: projects.filter(
+                              (project) =>
+                                  project.connectionUuid !==
+                                  plan.warehouseConnectionUuid,
+                          ),
+                      }
+                    : undefined;
+            const originalSources =
+                await MultiConnectionCompiler.fetchSourceManifests(
+                    originalPlan.sources,
+                    primary.warehouseCredentials,
+                    primary.connection,
+                    fetchSourceManifest,
+                    crossSourceRefsEnabled,
+                    concurrency,
+                    projectUuid,
+                    {
+                        prepare: preparedPrimary.prepare,
+                        key: identity.dbtSourceName,
+                        context: {
+                            name: identity.dbtSourceName,
+                            precedence: 0,
+                            dbtSourceUuid: identity.dbtSourceUuid,
+                        },
+                        fetch: async (options) => {
+                            try {
+                                return await primary.fetchManifest(options);
+                            } catch (error) {
+                                throw withCrossSourceRefsHint(
+                                    error,
+                                    crossSourceRefsEnabled,
+                                );
+                            }
+                        },
+                    },
+                    preparedSourceManifest,
+                    warnings,
+                    resolutionOptions(originalPlan),
+                );
+            const originalMerged = mergeCompileGroupManifests(originalSources);
+            const originalAdapter = new DbtManifestProjectAdapter({
+                parsedManifest: originalMerged.manifest,
+                warehouseClient: primary.connection.deriveClient(
+                    primary.warehouseCredentials,
+                    {
+                        compileGroup: {
+                            listedDatabases: originalPlan.listedDatabases,
+                            onSkippedDatabase: (database) => {
+                                warnings.push(
+                                    `Connection "${originalPlan.connectionName}" skipped listed database "${database}": it does not exist.`,
+                                );
+                            },
+                        },
+                    },
+                ),
+                cachedWarehouse: primary.cachedWarehouse,
+                dbtVersion,
+                analytics,
+                dbtProjectDir: primary.dbtProjectDir,
+                selectedModelIds: originalMerged.selectedModelIds,
+            });
+            const originalStream = await originalAdapter.prepareExploreStream(
+                trackingParams,
+                false,
+                true,
+            );
+
+            const compiledExtraGroups: CompiledExtraGroup[] = [];
+            const failedConnectionUuids: string[] = [];
+            await extraPlans.reduce(async (previous, plan) => {
+                await previous;
+                const extraPlan = plan as CompileGroupPlan & {
+                    warehouseConnectionUuid: string;
+                };
+                if (beforeLoadExtraCredentials)
+                    await beforeLoadExtraCredentials();
+                let extraWarehouseType:
+                    | CreateWarehouseCredentials['type']
+                    | null = null;
+                const sourceErrors = new Map<string | null, unknown>();
+                try {
+                    compiledExtraGroups.push(
+                        await this.compileExtraGroup({
+                            projectUuid,
+                            context,
+                            plan: extraPlan,
+                            dbtVersion,
+                            fetchSourceManifest:
+                                mixedWarehouseConnectionsEnabled &&
+                                crossSourceRefsEnabled
+                                    ? async (...args) => {
+                                          try {
+                                              const result =
+                                                  await fetchSourceManifest(
+                                                      ...args,
+                                                  );
+                                              sourceErrors.delete(args[0].name);
+                                              return result;
+                                          } catch (error) {
+                                              sourceErrors.set(
+                                                  args[0].name,
+                                                  error,
+                                              );
+                                              throw error;
+                                          }
+                                      }
+                                    : fetchSourceManifest,
+                            prepareSourceManifest: preparedSourceManifest,
+                            crossSourceRefsEnabled,
+                            concurrency,
+                            loadExtraCredentials: async (uuid) => {
+                                const credentials =
+                                    await loadExtraCredentials(uuid);
+                                extraWarehouseType = credentials.type;
+                                return credentials;
+                            },
+                            beforeAcquireClient: beforeLoadExtraCredentials,
+                            trackingParams,
+                            warnings,
+                            resolutionOptions: resolutionOptions(extraPlan),
+                        }),
+                    );
+                } catch (error) {
+                    cancellation?.controller.signal.throwIfAborted();
+                    if (error instanceof ExtraConnectionCheckError)
+                        throw error.refusal;
+                    if (error instanceof ManifestCollisionError) throw error;
+                    failedConnectionUuids.push(
+                        extraPlan.warehouseConnectionUuid,
+                    );
+                    if (analytics) {
+                        if (extraWarehouseType === null) {
+                            try {
+                                extraWarehouseType =
+                                    (
+                                        await this.projectModel.getWarehouseConnectionsMetadata(
+                                            projectUuid,
+                                        )
+                                    ).find(
+                                        (connection) =>
+                                            connection.warehouseConnectionUuid ===
+                                            extraPlan.warehouseConnectionUuid,
+                                    )?.warehouseType ?? null;
+                            } catch (metadataError) {
+                                Logger.warn(
+                                    'Failed to resolve the extra connection warehouse type',
+                                    metadataError,
+                                );
+                            }
+                        }
                         try {
-                            extraWarehouseType =
+                            const organizationId =
+                                trackingParams?.organizationUuid ??
                                 (
-                                    await this.projectModel.getWarehouseConnectionsMetadata(
+                                    await this.projectModel.getSummary(
                                         projectUuid,
                                     )
-                                ).find(
-                                    (connection) =>
-                                        connection.warehouseConnectionUuid ===
+                                ).organizationUuid;
+                            analytics.track({
+                                event: 'warehouse_connection.compile_warning',
+                                ...(trackingParams?.userUuid
+                                    ? { userId: trackingParams.userUuid }
+                                    : {
+                                          anonymousId:
+                                              LightdashAnalytics.anonymousId,
+                                      }),
+                                properties: {
+                                    organizationId,
+                                    projectId: projectUuid,
+                                    warehouseConnectionId:
                                         extraPlan.warehouseConnectionUuid,
-                                )?.warehouseType ?? null;
-                        } catch (metadataError) {
+                                    connectionKind: 'extra',
+                                    warehouseType: extraWarehouseType,
+                                    connectionCount: 1 + extraPlans.length,
+                                    credentialSource: null,
+                                    reason: 'extra_connection_failed',
+                                    outcome: 'previous_explores_kept',
+                                },
+                            });
+                        } catch {
                             Logger.warn(
-                                'Failed to resolve the extra connection warehouse type',
-                                metadataError,
+                                'Failed to track extra connection compile warning',
                             );
                         }
                     }
-                    try {
-                        const organizationId =
-                            trackingParams?.organizationUuid ??
-                            (await this.projectModel.getSummary(projectUuid))
-                                .organizationUuid;
-                        analytics.track({
-                            event: 'warehouse_connection.compile_warning',
-                            ...(trackingParams?.userUuid
-                                ? { userId: trackingParams.userUuid }
-                                : {
-                                      anonymousId:
-                                          LightdashAnalytics.anonymousId,
-                                  }),
-                            properties: {
-                                organizationId,
-                                projectId: projectUuid,
-                                warehouseConnectionId:
-                                    extraPlan.warehouseConnectionUuid,
-                                connectionKind: 'extra',
-                                warehouseType: extraWarehouseType,
-                                connectionCount: 1 + extraPlans.length,
-                                credentialSource: null,
-                                reason: 'extra_connection_failed',
-                                outcome: 'previous_explores_kept',
-                            },
-                        });
-                    } catch {
-                        Logger.warn(
-                            'Failed to track extra connection compile warning',
-                        );
-                    }
-                }
-                const diagnostics: string[] = [];
-                if (
-                    mixedWarehouseConnectionsEnabled &&
-                    crossSourceRefsEnabled
-                ) {
-                    if (sourceErrors.size === 0) sourceErrors.set(null, error);
-                    const knownSources = [
-                        ...originalSources.map((source) => ({
-                            source,
-                            connectionName: originalPlan.connectionName,
-                        })),
-                        ...compiledExtraGroups.flatMap((group) =>
-                            group.sourceManifests.map((source) => ({
+                    const diagnostics: string[] = [];
+                    if (
+                        mixedWarehouseConnectionsEnabled &&
+                        crossSourceRefsEnabled
+                    ) {
+                        if (sourceErrors.size === 0)
+                            sourceErrors.set(null, error);
+                        const knownSources = [
+                            ...originalSources.map((source) => ({
                                 source,
-                                connectionName: group.plan.connectionName,
+                                connectionName: originalPlan.connectionName,
                             })),
-                        ),
-                    ];
-                    for (const [sourceName, sourceError] of sourceErrors) {
-                        for (const ref of getMissingDbtNodeReferences(
-                            sourceError,
-                        )) {
-                            const provider = knownSources.find(
-                                ({ source }) =>
-                                    source.manifest.metadata.project_name ===
-                                    ref.packageName,
-                            );
-                            if (provider) {
-                                const consumer =
-                                    sourceName === null
-                                        ? 'dbt'
-                                        : `dbt source "${sourceName}"`;
-                                const diagnostic = `${consumer} references project "${ref.packageName}", which belongs to dbt source "${provider.source.name}" on connection "${provider.connectionName}". Refs across connections are not supported; bind both sources to the same connection.`;
-                                if (!diagnostics.includes(diagnostic))
-                                    diagnostics.push(diagnostic);
+                            ...compiledExtraGroups.flatMap((group) =>
+                                group.sourceManifests.map((source) => ({
+                                    source,
+                                    connectionName: group.plan.connectionName,
+                                })),
+                            ),
+                        ];
+                        for (const [sourceName, sourceError] of sourceErrors) {
+                            for (const ref of getMissingDbtNodeReferences(
+                                sourceError,
+                            )) {
+                                const provider = knownSources.find(
+                                    ({ source }) =>
+                                        source.manifest.metadata
+                                            .project_name === ref.packageName,
+                                );
+                                if (
+                                    provider &&
+                                    !projects.some(
+                                        (project) =>
+                                            project.projectName ===
+                                            ref.packageName,
+                                    )
+                                ) {
+                                    const consumer =
+                                        sourceName === null
+                                            ? 'dbt'
+                                            : `dbt source "${sourceName}"`;
+                                    const diagnostic = `${consumer} references project "${ref.packageName}", which belongs to dbt source "${provider.source.name}" on connection "${provider.connectionName}". Refs across connections are not supported; bind both sources to the same connection.`;
+                                    if (!diagnostics.includes(diagnostic))
+                                        diagnostics.push(diagnostic);
+                                }
                             }
                         }
                     }
-                }
-                const warning = `Connection "${
-                    extraPlan.connectionName
-                }" failed to compile, so its previous explores are kept: ${getErrorMessage(
-                    error,
-                )}${diagnostics.length > 0 ? ` ${diagnostics.join(' ')}` : ''}`;
-                warnings.push(warning);
-                Logger.warn(
-                    `dbt.compile.connectionCarriedForward projectUuid=${projectUuid} warehouseConnectionUuid=${extraPlan.warehouseConnectionUuid}: ${warning}`,
-                );
-            }
-        }, Promise.resolve());
-
-        const extraBindings = new Map(
-            compiledExtraGroups.flatMap((group) =>
-                group.explores.map(
-                    (explore) =>
-                        [
-                            explore.name,
-                            group.plan.warehouseConnectionUuid,
-                        ] as const,
-                ),
-            ),
-        );
-        const originalManifest =
-            originalPlan.sources.length > 0
-                ? await gzipAsync(
-                      JSON.stringify(
-                          projectMergedManifest(originalMerged.manifest),
-                      ),
-                  )
-                : null;
-
-        return {
-            originalAdapter,
-            exploreStream: MultiConnectionCompiler.groupExplores(
-                originalStream,
-                modelSources(originalMerged.manifest),
-                originalPlan.connectionName,
-                compiledExtraGroups,
-                getModelsFromManifest(originalMerged.manifest).map(
-                    (model) => model.name,
-                ),
-                mixedWarehouseConnectionsEnabled,
-            ),
-            bindingOf: (exploreName) => extraBindings.get(exploreName) ?? null,
-            carry: {
-                kind: 'connections',
-                warehouseConnectionUuids: failedConnectionUuids,
-            },
-            warnings,
-            persistArtifacts: async () => {
-                if (originalManifest === null) {
-                    await this.projectModel.deleteMergedManifest(projectUuid);
-                } else {
-                    await this.projectModel.upsertMergedManifest(
-                        projectUuid,
-                        originalManifest,
+                    const warning = `Connection "${
+                        extraPlan.connectionName
+                    }" failed to compile, so its previous explores are kept: ${getErrorMessage(
+                        error,
+                    )}${diagnostics.length > 0 ? ` ${diagnostics.join(' ')}` : ''}`;
+                    warnings.push(warning);
+                    Logger.warn(
+                        `dbt.compile.connectionCarriedForward projectUuid=${projectUuid} warehouseConnectionUuid=${extraPlan.warehouseConnectionUuid}: ${warning}`,
                     );
                 }
-                await Promise.all(
-                    compiledExtraGroups.map((group) =>
-                        this.warehouseConnectionCompileModel.saveCompileArtifacts(
-                            projectUuid,
-                            group.plan.warehouseConnectionUuid,
-                            {
-                                manifest: group.manifest,
-                                catalog: group.catalog,
-                            },
-                        ),
+            }, Promise.resolve());
+
+            const extraBindings = new Map(
+                compiledExtraGroups.flatMap((group) =>
+                    group.explores.map(
+                        (explore) =>
+                            [
+                                explore.name,
+                                group.plan.warehouseConnectionUuid,
+                            ] as const,
                     ),
-                );
-            },
-        };
+                ),
+            );
+            const originalManifest =
+                originalPlan.sources.length > 0
+                    ? await gzipAsync(
+                          JSON.stringify(
+                              projectMergedManifest(originalMerged.manifest),
+                          ),
+                      )
+                    : null;
+
+            return {
+                originalAdapter,
+                exploreStream: MultiConnectionCompiler.groupExplores(
+                    originalStream,
+                    modelSources(originalMerged.manifest),
+                    originalPlan.connectionName,
+                    compiledExtraGroups,
+                    getModelsFromManifest(originalMerged.manifest).map(
+                        (model) => model.name,
+                    ),
+                    mixedWarehouseConnectionsEnabled,
+                ),
+                bindingOf: (exploreName) =>
+                    extraBindings.get(exploreName) ?? null,
+                carry: {
+                    kind: 'connections',
+                    warehouseConnectionUuids: failedConnectionUuids,
+                },
+                warnings,
+                persistArtifacts: async () => {
+                    if (originalManifest === null) {
+                        await this.projectModel.deleteMergedManifest(
+                            projectUuid,
+                        );
+                    } else {
+                        await this.projectModel.upsertMergedManifest(
+                            projectUuid,
+                            originalManifest,
+                        );
+                    }
+                    await Promise.all(
+                        compiledExtraGroups.map((group) =>
+                            this.warehouseConnectionCompileModel.saveCompileArtifacts(
+                                projectUuid,
+                                group.plan.warehouseConnectionUuid,
+                                {
+                                    manifest: group.manifest,
+                                    catalog: group.catalog,
+                                },
+                            ),
+                        ),
+                    );
+                },
+            };
+        } catch (error) {
+            if (cancellation) return await cancellation.fail(error);
+            throw error;
+        } finally {
+            cancellation?.dispose();
+        }
     }
 
     async save(

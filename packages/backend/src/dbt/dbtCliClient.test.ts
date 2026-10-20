@@ -52,6 +52,7 @@ Object.values(SupportedDbtVersions).map((dbtVersion) => {
             const dbtExec = client.getDbtExec();
 
             await expect(client.installDeps()).resolves.toEqual(undefined);
+            expect(execaMock.mock.calls[0][2]).not.toHaveProperty('detached');
             await expect(execaMock).toHaveBeenCalledTimes(1);
             await expect(execaMock).toHaveBeenCalledWith(
                 dbtExec,
@@ -428,6 +429,29 @@ describe.each(['local', 'git'] as const)('%s connection test', (source) => {
         expect(sequence.filter((step) => step === 'deps')).toHaveLength(1);
         expect(sequence.at(-1)).toBe('ls');
         expect(refresh).toHaveBeenCalledTimes(source === 'git' ? 1 : 0);
+    });
+
+    it('does not reuse an aborted preparation and rejects an already-aborted caller', async () => {
+        const controller = new AbortController();
+        const reason = new Error('leaf_a interrupted');
+        const install = vi
+            .spyOn(client, 'installDeps')
+            .mockImplementationOnce(async (signal) => {
+                controller.abort(reason);
+                throw signal!.reason;
+            })
+            .mockResolvedValue(undefined);
+        await expect(
+            adapter.prepareDbtSource({ signal: controller.signal }),
+        ).rejects.toBe(reason);
+        await expect(
+            adapter.prepareDbtSource({ signal: controller.signal }),
+        ).rejects.toBe(reason);
+        expect(install).toHaveBeenCalledTimes(1);
+        await adapter.prepareDbtSource({
+            signal: new AbortController().signal,
+        });
+        expect(install).toHaveBeenCalledTimes(2);
     });
 
     it('rejects a missing project subdirectory before installing dependencies', async () => {

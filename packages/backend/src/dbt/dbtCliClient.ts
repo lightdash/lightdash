@@ -24,6 +24,7 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient, DbtManifestFetchOptions } from '../types';
+import { DbtAbortError } from './DbtAbortError';
 import {
     dbtSupportsExternalNodes,
     writeDbtExternalNodesPlugin,
@@ -238,10 +239,12 @@ export class DbtCliClient implements DbtClient {
     private async _runDbtCommand(
         command: string[],
         pluginEnvironment: Record<string, string> = {},
+        signal?: AbortSignal,
     ): Promise<{
         logs: DbtLog[];
         stdout: string;
     }> {
+        if (signal?.aborted) throw new DbtAbortError(signal.reason);
         const dbtExec = this.getDbtExec();
         const targetPath = await this._getTargetDirectory();
         const dbtArgs = [
@@ -268,7 +271,11 @@ export class DbtCliClient implements DbtClient {
                     this.dbtVersion
                 }": ${dbtExec} ${dbtArgs.join(' ')}`,
             );
-            const dbtProcess = await execa(dbtExec, dbtArgs, {
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
+            const subprocess = execa(dbtExec, dbtArgs, {
+                ...(signal && process.platform === 'linux'
+                    ? { detached: true }
+                    : {}),
                 // dbt 1.5 creates dbt_packages relative to the cwd, not the project dir
                 cwd: this.dbtProjectDirectory,
                 all: true,
@@ -286,11 +293,64 @@ export class DbtCliClient implements DbtClient {
                     gitConfigGlobalPath: this.gitConfigGlobalPath,
                 }),
             });
+            let killTimer: NodeJS.Timeout | null = null;
+            const killGroup = (killSignal: NodeJS.Signals) => {
+                if (process.platform === 'linux' && subprocess.pid) {
+                    try {
+                        process.kill(-subprocess.pid, killSignal);
+                    } catch (error) {
+                        if ((error as NodeJS.ErrnoException).code !== 'ESRCH')
+                            throw error;
+                    }
+                } else subprocess.kill(killSignal);
+            };
+            const abort = () => {
+                killGroup('SIGTERM');
+                killTimer = setTimeout(() => killGroup('SIGKILL'), 5000);
+            };
+            signal?.addEventListener('abort', abort, { once: true });
+            if (signal?.aborted) abort();
+            let dbtProcess: ExecaReturnValue;
+            try {
+                dbtProcess = await subprocess;
+            } finally {
+                signal?.removeEventListener('abort', abort);
+                if (signal?.aborted && killTimer) {
+                    await new Promise<void>((resolve) => {
+                        const groupDeadline = Date.now() + 5000;
+                        const waitForGroup = () => {
+                            if (
+                                process.platform !== 'linux' ||
+                                !subprocess.pid
+                            ) {
+                                resolve();
+                                return;
+                            }
+                            try {
+                                process.kill(-subprocess.pid, 0);
+                            } catch {
+                                resolve();
+                                return;
+                            }
+                            if (Date.now() >= groupDeadline) {
+                                killGroup('SIGKILL');
+                                resolve();
+                                return;
+                            }
+                            setTimeout(waitForGroup, 25);
+                        };
+                        waitForGroup();
+                    });
+                }
+                if (killTimer) clearTimeout(killTimer);
+            }
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
                 stdout: dbtProcess.stdout,
             };
         } catch (e) {
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
             Logger.error(
                 `Error running dbt command with version ${
                     this.dbtVersion
@@ -319,7 +379,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async installDeps(): Promise<void> {
+    async installDeps(signal?: AbortSignal): Promise<void> {
         return traceSpan(
             {
                 op: 'dbt',
@@ -328,7 +388,7 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 const startTime = Date.now();
                 try {
-                    await this._runDbtCommand(['deps']);
+                    await this._runDbtCommand(['deps'], {}, signal);
                 } catch (error) {
                     if (error instanceof DbtError && this.dbtDepsErrorHint) {
                         throw new DbtError(
@@ -440,6 +500,7 @@ export class DbtCliClient implements DbtClient {
                 const { logs, stdout } = await this._runDbtCommand(
                     dbtCommand,
                     pluginEnvironment,
+                    options?.signal,
                 );
                 const elapsed = Date.now() - startTime;
                 const selectedModelIds =

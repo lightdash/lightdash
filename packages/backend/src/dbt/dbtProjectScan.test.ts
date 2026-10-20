@@ -35,6 +35,7 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: 'local',
             referencedProjects: ['upstream', 'other', 'comment_only'],
+            installedPackages: [],
             declaredUpstreams: [],
             referencesOwnProject: true,
         });
@@ -53,6 +54,7 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: null,
             referencedProjects: [],
+            installedPackages: [],
             declaredUpstreams: [],
         });
     });
@@ -76,7 +78,16 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: null,
             referencedProjects: [],
+            installedPackages: [],
             declaredUpstreams: [],
         });
     });
+});
+
+it('reads installed project names rather than package directory names', async () => {
+    await write('dbt_packages/leaf_a/dbt_project.yml', 'name: leaf_b');
+    await write('dbt_packages/leaf_c/dbt_project.yml', 'name: [');
+    expect((await scanDbtProject(directory)).installedPackages).toEqual([
+        'leaf_b',
+    ]);
 });

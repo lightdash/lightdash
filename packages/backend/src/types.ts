@@ -16,7 +16,10 @@ export type TrackingParams = {
     jobUuid?: string;
 };
 
-export type DbtManifestFetchOptions = { externalNodes: DbtExternalModelNode[] };
+export type DbtManifestFetchOptions = {
+    externalNodes: DbtExternalModelNode[];
+    signal?: AbortSignal;
+};
 
 export type DbtManifestFetchTimings = {
     gitRefreshMs: number | null;
@@ -34,7 +37,9 @@ export type DbtSourcePreparation = {
 };
 
 export interface ProjectAdapter {
-    prepareDbtSource(): Promise<DbtSourcePreparation>;
+    prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation>;
     /**
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
@@ -86,7 +91,7 @@ export interface ProjectAdapter {
 }
 
 export interface DbtClient {
-    installDeps?(): Promise<void>;
+    installDeps?(signal?: AbortSignal): Promise<void>;
 
     getDbtManifest(
         options?: DbtManifestFetchOptions,

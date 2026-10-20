@@ -77,17 +77,27 @@ export const writeDbtExternalNodesPlugin = async (
 
 export const parseMissingDbtNodeReferences = (
     output: string,
-): { model: string; packageName: string }[] =>
-    Array.from(
-        output.matchAll(
-            /depends on a node named '([^']+)'(?: with version '[^']*')? in package or project '([^']+)'(?: with version '[^']*')? which was not found/g,
-        ),
-        ([, model, packageName]) => ({ model, packageName }),
-    );
+): { model: string; packageName: string; version: string | null }[] => [
+    ...new Map(
+        Array.from(
+            output.matchAll(
+                /depends on a node named '([^']+)'(?: with version '([^']*)')? in package or project '([^']+)'(?: with version '([^']*)')? which was not found/g,
+            ),
+            ([, model, modelVersion, packageName, projectVersion]) => ({
+                model,
+                packageName,
+                version: modelVersion ?? projectVersion ?? null,
+            }),
+        ).map((ref) => [
+            `${ref.packageName}.${ref.model}.${ref.version ?? ''}`,
+            ref,
+        ]),
+    ).values(),
+];
 
 export const getMissingDbtNodeReferences = (
     error: unknown,
-): { model: string; packageName: string }[] => {
+): { model: string; packageName: string; version: string | null }[] => {
     const output = [
         error instanceof Error ? error.message : '',
         ...(error instanceof DbtError || error instanceof DbtSourceError
@@ -97,7 +107,7 @@ export const getMissingDbtNodeReferences = (
     return [
         ...new Map(
             parseMissingDbtNodeReferences(output).map((ref) => [
-                `${ref.packageName}.${ref.model}`,
+                `${ref.packageName}.${ref.model}.${ref.version ?? ''}`,
                 ref,
             ]),
         ).values(),

@@ -113,12 +113,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+    public async prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
+        options?.signal?.throwIfAborted();
         this.preparation ??= (async () => {
             let depsMs: number | null = null;
             if (this.dbtClient.installDeps !== undefined) {
                 const startedAt = Date.now();
-                await this.dbtClient.installDeps();
+                if (options?.signal)
+                    await this.dbtClient.installDeps(options.signal);
+                else await this.dbtClient.installDeps();
                 depsMs = Date.now() - startedAt;
             }
             return {
@@ -128,13 +133,20 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 timings: { gitRefreshMs: null, depsMs },
             };
         })();
-        return this.preparation;
+        try {
+            return await this.preparation;
+        } catch (error) {
+            if (options?.signal?.aborted) this.preparation = null;
+            throw error;
+        }
     }
 
     public async getDbtManifest(
         options?: DbtManifestFetchOptions,
     ): Promise<DbtManifestFetchResult> {
-        const preparation = await this.prepareDbtSource();
+        const preparation = await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
         const timings = this.preparationTimingsReported
             ? { gitRefreshMs: null, depsMs: null }
             : preparation.timings;

@@ -428,6 +428,7 @@ import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapt
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
+import { armCompileShutdown } from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import {
@@ -5739,7 +5740,8 @@ export class ProjectService
         }
     }
 
-    async _markJobAsFailed(jobUuid: string) {
+    async _markJobAsFailed(jobUuid: string, error?: string) {
+        if (error) await this.jobModel.failRunningSteps(jobUuid, error);
         await this.jobModel.setPendingJobsToSkipped(jobUuid);
         await this.jobModel.update(jobUuid, {
             jobStatus: JobStatusType.ERROR,
@@ -8195,8 +8197,11 @@ export class ProjectService
         );
     }
 
-    private static async scanAdapter(adapter: ProjectAdapter) {
-        const { projectDir } = await adapter.prepareDbtSource();
+    private static async scanAdapter(
+        adapter: ProjectAdapter,
+        options?: { signal?: AbortSignal },
+    ) {
+        const { projectDir } = await adapter.prepareDbtSource(options);
         return projectDir === null ? null : scanDbtProject(projectDir);
     }
 
@@ -8334,10 +8339,25 @@ export class ProjectService
         const sourceFetchStartedAt = Date.now();
         const resolution = await resolveCrossSourceManifests({
             enabled: crossSourceRefsEnabled,
+            ...(crossSourceRefsEnabled
+                ? {
+                      signal: armCompileShutdown(),
+                      timeouts: {
+                          prepareMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourcePrepareTimeoutMs,
+                          lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                          resolutionMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourceResolutionTimeoutMs,
+                      },
+                  }
+                : {}),
             concurrency: concurrencyDecision.chosen,
             tasks: [
                 {
-                    prepare: () => ProjectService.scanAdapter(primary.adapter),
+                    prepare: (options) =>
+                        ProjectService.scanAdapter(primary.adapter, options),
                     key: identity.dbtSourceName,
                     context: {
                         name: identity.dbtSourceName,
@@ -8397,11 +8417,12 @@ export class ProjectService
                         return adapter!;
                     };
                     return {
-                        prepare: async () => {
+                        prepare: async (options?: { signal?: AbortSignal }) => {
                             const sourceAdapter = await getAdapter();
                             try {
                                 return await ProjectService.scanAdapter(
                                     sourceAdapter,
+                                    options,
                                 );
                             } catch (error) {
                                 throw new DbtSourceError(
@@ -8450,6 +8471,15 @@ export class ProjectService
                 scannedEdges: resolution.scan.known,
                 firstAttemptInjected: resolution.firstAttemptInjected,
                 dbtLsRuns: resolution.attempts,
+                preflightWarnings: resolution.preflightWarnings,
+                signatureExhausted: resolution.signatureExhausted,
+                timeouts: {
+                    prepareMs:
+                        this.lightdashConfig.dbt.crossSourcePrepareTimeoutMs,
+                    lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                    resolutionMs:
+                        this.lightdashConfig.dbt.crossSourceResolutionTimeoutMs,
+                },
                 sources: resolution.results.map(({ task, injectedFrom }) => ({
                     name: task.key,
                     injectedFrom,
@@ -8729,7 +8759,8 @@ export class ProjectService
                 this.lightdashConfig.dbt.sourceFetchConcurrency,
             ).chosen,
             primary: {
-                prepare: () => ProjectService.scanAdapter(primary.adapter),
+                prepare: (options) =>
+                    ProjectService.scanAdapter(primary.adapter, options),
                 fetchManifest: async (options) =>
                     primaryManifest ?? primary.adapter.getDbtManifest(options),
                 connection: primary.connection,
@@ -8742,9 +8773,28 @@ export class ProjectService
             includeUnboundSources,
             crossSourceRefsEnabled,
             mixedWarehouseConnectionsEnabled,
-            prepareSourceManifest: async (source, credentials, connection) =>
+            ...(crossSourceRefsEnabled
+                ? {
+                      crossSourceTimeouts: {
+                          prepareMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourcePrepareTimeoutMs,
+                          lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                          resolutionMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourceResolutionTimeoutMs,
+                      },
+                  }
+                : {}),
+            prepareSourceManifest: async (
+                source,
+                credentials,
+                connection,
+                options,
+            ) =>
                 ProjectService.scanAdapter(
                     await getSourceAdapter(source, credentials, connection),
+                    options,
                 ),
             fetchSourceManifest: async (
                 source,
