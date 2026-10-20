@@ -18,10 +18,6 @@ vi.mock('../../api');
 vi.mock('../../features/queryRunner/executeQuery', () => ({
     pollForResults: vi.fn(),
 }));
-vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
-    default: (selector: (context: unknown) => unknown) =>
-        selector({ chartSort: {} }),
-}));
 vi.mock('./useDashboardFiltersForTile', () => ({ default: () => ({}) }));
 
 const hooks = {
@@ -56,6 +52,30 @@ describe.each(Object.entries(hooks))(
             vi.mocked(pollForResults).mockResolvedValue({
                 status: QueryHistoryStatus.READY,
             } as Awaited<ReturnType<typeof pollForResults>>);
+        });
+
+        it("sends only this tile's viewer sort", async () => {
+            const tileSorts = [{ fieldId: 'orders_status', descending: true }];
+            const store = createDashboardTestStore({
+                parameterValues: {},
+                chartSortsByTileUuid: {
+                    tile: tileSorts,
+                    other: [{ fieldId: 'orders_id', descending: false }],
+                },
+            });
+            const { result } = renderHook(useDownload, {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <DashboardStoreTestProvider store={store}>
+                        {children}
+                    </DashboardStoreTestProvider>
+                ),
+            });
+
+            await result.current.getDownloadQueryUuid(10, Limit.CUSTOM);
+            const body = JSON.parse(
+                vi.mocked(sharedLightdashApi).mock.lastCall?.[0].body as string,
+            );
+            expect(body.dashboardSorts).toEqual(tileSorts);
         });
 
         it('reuses the visible pivot query only for flat table rows', async () => {

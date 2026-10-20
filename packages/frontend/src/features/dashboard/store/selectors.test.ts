@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type DashboardStoreState } from '.';
+import { initialDashboardChartSortState } from './dashboardChartSortReducer';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
 import { initialDashboardFiltersState } from './dashboardFiltersReducer';
 import {
@@ -29,6 +30,7 @@ const stateWith = (
     parameters: { ...initialDashboardParametersState, ...parameters },
     dateZoom: initialDashboardDateZoomState,
     tileStatus: initialDashboardTileStatusState,
+    chartSort: initialDashboardChartSortState,
 });
 
 const rule = (

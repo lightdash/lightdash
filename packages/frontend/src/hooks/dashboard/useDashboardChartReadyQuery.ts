@@ -22,6 +22,7 @@ import {
     selectInvalidateCache,
     selectIsAutoRefresh,
     selectParameterValues,
+    selectTileChartSorts,
     selectTileParameterReferences,
     useDashboardSelector,
 } from '../../features/dashboard/store';
@@ -92,7 +93,6 @@ export const useDashboardChartReadyQuery = (
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardSelector(selectParameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
@@ -106,9 +106,8 @@ export const useDashboardChartReadyQuery = (
     const tileParameterReferences = useDashboardSelector(
         selectTileParameterReferences,
     );
-    const dashboardSorts = useMemo(
-        () => chartSort[tileUuid] || [],
-        [chartSort, tileUuid],
+    const dashboardSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
     );
     const granularity = useDashboardSelector(selectDateZoomGranularity);
     const autoRefresh = useDashboardSelector(selectIsAutoRefresh);

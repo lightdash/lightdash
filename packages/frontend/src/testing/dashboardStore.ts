@@ -5,6 +5,7 @@ import {
     type DashboardParameters,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SortField,
 } from '@lightdash/common';
 import {
     buildInitialDashboardState,
@@ -37,6 +38,7 @@ export type DashboardStoreTestValues = Partial<{
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
     invalidateCache: boolean;
     sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
+    chartSortsByTileUuid: Record<string, SortField[]>;
 }>;
 
 /** A real dashboard store seeded with the given state, for component tests */
@@ -116,5 +118,8 @@ export const createDashboardTestStore = (
                   sqlChartTilesMetadata: values.sqlChartTilesMetadata,
               }
             : state.tileStatus,
+        chartSort: values.chartSortsByTileUuid
+            ? { sortsByTileUuid: values.chartSortsByTileUuid }
+            : state.chartSort,
     });
 };
