@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
+    ChartType,
     DimensionType,
     FieldType,
     isAndFilterGroup,
@@ -2891,11 +2892,29 @@ describe('render_chart with a custom chart type', () => {
     });
 
     it('returns everything the chart app needs to host the chart type', async () => {
-        const { aiAgentToolsService, resolveCustomChartType } = setup();
+        const { aiAgentToolsService, resolveCustomChartType, shareService } =
+            setup();
 
         const result = await render(customChartConfig);
 
         expect(result.isError).toBeUndefined();
+        const exploreParams = new URLSearchParams(
+            shareService.createShareUrl.mock.calls[0][2],
+        );
+        expect(
+            JSON.parse(exploreParams.get('create_saved_chart_version') ?? ''),
+        ).toMatchObject({
+            tableName: 'orders',
+            chartConfig: {
+                type: ChartType.DATA_APP_VIZ,
+                config: {
+                    dataAppVizUuid,
+                    dataAppVizVersion: 3,
+                    fieldMapping: customChartConfig.fieldMapping,
+                    optionValues: { maxBars: 5 },
+                },
+            },
+        });
         expect(resolveCustomChartType).toHaveBeenCalledWith('sankey-flow');
         expect(
             aiAgentToolsService.getMcpCustomChartTypePreviewToken,
