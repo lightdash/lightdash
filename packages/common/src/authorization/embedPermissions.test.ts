@@ -354,6 +354,11 @@ describe.each([undefined, 'default', 'roles'] as const)(
                                 'external',
                                 builder,
                             );
+                            // Page PDF export is on unless disabled.
+                            const legacyGrant =
+                                flag === 'canExportPagePdf'
+                                    ? legacy !== false
+                                    : legacy === true;
                             expect(
                                 builder.build().can(
                                     action,
@@ -380,7 +385,7 @@ describe.each([undefined, 'default', 'roles'] as const)(
                             ).toBe(
                                 permissionsMode === 'roles'
                                     ? hasActor && granted
-                                    : legacy === true,
+                                    : legacyGrant,
                             );
                             expect(token).toEqual(original);
                         }

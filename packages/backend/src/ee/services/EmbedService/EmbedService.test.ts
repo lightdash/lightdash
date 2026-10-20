@@ -10,6 +10,7 @@ import {
     FilterOperator,
     ForbiddenError,
     QueryExecutionContext,
+    SchedulerFormat,
     type AnonymousAccount,
     type CreateEmbedJwt,
     type DashboardDAO,
@@ -697,6 +698,67 @@ describe('EmbedService', () => {
                     updateWithUndefinedAllowAllCharts,
                 );
             });
+        });
+    });
+
+    describe('getAccountForDashboardExport', () => {
+        const payload = {
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            resourceUuid: 'dashboard-uuid',
+        };
+        const mockTokenAbility = (
+            rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+        ) =>
+            vi.spyOn(service, 'getAccountFromJwt').mockResolvedValue({
+                ...mockAccountWithoutPermission,
+                user: {
+                    ...mockAccountWithoutPermission.user,
+                    ability: new Ability<PossibleAbilities>(rules),
+                },
+            } as unknown as AnonymousAccount);
+
+        test('checks the page PDF grant for PDF exports', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'Dashboard',
+                    action: 'export',
+                    conditions: {
+                        type: 'pdf',
+                        'metadata.dashboardUuid': 'dashboard-uuid',
+                    },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).resolves.toBeDefined();
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.CSV },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('rejects PDF exports for tokens with only the CSV grant', async () => {
+            mockTokenAbility([
+                {
+                    subject: 'ExportCsv',
+                    action: 'manage',
+                    conditions: { 'metadata.dashboardUuid': 'dashboard-uuid' },
+                },
+            ]);
+
+            await expect(
+                service.getAccountForDashboardExport(
+                    { ...payload, format: SchedulerFormat.PDF },
+                    'jwt',
+                ),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 

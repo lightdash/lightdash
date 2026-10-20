@@ -284,11 +284,29 @@ export class DashboardService
         }
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (
+        if (isJwtUser(account) && data.format === SchedulerFormat.PDF) {
+            // Embed PDFs render the embed page with the viewer's token.
+            if (
+                auditedAbility.cannot(
+                    'export',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        type: 'pdf',
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        } else if (
             data.format === SchedulerFormat.IMAGE ||
             data.format === SchedulerFormat.PDF
         ) {
-            // Image/PDF export renders the dashboard in a headless browser using a
+            // Image export renders the dashboard in a headless browser using a
             // real session, so it is not available to embed/JWT callers.
             assertRegisteredAccount(account);
             const { inheritsFromOrgOrProject, access } =

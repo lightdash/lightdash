@@ -1,21 +1,29 @@
 import {
     ChartType,
+    DASHBOARD_GRID_CLASS,
     DashboardTileTypes,
+    EMBED_MINIMAL_SEARCH_PARAM,
     QueryExecutionContext,
+    SessionStorageKeys,
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
+    isTileInEmbedExport,
+    type DashboardFilters,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
+    type ParametersValuesMap,
     type SavedChart,
 } from '@lightdash/common';
 import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
+import { useSessionStorage } from '@mantine/hooks';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import ScreenshotReadyIndicator from '../../../../../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
 import DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
@@ -359,6 +367,32 @@ const EmbedDashboard: FC<{
         writeActions,
     } = useEmbed();
     const { pathname, search } = useLocation();
+    // Server-side PDF export render: tiles only, seeded with the viewer's state.
+    const [isMinimal] = useState(
+        () =>
+            mode === 'direct' &&
+            new URLSearchParams(search).get(EMBED_MINIMAL_SEARCH_PARAM) ===
+                'true',
+    );
+    const [exportSelectedTabs] = useState<string[] | null>(() => {
+        const param = new URLSearchParams(search).get('selectedTabs');
+        if (!param) return null;
+        try {
+            return JSON.parse(param) as string[];
+        } catch {
+            return null;
+        }
+    });
+    const [exportFilters] = useSessionStorage<DashboardFilters | undefined>({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_DASHBOARD_FILTERS,
+        getInitialValueInEffect: false,
+    });
+    const [exportParameters] = useSessionStorage<
+        ParametersValuesMap | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS,
+        getInitialValueInEffect: false,
+    });
     const [localDashboard, setLocalDashboard] = useState<
         EmbedDashboardType | undefined
     >(initialDashboard);
@@ -398,10 +432,24 @@ const EmbedDashboard: FC<{
     }, [initialDashboard]);
 
     useEffect(() => {
-        if (fetchedDashboard) {
+        if (!fetchedDashboard) return;
+        if (!isMinimal) {
             setLocalDashboard(fetchedDashboard);
+            return;
         }
-    }, [fetchedDashboard]);
+        setLocalDashboard({
+            ...fetchedDashboard,
+            filters: exportFilters ?? fetchedDashboard.filters,
+            parameters: exportParameters
+                ? Object.fromEntries(
+                      Object.entries(exportParameters).map(([key, value]) => [
+                          key,
+                          { parameterName: key, value },
+                      ]),
+                  )
+                : fetchedDashboard.parameters,
+        });
+    }, [exportFilters, exportParameters, fetchedDashboard, isMinimal]);
 
     const dashboard = localDashboard;
 
@@ -819,6 +867,87 @@ const EmbedDashboard: FC<{
         updateDashboard,
     ]);
 
+    const screenshotReadyTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotReadyTileUuids,
+    );
+    const screenshotErroredTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotErroredTileUuids,
+    );
+    // Readiness resets when tiles or the active tab change, so render after both settle.
+    const isMinimalLayoutSettled =
+        !!dashboardTiles &&
+        (dashboardTabs.length > 0
+            ? !!activeTab || visibleTabs.length === 0
+            : !dashboard?.tabs.length);
+    // Like scheduled deliveries: every exported tab stacked, one grid per tab
+    // so tiles from different tabs never compact into each other.
+    const exportTabGroups = useMemo(() => {
+        if (!isMinimal) return [];
+        const exportTabs = exportSelectedTabs
+            ? visibleTabs.filter((tab) => exportSelectedTabs.includes(tab.uuid))
+            : visibleTabs;
+        const exportTiles = currentDashboardTiles.filter((tile) =>
+            isTileInEmbedExport(
+                tile,
+                exportTabs.map((tab) => tab.uuid),
+            ),
+        );
+        const orphanTiles = exportTiles.filter((tile) => !tile.tabUuid);
+        const groups =
+            exportTabs.length === 0
+                ? [{ key: 'untabbed', tiles: orphanTiles }]
+                : exportTabs.map((tab, index) => ({
+                      key: tab.uuid,
+                      tiles: [
+                          ...(index === 0 ? orphanTiles : []),
+                          ...exportTiles.filter(
+                              (tile) => tile.tabUuid === tab.uuid,
+                          ),
+                      ],
+                  }));
+        return groups
+            .filter((group) => group.tiles.length > 0)
+            .map((group) => ({
+                ...group,
+                layouts: getDashboardLayouts(
+                    group.tiles,
+                    false,
+                    gridProps.cols,
+                ),
+            }));
+    }, [
+        currentDashboardTiles,
+        exportSelectedTabs,
+        gridProps.cols,
+        isMinimal,
+        visibleTabs,
+    ]);
+    // Locked chart tiles render a placeholder and never report readiness.
+    const isReadyForExport = useMemo(() => {
+        if (!isMinimal || !isMinimalLayoutSettled) return false;
+        const settledTileUuids = new Set([
+            ...screenshotReadyTileUuids,
+            ...screenshotErroredTileUuids,
+        ]);
+        return exportTabGroups
+            .flatMap((group) => group.tiles)
+            .filter(
+                (tile) =>
+                    tile.type === DashboardTileTypes.DATA_APP ||
+                    (!hasUnmetFilterRequirements &&
+                        (tile.type === DashboardTileTypes.SAVED_CHART ||
+                            tile.type === DashboardTileTypes.SQL_CHART)),
+            )
+            .every((tile) => settledTileUuids.has(tile.uuid));
+    }, [
+        exportTabGroups,
+        hasUnmetFilterRequirements,
+        isMinimal,
+        isMinimalLayoutSettled,
+        screenshotErroredTileUuids,
+        screenshotReadyTileUuids,
+    ]);
+
     if (!projectUuid) {
         return (
             <div style={{ marginTop: '20px' }}>
@@ -970,6 +1099,55 @@ const EmbedDashboard: FC<{
             />
         </>
     );
+
+    if (isMinimal) {
+        if (!isMinimalLayoutSettled) return null;
+        return (
+            <Box className={DASHBOARD_GRID_CLASS}>
+                {exportTabGroups.length === 0 ? (
+                    <SuboptimalState
+                        title="Empty dashboard"
+                        description="This dashboard has no tiles"
+                        mt="lg"
+                    />
+                ) : (
+                    exportTabGroups.map((group) => (
+                        <EmbedDashboardGrid
+                            key={group.key}
+                            filteredTiles={group.tiles}
+                            layouts={group.layouts}
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                            paletteColors={dashboard.selectedPalette?.colors}
+                            paletteDarkColors={
+                                dashboard.selectedPalette?.darkColors
+                            }
+                            hasUnmetFilterRequirements={
+                                hasUnmetFilterRequirements
+                            }
+                            gridProps={gridProps}
+                            isEditMode={false}
+                            onLayoutChange={handleLayoutChange}
+                            onBreakpointChange={setCurrentCols}
+                            onDeleteTile={handleDeleteTile}
+                            onEditTile={handleEditTile}
+                            useDashboardEditorTileQueries={false}
+                        />
+                    ))
+                )}
+                {isReadyForExport && (
+                    <ScreenshotReadyIndicator
+                        tilesTotal={exportTabGroups.reduce(
+                            (total, group) => total + group.tiles.length,
+                            0,
+                        )}
+                        tilesReady={screenshotReadyTileUuids.length}
+                        tilesErrored={screenshotErroredTileUuids.length}
+                    />
+                )}
+            </Box>
+        );
+    }
 
     return (
         <div

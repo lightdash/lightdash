@@ -61,3 +61,14 @@ export const isTileInPagedExport = (
     tile.tabUuid
         ? resolvedTabUuids.includes(tile.tabUuid)
         : getPagedExportOrphanHomeTabUuid(resolvedTabUuids) !== null;
+
+/**
+ * Whether a tile is rendered by an embedded dashboard PDF export. Tabbed tiles
+ * render iff their tab is exported; orphan (no-tab) tiles always render.
+ * Shared by backend and frontend so screenshot readiness never waits on a tile
+ * the page doesn't render.
+ */
+export const isTileInEmbedExport = (
+    tile: { tabUuid?: string | null },
+    exportTabUuids: string[],
+): boolean => (tile.tabUuid ? exportTabUuids.includes(tile.tabUuid) : true);
