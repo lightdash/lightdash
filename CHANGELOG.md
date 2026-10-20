@@ -1,3 +1,17 @@
+## [2.629.1](https://github.com/lightdash/lightdash/compare/2.629.0...2.629.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **dashboard:** count tiles without a tab only on the first tab ([#31229](https://github.com/lightdash/lightdash/issues/31229)) ([fff81fb](https://github.com/lightdash/lightdash/commit/fff81fb72581df194ddecee7fb8bcda56c3ff4bf))
+* **dashboard:** keep allowed sub-day date zoom from deep links ([#31231](https://github.com/lightdash/lightdash/issues/31231)) ([95942d5](https://github.com/lightdash/lightdash/commit/95942d57f6db74677f3495889fcc4a7ce2669b55))
+* **dashboard:** skip the results cache for SQL chart tiles on refresh ([#31230](https://github.com/lightdash/lightdash/issues/31230)) ([6380b3d](https://github.com/lightdash/lightdash/commit/6380b3de1c0811c8aecaebcb6ffc419ea962078d))
+
+
+### Performance Improvements
+
+* **dashboard:** move tile status into the dashboard store ([#31227](https://github.com/lightdash/lightdash/issues/31227)) ([475c36b](https://github.com/lightdash/lightdash/commit/475c36b92be444004d3325185dbc86f977ae2247))
+
 # [2.629.0](https://github.com/lightdash/lightdash/compare/2.628.0...2.629.0) (2026-10-20)
 
 
