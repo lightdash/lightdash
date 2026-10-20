@@ -9,6 +9,7 @@ import { ActionIcon, Button, Group, Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import {
     IconCircleCheck,
+    IconCircleDashed,
     IconGripVertical,
     IconLock,
     IconLockOpen,
@@ -24,7 +25,6 @@ import { getFieldColor } from '../../../utils/fieldColors';
 import FilterConfiguration from '../FilterConfiguration';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
-import IconCircleDashedCheck from '../IconCircleDashedCheck';
 import classes from './Filter.module.css';
 import { showsComposedFilterValue } from './filterLabels';
 import { getFilterLockLabel, getFilterLockToggle } from './filterLock';
@@ -258,7 +258,7 @@ const Filter: FC<Props> = ({
                                                 <MantineIcon
                                                     icon={
                                                         isRequirementUnmet
-                                                            ? IconCircleDashedCheck
+                                                            ? IconCircleDashed
                                                             : IconCircleCheck
                                                     }
                                                     size="sm"

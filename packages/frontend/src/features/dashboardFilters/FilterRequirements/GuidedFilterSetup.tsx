@@ -17,7 +17,7 @@ import {
     Stack,
     Text,
 } from '@mantine/core';
-import { IconCircleCheck } from '@tabler/icons-react';
+import { IconCircleCheck, IconCircleDashed } from '@tabler/icons-react';
 import {
     Fragment,
     useCallback,
@@ -36,7 +36,6 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import { LD_FIELD_COLORS } from '../../../theme';
 import { useDashboardAllFilters } from '../../dashboard/store';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
-import IconCircleDashedCheck from '../IconCircleDashedCheck';
 import LockedFilter from '../LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import classes from './GuidedFilterSetup.module.css';
@@ -71,7 +70,7 @@ const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
             color={LD_FIELD_COLORS.dimension.color}
         />
     ) : (
-        <MantineIcon icon={IconCircleDashedCheck} size={16} color="yellow.7" />
+        <MantineIcon icon={IconCircleDashed} size={16} color="yellow.7" />
     );
 
 type MemberInputProps = {
