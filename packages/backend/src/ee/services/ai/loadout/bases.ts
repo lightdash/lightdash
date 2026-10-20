@@ -29,9 +29,6 @@ const onlyIf = (
     tools: readonly AgentToolName[],
 ): readonly AgentToolName[] => (condition ? tools : []);
 
-const canRunRawSql = (input: LoadoutInput): boolean =>
-    input.canRunSql && !input.enableComposerQueries;
-
 // Deep research narrows tools only; its prompt still renders every applicable add-on section.
 const applicableAddOnSections = (
     input: LoadoutInput,
@@ -55,7 +52,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
-    // runComposerQueries is the only query path; exportChartAsCode only exports semantic and merge charts.
+    // exportChartAsCode cannot export composer artifacts.
     composer: (input) => ({
         tools: [
             ...CORE_TOOLS,
@@ -83,7 +80,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'grepFields',
             'searchSemanticLayer',
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(canRunRawSql(input), ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql']),
             'submitWorkerFindings',
         ],
         sections: applicableAddOnSections(input),
@@ -96,7 +93,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ),
             'generateVisualization',
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(canRunRawSql(input), ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql']),
             'delegateResearchTask',
         ],
         sections: applicableAddOnSections(input),
