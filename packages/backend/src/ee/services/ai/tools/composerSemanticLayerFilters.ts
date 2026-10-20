@@ -16,12 +16,8 @@ type ResolveOptions = {
     getExplore: (exploreName: string) => Explore;
 };
 
-/**
- * Resolves a semanticLayer node's filter expressions against its explore into
- * domain Filters, with runQuery's resolver (field recovery included). Throws
- * a model-actionable error naming the node.
- */
-export const resolveComposerSemanticLayerFilters = (
+// runQuery's resolver, so unknown fields come back with suggestions.
+const resolveComposerSemanticLayerFilters = (
     node: ToolComposerSemanticLayerNode,
     { getExplore }: ResolveOptions,
 ): Filters | null => {

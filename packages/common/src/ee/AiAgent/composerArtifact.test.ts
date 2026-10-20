@@ -1,3 +1,4 @@
+import { FilterOperator } from '../../types/filter';
 import { QuerySourceType, type SourceQuery } from '../../types/querySources';
 import {
     buildComposerArtifactPipeline,
@@ -92,6 +93,56 @@ describe('buildComposerArtifactPipeline', () => {
             resubmitted,
             summary(['enriched']),
         ]);
+    });
+
+    it('treats a filtered node resubmitted with fresh filter ids as the same node', () => {
+        const filtered = (
+            groupId: string,
+            ruleId: string,
+        ): Extract<
+            ThreadComposerQueryNode,
+            { sourceType: QuerySourceType.SEMANTIC_LAYER }
+        > => ({
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'orders',
+            title: 'Orders',
+            exploreName: 'orders',
+            dimensions: ['orders_customer_id'],
+            metrics: ['orders_total_order_amount'],
+            limit: 500,
+            filters: {
+                dimensions: {
+                    id: groupId,
+                    and: [
+                        {
+                            id: ruleId,
+                            target: { fieldId: 'orders_status' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed'],
+                        },
+                    ],
+                },
+                metrics: { id: `${groupId}-m`, and: [] },
+            },
+        });
+
+        expect(
+            buildComposerArtifactPipeline({
+                queries: [filtered('g2', 'r2')],
+                threadNodes: [filtered('g1', 'r1')],
+            }),
+        ).toEqual([filtered('g2', 'r2')]);
+        expect(() =>
+            buildComposerArtifactPipeline({
+                queries: [
+                    {
+                        ...filtered('g2', 'r2'),
+                        dimensions: ['orders_status'],
+                    },
+                ],
+                threadNodes: [filtered('g1', 'r1')],
+            }),
+        ).toThrow('already names a different node');
     });
 
     it('orders a copied node after a submitted node it reads', () => {

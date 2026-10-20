@@ -10,6 +10,7 @@ import {
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type PythonSourceQuery,
+    type QueryNodeId,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
@@ -147,13 +148,13 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 "Metric field ids to compute, from the explore's schema.",
             ),
+        filters: composerSemanticLayerFiltersSchema,
         sorts: z
             .array(sortFieldSchema)
             .nullable()
             .describe(
                 'Sorts to apply, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
-        filters: composerSemanticLayerFiltersSchema,
         limit: limitSchema,
     });
 
@@ -273,11 +274,8 @@ export type ToolComposerSemanticLayerNode = Extract<
     { sourceType: QuerySourceType.SEMANTIC_LAYER }
 >;
 
-/**
- * A submitted node whose semanticLayer filters have been validated against
- * the explore and resolved to domain Filters. Only this shape converts to a
- * SourceQuery: the model-facing filter contracts never reach the runtime.
- */
+// A submitted node with semanticLayer filters already resolved to domain
+// Filters; only this shape converts to a SourceQuery.
 export type ResolvedToolComposerQueryNode =
     | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
     | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
@@ -296,14 +294,18 @@ const toSourceQueryNodeMeta = (
  * query source service takes. The explicit return types pin drift at compile
  * time: if types/querySources.ts changes incompatibly, this stops compiling.
  */
-export const toolComposerQueryNodeToSourceQuery = (
-    node: ResolvedToolComposerQueryNode,
-):
+/** A SourceQuery built from a tool node, so its node id is always set. */
+export type SubmittedSourceQuery = (
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
     | ExternalSourceQuery
-    | PythonSourceQuery => {
+    | PythonSourceQuery
+) & { nodeId: QueryNodeId };
+
+export const toolComposerQueryNodeToSourceQuery = (
+    node: ResolvedToolComposerQueryNode,
+): SubmittedSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =

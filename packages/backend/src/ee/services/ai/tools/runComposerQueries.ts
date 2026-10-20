@@ -10,6 +10,7 @@ import {
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type SourceQuery,
+    type SubmittedSourceQuery,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
@@ -110,7 +111,7 @@ const failure = (
  * references in-submission). Throws a model-actionable error otherwise.
  */
 export const resolveTerminalNodeId = (
-    submitted: SourceQuery[],
+    submitted: SubmittedSourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
 ): string => {
@@ -132,7 +133,7 @@ export const resolveTerminalNodeId = (
     });
 
     const sinks = submitted
-        .map((query) => query.nodeId ?? '')
+        .map((query) => query.nodeId)
         .filter((nodeId) => !referenced.has(nodeId));
     if (sinks.length !== 1) {
         throw new Error(
@@ -239,8 +240,7 @@ export const getRunComposerQueries = ({
                 }
 
                 const prompt = await getPrompt();
-                // Filters are validated against the explore here, before
-                // anything runs, so a bad rule fails the whole submission.
+                // Filters resolve against the explore before anything runs.
                 const submitted = queryNodes.map((node) =>
                     toolComposerQueryNodeToSourceQuery(
                         resolveComposerQueryNode(node, {

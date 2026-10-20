@@ -1,10 +1,17 @@
 import { ParameterError } from '../../types/errors';
 import {
+    isAndFilterGroup,
+    isOrFilterGroup,
+    type FilterGroupItem,
+    type Filters,
+} from '../../types/filter';
+import {
     getSourceQueryResultReferences,
     QuerySourceType,
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
 
@@ -69,13 +76,51 @@ export const isAiComposerChartArtifactConfig = (
     typeof config.terminalNodeId === 'string';
 
 // The full definition, with array references written in map form.
-const nodeDefinition = (node: SourceQuery): string =>
-    stableJson(
-        node.sourceType === QuerySourceType.DUCKDB ||
-            node.sourceType === QuerySourceType.PYTHON
-            ? { ...node, references: getSourceQueryResultReferences(node) }
-            : node,
-    );
+// Filter group and rule ids are generated per submission, so two identical
+// filters differ only by id; compare them without.
+const filterItemDefinition = (item: FilterGroupItem): unknown => {
+    if (isAndFilterGroup(item)) {
+        return { and: item.and.map(filterItemDefinition) };
+    }
+    if (isOrFilterGroup(item)) {
+        return { or: item.or.map(filterItemDefinition) };
+    }
+    const { id, ...rule } = item;
+    return rule;
+};
+const filtersDefinition = (filters: Filters | undefined) =>
+    filters === undefined
+        ? undefined
+        : {
+              dimensions:
+                  filters.dimensions &&
+                  filterItemDefinition(filters.dimensions),
+              metrics: filters.metrics && filterItemDefinition(filters.metrics),
+              tableCalculations:
+                  filters.tableCalculations &&
+                  filterItemDefinition(filters.tableCalculations),
+          };
+
+const nodeDefinition = (node: SourceQuery): string => {
+    switch (node.sourceType) {
+        case QuerySourceType.DUCKDB:
+        case QuerySourceType.PYTHON:
+            return stableJson({
+                ...node,
+                references: getSourceQueryResultReferences(node),
+            });
+        case QuerySourceType.SEMANTIC_LAYER:
+            return stableJson({
+                ...node,
+                filters: filtersDefinition(node.filters),
+            });
+        case QuerySourceType.SQL:
+        case QuerySourceType.EXTERNAL:
+            return stableJson(node);
+        default:
+            return assertUnreachable(node, 'Unknown composer node');
+    }
+};
 
 export const isSameComposerNodeDefinition = (
     a: SourceQuery,

@@ -122,6 +122,47 @@ describe('runComposerQueries with python nodes', () => {
         });
     });
 
+    it('keeps a call whose semanticLayer node carries legacy free-form filters', () => {
+        const legacyNode = {
+            sourceType: 'semanticLayer',
+            nodeId: 'orders',
+            title: 'Orders',
+            description: null,
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_count'],
+            filters: {
+                dimensions: {
+                    id: 'g1',
+                    and: [
+                        {
+                            id: 'r1',
+                            target: { fieldId: 'orders_status' },
+                            operator: 'equals',
+                            values: ['completed'],
+                        },
+                    ],
+                },
+            },
+            sorts: null,
+            limit: 500,
+        };
+        expect(
+            parseStreamRawToolCall({
+                toolName: 'runComposerQueries',
+                toolArgs: {
+                    title: null,
+                    description: null,
+                    terminalNodeId: null,
+                    queries: [legacyNode],
+                },
+            }),
+        ).toMatchObject({
+            toolName: 'runComposerQueries',
+            toolArgs: { queries: [{ nodeId: 'orders', filters: null }] },
+        });
+    });
+
     it('keeps the failed result of a python pipeline', () => {
         const error = 'Composer query failed on node(s): "sim"';
         expect(

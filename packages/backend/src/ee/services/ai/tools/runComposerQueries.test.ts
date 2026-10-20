@@ -8,6 +8,7 @@ import {
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
+    type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
@@ -98,7 +99,7 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
 
 // Test nodes carry no filters, so no explore is needed to resolve them.
-const asSubmitted = (nodes: ComposerNode[]): SourceQuery[] =>
+const asSubmitted = (nodes: ComposerNode[]): SubmittedSourceQuery[] =>
     nodes.map((node) =>
         toolComposerQueryNodeToSourceQuery(
             resolveComposerQueryNode(node, {
@@ -1347,6 +1348,30 @@ describe('semanticLayer node filters', () => {
         expect(output.result).toContain('orders_customer_name');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
         expect(registry.nodes('thread-uuid')).toEqual([]);
+    });
+
+    it('accepts an unchanged filtered node resubmitted in a later call', async () => {
+        const expression = {
+            dimensions: 'orders_customer_name equals=Alice',
+            metrics: null,
+        };
+        const registry = makeNodeRegistry();
+        const first = makeTool({ registry });
+        const firstOutput = await executeTool(
+            first.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+        );
+        expect(firstOutput.metadata.status).toBe('success');
+
+        const second = makeTool({ registry });
+        const secondOutput = await executeTool(
+            second.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+            'tool-call-2',
+        );
+
+        expect(secondOutput.metadata.status).toBe('success');
+        expect(registry.nodes('thread-uuid')).toHaveLength(1);
     });
 
     it('rejects a metric placed in the dimension expression', async () => {

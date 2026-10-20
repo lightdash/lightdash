@@ -2117,11 +2117,7 @@ const resolveQueryFilters = ({
     });
 };
 
-/**
- * Resolves the flat filter expressions of a query that has no custom metrics
- * or table calculations (a composer semanticLayer node) against the explore's
- * fields, into domain Filters.
- */
+// For queries with explore fields only (a composer semanticLayer node).
 export const resolveExploreFilterExpressions = ({
     filters,
     explore,
