@@ -220,6 +220,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
+            enableFilterExpressions,
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,
@@ -343,6 +344,14 @@ describe('AI agent tool contracts', () => {
 
         expect(
             agentToolSnapshot('generateVisualization', generateVisualization),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the filter-expression composer contract snapshot', () => {
+        const { runComposerQueries } = makeAgentTools(true);
+
+        expect(
+            agentToolSnapshot('runComposerQueries', runComposerQueries),
         ).toMatchSnapshot();
     });
 

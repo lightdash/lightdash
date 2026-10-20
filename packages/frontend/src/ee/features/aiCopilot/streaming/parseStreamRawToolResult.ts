@@ -31,11 +31,18 @@ const wideInputSchemaOverrides = {
     // content tools, whose args also accept type "document".
     createContent: mcpCreateContentArgsSchema,
     editContent: mcpEditContentArgsSchema,
-    // Python nodes and the runtime row limit are runtime-selected, so parse the widest pipeline.
+    // Python nodes, the filter contract and the row limit are
+    // runtime-selected, so parse the widest pipeline in either filter shape.
     runComposerQueries: createToolComposerQueriesArgsSchema({
         enablePythonNodes: true,
         maxLimit: Number.MAX_SAFE_INTEGER,
-    }),
+    }).or(
+        createToolComposerQueriesArgsSchema({
+            enablePythonNodes: true,
+            maxLimit: Number.MAX_SAFE_INTEGER,
+            enableFilterExpressions: true,
+        }),
+    ),
 } as const;
 
 type ToolArgs<TName extends ToolName> =

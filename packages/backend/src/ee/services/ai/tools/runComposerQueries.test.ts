@@ -1,8 +1,14 @@
 import {
+    composerSemanticLayerExpressionFiltersSchema,
+    composerSemanticLayerStructuredFiltersSchema,
+    DimensionType,
+    FilterOperator,
+    FilterType,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
     QuerySourceType,
+    toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
@@ -10,11 +16,13 @@ import {
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
 } from '@lightdash/common';
-import type { ZodType } from 'zod';
+import type { z, ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
+import { mockOrdersExplore } from '../utils/validationExplore.mock';
+import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
@@ -91,6 +99,19 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
 };
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
+
+// Test nodes carry no filters, so no explore is needed to resolve them.
+const asSubmitted = (nodes: ComposerNode[]): SourceQuery[] =>
+    nodes.map((node) =>
+        toolComposerQueryNodeToSourceQuery(
+            resolveComposerQueryNode(node, {
+                enableFilterExpressions: false,
+                getExplore: () => {
+                    throw new Error('unexpected explore lookup');
+                },
+            }),
+        ),
+    );
 
 const semanticNode: ComposerNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -180,10 +201,11 @@ const makeTool = ({
     autoApproveSqlUserUuid = null,
     canRunSql = true,
     enablePythonNodes = false,
+    enableFilterExpressions = false,
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
-    agentContext = new AgentContext([]),
+    agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
 }: {
@@ -192,6 +214,7 @@ const makeTool = ({
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
     enablePythonNodes?: boolean;
+    enableFilterExpressions?: boolean;
     enableDataAccess?: boolean;
     waitForSqlApproval?: import('vitest').Mock;
     prompt?: AiWebAppPrompt | SlackPrompt;
@@ -247,6 +270,7 @@ const makeTool = ({
         enableDataAccess,
         canRunSql,
         enablePythonNodes,
+        enableFilterExpressions,
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
@@ -1135,25 +1159,29 @@ describe('composer query review', () => {
 describe('python composer nodes', () => {
     it('treats python references as edges when resolving the terminal node', () => {
         expect(
-            resolveTerminalNodeId([semanticNode, pythonNode], null, []),
+            resolveTerminalNodeId(
+                asSubmitted([semanticNode, pythonNode]),
+                null,
+                [],
+            ),
         ).toBe('forecast');
         expect(
             resolveTerminalNodeId(
-                [
+                asSubmitted([
                     semanticNode,
                     pythonNode,
                     {
                         ...duckdbNode,
                         references: { f: 'forecast' },
                     },
-                ],
+                ]),
                 null,
                 [],
             ),
         ).toBe('joined');
         expect(() =>
             resolveTerminalNodeId(
-                [semanticNode, { ...pythonNode, references: [] }],
+                asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
@@ -1228,5 +1256,228 @@ describe('python composer nodes', () => {
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('"forecast"');
         expect(output.result).toContain("KeyError: 'amount'");
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const ordersBase = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER as const,
+        nodeId: 'revenue',
+        title: 'Revenue by customer',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_customer_name'],
+        metrics: ['orders_total_revenue'],
+        sorts: null,
+        limit: 500,
+    };
+    const structuredNode = (
+        filters: z.infer<typeof composerSemanticLayerStructuredFiltersSchema>,
+    ): ComposerNode => ({ ...ordersBase, filters });
+    const expressionNode = (
+        filters: z.infer<typeof composerSemanticLayerExpressionFiltersSchema>,
+    ): ComposerNode => ({ ...ordersBase, filters });
+    const structuredFilters = {
+        type: 'and',
+        dimensions: [
+            {
+                fieldId: 'orders_customer_name',
+                fieldType: DimensionType.STRING,
+                fieldFilterType: FilterType.STRING,
+                operator: FilterOperator.EQUALS,
+                values: ['Alice'],
+            },
+        ],
+        metrics: null,
+        tableCalculations: null,
+    } satisfies z.infer<typeof composerSemanticLayerStructuredFiltersSchema>;
+    const submittedFilters = (dependencies: {
+        runComposerQueries: import('vitest').Mock;
+    }) => {
+        const [{ queries }] = dependencies.runComposerQueries.mock.calls[0];
+        const [node] = queries as SourceQuery[];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            throw new Error('expected the semanticLayer node first');
+        }
+        return node.filters;
+    };
+
+    it('runs structured rules as metric query filters', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    structuredNode(structuredFilters),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submittedFilters(dependencies)).toMatchObject({
+            dimensions: {
+                and: [
+                    {
+                        target: {
+                            fieldId: 'orders_customer_name',
+                            fieldFilterType: FilterType.STRING,
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Alice'],
+                    },
+                ],
+            },
+            metrics: { and: [] },
+        });
+    });
+
+    it('rejects a structured rule on an unknown field before anything runs', async () => {
+        const { tool, dependencies, registry } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    structuredNode({
+                        ...structuredFilters,
+                        dimensions: [
+                            {
+                                ...structuredFilters.dimensions[0],
+                                fieldId: 'orders_customer_nam',
+                            },
+                        ],
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "revenue"',
+        );
+        expect(output.result).toContain('"orders_customer_nam" does not exist');
+        expect(output.result).toContain('orders_customer_name');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(registry.nodes('thread-uuid')).toEqual([]);
+    });
+
+    it('rejects a metric placed in the dimension filters', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    structuredNode({
+                        ...structuredFilters,
+                        dimensions: [
+                            {
+                                fieldId: 'orders_total_revenue',
+                                fieldType: DimensionType.NUMBER,
+                                fieldFilterType: FilterType.NUMBER,
+                                operator: FilterOperator.GREATER_THAN,
+                                values: [100],
+                            },
+                        ],
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('semanticLayer node "revenue"');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('resolves flat expressions against the explore when enabled', async () => {
+        const { tool, dependencies } = makeTool({
+            enableFilterExpressions: true,
+        });
+        const expressionFilters = {
+            dimensions:
+                'orders_customer_name equals=Alice AND orders_amount greaterThan=100',
+            metrics: 'orders_total_revenue greaterThan=1000',
+            tableCalculations: null,
+        };
+        expect(
+            (tool.inputSchema as ZodType).safeParse(
+                makeArgs({ queries: [expressionNode(expressionFilters)] }),
+            ).success,
+        ).toBe(true);
+        expect(
+            (tool.inputSchema as ZodType).safeParse(
+                makeArgs({ queries: [structuredNode(structuredFilters)] }),
+            ).success,
+        ).toBe(false);
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    expressionNode(expressionFilters),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submittedFilters(dependencies)).toMatchObject({
+            dimensions: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_customer_name' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Alice'],
+                    },
+                    {
+                        target: { fieldId: 'orders_amount' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [100],
+                    },
+                ],
+            },
+            metrics: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_total_revenue' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [1000],
+                    },
+                ],
+            },
+        });
+    });
+
+    it('returns the expression resolver error with field suggestions', async () => {
+        const { tool, dependencies } = makeTool({
+            enableFilterExpressions: true,
+        });
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    expressionNode({
+                        dimensions: 'orders_customer_nam equals=Alice',
+                        metrics: null,
+                        tableCalculations: null,
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "revenue"',
+        );
+        expect(output.result).toContain('orders_customer_nam');
+        expect(output.result).toContain('orders_customer_name');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

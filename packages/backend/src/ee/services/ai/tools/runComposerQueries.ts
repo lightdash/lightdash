@@ -10,7 +10,6 @@ import {
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type SourceQuery,
-    type ToolComposerQueriesArgs,
     type ToolComposerQueriesStructuredContent,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
@@ -37,6 +36,7 @@ import type {
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import { validateSelectOnly } from './runSql';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
@@ -67,6 +67,7 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
+    enableFilterExpressions: boolean;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -110,11 +111,11 @@ const failure = (
  * references in-submission). Throws a model-actionable error otherwise.
  */
 export const resolveTerminalNodeId = (
-    queries: ToolComposerQueriesArgs['queries'],
+    submitted: SourceQuery[],
     terminalNodeId: string | null,
     pipeline: SourceQuery[],
 ): string => {
-    const nodeIds = new Set(queries.map((query) => query.nodeId));
+    const nodeIds = new Set(submitted.map((query) => query.nodeId));
     if (terminalNodeId !== null) {
         if (!pipeline.some((node) => node.nodeId === terminalNodeId)) {
             throw new Error(
@@ -125,18 +126,14 @@ export const resolveTerminalNodeId = (
     }
 
     const referenced = new Set<string>();
-    queries.forEach((query) => {
-        Object.values(
-            getSourceQueryResultReferences(
-                toolComposerQueryNodeToSourceQuery(query),
-            ),
-        )
+    submitted.forEach((query) => {
+        Object.values(getSourceQueryResultReferences(query))
             .filter((reference) => nodeIds.has(reference))
             .forEach((reference) => referenced.add(reference));
     });
 
-    const sinks = queries
-        .map((query) => query.nodeId)
+    const sinks = submitted
+        .map((query) => query.nodeId ?? '')
         .filter((nodeId) => !referenced.has(nodeId));
     if (sinks.length !== 1) {
         throw new Error(
@@ -168,6 +165,7 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
+    enableFilterExpressions,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -195,6 +193,7 @@ export const getRunComposerQueries = ({
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
+        enableFilterExpressions,
     });
 
     return tool({
@@ -243,14 +242,25 @@ export const getRunComposerQueries = ({
                 }
 
                 const prompt = await getPrompt();
+                // Filters are validated against the explore here, before
+                // anything runs, so a bad rule fails the whole submission.
+                const submitted = queryNodes.map((node) =>
+                    toolComposerQueryNodeToSourceQuery(
+                        resolveComposerQueryNode(node, {
+                            enableFilterExpressions,
+                            getExplore: (exploreName) =>
+                                agentContext.getExplore(exploreName),
+                        }),
+                    ),
+                );
                 const queries = buildComposerArtifactPipeline({
-                    queries: queryNodes.map(toolComposerQueryNodeToSourceQuery),
+                    queries: submitted,
                     threadNodes: await listThreadComposerQueryNodes(
                         prompt.threadUuid,
                     ),
                 });
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
-                    queryNodes,
+                    submitted,
                     terminalNodeId,
                     queries,
                 );

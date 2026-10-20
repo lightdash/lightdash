@@ -234,6 +234,9 @@ describe('python composer nodes', () => {
         const [node] = createToolComposerQueriesArgsSchema({
             enablePythonNodes: true,
         }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.PYTHON) {
+            throw new Error('expected a python node');
+        }
         expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
             sourceType: QuerySourceType.PYTHON,
             nodeId: 'forecast',
@@ -311,5 +314,98 @@ describe('composer node references', () => {
         expect(
             getToolComposerQueriesDescription({ enablePythonNodes: true }),
         ).not.toMatch(/query ?uuid|query id/i);
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const semanticArgs = (filters: unknown) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue',
+                title: 'Revenue by customer',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_customer_name'],
+                metrics: ['orders_total_revenue'],
+                filters,
+                sorts: null,
+            },
+        ],
+    });
+    const structuredFilters = {
+        type: 'and',
+        dimensions: [
+            {
+                fieldId: 'orders_customer_name',
+                fieldType: 'string',
+                fieldFilterType: 'string',
+                operator: 'equals',
+                values: ['Alice'],
+            },
+        ],
+        metrics: null,
+        tableCalculations: null,
+    };
+    const expressionFilters = {
+        dimensions: 'orders_customer_name equals=Alice',
+        metrics: null,
+        tableCalculations: null,
+    };
+    const expressionSchema = createToolComposerQueriesArgsSchema({
+        enableFilterExpressions: true,
+    });
+
+    it('accepts structured rules and rejects malformed ones by default', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs(structuredFilters),
+            ).success,
+        ).toBe(true);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(semanticArgs(null)).success,
+        ).toBe(true);
+        // A bare rule without its connector and field kind is not a filter.
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: [{ fieldId: 'orders_customer_name' }],
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    ...structuredFilters,
+                    dimensions: [
+                        { ...structuredFilters.dimensions[0], operator: 'is' },
+                    ],
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs(expressionFilters),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('accepts flat expressions only when filter expressions are enabled', () => {
+        expect(
+            expressionSchema.safeParse(semanticArgs(expressionFilters)).success,
+        ).toBe(true);
+        expect(expressionSchema.safeParse(semanticArgs(null)).success).toBe(
+            true,
+        );
+        expect(
+            expressionSchema.safeParse(semanticArgs(structuredFilters)).success,
+        ).toBe(false);
+        expect(
+            expressionSchema.safeParse(semanticArgs({ dimensions: '' }))
+                .success,
+        ).toBe(false);
     });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DimensionType } from '../../../../types/field';
+import { type Filters } from '../../../../types/filter';
 import {
     type MetricQueryRequest,
     type SortField,
@@ -13,6 +14,8 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
+import { filtersSchemaV2 } from '../filters';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -77,15 +80,22 @@ const nodeMetaSchema = {
     description: nodeDescriptionSchema,
 };
 
-const semanticLayerFiltersSchema = z
-    .object({
-        dimensions: z.unknown().optional(),
-        metrics: z.unknown().optional(),
-        tableCalculations: z.unknown().optional(),
-    })
+// Same two filter contracts as runQuery, selected by the filter-expressions
+// flag: structured rules, or one flat expression per field kind.
+export const composerSemanticLayerStructuredFiltersSchema = filtersSchemaV2
+    .nullable()
     .describe(
-        'Filters in the metric query filters shape: an optional filter group per field kind, e.g. {"dimensions": {"id": "<uuid>", "and": [{"id": "<uuid>", "target": {"fieldId": "orders_status"}, "operator": "equals", "values": ["completed"]}]}}.',
+        "Filters on this node's explore, in the same shape as generateVisualization filters: a connector plus a list of rules per field kind, each rule naming its fieldId, fieldFilterType, operator and values. Null when unfiltered.",
     );
+
+export const composerSemanticLayerExpressionFiltersSchema =
+    filterExpressionsSchema
+        .nullable()
+        .describe(
+            `Filters on this node's explore, in the same flat expression grammar as generateVisualization filters. ${
+                filterExpressionsSchema.description ?? ''
+            }`,
+        );
 
 const sortFieldSchema = z.object({
     fieldId: z.string().describe('Field id to sort by.'),
@@ -111,12 +121,15 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     defaultLimit?: number;
     /** Offers the python node; only when python queries are enabled for the org. */
     enablePythonNodes?: boolean;
+    /** semanticLayer node filters as flat expressions instead of structured rules. */
+    enableFilterExpressions?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchema = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
+    enableFilterExpressions = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
     const limitSchema = z.coerce
         .number()
@@ -128,7 +141,7 @@ export const createToolComposerQueriesArgsSchema = ({
             `Maximum number of rows this node returns. Defaults to ${defaultLimit}, max ${maxLimit}.`,
         );
 
-    const semanticLayerNodeSchema = z.object({
+    const semanticLayerNodeBaseSchema = z.object({
         sourceType: z.literal(QuerySourceType.SEMANTIC_LAYER),
         nodeId: nodeIdSchema,
         ...nodeMetaSchema,
@@ -145,7 +158,6 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 "Metric field ids to compute, from the explore's schema.",
             ),
-        filters: semanticLayerFiltersSchema.nullable(),
         sorts: z
             .array(sortFieldSchema)
             .nullable()
@@ -154,6 +166,17 @@ export const createToolComposerQueriesArgsSchema = ({
             ),
         limit: limitSchema,
     });
+    const semanticLayerStructuredNodeSchema =
+        semanticLayerNodeBaseSchema.extend({
+            filters: composerSemanticLayerStructuredFiltersSchema,
+        });
+    const semanticLayerExpressionNodeSchema =
+        semanticLayerNodeBaseSchema.extend({
+            filters: composerSemanticLayerExpressionFiltersSchema,
+        });
+    const semanticLayerNodeSchema = enableFilterExpressions
+        ? semanticLayerExpressionNodeSchema
+        : semanticLayerStructuredNodeSchema;
 
     const sqlNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.SQL),
@@ -266,8 +289,27 @@ export type ToolComposerQueryNode = z.infer<
     ReturnType<typeof createToolComposerQueriesArgsSchema>
 >['queries'][number];
 
+export type ToolComposerSemanticLayerNode = Extract<
+    ToolComposerQueryNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+export type ToolComposerSemanticLayerNodeFilters =
+    ToolComposerSemanticLayerNode['filters'];
+
+/**
+ * A submitted node whose semanticLayer filters have been validated against
+ * the explore and resolved to domain Filters. Only this shape converts to a
+ * SourceQuery: the model-facing filter contracts never reach the runtime.
+ */
+export type ResolvedToolComposerQueryNode =
+    | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
+    | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
+          filters: Filters | null;
+      });
+
 const toSourceQueryNodeMeta = (
-    node: ToolComposerQueryNode,
+    node: ResolvedToolComposerQueryNode,
 ): Pick<SqlSourceQuery, 'title' | 'description'> => ({
     title: node.title,
     description: node.description ?? undefined,
@@ -279,7 +321,7 @@ const toSourceQueryNodeMeta = (
  * time: if types/querySources.ts changes incompatibly, this stops compiling.
  */
 export const toolComposerQueryNodeToSourceQuery = (
-    node: ToolComposerQueryNode,
+    node: ResolvedToolComposerQueryNode,
 ):
     | SemanticLayerSourceQuery
     | SqlSourceQuery
