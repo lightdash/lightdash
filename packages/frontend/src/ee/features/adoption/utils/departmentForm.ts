@@ -1,0 +1,138 @@
+import {
+    getAncestorUuids,
+    getDescendantUuids,
+    getParentMap,
+    type CreateDepartment,
+    type DepartmentMembership,
+    type DepartmentOwnerInput,
+    type UpdateDepartment,
+} from '@lightdash/common';
+
+export const NAME_MAX_LENGTH = 255;
+export const HEADCOUNT_NOTE_MAX_LENGTH = 500;
+export const MAX_WHOLE_NUMBER = 2147483647;
+
+export type NamedDepartment = {
+    departmentUuid: string;
+    parentDepartmentUuid: string | null;
+    name: string;
+};
+
+export type ResolvedMemberLine = {
+    member: DepartmentMembership;
+    via: string | null;
+};
+
+export const encodeOwner = (owner: DepartmentOwnerInput): string =>
+    `${owner.type}:${owner.uuid}`;
+
+export const decodeOwners = (values: string[]): DepartmentOwnerInput[] =>
+    values.flatMap((value) => {
+        const [type, uuid] = value.split(':');
+        return (type === 'user' || type === 'group') && uuid
+            ? [{ type, uuid }]
+            : [];
+    });
+
+export const toNullableNumber = (value: number | string): number | null =>
+    value === '' ? null : Number(value);
+
+export const getDepartmentPathLabel = (
+    departmentUuid: string,
+    departments: NamedDepartment[],
+): string => {
+    const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
+    return [
+        ...getAncestorUuids(
+            departmentUuid,
+            getParentMap(departments),
+        ).reverse(),
+        departmentUuid,
+    ]
+        .map((uuid) => names.get(uuid) ?? '')
+        .join(' / ');
+};
+
+export const getParentOptions = (
+    departments: NamedDepartment[],
+    departmentUuid: string | null,
+): { value: string; label: string }[] => {
+    const excluded = new Set(
+        departmentUuid === null
+            ? []
+            : [
+                  departmentUuid,
+                  ...getDescendantUuids(departmentUuid, departments),
+              ],
+    );
+    return departments
+        .filter((d) => !excluded.has(d.departmentUuid))
+        .map((d) => ({
+            value: d.departmentUuid,
+            label: getDepartmentPathLabel(d.departmentUuid, departments),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+};
+
+export const getResolvedMembers = (
+    membership: DepartmentMembership[],
+    departments: NamedDepartment[],
+    departmentUuid: string,
+): ResolvedMemberLine[] => {
+    const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
+    const subtree = new Set(getDescendantUuids(departmentUuid, departments));
+    return membership.flatMap((member): ResolvedMemberLine[] => {
+        if (member.resolution.kind !== 'assigned') return [];
+        const resolved = member.resolution.departmentUuid;
+        if (resolved === departmentUuid) return [{ member, via: null }];
+        return subtree.has(resolved)
+            ? [{ member, via: names.get(resolved) ?? '' }]
+            : [];
+    });
+};
+
+const pad = (value: number, length: number): string =>
+    String(value).padStart(length, '0');
+
+// Builds YYYY-MM-DD from the local calendar day; toISOString() would shift it by the UTC offset
+export const formatTargetDate = (
+    value: Date | string | null,
+): string | null => {
+    if (value === null) return null;
+    if (typeof value === 'string') {
+        const day = /^\d{4}-\d{2}-\d{2}/.exec(value);
+        return day ? day[0] : null;
+    }
+    if (Number.isNaN(value.getTime())) return null;
+    return `${pad(value.getFullYear(), 4)}-${pad(value.getMonth() + 1, 2)}-${pad(value.getDate(), 2)}`;
+};
+
+export const validateWholeNumber = (
+    value: number | string,
+    label: string,
+): string | null => {
+    if (value === '') return null;
+    const number = Number(value);
+    return Number.isInteger(number) && number >= 0 && number <= MAX_WHOLE_NUMBER
+        ? null
+        : `${label} must be a whole number from 0 to ${MAX_WHOLE_NUMBER.toLocaleString('en-US')}`;
+};
+
+// Omitted field = unchanged, null = cleared
+export const buildDepartmentUpdate = (
+    current: CreateDepartment,
+    next: CreateDepartment,
+): UpdateDepartment => {
+    const update: UpdateDepartment = {};
+    if (next.name !== current.name) update.name = next.name;
+    if (next.parentDepartmentUuid !== current.parentDepartmentUuid)
+        update.parentDepartmentUuid = next.parentDepartmentUuid;
+    if (next.headcount !== current.headcount) update.headcount = next.headcount;
+    if (next.headcountNote !== current.headcountNote)
+        update.headcountNote = next.headcountNote;
+    if (next.targetActiveUsers !== current.targetActiveUsers)
+        update.targetActiveUsers = next.targetActiveUsers;
+    if (next.targetDate !== current.targetDate)
+        update.targetDate = next.targetDate;
+    return update;
+};

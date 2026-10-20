@@ -1,0 +1,427 @@
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../../testing/testUtils';
+import { dept } from '../utils/adoptionFixtures';
+import { DepartmentForm } from './DepartmentDrawer';
+
+const create = vi.fn();
+const update = vi.fn();
+const setOwners = vi.fn();
+const setGroups = vi.fn();
+const setMembers = vi.fn();
+const remove = vi.fn();
+
+const mutation = (mutateAsync: ReturnType<typeof vi.fn>) => ({
+    mutateAsync,
+    isLoading: false,
+});
+
+vi.mock('../../../hooks/useOrgDepartments', () => ({
+    useCreateDepartment: () => mutation(create),
+    useUpdateDepartment: () => mutation(update),
+    useDeleteDepartment: () => mutation(remove),
+    useSetDepartmentOwners: () => mutation(setOwners),
+    useSetDepartmentGroups: () => mutation(setGroups),
+    useSetDepartmentMembers: () => mutation(setMembers),
+    useDepartmentMembership: () => ({ data: [] }),
+}));
+const person = (userUuid: string, firstName: string) => ({
+    userUuid,
+    firstName,
+    lastName: 'Test',
+    email: `${userUuid}@example.com`,
+});
+const users = [person('u1', 'Ann'), person('u2', 'Bob')];
+const groups = [
+    { uuid: 'g1', name: 'Analysts' },
+    { uuid: 'g2', name: 'Buyers' },
+];
+vi.mock('../../../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: users }),
+}));
+vi.mock('../../../../hooks/useOrganizationGroups', () => ({
+    useOrganizationGroups: () => ({ data: groups }),
+}));
+
+const departments = [
+    dept('Ops', null, 10, {
+        headcount: 40,
+        headcountNote: 'Store managers only',
+    }),
+    dept('Stores', 'Ops', 50),
+    dept('Finance', null, 20),
+];
+
+const pick = async (label: RegExp | string, option: string) => {
+    await userEvent.click(screen.getByRole('combobox', { name: label }));
+    await userEvent.click(await screen.findByRole('option', { name: option }));
+};
+// Mantine hides its clear button from assistive tech, so find it by its class
+const clear = async (label: RegExp | string) => {
+    const field = screen
+        .getByRole('combobox', { name: label })
+        .closest('.mantine-InputWrapper-root');
+    const button = field?.querySelector('.mantine-InputClearButton-root');
+    if (!button) throw new Error(`No clear button for ${String(label)}`);
+    await userEvent.click(button);
+};
+const save = () =>
+    userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+const renderEdit = (department: ReturnType<typeof dept>, onClose = vi.fn()) =>
+    renderWithProviders(
+        <DepartmentForm
+            department={department}
+            departments={departments}
+            onClose={onClose}
+        />,
+    );
+
+describe('DepartmentForm', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        create.mockResolvedValue({ departmentUuid: 'new' });
+        update.mockResolvedValue({ departmentUuid: 'Ops' });
+    });
+
+    it('requires a name before creating', async () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Create department' }),
+        );
+        expect(screen.getByText('Enter a name')).toBeInTheDocument();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('creates with nulls for the fields left empty and closes', async () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.type(screen.getByLabelText(/^Name/), 'Supply chain');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Create department' }),
+        );
+        expect(create).toHaveBeenCalledWith({
+            name: 'Supply chain',
+            parentDepartmentUuid: null,
+            headcount: null,
+            headcountNote: null,
+            targetActiveUsers: null,
+            targetDate: null,
+        });
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(setOwners).not.toHaveBeenCalled();
+    });
+
+    it('prefills an existing department, including the headcount note', () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={vi.fn()}
+            />,
+        );
+        expect(screen.getByLabelText(/^Name/)).toHaveValue('Ops');
+        expect(screen.getByLabelText('Headcount note')).toHaveValue(
+            'Store managers only',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Save changes' }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the drawer open when saving fails', async () => {
+        update.mockRejectedValue(new Error('conflict'));
+        const onClose = vi.fn();
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.type(screen.getByLabelText(/^Name/), ' team');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save changes' }),
+        );
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('sends only the changed fields when editing', async () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.type(screen.getByLabelText(/^Name/), ' team');
+        await userEvent.clear(screen.getByLabelText('Headcount note'));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save changes' }),
+        );
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            data: { name: 'Ops team', headcountNote: null },
+        });
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(setOwners).not.toHaveBeenCalled();
+        expect(setGroups).not.toHaveBeenCalled();
+        expect(setMembers).not.toHaveBeenCalled();
+    });
+
+    it('does not call update when nothing changed', async () => {
+        const onClose = vi.fn();
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Save changes' }),
+        );
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a name over 255 characters', async () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.click(screen.getByLabelText(/^Name/));
+        await userEvent.paste('a'.repeat(256));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Create department' }),
+        );
+        expect(
+            screen.getByText('Keep the name to 255 characters or fewer'),
+        ).toBeInTheDocument();
+        expect(create).not.toHaveBeenCalled();
+    });
+
+    it('asks before deleting and says sub-departments move up', async () => {
+        const onClose = vi.fn();
+        remove.mockResolvedValue(null);
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Delete department' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent('Delete Ops');
+        expect(dialog).toHaveTextContent(
+            'Its sub-departments move up one level',
+        );
+        expect(remove).not.toHaveBeenCalled();
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Delete department' }),
+        );
+        expect(remove).toHaveBeenCalledWith('Ops');
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    it('leaves out the sub-department note when there are none', async () => {
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[2]}
+                departments={departments}
+                onClose={vi.fn()}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Delete department' }),
+        );
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent('Delete Finance');
+        expect(dialog).not.toHaveTextContent('sub-departments');
+    });
+
+    it('diffs against the values it loaded, not a refetched prop', async () => {
+        const { rerender } = renderEdit(departments[0]);
+        rerender(
+            <DepartmentForm
+                department={{ ...departments[0], headcount: 99 }}
+                departments={departments}
+                onClose={vi.fn()}
+            />,
+        );
+        await save();
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('sends no request at all when an existing department is saved untouched', async () => {
+        const onClose = vi.fn();
+        renderEdit(departments[0], onClose);
+        await save();
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        [create, update, setOwners, setGroups, setMembers, remove].forEach(
+            (mock) => expect(mock).not.toHaveBeenCalled(),
+        );
+    });
+
+    it('does not create twice when a follow-up save fails, and retries it', async () => {
+        setOwners.mockRejectedValueOnce(new Error('boom'));
+        setOwners.mockResolvedValue({});
+        const onClose = vi.fn();
+        const onCreated = vi.fn();
+        renderWithProviders(
+            <DepartmentForm
+                department={null}
+                departments={departments}
+                onClose={onClose}
+                onCreated={onCreated}
+            />,
+        );
+        await userEvent.type(screen.getByLabelText(/^Name/), 'Supply chain');
+        await pick(/^Owners/, 'Ann Test');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Create department' }),
+        );
+        await waitFor(() => expect(setOwners).toHaveBeenCalledTimes(1));
+        expect(onClose).not.toHaveBeenCalled();
+        expect(onCreated).toHaveBeenCalledWith('Supply chain');
+        await userEvent.click(
+            await screen.findByRole('button', { name: 'Save changes' }),
+        );
+        await waitFor(() => expect(onClose).toHaveBeenCalled());
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(update).not.toHaveBeenCalled();
+        expect(setOwners).toHaveBeenCalledTimes(2);
+        expect(setOwners).toHaveBeenLastCalledWith({
+            departmentUuid: 'new',
+            owners: [{ type: 'user', uuid: 'u1' }],
+        });
+    });
+
+    it('saves owners in the order they were chosen, users and groups mixed', async () => {
+        renderEdit(departments[2]);
+        await pick(/^Owners/, 'Buyers');
+        await pick(/^Owners/, 'Ann Test');
+        await pick(/^Owners/, 'Analysts');
+        await save();
+        await waitFor(() => expect(setOwners).toHaveBeenCalled());
+        expect(setOwners).toHaveBeenCalledWith({
+            departmentUuid: 'Finance',
+            owners: [
+                { type: 'group', uuid: 'g2' },
+                { type: 'user', uuid: 'u1' },
+                { type: 'group', uuid: 'g1' },
+            ],
+        });
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('appends an owner after the existing ones and clears them to an empty list', async () => {
+        const withOwner = dept('Ops', null, 10, {
+            headcount: 40,
+            owners: [{ type: 'user', uuid: 'u1', name: 'Ann Test' }],
+        });
+        const { unmount } = renderEdit(withOwner);
+        await pick(/^Owners/, 'Bob Test');
+        await save();
+        await waitFor(() => expect(setOwners).toHaveBeenCalled());
+        expect(setOwners).toHaveBeenLastCalledWith({
+            departmentUuid: 'Ops',
+            owners: [
+                { type: 'user', uuid: 'u1' },
+                { type: 'user', uuid: 'u2' },
+            ],
+        });
+        unmount();
+
+        renderEdit(withOwner);
+        await clear(/^Owners/);
+        await save();
+        await waitFor(() => expect(setOwners).toHaveBeenCalledTimes(2));
+        expect(setOwners).toHaveBeenLastCalledWith({
+            departmentUuid: 'Ops',
+            owners: [],
+        });
+    });
+
+    it('saves linked groups and assigned people on change and on clear', async () => {
+        const linked = dept('Ops', null, 10, {
+            headcount: 40,
+            linkedGroups: [{ groupUuid: 'g1', name: 'Analysts' }],
+            explicitMemberUuids: ['u1'],
+        });
+        const { unmount } = renderEdit(linked);
+        await pick(/^Linked groups/, 'Buyers');
+        await pick(/^Assigned people/, 'Bob Test');
+        await save();
+        await waitFor(() => expect(setMembers).toHaveBeenCalled());
+        expect(setGroups).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            groupUuids: ['g1', 'g2'],
+        });
+        expect(setMembers).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            userUuids: ['u1', 'u2'],
+        });
+        expect(setOwners).not.toHaveBeenCalled();
+        unmount();
+
+        renderEdit(linked);
+        await clear(/^Linked groups/);
+        await clear(/^Assigned people/);
+        await save();
+        await waitFor(() => expect(setMembers).toHaveBeenCalledTimes(2));
+        expect(setGroups).toHaveBeenLastCalledWith({
+            departmentUuid: 'Ops',
+            groupUuids: [],
+        });
+        expect(setMembers).toHaveBeenLastCalledWith({
+            departmentUuid: 'Ops',
+            userUuids: [],
+        });
+    });
+
+    it('sends null for exactly the fields that were cleared', async () => {
+        const full = dept('Ops', 'Finance', 10, {
+            headcount: 40,
+            headcountNote: 'Managers',
+            targetActiveUsers: 30,
+            targetDate: '2026-12-01',
+        });
+        renderEdit(full);
+        await clear(/^Parent department/);
+        await userEvent.clear(screen.getByLabelText('Headcount'));
+        await userEvent.clear(screen.getByLabelText('Headcount note'));
+        await userEvent.clear(screen.getByLabelText('Target date'));
+        await save();
+        await waitFor(() => expect(update).toHaveBeenCalled());
+        expect(update).toHaveBeenCalledWith({
+            departmentUuid: 'Ops',
+            data: {
+                parentDepartmentUuid: null,
+                headcount: null,
+                headcountNote: null,
+                targetDate: null,
+            },
+        });
+    });
+});
