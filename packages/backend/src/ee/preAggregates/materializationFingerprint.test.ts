@@ -90,6 +90,27 @@ const getSourceExplore = (): Explore =>
                         compiledSql: 'SUM("orders".refund)',
                         tablesReferences: ['orders'],
                     },
+                    paid_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                        name: 'paid_count',
+                        label: 'Paid count',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.id',
+                        hidden: false,
+                        compiledSql:
+                            'COUNT(CASE WHEN ("orders".status) = (\'paid\') THEN ("orders".id) ELSE NULL END)',
+                        tablesReferences: ['orders'],
+                        filters: [
+                            {
+                                id: 'compile-time-uuid-1',
+                                target: { fieldRef: 'orders.status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['paid'],
+                            },
+                        ],
+                    },
                 },
                 lineageGraph: {},
             },
@@ -145,7 +166,7 @@ const getSourceExplore = (): Explore =>
 const preAggregateDef: PreAggregateDef = {
     name: 'by_country',
     dimensions: ['status', 'customers.country'],
-    metrics: ['order_count'],
+    metrics: ['order_count', 'paid_count'],
     filters: [
         {
             id: 'paid-only',
@@ -250,6 +271,34 @@ describe('computeMaterializationFingerprint', () => {
                 metrics: ['order_count', 'refund_total'],
             }),
         ).not.toBe(baseline);
+    });
+
+    test('ignores filter rule ids, which are minted on every compile', () => {
+        const recompiled = withExplore((explore) => {
+            // eslint-disable-next-line no-param-reassign
+            explore.tables.orders.metrics.paid_count.filters![0].id =
+                'compile-time-uuid-2';
+        });
+        expect(fingerprintFor(recompiled)).toBe(baseline);
+        expect(
+            fingerprintFor(getSourceExplore(), {
+                ...preAggregateDef,
+                filters: preAggregateDef.filters!.map((filter) => ({
+                    ...filter,
+                    id: 'another-id',
+                })),
+            }),
+        ).toBe(baseline);
+    });
+
+    test('changes when a metric filter changes', () => {
+        const changed = withExplore((explore) => {
+            // eslint-disable-next-line no-param-reassign
+            explore.tables.orders.metrics.paid_count.filters![0].values = [
+                'shipped',
+            ];
+        });
+        expect(fingerprintFor(changed)).not.toBe(baseline);
     });
 
     test('ignores refresh settings', () => {

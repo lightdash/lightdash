@@ -18,13 +18,15 @@ type JsonValue =
     | JsonValue[]
     | { [key: string]: JsonValue };
 
-// Sorted keys so object insertion order never changes the hash
+// Sorted keys so object insertion order never changes the hash. Filter rule
+// ids are minted fresh on every compile and carry no meaning, so they go.
 const canonicalize = (value: unknown): JsonValue => {
     if (value === undefined || value === null) return null;
     if (Array.isArray(value)) return value.map(canonicalize);
     if (value instanceof Date) return value.toISOString();
     if (typeof value === 'object') {
         return Object.keys(value as Record<string, unknown>)
+            .filter((key) => key !== 'id')
             .sort()
             .reduce<Record<string, JsonValue>>((acc, key) => {
                 const entry = (value as Record<string, unknown>)[key];
