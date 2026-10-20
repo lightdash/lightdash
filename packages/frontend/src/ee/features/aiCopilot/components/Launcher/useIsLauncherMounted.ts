@@ -1,5 +1,6 @@
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { useAiAgentStoreSelector } from '../../store/hooks';
+import { useLauncherAnalysisAdapter } from './launcherAnalysisAdapter';
 import { useLauncherDock } from './useLauncherDock';
 
 export const useIsLauncherMounted = (
@@ -23,7 +24,14 @@ export const useIsLauncherMounted = (
         currentDashboard?.projectUuid === projectUuid ||
         currentDataApp?.projectUuid === projectUuid ||
         currentDocument?.projectUuid === projectUuid;
+    // Analysis is agentless, so an available adapter mounts the launcher even
+    // for viewers with no AI-agent access.
+    const hasAnalysis =
+        useLauncherAnalysisAdapter(projectUuid)?.availability.status ===
+        'available';
     return (
-        isPanelOpen || dock.length > 0 || (isContentPage && isAiAgentEnabled)
+        isPanelOpen ||
+        dock.length > 0 ||
+        (isContentPage && (isAiAgentEnabled || hasAnalysis))
     );
 };

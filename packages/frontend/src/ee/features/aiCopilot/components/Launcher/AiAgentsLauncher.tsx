@@ -143,8 +143,11 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         dispatch,
     ]);
 
+    // A registered analysis adapter grants access on its own: detection is
+    // agentless, so viewers without any accessible agent still get analysis.
     const isAllowed =
-        Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
+        Boolean(activeProjectUuid) &&
+        ((isAiAgentEnabled && agents.length > 0) || analysisAdapter !== null);
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
@@ -227,6 +230,8 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         !activeProjectUuid ||
         !shouldRenderAiAgentsLauncherContent({
             dockItemCount: dock.length,
+            hasAnalysisTab:
+                analysisAdapter?.availability.status === 'available',
             hasSelectedAgent: !!selectedAgent,
             isAllowed,
             isContentPage,

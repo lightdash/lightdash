@@ -6,14 +6,19 @@ import {
     IconMinimize,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
-import DataAppAnalysisPanel from '../features/apps/analysis/DataAppAnalysisPanel';
+import {
+    useRegisterLauncherAnalysisAdapter,
+    type LauncherAnalysisAdapter,
+} from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
+import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
+import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import {
     UNAVAILABLE_COPY,
     useDataAppAnalysisAvailability,
@@ -123,7 +128,6 @@ export default function AppPreviewTest() {
     // ran. Hidden entirely until the org is rolled out; otherwise the panel
     // explains any remaining reason it is unavailable.
     const analysisAvailability = useDataAppAnalysisAvailability();
-    const [analysisOpened, setAnalysisOpened] = useState(false);
     const showAnalysis =
         analysisAvailability.status === 'available' ||
         (analysisAvailability.status === 'unavailable' &&
@@ -140,7 +144,11 @@ export default function AppPreviewTest() {
         rolloverLogs();
     }, [rolloverLogs]);
 
-    const openAnalysis = useCallback(() => setAnalysisOpened(true), []);
+    // The analysis panel lives in the AI launcher; the store is reached
+    // directly because this page can render without the launcher providers.
+    const openAnalysis = useCallback(() => {
+        aiAgentStore.dispatch(openAnalysisPanel());
+    }, []);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
@@ -151,6 +159,31 @@ export default function AppPreviewTest() {
         // Expired sources: reload the app once so its queries re-run.
         onSourcesExpired: handleRefresh,
     });
+
+    const { lineageAvailable, onHoverQuery } = inspector.panelProps;
+    const analysisAdapter = useMemo<LauncherAnalysisAdapter | null>(
+        () =>
+            projectUuid && showAnalysis
+                ? {
+                      projectUuid,
+                      targetName: appName || null,
+                      availability: analysisAvailability,
+                      controller: analysisController,
+                      highlightAvailable: lineageAvailable,
+                      onHoverQuery,
+                  }
+                : null,
+        [
+            projectUuid,
+            showAnalysis,
+            appName,
+            analysisAvailability,
+            analysisController,
+            lineageAvailable,
+            onHoverQuery,
+        ],
+    );
+    useRegisterLauncherAnalysisAdapter(analysisAdapter);
 
     const previewOrigin = usePreviewOrigin();
 
@@ -292,17 +325,6 @@ export default function AppPreviewTest() {
                         {...inspector.panelProps}
                     />
                 )}
-                {showAnalysis && (
-                    <DataAppAnalysisPanel
-                        opened={analysisOpened}
-                        onClose={() => setAnalysisOpened(false)}
-                        appUuid={appUuid}
-                        availability={analysisAvailability}
-                        controller={analysisController}
-                        lineageAvailable={inspector.panelProps.lineageAvailable}
-                        onHoverQuery={inspector.panelProps.onHoverQuery}
-                    />
-                )}
             </>
         );
     }
@@ -374,9 +396,7 @@ export default function AppPreviewTest() {
                                             variant="light"
                                             color="indigo"
                                             size="md"
-                                            onClick={() =>
-                                                setAnalysisOpened(true)
-                                            }
+                                            onClick={openAnalysis}
                                             aria-label="Analyse this view"
                                         >
                                             <MantineIcon
