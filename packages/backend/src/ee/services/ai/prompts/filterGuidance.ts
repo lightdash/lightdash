@@ -185,9 +185,8 @@ export const COMPOSER_FILTER_GUIDANCE_SECTION = `## Filters
 
 Filter a semanticLayer node with expression strings.
 
-- Choose the kind from discovered field metadata (its dimension/metric kind), never from a field name or whether a numeric field sounds metric-like. A raw numeric dimension belongs in \`dimensions\`; only metrics belong in \`metrics\`.
+- Choose the kind from discovered field metadata (its dimension/metric kind). A raw numeric dimension belongs in \`dimensions\`; only metrics belong in \`metrics\`.
 - A field used only to restrict rows stays in its filter expression. Add it to the node's \`dimensions\` only when the user asked to group by or display it: an extra dimension changes the grain.
-- Each string is flat and uses AND or OR, never both.
 
 Raw placement examples:
 - dimensions: ${FILTER_EXPRESSION_PLACEMENT_EXPRESSIONS.dimensions}

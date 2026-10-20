@@ -20,7 +20,7 @@ export const getQueryingComposerSection = ({
     [
         '## Answering data questions',
         '',
-        "Answer data questions with runComposerQueries. Each call submits a pipeline of nodes and returns the terminal node's rows.",
+        'Answer data questions with runComposerQueries.',
         '',
         '- Start from one semanticLayer node per explore, built from the fieldIds the field-discovery tool returned. Pick the date granularity the user asked for (`order_date_month` over `order_date` for "by month").',
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons and row-level conditionals.',
@@ -30,13 +30,13 @@ export const getQueryingComposerSection = ({
                   '- Run statistics, forecasts and other algorithms in a python node that reads the results it needs.',
               ]
             : []),
-        `- An answer that takes several queries or a computation over their results is one pipeline: source nodes fetch, duckdb nodes join and reshape${
+        `- Build an answer that takes several queries or a computation over their results as one pipeline in one call: source nodes fetch, duckdb nodes join and reshape${
             enablePythonNodes ? ', python nodes run the algorithm' : ''
         }, and the terminal node is ${
             slackChannelId
                 ? 'the table you can share'
                 : 'the result you present'
-        }. Build the whole pipeline in one call so its terminal node carries the answer.`,
+        }.`,
         '- For a follow-up that changes an earlier result, change only what the user asked for; for a presentation-only change, such as a different chart type, resubmit the earlier node unchanged. Claim a change only after the call succeeds.',
         ...(slackChannelId
             ? []
