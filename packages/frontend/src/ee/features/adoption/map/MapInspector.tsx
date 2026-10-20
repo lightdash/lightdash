@@ -28,8 +28,7 @@ import {
     type PeopleBreakdown,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
-import { type ColourBy } from './geometry';
-import { DotSwatch } from './MapLegend';
+import { type ColourBy, type DotKind } from './geometry';
 import { DOT_LABELS } from './mapStyles';
 import {
     formatMemberActivity,
@@ -49,6 +48,8 @@ type Props = {
     rows: CoverageRow[];
     member: DepartmentMember | null;
     canManage: boolean;
+    // The key beside each part of the bar: the view's own mark for those people, a dot on the map
+    keySwatch: FC<{ kind: DotKind }>;
     onDepartmentClick: (departmentUuid: string) => void;
     onClearMember: () => void;
     onEdit: (department: DepartmentWithMetrics) => void;
@@ -123,12 +124,13 @@ const RowEnd: FC<{
     }
 };
 
-// Each part keyed with the dot the map draws for those people. Without a headcount anywhere, nobody can be
-// counted as having no account, so that count gives way to a request
+// Each part keyed with the mark the view draws for those people: the map's dots or the waffle's squares. Without
+// a headcount anywhere, nobody can be counted as having no account, so that count gives way to a request
 const BreakdownLegend: FC<{
     breakdown: PeopleBreakdown;
     hasHeadcount: boolean;
-}> = ({ breakdown, hasHeadcount }) => (
+    keySwatch: FC<{ kind: DotKind }>;
+}> = ({ breakdown, hasHeadcount, keySwatch: KeySwatch }) => (
     <ul className={styles.legend}>
         {breakdown.map(({ kind, count }) =>
             kind === 'noAccount' && !hasHeadcount ? (
@@ -139,7 +141,7 @@ const BreakdownLegend: FC<{
                 </li>
             ) : (
                 <li key={kind} className={styles.legendItem}>
-                    <DotSwatch kind={kind} />
+                    <KeySwatch kind={kind} />
                     <Text fz="xs" className={styles.count}>
                         {`${DOT_LABELS[kind]} ${formatCount(count)}`}
                     </Text>
@@ -157,6 +159,7 @@ export const MapInspector: FC<Props> = ({
     rows,
     member,
     canManage,
+    keySwatch,
     onDepartmentClick,
     onClearMember,
     onEdit,
@@ -206,6 +209,7 @@ export const MapInspector: FC<Props> = ({
                     <BreakdownLegend
                         breakdown={breakdown}
                         hasHeadcount={hasHeadcount}
+                        keySwatch={keySwatch}
                     />
                 </Stack>
                 {member !== null && (

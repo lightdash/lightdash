@@ -80,7 +80,10 @@ const SharedSwatch: FC<{ kind: DotKind }> = ({ kind }) => {
     );
 };
 
-const RingSwatch: FC<{ variant: 'empty' | 'noHeadcount' }> = ({ variant }) => (
+// A department's dashed ring as the map draws it; the waffle keys its dashed blocks with the same one
+export const RingSwatch: FC<{ variant: 'empty' | 'noHeadcount' }> = ({
+    variant,
+}) => (
     <svg className={mapStyles.swatch} width={14} height={14} aria-hidden>
         <circle
             className={mapStyles.circle}

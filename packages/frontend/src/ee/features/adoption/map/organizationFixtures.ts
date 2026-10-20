@@ -146,3 +146,11 @@ export const flatOrganization = toDepartments([
     ['Product', null, 80, 68, 35, 68, 35],
     ['Sales', null, 95, 72, 31, 72, 31],
 ]);
+
+// A company of 33 people in four departments, few enough to draw every person as a 16 px square
+export const smallCompany = toDepartments([
+    ['Engineering', null, 12, 10, 7, 10, 7],
+    ['Sales', null, 9, 6, 4, 6, 4],
+    ['Operations', null, 7, 5, 3, 5, 3],
+    ['Finance', null, 5, 2, 1, 2, 1],
+]);

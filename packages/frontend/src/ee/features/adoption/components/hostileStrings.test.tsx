@@ -13,6 +13,7 @@ import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
+import { DotSwatch } from '../map/MapLegend';
 import {
     dept,
     memberFixture,
@@ -291,6 +292,7 @@ describe('typed strings render as text', () => {
                         primaryDepartmentUuid: 'hostile',
                     })}
                     canManage
+                    keySwatch={DotSwatch}
                     onDepartmentClick={vi.fn()}
                     onClearMember={vi.fn()}
                     onEdit={vi.fn()}

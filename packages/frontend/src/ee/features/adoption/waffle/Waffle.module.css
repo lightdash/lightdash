@@ -1,0 +1,200 @@
+/* In the map's two columns the waffle keeps its own height rather than the panel's, so a short one ends at its legend */
+.frame {
+    align-self: start;
+}
+
+/* As tall as the waffle's content; everything in it is placed from its layout, in pixels from its top-left corner */
+.canvas {
+    position: relative;
+    height: var(--waffle-height);
+    overflow: hidden;
+}
+
+.board {
+    position: absolute;
+    inset: 0;
+}
+
+.block {
+    position: absolute;
+    left: var(--block-x);
+    top: var(--block-y);
+    width: var(--block-width);
+    height: var(--block-height);
+}
+
+/* Covers the whole block: a click anywhere but on a sub-department selects the department */
+.blockButton {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+    cursor: pointer;
+}
+
+.header {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    left: 8px;
+    pointer-events: none;
+}
+
+.name {
+    line-height: 20px;
+}
+
+.counts {
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.part {
+    position: absolute;
+    left: var(--part-x);
+    top: var(--part-y);
+    width: var(--part-width);
+    height: var(--part-height);
+    overflow: hidden;
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+}
+
+/* The people directly in a department, and a department's only part, belong to the block: a click goes to it */
+.part[data-passive] {
+    pointer-events: none;
+}
+
+.partButton {
+    cursor: pointer;
+}
+
+/* No headcount on the department or below it: a dashed outline on the page's colour, as the map draws the circle */
+.blockButton[data-no-headcount],
+.partButton[data-no-headcount] {
+    background-color: var(--mantine-color-body);
+    box-shadow: none;
+}
+
+.blockButton[data-no-headcount]::after,
+.partButton[data-no-headcount]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px dashed
+        light-dark(var(--mantine-color-violet-3), var(--mantine-color-violet-7));
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.blockButton:hover,
+.partButton:hover {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-6);
+}
+
+.blockButton[data-selected],
+.partButton[data-selected] {
+    box-shadow: inset 0 0 0 2px var(--mantine-color-text);
+}
+
+.blockButton:focus-visible,
+.partButton:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.label {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    left: 4px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.content {
+    position: absolute;
+    left: var(--content-x);
+    top: var(--content-y);
+    width: var(--content-width);
+    height: var(--content-height);
+}
+
+/* One per person, moved into place. A change of colouring fades it to its new look, and a reflow glides it to its
+   new place, after the delay written on it; both have a length only while that change runs */
+.square {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 1px;
+    pointer-events: none;
+    transition-property: background-color, box-shadow, transform;
+    transition-duration:
+        var(--colour-fade, 0ms), var(--colour-fade, 0ms),
+        var(--colour-move, 0ms);
+    transition-timing-function: ease, ease, cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Over the waffle and empty but for the band while the colouring changes; it never takes the pointer */
+.bandLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+/* Squares, bar segments and swatches take the map's look for each kind of person from the colours set once on the
+   view's root: filled, with the same edges, a viewer as a ring, and people without an account filled in their grey */
+.mark[data-kind='healthy'] {
+    background-color: var(--adoption-healthy);
+    box-shadow: inset 0 0 0 1px var(--adoption-healthy-edge);
+}
+
+.mark[data-kind='atRisk'] {
+    background-color: var(--adoption-at-risk);
+    box-shadow: inset 0 0 0 1px var(--adoption-at-risk-edge);
+}
+
+.mark[data-kind='lost'] {
+    background-color: var(--adoption-lost);
+}
+
+.mark[data-kind='admin'] {
+    background-color: var(--adoption-admin);
+}
+
+.mark[data-kind='editor'] {
+    background-color: var(--adoption-editor);
+}
+
+.mark[data-kind='interactiveViewer'] {
+    background-color: var(--adoption-interactive-viewer);
+}
+
+.mark[data-kind='viewer'] {
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--adoption-viewer);
+}
+
+.mark[data-kind='noAccount'] {
+    background-color: var(--adoption-no-account);
+}

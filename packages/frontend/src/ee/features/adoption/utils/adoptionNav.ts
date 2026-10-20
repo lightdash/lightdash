@@ -12,14 +12,15 @@ export const ADOPTION_NAV_KEYWORDS = [
 export const getDepartmentPath = (departmentUuid: string): string =>
     `${ADOPTION_PATH}/${departmentUuid}`;
 
-export type AdoptionView = 'map' | 'list';
+export type AdoptionView = 'map' | 'list' | 'waffle';
 
 // The first entry is the default view
-export const ADOPTION_VIEWS: AdoptionView[] = ['map', 'list'];
+export const ADOPTION_VIEWS: AdoptionView[] = ['map', 'list', 'waffle'];
 
 export const ADOPTION_VIEW_LABELS: Record<AdoptionView, string> = {
     map: 'Map',
     list: 'List',
+    waffle: 'Waffle',
 };
 
 export const parseAdoptionView = (
