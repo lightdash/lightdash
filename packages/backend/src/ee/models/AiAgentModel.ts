@@ -54,6 +54,7 @@ import {
     AiPromptThreadFileSnapshot,
     AiResultType,
     AiThread,
+    AiThreadBinding,
     AiThreadCompaction,
     AiThreadCreatedFrom,
     AiWebAppPrompt,
@@ -279,6 +280,7 @@ import {
     type SqlApprovalDecision,
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
+import { type AiAgentThreadBindingContext } from '../services/ai/types/aiAgent';
 import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
@@ -490,6 +492,9 @@ type AiThreadSummaryRow = Pick<
     | 'title_generated_at'
     | 'pinned_at'
     | 'battle_profile'
+    | 'bound_entity_type'
+    | 'bound_entity_uuid'
+    | 'thread_context'
 > &
     Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
         user_uuid: DbUser['user_uuid'] | null;
@@ -3395,6 +3400,9 @@ export class AiAgentModel {
                 `${AiThreadTableName}.title_generated_at`,
                 `${AiThreadTableName}.pinned_at`,
                 `${AiThreadTableName}.battle_profile`,
+                `${AiThreadTableName}.bound_entity_type`,
+                `${AiThreadTableName}.bound_entity_uuid`,
+                `${AiThreadTableName}.thread_context`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -3406,6 +3414,28 @@ export class AiAgentModel {
                 `${AiAgentTableName}.image_url as agent_image_url`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
+    }
+
+    private static getThreadBindingEntityUuid(binding: AiThreadBinding) {
+        switch (binding.type) {
+            case 'dashboard':
+                return binding.dashboardUuid;
+            default:
+                return assertUnreachable(binding.type, 'Unknown binding type');
+        }
+    }
+
+    private static toThreadBinding(
+        type: AiThreadBinding['type'] | null,
+        entityUuid: string | null,
+    ): AiThreadBinding | null {
+        if (type === null || entityUuid === null) return null;
+        switch (type) {
+            case 'dashboard':
+                return { type, dashboardUuid: entityUuid };
+            default:
+                return assertUnreachable(type, 'Unknown binding type');
+        }
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -3434,6 +3464,11 @@ export class AiAgentModel {
                 slackUserId: row.slack_user_id,
             },
             liveStatus: null,
+            binding: AiAgentModel.toThreadBinding(
+                row.bound_entity_type,
+                row.bound_entity_uuid,
+            ),
+            threadContext: row.thread_context,
         };
     }
 
@@ -7062,6 +7097,11 @@ export class AiAgentModel {
                     created_from: data.createdFrom,
                     agent_uuid: data.agentUuid,
                     battle_profile: data.battleProfile ?? null,
+                    bound_entity_type: data.binding?.type ?? null,
+                    bound_entity_uuid: data.binding
+                        ? AiAgentModel.getThreadBindingEntityUuid(data.binding)
+                        : null,
+                    thread_context: data.threadContext ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {
@@ -7092,6 +7132,82 @@ export class AiAgentModel {
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
+    }
+
+    async findThreadBinding(
+        threadUuid: string,
+    ): Promise<AiThreadBinding | null> {
+        const row = await this.database(AiThreadTableName)
+            .select('bound_entity_type', 'bound_entity_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+        return row
+            ? AiAgentModel.toThreadBinding(
+                  row.bound_entity_type,
+                  row.bound_entity_uuid,
+              )
+            : null;
+    }
+
+    async findThreadPromptSetup(threadUuid: string): Promise<{
+        threadBinding: AiAgentThreadBindingContext | null;
+        threadContext: string | null;
+    }> {
+        const row = await this.database(AiThreadTableName)
+            .leftJoin(DashboardsTableName, function joinBoundDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'dashboard',
+                    )
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
+            .first<
+                | {
+                      bound_entity_type: DbAiThread['bound_entity_type'];
+                      thread_context: string | null;
+                      dashboard_name: string | null;
+                      dashboard_slug: string | null;
+                  }
+                | undefined
+            >(
+                `${AiThreadTableName}.bound_entity_type`,
+                `${AiThreadTableName}.thread_context`,
+                `${DashboardsTableName}.name as dashboard_name`,
+                `${DashboardsTableName}.slug as dashboard_slug`,
+            );
+        if (!row) return { threadBinding: null, threadContext: null };
+
+        let threadBinding: AiAgentThreadBindingContext | null = null;
+        switch (row.bound_entity_type) {
+            case null:
+                break;
+            case 'dashboard':
+                threadBinding = {
+                    type: 'dashboard',
+                    dashboard:
+                        row.dashboard_name !== null &&
+                        row.dashboard_slug !== null
+                            ? {
+                                  name: row.dashboard_name,
+                                  slug: row.dashboard_slug,
+                              }
+                            : null,
+                };
+                break;
+            default:
+                return assertUnreachable(
+                    row.bound_entity_type,
+                    'Unknown binding type',
+                );
+        }
+        return { threadBinding, threadContext: row.thread_context };
     }
 
     async getWebAppThreadEmbedSpace(threadUuid: string) {

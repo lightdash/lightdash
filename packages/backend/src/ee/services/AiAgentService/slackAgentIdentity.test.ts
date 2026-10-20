@@ -406,6 +406,9 @@ describe('Agent dbt job markers', () => {
                 projectModel: {
                     getAgentSqlScope: vi.fn().mockResolvedValue(null),
                 },
+                aiAgentModel: {
+                    findThreadBinding: vi.fn().mockResolvedValue(null),
+                },
                 aiAgentToolsService: {
                     createRuntime: vi.fn().mockReturnValue({}),
                 },

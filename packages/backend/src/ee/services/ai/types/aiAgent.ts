@@ -144,6 +144,12 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
+/** The resource a thread is bound to, resolved for the prompt. `dashboard` is null once it no longer exists. */
+export type AiAgentThreadBindingContext = {
+    type: 'dashboard';
+    dashboard: { name: string; slug: string } | null;
+};
+
 /**
  * The structured role a deep-research call plays. Absent for the legacy
  * single-loop behavior. The coordinator drives the run and may delegate narrow
@@ -241,6 +247,9 @@ export type AiAgentArgs = AnyAiModel & {
     externalUserId: string | null;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
+    threadBinding: AiAgentThreadBindingContext | null;
+    // User-supplied background set when the thread was created.
+    threadContext: string | null;
     knowledgeDocuments: AiAgentDocumentContext[];
     deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];

@@ -12,6 +12,7 @@ import { AiAgentSkillReference } from '../skills/types';
 import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
+    AiAgentThreadBindingContext,
 } from '../types/aiAgent';
 import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
@@ -47,6 +48,10 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import {
+    getThreadBindingSection,
+    getThreadContextSection,
+} from './systemV2ThreadSetup';
 
 const getDataAccessSection = (
     enableDataAccess: boolean,
@@ -151,6 +156,8 @@ export const getSystemPromptV2 = (args: {
     instructions?: string;
     agentName?: string;
     requestingUser?: AiAgentRequestingUser | null;
+    threadBinding?: AiAgentThreadBindingContext | null;
+    threadContext?: string | null;
     date?: string;
     enableDataAccess?: boolean;
     enableFilterExpressions?: boolean;
@@ -198,6 +205,8 @@ export const getSystemPromptV2 = (args: {
         instructions,
         agentName = 'Lightdash AI Analyst',
         requestingUser = null,
+        threadBinding = null,
+        threadContext = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableFilterExpressions = false,
@@ -526,6 +535,8 @@ export const getSystemPromptV2 = (args: {
 
     const finalContent = [
         content,
+        getThreadBindingSection(threadBinding, enableContentTools),
+        getThreadContextSection(threadContext),
         args.enableFastMetadata
             ? 'All assistant text is user-visible, including text before and between tool calls. Do not save temporary query results as durable user memories. Prior assistant notes are not evidence.'
             : '',

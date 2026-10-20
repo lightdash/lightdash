@@ -160,6 +160,7 @@ const setup = (spaceAccess: string[] | null = null) => {
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         tags: null,
         spaceAccess,
+        threadBinding: null,
     };
     return {
         service,
