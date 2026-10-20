@@ -16,6 +16,7 @@ import {
     validateDbtSelector,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { createHash } from 'crypto';
 import execa, { ExecaError } from 'execa';
 import * as fs from 'fs/promises';
 import yaml from 'js-yaml';
@@ -31,6 +32,7 @@ import {
     writeDbtExternalNodesPlugin,
 } from './dbtExternalNodes';
 import {
+    getDbtPartialParseExternalNodesDigest,
     saveDbtPartialParse,
     seedDbtPartialParse,
 } from './dbtPartialParseBaseline';
@@ -96,6 +98,8 @@ export class DbtCliClient implements DbtClient {
 
     partialParseSeeded: boolean;
 
+    private externalNodesDigest: string | null = null;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -158,6 +162,7 @@ export class DbtCliClient implements DbtClient {
                 force: true,
             });
             this.targetDirectory = undefined;
+            this.externalNodesDigest = null;
         }
     }
 
@@ -165,6 +170,7 @@ export class DbtCliClient implements DbtClient {
         command: 'ls' | 'parse',
         logs: DbtLog[],
     ): Promise<void> {
+        if (command === 'parse') this.externalNodesDigest = null;
         if (
             this.partialParseBaselinePath === null ||
             this.targetDirectory === undefined
@@ -190,6 +196,8 @@ export class DbtCliClient implements DbtClient {
         await saveDbtPartialParse(
             this.partialParseBaselinePath,
             this.targetDirectory,
+            undefined,
+            this.externalNodesDigest,
         );
     }
 
@@ -449,11 +457,32 @@ export class DbtCliClient implements DbtClient {
                             'Cross-source dbt refs require dbt 1.6 or newer.',
                         );
                     }
+                    const targetDirectory = await this._getTargetDirectory();
+                    const digest = createHash('sha256')
+                        .update(JSON.stringify(options.externalNodes))
+                        .digest('hex');
+                    const previousDigest =
+                        this.externalNodesDigest ??
+                        (this.partialParseBaselinePath === null ||
+                        !this.partialParseSeeded
+                            ? null
+                            : await getDbtPartialParseExternalNodesDigest(
+                                  this.partialParseBaselinePath,
+                                  targetDirectory,
+                              ));
+                    if (previousDigest !== digest) {
+                        await fs.rm(
+                            path.join(targetDirectory, 'partial_parse.msgpack'),
+                            { force: true },
+                        );
+                        this.partialParseSeeded = false;
+                    }
+                    this.externalNodesDigest = digest;
                     pluginEnvironment = await writeDbtExternalNodesPlugin(
-                        await this._getTargetDirectory(),
+                        targetDirectory,
                         options.externalNodes,
                     );
-                }
+                } else this.externalNodesDigest = null;
                 const startTime = Date.now();
                 const { logs, stdout } = await this._runDbtCommand(
                     dbtCommand,

@@ -88,6 +88,7 @@ export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
+export * from './dbt/findDbtNodeCycle';
 export * from './dbt/manifest';
 export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';

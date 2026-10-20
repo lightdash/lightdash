@@ -64,6 +64,7 @@ describe('Csv service', () => {
         analytics: analyticsMock,
         userModel: {} as UserModel,
         projectService: new ProjectService({
+            dbtSourceRefCatalogModel: {} as never,
             refreshTokenRotation: { run: vi.fn() },
             aiAccessService: {
                 resolvePlan: vi.fn(async () => null),

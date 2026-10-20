@@ -35,6 +35,7 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
+import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
@@ -489,6 +490,9 @@ describe('Multi-connection compile on the real schema', () => {
             database,
         });
         compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                database,
+            }),
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -3283,6 +3287,13 @@ describe('Multi-connection compile on the real schema', () => {
         const bindingAnalytics = { track: vi.fn() };
         const bindingService = () =>
             new WarehouseConnectionBindingService({
+                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
+                } as never,
                 projectModel,
                 warehouseConnectionCompileModel,
                 warehouseConnectionModel,
@@ -3526,6 +3537,9 @@ describe('Multi-connection compile on the real schema', () => {
 
         const dbtSourcesService = () =>
             new ProjectDbtSourcesService({
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() } as never,
                 projectModel,

@@ -27,6 +27,7 @@ import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardAccessModel } from './DashboardAccessModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { DbtSourceRefCatalogModel } from './DbtSourceRefCatalogModel';
 import { DeploySessionModel } from './DeploySessionModel';
 import { DirectAccessModel } from './DirectAccessModel';
 import { DocumentAccessModel } from './DocumentAccessModel';
@@ -168,6 +169,7 @@ export type ModelManifest = {
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
+    dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
     projectCompileLogModel: ProjectCompileLogModel;
     pullRequestsModel: PullRequestsModel;
     resourceViewItemModel: ResourceViewItemModel;
@@ -846,6 +848,13 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getDbtSourceRefCatalogModel(): DbtSourceRefCatalogModel {
+        return this.getModel(
+            'dbtSourceRefCatalogModel',
+            () => new DbtSourceRefCatalogModel({ database: this.database }),
         );
     }
 

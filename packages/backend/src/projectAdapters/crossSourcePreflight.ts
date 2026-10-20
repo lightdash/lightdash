@@ -24,7 +24,7 @@ export const duplicateProjectNameReason = (
     name: string,
     keys: string[],
 ): string =>
-    `dbt sources ${keys.map((key) => `"${key}"`).join(' and ')} both use the dbt project name "${name}". Each connected dbt source needs a unique name: in dbt_project.yml. Change the name in one of the repositories.`;
+    `dbt sources ${keys.map((key) => `"${key}"`).join(' and ')} both use the dbt project name "${name}". Each connected dbt source needs a unique \`name:\` value in dbt_project.yml. Change the name in one of the repositories.`;
 
 export const validateCrossSourceProjectScans = (
     sources: { key: string; scan: DbtProjectScan | null }[],

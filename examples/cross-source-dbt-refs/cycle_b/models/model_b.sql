@@ -1,2 +1,1 @@
-select id
-from {{ ref('cycle_a', 'model_a') }}
+select id from {{ ref('cycle_a', 'base_a') }}

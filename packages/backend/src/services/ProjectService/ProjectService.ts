@@ -318,7 +318,7 @@ import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
 import { type Knex } from 'knex';
-import { uniq } from 'lodash';
+import { isEqual, uniq } from 'lodash';
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
@@ -377,6 +377,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import type { DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
@@ -427,6 +428,10 @@ import {
     CrossSourceCancellation,
     waitForDbtSourceCleanup,
 } from '../../projectAdapters/crossSourceCancellation';
+import {
+    CrossSourceCatalogCache,
+    logCrossSourceCacheError,
+} from '../../projectAdapters/crossSourceCatalogCache';
 import { resolveCrossSourceManifests } from '../../projectAdapters/crossSourceRefs';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { DbtSourceDiskPool } from '../../projectAdapters/DbtSourceDiskPool';
@@ -680,6 +685,7 @@ export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
+    dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
@@ -852,6 +858,7 @@ export class ProjectService
 
     projectModel: ProjectModel;
 
+    dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
 
     preAggregateModel: PreAggregateModel;
@@ -976,6 +983,7 @@ export class ProjectService
         analytics,
         projectModel,
         projectDbtSourcesModel,
+        dbtSourceRefCatalogModel,
         preAggregateModel,
         onboardingModel,
         savedChartModel,
@@ -1034,6 +1042,7 @@ export class ProjectService
         this.analytics = analytics;
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
+        this.dbtSourceRefCatalogModel = dbtSourceRefCatalogModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
         this.snowflakeOAuthCredentialResolver =
@@ -1111,6 +1120,7 @@ export class ProjectService
         this.warehouseConnectionIdentityModel =
             warehouseConnectionIdentityModel;
         this.multiConnectionCompiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel,
             projectModel,
             projectDbtSourcesModel,
             warehouseConnectionCompileModel,
@@ -6297,6 +6307,31 @@ export class ProjectService
             actorUserUuid: account.user.id,
         });
         if (
+            !isEqual(savedProject.dbtConnection, updatedProject.dbtConnection)
+        ) {
+            const { enabled } = await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: savedProject.organizationUuid,
+                },
+            });
+            if (enabled) {
+                try {
+                    const identity =
+                        await this.projectModel.getDbtSourceIdentity(
+                            projectUuid,
+                        );
+                    await this.dbtSourceRefCatalogModel.deleteForSource(
+                        projectUuid,
+                        identity.dbtSourceUuid,
+                    );
+                } catch (error) {
+                    logCrossSourceCacheError(error);
+                }
+            }
+        }
+        if (
             savedProject.type === ProjectType.PREVIEW &&
             savedProject.upstreamProjectUuid &&
             !updatedProject.organizationWarehouseCredentialsUuid
@@ -6672,6 +6707,7 @@ export class ProjectService
                                 multiConnection =
                                     await this.compileMultiConnectionProject({
                                         projectUuid,
+                                        jobUuid: job.jobUuid,
                                         organizationUuid: user.organizationUuid,
                                         userUuid: user.userUuid,
                                         primary,
@@ -6688,6 +6724,7 @@ export class ProjectService
                                     connectionWarnings,
                                 } = await this.resolveCompileAdapter({
                                     projectUuid,
+                                    jobUuid: job.jobUuid,
                                     organizationUuid: user.organizationUuid,
                                     userUuid: user.userUuid,
                                     primary,
@@ -8182,6 +8219,11 @@ export class ProjectService
         }
     }
 
+    private readonly sourceRefCatalogConfirmations = new WeakMap<
+        Buffer,
+        CrossSourceCatalogCache
+    >();
+
     private async persistMergedManifest(
         projectUuid: string,
         stagedMergedManifest: Buffer | undefined,
@@ -8194,6 +8236,9 @@ export class ProjectService
                 projectUuid,
                 stagedMergedManifest,
             );
+            await this.sourceRefCatalogConfirmations
+                .get(stagedMergedManifest)
+                ?.confirm();
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
@@ -8436,8 +8481,28 @@ export class ProjectService
             });
             return result;
         };
+        const catalogCache = crossSourceRefsEnabled
+            ? new CrossSourceCatalogCache(
+                  this.dbtSourceRefCatalogModel,
+                  projectUuid,
+                  'original',
+                  resolveDbtVersion(primary.dbtVersionOption),
+                  jobUuid ?? null,
+              )
+            : null;
+        const cachedCatalogs = await catalogCache?.load([
+            { key: identity.dbtSourceName, uuid: identity.dbtSourceUuid },
+            ...compilableSources.map((source) => ({
+                key: source.name,
+                uuid: source.projectDbtSourceUuid,
+            })),
+        ]);
         const sourceFetchStartedAt = Date.now();
-        const resolution = await resolveCrossSourceManifests({
+        const resolution = await resolveCrossSourceManifests<{
+            name: string;
+            precedence: number;
+            uuid: string;
+        }>({
             enabled: crossSourceRefsEnabled,
             onSourceFinal: async (task) => {
                 if (task.context.uuid === identity.dbtSourceUuid) {
@@ -8449,6 +8514,20 @@ export class ProjectService
             ...(crossSourceRefsEnabled
                 ? {
                       signal: armCompileShutdown(),
+                      maxPasses: this.lightdashConfig.dbt.crossSourceMaxPasses,
+                      cache: cachedCatalogs,
+                      onSourceResolved: async ({
+                          task,
+                          nodes,
+                          projectName,
+                          referencedProjects,
+                      }) =>
+                          catalogCache!.resolved(
+                              task.context.uuid,
+                              nodes,
+                              projectName,
+                              referencedProjects,
+                          ),
                       timeouts: {
                           prepareMs:
                               this.lightdashConfig.dbt
@@ -8640,11 +8719,16 @@ export class ProjectService
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
+                    passes: resolution.passes,
+                    stubs: resolution.stubs,
+                    contradictions: resolution.contradictions,
+                    sourceTimings: resolution.sources,
+                    cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
+                    cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
                     dbtLsRuns: resolution.attempts,
                     preflightWarnings: resolution.preflightWarnings,
-                    signatureExhausted: resolution.signatureExhausted,
                     timeouts: {
                         prepareMs:
                             this.lightdashConfig.dbt
@@ -8658,6 +8742,10 @@ export class ProjectService
                         ({ task, injectedFrom }) => ({
                             name: task.key,
                             injectedFrom,
+                            injectedStubs:
+                                resolution.sources?.find(
+                                    (source) => source.key === task.key,
+                                )?.injectedStubs ?? 0,
                         }),
                     ),
                 },
@@ -8816,6 +8904,11 @@ export class ProjectService
             projectUuid,
             mergedManifest,
         );
+        if (stagedMergedManifest && catalogCache)
+            this.sourceRefCatalogConfirmations.set(
+                stagedMergedManifest,
+                catalogCache,
+            );
 
         return {
             adapter: await projectAdapterFromConfig(
@@ -8854,10 +8947,12 @@ export class ProjectService
         primary,
         manifestFetchAdapters,
         trackingParams,
+        jobUuid,
     }: {
         projectUuid: string;
         organizationUuid: string | undefined;
         userUuid: string;
+        jobUuid?: string;
         primary: {
             adapter: ProjectAdapter;
             connection: ScopedWarehouseConnection;
@@ -9017,6 +9112,9 @@ export class ProjectService
             mixedWarehouseConnectionsEnabled,
             ...(crossSourceRefsEnabled
                 ? {
+                      crossSourceMaxPasses:
+                          this.lightdashConfig.dbt.crossSourceMaxPasses,
+                      compileJobUuid: jobUuid ?? null,
                       crossSourceTimeouts: {
                           prepareMs:
                               this.lightdashConfig.dbt
@@ -13202,6 +13300,7 @@ export class ProjectService
                             multiConnection =
                                 await this.compileMultiConnectionProject({
                                     projectUuid,
+                                    jobUuid,
                                     organizationUuid: project.organizationUuid,
                                     userUuid: user.userUuid,
                                     primary: buildResult,
@@ -13223,6 +13322,7 @@ export class ProjectService
                                 connectionWarnings,
                             } = await this.resolveCompileAdapter({
                                 projectUuid,
+                                jobUuid,
                                 organizationUuid: project.organizationUuid,
                                 userUuid: user.userUuid,
                                 primary: buildResult,

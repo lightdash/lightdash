@@ -6,6 +6,7 @@ import {
     getDbtPartialParseBaselineLimits,
     getDbtPartialParseBaselinePath,
     getDbtPartialParseBaselineSize,
+    getDbtPartialParseExternalNodesDigest,
     pruneDbtPartialParseBaselines,
     saveDbtPartialParse,
     seedDbtPartialParse,
@@ -83,6 +84,103 @@ describe('dbt partial parse baselines', () => {
         expect(getDbtPartialParseBaselineSize(store)).toBeLessThanOrEqual(4);
     });
 
+    it('counts and prunes the digest with its baseline under the budget cap', async () => {
+        vi.stubEnv('DBT_SOURCE_FETCH_DISK_BUDGET_BYTES', '1024');
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            'abc',
+        );
+        const baselinePath = path.join(store, 'project.msgpack');
+        await saveDbtPartialParse(
+            baselinePath,
+            targetDirectory,
+            undefined,
+            'payload-a',
+        );
+        const pairBytes = getDbtPartialParseBaselineSize(store);
+        expect(pairBytes).toBeGreaterThan(3);
+        expect(pairBytes).toBeLessThanOrEqual(256);
+        expect(await fs.readdir(store)).toHaveLength(2);
+        vi.stubEnv(
+            'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
+            String((pairBytes - 1) * 4),
+        );
+        await pruneDbtPartialParseBaselines(store, Date.now());
+        expect(await fs.readdir(store)).toEqual([]);
+    });
+
+    it('expires the baseline and its newer sidecar together', async () => {
+        await fs.mkdir(store);
+        await writeBaseline('expired.msgpack', 3, 200 * HOUR);
+        await writeBaseline('expired.msgpack.external_nodes.sha256', 80, 0);
+        await pruneDbtPartialParseBaselines(store, Date.now());
+        expect(await fs.readdir(store)).toEqual([]);
+    });
+
+    it('prunes old baseline pairs without keeping their newer sidecars', async () => {
+        await fs.mkdir(store);
+        await writeBaseline('old.msgpack', 3, 2 * HOUR);
+        await writeBaseline('old.msgpack.external_nodes.sha256', 80, 0);
+        await writeBaseline('new.msgpack', 3, HOUR);
+        await writeBaseline('new.msgpack.external_nodes.sha256', 80, HOUR);
+        await pruneDbtPartialParseBaselines(store, Date.now(), {
+            maxBytes: 100,
+            maxAgeMs: 168 * HOUR,
+            abandonedWriteAgeMs: HOUR,
+        });
+        expect((await fs.readdir(store)).sort()).toEqual([
+            'new.msgpack',
+            'new.msgpack.external_nodes.sha256',
+        ]);
+        expect(getDbtPartialParseBaselineSize(store)).toBe(83);
+    });
+
+    it.each([null, 'payload-b'])(
+        'keeps an aged digest pair through a save with payload %s',
+        async (digest) => {
+            const baselinePath = path.join(store, 'injected.msgpack');
+            await fs.writeFile(
+                path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+                'parsed',
+            );
+            await saveDbtPartialParse(
+                baselinePath,
+                targetDirectory,
+                undefined,
+                'payload-a',
+            );
+            const old = new Date(Date.now() - 2 * HOUR);
+            await fs.utimes(baselinePath, old, old);
+            await fs.utimes(`${baselinePath}.external_nodes.sha256`, old, old);
+            await saveDbtPartialParse(
+                path.join(store, 'ordinary.msgpack'),
+                targetDirectory,
+                undefined,
+                digest,
+            );
+            expect(
+                await getDbtPartialParseExternalNodesDigest(
+                    baselinePath,
+                    targetDirectory,
+                ),
+            ).toBe('payload-a');
+            const pairBytes =
+                (await fs.stat(baselinePath)).size +
+                (await fs.stat(`${baselinePath}.external_nodes.sha256`)).size;
+            const newestBytes =
+                getDbtPartialParseBaselineSize(store) - pairBytes;
+            await pruneDbtPartialParseBaselines(store, Date.now(), {
+                maxBytes: newestBytes,
+                maxAgeMs: 168 * HOUR,
+                abandonedWriteAgeMs: HOUR,
+            });
+            expect(await fs.readdir(store)).not.toContain('injected.msgpack');
+            expect(await fs.readdir(store)).not.toContain(
+                'injected.msgpack.external_nodes.sha256',
+            );
+        },
+    );
+
     it('keys a baseline by project and dbt source', () => {
         const projectConnection = getDbtPartialParseBaselinePath({
             projectUuid: 'project-a',
@@ -146,6 +244,65 @@ describe('dbt partial parse baselines', () => {
             fs.readFile(path.join(nextTarget, DBT_PARTIAL_PARSE_FILE), 'utf8'),
         ).resolves.toBe('parsed');
     });
+
+    it('stores the payload digest with the baseline and rejects a digest for a different partial parse file', async () => {
+        const baselinePath = path.join(store, 'project.msgpack');
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            'first parse',
+        );
+        await saveDbtPartialParse(
+            baselinePath,
+            targetDirectory,
+            undefined,
+            'payload-a',
+        );
+        const nextTarget = path.join(root, 'next-target');
+        await fs.mkdir(nextTarget);
+        await seedDbtPartialParse(baselinePath, nextTarget);
+        expect(
+            await getDbtPartialParseExternalNodesDigest(
+                baselinePath,
+                nextTarget,
+            ),
+        ).toBe('payload-a');
+        await fs.writeFile(
+            path.join(targetDirectory, DBT_PARTIAL_PARSE_FILE),
+            'parse without external nodes',
+        );
+        await saveDbtPartialParse(baselinePath, targetDirectory);
+        await seedDbtPartialParse(baselinePath, nextTarget);
+        expect(
+            await getDbtPartialParseExternalNodesDigest(
+                baselinePath,
+                nextTarget,
+            ),
+        ).toBeNull();
+    });
+
+    it.each(['{', 'null', '{}'])(
+        'treats missing or malformed digest sidecars as an unknown payload (%s)',
+        async (content) => {
+            const baselinePath = path.join(store, 'project.msgpack');
+            expect(
+                await getDbtPartialParseExternalNodesDigest(
+                    baselinePath,
+                    targetDirectory,
+                ),
+            ).toBeNull();
+            await fs.mkdir(store);
+            await fs.writeFile(
+                `${baselinePath}.external_nodes.sha256`,
+                content,
+            );
+            expect(
+                await getDbtPartialParseExternalNodesDigest(
+                    baselinePath,
+                    targetDirectory,
+                ),
+            ).toBeNull();
+        },
+    );
 
     it('leaves the old baseline in place when dbt wrote no file', async () => {
         const baselinePath = path.join(store, 'project.msgpack');

@@ -25,6 +25,7 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
+import { WarehouseConnectionBindingService } from '../WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { credentialRedactionCases } from './credentialRedactionFixtures.mock';
 import { warehouseConnectionCredentials } from './warehouseConnectionFixtures.mock';
 import { WarehouseConnectionService } from './WarehouseConnectionService';
@@ -162,7 +163,12 @@ const buildService = (mixedTypesEnabled = false) => {
             .fn()
             .mockResolvedValue(credentials),
     };
+    const dbtSourceRefCatalogModel = {
+        deleteForProject: vi.fn(),
+        deleteForSource: vi.fn(),
+    };
     const service = new WarehouseConnectionService({
+        dbtSourceRefCatalogModel,
         warehouseConnectionModel: model as unknown as WarehouseConnectionModel,
         projectModel: projectModel as unknown as Pick<
             ProjectModel,
@@ -180,6 +186,7 @@ const buildService = (mixedTypesEnabled = false) => {
     });
     return {
         service,
+        dbtSourceRefCatalogModel,
         model,
         analytics,
         featureFlagService,
@@ -738,5 +745,122 @@ describe('connection type immutability', () => {
             "A connection's warehouse type cannot be changed. Add a new connection instead.",
         );
         expect(model.updateExtraCredentials).not.toHaveBeenCalled();
+    });
+});
+
+describe('cross-source ref cache invalidation', () => {
+    it.each([true, false])(
+        'deletes only the removed connection group when the flag is %s',
+        async (enabled) => {
+            const h = buildService();
+            h.featureFlagService.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId !== FeatureFlags.CrossSourceDbtRefs ||
+                        enabled,
+                }),
+            );
+            h.model.get.mockResolvedValue(connection(extraUuid, false));
+            h.model.getBoundContent.mockResolvedValue({
+                explores: [],
+                dbtSources: [],
+                sqlCharts: [],
+                inFlightQueries: 0,
+            });
+            await h.service.delete(account, projectUuid, extraUuid);
+            expect(h.model.deleteExtra).toHaveBeenCalledWith(
+                project,
+                extraUuid,
+            );
+            if (enabled)
+                expect(
+                    h.dbtSourceRefCatalogModel.deleteForProject,
+                ).toHaveBeenCalledExactlyOnceWith(projectUuid, extraUuid);
+            else
+                expect(
+                    h.dbtSourceRefCatalogModel.deleteForProject,
+                ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('keeps rows when the connection cannot be deleted', async () => {
+        const h = buildService();
+        h.model.get.mockResolvedValue(connection(extraUuid, false));
+        await expect(
+            h.service.delete(account, projectUuid, extraUuid),
+        ).rejects.toThrow('cannot be removed while content uses it');
+        expect(
+            h.dbtSourceRefCatalogModel.deleteForProject,
+        ).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])(
+        'deletes rows for a rebound source when the flag is %s, even if analytics cannot read bindings',
+        async (enabled) => {
+            const h = buildService();
+            const bindDbtSource = vi.fn();
+            const service = new WarehouseConnectionBindingService({
+                projectModel: {
+                    getSummary: h.projectModel.getSummary,
+                    getDbtSourceIdentity: vi.fn(async () => ({
+                        dbtSourceUuid: 'primary-source',
+                        dbtSourceName: 'primary',
+                    })),
+                },
+                warehouseConnectionModel: h.model,
+                warehouseConnectionCompileModel: {
+                    bindDbtSource,
+                    getDbtSourceBindings: vi
+                        .fn()
+                        .mockRejectedValue(new Error('analytics unavailable')),
+                } as never,
+                dbtSourceRefCatalogModel: h.dbtSourceRefCatalogModel,
+                featureFlagService: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    })),
+                } as never,
+                credentialPolicy: h.credentialPolicy,
+                analytics: h.analytics,
+            });
+            await service.bindDbtSource(
+                account,
+                projectUuid,
+                'source',
+                extraUuid,
+            );
+            expect(bindDbtSource).toHaveBeenCalledWith(
+                projectUuid,
+                'source',
+                extraUuid,
+            );
+            if (enabled)
+                expect(
+                    h.dbtSourceRefCatalogModel.deleteForSource,
+                ).toHaveBeenCalledExactlyOnceWith(projectUuid, 'source');
+            else
+                expect(
+                    h.dbtSourceRefCatalogModel.deleteForSource,
+                ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('does not fail a connection deletion when cache cleanup fails', async () => {
+        const h = buildService();
+        h.model.get.mockResolvedValue(connection(extraUuid, false));
+        h.model.getBoundContent.mockResolvedValue({
+            explores: [],
+            dbtSources: [],
+            sqlCharts: [],
+            inFlightQueries: 0,
+        });
+        h.dbtSourceRefCatalogModel.deleteForProject.mockRejectedValue(
+            new Error('cache unavailable'),
+        );
+        await expect(
+            h.service.delete(account, projectUuid, extraUuid),
+        ).resolves.toBeUndefined();
     });
 });

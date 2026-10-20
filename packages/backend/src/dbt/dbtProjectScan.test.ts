@@ -32,7 +32,7 @@ describe('scanDbtProject', () => {
             'models/dynamic.sql',
             `{{ ref(var('project'), 'orders') }} {{ ref('dynamic', model) }}`,
         );
-        expect(await scanDbtProject(directory)).toEqual({
+        expect(await scanDbtProject(directory)).toMatchObject({
             projectName: 'local',
             referencedProjects: ['upstream', 'other', 'comment_only'],
             installedPackages: [],
@@ -51,7 +51,7 @@ describe('scanDbtProject', () => {
             `ref('large', 'model')${' '.repeat(2 * 1024 * 1024)}`,
         );
         await fs.symlink(directory, path.join(directory, 'loop'));
-        expect(await scanDbtProject(directory)).toEqual({
+        expect(await scanDbtProject(directory)).toMatchObject({
             projectName: null,
             referencedProjects: [],
             installedPackages: [],
@@ -75,7 +75,7 @@ describe('scanDbtProject', () => {
         ).toBeNull();
         await write('dbt_project.yml', 'name: [');
         await write('dependencies.yml', 'projects: [');
-        expect(await scanDbtProject(directory)).toEqual({
+        expect(await scanDbtProject(directory)).toMatchObject({
             projectName: null,
             referencedProjects: [],
             installedPackages: [],
@@ -92,6 +92,32 @@ it('reads installed project names rather than package directory names', async ()
     ]);
 });
 
+it('scans versions, keyword packages and unique one-argument refs with local and package models', async () => {
+    await write('dbt_project.yml', 'name: local');
+    await write(
+        'models/orders_v2.sql',
+        "{{ ref('a', 'sales', v=2) }} {{ ref('a', 'sales', version='3') }} {{ ref('items', package='b', version=1) }} {{ ref('single') }} {{ ref('one', v=4) }} {{ ref('one', v=4) }}",
+    );
+    await write(
+        'models/schema.yml',
+        'models:\n  - name: catalogue\n    versions:\n      - v: 1',
+    );
+    await write('dbt_packages/pkg/dbt_project.yml', 'name: installed');
+    await write('dbt_packages/pkg/models/package_model.sql', 'select 1');
+    expect(await scanDbtProject(directory)).toMatchObject({
+        refs: [
+            { packageName: 'a', name: 'sales', version: '2' },
+            { packageName: 'a', name: 'sales', version: '3' },
+            { packageName: 'b', name: 'items', version: '1' },
+            { packageName: null, name: 'single', version: null },
+            { packageName: null, name: 'one', version: '4' },
+        ],
+        localModels: ['catalogue', 'orders'],
+        installedPackageModels: ['package_model'],
+        installedPackages: ['installed'],
+    });
+});
+
 it('reads the configured package path and skips package refs in that directory', async () => {
     await write(
         'dbt_project.yml',
@@ -106,7 +132,43 @@ it('reads the configured package path and skips package refs in that directory',
     expect(await scanDbtProject(directory)).toEqual({
         projectName: 'leaf_a',
         installedPackages: ['leaf_c'],
+        installedPackageModels: ['leaf_b'],
+        localModels: ['leaf_a'],
+        refs: [{ packageName: 'leaf_c', name: 'leaf_e', version: null }],
         referencedProjects: ['leaf_c'],
         declaredUpstreams: [],
     });
+});
+
+it('uses configured model paths for SQL, Python and schema models in each project', async () => {
+    await write(
+        'dbt_project.yml',
+        'name: c\nmodel-paths: [transformations, python_models]',
+    );
+    await write('transformations/m_v2.sql', "{{ ref('p', 'm', v=2.0) }}");
+    await write(
+        'python_models/py_model.py',
+        'def model(dbt, session): return dbt.ref("p", "m", version="2")',
+    );
+    await write(
+        'transformations/schema.yml',
+        'models:\n  - name: schema_model',
+    );
+    await write('models/ignored.sql', 'select 1');
+    await write('analysis/models/ignored.py', 'pass');
+    await write(
+        'dbt_packages/x/dbt_project.yml',
+        'name: x\nmodel-paths: [src]',
+    );
+    await write('dbt_packages/x/src/package_v2.py', 'pass');
+    expect(await scanDbtProject(directory)).toMatchObject({
+        localModels: ['m', 'py_model', 'schema_model'],
+        installedPackageModels: ['package'],
+        refs: [{ packageName: 'p', name: 'm', version: '2' }],
+    });
+});
+
+it('includes Python models in the default model path', async () => {
+    await write('models/py_v2.py', 'pass');
+    expect((await scanDbtProject(directory)).localModels).toEqual(['py']);
 });

@@ -1,0 +1,4 @@
+version: 2
+models:
+    - name: model_a
+      access: public

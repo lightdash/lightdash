@@ -1,0 +1,10 @@
+version: 2
+models:
+    - name: base
+      access: public
+    - name: dim
+      access: public
+      latest_version: 3
+      versions:
+          - v: 1
+          - v: 3

@@ -1729,6 +1729,7 @@ export type LightdashConfig = {
         crossSourcePrepareTimeoutMs: number;
         crossSourceLsTimeoutMs: number;
         crossSourceResolutionTimeoutMs: number;
+        crossSourceMaxPasses: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -3696,6 +3697,10 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            crossSourceMaxPasses:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_MAX_PASSES',
+                ) ?? 3,
             crossSourcePrepareTimeoutMs:
                 getIntegerFromEnvironmentVariable(
                     'DBT_SOURCE_PREPARE_TIMEOUT_MS',
