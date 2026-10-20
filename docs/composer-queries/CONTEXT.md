@@ -149,7 +149,7 @@ _Avoid_: tool-call description, pipeline panel
 
 ## Boundaries
 
-- Composer queries are web-chat only and gated by the multi-source query and
+- Composer queries run in web chat and Slack, gated by the multi-source query and
   compose SQL runner flags plus the agent's data access setting.
 - The public query-sources API accepts the same node shapes, including node
   titles, but owns no user interface.
