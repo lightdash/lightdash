@@ -20,7 +20,6 @@ import {
     getTabCountsForField,
     getTileField,
     getTilesOnTab,
-    isTileChanged,
     canTileTakeFilter,
     removeField,
     removeFieldFromAll,
@@ -89,15 +88,6 @@ describe('peers', () => {
         expect(getTileField(r, d, fieldsByTile)).toBeNull();
         expect(getDefaultTileField(r, b, fieldsByTile)).toEqual(ORDERS);
         expect(getDefaultTileField(r, c, fieldsByTile)).toBeNull();
-    });
-
-    it('detects changed tiles only when the entry differs from the default', () => {
-        const r = rule({ a: ORDERS, b: false, c: PAYMENTS, d: false });
-        expect(isTileChanged(r, a, fieldsByTile)).toBe(false);
-        expect(isTileChanged(r, b, fieldsByTile)).toBe(true);
-        expect(isTileChanged(r, c, fieldsByTile)).toBe(true);
-        expect(isTileChanged(r, d, fieldsByTile)).toBe(false);
-        expect(isTileChanged(rule(), a, fieldsByTile)).toBe(false);
     });
 
     it('lists fields in order without duplicates', () => {

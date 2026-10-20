@@ -8,10 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-    createExplorerStore,
-    explorerActions,
-} from '../../../features/explorer/store';
+import { createExplorerStore } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { renderWithProviders } from '../../../testing/testUtils';
 import ExplorePanel from './index';
@@ -96,14 +93,8 @@ const exploreQuery = (overrides: Partial<ExploreQuery>): ExploreQuery =>
         ...overrides,
     }) as unknown as ExploreQuery;
 
-const renderPanel = (
-    appMocks?: Parameters<typeof renderWithProviders>[1],
-    openVisualizationConfig = false,
-) => {
+const renderPanel = (appMocks?: Parameters<typeof renderWithProviders>[1]) => {
     const store = createExplorerStore();
-    if (openVisualizationConfig) {
-        store.dispatch(explorerActions.openVisualizationConfig());
-    }
 
     return renderWithProviders(
         <MemoryRouter>
@@ -157,22 +148,6 @@ describe('ExplorePanel loading state', () => {
         renderPanel();
 
         expect(screen.queryByTestId('explore-tree')).not.toBeNull();
-    });
-});
-
-describe('ExplorePanel chart configuration placement', () => {
-    beforeEach(() => {
-        mockUseExplore.mockReturnValue(exploreQuery({ data: mockExplore }));
-        testState.enabledFlags.clear();
-    });
-
-    it('keeps fields mounted and leaves the portal to the right rail', () => {
-        renderPanel(undefined, true);
-
-        expect(
-            document.getElementById('visualization-config-portal'),
-        ).toBeNull();
-        expect(screen.getByTestId('explore-tree')).toBeVisible();
     });
 });
 

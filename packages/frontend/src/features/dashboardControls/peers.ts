@@ -129,17 +129,6 @@ export const getMissingTileFieldId = (
     return doesTileOfferField(tile, fieldId, fieldsByTile) ? null : fieldId;
 };
 
-export const isTileChanged = (
-    rule: DashboardFilterRule,
-    tile: DashboardTile,
-    fieldsByTile: FieldsByTile,
-): boolean => {
-    if (rule.tileTargets?.[tile.uuid] === undefined) return false;
-    const current = getTileField(rule, tile, fieldsByTile);
-    const fallback = getDefaultTileField(rule, tile, fieldsByTile);
-    return (current?.fieldId ?? null) !== (fallback?.fieldId ?? null);
-};
-
 // SQL column mappings are per tile and never fields of the filter
 const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
     Object.values(rule.tileTargets ?? {})
