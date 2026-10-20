@@ -22614,7 +22614,11 @@ describe('fresh execution producer to result reader', () => {
             expect(lookup).toHaveBeenCalledExactlyOnceWith(
                 original.cacheKey,
                 projectUuid,
-                { excludeAgentClaims: true, excludeAgentProduced: true },
+                {
+                    excludeAgentClaims: true,
+                    excludeAgentProduced: true,
+                    excludeCacheHits: true,
+                },
             );
             expect(
                 f.rows.get(fresh.queryUuid)!.requestParameters
