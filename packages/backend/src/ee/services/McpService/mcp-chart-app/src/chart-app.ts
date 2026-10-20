@@ -28,15 +28,7 @@ import {
     type CustomChartColorScheme,
     type CustomChartHostMessage,
 } from '../../mcpCustomChartFrameProtocol';
-import {
-    getChartTextColor,
-    lightdashDarkTheme,
-    lightdashTheme,
-} from './lightdash-theme';
-
-// Register the custom Lightdash themes
-echarts.registerTheme('lightdash', lightdashTheme);
-echarts.registerTheme('lightdash-dark', lightdashDarkTheme);
+import { lightdashTheme } from './lightdash-theme';
 
 const card = document.getElementById('card') as HTMLDivElement;
 const chartContainer = document.getElementById('chart') as HTMLDivElement;
@@ -155,15 +147,44 @@ function itemTooltipFormatter(
     );
 }
 
+const colorProbe = document.createElement('span');
+colorProbe.hidden = true;
+document.body.appendChild(colorProbe);
+
+/** Resolves a CSS colour (var(), light-dark()) to a value the canvas renderer can draw. */
+function resolveCssColor(value: string): string {
+    colorProbe.style.color = value;
+    const resolved = colorProbe.style.color
+        ? getComputedStyle(colorProbe).color
+        : value;
+    colorProbe.style.color = '';
+    return resolved;
+}
+
+function resolveCssVariables<T>(value: T): T {
+    if (typeof value === 'string') {
+        return (value.startsWith('var(') ? resolveCssColor(value) : value) as T;
+    }
+    if (Array.isArray(value)) return value.map(resolveCssVariables) as T;
+    if (isRecord(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, v]) => [
+                key,
+                resolveCssVariables(v),
+            ]),
+        ) as T;
+    }
+    return value;
+}
+
 function initChart(): echarts.ECharts {
     if (chart) {
         chart.dispose();
     }
     chartColorScheme = getHostColorScheme();
-    chart = echarts.init(
-        chartContainer,
-        chartColorScheme === 'dark' ? 'lightdash-dark' : 'lightdash',
-    );
+    // Re-registered on every init so the theme picks up the host's current colours
+    echarts.registerTheme('lightdash', resolveCssVariables(lightdashTheme));
+    chart = echarts.init(chartContainer, 'lightdash');
     return chart;
 }
 
@@ -199,7 +220,8 @@ function setChartOption(
     instance: echarts.ECharts,
     option: echarts.EChartsOption,
 ): void {
-    const fill = getChartTextColor(chartColorScheme ?? 'light');
+    // ECharts themes can't style `graphic` text, which the AI chart config uses for axis titles
+    const fill = 'var(--app-text-secondary)';
     const graphic = Array.isArray(option.graphic)
         ? option.graphic.map((element: unknown) =>
               isRecord(element) &&
@@ -210,7 +232,10 @@ function setChartOption(
                   : element,
           )
         : option.graphic;
-    instance.setOption({ ...option, graphic } as echarts.EChartsOption, true);
+    instance.setOption(
+        resolveCssVariables({ ...option, graphic }) as echarts.EChartsOption,
+        true,
+    );
 }
 
 function renderTable(
@@ -265,14 +290,18 @@ exploreButton.addEventListener('click', async () => {
 });
 
 function isFullscreen(): boolean {
-    return app.getHostContext()?.displayMode === 'fullscreen';
+    return document.documentElement.dataset.displayMode === 'fullscreen';
 }
 
 expandButton.addEventListener('click', async () => {
-    const { mode } = await app.requestDisplayMode({
-        mode: isFullscreen() ? 'inline' : 'fullscreen',
-    });
-    document.documentElement.dataset.displayMode = mode;
+    try {
+        const { mode } = await app.requestDisplayMode({
+            mode: isFullscreen() ? 'inline' : 'fullscreen',
+        });
+        document.documentElement.dataset.displayMode = mode;
+    } catch (error) {
+        console.warn('Host denied the display mode request', error);
+    }
     updateExpandButton();
 });
 
@@ -281,8 +310,7 @@ function updateExpandButton(): void {
         app.getHostContext()?.availableDisplayModes?.includes('fullscreen') ??
         false;
     expandButton.hidden = !canExpand;
-    const fullscreen =
-        document.documentElement.dataset.displayMode === 'fullscreen';
+    const fullscreen = isFullscreen();
     const label = fullscreen ? 'Exit full screen' : 'Expand to full screen';
     expandButton.innerHTML = fullscreen ? COLLAPSE_ICON : EXPAND_ICON;
     expandButton.setAttribute('aria-label', label);
@@ -363,7 +391,12 @@ let postToCustomChart: ((message: CustomChartHostMessage) => void) | null =
     null;
 
 function getHostColorScheme(): CustomChartColorScheme {
-    return app.getHostContext()?.theme === 'dark' ? 'dark' : 'light';
+    const theme =
+        app.getHostContext()?.theme ??
+        (window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light');
+    return theme === 'dark' ? 'dark' : 'light';
 }
 
 function clearCustomChart(): void {
@@ -663,7 +696,12 @@ app.ontoolresult = (result) => {
 app.onhostcontextchanged = (changed) => {
     applyHostContext(changed);
     postToCustomChart?.(getCustomChartThemeMessage(getHostColorScheme()));
-    if (chart && lastChartOption && chartColorScheme !== getHostColorScheme()) {
+    if (
+        chart &&
+        lastChartOption &&
+        chartContainer.style.display !== 'none' &&
+        chartColorScheme !== getHostColorScheme()
+    ) {
         setChartOption(initChart(), lastChartOption);
     }
 };
