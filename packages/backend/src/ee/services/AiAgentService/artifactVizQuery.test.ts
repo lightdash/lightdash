@@ -128,7 +128,7 @@ const buildService = () => {
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
-    return { service, aiAgentModel, asyncQueryService, featureFlagService };
+    return { service, aiAgentModel, asyncQueryService };
 };
 
 const artifactArgs = [
@@ -208,18 +208,8 @@ describe.each([
                 );
             },
         );
-        it('executes merge charts with viewer user attribute overrides and merge-queries off', async () => {
-            const {
-                service,
-                aiAgentModel,
-                asyncQueryService,
-                featureFlagService,
-            } = buildService();
-            featureFlagService.get.mockImplementation(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    enabled: featureFlagId !== 'merge-queries',
-                }),
-            );
+        it('executes merge charts with viewer user attribute overrides', async () => {
+            const { service, aiAgentModel, asyncQueryService } = buildService();
             aiAgentModel.getArtifact.mockResolvedValue({
                 threadUuid: 'thread-uuid',
                 artifactType: 'chart',
