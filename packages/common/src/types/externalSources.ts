@@ -96,6 +96,8 @@ export type CreateExternalSourceTablePayload = {
 /** Rename changes how the table appears; the sql name stays stable so saved charts keep working. */
 export type UpdateExternalSourcePayload = {
     label: string;
+    /** Display names keyed by column reference; unlisted columns keep theirs. */
+    columnLabels?: Record<string, string>;
 };
 
 export type CreateGoogleSheetsSourcePayload = {

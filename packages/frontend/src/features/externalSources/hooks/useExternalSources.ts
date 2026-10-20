@@ -301,7 +301,12 @@ const renameExternalSourceApi = async (
         body: JSON.stringify(args.payload),
     });
 
-export const useRenameExternalSource = (projectUuid: string | undefined) => {
+export const useRenameExternalSource = (
+    projectUuid: string | undefined,
+    { showSuccessToast }: { showSuccessToast: boolean } = {
+        showSuccessToast: true,
+    },
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -316,13 +321,17 @@ export const useRenameExternalSource = (projectUuid: string | undefined) => {
                 sourceUuid,
                 payload,
             }),
-        onSuccess: async () => {
+        onSuccess: async (source) => {
+            queryClient.setQueryData(
+                ['external-sources', projectUuid, source.sourceUuid],
+                source,
+            );
             await queryClient.invalidateQueries({
                 queryKey: ['external-sources', projectUuid],
             });
             // Explore keys are ['tables', exploreName, projectUuid]
             await queryClient.invalidateQueries({ queryKey: ['tables'] });
-            showToastSuccess({ title: 'Table renamed' });
+            if (showSuccessToast) showToastSuccess({ title: 'Table renamed' });
         },
         onError: ({ error }) => {
             showToastApiError({
