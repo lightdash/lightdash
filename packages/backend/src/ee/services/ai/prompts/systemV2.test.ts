@@ -643,6 +643,24 @@ describe('getSystemPromptV2 composer queries', () => {
         },
     );
 
+    test.each([
+        [false, true],
+        [true, false],
+    ])(
+        'with python nodes %s, states the forecast limitation: %s',
+        (enableComposerPythonNodes, statesLimitation) => {
+            const content = promptText({
+                availableExplores: [],
+                promptSections: composerSections(),
+                enableComposerPythonNodes,
+            });
+
+            expect(content.includes('You cannot forecast')).toBe(
+                statesLimitation,
+            );
+        },
+    );
+
     test('keeps the standalone runSql wording for the classic query path', () => {
         const content = promptText({
             availableExplores: [],

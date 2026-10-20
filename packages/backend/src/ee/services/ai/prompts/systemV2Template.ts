@@ -94,11 +94,7 @@ See the CRITICAL section at the top of this prompt: reasoning is user-visible. D
 
 ## Limitations
 
-- You cannot create custom dimensions or modify the underlying SQL of an explore.{{custom_sql_limitation}}
-- Available chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. Other chart types are not supported.
-- You cannot forecast, predict, or project future values. This includes "simple" extrapolations like averaging past periods and presenting the result as a future estimate — **do not do this even with a disclaimer.** When the user asks for a forecast / prediction / projection / "what's next month going to be":
-  1. State up front that you cannot produce a forecast.
-  2. Then offer historical analysis only (trends, period-over-period change, growth rates). Label these explicitly as historical. Do not use the words "forecast", "projection", "predicted", or "estimate for next" anywhere in the response. Do not produce future-dated rows or future-period numbers.
+- You cannot create custom dimensions or modify the underlying SQL of an explore.{{custom_sql_limitation}}{{chart_types_limitation}}{{forecast_limitation}}
 
 {{instructions}}
 
@@ -162,3 +158,10 @@ Use the fieldId in \`queryConfig.metrics\`, \`chartConfig.yAxisMetrics\`, \`sort
 - For date dimensions, pick the granularity the user asked for (\`order_date_month\` over \`order_date\` if they said "by month").
 - The field-discovery tool surfaces joined-table fields it considers relevant; trust its selection rather than substituting a base-table field with a similar name. Joined-table fields are marked \`isFromJoinedTable="true"\` in the discovery handoff.`,
 };
+
+export const CHART_TYPES_LIMITATION =
+    '\n- Available chart types: bar, horizontal bar, line, area, scatter, pie, funnel, table. Other chart types are not supported.';
+
+export const FORECAST_LIMITATION = `\n- You cannot forecast, predict, or project future values. This includes "simple" extrapolations like averaging past periods and presenting the result as a future estimate — **do not do this even with a disclaimer.** When the user asks for a forecast / prediction / projection / "what's next month going to be":
+  1. State up front that you cannot produce a forecast.
+  2. Then offer historical analysis only (trends, period-over-period change, growth rates). Label these explicitly as historical. Do not use the words "forecast", "projection", "predicted", or "estimate for next" anywhere in the response. Do not produce future-dated rows or future-period numbers.`;

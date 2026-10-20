@@ -52,7 +52,12 @@ import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
-import { CLASSIC_QUERY_PATH, SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import {
+    CHART_TYPES_LIMITATION,
+    CLASSIC_QUERY_PATH,
+    FORECAST_LIMITATION,
+    SYSTEM_PROMPT_TEMPLATE,
+} from './systemV2Template';
 import {
     getThreadBindingSection,
     getThreadContextSection,
@@ -452,6 +457,15 @@ export const getSystemPromptV2 = (
             promptSections.has('memories') ? MEMORIES_SECTION : '',
         )
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
+        // Composer results pick their chart through the present marker.
+        .replace(
+            '{{chart_types_limitation}}',
+            composer ? '' : CHART_TYPES_LIMITATION,
+        )
+        .replace(
+            '{{forecast_limitation}}',
+            composer && enableComposerPythonNodes ? '' : FORECAST_LIMITATION,
+        )
         .replace('{{agent_name}}', agentName)
         .replace(
             '{{instructions}}',
