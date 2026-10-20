@@ -10,7 +10,7 @@ What an AI agent run can do: its tools and the system prompt sections that expla
 ## Adding a tool
 
 1. Add the name to `AGENT_TOOL_NAMES` and its builder to `toolBuilders` in `agents/agentV2.ts`.
-2. Choose its owner: the base when it is part of the query path, otherwise an add-on. Add it to an existing add-on with the same condition, or a new add-on with a one-line `description`.
+2. Choose its owner: the base when it is part of the query path, otherwise an add-on. Add it to an existing add-on with the same condition, or a new add-on with a one-line `description`. A base that needs an add-on's tool accepts that add-on; it never lists the tool.
 3. Run `pnpm -F backend test src/ee/services/ai/loadout` and commit the updated snapshots in `__snapshots__/`; they are the contract reviewers read.
 
 ## Flags
