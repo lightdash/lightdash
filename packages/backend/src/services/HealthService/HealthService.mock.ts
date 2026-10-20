@@ -164,6 +164,9 @@ export const BaseResponse: HealthState = {
     preAggregates: {
         enabled: false,
     },
+    externalSources: {
+        engineAvailable: true,
+    },
     dataApps: {
         previewOrigin: null,
         sampleDataEnabled: true,
