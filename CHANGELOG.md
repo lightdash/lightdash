@@ -1,3 +1,10 @@
+# [2.627.0](https://github.com/lightdash/lightdash/compare/2.626.0...2.627.0) (2026-10-20)
+
+
+### Features
+
+* **dashboards:** show active and requirement state on filter pills ([#30770](https://github.com/lightdash/lightdash/issues/30770)) ([444650a](https://github.com/lightdash/lightdash/commit/444650ac643ebe4bbb0b40a7dc67bfd4c67087af)), closes [#23252](https://github.com/lightdash/lightdash/issues/23252)
+
 # [2.626.0](https://github.com/lightdash/lightdash/compare/2.625.0...2.626.0) (2026-10-20)
 
 
