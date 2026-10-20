@@ -252,6 +252,15 @@ describe('computeMaterializationFingerprint', () => {
         ).not.toBe(baseline);
     });
 
+    test('ignores refresh settings', () => {
+        expect(
+            fingerprintFor(getSourceExplore(), {
+                ...preAggregateDef,
+                refresh: { cron: '0 3 * * *', onCompile: false },
+            }),
+        ).toBe(baseline);
+    });
+
     test('ignores fields and joins the pre-aggregate does not read', () => {
         const unrelated = withExplore((explore) => {
             // eslint-disable-next-line no-param-reassign

@@ -153,13 +153,15 @@ export const computeMaterializationFingerprint = ({
             return acc;
         }, {});
 
+    // Refresh settings decide when to build, not what; they never invalidate
+    const { refresh: _refresh, ...definition } = preAggregateDef;
     const input = canonicalize({
         version: 1,
         targetDatabase: sourceExplore.targetDatabase,
         warehouse: sourceExplore.warehouse ?? null,
         databricksCompute: sourceExplore.databricksCompute ?? null,
         baseTable: sourceExplore.baseTable,
-        definition: preAggregateDef,
+        definition,
         materializationMetricQuery,
         fields,
         tables,
