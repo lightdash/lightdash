@@ -1,8 +1,13 @@
 import { MissingConfigError, NotFoundError } from '@lightdash/common';
+import { fetchMiddlewares } from '@tsoa/runtime';
 import { type Request } from 'express';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it, vi } from 'vitest';
+import {
+    allowApiKeyAuthentication,
+    isAuthenticated,
+} from '../../controllers/authentication';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { OrgDepartmentsController } from './OrgDepartmentsController';
 
@@ -41,6 +46,34 @@ describe('OrgDepartmentsController source', () => {
         expect(membership).toBeGreaterThan(-1);
         expect(parameterised === -1 || membership < parameterised).toBe(true);
     });
+});
+
+describe('OrgDepartmentsController authentication', () => {
+    // Every method on the controller except the service lookup is a route
+    const routes = Object.getOwnPropertyNames(
+        OrgDepartmentsController.prototype,
+    ).filter((name) => name !== 'constructor' && name !== 'departmentService');
+
+    it('has one method for each route the source declares', () => {
+        const source = readFileSync(
+            join(__dirname, 'OrgDepartmentsController.ts'),
+            'utf8',
+        );
+        const declared = source.match(/@(Get|Post|Put|Patch|Delete)\(/g) ?? [];
+        expect(declared.length).toBeGreaterThan(0);
+        expect(routes).toHaveLength(declared.length);
+    });
+
+    it.each(routes)(
+        '%s accepts an API key or a session and requires authentication',
+        (route) => {
+            expect(
+                fetchMiddlewares(
+                    Reflect.get(OrgDepartmentsController.prototype, route),
+                ),
+            ).toEqual([[allowApiKeyAuthentication, isAuthenticated]]);
+        },
+    );
 });
 
 describe('OrgDepartmentsController', () => {

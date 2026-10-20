@@ -6,9 +6,12 @@ import {
     ForbiddenError,
     getAncestorUuids,
     getParentMap,
+    hasControlCharacter,
+    normalizeDepartmentName,
     NotFoundError,
     ParameterError,
     resolveDepartmentMembership,
+    truncateForMessage,
     type Account,
     type CreateDepartment,
     type Department,
@@ -24,7 +27,10 @@ import {
     type ActivityWindows,
     type DepartmentAnalyticsModel,
 } from '../../../models/DepartmentAnalyticsModel';
-import { type DepartmentModel } from '../../../models/DepartmentModel';
+import {
+    type DepartmentModel,
+    type DepartmentTreeLimits,
+} from '../../../models/DepartmentModel';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
@@ -40,6 +46,8 @@ import {
 
 export const ACTIVE_DAYS = 30;
 export const TREND_WEEKS = 12;
+// A member's last activity is read this far back; beyond it the page says "No recorded activity"
+export const LAST_ACTIVE_DAYS = 90;
 const TOP_CONTENT_LIMIT = 5;
 const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -52,7 +60,29 @@ type Deps = {
 
 const MAX_INT4 = 2147483647;
 const NAME_MAX_LENGTH = 255;
+// A longer raw name is refused before normalising, which can make a name many times longer
+const NAME_MAX_RAW_LENGTH = NAME_MAX_LENGTH * 4;
 const MAX_LIST_LENGTH = 5000;
+const TARGET_YEAR_MIN = 1900;
+const TARGET_YEAR_MAX = 2200;
+const MAX_OWNERS = 20;
+
+// Bounds that keep the tree walks, the responses and the map small enough to stay fast
+export const DEPARTMENT_TREE_LIMITS: DepartmentTreeLimits = {
+    maxDepartments: 1000,
+    maxDepth: 10,
+};
+
+// The organization snapshot is reused this long; any write through this service drops it sooner
+const SNAPSHOT_TTL_MS = 60_000;
+const SNAPSHOT_CACHE_LIMIT = 500;
+
+type LoadedSnapshot = { snapshot: AdoptionSnapshot; windows: ActivityWindows };
+
+type CachedSnapshot = {
+    loaded: Promise<LoadedSnapshot>;
+    expiresAt: number;
+};
 
 const daysBefore = (now: Date, days: number): Date => {
     const since = new Date(now);
@@ -66,6 +96,7 @@ export const getActivityWindows = (
 ): ActivityWindows => ({
     activeSince: daysBefore(now, ACTIVE_DAYS),
     trendSince: daysBefore(now, TREND_WEEKS * 7),
+    lastActiveSince: daysBefore(now, LAST_ACTIVE_DAYS),
 });
 
 const isWholeNonNegative = (value: number): boolean =>
@@ -80,15 +111,23 @@ const isRealDate = (value: string): boolean => {
     );
 };
 
-const assertUuid = (value: unknown, label: string): void => {
-    if (typeof value !== 'string' || !isUuid(value)) {
-        throw new ParameterError(
-            `${label} must be a valid UUID: ${String(value)}`,
-        );
-    }
+// Postgres has no year 0, and no sensible target sits centuries away
+const isTargetYear = (value: string): boolean => {
+    const year = Number(value.slice(0, 4));
+    return year >= TARGET_YEAR_MIN && year <= TARGET_YEAR_MAX;
 };
 
-const assertUuidList = (values: unknown, label: string): void => {
+// Lower case, so a uuid matches the same everywhere: Postgres compares uuids in any case, JavaScript does not
+const toUuid = (value: unknown, label: string): string => {
+    if (typeof value !== 'string' || !isUuid(value)) {
+        throw new ParameterError(
+            `${label} must be a valid UUID: ${truncateForMessage(value)}`,
+        );
+    }
+    return value.toLowerCase();
+};
+
+const toUuidList = (values: unknown, label: string): string[] => {
     if (!Array.isArray(values)) {
         throw new ParameterError(`${label} must be a list`);
     }
@@ -97,15 +136,27 @@ const assertUuidList = (values: unknown, label: string): void => {
             `${label} can hold at most ${MAX_LIST_LENGTH} entries`,
         );
     }
-    values.forEach((v) => assertUuid(v, label));
+    return values.map((v: unknown) => toUuid(v, label));
 };
 
 export const validateDepartmentInput = (data: UpdateDepartment): void => {
     if (data.name !== undefined) {
-        if (data.name.trim().length === 0) {
+        if (data.name.length > NAME_MAX_RAW_LENGTH) {
+            throw new ParameterError(
+                `Department name must be ${NAME_MAX_LENGTH} characters or fewer`,
+            );
+        }
+        // Checked before normalising, which would quietly turn a tab or line break into a space
+        if (hasControlCharacter(data.name)) {
+            throw new ParameterError(
+                'Department name cannot contain control characters such as tabs or line breaks',
+            );
+        }
+        const name = normalizeDepartmentName(data.name);
+        if (name.length === 0) {
             throw new ParameterError('Department name is required');
         }
-        if (data.name.length > NAME_MAX_LENGTH) {
+        if (name.length > NAME_MAX_LENGTH) {
             throw new ParameterError(
                 `Department name must be ${NAME_MAX_LENGTH} characters or fewer`,
             );
@@ -117,7 +168,7 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.headcount)
     ) {
         throw new ParameterError(
-            `Headcount must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.headcount}`,
+            `Headcount must be a whole number of 0 or more, up to ${MAX_INT4}: ${truncateForMessage(data.headcount)}`,
         );
     }
     if (
@@ -126,36 +177,62 @@ export const validateDepartmentInput = (data: UpdateDepartment): void => {
         !isWholeNonNegative(data.targetActiveUsers)
     ) {
         throw new ParameterError(
-            `Target active users must be a whole number of 0 or more, up to ${MAX_INT4}: ${data.targetActiveUsers}`,
+            `Target active users must be a whole number of 0 or more, up to ${MAX_INT4}: ${truncateForMessage(data.targetActiveUsers)}`,
         );
     }
-    if (
-        data.targetDate !== undefined &&
-        data.targetDate !== null &&
-        !isRealDate(data.targetDate)
-    ) {
-        throw new ParameterError(
-            `Target date must be a real date in YYYY-MM-DD format: ${data.targetDate}`,
-        );
+    if (data.targetDate !== undefined && data.targetDate !== null) {
+        if (!isRealDate(data.targetDate)) {
+            throw new ParameterError(
+                `Target date must be a real date in YYYY-MM-DD format: ${truncateForMessage(data.targetDate)}`,
+            );
+        }
+        if (!isTargetYear(data.targetDate)) {
+            throw new ParameterError(
+                `Target date must be between the years ${TARGET_YEAR_MIN} and ${TARGET_YEAR_MAX}: ${data.targetDate}`,
+            );
+        }
     }
-    if (
-        data.headcountNote !== undefined &&
-        data.headcountNote !== null &&
-        data.headcountNote.length > HEADCOUNT_NOTE_MAX_LENGTH
-    ) {
-        throw new ParameterError(
-            'Headcount note must be 500 characters or fewer',
-        );
+    if (data.headcountNote !== undefined && data.headcountNote !== null) {
+        if (hasControlCharacter(data.headcountNote)) {
+            throw new ParameterError(
+                'Headcount note cannot contain control characters such as tabs or line breaks',
+            );
+        }
+        if (data.headcountNote.length > HEADCOUNT_NOTE_MAX_LENGTH) {
+            throw new ParameterError(
+                'Headcount note must be 500 characters or fewer',
+            );
+        }
     }
     if (
         data.parentDepartmentUuid !== undefined &&
         data.parentDepartmentUuid !== null
     ) {
-        assertUuid(data.parentDepartmentUuid, 'Parent department');
+        toUuid(data.parentDepartmentUuid, 'Parent department');
     }
 };
 
-const assertOwners = (owners: DepartmentOwnerInput[]): void => {
+// What the model stores: the name in the form names are compared in, uuids in lower case
+const normalizeCreate = (data: CreateDepartment): CreateDepartment => ({
+    ...data,
+    name: normalizeDepartmentName(data.name),
+    parentDepartmentUuid:
+        data.parentDepartmentUuid === null
+            ? null
+            : data.parentDepartmentUuid.toLowerCase(),
+});
+
+const normalizeUpdate = (data: UpdateDepartment): UpdateDepartment => ({
+    ...data,
+    ...(data.name === undefined
+        ? {}
+        : { name: normalizeDepartmentName(data.name) }),
+    ...(typeof data.parentDepartmentUuid === 'string'
+        ? { parentDepartmentUuid: data.parentDepartmentUuid.toLowerCase() }
+        : {}),
+});
+
+const toOwners = (owners: DepartmentOwnerInput[]): DepartmentOwnerInput[] => {
     if (!Array.isArray(owners)) {
         throw new ParameterError('Owners must be a list');
     }
@@ -164,14 +241,21 @@ const assertOwners = (owners: DepartmentOwnerInput[]): void => {
             `Owners can hold at most ${MAX_LIST_LENGTH} entries`,
         );
     }
-    owners.forEach((o) => {
+    const valid = owners.map((o): DepartmentOwnerInput => {
         if (o.type !== 'user' && o.type !== 'group') {
             throw new ParameterError(
-                `Owner type must be user or group: ${String(o.type)}`,
+                `Owner type must be user or group: ${truncateForMessage(o.type)}`,
             );
         }
-        assertUuid(o.uuid, 'Owner');
+        return { type: o.type, uuid: toUuid(o.uuid, 'Owner') };
     });
+    // Counted once each, as they are stored
+    if (new Set(valid.map((o) => `${o.type}:${o.uuid}`)).size > MAX_OWNERS) {
+        throw new ParameterError(
+            `A department can have at most ${MAX_OWNERS} owners`,
+        );
+    }
+    return valid;
 };
 
 export class DepartmentService extends BaseService {
@@ -180,6 +264,9 @@ export class DepartmentService extends BaseService {
     protected readonly departmentModel: DepartmentModel;
 
     protected readonly departmentAnalyticsModel: DepartmentAnalyticsModel;
+
+    // Per process: another backend process keeps its own copy until it expires
+    private readonly snapshots = new Map<string, CachedSnapshot>();
 
     constructor({
         featureFlagService,
@@ -241,12 +328,42 @@ export class DepartmentService extends BaseService {
         });
     }
 
+    // Requests that arrive together share one load, since the pending load is what is kept
+    protected getSnapshot(organizationUuid: string): Promise<LoadedSnapshot> {
+        const now = Date.now();
+        const cached = this.snapshots.get(organizationUuid);
+        if (cached && cached.expiresAt > now) return cached.loaded;
+        this.snapshots.delete(organizationUuid);
+        const windows = getActivityWindows(new Date(now));
+        const loaded = this.loadSnapshot(organizationUuid, windows).then(
+            (snapshot) => ({ snapshot, windows }),
+        );
+        const entry: CachedSnapshot = {
+            loaded,
+            expiresAt: now + SNAPSHOT_TTL_MS,
+        };
+        this.snapshots.set(organizationUuid, entry);
+        // A failed load is not kept, so the next request tries again
+        void loaded.catch(() => {
+            if (this.snapshots.get(organizationUuid) === entry) {
+                this.snapshots.delete(organizationUuid);
+            }
+        });
+        // A Map keeps insertion order, so its first key is the oldest entry
+        if (this.snapshots.size > SNAPSHOT_CACHE_LIMIT) {
+            const [oldest] = this.snapshots.keys();
+            this.snapshots.delete(oldest);
+        }
+        return loaded;
+    }
+
+    protected invalidateSnapshot(organizationUuid: string): void {
+        this.snapshots.delete(organizationUuid);
+    }
+
     async getSummary(account: Account): Promise<OrganizationAdoptionSummary> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        const snapshot = await this.loadSnapshot(
-            organizationUuid,
-            getActivityWindows(),
-        );
+        const { snapshot } = await this.getSnapshot(organizationUuid);
         return snapshot.summary;
     }
 
@@ -263,13 +380,14 @@ export class DepartmentService extends BaseService {
         organizationUuid: string,
         snapshot: AdoptionSnapshot,
         departmentUuid: string,
-        activeSince: Date,
+        windows: ActivityWindows,
     ): Promise<DepartmentMember[]> {
         const members = snapshot.rolledMembers.get(departmentUuid) ?? [];
         const activity = await this.departmentAnalyticsModel.getMemberActivity(
             organizationUuid,
             members.map((m) => m.userUuid),
-            activeSince,
+            windows.activeSince,
+            windows.lastActiveSince,
         );
         return buildDepartmentMembers({
             departmentUuid,
@@ -281,13 +399,12 @@ export class DepartmentService extends BaseService {
 
     async getDetail(
         account: Account,
-        departmentUuid: string,
+        rawDepartmentUuid: string,
     ): Promise<DepartmentDetail> {
         const { organizationUuid } = await this.authorize(account, 'view');
-        assertUuid(departmentUuid, 'Department');
-        // The count and the member list share these bounds, so they agree on who is active
-        const windows = getActivityWindows();
-        const snapshot = await this.loadSnapshot(organizationUuid, windows);
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        // The count and the member list share the snapshot's bounds, so they agree on who is active
+        const { snapshot, windows } = await this.getSnapshot(organizationUuid);
         const all = snapshot.summary.departments;
         const department = all.find((d) => d.departmentUuid === departmentUuid);
         // Same error whether it is missing or belongs to another organization
@@ -302,7 +419,7 @@ export class DepartmentService extends BaseService {
                 organizationUuid,
                 snapshot,
                 departmentUuid,
-                windows.activeSince,
+                windows,
             ),
             this.departmentAnalyticsModel.getTopContent(
                 organizationUuid,
@@ -342,76 +459,106 @@ export class DepartmentService extends BaseService {
             'manage',
         );
         validateDepartmentInput(data);
-        return this.departmentModel.create(organizationUuid, data, userUuid);
+        try {
+            return await this.departmentModel.create(
+                organizationUuid,
+                normalizeCreate(data),
+                userUuid,
+                DEPARTMENT_TREE_LIMITS,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async update(
         account: Account,
-        departmentUuid: string,
+        rawDepartmentUuid: string,
         data: UpdateDepartment,
     ): Promise<Department> {
         const { organizationUuid, userUuid } = await this.authorize(
             account,
             'manage',
         );
-        assertUuid(departmentUuid, 'Department');
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
         validateDepartmentInput(data);
-        return this.departmentModel.update(
-            organizationUuid,
-            departmentUuid,
-            data,
-            userUuid,
-        );
+        try {
+            return await this.departmentModel.update(
+                organizationUuid,
+                departmentUuid,
+                normalizeUpdate(data),
+                userUuid,
+                DEPARTMENT_TREE_LIMITS,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
-    async delete(account: Account, departmentUuid: string): Promise<void> {
+    async delete(account: Account, rawDepartmentUuid: string): Promise<void> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        await this.departmentModel.delete(organizationUuid, departmentUuid);
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        try {
+            await this.departmentModel.delete(organizationUuid, departmentUuid);
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setGroups(
         account: Account,
-        departmentUuid: string,
-        groupUuids: string[],
+        rawDepartmentUuid: string,
+        rawGroupUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertUuidList(groupUuids, 'Group');
-        return this.departmentModel.setGroupLinks(
-            organizationUuid,
-            departmentUuid,
-            groupUuids,
-        );
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const groupUuids = toUuidList(rawGroupUuids, 'Group');
+        try {
+            return await this.departmentModel.setGroupLinks(
+                organizationUuid,
+                departmentUuid,
+                groupUuids,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setMembers(
         account: Account,
-        departmentUuid: string,
-        userUuids: string[],
+        rawDepartmentUuid: string,
+        rawUserUuids: string[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertUuidList(userUuids, 'User');
-        return this.departmentModel.setMembers(
-            organizationUuid,
-            departmentUuid,
-            userUuids,
-        );
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const userUuids = toUuidList(rawUserUuids, 'User');
+        try {
+            return await this.departmentModel.setMembers(
+                organizationUuid,
+                departmentUuid,
+                userUuids,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 
     async setOwners(
         account: Account,
-        departmentUuid: string,
-        owners: DepartmentOwnerInput[],
+        rawDepartmentUuid: string,
+        rawOwners: DepartmentOwnerInput[],
     ): Promise<Department> {
         const { organizationUuid } = await this.authorize(account, 'manage');
-        assertUuid(departmentUuid, 'Department');
-        assertOwners(owners);
-        return this.departmentModel.setOwners(
-            organizationUuid,
-            departmentUuid,
-            owners,
-        );
+        const departmentUuid = toUuid(rawDepartmentUuid, 'Department');
+        const owners = toOwners(rawOwners);
+        try {
+            return await this.departmentModel.setOwners(
+                organizationUuid,
+                departmentUuid,
+                owners,
+            );
+        } finally {
+            this.invalidateSnapshot(organizationUuid);
+        }
     }
 }

@@ -11,7 +11,7 @@ import {
 
 const resolveOne = (
     row: ResolvedMemberRow,
-    parentMap: Map<string, string | null>,
+    ancestorsOf: (departmentUuid: string) => Set<string>,
 ): MembershipResolution => {
     if (row.explicitDepartmentUuid !== null) {
         return {
@@ -24,13 +24,20 @@ const resolveOne = (
     const candidates = Array.from(
         new Set(row.groupLinks.map((l) => l.departmentUuid)),
     ).sort();
-    // Most specific wins: drop any candidate that is an ancestor of another
-    const ancestorsOfCandidates = new Set(
-        candidates.flatMap((c) => getAncestorUuids(c, parentMap)),
-    );
-    const mostSpecific = candidates.filter(
-        (c) => !ancestorsOfCandidates.has(c),
-    );
+    // Most specific wins: drop any candidate that is an ancestor of another.
+    // One walk up from each candidate marks the candidates it passes, so the cost grows linearly
+    const candidateSet = new Set(candidates);
+    const coveredBy = new Map<string, string>();
+    if (candidates.length > 1) {
+        candidates.forEach((other) =>
+            ancestorsOf(other).forEach((ancestor) => {
+                if (ancestor !== other && candidateSet.has(ancestor)) {
+                    coveredBy.set(ancestor, other);
+                }
+            }),
+        );
+    }
+    const mostSpecific = candidates.filter((c) => !coveredBy.has(c));
     if (mostSpecific.length === 1) {
         const [departmentUuid] = mostSpecific;
         const [firstGroupName] = row.groupLinks
@@ -55,13 +62,22 @@ export const resolveDepartmentMembership = (
     departments: DepartmentTreeNode[],
 ): DepartmentMembership[] => {
     const parentMap = getParentMap(departments);
+    // Walked once per department per call, however many people share it
+    const ancestorSets = new Map<string, Set<string>>();
+    const ancestorsOf = (departmentUuid: string): Set<string> => {
+        const known = ancestorSets.get(departmentUuid);
+        if (known) return known;
+        const ancestors = new Set(getAncestorUuids(departmentUuid, parentMap));
+        ancestorSets.set(departmentUuid, ancestors);
+        return ancestors;
+    };
     return rows.map((row) => ({
         userUuid: row.userUuid,
         email: row.email,
         firstName: row.firstName,
         lastName: row.lastName,
         role: row.role,
-        resolution: resolveOne(row, parentMap),
+        resolution: resolveOne(row, ancestorsOf),
     }));
 };
 

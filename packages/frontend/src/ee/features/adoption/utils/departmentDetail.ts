@@ -80,7 +80,7 @@ export const formatLastActive = (
     lastActiveAt: string | null,
     now: Date = new Date(),
 ): string => {
-    // Query history is kept for a limited time, so a missing timestamp is not proof of never
+    // Only the last 90 days are read, and queries are kept for less, so a missing timestamp is not proof of never
     if (lastActiveAt === null) return 'No recorded activity';
     const days = daysSince(lastActiveAt, now);
     if (days <= 0) return 'Today';

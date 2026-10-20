@@ -199,6 +199,30 @@ describe('buildPackInput', () => {
     it('falls back to the whole organization for an unknown focus', () => {
         expect(buildPackInput(tree, 'gone').children).toHaveLength(3);
     });
+    it('builds a 5,000-deep chain and a 5,000-wide level without overflowing the stack', () => {
+        const SIZE = 5000;
+        const chain = Array.from({ length: SIZE }, (_, i) =>
+            d(`d${i}`, i === 0 ? null : `d${i - 1}`, 1, 1, 0),
+        );
+        let datum = buildPackInput(chain, null).children[0];
+        let depth = 1;
+        while (datum.children.length > 0) {
+            [datum] = datum.children;
+            depth += 1;
+        }
+        expect(depth).toBe(SIZE);
+        expect(datum.id).toBe(`d${SIZE - 1}`);
+
+        const wide = [
+            d('Root', null, SIZE, SIZE, 0),
+            ...Array.from({ length: SIZE }, (_, i) => d(`c${i}`, 'Root', 1, 1)),
+        ];
+        const root = buildPackInput(wide, null).children[0];
+        expect(root.childDepartmentCount).toBe(SIZE);
+        expect(root.children.map((c) => c.id)).toEqual(
+            wide.slice(1).map((c) => c.departmentUuid),
+        );
+    });
 });
 
 describe('layoutPack', () => {

@@ -144,6 +144,27 @@ describe('computeWeeklyWithOrgAverage', () => {
             computeWeeklyWithOrgAverage(all[2], all).map((p) => p.orgAverage),
         ).toEqual([1.5, 3.5]);
     });
+    it('handles a 5,000-deep chain and a 5,000-wide level without overflowing the stack', () => {
+        const SIZE = 5000;
+        const chain = Array.from({ length: SIZE }, (_, i) =>
+            department(`d${i}`, i === 0 ? null : `d${i - 1}`, [i, 1]),
+        );
+        // Alone at its depth, so the average is its own figure
+        expect(
+            computeWeeklyWithOrgAverage(chain[SIZE - 1], chain).map(
+                (p) => p.orgAverage,
+            ),
+        ).toEqual([SIZE - 1, 1]);
+        const wide = [
+            department('root', null, [0, 0]),
+            ...Array.from({ length: SIZE }, (_, i) =>
+                department(`c${i}`, 'root', [i % 2, 2]),
+            ),
+        ];
+        expect(
+            computeWeeklyWithOrgAverage(wide[1], wide).map((p) => p.orgAverage),
+        ).toEqual([0.5, 2]);
+    });
 });
 
 describe('buildDepartmentMembers', () => {

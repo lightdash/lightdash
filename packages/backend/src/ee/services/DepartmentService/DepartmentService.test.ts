@@ -5,10 +5,11 @@ import {
     OrganizationMemberRole,
     ParameterError,
     type Account,
+    type Authentication,
     type CreateDepartment,
     type MemberAbility,
 } from '@lightdash/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     DepartmentService,
     getActivityWindows,
@@ -57,6 +58,30 @@ const buildAccount = (ability: MemberAbility): Account =>
         isSessionUser: () => true,
     }) as Account;
 
+// An API token account: the user's own organization and ability, a token instead of a session
+const buildTokenAccount = (
+    authentication: Authentication,
+    ability: MemberAbility,
+): Account =>
+    ({
+        ...buildAccount(ability),
+        authentication,
+        isSessionUser: () => false,
+        isServiceAccount: () => authentication.type === 'service-account',
+        isPatUser: () => authentication.type === 'pat',
+    }) as Account;
+
+const SERVICE_ACCOUNT: Authentication = {
+    type: 'service-account',
+    source: 'service-account-token',
+    serviceAccountUuid: 'service-account-uuid',
+    serviceAccountDescription: 'CI',
+};
+const PERSONAL_ACCESS_TOKEN: Authentication = {
+    type: 'pat',
+    source: 'personal-access-token',
+};
+
 const abilityWith = (
     ...grants: Array<['view' | 'manage', string]>
 ): MemberAbility => {
@@ -66,6 +91,9 @@ const abilityWith = (
     );
     return builder.build();
 };
+
+// The limits every create and move is checked against, inside the model's organization lock
+const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
 
 const newDepartment: CreateDepartment = {
     name: 'Finance',
@@ -208,17 +236,221 @@ describe('DepartmentService gating', () => {
             ORG,
             newDepartment,
             'user-uuid',
+            LIMITS,
         );
         expect(departmentModel.update).toHaveBeenCalledWith(
             ORG,
             DEP,
             { name: 'x' },
             'user-uuid',
+            LIMITS,
         );
         expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, DEP, [
             { type: 'group', uuid: GRP },
         ]);
     });
+});
+
+describe('DepartmentService snapshot cache', () => {
+    const viewer = () => buildAccount(abilityWith(['view', ORG]));
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+    const viewerOf = (organizationUuid: string): Account =>
+        ({
+            ...buildAccount(abilityWith(['view', organizationUuid])),
+            organization: {
+                organizationUuid,
+                name: organizationUuid,
+                createdAt: new Date(),
+            },
+        }) as Account;
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('reuses the organization snapshot for the summary and the department page', async () => {
+        const { service, departmentModel, departmentAnalyticsModel } =
+            buildService({
+                flag: true,
+                departments: [departmentFixture(DEP, null, 5)],
+            });
+        await service.getSummary(viewer());
+        await service.getSummary(viewer());
+        const detail = await service.getDetail(viewer(), DEP);
+
+        expect(detail.department.departmentUuid).toBe(DEP);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+        expect(departmentModel.getResolvedMemberRows).toHaveBeenCalledTimes(1);
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(1);
+        // The page reads its people with the cached snapshot's own bounds
+        const windows = departmentAnalyticsModel.getActivity.mock.calls[0][2];
+        expect(
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],
+        ).toBe(windows.activeSince);
+    });
+    it('shares one load between requests that arrive together', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await Promise.all([
+            service.getSummary(viewer()),
+            service.getSummary(viewer()),
+            service.getSummary(viewer()),
+        ]);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+    });
+    it('loads again once the snapshot is 60 seconds old', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.getSummary(viewer());
+        vi.setSystemTime(new Date('2026-10-08T12:00:59.999Z'));
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(1);
+        vi.setSystemTime(new Date('2026-10-08T12:01:00.000Z'));
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it.each([
+        [
+            'create',
+            (s: DepartmentService, a: Account) => s.create(a, newDepartment),
+        ],
+        [
+            'update',
+            (s: DepartmentService, a: Account) =>
+                s.update(a, DEP, { name: 'x' }),
+        ],
+        ['delete', (s: DepartmentService, a: Account) => s.delete(a, DEP)],
+        [
+            'setGroups',
+            (s: DepartmentService, a: Account) => s.setGroups(a, DEP, [GRP]),
+        ],
+        [
+            'setMembers',
+            (s: DepartmentService, a: Account) => s.setMembers(a, DEP, [USR]),
+        ],
+        [
+            'setOwners',
+            (s: DepartmentService, a: Account) =>
+                s.setOwners(a, DEP, [{ type: 'user', uuid: USR }]),
+        ],
+    ])('drops the snapshot after %s', async (_name, write) => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.getSummary(viewer());
+        await write(service, manager());
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it('drops the snapshot after a write that fails, too', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        departmentModel.create.mockRejectedValueOnce(
+            new ParameterError(
+                'An organization can have at most 1,000 departments',
+            ),
+        );
+        await service.getSummary(viewer());
+        await expect(service.create(manager(), newDepartment)).rejects.toThrow(
+            ParameterError,
+        );
+        await service.getSummary(viewer());
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(2);
+    });
+    it('does not keep a load that failed', async () => {
+        const { service, departmentAnalyticsModel, departmentModel } =
+            buildService({ flag: true });
+        departmentAnalyticsModel.getActivity.mockRejectedValueOnce(
+            new Error('connection lost'),
+        );
+        departmentModel.getResolvedMemberRows.mockResolvedValue([
+            {
+                userUuid: 'u1',
+                email: 'u1@example.com',
+                firstName: 'U',
+                lastName: 'One',
+                role: OrganizationMemberRole.MEMBER,
+                explicitDepartmentUuid: null,
+                groupLinks: [],
+            },
+        ]);
+        await expect(service.getSummary(viewer())).rejects.toThrow(
+            'connection lost',
+        );
+        await service.getSummary(viewer());
+        expect(departmentAnalyticsModel.getActivity).toHaveBeenCalledTimes(2);
+    });
+    it('keeps organizations apart, and at most 500 of them, dropping the oldest', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const organizations = Array.from({ length: 501 }, (_, i) => `org-${i}`);
+        await organizations.reduce(
+            (previous, organizationUuid) =>
+                previous.then(async () => {
+                    await service.getSummary(viewerOf(organizationUuid));
+                }),
+            Promise.resolve(),
+        );
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(501);
+        await service.getSummary(viewerOf('org-1'));
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(501);
+        await service.getSummary(viewerOf('org-0'));
+        expect(departmentModel.listByOrganization).toHaveBeenCalledTimes(502);
+        expect(departmentModel.listByOrganization).toHaveBeenLastCalledWith(
+            'org-0',
+        );
+    });
+});
+
+describe('DepartmentService with API tokens', () => {
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'lets %s holding manage create a department in its own organization',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({ flag: true });
+            await service.create(
+                buildTokenAccount(
+                    authentication,
+                    abilityWith(['view', ORG], ['manage', ORG]),
+                ),
+                newDepartment,
+            );
+            expect(departmentModel.create).toHaveBeenCalledWith(
+                ORG,
+                newDepartment,
+                'user-uuid',
+                LIMITS,
+            );
+        },
+    );
+    it.each([
+        ['a service account', SERVICE_ACCOUNT],
+        ['a personal access token', PERSONAL_ACCESS_TOKEN],
+    ])(
+        'refuses %s with view only, or manage on another organization, without touching the model',
+        async (_label, authentication) => {
+            const { service, departmentModel } = buildService({ flag: true });
+            await expect(
+                service.setMembers(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', ORG]),
+                    ),
+                    DEP,
+                    [USR],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.setMembers(
+                    buildTokenAccount(
+                        authentication,
+                        abilityWith(['view', 'other'], ['manage', 'other']),
+                    ),
+                    DEP,
+                    [USR],
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(departmentModel.setMembers).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('DepartmentService.getMembership', () => {
@@ -348,6 +580,14 @@ describe('DepartmentService input validation', () => {
                     Array(5001).fill({ type: 'user', uuid: USR }),
                 ),
         ],
+        [
+            'a 1 MB name on create',
+            (s: DepartmentService, a: Account) =>
+                s.create(a, {
+                    ...newDepartment,
+                    name: 'x'.repeat(1024 * 1024),
+                }),
+        ],
     ])('rejects %s before any model call', async (_name, call) => {
         const { service, departmentModel } = buildService({ flag: true });
         await expect(call(service, manager())).rejects.toThrow(ParameterError);
@@ -359,6 +599,33 @@ describe('DepartmentService input validation', () => {
         const { service, departmentModel } = buildService({ flag: true });
         await service.setMembers(manager(), DEP, Array(5000).fill(USR));
         expect(departmentModel.setMembers).toHaveBeenCalled();
+    });
+    const ownerUuid = (i: number) =>
+        `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+    it('refuses more than 20 owners without calling the model', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await expect(
+            service.setOwners(
+                manager(),
+                DEP,
+                Array.from({ length: 21 }, (_, i) => ({
+                    type: 'user' as const,
+                    uuid: ownerUuid(i),
+                })),
+            ),
+        ).rejects.toThrow(
+            new ParameterError('A department can have at most 20 owners'),
+        );
+        expect(departmentModel.setOwners).not.toHaveBeenCalled();
+    });
+    it('accepts 20 owners, counting a repeated owner once', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const twenty = Array.from({ length: 20 }, (_, i) => ({
+            type: 'user' as const,
+            uuid: ownerUuid(i),
+        }));
+        await service.setOwners(manager(), DEP, [...twenty, twenty[0]]);
+        expect(departmentModel.setOwners).toHaveBeenCalled();
     });
 });
 
@@ -444,13 +711,20 @@ describe('DepartmentService analytics scoping', () => {
 });
 
 describe('getActivityWindows', () => {
-    it('measures 30 days and 12 weeks back from one instant', () => {
+    it('measures 30 days, 12 weeks and 90 days back from one instant', () => {
         expect(getActivityWindows(new Date('2026-10-08T09:30:00Z'))).toEqual({
             activeSince: new Date('2026-09-08T09:30:00Z'),
             trendSince: new Date('2026-07-16T09:30:00Z'),
+            lastActiveSince: new Date('2026-07-10T09:30:00Z'),
         });
     });
 });
+
+// Every member of a run of characters, in one string
+const charactersFrom = (from: number, to: number): string =>
+    String.fromCodePoint(
+        ...Array.from({ length: to - from + 1 }, (_, i) => from + i),
+    );
 
 describe('validateDepartmentInput', () => {
     it.each([
@@ -497,13 +771,103 @@ describe('validateDepartmentInput', () => {
             { headcountNote: 'x'.repeat(501) },
             'Headcount note must be 500 characters or fewer',
         ],
+        ['NUL in the name', { name: 'Fin\u0000ance' }, 'NAMECONTROL'],
+        ['a tab in the name', { name: 'Fin\tance' }, 'NAMECONTROL'],
+        ['DEL in the name', { name: 'Fin\u007Fance' }, 'NAMECONTROL'],
+        ['NUL in the note', { headcountNote: 'a\u0000b' }, 'NOTECONTROL'],
+        ['a line break in the note', { headcountNote: 'a\nb' }, 'NOTECONTROL'],
+        [
+            'a name of zero-width characters only',
+            { name: '\u200B\u2060\uFEFF' },
+            'Department name is required',
+        ],
+        [
+            'a name of bidi controls only',
+            {
+                name: `\u200E\u200F${charactersFrom(0x202a, 0x202e)}${charactersFrom(0x2066, 0x2069)}`,
+            },
+            'Department name is required',
+        ],
+        [
+            'a name of a soft hyphen only',
+            { name: '\u00AD' },
+            'Department name is required',
+        ],
+        [
+            'a name of a combining grapheme joiner only',
+            { name: '\u034F' },
+            'Department name is required',
+        ],
+        [
+            'a name of variation selectors only',
+            { name: charactersFrom(0xfe00, 0xfe0f) },
+            'Department name is required',
+        ],
+        [
+            'a name of tag characters only',
+            { name: charactersFrom(0xe0000, 0xe007f) },
+            'Department name is required',
+        ],
+        ['U+0080 in the name', { name: 'Fin\u0080ance' }, 'NAMECONTROL'],
+        [
+            'a next-line character (U+0085) in the name',
+            { name: 'Fin\u0085ance' },
+            'NAMECONTROL',
+        ],
+        ['U+009F in the name', { name: 'Fin\u009Fance' }, 'NAMECONTROL'],
+        [
+            'a next-line character (U+0085) in the note',
+            { headcountNote: 'a\u0085b' },
+            'NOTECONTROL',
+        ],
+        [
+            'a name over 255 characters once normalised',
+            { name: '\uFDFA'.repeat(20) },
+            'Department name must be 255 characters or fewer',
+        ],
+        [
+            'a 1 MB name, on its raw length',
+            { name: '\uFDFA'.repeat(1024 * 1024) },
+            'Department name must be 255 characters or fewer',
+        ],
+        [
+            'a raw name of 1,021 characters, even one that would normalise short',
+            { name: `A${' '.repeat(1019)}B` },
+            'Department name must be 255 characters or fewer',
+        ],
+        ['year 0000', { targetDate: '0000-01-01' }, 'YEARMSG: 0000-01-01'],
+        ['year 1899', { targetDate: '1899-12-31' }, 'YEARMSG: 1899-12-31'],
+        ['year 2201', { targetDate: '2201-01-01' }, 'YEARMSG: 2201-01-01'],
+        [
+            'a very long malformed parent uuid, echoed cut short',
+            { parentDepartmentUuid: 'x'.repeat(5000) },
+            `Parent department must be a valid UUID: ${'x'.repeat(80)}…`,
+        ],
+        [
+            'a very long malformed date, echoed cut short',
+            { targetDate: `2026-01-01${'x'.repeat(5000)}` },
+            `DATEMSG: 2026-01-01${'x'.repeat(70)}…`,
+        ],
     ])('rejects %s', (_label, data, message) => {
         expect(() => validateDepartmentInput(data)).toThrow(
             new ParameterError(
-                message.replace(
-                    'DATEMSG',
-                    'Target date must be a real date in YYYY-MM-DD format',
-                ),
+                message
+                    .replace(
+                        'DATEMSG',
+                        'Target date must be a real date in YYYY-MM-DD format',
+                    )
+                    .replace(
+                        'YEARMSG',
+                        'Target date must be between the years 1900 and 2200',
+                    )
+                    .replace(
+                        'NAMECONTROL',
+                        'Department name cannot contain control characters such as tabs or line breaks',
+                    )
+                    .replace(
+                        'NOTECONTROL',
+                        'Headcount note cannot contain control characters such as tabs or line breaks',
+                    ),
             ),
         );
     });
@@ -518,6 +882,116 @@ describe('validateDepartmentInput', () => {
         ).not.toThrow();
         expect(() => validateDepartmentInput({ headcount: 0 })).not.toThrow();
         expect(() => validateDepartmentInput({})).not.toThrow();
+        expect(() =>
+            validateDepartmentInput({ targetDate: '1900-01-01' }),
+        ).not.toThrow();
+        expect(() =>
+            validateDepartmentInput({ targetDate: '2200-12-31' }),
+        ).not.toThrow();
+        // Look-alike characters are normalised away rather than refused
+        expect(() =>
+            validateDepartmentInput({ name: 'Ｆｉｎ\u200Bａｎｃｅ' }),
+        ).not.toThrow();
+        // 1,020 raw characters is the most normalising is tried on
+        expect(() =>
+            validateDepartmentInput({ name: `A${' '.repeat(1018)}B` }),
+        ).not.toThrow();
+    });
+    it('refuses a 1 MB name without normalising it', () => {
+        const normalize = vi.spyOn(String.prototype, 'normalize');
+        try {
+            expect(() =>
+                validateDepartmentInput({
+                    name: '\uFDFA'.repeat(1024 * 1024),
+                }),
+            ).toThrow(
+                new ParameterError(
+                    'Department name must be 255 characters or fewer',
+                ),
+            );
+            expect(normalize).not.toHaveBeenCalled();
+        } finally {
+            normalize.mockRestore();
+        }
+    });
+});
+
+describe('DepartmentService input normalisation', () => {
+    // Letters, so upper and lower case differ
+    const MIXED = 'AbCdEf12-3456-4789-8AbC-DeF012345678';
+    const LOWER = MIXED.toLowerCase();
+    const manager = () =>
+        buildAccount(abilityWith(['view', ORG], ['manage', ORG]));
+
+    it('stores the normalised name and a lower-case parent on create', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        await service.create(manager(), {
+            ...newDepartment,
+            name: '  Ｆｉｎ\u200Bａｎｃｅ   Team ',
+            parentDepartmentUuid: MIXED,
+        });
+        expect(departmentModel.create).toHaveBeenCalledWith(
+            ORG,
+            {
+                ...newDepartment,
+                name: 'Finance Team',
+                parentDepartmentUuid: LOWER,
+            },
+            'user-uuid',
+            LIMITS,
+        );
+    });
+    it('lower-cases every uuid from the path and the body on writes', async () => {
+        const { service, departmentModel } = buildService({ flag: true });
+        const account = manager();
+        await service.update(account, MIXED, {
+            name: 'Ops\u00A0 team',
+            parentDepartmentUuid: MIXED,
+        });
+        await service.delete(account, MIXED);
+        await service.setGroups(account, MIXED, [MIXED]);
+        await service.setMembers(account, MIXED, [MIXED]);
+        await service.setOwners(account, MIXED, [
+            { type: 'user', uuid: MIXED },
+        ]);
+        expect(departmentModel.update).toHaveBeenCalledWith(
+            ORG,
+            LOWER,
+            { name: 'Ops team', parentDepartmentUuid: LOWER },
+            'user-uuid',
+            LIMITS,
+        );
+        expect(departmentModel.delete).toHaveBeenCalledWith(ORG, LOWER);
+        expect(departmentModel.setGroupLinks).toHaveBeenCalledWith(ORG, LOWER, [
+            LOWER,
+        ]);
+        expect(departmentModel.setMembers).toHaveBeenCalledWith(ORG, LOWER, [
+            LOWER,
+        ]);
+        expect(departmentModel.setOwners).toHaveBeenCalledWith(ORG, LOWER, [
+            { type: 'user', uuid: LOWER },
+        ]);
+    });
+    it('finds a department by its uuid in upper case', async () => {
+        const { service } = buildService({
+            flag: true,
+            departments: [departmentFixture(LOWER, null, 5)],
+        });
+        const detail = await service.getDetail(
+            buildAccount(abilityWith(['view', ORG])),
+            MIXED.toUpperCase(),
+        );
+        expect(detail.department.departmentUuid).toBe(LOWER);
+    });
+    it('cuts a long malformed path uuid short in the error', async () => {
+        const { service } = buildService({ flag: true });
+        await expect(
+            service.delete(manager(), 'y'.repeat(100_000)),
+        ).rejects.toThrow(
+            new ParameterError(
+                `Department must be a valid UUID: ${'y'.repeat(80)}…`,
+            ),
+        );
     });
 });
 
@@ -690,6 +1164,13 @@ describe('DepartmentService.getDetail', () => {
             departmentAnalyticsModel.getMemberActivity.mock.calls[0][2],
         ).toBe(
             departmentAnalyticsModel.getActivity.mock.calls[0][2].activeSince,
+        );
+        // Last activity is read back 90 days from that instant too
+        expect(
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0][3],
+        ).toBe(
+            departmentAnalyticsModel.getActivity.mock.calls[0][2]
+                .lastActiveSince,
         );
     });
     it('lists ancestors from the top down', async () => {
