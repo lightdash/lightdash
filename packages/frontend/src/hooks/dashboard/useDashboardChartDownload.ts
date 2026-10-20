@@ -4,14 +4,14 @@ import {
     type ApiExecuteAsyncDashboardChartQueryResults,
     type DateZoom,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { Limit } from '../../components/ExportResults/types';
 import {
     selectParameterValues,
+    selectTileChartSorts,
     useDashboardSelector,
 } from '../../features/dashboard/store';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
@@ -27,11 +27,9 @@ export const useDashboardChartDownload = (
     const lightdashApi = useLightdashApi();
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const chartSort = useDashboardContext((c) => c.chartSort);
     const parameters = useDashboardSelector(selectParameterValues);
-    const dashboardSorts = useMemo(
-        () => chartSort[tileUuid] || [],
-        [chartSort, tileUuid],
+    const dashboardSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
     );
 
     const getDownloadQueryUuid = useCallback(

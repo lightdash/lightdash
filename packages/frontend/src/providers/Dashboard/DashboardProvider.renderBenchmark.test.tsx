@@ -6,6 +6,7 @@ import {
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type SortField,
 } from '@lightdash/common';
 import { act, cleanup, render } from '@testing-library/react';
 import {
@@ -32,6 +33,7 @@ import {
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
+    selectTileChartSorts,
     useDashboardAllFilters,
     useDashboardSelector,
     useDashboardTemporaryFilters,
@@ -82,7 +84,10 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 // ---------------------------------------------------------------------------
 
 const useWholeContext = () => useDashboardContext((c) => c);
+const useTileSorts = (tileUuid: string) =>
+    useDashboardSelector((state) => selectTileChartSorts(state, tileUuid));
 const useTileState = (tileUuid: string) => ({
+    sorts: useTileSorts(tileUuid),
     tiles: useDashboardSelector(selectDashboardTiles),
     activeTab: useDashboardSelector(selectActiveTab),
     dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
@@ -143,7 +148,9 @@ type Actions = {
     setHaveTilesChanged: (changed: boolean) => void;
     setActiveTab: (tab: DashboardTab) => void;
     setDateZoomGranularities: (granularities: string[]) => void;
+    setTileSorts: (tileUuid: string, sorts: SortField[]) => void;
 };
+const useSetTileSorts = () => useDashboardContext((c) => c.setTileChartSorts);
 const useActions = (): Actions => ({
     updateDimensionDashboardFilter: useDashboardContext(
         (c) => c.updateDimensionDashboardFilter,
@@ -169,6 +176,7 @@ const useActions = (): Actions => ({
     setDateZoomGranularities: useDashboardContext(
         (c) => c.setDateZoomGranularities,
     ),
+    setTileSorts: useSetTileSorts(),
 });
 
 const DashboardPageLoader = () => {
@@ -437,6 +445,29 @@ const scenarios: Record<string, () => void> = {
         ),
     'edit the allowed date zoom granularities': () =>
         act(() => getActions().setDateZoomGranularities(['Day', 'Week'])),
+    'sort one tile': () =>
+        act(() =>
+            getActions().setTileSorts('tile-0', [
+                { fieldId: 'orders_status', descending: true },
+            ]),
+        ),
+    'repeat the same tile sort': () => {
+        for (let i = 0; i < 3; i += 1) {
+            act(() =>
+                getActions().setTileSorts('tile-0', [
+                    { fieldId: 'orders_status', descending: true },
+                ]),
+            );
+        }
+    },
+    'sort then clear one tile': () => {
+        act(() =>
+            getActions().setTileSorts('tile-0', [
+                { fieldId: 'orders_status', descending: true },
+            ]),
+        );
+        act(() => getActions().setTileSorts('tile-0', []));
+    },
     '10 rapid filter updates': () => {
         for (let i = 0; i < 10; i += 1) {
             act(() =>
@@ -568,6 +599,32 @@ const BASELINE: Record<string, Counts> = {
     'edit the allowed date zoom granularities': {
         wholeContextConsumer: 0,
         tiles: 0,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
+    },
+    // Only the sorted tile re-renders (the provider state re-ran every tile
+    // and context consumer, also for an identical sort: 1/20/1/1 per sort)
+    'sort one tile': {
+        wholeContextConsumer: 0,
+        tiles: 1,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
+    },
+    'repeat the same tile sort': {
+        wholeContextConsumer: 0,
+        tiles: 1,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
+    },
+    'sort then clear one tile': {
+        wholeContextConsumer: 0,
+        tiles: 2,
         filterBar: 0,
         parameterBar: 0,
         dateZoomControl: 0,

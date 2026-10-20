@@ -11,6 +11,7 @@ import {
     parseDashboardParametersUrl,
     toDashboardParameters,
 } from '../../../providers/Dashboard/dashboardParametersUrl';
+import { initialDashboardChartSortState } from './dashboardChartSortReducer';
 import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
 import { initialDashboardEditState } from './dashboardEditReducer';
 import {
@@ -114,6 +115,7 @@ export const buildInitialDashboardState = ({
             },
             tileStatus: { ...initialDashboardTileStatusState, invalidateCache },
             edit: initialDashboardEditState,
+            chartSort: initialDashboardChartSortState,
         },
         urlRestoreErrors: {
             savedFilterOverrides: savedFilterOverrides === null,

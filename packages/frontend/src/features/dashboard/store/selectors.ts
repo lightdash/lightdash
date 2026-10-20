@@ -3,6 +3,7 @@ import {
     stripOverridesForLockedFiltersOnTab,
     type DashboardFilters,
     type ParametersValuesMap,
+    type SortField,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
@@ -174,6 +175,14 @@ export const selectIsDateZoomAppliedToTile = (
     state: DashboardStoreState,
     tileUuid: string,
 ) => !!state.dateZoom.tilesWithDateZoomApplied?.has(tileUuid);
+
+// Chart sort
+const noSorts: SortField[] = [];
+/** Stable empty list for unsorted tiles, so their query inputs keep identity */
+export const selectTileChartSorts = (
+    state: DashboardStoreState,
+    tileUuid: string,
+) => state.chartSort.sortsByTileUuid[tileUuid] ?? noSorts;
 
 // Tile status
 export const selectInvalidateCache = (state: DashboardStoreState) =>

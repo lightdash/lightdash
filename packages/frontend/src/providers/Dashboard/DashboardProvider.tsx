@@ -42,6 +42,7 @@ import {
 import {
     buildInitialDashboardState,
     createDashboardStore,
+    dashboardChartSortActions,
     dashboardDateZoomActions,
     dashboardEditActions,
     dashboardFiltersActions,
@@ -236,7 +237,14 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         };
     });
 
-    const [chartSort, setChartSort] = useState<Record<string, SortField[]>>({});
+    const setTileChartSorts = useCallback(
+        (tileUuid: string, sorts: SortField[]) => {
+            store.dispatch(
+                dashboardChartSortActions.setTileSorts({ tileUuid, sorts }),
+            );
+        },
+        [store],
+    );
 
     const setDateZoomGranularity = useCallback<
         React.Dispatch<
@@ -895,8 +903,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         temporaryFilterLocks,
         setChartZoomableFields,
         hasTilesThatSupportFilters,
-        chartSort,
-        setChartSort,
+        setTileChartSorts,
         setDateZoomGranularity,
         setTilesWithDateZoomApplied,
         setControlGranularity,

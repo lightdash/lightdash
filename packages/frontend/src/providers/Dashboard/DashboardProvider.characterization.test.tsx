@@ -13,6 +13,7 @@ import {
     type InteractivityOptions,
     type LanguageMap,
     type ParametersValuesMap,
+    type SortField,
 } from '@lightdash/common';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
@@ -217,10 +218,22 @@ const useEditValues = () => ({
         selectHasDefaultDateZoomGranularityChanged,
     ),
 });
+const useChartSortValues = () => {
+    const sortsByTileUuid = useDashboardSelector(
+        (state) => state.chartSort.sortsByTileUuid,
+    );
+    const setTileChartSorts = useDashboardContext((c) => c.setTileChartSorts);
+    return {
+        getTileSorts: (tileUuid: string): SortField[] =>
+            sortsByTileUuid[tileUuid] ?? [],
+        setTileSorts: setTileChartSorts,
+    };
+};
 
 const useHarness = () => ({
     ...useDashboardContext((context) => context),
     reportCustomGranularities: useReportCustomGranularities(),
+    ...useChartSortValues(),
     ...useStoreValues(),
     ...useDateZoomValues(),
     ...useEditValues(),
@@ -2974,5 +2987,74 @@ describe('edit state: multiple dashboards', () => {
         expect(second.result.current.haveDateZoomGranularitiesChanged).toBe(
             false,
         );
+    });
+});
+
+// ---------------------------------------------------------------------------
+// CHART SORT
+// ---------------------------------------------------------------------------
+
+describe('chart sort', () => {
+    const ascending: SortField[] = [
+        { fieldId: 'orders_status', descending: false },
+    ];
+    const descending: SortField[] = [
+        { fieldId: 'orders_status', descending: true },
+    ];
+    const byRevenue: SortField[] = [
+        { fieldId: 'orders_revenue', descending: true },
+    ];
+
+    it('starts with no sort on any tile', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.getTileSorts('tile-1')).toEqual([]);
+        expect(result.current.getTileSorts('unknown-tile')).toEqual([]);
+    });
+
+    it('replaces the sort of one tile without touching the others or the URL', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        act(() => result.current.setTileSorts('tile-1', ascending));
+        act(() => result.current.setTileSorts('tile-2', byRevenue));
+        act(() => result.current.setTileSorts('tile-1', descending));
+        expect(result.current.getTileSorts('tile-1')).toEqual(descending);
+        expect(result.current.getTileSorts('tile-2')).toEqual(byRevenue);
+        expect(result.current.search).toBe('');
+    });
+
+    it('clears one tile and keeps the others', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        act(() => result.current.setTileSorts('tile-1', ascending));
+        act(() => result.current.setTileSorts('tile-2', byRevenue));
+        act(() => result.current.setTileSorts('tile-1', []));
+        expect(result.current.getTileSorts('tile-1')).toEqual([]);
+        expect(result.current.getTileSorts('tile-2')).toEqual(byRevenue);
+    });
+
+    it('keeps sorts across filter edits and tile changes', () => {
+        mocks.dashboard = makeDashboard({ filters: savedFilters });
+        const { result } = renderDashboard();
+        act(() => result.current.setTileSorts('tile-1', ascending));
+        act(() =>
+            result.current.updateDimensionDashboardFilter(
+                { ...statusFilter, values: ['pending'] },
+                0,
+                false,
+                false,
+            ),
+        );
+        act(() => result.current.setDashboardTiles([chartTile('tile-2')]));
+        expect(result.current.getTileSorts('tile-1')).toEqual(ascending);
+    });
+
+    it('does not share sorts between mounted dashboards', () => {
+        mocks.dashboard = makeDashboard();
+        const first = renderDashboard();
+        const second = renderDashboard();
+        act(() => first.result.current.setTileSorts('tile-1', ascending));
+        expect(first.result.current.getTileSorts('tile-1')).toEqual(ascending);
+        expect(second.result.current.getTileSorts('tile-1')).toEqual([]);
     });
 });

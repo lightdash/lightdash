@@ -1,3 +1,10 @@
+## [2.631.3](https://github.com/lightdash/lightdash/compare/2.631.2...2.631.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **explore:** exclude hidden fields from sidebar search results ([#31024](https://github.com/lightdash/lightdash/issues/31024)) ([1d348ec](https://github.com/lightdash/lightdash/commit/1d348eca5e16c65f0f9acf2255a5774a32e19506))
+
 ## [2.631.2](https://github.com/lightdash/lightdash/compare/2.631.1...2.631.2) (2026-10-20)
 
 

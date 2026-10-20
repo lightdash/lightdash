@@ -102,8 +102,8 @@ export type DashboardContextType = {
         fields: ChartZoomableField[],
     ) => void;
     hasTilesThatSupportFilters: boolean;
-    chartSort: Record<string, SortField[]>;
-    setChartSort: (sort: Record<string, SortField[]>) => void;
+    /** Replaces the tile's viewer sort; an empty list clears it */
+    setTileChartSorts: (tileUuid: string, sorts: SortField[]) => void;
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | string | undefined>
     >;

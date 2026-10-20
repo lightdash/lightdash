@@ -1,7 +1,7 @@
 # Dashboard store
 
-Filter, parameter, runtime date zoom, tile status and edit state for one
-mounted dashboard. `DashboardProvider`
+Filter, parameter, runtime date zoom, tile status, viewer chart sort and edit
+state for one mounted dashboard. `DashboardProvider`
 creates the store with `createDashboardStore(buildInitialDashboardState(...))`
 and mounts it on `DashboardStoreContext`.
 
@@ -33,6 +33,8 @@ and mounts it on `DashboardStoreContext`.
   subscribing (see `pages/Dashboard.tsx` save and add-tile handlers).
 - **Select per tile, not the whole map.** Tiles read their own applied zoom with
   `selectIsDateZoomAppliedToTile`, so one tile's report doesn't re-render the rest.
+  Chart sorts work the same way: `selectTileChartSorts` returns a shared empty
+  list for unsorted tiles, and `c.setTileChartSorts(tileUuid, [])` clears one.
 - **Edit state is staged in the store until save or cancel.** Tiles, tabs,
   the active tab, custom metrics, the disabled flags, the required filters
   note and their changed flags live in `edit`. The provider subscribes only

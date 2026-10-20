@@ -1,5 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit';
 import {
+    dashboardChartSortReducer,
+    type DashboardChartSortState,
+} from './dashboardChartSortReducer';
+import {
     dashboardDateZoomReducer,
     type DashboardDateZoomState,
 } from './dashboardDateZoomReducer';
@@ -26,6 +30,7 @@ export type DashboardStoreState = {
     dateZoom: DashboardDateZoomState;
     tileStatus: DashboardTileStatusState;
     edit: DashboardEditState;
+    chartSort: DashboardChartSortState;
 };
 
 // One store per mounted dashboard
@@ -37,6 +42,7 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
             dateZoom: dashboardDateZoomReducer,
             tileStatus: dashboardTileStatusReducer,
             edit: dashboardEditReducer,
+            chartSort: dashboardChartSortReducer,
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
@@ -64,6 +70,7 @@ export {
 export type { DashboardEditState } from './dashboardEditReducer';
 export * from './dashboardEditSelectors';
 export * from './editHooks';
+export { dashboardChartSortActions } from './dashboardChartSortReducer';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';
 export * from './selectors';
