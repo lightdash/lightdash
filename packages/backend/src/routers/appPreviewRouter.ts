@@ -381,6 +381,10 @@ export const createAppPreviewRouter = (
                 setSecurityHeaders(res, previewTokenPayload);
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-store');
+                // The MCP chart view fetches the document itself instead of framing this URL.
+                if (previewTokenPayload.viewContext === 'mcp') {
+                    res.setHeader('Access-Control-Allow-Origin', '*');
+                }
                 try {
                     onPreviewView?.(previewTokenPayload, navigationId);
                 } catch {

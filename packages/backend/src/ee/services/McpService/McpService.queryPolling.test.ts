@@ -21,6 +21,7 @@ import fs from 'fs/promises';
 import { z, type ZodRawShape } from 'zod';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -105,6 +106,11 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
 }));
 
 const projectUuid = 'project-uuid';
+const testLightdashSecrets = {
+    active: 'test-secret',
+    fallbacks: [],
+    all: ['test-secret'],
+};
 const organizationUuid = 'organization-uuid';
 const userUuid = 'user-uuid';
 const queryUuid = '11111111-1111-4111-8111-111111111111';
@@ -653,7 +659,13 @@ const makeMcpService = ({
                 runSqlMaxLimit: 500,
             },
             siteUrl: 'https://lightdash.example',
-            appRuntime: { previewOrigin: 'https://preview.lightdash.example' },
+            lightdashSecrets: testLightdashSecrets,
+            appRuntime: {
+                previewOrigin: 'https://preview.lightdash.example',
+                lightdashOrigin: 'https://lightdash.example',
+                cdnOrigin: null,
+                cspAllowedOrigins: [],
+            },
         },
         mcpContextModel,
         mcpToolCallModel,
@@ -2850,10 +2862,25 @@ describe('render_chart with a custom chart type', () => {
         },
     };
 
+    const previewToken = mintPreviewToken(
+        testLightdashSecrets,
+        dataAppVizUuid,
+        3,
+        userUuid,
+        organizationUuid,
+        projectUuid,
+        [],
+        'mcp',
+    );
+    const indexUrl = `https://preview.lightdash.example/api/apps/${dataAppVizUuid}/versions/3/t/${previewToken}/`;
+
     const setup = () => {
         const mocks = makeMcpService({
             explores: { orders: makeExplore({ dimensionTags: [] }) },
         });
+        mocks.aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockResolvedValue(
+            previewToken,
+        );
         mocks.asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
             makeQueryHistory(
                 QueryHistoryStatus.READY,
@@ -2935,7 +2962,7 @@ describe('render_chart with a custom chart type', () => {
             echartsOption: null,
             exploreUrl: 'https://lightdash.example/share/share-id',
             customChartType: {
-                indexUrl: `https://preview.lightdash.example/api/apps/${dataAppVizUuid}/versions/3/t/header.payload.signature/`,
+                indexUrl,
                 previewOrigin: 'https://preview.lightdash.example',
                 slug: 'sankey-flow',
                 version: 3,
@@ -2999,8 +3026,62 @@ describe('render_chart with a custom chart type', () => {
         expect(text).toContain('build the visual from the query rows');
         expect(text).toContain('https://lightdash.example/share/share-id');
         expect(text).not.toContain(dataAppVizUuid);
+        expect(text).not.toContain(previewToken);
         expect(JSON.stringify(result.structuredContent)).not.toContain(
             dataAppVizUuid,
+        );
+        expect(JSON.stringify(result.structuredContent)).not.toContain(
+            previewToken,
+        );
+    });
+
+    it('sends the view the bundle policy to load the chart type with', async () => {
+        const { analytics } = setup();
+
+        const result = await render(customChartConfig);
+
+        const { customChartType } = result._meta?.result as {
+            customChartType: Record<string, unknown>;
+        };
+        expect(customChartType).not.toHaveProperty('html');
+        expect(customChartType.indexUrl).toBe(indexUrl);
+        const { contentSecurityPolicy } = customChartType as {
+            contentSecurityPolicy: string;
+        };
+        expect(contentSecurityPolicy.startsWith("default-src 'none'; ")).toBe(
+            true,
+        );
+        expect(contentSecurityPolicy).toContain(
+            "script-src 'self' https://preview.lightdash.example blob:",
+        );
+        expect(contentSecurityPolicy).not.toContain('frame-ancestors');
+        expect(analytics.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'data_app.view' }),
+        );
+    });
+
+    it('falls back to the query rows for a token minted for another version', async () => {
+        const { aiAgentToolsService } = setup();
+        aiAgentToolsService.getMcpCustomChartTypePreviewToken.mockResolvedValue(
+            mintPreviewToken(
+                testLightdashSecrets,
+                dataAppVizUuid,
+                2,
+                userUuid,
+                organizationUuid,
+                projectUuid,
+                [],
+                'mcp',
+            ),
+        );
+
+        const result = await render(customChartConfig);
+
+        expect(result._meta?.result).toMatchObject({
+            customChartType: { contentSecurityPolicy: null },
+        });
+        expect(result.content[0].text).toContain(
+            'The chart type could not be loaded, so the chart view shows the query rows instead.',
         );
     });
 
@@ -3353,7 +3434,7 @@ describe('render_chart with a custom chart type', () => {
             connectDomains: ['https://preview.lightdash.example'],
             resourceDomains: ['https://preview.lightdash.example'],
             baseUriDomains: ['https://preview.lightdash.example'],
-            frameDomains: ['https://preview.lightdash.example'],
+            frameDomains: ['https://preview.lightdash.example', 'blob:'],
         });
     });
 });
