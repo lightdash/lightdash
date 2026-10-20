@@ -224,6 +224,11 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         ],
     );
 
+    const groupFieldIdsCopy = useMemo(
+        () => Array.from(groupFieldIds),
+        [groupFieldIds],
+    );
+
     const validConfig: TreemapChart = useMemo(() => {
         return {
             visibleMin,
@@ -250,40 +255,70 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         endColorThreshold,
     ]);
 
-    return {
-        validConfig,
-        isLoadingSubtotals,
-        subtotalsError,
+    return useMemo(
+        () => ({
+            validConfig,
+            isLoadingSubtotals,
+            subtotalsError,
 
-        groupFieldIds: Array.from(groupFieldIds),
-        groupReorder: handleGroupReorder,
+            groupFieldIds: groupFieldIdsCopy,
+            groupReorder: handleGroupReorder,
 
-        selectedSizeMetric,
-        sizeMetricId,
-        sizeMetricChange: setSizeMetricId,
+            selectedSizeMetric,
+            sizeMetricId,
+            sizeMetricChange: setSizeMetricId,
 
-        selectedColorMetric,
-        colorMetricId,
-        colorMetricChange: setColorMetricId,
+            selectedColorMetric,
+            colorMetricId,
+            colorMetricChange: setColorMetricId,
 
-        useDynamicColors,
-        toggleDynamicColors,
-        startColor,
-        endColor,
-        onStartColorChange,
-        onEndColorChange,
-        startColorThreshold,
-        setStartColorThreshold,
-        endColorThreshold,
-        setEndColorThreshold,
+            useDynamicColors,
+            toggleDynamicColors,
+            startColor,
+            endColor,
+            onStartColorChange,
+            onEndColorChange,
+            startColorThreshold,
+            setStartColorThreshold,
+            endColorThreshold,
+            setEndColorThreshold,
 
-        visibleMin,
-        setVisibleMin,
-        leafDepth,
-        setLeafDepth,
+            visibleMin,
+            setVisibleMin,
+            leafDepth,
+            setLeafDepth,
 
-        data: data,
-    };
+            data,
+        }),
+        [
+            validConfig,
+            isLoadingSubtotals,
+            subtotalsError,
+            groupFieldIdsCopy,
+            handleGroupReorder,
+            selectedSizeMetric,
+            sizeMetricId,
+            setSizeMetricId,
+            selectedColorMetric,
+            colorMetricId,
+            setColorMetricId,
+            useDynamicColors,
+            toggleDynamicColors,
+            startColor,
+            endColor,
+            onStartColorChange,
+            onEndColorChange,
+            startColorThreshold,
+            setStartColorThreshold,
+            endColorThreshold,
+            setEndColorThreshold,
+            visibleMin,
+            setVisibleMin,
+            leafDepth,
+            setLeafDepth,
+            data,
+        ],
+    );
 };
 
 export default useTreemapChartConfig;

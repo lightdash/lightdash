@@ -197,7 +197,7 @@ const renderedCounts = () => ({
     config: counts.config,
 });
 
-describe('VisualizationProvider render characterization (baseline)', () => {
+describe('VisualizationProvider render characterization', () => {
     beforeEach(() => {
         counts.loading = 0;
         counts.items = 0;
@@ -239,7 +239,7 @@ describe('VisualizationProvider render characterization (baseline)', () => {
         expect(after.config - before.config).toBe(1);
     });
 
-    it('re-renders every consumer when the provider re-renders with identical props', () => {
+    it('re-renders no consumer when the provider re-renders with identical props', () => {
         const { rerender } = render(
             <VisualizationProvider {...baseProps} chartConfig={cartesianConfig}>
                 {probes}
@@ -254,12 +254,13 @@ describe('VisualizationProvider render characterization (baseline)', () => {
         );
         const after = renderedCounts();
 
-        expect(after.loading - before.loading).toBe(1);
-        expect(after.items - before.items).toBe(1);
-        expect(after.config - before.config).toBe(1);
+        // Memoized contexts and editor-hook results keep their identity.
+        expect(after.loading - before.loading).toBe(0);
+        expect(after.items - before.items).toBe(0);
+        expect(after.config - before.config).toBe(0);
     });
 
-    it('re-emits the cartesian config on every render because the hook result is a new object', () => {
+    it('emits the cartesian mount normalization once and nothing on idle renders', () => {
         // Read-only surfaces pass no handler; the explorer and AI pass one.
         const onChartConfigChange = vi.fn();
         const { rerender } = render(
@@ -285,9 +286,10 @@ describe('VisualizationProvider render characterization (baseline)', () => {
             );
         }
 
-        // The prop never catches up (no feedback), so every render emits.
+        // The prop never catches up (no feedback); idle renders keep the
+        // memoized hook result, so they do not re-run the emit effect.
         expect(callsAfterMount).toBe(3);
-        expect(onChartConfigChange.mock.calls.length - callsAfterMount).toBe(3);
+        expect(onChartConfigChange.mock.calls.length - callsAfterMount).toBe(0);
         const emitted = onChartConfigChange.mock.calls.map(
             ([chartConfig]) => chartConfig,
         );
@@ -515,14 +517,12 @@ describe('VisualizationProvider render characterization (baseline)', () => {
             expect(onChartTypeChange[1]).toHaveBeenCalledWith(ChartType.PIE);
             expect(onPivotDimensionsChange[0]).not.toHaveBeenCalled();
             expect(onPivotDimensionsChange[1]).toHaveBeenCalledWith(['c']);
-            // Baseline: every caller callback change gives a new identity.
-            expect(current.onSeriesContextMenu).not.toBe(
+            // Callback changes keep the identities consumers depend on.
+            expect(current.onSeriesContextMenu).toBe(
                 initial.onSeriesContextMenu,
             );
-            expect(current.setChartType).not.toBe(initial.setChartType);
-            expect(current.setPivotDimensions).not.toBe(
-                initial.setPivotDimensions,
-            );
+            expect(current.setChartType).toBe(initial.setChartType);
+            expect(current.setPivotDimensions).toBe(initial.setPivotDimensions);
 
             rerender(ui(1));
             expect(latest('cb').onSeriesContextMenu).toBeUndefined();
