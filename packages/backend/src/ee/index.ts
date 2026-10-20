@@ -351,6 +351,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
             }) =>
                 new ContentReviewNotificationService({
+                    directAccessModel: models.getDirectAccessModel(),
                     groupsModel: models.getGroupsModel(),
                     notificationsModel: models.getNotificationsModel(),
                     schedulerClient: clients.getSchedulerClient(),

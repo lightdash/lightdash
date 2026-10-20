@@ -7,6 +7,7 @@ import {
     type ContentReviewRequestListItem,
     type ContentReviewSettings,
 } from '@lightdash/common';
+import { type DirectAccessModel } from '../../../models/DirectAccessModel';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type NotificationsModel } from '../../../models/NotificationsModel/NotificationsModel';
 import { type SchedulerClient } from '../../../scheduler/SchedulerClient';
@@ -58,6 +59,16 @@ const settings: ContentReviewSettings = {
 };
 
 const buildService = () => {
+    const directAccessModel = {
+        listUsers: vi
+            .fn()
+            .mockResolvedValue([
+                { userUuid: EDITOR },
+                { userUuid: ADMIN },
+                { userUuid: 'viewer-uuid' },
+                { userUuid: REQUESTER },
+            ]),
+    };
     const groupsModel = {
         findGroupMembers: vi.fn().mockResolvedValue({
             data: [{ userUuid: ADMIN }, { userUuid: REQUESTER }],
@@ -80,6 +91,7 @@ const buildService = () => {
         }),
     };
     const service = new ContentReviewNotificationService({
+        directAccessModel: directAccessModel as unknown as DirectAccessModel,
         groupsModel: groupsModel as unknown as GroupsModel,
         notificationsModel: notificationsModel as unknown as NotificationsModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
@@ -88,6 +100,7 @@ const buildService = () => {
     });
     return {
         service,
+        directAccessModel,
         groupsModel,
         notificationsModel,
         schedulerClient,
@@ -130,6 +143,25 @@ describe('ContentReviewNotificationService', () => {
                 recipientUserUuids: [EDITOR, ADMIN],
                 userUuid: REQUESTER,
             },
+        );
+    });
+
+    test('submitted does not notify space admins who cannot receive a grant', async () => {
+        const { service, directAccessModel, schedulerClient } = buildService();
+        directAccessModel.listUsers.mockResolvedValue([
+            { userUuid: EDITOR },
+            { userUuid: REQUESTER },
+        ]);
+
+        await service.notifySubmitted({
+            item,
+            settings,
+            organizationUuid: ORG,
+        });
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.SEND_CONTENT_REVIEW_NOTIFICATION,
+            expect.objectContaining({ recipientUserUuids: [EDITOR] }),
         );
     });
 
