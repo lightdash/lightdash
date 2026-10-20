@@ -1,3 +1,10 @@
+# [2.621.0](https://github.com/lightdash/lightdash/compare/2.620.0...2.621.0) (2026-10-20)
+
+
+### Features
+
+* **python:** run python query nodes on the gcp-cloud-run sandbox provider ([#31213](https://github.com/lightdash/lightdash/issues/31213)) ([22f21ea](https://github.com/lightdash/lightdash/commit/22f21ea4ba9bb3348152b60e1ba287f38dd284e4))
+
 # [2.620.0](https://github.com/lightdash/lightdash/compare/2.619.0...2.620.0) (2026-10-20)
 
 
