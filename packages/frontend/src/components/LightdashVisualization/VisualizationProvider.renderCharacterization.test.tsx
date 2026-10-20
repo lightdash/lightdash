@@ -13,7 +13,10 @@ import {
 import { act, cleanup } from '@testing-library/react';
 import {
     memo,
+    startTransition,
+    Suspense,
     useEffect,
+    useLayoutEffect,
     useState,
     type FC,
     type PropsWithChildren,
@@ -373,5 +376,223 @@ describe('VisualizationProvider render characterization (baseline)', () => {
         );
 
         expect(counts.mounts).toBe(2);
+    });
+
+    describe('instances and services', () => {
+        type Captured = ReturnType<typeof useVisualizationContext>;
+        const captured: Record<string, Captured[]> = {};
+        const renders: Record<string, number> = {};
+
+        const InstanceProbe = memo<{ id: string }>(({ id }) => {
+            const context = useVisualizationContext();
+            renders[id] = (renders[id] ?? 0) + 1;
+            (captured[id] ??= []).push(context);
+            return null;
+        });
+
+        beforeEach(() => {
+            Object.keys(captured).forEach((k) => delete captured[k]);
+            Object.keys(renders).forEach((k) => delete renders[k]);
+        });
+
+        const latest = (id: string) => captured[id][captured[id].length - 1];
+
+        it('keeps sibling providers isolated when one is edited', () => {
+            const onA = vi.fn();
+            const onB = vi.fn();
+            const Editable: FC<{ id: string; onEcho: () => void }> = ({
+                id,
+                onEcho,
+            }) => {
+                const [chartConfig, setChartConfig] =
+                    useState<ChartConfig>(cartesianConfig);
+                return (
+                    <VisualizationProvider
+                        {...baseProps}
+                        chartConfig={chartConfig}
+                        onChartConfigChange={(c) => {
+                            onEcho();
+                            setChartConfig(c);
+                        }}
+                    >
+                        <InstanceProbe id={id} />
+                    </VisualizationProvider>
+                );
+            };
+            render(
+                <>
+                    <Editable id="a" onEcho={onA} />
+                    <Editable id="b" onEcho={onB} />
+                </>,
+            );
+            const before = {
+                a: renders.a,
+                b: renders.b,
+                onB: onB.mock.calls.length,
+            };
+            const a = latest('a').visualizationConfig;
+            act(() => {
+                if (isCartesianVisualizationConfig(a))
+                    a.chartConfig.setXAxisName('Only A');
+            });
+
+            expect(renders.a).toBeGreaterThan(before.a);
+            expect(renders.b).toBe(before.b);
+            expect(onB.mock.calls.length).toBe(before.onB);
+            expect(latest('a').chartRef).not.toBe(latest('b').chartRef);
+            const config = latest('b').visualizationConfig;
+            expect(
+                isCartesianVisualizationConfig(config) &&
+                    config.chartConfig.validConfig.eChartsConfig.xAxis?.[0]
+                        ?.name,
+            ).not.toBe('Only A');
+        });
+
+        it('keeps one chartRef per provider and registers it once', () => {
+            const setEchartsRef = vi.fn();
+            const { rerender } = render(
+                <VisualizationProvider
+                    {...baseProps}
+                    chartConfig={tableConfig}
+                    setEchartsRef={setEchartsRef}
+                >
+                    <InstanceProbe id="ref" />
+                </VisualizationProvider>,
+            );
+            const { chartRef } = latest('ref');
+            rerender(
+                <VisualizationProvider
+                    {...baseProps}
+                    chartConfig={cartesianConfig}
+                    setEchartsRef={setEchartsRef}
+                    containerWidth={300}
+                >
+                    <InstanceProbe id="ref" />
+                </VisualizationProvider>,
+            );
+
+            // The adapter remounts on a type switch; the provider and its
+            // refs do not.
+            expect(latest('ref').chartRef).toBe(chartRef);
+            expect(setEchartsRef).toHaveBeenCalledTimes(1);
+            expect(setEchartsRef).toHaveBeenCalledWith(chartRef);
+        });
+
+        it('forwards caller callbacks to the latest handler and keeps optional ones optional', () => {
+            const first = vi.fn();
+            const second = vi.fn();
+            const onChartTypeChange = [vi.fn(), vi.fn()];
+            const onPivotDimensionsChange = [vi.fn(), vi.fn()];
+            const ui = (i: 0 | 1, onSeriesContextMenu?: () => void) => (
+                <VisualizationProvider
+                    {...baseProps}
+                    chartConfig={cartesianConfig}
+                    initialPivotDimensions={i === 0 ? ['a'] : ['b']}
+                    onSeriesContextMenu={onSeriesContextMenu}
+                    onChartTypeChange={onChartTypeChange[i]}
+                    onPivotDimensionsChange={onPivotDimensionsChange[i]}
+                >
+                    <InstanceProbe id="cb" />
+                </VisualizationProvider>
+            );
+            const { rerender } = render(ui(0, first));
+            const initial = latest('cb');
+            rerender(ui(1, second));
+            const current = latest('cb');
+
+            current.onSeriesContextMenu?.(
+                {} as Parameters<
+                    NonNullable<Captured['onSeriesContextMenu']>
+                >[0],
+                [],
+            );
+            current.setChartType(ChartType.PIE);
+            current.setPivotDimensions(['c']);
+
+            expect(first).not.toHaveBeenCalled();
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(onChartTypeChange[0]).not.toHaveBeenCalled();
+            expect(onChartTypeChange[1]).toHaveBeenCalledWith(ChartType.PIE);
+            expect(onPivotDimensionsChange[0]).not.toHaveBeenCalled();
+            expect(onPivotDimensionsChange[1]).toHaveBeenCalledWith(['c']);
+            // Baseline: every caller callback change gives a new identity.
+            expect(current.onSeriesContextMenu).not.toBe(
+                initial.onSeriesContextMenu,
+            );
+            expect(current.setChartType).not.toBe(initial.setChartType);
+            expect(current.setPivotDimensions).not.toBe(
+                initial.setPivotDimensions,
+            );
+
+            rerender(ui(1));
+            expect(latest('cb').onSeriesContextMenu).toBeUndefined();
+            rerender(ui(1, first));
+            latest('cb').onSeriesContextMenu?.(
+                {} as Parameters<
+                    NonNullable<Captured['onSeriesContextMenu']>
+                >[0],
+                [],
+            );
+            expect(first).toHaveBeenCalledTimes(1);
+        });
+
+        it('calls the committed handler from a consumer effect after a swap', () => {
+            const calls: string[] = [];
+            const Caller: FC<{ tick: number }> = ({ tick }) => {
+                const { setChartType } = useVisualizationContext();
+                useEffect(() => {
+                    setChartType(ChartType.PIE);
+                }, [tick, setChartType]);
+                return null;
+            };
+            const ui = (tick: number) => (
+                <VisualizationProvider
+                    {...baseProps}
+                    chartConfig={cartesianConfig}
+                    onChartTypeChange={() => calls.push(`handler-${tick}`)}
+                >
+                    <Caller tick={tick} />
+                </VisualizationProvider>
+            );
+            const { rerender } = render(ui(0));
+            rerender(ui(1));
+
+            expect(calls).toEqual(['handler-0', 'handler-1']);
+        });
+
+        it('never calls a handler from a render that did not commit', async () => {
+            const calls: string[] = [];
+            let committed: Captured | undefined;
+            const CommittedProbe: FC = () => {
+                const context = useVisualizationContext();
+                useLayoutEffect(() => {
+                    committed = context;
+                });
+                return null;
+            };
+            const Suspender: FC<{ suspend: boolean }> = ({ suspend }) => {
+                if (suspend) throw new Promise(() => {});
+                return null;
+            };
+            const ui = (tick: number) => (
+                <VisualizationProvider
+                    {...baseProps}
+                    chartConfig={cartesianConfig}
+                    onChartTypeChange={() => calls.push(`handler-${tick}`)}
+                >
+                    <CommittedProbe />
+                    <Suspense fallback={null}>
+                        <Suspender suspend={tick > 0} />
+                    </Suspense>
+                </VisualizationProvider>
+            );
+            const { rerender } = render(ui(0));
+            await act(async () => {
+                startTransition(() => rerender(ui(1)));
+            });
+
+            committed?.setChartType(ChartType.PIE);
+            expect(calls).toEqual(['handler-0']);
+        });
     });
 });
