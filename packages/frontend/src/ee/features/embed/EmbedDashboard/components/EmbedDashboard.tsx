@@ -105,6 +105,31 @@ const EmbedTileLoadTracker: FC<{
     return null;
 };
 
+// Isolated so tile reports only re-render this, not the whole dashboard.
+const EmbedExportReadyIndicator: FC<{ awaitedTileUuids: string[] }> = ({
+    awaitedTileUuids,
+}) => {
+    const screenshotReadyTiles = useDashboardSelector(
+        (state) => state.tileStatus.screenshotReadyTiles,
+    );
+    const screenshotErroredTiles = useDashboardSelector(
+        (state) => state.tileStatus.screenshotErroredTiles,
+    );
+    const isReady = awaitedTileUuids.every(
+        (tileUuid) =>
+            screenshotReadyTiles.has(tileUuid) ||
+            screenshotErroredTiles.has(tileUuid),
+    );
+    if (!isReady) return null;
+    return (
+        <ScreenshotReadyIndicator
+            tilesTotal={awaitedTileUuids.length}
+            tilesReady={screenshotReadyTiles.size}
+            tilesErrored={screenshotErroredTiles.size}
+        />
+    );
+};
+
 const EmbedDashboardGrid: FC<{
     filteredTiles: DashboardTile[];
     layouts: DashboardLayouts;
@@ -867,12 +892,6 @@ const EmbedDashboard: FC<{
         updateDashboard,
     ]);
 
-    const screenshotReadyTileUuids = useDashboardTileStatusContext(
-        (c) => c.screenshotReadyTileUuids,
-    );
-    const screenshotErroredTileUuids = useDashboardTileStatusContext(
-        (c) => c.screenshotErroredTileUuids,
-    );
     // Readiness resets when tiles or the active tab change, so render after both settle.
     const isMinimalLayoutSettled =
         !!dashboardTiles &&
@@ -923,30 +942,20 @@ const EmbedDashboard: FC<{
         visibleTabs,
     ]);
     // Locked chart tiles render a placeholder and never report readiness.
-    const isReadyForExport = useMemo(() => {
-        if (!isMinimal || !isMinimalLayoutSettled) return false;
-        const settledTileUuids = new Set([
-            ...screenshotReadyTileUuids,
-            ...screenshotErroredTileUuids,
-        ]);
-        return exportTabGroups
-            .flatMap((group) => group.tiles)
-            .filter(
-                (tile) =>
-                    tile.type === DashboardTileTypes.DATA_APP ||
-                    (!hasUnmetFilterRequirements &&
-                        (tile.type === DashboardTileTypes.SAVED_CHART ||
-                            tile.type === DashboardTileTypes.SQL_CHART)),
-            )
-            .every((tile) => settledTileUuids.has(tile.uuid));
-    }, [
-        exportTabGroups,
-        hasUnmetFilterRequirements,
-        isMinimal,
-        isMinimalLayoutSettled,
-        screenshotErroredTileUuids,
-        screenshotReadyTileUuids,
-    ]);
+    const exportAwaitedTileUuids = useMemo(
+        () =>
+            exportTabGroups
+                .flatMap((group) => group.tiles)
+                .filter(
+                    (tile) =>
+                        tile.type === DashboardTileTypes.DATA_APP ||
+                        (!hasUnmetFilterRequirements &&
+                            (tile.type === DashboardTileTypes.SAVED_CHART ||
+                                tile.type === DashboardTileTypes.SQL_CHART)),
+                )
+                .map((tile) => tile.uuid),
+        [exportTabGroups, hasUnmetFilterRequirements],
+    );
 
     if (!projectUuid) {
         return (
@@ -1135,16 +1144,9 @@ const EmbedDashboard: FC<{
                         />
                     ))
                 )}
-                {isReadyForExport && (
-                    <ScreenshotReadyIndicator
-                        tilesTotal={exportTabGroups.reduce(
-                            (total, group) => total + group.tiles.length,
-                            0,
-                        )}
-                        tilesReady={screenshotReadyTileUuids.length}
-                        tilesErrored={screenshotErroredTileUuids.length}
-                    />
-                )}
+                <EmbedExportReadyIndicator
+                    awaitedTileUuids={exportAwaitedTileUuids}
+                />
             </Box>
         );
     }
