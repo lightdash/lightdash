@@ -19,8 +19,8 @@ vi.mock('../../api');
 vi.mock('../../hooks/useContent', () => ({
     invalidateContent: mocks.invalidate,
 }));
-vi.mock('../../hooks/useProjectRoute', () => ({
-    useProjectUrlIdentifier: () => 'project-slug',
+vi.mock('../../hooks/useResolvedProjectUrlIdentifier', () => ({
+    useResolvedProjectUrlIdentifier: () => 'project-slug',
 }));
 vi.mock('react-router', () => ({ useNavigate: () => mocks.navigate }));
 const ability = new Ability<PossibleAbilities>([
