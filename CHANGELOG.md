@@ -1,3 +1,10 @@
+## [2.621.1](https://github.com/lightdash/lightdash/compare/2.621.0...2.621.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **external-sources:** import Google Sheets tabs with ragged rows, checkboxes and tab links correctly ([#31218](https://github.com/lightdash/lightdash/issues/31218)) ([e028c91](https://github.com/lightdash/lightdash/commit/e028c91c8cc406f043a3bdb120f960e0b27f430f))
+
 # [2.621.0](https://github.com/lightdash/lightdash/compare/2.620.0...2.621.0) (2026-10-20)
 
 
