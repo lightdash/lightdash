@@ -165,6 +165,7 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    runComposerQueriesToolDefinition,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -18021,6 +18022,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
+        const threadNodes = toolCalls.some(
+            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
+        )
+            ? await this.aiAgentModel.listComposerQueryNodes(
+                  threadComposerQueryScope(slackPrompt.threadUuid),
+              )
+            : [];
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -18028,6 +18036,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
+            threadNodes,
             url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
             runtimeResults: runtimeTableResults,
             authorize: async ({ queryUuid, exploreNames }) => {

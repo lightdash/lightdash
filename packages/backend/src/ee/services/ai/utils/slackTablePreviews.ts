@@ -1,12 +1,13 @@
 import {
+    buildComposerArtifactPipeline,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
-    parsePartialToolComposerQueriesArgs,
     parseToolComposerQueriesSuccessMetadata,
     QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
     type ItemsMap,
+    type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { z } from 'zod';
 import {
@@ -53,6 +54,34 @@ export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
     );
 };
 
+/** Semantic explores the presented node reads, through every node it reads;
+ * null when its closure is not registered. */
+const getComposerExploreNames = (
+    terminalNodeId: string,
+    threadNodes: ThreadComposerQueryNode[],
+): string[] | null => {
+    const terminalNode = threadNodes.find(
+        (node) => node.nodeId === terminalNodeId,
+    );
+    if (!terminalNode) return null;
+    try {
+        return [
+            ...new Set(
+                buildComposerArtifactPipeline({
+                    queries: [terminalNode],
+                    threadNodes,
+                }).flatMap((node) =>
+                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? [node.exploreName]
+                        : [],
+                ),
+            ),
+        ];
+    } catch {
+        return null;
+    }
+};
+
 export const getSlackTablePreviews = async ({
     enableDataAccess,
     slackLinksOnly,
@@ -60,6 +89,7 @@ export const getSlackTablePreviews = async ({
     toolCalls,
     toolResults,
     artifacts,
+    threadNodes,
     url,
     runtimeResults = new Map(),
     authorize,
@@ -80,6 +110,8 @@ export const getSlackTablePreviews = async ({
         }
     >;
     artifacts: AiArtifact[];
+    /** The thread's registered composer query nodes. */
+    threadNodes: ThreadComposerQueryNode[];
     url: string;
     runtimeResults?: ReadonlyMap<string, SlackTableQueryResults>;
     authorize: (input: {
@@ -130,25 +162,16 @@ export const getSlackTablePreviews = async ({
             const composer =
                 parseToolComposerQueriesSuccessMetadata(toolMetadata);
             if (!composer) return [];
+            const exploreNames = getComposerExploreNames(
+                composer.terminalNodeId,
+                threadNodes,
+            );
+            if (!exploreNames) return [];
             return [
                 {
                     call,
                     title: composer.title,
-                    exploreNames: [
-                        ...new Set(
-                            (
-                                parsePartialToolComposerQueriesArgs(
-                                    call.tool_args,
-                                )?.queries ?? []
-                            ).flatMap((query) =>
-                                query.sourceType ===
-                                    QuerySourceType.SEMANTIC_LAYER &&
-                                query.exploreName
-                                    ? [query.exploreName]
-                                    : [],
-                            ),
-                        ),
-                    ],
+                    exploreNames,
                     metadata: { queryUuid: composer.queryUuid },
                     artifact: undefined,
                 },

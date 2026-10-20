@@ -262,7 +262,7 @@ const makeTool = ({
 describe('getRunComposerQueries', () => {
     it('in Slack, the reply can show the terminal result as a table that links to the thread, without an artifact', async () => {
         const agentContext = new AgentContext([]);
-        const { tool } = makeTool({
+        const { tool, registry } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
             agentContext,
@@ -293,6 +293,7 @@ describe('getRunComposerQueries', () => {
                 },
             ],
             artifacts: [],
+            threadNodes: registry.nodes('thread-uuid'),
             url: 'https://lightdash.test/threads/thread-uuid',
             runtimeResults: agentContext.getSlackTableResults(),
             authorize: vi.fn().mockResolvedValue(undefined),
