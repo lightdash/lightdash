@@ -543,7 +543,12 @@ export class CloudRunExecChannel {
                 options.onStderr?.(errText);
             }
 
-            if (tick.exitCode !== null) {
+            // A full chunk means more bytes are waiting: keep draining before
+            // finalizing, even once the exit code has landed.
+            const drained =
+                tick.out.length < READ_CHUNK_BYTES &&
+                tick.err.length < READ_CHUNK_BYTES;
+            if (tick.exitCode !== null && drained) {
                 // Flush bytes the decoders held back waiting for the rest of a
                 // multi-byte sequence that never came.
                 const outTail = outDecoder.end();
