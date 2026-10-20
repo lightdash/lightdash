@@ -22,6 +22,7 @@ export type DbPreAggregateDefinition = {
     refresh_cron: string | null;
     materialize_on_compile: boolean;
     materialize_on_compile_override: boolean | null;
+    definition_fingerprint: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -45,6 +46,7 @@ export type DbPreAggregateDefinitionUpdate = Partial<
         | 'refresh_cron'
         | 'materialize_on_compile'
         | 'materialize_on_compile_override'
+        | 'definition_fingerprint'
         | 'updated_at'
     >
 >;
@@ -68,6 +70,7 @@ export type DbPreAggregateMaterialization = {
     columns: ResultColumns | null;
     error_message: string | null;
     total_bytes: number | null;
+    materialized_fingerprint: string | null;
     created_at: Date;
     updated_at: Date;
 };

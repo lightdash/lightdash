@@ -361,6 +361,7 @@ import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
+import { computeMaterializationFingerprint } from '../../ee/preAggregates/materializationFingerprint';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
@@ -3919,6 +3920,7 @@ export class ProjectService
 
                         let materializationMetricQuery = null;
                         let materializationQueryError = null;
+                        let definitionFingerprint = null;
 
                         if (!isExternal) {
                             try {
@@ -3936,6 +3938,12 @@ export class ProjectService
                                             },
                                         },
                                     );
+                                definitionFingerprint =
+                                    computeMaterializationFingerprint({
+                                        sourceExplore,
+                                        preAggregateDef: preAggregateDefinition,
+                                        materializationMetricQuery,
+                                    });
                             } catch (error) {
                                 materializationQueryError =
                                     getErrorMessage(error);
@@ -3959,6 +3967,7 @@ export class ProjectService
                             materialize_on_compile:
                                 preAggregateDefinition.refresh?.onCompile !==
                                 false,
+                            definition_fingerprint: definitionFingerprint,
                         });
                     },
                 );
@@ -3970,9 +3979,10 @@ export class ProjectService
                 projectUuid,
                 'compileProject',
             );
-        await this.preAggregateModel.upsertPreAggregateDefinitions(
-            definitionRows,
-        );
+        const { supersededDefinitionUuids } =
+            await this.preAggregateModel.upsertPreAggregateDefinitions(
+                definitionRows,
+            );
 
         const invalidDefinitionsCount = definitionRows.filter(
             (row) => row.materialization_query_error !== null,
@@ -3981,8 +3991,14 @@ export class ProjectService
             `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
             {
                 invalidDefinitionsCount,
+                supersededDefinitionUuids,
             },
         );
+        if (supersededDefinitionUuids.length > 0) {
+            this.logger.info(
+                `Superseded the active materialization of ${supersededDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} whose definition changed; they are rebuilt on this compile regardless of refresh.on_compile`,
+            );
+        }
     }
 
     private async syncAndEnqueuePreAggregateMaterializations(args: {

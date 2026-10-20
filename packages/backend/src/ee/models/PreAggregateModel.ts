@@ -43,6 +43,7 @@ const toPreAggregateDefinition = (
     materializeOnCompile:
         row.materialize_on_compile_override ?? row.materialize_on_compile,
     materializeOnCompileOverride: row.materialize_on_compile_override,
+    definitionFingerprint: row.definition_fingerprint,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
 });
@@ -72,35 +73,108 @@ export class PreAggregateModel {
         this.database = database;
     }
 
+    /**
+     * Upserts the registry rows and supersedes the active materialization of
+     * every definition whose fingerprint moved, so a changed explore is never
+     * served from a file built for its old shape. Rows with no stored
+     * fingerprint (written before tracking) take the new one as baseline.
+     */
     async upsertPreAggregateDefinitions(
         definitions: DbPreAggregateDefinitionIn[],
-    ): Promise<void> {
+    ): Promise<{ supersededDefinitionUuids: string[] }> {
         if (definitions.length === 0) {
-            return;
+            return { supersededDefinitionUuids: [] };
         }
 
-        await this.database(PreAggregateDefinitionsTableName)
-            .insert(definitions)
-            .onConflict('pre_agg_cached_explore_uuid')
-            .merge({
-                source_cached_explore_uuid: this.database.raw(
-                    'excluded.source_cached_explore_uuid',
-                ),
-                pre_aggregate_definition: this.database.raw(
-                    'excluded.pre_aggregate_definition',
-                ),
-                materialization_metric_query: this.database.raw(
-                    'excluded.materialization_metric_query',
-                ),
-                materialization_query_error: this.database.raw(
-                    'excluded.materialization_query_error',
-                ),
-                refresh_cron: this.database.raw('excluded.refresh_cron'),
-                materialize_on_compile: this.database.raw(
-                    'excluded.materialize_on_compile',
-                ),
-                updated_at: this.database.fn.now(),
+        return this.database.transaction(async (trx) => {
+            const existingRows = await trx(PreAggregateDefinitionsTableName)
+                .whereIn(
+                    'pre_agg_cached_explore_uuid',
+                    definitions.map(
+                        (definition) => definition.pre_agg_cached_explore_uuid,
+                    ),
+                )
+                .select<
+                    Pick<
+                        DbPreAggregateDefinition,
+                        | 'pre_aggregate_definition_uuid'
+                        | 'pre_agg_cached_explore_uuid'
+                        | 'definition_fingerprint'
+                    >[]
+                >(
+                    'pre_aggregate_definition_uuid',
+                    'pre_agg_cached_explore_uuid',
+                    'definition_fingerprint',
+                );
+            const existingByExploreUuid = new Map(
+                existingRows.map((row) => [
+                    row.pre_agg_cached_explore_uuid,
+                    row,
+                ]),
+            );
+            const staleDefinitionUuids = definitions.flatMap((definition) => {
+                const existing = existingByExploreUuid.get(
+                    definition.pre_agg_cached_explore_uuid,
+                );
+                return existing &&
+                    existing.definition_fingerprint !== null &&
+                    existing.definition_fingerprint !==
+                        definition.definition_fingerprint
+                    ? [existing.pre_aggregate_definition_uuid]
+                    : [];
             });
+
+            await trx(PreAggregateDefinitionsTableName)
+                .insert(definitions)
+                .onConflict('pre_agg_cached_explore_uuid')
+                .merge({
+                    source_cached_explore_uuid: trx.raw(
+                        'excluded.source_cached_explore_uuid',
+                    ),
+                    pre_aggregate_definition: trx.raw(
+                        'excluded.pre_aggregate_definition',
+                    ),
+                    materialization_metric_query: trx.raw(
+                        'excluded.materialization_metric_query',
+                    ),
+                    materialization_query_error: trx.raw(
+                        'excluded.materialization_query_error',
+                    ),
+                    refresh_cron: trx.raw('excluded.refresh_cron'),
+                    materialize_on_compile: trx.raw(
+                        'excluded.materialize_on_compile',
+                    ),
+                    definition_fingerprint: trx.raw(
+                        'excluded.definition_fingerprint',
+                    ),
+                    updated_at: trx.fn.now(),
+                });
+
+            if (staleDefinitionUuids.length === 0) {
+                return { supersededDefinitionUuids: [] };
+            }
+            const supersededRows = await trx(
+                PreAggregateMaterializationsTableName,
+            )
+                .whereIn('pre_aggregate_definition_uuid', staleDefinitionUuids)
+                .andWhere('status', 'active')
+                .update({ status: 'superseded', updated_at: new Date() })
+                .returning<
+                    Pick<
+                        DbPreAggregateMaterialization,
+                        'pre_aggregate_definition_uuid'
+                    >[]
+                >('pre_aggregate_definition_uuid');
+            return {
+                supersededDefinitionUuids: Array.from(
+                    new Set(
+                        supersededRows.map(
+                            (row) => row.pre_aggregate_definition_uuid,
+                        ),
+                    ),
+                ),
+            };
+        });
     }
 
     async getPreAggregateDefinitionsForProject(
@@ -291,6 +365,7 @@ export class PreAggregateModel {
         projectUuid: string;
         preAggregateDefinitionUuid: string;
         trigger: PreAggregateMaterializationTrigger;
+        definitionFingerprint: string | null;
     }): Promise<PreAggregateMaterialization> {
         const [row] = await this.database(PreAggregateMaterializationsTableName)
             .insert({
@@ -298,6 +373,7 @@ export class PreAggregateModel {
                 pre_aggregate_definition_uuid: args.preAggregateDefinitionUuid,
                 status: 'in_progress',
                 trigger: args.trigger,
+                materialized_fingerprint: args.definitionFingerprint,
                 query_uuid: null,
                 materialization_uri: null,
                 materialized_at: null,
@@ -367,6 +443,23 @@ export class PreAggregateModel {
                     );
                 }
 
+                const definition = await trx(PreAggregateDefinitionsTableName)
+                    .where(
+                        'pre_aggregate_definition_uuid',
+                        row.pre_aggregate_definition_uuid,
+                    )
+                    .first<
+                        Pick<DbPreAggregateDefinition, 'definition_fingerprint'>
+                    >('definition_fingerprint');
+                // The definition moved while this run was building: the file
+                // describes the old shape, so it never becomes active.
+                const isStale =
+                    row.materialized_fingerprint !== null &&
+                    definition !== undefined &&
+                    definition.definition_fingerprint !== null &&
+                    row.materialized_fingerprint !==
+                        definition.definition_fingerprint;
+
                 const currentActive = await trx(
                     PreAggregateMaterializationsTableName,
                 )
@@ -379,9 +472,10 @@ export class PreAggregateModel {
                     .first<DbPreAggregateMaterialization>();
 
                 const shouldPromote =
-                    !currentActive ||
-                    !currentActive.materialized_at ||
-                    currentActive.materialized_at <= args.materializedAt;
+                    !isStale &&
+                    (!currentActive ||
+                        !currentActive.materialized_at ||
+                        currentActive.materialized_at <= args.materializedAt);
 
                 const commonUpdate = {
                     query_uuid: args.queryUuid,
@@ -488,6 +582,13 @@ export class PreAggregateModel {
                 'active',
             )
             .whereNotNull(`${PreAggregateMaterializationsTableName}.query_uuid`)
+            // Never serve a file built for an older definition shape
+            .whereRaw(`(?? IS NULL OR ?? IS NULL OR ?? = ??)`, [
+                `${PreAggregateMaterializationsTableName}.materialized_fingerprint`,
+                `${PreAggregateDefinitionsTableName}.definition_fingerprint`,
+                `${PreAggregateMaterializationsTableName}.materialized_fingerprint`,
+                `${PreAggregateDefinitionsTableName}.definition_fingerprint`,
+            ])
             .select<
                 Pick<
                     DbPreAggregateMaterialization,

@@ -509,7 +509,9 @@ const organizationWarehouseCredentialsModel = {
         >(),
 };
 const preAggregateModel = {
-    upsertPreAggregateDefinitions: vi.fn(),
+    upsertPreAggregateDefinitions: vi.fn(async () => ({
+        supersededDefinitionUuids: [],
+    })),
     getPreAggregateDefinitionsForProject: vi.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: vi.fn(async () => undefined),
     getActiveMaterialization: vi.fn(async () => undefined),

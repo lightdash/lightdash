@@ -184,6 +184,9 @@ export type PreAggregateDefinition = {
     // Effective value: the page override when set, otherwise YAML
     materializeOnCompile: boolean;
     materializeOnCompileOverride: boolean | null;
+    // Hash of what the materialization query reads; null for external
+    // pre-aggregates, broken definitions, and rows written before tracking
+    definitionFingerprint: string | null;
     createdAt: Date;
     updatedAt: Date;
 };

@@ -54,6 +54,18 @@ cleared); the registry still syncs on every compile, and an opted-out
 definition with no active materialization is built once so it is never
 dead until its first cron run.
 
+**Definition fingerprint**:
+A hash of what a managed pre-aggregate's materialization query reads: the
+YAML definition, the stored metric query, the compiled SQL of the fields it
+selects or filters on, and the source tables and joins those fields reach.
+Stored on the definition at every compile and copied onto each
+materialization when it starts. When the fingerprint moves, the active
+materialization is superseded and the pre-aggregate is materialized on that
+compile regardless of `refresh.on_compile`; a materialization started under
+an older fingerprint never becomes active and is never served. Rows written
+before fingerprints existed take the next compile's value as their baseline.
+_Avoid_: checksum, version, hash (bare), signature
+
 **Source explore**:
 The explore a pre-aggregate is defined on and summarizes.
 
