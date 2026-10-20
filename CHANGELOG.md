@@ -1,3 +1,10 @@
+## [2.631.1](https://github.com/lightdash/lightdash/compare/2.631.0...2.631.1) (2026-10-20)
+
+
+### Performance Improvements
+
+* **dashboard:** keep tile memoisation across edit-mode changes ([#31250](https://github.com/lightdash/lightdash/issues/31250)) ([f87d025](https://github.com/lightdash/lightdash/commit/f87d025d7a6c18e90a38a500fd2250de4e641851))
+
 # [2.631.0](https://github.com/lightdash/lightdash/compare/2.630.0...2.631.0) (2026-10-20)
 
 
