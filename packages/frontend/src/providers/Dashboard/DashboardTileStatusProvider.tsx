@@ -3,6 +3,7 @@ import {
     isDashboardDataAppTileType,
     isDashboardSqlChartTile,
     isTileInPagedExport,
+    isTileInSelectedTabs,
     type CacheMetadata,
     type Dashboard,
 } from '@lightdash/common';
@@ -226,8 +227,8 @@ const DashboardTileStatusProvider: React.FC<
                     )
                     .map((tile) => tile.uuid);
             }
-            // Stacked multi-tab image: orphans ride the aggregated view (null
-            // sentinel is present in the selection). Existing behaviour.
+            // Stacked multi-tab image: mirror MinimalDashboard, which renders
+            // orphans for any selection, with or without the null sentinel.
             return dashboardTiles
                 .filter(
                     (tile) =>
@@ -236,7 +237,7 @@ const DashboardTileStatusProvider: React.FC<
                         isDashboardDataAppTileType(tile),
                 )
                 .filter((tile) =>
-                    schedulerTabsSelected.includes(tile.tabUuid ?? null),
+                    isTileInSelectedTabs(tile, schedulerTabsSelected),
                 )
                 .map((tile) => tile.uuid);
         }

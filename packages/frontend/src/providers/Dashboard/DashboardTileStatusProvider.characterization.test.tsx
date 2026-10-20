@@ -548,6 +548,24 @@ describe('tile status: screenshot readiness', () => {
         expect(result.current.screenshotErroredTilesCount).toBe(0);
     });
 
+    it('waits for tiles without a tab in a tab selection without the null sentinel', () => {
+        // MinimalDashboard renders them for any selection (isTileInSelectedTabs)
+        const { result } = renderStatus({
+            dashboardTiles: [
+                chartTile('a', 'tab-a'),
+                chartTile('b', 'tab-b'),
+                chartTile('orphan'),
+            ],
+            dashboardTabs: [tabA, tabB],
+            activeTab: tabA,
+            schedulerTabsSelected: ['tab-a'],
+        });
+        expect(result.current.expectedScreenshotTileUuids).toEqual([
+            'a',
+            'orphan',
+        ]);
+    });
+
     it('uses the scheduler tab selection, orphans riding the null sentinel', () => {
         const { result } = renderStatus({
             dashboardTiles: [
