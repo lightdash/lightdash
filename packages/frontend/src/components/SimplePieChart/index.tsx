@@ -94,7 +94,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         const handleOpenContextMenu = useCallback(
             (e: ECElementEvent) => {

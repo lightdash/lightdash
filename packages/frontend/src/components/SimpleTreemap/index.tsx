@@ -113,7 +113,7 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         if (screenshotError) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;

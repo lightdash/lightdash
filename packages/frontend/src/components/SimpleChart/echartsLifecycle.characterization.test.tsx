@@ -23,9 +23,8 @@ import { renderWithProviders } from '../../testing/testUtils';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 
 /**
- * Characterization of main as of 2.631.5: how many ECharts instances, option
- * builds and setOption calls the cartesian chart costs. Values marked TODAY
- * are the behaviour a lifecycle fix is expected to change on purpose.
+ * How many ECharts instances, option builds and setOption calls the cartesian
+ * chart costs, and which instance its listeners and refs point at.
  */
 
 const builds = vi.hoisted(() => ({
@@ -128,18 +127,20 @@ const metricQuery: MetricQuery = {
     tableCalculations: [],
 };
 const cell = (raw: unknown) => ({ value: { raw, formatted: String(raw) } });
-const makeRows = (scale: number) =>
-    ['completed', 'shipped', 'returned'].map((status, i) => ({
+const STATUSES = ['completed', 'shipped', 'returned'];
+const makeRows = (scale: number, statuses: string[]) =>
+    statuses.map((status, i) => ({
         orders_status: cell(status),
         orders_revenue: cell((i + 1) * 100 * scale),
         orders_count: cell((i + 1) * scale),
     }));
 const makeResults = (
     scale = 1,
+    statuses = STATUSES,
 ): InfiniteQueryResults & { metricQuery: MetricQuery; fields: ItemsMap } => {
-    const rows = makeRows(scale);
+    const rows = makeRows(scale, statuses);
     return {
-        queryUuid: `query-${scale}`,
+        queryUuid: `query-${scale}-${statuses.length}`,
         queryStatus: QueryHistoryStatus.READY,
         rows,
         totalResults: rows.length,
@@ -188,6 +189,9 @@ type ChartProps = {
     containerWidth?: number;
     onSeriesContextMenu?: (e: unknown, series: unknown[]) => void;
     setEchartsRef?: (ref: unknown) => void;
+    theme?: string;
+    onChartReady?: (instance: unknown) => void;
+    onScreenshotReady?: () => void;
 };
 const Chart = ({
     results,
@@ -196,6 +200,9 @@ const Chart = ({
     containerWidth,
     onSeriesContextMenu,
     setEchartsRef,
+    theme,
+    onChartReady,
+    onScreenshotReady,
 }: ChartProps) => (
     <VisualizationProvider
         chartConfig={chartConfig}
@@ -209,7 +216,13 @@ const Chart = ({
         onSeriesContextMenu={onSeriesContextMenu}
         setEchartsRef={setEchartsRef}
     >
-        <SimpleChart isInDashboard={isDashboard} $shouldExpand />
+        <SimpleChart
+            isInDashboard={isDashboard}
+            $shouldExpand
+            theme={theme}
+            onChartReady={onChartReady}
+            onScreenshotReady={onScreenshotReady}
+        />
     </VisualizationProvider>
 );
 
@@ -258,6 +271,24 @@ const delta = (
         ]),
     );
 const takeChanged = () => builds.changed.splice(0);
+type LiveInstance = {
+    id: string;
+    getDom: () => HTMLElement;
+    trigger: (type: string, e: object) => void;
+};
+const liveInstances = () =>
+    instances.filter((i) => !i.isDisposed()) as unknown as LiveInstance[];
+const clickSeries = (instance: LiveInstance, dataIndex = 0) =>
+    act(() => {
+        instance.trigger('click', {
+            componentType: 'series',
+            seriesIndex: 0,
+            dataIndex,
+            event: { event: new MouseEvent('click') },
+        });
+    });
+// 300 rows x 2 series crosses the 500 point canvas threshold
+const MANY_STATUSES = Array.from({ length: 300 }, (_, i) => `status-${i}`);
 
 describe('ECharts lifecycle characterization (cartesian)', () => {
     beforeEach(() => {
@@ -312,12 +343,13 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         vi.restoreAllMocks();
     });
 
-    it('mounts through three instances because the config settles in effects (TODAY)', () => {
+    it('mounts one instance and applies the effect-settled config with setOption', () => {
         renderWithProviders(wrap(<Chart results={makeResults(1)} />, false));
         expect(snapshot()).toMatchObject({
-            init: 3,
-            dispose: 2,
+            init: 1,
+            dispose: 0,
             setOption: 3,
+            listeners: 5,
             chartData: 3,
             alive: 1,
         });
@@ -344,7 +376,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         });
     });
 
-    it('builds twice and re-creates the instance twice per results change (TODAY)', () => {
+    it('keeps the instance on a results change, though the config lag still builds twice', () => {
         const view = renderWithProviders(
             wrap(<Chart results={makeResults(1)} />, false),
         );
@@ -353,10 +385,11 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         view.rerender(wrap(<Chart results={makeResults(2)} />, false));
         expect(delta(mounted, snapshot())).toMatchObject({
             chartData: 2,
-            init: 2,
-            dispose: 2,
+            init: 0,
+            dispose: 0,
             setOption: 2,
             alive: 0,
+            listeners: 0,
         });
         // The first build pairs the new rows with the previous config
         expect(takeChanged()).toEqual([
@@ -365,7 +398,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         ]);
     });
 
-    it('re-creates the instance on a legend toggle (TODAY)', async () => {
+    it('keeps the instance on a legend toggle', async () => {
         renderWithProviders(wrap(<Chart results={makeResults(1)} />, false));
         const before = snapshot();
         const instance = instances.at(-1) as unknown as {
@@ -381,12 +414,14 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         expect(delta(before, snapshot())).toMatchObject({
             chartData: 0,
             option: 1,
-            init: 1,
-            dispose: 1,
+            setOption: 1,
+            init: 0,
+            dispose: 0,
+            listeners: 0,
         });
     });
 
-    it('strands the hover listeners when the instance is re-created without an option change (TODAY)', () => {
+    it('keeps the instance and hover listeners when only the context menu handler changes', () => {
         const results = makeResults(1);
         const view = renderWithProviders(
             wrap(<Chart results={results} />, false),
@@ -401,12 +436,167 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
                 false,
             ),
         );
-        // mouseover/mouseout stay bound to the disposed instance
         expect(delta(before, snapshot())).toMatchObject({
             option: 0,
-            init: 1,
-            listeners: -2,
+            init: 0,
+            setOption: 0,
+            listeners: 0,
         });
+    });
+
+    it('routes a click to the latest handler without an option change', () => {
+        const results = makeResults(1);
+        const calls: string[] = [];
+        const view = renderWithProviders(
+            wrap(
+                <Chart
+                    results={results}
+                    onSeriesContextMenu={() => calls.push('first')}
+                />,
+                false,
+            ),
+        );
+        view.rerender(
+            wrap(
+                <Chart
+                    results={results}
+                    onSeriesContextMenu={() => calls.push('second')}
+                />,
+                false,
+            ),
+        );
+        clickSeries(liveInstances()[0]);
+        // Without a handler the click falls through to native behaviour
+        view.rerender(wrap(<Chart results={results} />, false));
+        const event = new MouseEvent('click', { cancelable: true });
+        act(() => {
+            liveInstances()[0].trigger('click', {
+                componentType: 'series',
+                seriesIndex: 0,
+                dataIndex: 0,
+                event: { event },
+            });
+        });
+        expect(calls).toEqual(['second']);
+        expect(event.defaultPrevented).toBe(false);
+        expect(snapshot()).toMatchObject({ init: 1, alive: 1 });
+    });
+
+    it('re-creates and rebinds the instance when the renderer switches across the canvas threshold', () => {
+        const received: unknown[] = [];
+        const onSeriesContextMenu = (e: unknown) => received.push(e);
+        const view = renderWithProviders(
+            wrap(
+                <Chart
+                    results={makeResults(1)}
+                    onSeriesContextMenu={onSeriesContextMenu}
+                />,
+                false,
+            ),
+        );
+        const svg = snapshot();
+        view.rerender(
+            wrap(
+                <Chart
+                    results={makeResults(1, MANY_STATUSES)}
+                    onSeriesContextMenu={onSeriesContextMenu}
+                />,
+                false,
+            ),
+        );
+        expect(delta(svg, snapshot())).toMatchObject({
+            init: 1,
+            dispose: 1,
+            alive: 0,
+            listeners: 0,
+        });
+        clickSeries(liveInstances()[0], 299);
+        expect(received.at(-1)).toMatchObject({
+            datasetRow: { orders_status: 'status-299' },
+        });
+        const canvas = snapshot();
+        view.rerender(
+            wrap(
+                <Chart
+                    results={makeResults(2)}
+                    onSeriesContextMenu={onSeriesContextMenu}
+                />,
+                false,
+            ),
+        );
+        expect(delta(canvas, snapshot())).toMatchObject({
+            init: 1,
+            dispose: 1,
+            alive: 0,
+            listeners: 0,
+        });
+    });
+
+    it('re-creates and rebinds the instance on a theme change, chaining onChartReady', () => {
+        const results = makeResults(1);
+        const ready: string[] = [];
+        const onChartReady = (instance: unknown) =>
+            ready.push((instance as LiveInstance).id);
+        const view = renderWithProviders(
+            wrap(
+                <Chart results={results} onChartReady={onChartReady} />,
+                false,
+            ),
+        );
+        const before = snapshot();
+        view.rerender(
+            wrap(
+                <Chart
+                    results={results}
+                    theme="dark"
+                    onChartReady={onChartReady}
+                />,
+                false,
+            ),
+        );
+        expect(delta(before, snapshot())).toMatchObject({
+            init: 1,
+            dispose: 1,
+            // The re-init's own setOption; the option itself is unchanged
+            setOption: 1,
+            option: 0,
+            alive: 0,
+            listeners: 0,
+        });
+        expect(ready).toEqual(instances.map((i) => i.id));
+        expect(ready.at(-1)).toBe(liveInstances()[0].id);
+    });
+
+    it('signals screenshot readiness once and exports the live instance', () => {
+        const onScreenshotReady = vi.fn();
+        const refs: { current: { getEchartsInstance: () => unknown } }[] = [];
+        const setEchartsRef = (ref: unknown) =>
+            refs.push(ref as (typeof refs)[number]);
+        const view = renderWithProviders(
+            wrap(
+                <Chart
+                    results={makeResults(1)}
+                    onScreenshotReady={onScreenshotReady}
+                    setEchartsRef={setEchartsRef}
+                />,
+                false,
+            ),
+        );
+        view.rerender(
+            wrap(
+                <Chart
+                    results={makeResults(2)}
+                    onScreenshotReady={onScreenshotReady}
+                    setEchartsRef={setEchartsRef}
+                />,
+                false,
+            ),
+        );
+        expect(onScreenshotReady).toHaveBeenCalledTimes(1);
+        expect(refs.at(-1)?.current.getEchartsInstance()).toBe(
+            liveInstances()[0],
+        );
+        expect(counts.lazyInits).toBe(1);
     });
 
     it('routes a click after a results change to the latest series', () => {
@@ -432,24 +622,13 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
                 false,
             ),
         );
-        const live = instances.filter((i) => !i.isDisposed());
+        const live = liveInstances();
         expect(live).toHaveLength(1);
-        act(() => {
-            (
-                live[0] as unknown as {
-                    trigger: (type: string, e: object) => void;
-                }
-            ).trigger('click', {
-                componentType: 'series',
-                seriesIndex: 0,
-                dataIndex: 0,
-                event: { event: new MouseEvent('click') },
-            });
-        });
+        clickSeries(live[0]);
         expect(received).toEqual([2]);
     });
 
-    it('disposes the live chart when setEchartsRef changes identity (TODAY)', () => {
+    it('keeps the live chart and ref when setEchartsRef changes identity', () => {
         const results = makeResults(1);
         const refs: { current: unknown }[] = [];
         const capture = (ref: unknown) =>
@@ -467,8 +646,13 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
                 false,
             ),
         );
-        expect(snapshot()).toMatchObject({ alive: 0, listeners: 0 });
-        expect(refs.at(-1)?.current).toBeNull();
+        expect(snapshot()).toMatchObject({ alive: 1, listeners: 5, init: 1 });
+        expect(refs.at(-1)).toBe(refs[0]);
+        expect(
+            (
+                refs.at(-1)?.current as { getEchartsInstance: () => unknown }
+            ).getEchartsInstance(),
+        ).toBe(liveInstances()[0]);
     });
 
     it.each([false, true])(
@@ -482,10 +666,10 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
             );
             expect(snapshot().alive).toBe(0);
             view.rerender(wrap(<Chart results={makeResults(3)} />, strict));
-            expect(snapshot().alive).toBe(1);
+            expect(snapshot()).toMatchObject({ alive: 1, listeners: 5 });
             const beforeUnmount = snapshot();
             view.unmount();
-            // The provider's own dispose finds the ref already detached
+            // echarts-for-react is the only owner that disposes
             expect(delta(beforeUnmount, snapshot())).toMatchObject({
                 dispose: 1,
                 getInstance: 0,

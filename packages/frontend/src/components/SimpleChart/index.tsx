@@ -4,7 +4,7 @@ import {
     type PivotReference,
 } from '@lightdash/common';
 import { IconChartBarOff } from '@tabler/icons-react';
-import { format as echartsFormat } from 'echarts';
+import { format as echartsFormat, type ECharts } from 'echarts';
 import {
     type EChartsInstance,
     type EChartsReactProps,
@@ -14,6 +14,7 @@ import {
     memo,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -207,7 +208,7 @@ const getPlotPointForAxisHover = (
 };
 
 const SimpleChart: FC<SimpleChartProps> = memo(
-    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+    ({ onScreenshotReady, onScreenshotError, onChartReady, ...props }) => {
         const {
             chartRef,
             isLoading,
@@ -296,19 +297,28 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             resultsData?.setFetchAll(true);
         }, [resultsData]);
 
+        // echarts-for-react owns the instance; it reports each new one here
+        const [eChartsInstance, setEChartsInstance] = useState<ECharts | null>(
+            null,
+        );
+        const handleChartReady = useCallback(
+            (instance: ECharts) => {
+                setEChartsInstance(instance);
+                onChartReady?.(instance);
+            },
+            [onChartReady],
+        );
+
         useEffect(() => {
-            const eCharts = chartRef.current?.getEchartsInstance();
-            const dom = eCharts?.getDom();
-            if (!eCharts || !dom) return;
+            const dom = eChartsInstance?.getDom();
+            if (!eChartsInstance || !dom) return;
 
             let rafId: number | null = null;
             const resizeChart = () => {
                 if (rafId !== null) return;
                 rafId = requestAnimationFrame(() => {
                     rafId = null;
-                    // echarts-for-react replaces the instance when its props change
-                    const instance = chartRef.current?.getEchartsInstance();
-                    if (instance && !instance.isDisposed()) instance.resize();
+                    if (!eChartsInstance.isDisposed()) eChartsInstance.resize();
                 });
             };
 
@@ -328,35 +338,36 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 observer.disconnect();
                 if (rafId !== null) cancelAnimationFrame(rafId);
             };
-        }, [chartRef, eChartsOptions]);
+        }, [eChartsInstance]);
 
-        const onChartContextMenu = useCallback(
-            (e: EchartsClickEvent) => {
-                if (onSeriesContextMenu) {
-                    if (e.event.event.defaultPrevented) {
-                        return;
-                    }
-                    e.event.event.preventDefault();
-                    if (isSeriesClickEvent(e)) {
-                        const series = (eChartsOptions?.series || [])[
-                            e.seriesIndex
-                        ];
-                        if (series && series.encode) {
-                            // Stacked bar series carry sparse [x, y] tuples,
-                            // so resolve the full dataset row via dataIndex
-                            // for consumers that need the remaining columns
-                            const datasetRow =
-                                eChartsOptions?.dataset?.source?.[e.dataIndex];
-                            onSeriesContextMenu(
-                                { ...e, datasetRow },
-                                eChartsOptions?.series || [],
-                            );
-                        }
+        // A changed handler in onEvents makes echarts-for-react re-create the
+        // instance, so the handler stays stable and reads committed values
+        const latestRef = useRef({ eChartsOptions, onSeriesContextMenu });
+        useLayoutEffect(() => {
+            latestRef.current = { eChartsOptions, onSeriesContextMenu };
+        }, [eChartsOptions, onSeriesContextMenu]);
+
+        const onChartContextMenu = useCallback((e: EchartsClickEvent) => {
+            const { eChartsOptions: options, onSeriesContextMenu: onMenu } =
+                latestRef.current;
+            if (onMenu) {
+                if (e.event.event.defaultPrevented) {
+                    return;
+                }
+                e.event.event.preventDefault();
+                if (isSeriesClickEvent(e)) {
+                    const series = (options?.series || [])[e.seriesIndex];
+                    if (series && series.encode) {
+                        // Stacked bar series carry sparse [x, y] tuples,
+                        // so resolve the full dataset row via dataIndex
+                        // for consumers that need the remaining columns
+                        const datasetRow =
+                            options?.dataset?.source?.[e.dataIndex];
+                        onMenu({ ...e, datasetRow }, options?.series || []);
                     }
                 }
-            },
-            [onSeriesContextMenu, eChartsOptions],
-        );
+            }
+        }, []);
 
         const opts = useMemo<Opts>(() => {
             const baseOpts: Opts = {
@@ -393,8 +404,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         // Keep native axis/legend tooltips and local emphasis. Narrow segment tips
         // before paint. A short grace period bridges gaps without rebuilding options.
         useEffect(() => {
-            const eCharts = chartRef.current?.getEchartsInstance();
-            if (!eCharts || !resolvedEChartsOptions) return;
+            const eCharts = eChartsInstance;
+            if (!eCharts || eCharts.isDisposed() || !resolvedEChartsOptions)
+                return;
 
             const zRender = eCharts.getZr();
             let focusedSeries: number | null = null;
@@ -487,7 +499,12 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                     zRender.off('globalout', controller.leave);
                 }
             };
-        }, [chartRef, resolvedEChartsOptions, itemsMap, resolvedTimezone]);
+        }, [
+            eChartsInstance,
+            resolvedEChartsOptions,
+            itemsMap,
+            resolvedTimezone,
+        ]);
 
         // Memoize onEvents to prevent echarts-for-react from disposing and
         // re-creating the entire ECharts instance on every render. The library
@@ -522,13 +539,14 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                               width: '100%',
                           }
                 }
+                lazyUpdate={props.isInDashboard}
+                {...props}
                 ref={chartRef}
                 option={resolvedEChartsOptions ?? eChartsOptions}
                 notMerge
-                lazyUpdate={props.isInDashboard}
                 opts={opts}
                 onEvents={onEvents}
-                {...props}
+                onChartReady={handleChartReady}
             />
         );
     },
