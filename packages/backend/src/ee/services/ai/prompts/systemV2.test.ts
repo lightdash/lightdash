@@ -563,9 +563,8 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'Composer results are hidden from the user by default.',
+            'Composer results stay hidden until you present one.',
         );
-        expect(content).toContain('<show node="<nodeId>"/>');
         expect(content).toContain(
             'the terminal node is the result you can present',
         );
@@ -578,9 +577,9 @@ describe('getSystemPromptV2 composer queries', () => {
             slackChannelId: 'channel',
         });
 
-        expect(content).not.toContain('<show node=');
+        expect(content).not.toContain('stay hidden until you present');
         expect(content).toContain(
-            'the terminal node is the table the user sees',
+            'the terminal node is the table you can share',
         );
     });
 

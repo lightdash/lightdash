@@ -271,7 +271,7 @@ describe('getRunComposerQueries', () => {
         const output = await executeTool(tool, makeArgs(), 'composer-call');
         expect(output.result).not.toContain('<show');
         // The model selects the table using the queryUuid it was given.
-        const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
+        const queryUuid = output.result.match(/queryUuid="([^"]+)"/)?.[1];
 
         const previews = await getSlackTablePreviews({
             enableDataAccess: true,

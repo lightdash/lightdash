@@ -413,7 +413,7 @@ export const getRunComposerQueries = ({
                     `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     isSlack
-                        ? `This execution's queryUuid is ${terminal.queryUuid}; use exactly this value to reference it.`
+                        ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
                         : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),

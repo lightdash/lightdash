@@ -248,12 +248,12 @@ export const getSystemPromptV2 = (args: {
                   : ''
           }, and the terminal node is ${
               slackChannelId
-                  ? 'the table the user sees'
+                  ? 'the table you can share'
                   : 'the result you can present'
           }. Build the pipeline instead of running the queries one by one and combining them in prose.${
               slackChannelId
                   ? ''
-                  : '\n  - Composer results are hidden from the user by default. In your final answer, present the result that answers the question by writing <show node="<nodeId>"/> on its own line, where <nodeId> is the terminal node id of a successful runComposerQueries call in the current turn. Present several only when they add distinct views. Never present diagnostic or superseded results.'
+                  : '\n  - Composer results stay hidden until you present one. Present the result your answer rests on, using the marker its tool result gives you; present a second one only when it adds a distinct view.'
           }`
         : '';
 
