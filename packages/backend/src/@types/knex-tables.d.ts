@@ -144,6 +144,16 @@ import {
     DashboardSlugMappingTable,
 } from '../database/entities/dashboardSlugMappings';
 import {
+    DepartmentLinkTable,
+    DepartmentLinkTableName,
+    DepartmentMemberTable,
+    DepartmentMemberTableName,
+    DepartmentOwnerTable,
+    DepartmentOwnerTableName,
+    DepartmentTable,
+    DepartmentTableName,
+} from '../database/entities/departments';
+import {
     DocumentGroupAccessTable,
     DocumentGroupAccessTableName,
     DocumentUserAccessTable,
@@ -866,6 +876,10 @@ declare module 'knex/types/tables' {
         [OrganizationEmailDomainsTableName]: OrganizationEmailDomainsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
+        [DepartmentTableName]: DepartmentTable;
+        [DepartmentLinkTableName]: DepartmentLinkTable;
+        [DepartmentMemberTableName]: DepartmentMemberTable;
+        [DepartmentOwnerTableName]: DepartmentOwnerTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
         [SshKeyPairTableName]: SshKeyPairTable;
