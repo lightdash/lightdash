@@ -11,6 +11,7 @@ const setOwners = vi.fn();
 const setGroups = vi.fn();
 const setMembers = vi.fn();
 const remove = vi.fn();
+let removing = false;
 
 const mutation = (mutateAsync: ReturnType<typeof vi.fn>) => ({
     mutateAsync,
@@ -20,7 +21,7 @@ const mutation = (mutateAsync: ReturnType<typeof vi.fn>) => ({
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useCreateDepartment: () => mutation(create),
     useUpdateDepartment: () => mutation(update),
-    useDeleteDepartment: () => mutation(remove),
+    useDeleteDepartment: () => ({ mutateAsync: remove, isLoading: removing }),
     useSetDepartmentOwners: () => mutation(setOwners),
     useSetDepartmentGroups: () => mutation(setGroups),
     useSetDepartmentMembers: () => mutation(setMembers),
@@ -242,6 +243,70 @@ describe('DepartmentForm', () => {
         );
         expect(remove).toHaveBeenCalledWith('Ops');
         await waitFor(() => expect(onClose).toHaveBeenCalled());
+    });
+
+    const openConfirm = async (onClose: () => void) => {
+        renderWithProviders(
+            <DepartmentForm
+                department={departments[0]}
+                departments={departments}
+                onClose={onClose}
+            />,
+        );
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Delete department' }),
+        );
+        return screen.findByRole('dialog');
+    };
+
+    it('keeps the drawer open and the confirm button busy while a delete is in flight', async () => {
+        removing = true;
+        const onClose = vi.fn();
+        remove.mockReturnValue(new Promise(() => {}));
+        const dialog = await openConfirm(onClose);
+        const confirm = within(dialog).getByRole('button', {
+            name: 'Delete department',
+        });
+        expect(confirm).toBeDisabled();
+        await userEvent.click(confirm);
+        expect(remove).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('stays in the confirmation when the delete fails, so the user can retry', async () => {
+        removing = false;
+        const onClose = vi.fn();
+        remove.mockRejectedValueOnce(new Error('nope'));
+        const dialog = await openConfirm(onClose);
+        const confirm = within(dialog).getByRole('button', {
+            name: 'Delete department',
+        });
+        await userEvent.click(confirm);
+        await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+        expect(onClose).not.toHaveBeenCalled();
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(confirm).toBeEnabled();
+        remove.mockResolvedValueOnce(null);
+        await userEvent.click(confirm);
+        await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    });
+
+    it('closes only after the delete succeeds', async () => {
+        removing = false;
+        let resolve: (value: null) => void = () => {};
+        remove.mockReturnValueOnce(
+            new Promise<null>((r) => {
+                resolve = r;
+            }),
+        );
+        const onClose = vi.fn();
+        const dialog = await openConfirm(onClose);
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Delete department' }),
+        );
+        expect(onClose).not.toHaveBeenCalled();
+        resolve(null);
+        await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     });
 
     it('leaves out the sub-department note when there are none', async () => {

@@ -133,9 +133,10 @@ export const DepartmentsTable: FC<Props> = ({
                             <Button
                                 variant="subtle"
                                 size="compact-xs"
+                                aria-label={`Add headcount for ${department.name}`}
                                 onClick={() => onEdit(department)}
                             >
-                                Add headcount
+                                Add
                             </Button>
                         ) : (
                             <Text fz="sm" c="dimmed">
@@ -184,7 +185,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'coverage',
                 header: 'Coverage',
-                size: 90,
+                size: 100,
                 Cell: ({ row }) => (
                     <Text fz="sm">
                         {formatShare(
@@ -197,7 +198,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'active',
                 header: 'Active 30d',
-                size: 90,
+                size: 110,
                 Cell: ({ row }) => (
                     <Text fz="sm">
                         {formatShare(
@@ -210,7 +211,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'roles',
                 header: 'Roles',
-                size: 170,
+                size: 150,
                 Cell: ({ row }) => (
                     <Text fz="xs" c="dimmed">
                         {formatRoleSplit(
@@ -242,7 +243,7 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'target',
                 header: 'Target',
-                size: 130,
+                size: 120,
                 Cell: ({ row }) => (
                     <Text fz="sm">{formatTarget(row.original.department)}</Text>
                 ),

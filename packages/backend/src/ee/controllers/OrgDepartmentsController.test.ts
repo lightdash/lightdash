@@ -73,6 +73,13 @@ describe('OrgDepartmentsController', () => {
             results: { departmentUuid: 'd' },
         });
     });
+    it('returns the department detail from the service', async () => {
+        const getDetail = vi.fn().mockResolvedValue({ members: [] });
+        const controller = buildController({ getDetail });
+        const response = await controller.getDetail(request, 'd');
+        expect(getDetail).toHaveBeenCalledWith(request.account, 'd');
+        expect(response).toEqual({ status: 'ok', results: { members: [] } });
+    });
     it('responds 201 on create', async () => {
         const create = vi.fn().mockResolvedValue({ departmentUuid: 'd' });
         const controller = buildController({ create });

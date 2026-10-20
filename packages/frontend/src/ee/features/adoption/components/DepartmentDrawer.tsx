@@ -247,13 +247,12 @@ export const DepartmentForm: FC<FormProps> = ({
     };
 
     const handleDelete = async () => {
-        if (department === null) return;
+        if (department === null || deleteDepartment.isLoading) return;
         try {
-            // Close first so the refetch cannot re-render this drawer as a blank form
-            onClose();
             await deleteDepartment.mutateAsync(department.departmentUuid);
+            onClose();
         } catch {
-            setIsConfirmingDelete(false);
+            // The failure toast is shown by the hook; the confirmation stays open to retry or cancel
         }
     };
 

@@ -4,12 +4,16 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
+    getAncestorUuids,
+    getParentMap,
     NotFoundError,
     ParameterError,
     resolveDepartmentMembership,
     type Account,
     type CreateDepartment,
     type Department,
+    type DepartmentDetail,
+    type DepartmentMember,
     type DepartmentMembership,
     type DepartmentOwnerInput,
     type OrganizationAdoptionSummary,
@@ -21,6 +25,11 @@ import { type DepartmentModel } from '../../../models/DepartmentModel';
 import { BaseService } from '../../../services/BaseService';
 import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
+    buildDepartmentMembers,
+    computeTargetProgress,
+    computeWeeklyWithOrgAverage,
+} from './departmentDetail';
+import {
     buildAdoptionSnapshot,
     lastNWeekStarts,
     type AdoptionSnapshot,
@@ -28,6 +37,7 @@ import {
 
 export const ACTIVE_DAYS = 30;
 export const TREND_WEEKS = 12;
+const TOP_CONTENT_LIMIT = 5;
 const HEADCOUNT_NOTE_MAX_LENGTH = 500;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -234,6 +244,72 @@ export class DepartmentService extends BaseService {
             this.departmentModel.getResolvedMemberRows(organizationUuid),
         ]);
         return resolveDepartmentMembership(rows, departments);
+    }
+
+    protected async loadMembers(
+        organizationUuid: string,
+        snapshot: AdoptionSnapshot,
+        departmentUuid: string,
+    ): Promise<DepartmentMember[]> {
+        const members = snapshot.rolledMembers.get(departmentUuid) ?? [];
+        const activity = await this.departmentAnalyticsModel.getMemberActivity(
+            organizationUuid,
+            members.map((m) => m.userUuid),
+            ACTIVE_DAYS,
+        );
+        return buildDepartmentMembers({
+            departmentUuid,
+            members,
+            departments: snapshot.summary.departments,
+            activity,
+        });
+    }
+
+    async getDetail(
+        account: Account,
+        departmentUuid: string,
+    ): Promise<DepartmentDetail> {
+        const { organizationUuid } = await this.authorize(account, 'view');
+        assertUuid(departmentUuid, 'Department');
+        const snapshot = await this.loadSnapshot(organizationUuid);
+        const all = snapshot.summary.departments;
+        const department = all.find((d) => d.departmentUuid === departmentUuid);
+        // Same error whether it is missing or belongs to another organization
+        if (!department) {
+            throw new NotFoundError(`Department ${departmentUuid} not found`);
+        }
+        const memberUuids = (
+            snapshot.rolledMembers.get(departmentUuid) ?? []
+        ).map((m) => m.userUuid);
+        const [members, topContent] = await Promise.all([
+            this.loadMembers(organizationUuid, snapshot, departmentUuid),
+            this.departmentAnalyticsModel.getTopContent(
+                organizationUuid,
+                memberUuids,
+                ACTIVE_DAYS,
+                TOP_CONTENT_LIMIT,
+            ),
+        ]);
+        const names = new Map(all.map((d) => [d.departmentUuid, d.name]));
+        return {
+            department,
+            ancestors: getAncestorUuids(departmentUuid, getParentMap(all))
+                .reverse()
+                .map((uuid) => ({
+                    departmentUuid: uuid,
+                    name: names.get(uuid) ?? '',
+                })),
+            children: all.filter(
+                (d) => d.parentDepartmentUuid === departmentUuid,
+            ),
+            targetProgress: computeTargetProgress(
+                department,
+                department.metrics.activeCount30d,
+            ),
+            weeklyActive: computeWeeklyWithOrgAverage(department, all),
+            topContent,
+            members,
+        };
     }
 
     async create(

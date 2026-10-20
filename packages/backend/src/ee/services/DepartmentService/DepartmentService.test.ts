@@ -110,6 +110,10 @@ const buildService = (opts: {
     const departmentAnalyticsModel = {
         getActiveUserUuids: vi.fn().mockResolvedValue([]),
         getWeeklyActivity: vi.fn().mockResolvedValue([]),
+        getMemberActivity: vi.fn().mockResolvedValue([]),
+        getTopContent: vi
+            .fn()
+            .mockResolvedValue({ dashboards: [], explores: [], aiAgents: [] }),
     };
     const service = new DepartmentService({
         featureFlagService: {
@@ -502,5 +506,147 @@ describe('validateDepartmentInput', () => {
         ).not.toThrow();
         expect(() => validateDepartmentInput({ headcount: 0 })).not.toThrow();
         expect(() => validateDepartmentInput({})).not.toThrow();
+    });
+});
+
+describe('DepartmentService.getDetail', () => {
+    const OPS = '44444444-4444-4444-8444-444444444444';
+    const STORES = '55555555-5555-4555-8555-555555555555';
+    const FINANCE = '66666666-6666-4666-8666-666666666666';
+    const OTHER_ORG_DEPARTMENT = '77777777-7777-4777-8777-777777777777';
+    const link = (departmentUuid: string) => ({
+        departmentUuid,
+        groupUuid: `g-${departmentUuid}`,
+        groupName: departmentUuid,
+    });
+    const user = (userUuid: string, departmentUuid: string) => ({
+        userUuid,
+        email: `${userUuid}@example.com`,
+        firstName: userUuid,
+        lastName: 'L',
+        role: OrganizationMemberRole.VIEWER,
+        explicitDepartmentUuid: null,
+        groupLinks: [link(departmentUuid)],
+    });
+    const departments = [
+        { ...departmentFixture(OPS, null, 20), targetActiveUsers: 5 },
+        departmentFixture(STORES, OPS, 10),
+        departmentFixture(FINANCE, null, 5),
+    ];
+    const rows = [user('a', OPS), user('b', STORES), user('c', FINANCE)];
+    const viewer = () => buildAccount(abilityWith(['view', ORG]));
+
+    it('is gated like the summary', async () => {
+        const { service, departmentModel } = buildService({
+            flag: false,
+            departments,
+            rows,
+        });
+        await expect(service.getDetail(viewer(), OPS)).rejects.toThrow(
+            NotFoundError,
+        );
+        expect(departmentModel.listByOrganization).not.toHaveBeenCalled();
+    });
+    it('throws ForbiddenError without the view scope', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(
+            service.getDetail(buildAccount(abilityWith()), OPS),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it('checks the scope before it validates the uuid', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(
+            service.getDetail(buildAccount(abilityWith()), 'not-a-uuid'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+    it('rejects a department that is not a uuid before reading anything', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        await expect(service.getDetail(viewer(), 'ops')).rejects.toThrow(
+            ParameterError,
+        );
+        expect(departmentModel.listByOrganization).not.toHaveBeenCalled();
+    });
+    it('throws NotFoundError for a department that does not exist', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        await expect(
+            service.getDetail(viewer(), OTHER_ORG_DEPARTMENT),
+        ).rejects.toThrow(NotFoundError);
+    });
+    it('answers a department from another organization exactly like a missing one', async () => {
+        // The model only returns the caller's organization, so a foreign uuid is simply absent
+        const { service, departmentModel, departmentAnalyticsModel } =
+            buildService({ flag: true, departments, rows });
+        const missing = await service
+            .getDetail(viewer(), '88888888-8888-4888-8888-888888888888')
+            .catch((e) => e);
+        const foreign = await service
+            .getDetail(viewer(), OTHER_ORG_DEPARTMENT)
+            .catch((e) => e);
+        expect(foreign).toBeInstanceOf(NotFoundError);
+        expect(missing).toBeInstanceOf(NotFoundError);
+        expect(foreign.message.replace(OTHER_ORG_DEPARTMENT, '#')).toBe(
+            missing.message.replace(
+                '88888888-8888-4888-8888-888888888888',
+                '#',
+            ),
+        );
+        expect(departmentModel.listByOrganization).toHaveBeenCalledWith(ORG);
+        expect(
+            departmentAnalyticsModel.getMemberActivity,
+        ).not.toHaveBeenCalled();
+        expect(departmentAnalyticsModel.getTopContent).not.toHaveBeenCalled();
+    });
+    it('takes the organization from the account only', async () => {
+        const { service, departmentModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        await service.getDetail(viewer(), OPS);
+        expect(departmentModel.listByOrganization).toHaveBeenCalledWith(ORG);
+        expect(departmentModel.getResolvedMemberRows).toHaveBeenCalledWith(ORG);
+    });
+    it('reads activity and content for the department and its descendants only', async () => {
+        const { service, departmentAnalyticsModel } = buildService({
+            flag: true,
+            departments,
+            rows,
+        });
+        const detail = await service.getDetail(viewer(), OPS);
+
+        const [org, userUuids] =
+            departmentAnalyticsModel.getMemberActivity.mock.calls[0];
+        expect(org).toBe(ORG);
+        expect([...userUuids].sort()).toEqual(['a', 'b']);
+        const [topOrg, topUsers, days, limit] =
+            departmentAnalyticsModel.getTopContent.mock.calls[0];
+        expect(topOrg).toBe(ORG);
+        expect([...topUsers].sort()).toEqual(['a', 'b']);
+        expect([days, limit]).toEqual([30, 5]);
+        expect(detail.children.map((d) => d.departmentUuid)).toEqual([STORES]);
+        expect(detail.members.map((m) => m.userUuid).sort()).toEqual([
+            'a',
+            'b',
+        ]);
+        expect(detail.targetProgress).toMatchObject({
+            targetActiveUsers: 5,
+            remaining: 5,
+        });
+        expect(detail.weeklyActive).toHaveLength(12);
+    });
+    it('lists ancestors from the top down', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        const detail = await service.getDetail(viewer(), STORES);
+        expect(detail.ancestors).toEqual([{ departmentUuid: OPS, name: OPS }]);
+    });
+    it('returns no ancestors and no target progress for a top level department without a target', async () => {
+        const { service } = buildService({ flag: true, departments, rows });
+        const detail = await service.getDetail(viewer(), FINANCE);
+        expect(detail.ancestors).toEqual([]);
+        expect(detail.targetProgress).toBeNull();
     });
 });

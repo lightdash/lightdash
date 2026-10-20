@@ -1,5 +1,7 @@
 import {
+    OrganizationMemberRole,
     type AdoptionMetrics,
+    type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 
@@ -70,3 +72,24 @@ export const dept = (
         ...over,
     };
 };
+
+export const memberFixture = (
+    userUuid: string,
+    lastActiveAt: string | null,
+    over: Partial<DepartmentMember> = {},
+): DepartmentMember => ({
+    userUuid,
+    email: `${userUuid}@example.com`,
+    firstName: userUuid,
+    lastName: 'L',
+    role: OrganizationMemberRole.VIEWER,
+    departmentUuid: 'ops',
+    departmentName: 'Operations',
+    isDirect: true,
+    source: 'explicit',
+    sourceGroupName: null,
+    lastActiveAt,
+    queries30d: 0,
+    dashboardViews30d: 0,
+    ...over,
+});

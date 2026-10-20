@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     MissingConfigError,
     NotFoundError,
+    type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
     type ApiDepartmentResponse,
     type ApiErrorPayload,
@@ -101,6 +102,23 @@ export class OrgDepartmentsController extends BaseController {
     }
 
     // Add any GET /{departmentUuid} routes below this line, after /membership
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{departmentUuid}')
+    @OperationId('getDepartmentDetail')
+    async getDetail(
+        @Request() req: express.Request,
+        @Path() departmentUuid: UUID,
+    ): Promise<ApiDepartmentDetailResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.departmentService().getDetail(
+            req.account,
+            departmentUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

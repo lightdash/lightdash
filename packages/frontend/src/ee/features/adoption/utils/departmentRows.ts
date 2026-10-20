@@ -20,7 +20,6 @@ export type DepartmentRow = {
 };
 
 // Ascending coverage; departments without a headcount go last, ties by name
-// ts-unused-exports:disable-next-line
 export const sortByCoverage = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] =>

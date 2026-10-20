@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateDepartment,
     type Department,
+    type DepartmentDetail,
     type DepartmentMembership,
     type DepartmentOwnerInput,
     type OrganizationAdoptionSummary,
@@ -26,6 +27,21 @@ export const useOrgAdoptionSummary = (enabled = true) => {
                 body: undefined,
             }),
         enabled,
+        retry: false,
+    });
+};
+
+export const useDepartmentDetail = (departmentUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DepartmentDetail, ApiError>({
+        queryKey: [...ORG_ADOPTION_QUERY_KEY, 'detail', departmentUuid],
+        queryFn: () =>
+            lightdashApi<DepartmentDetail>({
+                url: `/org/departments/${departmentUuid}`,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: departmentUuid !== undefined,
         retry: false,
     });
 };
