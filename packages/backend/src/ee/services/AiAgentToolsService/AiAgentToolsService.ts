@@ -1410,6 +1410,22 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** MCP render_chart: a preview token for a resolved chart type version. */
+    async getMcpCustomChartTypePreviewToken(context: {
+        user: SessionUser;
+        projectUuid: string;
+        dataAppVizUuid: string;
+        version: number;
+    }): Promise<string> {
+        return this.appGenerateService.getDataAppVizPreviewToken(
+            context.user,
+            context.projectUuid,
+            context.dataAppVizUuid,
+            context.version,
+            'mcp',
+        );
+    }
+
     /** MCP-only: the agent's lookups behind the gallery gate, with version and Chart Studio link. */
     private searchCustomChartTypes(
         context: AiAgentToolsRuntimeContext,
@@ -1546,6 +1562,7 @@ export class AiAgentToolsService extends BaseService {
         }
         return {
             dataAppVizUuid: row.app_id,
+            name: row.name,
             dataAppVizVersion: version.version,
             schema: parsed.data,
         };

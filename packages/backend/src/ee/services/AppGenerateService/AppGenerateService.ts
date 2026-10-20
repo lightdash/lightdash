@@ -11308,6 +11308,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
         version: number,
+        viewContext: 'chart' | 'mcp' = 'chart',
     ): Promise<string> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
@@ -11331,7 +11332,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
-            'chart',
+            viewContext,
         );
     }
 
