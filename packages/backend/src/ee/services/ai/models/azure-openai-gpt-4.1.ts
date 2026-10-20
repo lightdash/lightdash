@@ -1,5 +1,7 @@
 import { AzureOpenAIProvider, createAzure } from '@ai-sdk/azure';
+import { wrapLanguageModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { dropParallelToolCallsWithoutTools } from './chatCompletionsMiddleware';
 import { AiModel } from './types';
 
 const PROVIDER = 'azure';
@@ -21,7 +23,10 @@ export const getAzureGpt41Model = (
     const azure = getAzureProvider(config);
 
     const model = config.useChatCompletions
-        ? azure.chat(config.deploymentName)
+        ? wrapLanguageModel({
+              model: azure.chat(config.deploymentName),
+              middleware: dropParallelToolCallsWithoutTools,
+          })
         : azure(config.deploymentName);
 
     const reasoningEnabled = config.deploymentSupportsReasoning;

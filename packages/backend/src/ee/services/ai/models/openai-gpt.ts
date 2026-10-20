@@ -1,6 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai';
+import { wrapLanguageModel } from 'ai';
 import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { dropParallelToolCallsWithoutTools } from './chatCompletionsMiddleware';
 import { ModelPreset } from './presets';
 import { AiModel, ProviderOptionsMap } from './types';
 
@@ -21,7 +23,10 @@ export const getOpenaiGptmodel = (
     const { supportsReasoning, modelId } = preset;
 
     const model = config.useChatCompletions
-        ? openai.chat(modelId)
+        ? wrapLanguageModel({
+              model: openai.chat(modelId),
+              middleware: dropParallelToolCallsWithoutTools,
+          })
         : openai(modelId);
     const extendedReasoningEnabled =
         options?.enableReasoning === true && supportsReasoning;

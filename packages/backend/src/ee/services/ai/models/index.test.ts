@@ -97,10 +97,20 @@ const azureCopilotConfig = (
 
 // Captures the HTTP request a model would send without a real upstream: the
 // stubbed fetch fails, so the call rejects after the request has been built.
+type V4Model = Extract<
+    Exclude<LanguageModel, string>,
+    { specificationVersion: 'v4' }
+>;
+type ModelCallOptions = Parameters<V4Model['doGenerate']>[0];
+
 const captureModelRequest = async (
     model: Exclude<LanguageModel, string>,
     providerOptions: Record<string, Record<string, JSONValue>> | undefined,
+    tools: ModelCallOptions['tools'] = [],
 ) => {
+    if (model.specificationVersion !== 'v4') {
+        throw new Error('expected a v4 language model');
+    }
     const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
     vi.stubGlobal('fetch', fetchSpy);
     try {
@@ -110,6 +120,7 @@ const captureModelRequest = async (
                     { role: 'user', content: [{ type: 'text', text: 'hi' }] },
                 ],
                 providerOptions,
+                tools,
             });
         } catch {
             // The stubbed upstream always fails; only the request matters.
@@ -318,8 +329,28 @@ describe('getModel', () => {
         expect(body.messages).toBeDefined();
         expect(body.input).toBeUndefined();
         expect(body.reasoning_effort).toBe('none');
-        expect(body.parallel_tool_calls).toBe(false);
         expect(body.include).toBeUndefined();
+    });
+
+    it('only sends parallel_tool_calls on Chat Completions requests that carry tools', async () => {
+        const { model, providerOptions } = getModel(
+            copilotConfigWithChatCompletions(),
+            { modelName: 'gpt-5.5' },
+        );
+        const addTool: NonNullable<ModelCallOptions['tools']>[number] = {
+            type: 'function',
+            name: 'add',
+            inputSchema: { type: 'object', properties: {} },
+        };
+
+        const withTools = await captureModelRequest(model, providerOptions, [
+            addTool,
+        ]);
+        expect(withTools.body.parallel_tool_calls).toBe(false);
+
+        const withoutTools = await captureModelRequest(model, providerOptions);
+        expect(withoutTools.body.parallel_tool_calls).toBeUndefined();
+        expect(withoutTools.body.reasoning_effort).toBe('none');
     });
 
     it('sends Azure requests to the Responses API by default', async () => {
