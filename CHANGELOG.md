@@ -1,3 +1,10 @@
+# [2.628.0](https://github.com/lightdash/lightdash/compare/2.627.0...2.628.0) (2026-10-20)
+
+
+### Features
+
+* add Data App outcomes to Adoption dashboard ([#31220](https://github.com/lightdash/lightdash/issues/31220)) ([67a3f11](https://github.com/lightdash/lightdash/commit/67a3f11ddf7aa8aec2cb101b12da01df305b8d9d))
+
 # [2.627.0](https://github.com/lightdash/lightdash/compare/2.626.0...2.627.0) (2026-10-20)
 
 
