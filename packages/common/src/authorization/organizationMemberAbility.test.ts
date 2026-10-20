@@ -128,6 +128,41 @@ describe('Organization member permissions', () => {
         },
     );
 
+    it.each(['view', 'manage'] as const)(
+        'allows only admins to %s adoption in their own organization',
+        (action) => {
+            const adminAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_ADMIN);
+            const memberAbility =
+                defineAbilityForOrganizationMember(ORGANIZATION_MEMBER);
+
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('OrganizationAdoption', {
+                        organizationUuid: ORGANIZATION_ADMIN.organizationUuid,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                adminAbility.can(
+                    action,
+                    subject('OrganizationAdoption', {
+                        organizationUuid: 'another-organization',
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                memberAbility.can(
+                    action,
+                    subject('OrganizationAdoption', {
+                        organizationUuid: ORGANIZATION_MEMBER.organizationUuid,
+                    }),
+                ),
+            ).toBe(false);
+        },
+    );
+
     describe('Member permissions', () => {
         let ability = defineAbilityForOrganizationMember(ORGANIZATION_VIEWER);
         describe('when user is an organization admin', () => {
