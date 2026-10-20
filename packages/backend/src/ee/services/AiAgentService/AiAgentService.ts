@@ -16476,11 +16476,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         featureFlagId: FeatureFlags.PythonQueryRunner,
                     }),
                 ]);
+                // Allowlisted read-only threads (data-app investigations) keep the classic query tools.
                 const enableComposerQueries =
                     multiSourceQueryEnabled &&
                     composeSqlRunnerEnabled &&
                     agentSettings.enableDataAccess &&
-                    responseExecution.mode !== 'deep_research';
+                    responseExecution.mode !== 'deep_research' &&
+                    resolveStandardToolAllowlist(
+                        prompt.threadCreatedFrom,
+                        responseExecution.toolAllowlist,
+                    ) === undefined;
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =

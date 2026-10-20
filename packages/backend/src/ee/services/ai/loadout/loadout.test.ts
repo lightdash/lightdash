@@ -9,6 +9,7 @@ import {
     buildLoadout,
     DEFERRED_SECTION_TOOLS,
     resolveLoadout,
+    type AgentToolName,
     type Loadout,
     type LoadoutBase,
     type LoadoutInput,
@@ -369,6 +370,22 @@ describe('loadout structure', () => {
                         !ownTools.includes(tool) && addOnTools.includes(tool),
                 ),
             ).toEqual([]);
+        },
+    );
+
+    test.each([
+        'data_answer',
+        'chart',
+        'chart_from_previous',
+        'document_write',
+    ] as const)(
+        'the %s intent keeps a query tool on the composer base',
+        (intent) => {
+            const { toolNames } = resolveLoadout(inputs.composer);
+            const gated = [...(toolsForIntent(intent) ?? [])].filter((tool) =>
+                toolNames.has(tool as AgentToolName),
+            );
+            expect(gated).toContain('runComposerQueries');
         },
     );
 

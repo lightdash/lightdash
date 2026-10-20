@@ -706,6 +706,7 @@ const withPreGrepCandidates = (
 const QUERY_TOOL_NAMES = new Set([
     'runQuery',
     'generateVisualization',
+    'runComposerQueries',
     'runMetricQuery',
     'runSavedChart',
     'runContentQuery',
@@ -835,7 +836,7 @@ const prepareCandidateSeed = async (
     );
     let carriedFieldContext: string | null = null;
     if (args.chartMutationContext) {
-        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after generateVisualization succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${args.enableComposerQueries ? 'runComposerQueries' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
     } else if (carriedFields.length > 0) {
         carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
     }
@@ -1676,9 +1677,6 @@ export const buildPrepareStep = ({
     };
 };
 
-const isChartExportEnabled = (args: AiAgentArgs) =>
-    hasDecisionsInStandardMode(args) && args.enableDataAccess;
-
 export const withAgentToolPermissions = (
     tools: ToolSet,
     dependencies: Pick<AiAgentDependencies, 'assertToolOperation'>,
@@ -2470,7 +2468,8 @@ const getCapabilitySectionArgs = (
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
     enableDocumentCustomCharts:
-        customChartTypeLibrary.totalCount > 0 && isChartExportEnabled(args),
+        customChartTypeLibrary.totalCount > 0 &&
+        loadout.toolNames.has('exportChartAsCode'),
     slackChannelId: args.slackChannelId,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
@@ -2563,7 +2562,7 @@ export const getAgentMessages = (
     const systemPrompt = getSystemPromptV2({
         ...getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
         deferredSections,
-        enableChartExport: isChartExportEnabled(args),
+        enableChartExport: loadout.toolNames.has('exportChartAsCode'),
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
