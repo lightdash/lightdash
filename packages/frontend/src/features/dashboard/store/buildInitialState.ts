@@ -17,6 +17,7 @@ import {
     initialDashboardFiltersState,
 } from './dashboardFiltersReducer';
 import { initialDashboardParametersState } from './dashboardParametersReducer';
+import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     emptySavedFilterOverrides,
     parseSavedFilterOverridesParam,
@@ -42,11 +43,13 @@ export const buildInitialDashboardState = ({
     isEditMode,
     parameterLabelOverrides,
     dateZoom,
+    invalidateCache,
 }: {
     search: string;
     isEditMode: boolean;
     parameterLabelOverrides: LanguageMap['parameters'];
     dateZoom: DateGranularity | string | undefined;
+    invalidateCache: boolean;
 }): {
     state: DashboardStoreState;
     urlRestoreErrors: DashboardUrlRestoreErrors;
@@ -108,6 +111,7 @@ export const buildInitialDashboardState = ({
                     : dateZoom,
                 controlGranularities,
             },
+            tileStatus: { ...initialDashboardTileStatusState, invalidateCache },
         },
         urlRestoreErrors: {
             savedFilterOverrides: savedFilterOverrides === null,

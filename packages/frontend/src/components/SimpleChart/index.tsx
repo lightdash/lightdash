@@ -305,8 +305,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             const resizeChart = () => {
                 if (rafId !== null) return;
                 rafId = requestAnimationFrame(() => {
-                    eCharts.resize();
                     rafId = null;
+                    // echarts-for-react replaces the instance when its props change
+                    const instance = chartRef.current?.getEchartsInstance();
+                    if (instance && !instance.isDisposed()) instance.resize();
                 });
             };
 

@@ -9,9 +9,15 @@ import {
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { TabCounts } from './TabCounts';
+
+const tileStatus = { current: { sqlChartTilesMetadata: {} } };
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -28,9 +34,6 @@ vi.mock('./useControlsSidebar', () => ({
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
-}));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
 }));
 vi.mock('./usePortalTargets', () => ({
     usePortalTargets: (keys: string[], _: unknown, enabled: boolean) =>
@@ -102,6 +105,24 @@ const badge = (tabUuid: string) => {
 
 const isBadgeBlue = (tabUuid: string) =>
     badge(tabUuid).style.getPropertyValue('--badge-color').includes('blue');
+
+// Seeds the store's SQL chart metadata from `tileStatus` at render time
+const renderWithProviders = (ui: ReactElement) => {
+    const store = createDashboardTestStore({
+        sqlChartTilesMetadata: tileStatus.current
+            .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+    });
+    const wrap = (node: ReactElement) => (
+        <DashboardStoreTestProvider store={store}>
+            {node}
+        </DashboardStoreTestProvider>
+    );
+    const result = renderWithAppProviders(wrap(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => result.rerender(wrap(node)),
+    };
+};
 
 describe('TabCounts', () => {
     beforeEach(() => {

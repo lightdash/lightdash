@@ -39,6 +39,7 @@ const build = (search: string, isEditMode = false) =>
         isEditMode,
         parameterLabelOverrides: undefined,
         dateZoom: undefined,
+        invalidateCache: false,
     });
 
 describe('buildInitialDashboardState', () => {
@@ -125,6 +126,7 @@ describe('buildInitialDashboardState', () => {
                 isEditMode: false,
                 parameterLabelOverrides: undefined,
                 dateZoom: 'Quarter',
+                invalidateCache: false,
             }).state.dateZoom.granularity;
         expect(fromProp('')).toBe('Quarter');
         expect(fromProp('?dateZoom=')).toBe('Quarter');
@@ -138,6 +140,7 @@ describe('buildInitialDashboardState', () => {
             isEditMode: false,
             parameterLabelOverrides,
             dateZoom: undefined,
+            invalidateCache: false,
         });
         expect(state.parameters.parameterLabelOverrides).toBe(
             parameterLabelOverrides,

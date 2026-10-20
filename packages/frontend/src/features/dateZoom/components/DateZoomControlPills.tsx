@@ -28,8 +28,8 @@ import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
+    selectAvailableCustomGranularities,
     selectControlGranularities,
     useDashboardSelector,
 } from '../../dashboard/store';
@@ -51,8 +51,8 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
     const setControlGranularity = useDashboardContext(
         (c) => c.setControlGranularity,
     );
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
     const dateZoomGranularities = useDashboardContext(
         (c) => c.dateZoomGranularities,

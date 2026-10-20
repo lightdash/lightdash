@@ -5,12 +5,12 @@ import { type FC, type ReactNode } from 'react';
 import {
     selectMissingRequiredParameters,
     selectParameterValues,
+    useAreAllChartsLoaded,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
 import FilterGroupSeparator from '../../../../../features/dashboardFilters/FilterGroupSeparator';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
@@ -41,9 +41,7 @@ const EmbedDashboardParameters: FC<Props> = ({ parameters }) => {
     const parameterValues = useDashboardSelector(selectParameterValues);
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
     const clearAllParameters = useDashboardContext((c) => c.clearAllParameters);
-    const areAllChartsLoaded = useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    );
+    const areAllChartsLoaded = useAreAllChartsLoaded();
     const missingRequiredParameters = useDashboardSelector(
         selectMissingRequiredParameters,
     );

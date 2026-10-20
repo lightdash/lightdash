@@ -38,7 +38,10 @@ import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
 import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
@@ -122,8 +125,8 @@ const TileFilterConfiguration: FC<Props> = ({
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const sortTilesByFieldMatch = useCallback(
         (

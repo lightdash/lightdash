@@ -12,6 +12,7 @@ import {
     type DashboardStore,
 } from '../features/dashboard/store';
 import { toDashboardParameters } from '../providers/Dashboard/dashboardParametersUrl';
+import { type SqlChartTileMetadata } from '../providers/Dashboard/types';
 
 export type DashboardStoreTestValues = Partial<{
     dashboardFilters: DashboardFilters;
@@ -34,6 +35,8 @@ export type DashboardStoreTestValues = Partial<{
     controlGranularities: Record<string, DateGranularity | string>;
     tilesWithDateZoomApplied: Set<string>;
     chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
+    invalidateCache: boolean;
+    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
 }>;
 
 /** A real dashboard store seeded with the given state, for component tests */
@@ -45,6 +48,7 @@ export const createDashboardTestStore = (
         isEditMode: values.isEditMode ?? false,
         parameterLabelOverrides: undefined,
         dateZoom: undefined,
+        invalidateCache: values.invalidateCache ?? false,
     });
     const filters = { ...state.filters };
     if (values.dashboardFilters) {
@@ -102,5 +106,15 @@ export const createDashboardTestStore = (
         dateZoom.chartZoomableFieldsByTileUuid =
             values.chartZoomableFieldsByTileUuid;
     }
-    return createDashboardStore({ filters, parameters, dateZoom });
+    return createDashboardStore({
+        filters,
+        parameters,
+        dateZoom,
+        tileStatus: values.sqlChartTilesMetadata
+            ? {
+                  ...state.tileStatus,
+                  sqlChartTilesMetadata: values.sqlChartTilesMetadata,
+              }
+            : state.tileStatus,
+    });
 };

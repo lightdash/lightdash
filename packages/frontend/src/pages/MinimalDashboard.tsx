@@ -39,6 +39,7 @@ import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
+import { useScreenshotReadiness } from '../features/dashboard/store';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
@@ -56,10 +57,9 @@ import { useProjects } from '../hooks/useProjects';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
-import useDashboardContext from '../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import '../styles/export-paged-tabs.css';
 import '../styles/react-grid.css';
+import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import { getProjectUrlIdentifier } from '../utils/projectUrl';
 
 type TabWithUrls = DashboardTab & {
@@ -177,27 +177,15 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 
-    const isReadyForScreenshot = useDashboardTileStatusContext(
-        (c) => c.isReadyForScreenshot,
-    );
-    const expectedScreenshotTilesCount = useDashboardTileStatusContext(
-        (c) => c.expectedScreenshotTilesCount,
-    );
-    const screenshotReadyTilesCount = useDashboardTileStatusContext(
-        (c) => c.screenshotReadyTilesCount,
-    );
-    const screenshotErroredTilesCount = useDashboardTileStatusContext(
-        (c) => c.screenshotErroredTilesCount,
-    );
-    const expectedScreenshotTileUuids = useDashboardTileStatusContext(
-        (c) => c.expectedScreenshotTileUuids,
-    );
-    const screenshotReadyTileUuids = useDashboardTileStatusContext(
-        (c) => c.screenshotReadyTileUuids,
-    );
-    const screenshotErroredTileUuids = useDashboardTileStatusContext(
-        (c) => c.screenshotErroredTileUuids,
-    );
+    const {
+        isReadyForScreenshot,
+        expectedScreenshotTilesCount,
+        screenshotReadyTilesCount,
+        screenshotErroredTilesCount,
+        expectedScreenshotTileUuids,
+        screenshotReadyTileUuids,
+        screenshotErroredTileUuids,
+    } = useScreenshotReadiness();
 
     useEffect(() => {
         if (isDashboardLoading) return;

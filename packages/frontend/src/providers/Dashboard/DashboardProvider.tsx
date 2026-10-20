@@ -57,8 +57,10 @@ import {
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
     selectRawTemporaryFilters,
+    selectAvailableCustomGranularities,
     selectSavedParameters,
     selectTilesWithDateZoomApplied,
+    useAreAllChartsLoaded,
     useDashboardSelector,
     type TemporaryFilterLocks,
 } from '../../features/dashboard/store';
@@ -76,7 +78,6 @@ import DashboardTileStatusProvider from './DashboardTileStatusProvider';
 import { applyEmbedFilterInteractivity } from './embedFilterInteractivity';
 import { getActiveTabForTabs } from './getActiveTabForTabs';
 import useDashboardContext from './useDashboardContext';
-import useDashboardTileStatusContext from './useDashboardTileStatusContext';
 
 type DashboardProviderProps = React.PropsWithChildren<{
     schedulerDashboardFilters?: DashboardFilters | undefined;
@@ -229,6 +230,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             isEditMode,
             parameterLabelOverrides,
             dateZoom,
+            invalidateCache: defaultInvalidateCache === true,
         });
         return {
             store: createDashboardStore(initial.state),
@@ -1109,7 +1111,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     dashboardTabs={dashboardTabs}
                     activeTab={activeTab}
                     schedulerTabsSelected={schedulerTabsSelected}
-                    defaultInvalidateCache={defaultInvalidateCache}
                 >
                     <DashboardGranularitySync />
                     {children}
@@ -1152,11 +1153,9 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
  * (tile status provider is rendered as its child).
  */
 const DashboardGranularitySync: React.FC = () => {
-    const areAllChartsLoaded = useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    );
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const areAllChartsLoaded = useAreAllChartsLoaded();
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
 
     // Use refs for values we read but should NOT trigger re-runs of the effect.

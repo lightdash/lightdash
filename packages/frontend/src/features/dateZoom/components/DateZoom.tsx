@@ -25,10 +25,10 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import {
+    selectAvailableCustomGranularities,
     selectChartZoomableFieldsByTileUuid,
     selectDateZoomGranularity,
     useDashboardSelector,
@@ -152,8 +152,8 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
     const { track } = useTracking();
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);

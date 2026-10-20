@@ -4,23 +4,13 @@ import {
     type TilePreAggregateStatus,
 } from './types';
 
+// Values that change on tile reports (loaded tiles, cache time, refresh
+// counter, ...) live in the dashboard store; see `selectRefreshCounter` et al.
 export type DashboardTileStatusContextType = {
-    oldestCacheTime: Date | undefined;
     addResultsCacheTime: (cacheMetadata?: CacheMetadata) => void;
     preAggregateStatuses: Record<string, TilePreAggregateStatus>;
-    invalidateCache: boolean | undefined;
-    /**
-     * Monotonic counter bumped on every manual/auto refresh (via
-     * `clearCacheAndFetch`). Chart tiles re-fetch through React Query
-     * invalidation, but data-app tiles run their queries inside an iframe that
-     * only re-fires them on reload — they bake this counter into the iframe URL
-     * to force that reload. See `DashboardDataAppTile`.
-     */
-    refreshCounter: number;
-    isAutoRefresh: boolean;
     setIsAutoRefresh: (autoRefresh: boolean) => void;
     clearCacheAndFetch: () => void;
-    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
     updateSqlChartTilesMetadata: (
         tileUuid: string,
         metadata: SqlChartTileMetadata,
@@ -28,8 +18,8 @@ export type DashboardTileStatusContextType = {
     markTileLoaded: (tileUuid: string) => void;
     /** Marks a visible embed tile as settled for the current load cycle. */
     markEmbedTileComplete: (tileUuid: string) => void;
-    areAllChartsLoaded: boolean;
-    availableCustomGranularities: Record<string, string>;
+    /** Chart tiles that must load before all charts count as loaded; undefined while unknown */
+    chartTileUuidsToLoad: string[] | undefined;
     addAvailableCustomGranularities: (
         granularities: Record<string, string>,
     ) => void;
@@ -37,11 +27,6 @@ export type DashboardTileStatusContextType = {
     markTileScreenshotReady: (tileUuid: string) => void;
     markTileScreenshotErrored: (tileUuid: string) => void;
     markTileScreenshotLoading: (tileUuid: string) => void;
-    isReadyForScreenshot: boolean;
-    screenshotReadyTilesCount: number;
-    screenshotErroredTilesCount: number;
-    expectedScreenshotTilesCount: number;
+    hasDashboardTiles: boolean;
     expectedScreenshotTileUuids: string[];
-    screenshotReadyTileUuids: string[];
-    screenshotErroredTileUuids: string[];
 };

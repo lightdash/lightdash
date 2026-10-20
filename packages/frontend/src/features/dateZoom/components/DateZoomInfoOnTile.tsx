@@ -3,7 +3,10 @@ import { IconCalendar } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectAvailableCustomGranularities,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import { type DateZoomInfoOnTileProps } from './types';
 
@@ -12,8 +15,8 @@ export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = ({
     dateDimension,
 }) => {
     const getUiString = useUiStrings();
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
     const label = getGranularityLabel(
         dateZoomGranularity,

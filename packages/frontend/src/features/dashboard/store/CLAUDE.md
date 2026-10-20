@@ -1,6 +1,7 @@
 # Dashboard store
 
-Filter, parameter and runtime date zoom state for one mounted dashboard. `DashboardProvider`
+Filter, parameter, runtime date zoom and tile status state for one mounted
+dashboard. `DashboardProvider`
 creates the store with `createDashboardStore(buildInitialDashboardState(...))`
 and mounts it on `DashboardStoreContext`.
 
@@ -12,6 +13,11 @@ and mounts it on `DashboardStoreContext`.
   `c.updateDimensionDashboardFilter`). Those callbacks are stable and dispatch to
   the store, so the provider never re-renders on a filter, parameter or date
   zoom change, nor when tiles report their zoomable fields or applied zoom.
+- **Tile reports go to the store.** `DashboardTileStatusProvider` keeps only
+  stable callbacks and values derived from the tiles and tabs. Read what tiles
+  report (loaded tiles, cache time, refresh counter, SQL metadata, custom
+  granularities) with selectors, and use `useAreAllChartsLoaded` and
+  `useScreenshotReadiness` for the derived states.
 - **Use the dashboard hooks, never plain `useSelector`/`useDispatch`.** The store
   lives on its own context so it can't shadow the app-wide AI agent store or an
   explorer store mounted inside a dashboard.

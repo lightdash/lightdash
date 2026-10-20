@@ -60,20 +60,22 @@ import {
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import {
+    getSafeTemporaryFilters,
     selectDashboardFilters,
+    selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardParameters,
     selectHasParameterOrderChanged,
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
     selectMissingRequiredParameters,
-    selectDashboardParameterDefinitions,
+    selectOldestCacheTime,
     selectParameterOrder,
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
-    getSafeTemporaryFilters,
     selectRawTemporaryFilters,
+    useAreAllChartsLoaded,
     useDashboardSelector,
     useDashboardStore,
     useHasDashboardTemporaryFilters,
@@ -205,9 +207,7 @@ const Dashboard: FC = () => {
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
-    const areAllChartsLoaded = useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    );
+    const areAllChartsLoaded = useAreAllChartsLoaded();
     const missingRequiredParameters = useDashboardSelector(
         selectMissingRequiredParameters,
     );
@@ -241,9 +241,7 @@ const Dashboard: FC = () => {
             (requiredFiltersNote || undefined)
         );
     }, [dashboard, requiredFiltersNote]);
-    const oldestCacheTime = useDashboardTileStatusContext(
-        (c) => c.oldestCacheTime,
-    );
+    const oldestCacheTime = useDashboardSelector(selectOldestCacheTime);
     const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );

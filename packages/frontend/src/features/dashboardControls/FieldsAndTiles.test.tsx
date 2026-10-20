@@ -13,8 +13,12 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { useEditorDismiss } from './useEditorDismiss';
 
@@ -42,9 +46,6 @@ vi.mock('./useSqlColumnsByTile', () => ({
 }));
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
-}));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatus.current)),
 }));
 const mockMetricFiltersFlag = vi.hoisted(() => ({ current: false }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -188,6 +189,24 @@ const removeButtonOf = (label: string) =>
 const getUpdatedRule = (): DashboardFilterRule => {
     expect(updateFilter).toHaveBeenCalledTimes(1);
     return updateFilter.mock.calls[0][0];
+};
+
+// Seeds the store's SQL chart metadata from `mockTileStatus` at render time
+const renderWithProviders = (ui: ReactElement) => {
+    const store = createDashboardTestStore({
+        sqlChartTilesMetadata: mockTileStatus.current
+            .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+    });
+    const wrap = (node: ReactElement) => (
+        <DashboardStoreTestProvider store={store}>
+            {node}
+        </DashboardStoreTestProvider>
+    );
+    const result = renderWithAppProviders(wrap(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => result.rerender(wrap(node)),
+    };
 };
 
 describe('FieldsAndTiles', () => {

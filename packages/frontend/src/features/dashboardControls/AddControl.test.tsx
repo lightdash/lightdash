@@ -1,6 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
@@ -19,7 +20,14 @@ const mockTrack = vi.hoisted(() => vi.fn());
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore({ haveFiltersChanged: false })}
+            store={createDashboardTestStore({
+                haveFiltersChanged: false,
+                sqlChartTilesMetadata: mockTileStatus.current
+                    .sqlChartTilesMetadata as Record<
+                    string,
+                    SqlChartTileMetadata
+                >,
+            })}
         >
             {ui}
         </DashboardStoreTestProvider>,
@@ -32,9 +40,6 @@ vi.mock('./useControlsSidebar', () => ({
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
-}));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatus.current)),
 }));
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: mockTrack }),

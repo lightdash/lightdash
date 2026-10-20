@@ -8,7 +8,10 @@ import {
     type FilterType,
 } from '@lightdash/common';
 import { useMemo } from 'react';
-import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../dashboard/store';
 import {
     getSqlColumnFilterType,
     getUniqueSqlColumns,
@@ -45,10 +48,10 @@ export const useFilterRuleField = (
 export const useFilterRuleSqlColumnType = (
     rule: DashboardFilterRule | null,
 ): FilterType | null =>
-    useDashboardTileStatusContext((c) =>
+    useDashboardSelector((state) =>
         rule !== null && rule.target.isSqlColumn
             ? getSqlColumnFilterType(
-                  getUniqueSqlColumns(c.sqlChartTilesMetadata),
+                  getUniqueSqlColumns(selectSqlChartTilesMetadata(state)),
                   rule.target.fieldId,
                   rule.target.fallbackType,
               )

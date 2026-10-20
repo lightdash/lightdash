@@ -174,3 +174,20 @@ export const selectIsDateZoomAppliedToTile = (
     state: DashboardStoreState,
     tileUuid: string,
 ) => !!state.dateZoom.tilesWithDateZoomApplied?.has(tileUuid);
+
+// Tile status
+export const selectInvalidateCache = (state: DashboardStoreState) =>
+    state.tileStatus.invalidateCache;
+export const selectRefreshCounter = (state: DashboardStoreState) =>
+    state.tileStatus.refreshCounter;
+export const selectIsAutoRefresh = (state: DashboardStoreState) =>
+    state.tileStatus.isAutoRefresh;
+export const selectOldestCacheTime = (state: DashboardStoreState) =>
+    state.tileStatus.oldestCacheTime;
+export const selectSqlChartTilesMetadata = (state: DashboardStoreState) =>
+    state.tileStatus.sqlChartTilesMetadata;
+export const selectAvailableCustomGranularities = (
+    state: DashboardStoreState,
+) => state.tileStatus.availableCustomGranularities;
+export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
+    state.tileStatus.completedEmbedTiles;

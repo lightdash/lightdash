@@ -125,6 +125,7 @@ import { DashboardTileComments } from '../../features/comments';
 import {
     selectAppliedParameterValues,
     selectDashboardParameterDefinitions,
+    selectInvalidateCache,
     selectIsDateZoomAppliedToTile,
     useDashboardSelector,
 } from '../../features/dashboard/store';
@@ -285,9 +286,7 @@ const ValidDashboardChartTile: FC<{
         );
 
         const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-        const invalidateCache = useDashboardTileStatusContext(
-            (c) => c.invalidateCache,
-        );
+        const invalidateCache = useDashboardSelector(selectInvalidateCache);
         const isDateZoomApplied = useDashboardSelector((state) =>
             selectIsDateZoomAppliedToTile(state, tileUuid),
         );

@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import {
+    dashboardTileStatusActions,
     selectAppliedParameterValues,
     selectChartZoomableFieldsByTileUuid,
     selectControlGranularities,
@@ -39,6 +40,7 @@ import {
     selectPinnedParameters,
     selectTileParameterReferences,
     useDashboardAllFilters,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -103,7 +105,11 @@ vi.mock('./DashboardTileStatusProvider', () => ({
 }));
 vi.mock('./useDashboardTileStatusContext', () => ({
     default: (selector: (context: Record<string, unknown>) => unknown) =>
-        selector(mocks.tileStatus),
+        selector({
+            chartTileUuidsToLoad: mocks.tileStatus.areAllChartsLoaded
+                ? []
+                : undefined,
+        }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -157,8 +163,20 @@ const useDateZoomValues = () => ({
     ),
 });
 
+// Tiles report their explores' custom granularities to the store
+const useReportCustomGranularities = () => {
+    const dispatch = useDashboardDispatch();
+    return (granularities: Record<string, string>) =>
+        dispatch(
+            dashboardTileStatusActions.addAvailableCustomGranularities(
+                granularities,
+            ),
+        );
+};
+
 const useHarness = () => ({
     ...useDashboardContext((context) => context),
+    reportCustomGranularities: useReportCustomGranularities(),
     ...useStoreValues(),
     ...useDateZoomValues(),
     search: useLocation().search,
@@ -2186,14 +2204,20 @@ describe('date zoom: allowed granularities', () => {
     });
 
     it('keeps an available custom granularity once all charts load', () => {
-        mocks.tileStatus = {
-            areAllChartsLoaded: true,
-            availableCustomGranularities: { fiscal_quarter: 'Fiscal quarter' },
-        };
         mocks.dashboard = makeDashboard();
-        const { result } = renderDashboard(
+        const { result, rerender } = renderDashboard(
             '/dashboard/dashboard-uuid?dateZoom=fiscal_quarter',
         );
+        act(() => {
+            result.current.reportCustomGranularities({
+                fiscal_quarter: 'Fiscal quarter',
+            });
+        });
+        mocks.tileStatus = {
+            areAllChartsLoaded: true,
+            availableCustomGranularities: {},
+        };
+        rerender();
         expect(result.current.dateZoomGranularity).toBe('fiscal_quarter');
     });
 });
