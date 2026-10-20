@@ -1,3 +1,15 @@
+# [2.630.0](https://github.com/lightdash/lightdash/compare/2.629.4...2.630.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **dashboard:** wait for tiles without a tab in tab-selected exports ([#31244](https://github.com/lightdash/lightdash/issues/31244)) ([38b6b0e](https://github.com/lightdash/lightdash/commit/38b6b0ea2aac887258d0ae7f3ee1480e4dd62174))
+
+
+### Features
+
+* **ai:** analysis teaser in the launcher's new-thread panel ([#31235](https://github.com/lightdash/lightdash/issues/31235)) ([d8850cb](https://github.com/lightdash/lightdash/commit/d8850cb7eaf7fda6dedcbd7c2b33336998ae4f8d))
+
 ## [2.629.4](https://github.com/lightdash/lightdash/compare/2.629.3...2.629.4) (2026-10-20)
 
 
