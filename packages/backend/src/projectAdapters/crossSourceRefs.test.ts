@@ -299,7 +299,7 @@ describe('resolveCrossSourceManifests', () => {
             ]),
         ).rejects.toHaveProperty(
             'message',
-            'Cannot resolve cross-source dbt refs: Source "b": c.orders: waiting for dbt source "c", which failed: Model \'model.analytics.orders\' depends on a node named \'orders\' in package or project \'unknown\' which was not found; Source "c": unknown.orders: No connected dbt source provides project "unknown"',
+            'Cannot resolve cross-source dbt refs: Source "b": c.orders: waiting for dbt source "c", which cannot resolve unknown.orders; Source "c": unknown.orders: No connected dbt source provides project "unknown"',
         );
     });
     it('lists pending sources and refs when they form a cycle', async () => {
@@ -668,7 +668,7 @@ describe('ordered cross-source refs', () => {
         const b = scannedTask('consumer', [], ['upstream']);
         await expect(resolve([b, a])).rejects.toHaveProperty(
             'message',
-            'Cannot resolve cross-source dbt refs: Source "provider": unknown.orders: No connected dbt source provides project "unknown"; Source "consumer": upstream.*: waiting for dbt source "provider", which failed: Model \'model.analytics.orders\' depends on a node named \'orders\' in package or project \'unknown\' which was not found',
+            'Cannot resolve cross-source dbt refs: Source "provider": unknown.orders: No connected dbt source provides project "unknown"; Source "consumer": upstream.*: waiting for dbt source "provider", which cannot resolve unknown.orders',
         );
         expect(b.fetch).not.toHaveBeenCalled();
     });
@@ -681,7 +681,7 @@ describe('ordered cross-source refs', () => {
         await expect(
             resolve([consumer, a, b, scannedTask('x')]),
         ).rejects.toThrow(
-            'Source "consumer": b.*: waiting for dbt source "b", which failed:',
+            'Source "consumer": b.*: waiting for dbt source "b", which cannot resolve unknown.orders',
         );
         expect(consumer.fetch).not.toHaveBeenCalled();
         expect(a.fetch).toHaveBeenCalledTimes(2);

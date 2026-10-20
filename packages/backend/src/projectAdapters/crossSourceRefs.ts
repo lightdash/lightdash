@@ -568,9 +568,17 @@ export const resolveCrossSourceManifests = async <T>({
                 };
                 return [...(pendingGraph.get(source) ?? [])].some(visit);
             };
+            const pendingProjectNames = new Set(
+                [...pending.keys()].map(
+                    (candidate) =>
+                        scans.get(candidate)?.projectName ?? candidate.key,
+                ),
+            );
             const rootCause = (source: CrossSourceFetchTask<T>): string => {
                 const visited = new Set<CrossSourceFetchTask<T>>();
-                const find = (candidate: CrossSourceFetchTask<T>): string => {
+                const find = (
+                    candidate: CrossSourceFetchTask<T>,
+                ): CrossSourceFetchTask<T> => {
                     visited.add(candidate);
                     const failedUpstream = [
                         ...(pendingGraph.get(candidate) ?? []),
@@ -578,13 +586,18 @@ export const resolveCrossSourceManifests = async <T>({
                         (upstream) =>
                             !visited.has(upstream) && !isPendingCycle(upstream),
                     );
-                    if (failedUpstream) return find(failedUpstream);
-                    const error = pending.get(candidate);
-                    return error instanceof Error
-                        ? error.message
-                        : String(error);
+                    return failedUpstream ? find(failedUpstream) : candidate;
                 };
-                return find(source);
+                const root = find(source);
+                const error = pending.get(root);
+                const unresolved = getMissingDbtNodeReferences(error)
+                    .filter((ref) => !pendingProjectNames.has(ref.packageName))
+                    .map((ref) => `${ref.packageName}.${ref.model}`);
+                return unresolved.length > 0
+                    ? `waiting for dbt source "${root.key}", which cannot resolve ${unresolved.join(', ')}`
+                    : `waiting for dbt source "${root.key}", which failed: ${
+                          error instanceof Error ? error.message : String(error)
+                      }`;
             };
             const failures = [...pending].map(([task, error]) => ({
                 task,
@@ -613,7 +626,7 @@ export const resolveCrossSourceManifests = async <T>({
                             providerState: 'pending',
                             reason: isPendingCycle(pendingProvider)
                                 ? cycleReason
-                                : `waiting for dbt source "${pendingProvider.key}", which failed: ${rootCause(pendingProvider)}`,
+                                : rootCause(pendingProvider),
                         };
                     }
                     return {
