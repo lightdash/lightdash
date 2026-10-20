@@ -262,6 +262,21 @@ describe('tile status: all charts loaded', () => {
         expect(result.current.areAllChartsLoaded).toBe(true);
     });
 
+    it('waits for tiles without a tab only on the first tab, where they render', () => {
+        const { result } = renderStatus({
+            dashboardTiles: [
+                chartTile('on-a', 'tab-a'),
+                chartTile('on-b', 'tab-b'),
+                chartTile('orphan'),
+            ],
+            dashboardTabs: [tabA, tabB],
+            activeTab: tabB,
+        });
+        expect(result.current.areAllChartsLoaded).toBe(false);
+        act(() => result.current.markTileLoaded('on-b'));
+        expect(result.current.areAllChartsLoaded).toBe(true);
+    });
+
     it('forgets loaded tiles on refresh', () => {
         const { result } = renderStatus({
             dashboardTiles: [chartTile('a')],
@@ -483,6 +498,21 @@ describe('tile status: screenshot readiness', () => {
         act(() => result.current.markTileScreenshotReady('orphan'));
         expect(result.current.isReadyForScreenshot).toBe(true);
         expect(result.current.expectedScreenshotTilesCount).toBe(3);
+    });
+
+    it('expects tiles without a tab only on the first tab', () => {
+        const { result } = renderStatus({
+            dashboardTiles: [
+                chartTile('on-a', 'tab-a'),
+                chartTile('on-b', 'tab-b'),
+                chartTile('orphan'),
+            ],
+            dashboardTabs: [tabA, tabB],
+            activeTab: tabB,
+        });
+        expect(result.current.expectedScreenshotTileUuids).toEqual(['on-b']);
+        act(() => result.current.markTileScreenshotReady('on-b'));
+        expect(result.current.isReadyForScreenshot).toBe(true);
     });
 
     it('resets readiness when the tiles or the active tab change', () => {
