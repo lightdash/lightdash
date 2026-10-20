@@ -1,3 +1,10 @@
+## [2.629.4](https://github.com/lightdash/lightdash/compare/2.629.3...2.629.4) (2026-10-20)
+
+
+### Bug Fixes
+
+* creating a document from the navbar outside a project route no longer crashes the page ([#31241](https://github.com/lightdash/lightdash/issues/31241)) ([97ac44a](https://github.com/lightdash/lightdash/commit/97ac44a8557bf543f870983b0688ecf45afb32cc))
+
 ## [2.629.3](https://github.com/lightdash/lightdash/compare/2.629.2...2.629.3) (2026-10-20)
 
 

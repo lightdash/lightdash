@@ -1,29 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.629.3",
-  "previousVersion": "2.629.2",
-  "releaseDate": "2026-10-20T15:28:04.073Z",
+  "version": "2.629.4",
+  "previousVersion": "2.629.3",
+  "releaseDate": "2026-10-20T15:33:50.798Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261020140000_index_saved_sql_versions_latest_version.ts",
-        "edition": "core",
-        "tables": [
-          "pg_class",
-          "pg_index",
-          "saved_sql_versions"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
