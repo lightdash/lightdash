@@ -168,12 +168,11 @@ const TabGridPanel = memo<TabGridPanelProps>(
                         onWidthChange={onWidthChange}
                         layouts={layouts}
                     >
-                        {tiles.map((tile, idx) => (
+                        {tiles.map((tile) => (
                             <div key={tile.uuid} data-tile-uuid={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
                                         locked={locked}
-                                        index={idx}
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={onDeleteTile}
@@ -1299,7 +1298,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           }
                                                       >
                                                           {visibleTiles.map(
-                                                              (tile, idx) => (
+                                                              (tile) => (
                                                                   <div
                                                                       key={
                                                                           tile.uuid
@@ -1316,9 +1315,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                           <GridTile
                                                                               locked={
                                                                                   hasUnmetFilterRequirementsForCurrentTab
-                                                                              }
-                                                                              index={
-                                                                                  idx
                                                                               }
                                                                               isEditMode={
                                                                                   isEditMode

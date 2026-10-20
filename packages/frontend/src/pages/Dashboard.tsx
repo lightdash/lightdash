@@ -100,6 +100,7 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useStableCallback } from '../hooks/useStableCallback';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -700,6 +701,12 @@ const Dashboard: FC = () => {
             setHaveTilesChanged,
         ],
     );
+
+    // Tiles are memoised; stable handlers keep a dashboard re-render from
+    // re-rendering every tile
+    const stableAddTiles = useStableCallback(handleAddTiles);
+    const stableDeleteTile = useStableCallback(handleDeleteTile);
+    const stableEditTile = useStableCallback(handleEditTiles);
 
     const handleCancel = useCallback(() => {
         if (!dashboard) return;
@@ -1603,11 +1610,11 @@ const Dashboard: FC = () => {
                                 activeTab={activeTab}
                                 addingTab={addingTab}
                                 dashboardTiles={dashboardTiles}
-                                handleAddTiles={handleAddTiles}
+                                handleAddTiles={stableAddTiles}
                                 handleUpdateTiles={handleUpdateTiles}
-                                handleDeleteTile={handleDeleteTile}
+                                handleDeleteTile={stableDeleteTile}
                                 handleBatchDeleteTiles={handleBatchDeleteTiles}
-                                handleEditTile={handleEditTiles}
+                                handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
                                 onNewChart={

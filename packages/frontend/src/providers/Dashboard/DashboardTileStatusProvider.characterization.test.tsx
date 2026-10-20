@@ -697,6 +697,27 @@ describe('tile status: embed all tiles loaded event', () => {
         expect(allTilesLoadedCalls()).toHaveLength(2);
     });
 
+    it('changes markEmbedTileComplete with the load cycle, so settled tiles re-report', () => {
+        const { result, setProps } = renderStatus({
+            dashboardTiles: [chartTile('a')],
+            ...noTabs,
+        });
+        const first = result.current.markEmbedTileComplete;
+        setProps({ dashboardTiles: [chartTile('a'), chartTile('b')] });
+        expect(result.current.markEmbedTileComplete).not.toBe(first);
+    });
+
+    it('keeps markEmbedTileComplete stable outside embeds', () => {
+        mocks.embed.embedToken = undefined;
+        const { result, setProps } = renderStatus({
+            dashboardTiles: [chartTile('a')],
+            ...noTabs,
+        });
+        const first = result.current.markEmbedTileComplete;
+        setProps({ dashboardTiles: [chartTile('a'), chartTile('b')] });
+        expect(result.current.markEmbedTileComplete).toBe(first);
+    });
+
     it('ignores tile completion outside embeds', () => {
         mocks.embed.embedToken = undefined;
         const { result } = renderStatus({
@@ -734,6 +755,23 @@ describe('tile status: pre-aggregate statuses', () => {
             dashboardUuid: 'dashboard-uuid',
             enabled: true,
         });
+    });
+
+    it('keeps the statuses when tiles only move', () => {
+        mocks.auditData = { tabs: [] };
+        mocks.toStatuses.mockImplementation(() => ({ a: { tileUuid: 'a' } }));
+        const tiles = [chartTile('a', undefined, 'Revenue')];
+        const { result, setProps } = renderStatus({
+            dashboardTiles: tiles,
+            ...noTabs,
+        });
+        const statuses = result.current.preAggregateStatuses;
+        setProps({ dashboardTiles: [{ ...tiles[0], x: 6, y: 3 }] });
+        expect(result.current.preAggregateStatuses).toBe(statuses);
+        setProps({
+            dashboardTiles: [chartTile('a', undefined, 'Renamed')],
+        });
+        expect(result.current.preAggregateStatuses).not.toBe(statuses);
     });
 
     it('is empty without audit data', () => {

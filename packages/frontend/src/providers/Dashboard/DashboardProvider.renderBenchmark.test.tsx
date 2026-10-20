@@ -134,6 +134,10 @@ type Actions = {
     setTilesWithDateZoomApplied: (
         update: (previous: Set<string> | undefined) => Set<string>,
     ) => void;
+    setDashboardTiles: (
+        update: (previous: DashboardTile[] | undefined) => DashboardTile[],
+    ) => void;
+    setHaveTilesChanged: (changed: boolean) => void;
 };
 const useActions = (): Actions => ({
     updateDimensionDashboardFilter: useDashboardContext(
@@ -154,6 +158,8 @@ const useActions = (): Actions => ({
     setTilesWithDateZoomApplied: useDashboardContext(
         (c) => c.setTilesWithDateZoomApplied,
     ),
+    setDashboardTiles: useDashboardContext((c) => c.setDashboardTiles),
+    setHaveTilesChanged: useDashboardContext((c) => c.setHaveTilesChanged),
 });
 
 const DashboardPageLoader = () => {
@@ -406,6 +412,16 @@ const scenarios: Record<string, () => void> = {
             );
         }
     },
+    // handleUpdateTiles on drag or resize stop: one tile moves
+    'drop one dragged tile': () =>
+        act(() => {
+            getActions().setDashboardTiles((previous) =>
+                (previous ?? []).map((tile) =>
+                    tile.uuid === 'tile-0' ? { ...tile, x: 6, y: 3 } : tile,
+                ),
+            );
+            getActions().setHaveTilesChanged(true);
+        }),
     '10 rapid filter updates': () => {
         for (let i = 0; i < 10; i += 1) {
             act(() =>
@@ -517,6 +533,14 @@ const BASELINE: Record<string, Counts> = {
         parameterBar: 0,
         dateZoomControl: 0,
         page: 0,
+    },
+    'drop one dragged tile': {
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 1,
     },
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
