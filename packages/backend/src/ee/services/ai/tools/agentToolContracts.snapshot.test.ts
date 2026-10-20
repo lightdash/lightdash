@@ -214,7 +214,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             createOrUpdateArtifact: noop,
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,
-            getLatestComposerVizConfig: noop,
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,

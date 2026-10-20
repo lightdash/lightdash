@@ -191,6 +191,7 @@ import {
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiComposerChartArtifactConfig,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -214,6 +215,7 @@ import {
     type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
+    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -430,6 +432,10 @@ import {
 } from '../ai/attachmentFs/attachmentFileSystem';
 import { Compaction } from '../ai/compaction';
 import {
+    getAgentDecisionContext,
+    getAgentQuestion,
+} from '../ai/decisions/agentQuestion';
+import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
@@ -477,6 +483,10 @@ import {
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
+import {
+    createVizPlanner,
+    type PlanComposerViz,
+} from '../ai/decisions/vizPlanner';
 import {
     getCompactionModelMetadata,
     getDefaultModel,
@@ -576,8 +586,9 @@ import {
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
 import {
+    buildComposerPresentations,
     resolveComposerPresentations,
-    type ComposerPresentation,
+    type ComposerExecutionResult,
     type TurnToolResult,
 } from '../ai/utils/composerPresentation';
 import {
@@ -8231,17 +8242,38 @@ export class AiAgentService extends BaseService {
 
     /** One composer artifact version per presented node, in answer order. */
     private async saveComposerPresentations({
-        threadUuid,
-        promptUuid,
-        presentations,
+        user,
+        prompt,
+        presented,
+        planViz,
+        enableDataAccess,
         onArtifactReady,
     }: {
-        threadUuid: string;
-        promptUuid: string;
-        presentations: ComposerPresentation[];
+        user: SessionUser;
+        prompt: AiPrompt;
+        presented: ToolComposerQueriesSuccessMetadata[];
+        planViz: PlanComposerViz | null;
+        enableDataAccess: boolean;
         onArtifactReady: (artifact: AiArtifact) => void;
     }): Promise<void> {
+        if (presented.length === 0) return;
+        const { threadUuid, promptUuid } = prompt;
         try {
+            const [threadNodes, previousVizConfig] = await Promise.all([
+                this.aiAgentModel.listComposerQueryNodes(
+                    threadComposerQueryScope(threadUuid),
+                ),
+                planViz ? this.getLatestComposerVizConfig(threadUuid) : null,
+            ]);
+            const presentations = await buildComposerPresentations({
+                presented,
+                threadNodes,
+                planViz,
+                getExecutionResult: (queryUuid) =>
+                    this.getComposerExecutionResult(user, prompt, queryUuid),
+                previousVizConfig,
+                enableDataAccess,
+            });
             await presentations.reduce<Promise<void>>(
                 (previous, presentation) =>
                     previous.then(async () => {
@@ -8261,6 +8293,53 @@ export class AiAgentService extends BaseService {
                 error,
             );
         }
+    }
+
+    private async getLatestComposerVizConfig(
+        threadUuid: string,
+    ): Promise<AiComposerChartArtifactConfig['vizConfig']> {
+        return (
+            (
+                await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
+                    threadUuid,
+                )
+            )
+                .filter(isAiComposerChartArtifactConfig)
+                .at(-1)?.vizConfig ?? null
+        );
+    }
+
+    /** The presented execution's columns and rows, read as the agent read them. */
+    private async getComposerExecutionResult(
+        user: SessionUser,
+        prompt: AiPrompt,
+        queryUuid: string,
+    ): Promise<ComposerExecutionResult> {
+        const account = fromSession(user);
+        const results = await this.asyncQueryService.getAsyncQueryResults({
+            account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.AI,
+                querySurfaceFromPrompt(prompt),
+            ),
+            projectUuid: prompt.projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            page: 1,
+            pageSize: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+        if (results.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Composer query ${queryUuid} is not ready`,
+            );
+        }
+        const rows = results.rows.map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
+            ),
+        );
+        return { columns: results.columns, rows, rowCount: rows.length };
     }
 
     private persistTrackedPromptUpdate(
@@ -16959,6 +17038,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                 };
 
+                // Data access only gates the row-derived stats the planner sends.
+                const planComposerViz: PlanComposerViz | null =
+                    args.decisions && args.execution.mode === 'standard'
+                        ? createVizPlanner({
+                              decisions: args.decisions,
+                              question: getAgentQuestion(args),
+                              conversation: getAgentDecisionContext(args),
+                              usage: args.decisionUsage,
+                              recordDecision: args.recordPromptDecision,
+                          })
+                        : null;
                 const dependencies: AiAgentDependencies = {
                     assertToolOperation: (kind, key, connectedTool) =>
                         this.agentPermissionService.assertOperation({
@@ -17135,10 +17225,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             async (persisted) => {
                                 if (!persisted || !composerPresentation) return;
                                 await this.saveComposerPresentations({
-                                    threadUuid: prompt.threadUuid,
-                                    promptUuid: prompt.promptUuid,
-                                    presentations:
-                                        composerPresentation.presentations,
+                                    user,
+                                    prompt,
+                                    presented: composerPresentation.presented,
+                                    planViz: planComposerViz,
+                                    enableDataAccess: args.enableDataAccess,
                                     onArtifactReady: (artifact) => {
                                         if (decisions) {
                                             stepProgressEmitter?.emit(
@@ -17325,14 +17416,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             scope: threadComposerQueryScope(threadUuid),
                             nodes,
                         }),
-                    getLatestComposerVizConfig: async (threadUuid) =>
-                        (
-                            await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
-                                threadUuid,
-                            )
-                        )
-                            .filter(isAiComposerChartArtifactConfig)
-                            .at(-1)?.vizConfig ?? null,
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
                         this.aiAgentModel.waitForSqlApproval(

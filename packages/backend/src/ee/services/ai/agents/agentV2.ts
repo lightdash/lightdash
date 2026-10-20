@@ -63,7 +63,6 @@ import {
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
-import { createVizPlanner } from '../decisions/vizPlanner';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
@@ -1806,17 +1805,6 @@ export const getAgentTools = (
                   explores: availableExplores,
               })
             : undefined;
-    // Data access only gates the row-derived stats the planner sends.
-    const planViz =
-        args.decisions && args.execution.mode === 'standard'
-            ? createVizPlanner({
-                  decisions: args.decisions,
-                  question: getAgentQuestion(args),
-                  conversation: decisionContext,
-                  usage: args.decisionUsage,
-                  recordDecision: args.recordPromptDecision,
-              })
-            : undefined;
 
     const grepFields = getGrepFields({
         availableExplores,
@@ -2026,7 +2014,6 @@ export const getAgentTools = (
         ? getRunComposerQueries({
               agentContext,
               reviewQuery,
-              planViz,
               updateProgress: dependencies.updateProgress,
               runComposerQueries: queryDependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
@@ -2043,8 +2030,6 @@ export const getAgentTools = (
                   dependencies.listThreadComposerQueryNodes,
               registerThreadComposerQueryNodes:
                   dependencies.registerThreadComposerQueryNodes,
-              getLatestComposerVizConfig:
-                  dependencies.getLatestComposerVizConfig,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,

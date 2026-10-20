@@ -1,14 +1,10 @@
 import {
-    ChartKind,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
     parseAiArtifactChartConfig,
     QuerySourceType,
-    VizAggregationOptions,
-    VizIndexType,
     type AiArtifact,
-    type AiComposerChartArtifactConfig,
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
@@ -19,7 +15,6 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
-import type { PlanComposerViz } from '../decisions/vizPlanner';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import {
@@ -226,7 +221,6 @@ const successMetadata = (output: ComposerOutput) => {
 
 const makeTool = ({
     reviewQuery,
-    planViz,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
@@ -237,10 +231,8 @@ const makeTool = ({
     agentContext = new AgentContext([]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
-    latestComposerVizConfig = null,
 }: {
     reviewQuery?: QueryReviewer;
-    planViz?: PlanComposerViz;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
@@ -251,13 +243,11 @@ const makeTool = ({
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
-    latestComposerVizConfig?: AiComposerChartArtifactConfig['vizConfig'];
 } = {}) => {
     const artifactStore = makeArtifactStore();
     const dependencies = {
         agentContext,
         reviewQuery,
-        planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -300,9 +290,6 @@ const makeTool = ({
         listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
         registerThreadComposerQueryNodes:
             registry.registerThreadComposerQueryNodes,
-        getLatestComposerVizConfig: vi
-            .fn()
-            .mockResolvedValue(latestComposerVizConfig),
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
@@ -380,7 +367,7 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it('runs the pipeline and returns the terminal snapshot without presenting it', async () => {
+    it('runs the pipeline and returns the terminal without presenting it', async () => {
         const { tool, dependencies, artifacts } = makeTool({
             autoApproveSql: true,
         });
@@ -401,22 +388,6 @@ describe('getRunComposerQueries', () => {
             status: 'success',
             queryUuid: 'query-3',
             terminalNodeId: 'joined',
-            snapshot: [
-                expect.objectContaining({
-                    nodeId: 'revenue',
-                    title: 'Revenue by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'signups',
-                    title: 'Signups by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'joined',
-                    title: 'Revenue vs signups',
-                    description: 'Joins monthly revenue with monthly signups.',
-                }),
-            ],
-            vizConfig: null,
             title: 'Revenue vs signups',
             description: null,
         });
@@ -435,6 +406,7 @@ describe('getRunComposerQueries', () => {
         );
         expect(output.result).toContain('```csv');
         expect(output.result).not.toContain('query-');
+        expect(output.result).not.toContain('Visualization:');
         expect(output.structuredContent).toEqual({
             terminalNodeId: 'joined',
             rowCount: 1,
@@ -459,7 +431,6 @@ describe('getRunComposerQueries', () => {
                 { reference: 'month', type: 'string' },
                 { reference: 'signups', type: 'number' },
             ],
-            visualization: expect.any(String),
             review: null,
             preview: {
                 rows: [{ month: '2026-01', signups: 12 }],
@@ -1053,7 +1024,7 @@ describe('composer artifact with reused nodes', () => {
     });
 
     it('runs and stores a reused node and what it reads, without query ids', async () => {
-        const { output, stored, executed } = await runReuse({
+        const { output, stored, executed, registry } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
             threadNodes: enrichedPipeline,
         });
@@ -1068,14 +1039,11 @@ describe('composer artifact with reused nodes', () => {
                 references: { o: 'enriched' },
             }),
         ]);
-        expect(stored).toEqual(
-            expect.objectContaining({
-                snapshot: executed?.queries,
-                terminalNodeId: 'summary',
-                vizConfig: null,
-            }),
+        expect(stored?.terminalNodeId).toBe('summary');
+        expect(registry.nodes('thread-uuid')).toEqual(executed?.queries);
+        expect(JSON.stringify(registry.nodes('thread-uuid'))).not.toContain(
+            'run-query',
         );
-        expect(JSON.stringify(stored?.snapshot)).not.toContain('run-query');
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
@@ -1247,61 +1215,6 @@ describe('composer query review', () => {
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');
         expect(output.result).toContain('check conditions');
-    });
-});
-
-describe('composer viz config', () => {
-    it('plans from the thread’s latest composer viz config', async () => {
-        const previousVizConfig: AiComposerChartArtifactConfig['vizConfig'] = {
-            type: ChartKind.LINE,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [],
-                groupBy: [],
-            },
-            display: undefined,
-        };
-        const planViz = vi.fn().mockResolvedValue(null);
-        const { tool } = makeTool({
-            planViz,
-            latestComposerVizConfig: previousVizConfig,
-        });
-
-        await executeTool(tool, makeArgs());
-
-        expect(planViz).toHaveBeenCalledWith(
-            expect.objectContaining({ previousVizConfig }),
-        );
-    });
-
-    it('carries the planned viz config for presentation and names it in the result', async () => {
-        const vizConfig = {
-            type: ChartKind.VERTICAL_BAR,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [
-                    {
-                        reference: 'signups',
-                        aggregation: VizAggregationOptions.ANY,
-                    },
-                ],
-                groupBy: [],
-            },
-            display: undefined,
-        } as const;
-        const planViz = vi.fn().mockResolvedValue(vizConfig);
-        const { tool } = makeTool({ planViz });
-
-        const output = await executeTool(tool, makeArgs());
-
-        expect(successMetadata(output).vizConfig).toEqual(vizConfig);
-        expect(
-            output.result.endsWith(
-                'Visualization: bar chart, x = month, y = signups.',
-            ),
-        ).toBe(true);
     });
 });
 

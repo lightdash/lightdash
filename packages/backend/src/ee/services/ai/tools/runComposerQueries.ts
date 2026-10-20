@@ -1,7 +1,6 @@
 import {
     buildComposerArtifactPipeline,
     createToolComposerQueriesArgsSchema,
-    getComposerVizPlan,
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
@@ -10,7 +9,6 @@ import {
     runComposerQueriesToolDefinition,
     toComposerArtifactVersion,
     toolComposerQueryNodeToSourceQuery,
-    type AiComposerChartArtifactConfig,
     type AnyType,
     type SourceQuery,
     type ToolComposerQueriesArgs,
@@ -20,14 +18,8 @@ import {
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
-import {
-    getDefaultVizNote,
-    getVizConfigNote,
-    type PlanComposerViz,
-} from '../decisions/vizPlanner';
 import type {
     CreateOrUpdateArtifactFn,
-    GetLatestComposerVizConfigFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
     ListSqlApprovalDecisionsFn,
@@ -60,7 +52,6 @@ import {
 type Dependencies = {
     agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
-    planViz?: PlanComposerViz;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -75,7 +66,6 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
-    getLatestComposerVizConfig: GetLatestComposerVizConfigFn;
     maxQueryLimit: number;
     enableDataAccess: boolean;
     canRunSql: boolean;
@@ -164,7 +154,6 @@ export const resolveTerminalNodeId = (
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
-    planViz,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -179,7 +168,6 @@ export const getRunComposerQueries = ({
     createOrUpdateArtifact,
     listThreadComposerQueryNodes,
     registerThreadComposerQueryNodes,
-    getLatestComposerVizConfig,
     maxQueryLimit,
     enableDataAccess,
     canRunSql,
@@ -375,43 +363,8 @@ export const getRunComposerQueries = ({
                     });
                 }
 
-                // Slack renders composer results as a native table, so it skips
-                // viz planning; the artifact backs the thread link.
+                // Slack renders composer results as a native table.
                 const isSlack = isSlackPrompt(prompt);
-                const terminalNode = queries.find(
-                    (query) => query.nodeId === resolvedTerminalNodeId,
-                );
-                let vizNote: string | null = null;
-                let vizConfig: AiComposerChartArtifactConfig['vizConfig'] =
-                    null;
-                if (!isSlack) {
-                    vizConfig =
-                        (await planViz?.({
-                            title: title ?? null,
-                            description: description ?? null,
-                            terminalNode: {
-                                title: terminalNode?.title ?? null,
-                                description: terminalNode?.description ?? null,
-                            },
-                            columns: terminal.columns,
-                            rows: terminal.rows,
-                            rowCount: terminal.rowCount,
-                            enableDataAccess,
-                            previousVizConfig: await getLatestComposerVizConfig(
-                                prompt.threadUuid,
-                            ),
-                        })) ?? null;
-                    vizNote = vizConfig
-                        ? getVizConfigNote(vizConfig)
-                        : getDefaultVizNote(
-                              getComposerVizPlan({
-                                  columns: Object.values(terminal.columns),
-                                  rows: terminal.rows,
-                                  node: terminalNode ?? null,
-                                  vizConfig: null,
-                              }),
-                          );
-                }
                 const artifactTitle = title ?? 'Composer query results';
                 // Web saves an artifact version only when the answer presents
                 // the terminal node; Slack tables still need one per call.
@@ -424,7 +377,7 @@ export const getRunComposerQueries = ({
                               description: description ?? null,
                               queries,
                               terminalNodeId: resolvedTerminalNodeId,
-                              vizConfig,
+                              vizConfig: null,
                           }),
                       })
                     : null;
@@ -438,8 +391,6 @@ export const getRunComposerQueries = ({
                     status: 'success',
                     queryUuid: terminal.queryUuid,
                     terminalNodeId: resolvedTerminalNodeId,
-                    snapshot: queries,
-                    vizConfig,
                     title: artifactTitle,
                     description: description ?? null,
                     ...(slackArtifact
@@ -494,16 +445,14 @@ export const getRunComposerQueries = ({
                     rowCount: terminal.rowCount,
                     nodes,
                     columns,
-                    visualization: vizNote,
                     review:
                         terminal.rowCount === 0 ? emptyReview : review || null,
                 };
 
-                const vizLine = vizNote ? `\n${vizNote}` : '';
                 const buildOutput = (): ComposerQueriesOutput => {
                     if (!enableDataAccess || terminal.rowCount === 0) {
                         return {
-                            result: `${resultSummary}${vizLine}`,
+                            result: resultSummary,
                             metadata,
                             structuredContent: { ...summary, preview: null },
                         };
@@ -531,7 +480,7 @@ export const getRunComposerQueries = ({
                         result: `${resultSummary}${truncatedNote}\n${serializeData(
                             previewCsv,
                             'csv',
-                        )}${vizLine}`,
+                        )}`,
                         metadata,
                         structuredContent: {
                             ...summary,

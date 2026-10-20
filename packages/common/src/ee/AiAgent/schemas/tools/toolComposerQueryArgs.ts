@@ -10,11 +10,9 @@ import {
     type ExternalSourceQuery,
     type PythonSourceQuery,
     type SemanticLayerSourceQuery,
-    type SourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import { type AllVizChartConfig } from '../../../../visualizations/types';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -510,49 +508,18 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
         .describe(
             'Raw values of the preview rows rendered as CSV in the result; null when data access is disabled or the terminal result is empty.',
         ),
-    visualization: z.string().nullable(),
     review: z.string().nullable(),
 });
 
-// Snapshot and viz config are written from typed values. The API-facing
-// shape keeps them untyped: tsoa cannot resolve named types in tool metadata.
-const toolComposerQueriesSuccessMetadataShapeSchema = z.object({
+const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
     terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
-    snapshot: z
-        .array(z.unknown())
-        .describe('The full built pipeline, every node self-contained.'),
-    vizConfig: z.unknown(),
     title: z.string(),
     description: z.string().nullable(),
     // Slack saves an artifact version per call; web saves on presentation.
     artifactVersionUuid: z.string().optional(),
 });
-
-const isComposerSnapshot = (value: unknown): value is SourceQuery[] =>
-    Array.isArray(value) &&
-    value.every(
-        (node: unknown) =>
-            typeof node === 'object' &&
-            node !== null &&
-            'sourceType' in node &&
-            typeof node.sourceType === 'string' &&
-            Object.values<string>(QuerySourceType).includes(node.sourceType),
-    );
-
-const isComposerVizConfig = (
-    value: unknown,
-): value is AllVizChartConfig | null =>
-    value === null ||
-    (typeof value === 'object' && value !== null && 'type' in value);
-
-// What presenting the terminal node needs to save a composer artifact version.
-const toolComposerQueriesSuccessMetadataSchema =
-    toolComposerQueriesSuccessMetadataShapeSchema.extend({
-        snapshot: z.custom<SourceQuery[]>(isComposerSnapshot),
-        vizConfig: z.custom<AllVizChartConfig | null>(isComposerVizConfig),
-    });
 
 export type ToolComposerQueriesSuccessMetadata = z.infer<
     typeof toolComposerQueriesSuccessMetadataSchema
@@ -567,7 +534,7 @@ export const parseToolComposerQueriesSuccessMetadata = (
 
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
     metadata: z.discriminatedUnion('status', [
-        toolComposerQueriesSuccessMetadataShapeSchema,
+        toolComposerQueriesSuccessMetadataSchema,
         z.object({ status: z.enum(['error', 'rejected', 'timeout']) }),
     ]),
     structuredContent: toolComposerQueriesStructuredContentSchema,

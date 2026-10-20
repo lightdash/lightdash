@@ -21234,11 +21234,6 @@ Presenting results: results are hidden from the user by default. Each successful
                         "queryUuid": {
                           "type": "string",
                         },
-                        "snapshot": {
-                          "description": "The full built pipeline, every node self-contained.",
-                          "items": {},
-                          "type": "array",
-                        },
                         "status": {
                           "const": "success",
                           "type": "string",
@@ -21251,14 +21246,11 @@ Presenting results: results are hidden from the user by default. Each successful
                         "title": {
                           "type": "string",
                         },
-                        "vizConfig": {},
                       },
                       "required": [
                         "status",
                         "queryUuid",
                         "terminalNodeId",
-                        "snapshot",
-                        "vizConfig",
                         "title",
                         "description",
                       ],
@@ -21429,16 +21421,6 @@ Presenting results: results are hidden from the user by default. Each successful
                   "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                   "type": "string",
                 },
-                "visualization": {
-                  "anyOf": [
-                    {
-                      "type": "string",
-                    },
-                    {
-                      "type": "null",
-                    },
-                  ],
-                },
               },
               "required": [
                 "terminalNodeId",
@@ -21446,7 +21428,6 @@ Presenting results: results are hidden from the user by default. Each successful
                 "nodes",
                 "columns",
                 "preview",
-                "visualization",
                 "review",
               ],
               "type": "object",
@@ -21485,11 +21466,6 @@ Presenting results: results are hidden from the user by default. Each successful
                         "queryUuid": {
                           "type": "string",
                         },
-                        "snapshot": {
-                          "description": "The full built pipeline, every node self-contained.",
-                          "items": {},
-                          "type": "array",
-                        },
                         "status": {
                           "const": "success",
                           "type": "string",
@@ -21502,14 +21478,11 @@ Presenting results: results are hidden from the user by default. Each successful
                         "title": {
                           "type": "string",
                         },
-                        "vizConfig": {},
                       },
                       "required": [
                         "status",
                         "queryUuid",
                         "terminalNodeId",
-                        "snapshot",
-                        "vizConfig",
                         "title",
                         "description",
                       ],

@@ -62,7 +62,6 @@ import {
     GetDashboardChartsFn,
     GetExploreFn,
     GetKnowledgeDocumentContentFn,
-    GetLatestComposerVizConfigFn,
     GetProjectInfoFn,
     GetProjectParameterDefinitionsFn,
     GetPromptFn,
@@ -423,7 +422,6 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
-    getLatestComposerVizConfig: GetLatestComposerVizConfigFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;

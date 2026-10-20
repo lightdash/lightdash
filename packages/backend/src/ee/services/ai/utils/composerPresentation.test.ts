@@ -1,16 +1,24 @@
 import {
     ChartKind,
+    DimensionType,
     QuerySourceType,
     VizIndexType,
-    type SourceQuery,
+    type AllVizChartConfig,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
+import type { PlanComposerViz } from '../decisions/vizPlanner';
 import {
+    buildComposerPresentations,
     resolveComposerPresentations,
+    type ComposerExecutionResult,
     type TurnToolResult,
 } from './composerPresentation';
 
-const node = (nodeId: string, references: string[] = []): SourceQuery => ({
+const node = (
+    nodeId: string,
+    references: string[] = [],
+): ThreadComposerQueryNode => ({
     sourceType: QuerySourceType.DUCKDB,
     nodeId,
     title: nodeId,
@@ -26,8 +34,6 @@ const success = (
     status: 'success',
     queryUuid: `query-${terminalNodeId}`,
     terminalNodeId,
-    snapshot: [node('base'), node(terminalNodeId, ['base'])],
-    vizConfig: null,
     title: `Title ${terminalNodeId}`,
     description: null,
     ...overrides,
@@ -51,57 +57,27 @@ const resolve = (response: string, toolResults: TurnToolResult[]) =>
     });
 
 const presentedNodes = (response: string, toolResults: TurnToolResult[]) =>
-    resolve(response, toolResults).presentations.map(
-        (presentation) => presentation.vizConfig.terminalNodeId,
+    resolve(response, toolResults).presented.map(
+        (metadata) => metadata.terminalNodeId,
     );
 
 describe('resolveComposerPresentations', () => {
     it('presents nothing when the answer has no marker', () => {
         const response = 'Revenue grew 10%.';
         expect(resolve(response, [result(success('revenue'))])).toEqual({
-            presentations: [],
+            presented: [],
             response,
         });
     });
 
-    it('turns a marker on a terminal node into a composer artifact version', () => {
-        const vizConfig: ToolComposerQueriesSuccessMetadata['vizConfig'] = {
-            type: ChartKind.LINE,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [],
-                groupBy: [],
-            },
-            display: undefined,
-        };
-        const metadata = success('revenue', {
-            title: 'Revenue',
-            description: 'Monthly revenue',
-            vizConfig,
-        });
+    it('resolves a marker on a terminal node to its tool result', () => {
+        const metadata = success('revenue', { title: 'Revenue' });
 
         expect(
             resolve('Revenue grew.\n<show node="revenue"/>', [
                 result(metadata),
             ]),
-        ).toEqual({
-            presentations: [
-                {
-                    artifactType: 'chart',
-                    title: 'Revenue',
-                    description: 'Monthly revenue',
-                    vizConfig: {
-                        source: 'composer',
-                        schemaVersion: 1,
-                        queries: metadata.snapshot,
-                        terminalNodeId: 'revenue',
-                        vizConfig,
-                    },
-                },
-            ],
-            response: 'Revenue grew.',
-        });
+        ).toEqual({ presented: [metadata], response: 'Revenue grew.' });
     });
 
     it('presents several nodes in answer order and collapses duplicates', () => {
@@ -134,7 +110,7 @@ describe('resolveComposerPresentations', () => {
         ],
     ])('ignores a marker naming %s', (_, nodeId, toolResults) => {
         expect(resolve(`Done.\n<show node="${nodeId}"/>`, toolResults)).toEqual(
-            { presentations: [], response: 'Done.' },
+            { presented: [], response: 'Done.' },
         );
     });
 
@@ -154,7 +130,7 @@ describe('resolveComposerPresentations', () => {
             resolve('<show node="revenue"/>', [
                 result(earlier),
                 result(later),
-            ]).presentations.map((presentation) => presentation.title),
+            ]).presented.map((metadata) => metadata.title),
         ).toEqual(['Later']);
     });
 
@@ -179,5 +155,150 @@ describe('resolveComposerPresentations', () => {
         expect(resolve(response, []).response).toBe(
             'Write this:\n```\n<show node="revenue"/>\n\n\n\nend\n```\nDone',
         );
+    });
+});
+
+const lineViz: AllVizChartConfig = {
+    type: ChartKind.LINE,
+    metadata: { version: 1 },
+    fieldConfig: {
+        x: { reference: 'month', type: VizIndexType.CATEGORY },
+        y: [],
+        groupBy: [],
+    },
+    display: undefined,
+};
+
+const executionResult = (queryUuid: string): ComposerExecutionResult => ({
+    columns: {
+        month: { reference: 'month', type: DimensionType.STRING },
+    },
+    rows: [{ month: queryUuid }],
+    rowCount: 1,
+});
+
+describe('buildComposerPresentations', () => {
+    // Thread: orders <- enriched <- revenue; unrelated is never read.
+    const threadNodes = [
+        node('orders'),
+        node('unrelated'),
+        node('enriched', ['orders']),
+        node('revenue', ['enriched']),
+    ];
+
+    const build = (
+        presented: ToolComposerQueriesSuccessMetadata[],
+        planViz: PlanComposerViz | null,
+        previousVizConfig: AllVizChartConfig | null = null,
+    ) =>
+        buildComposerPresentations({
+            presented,
+            threadNodes,
+            planViz,
+            getExecutionResult: async (queryUuid) => executionResult(queryUuid),
+            previousVizConfig,
+            enableDataAccess: true,
+        });
+
+    it('snapshots the presented node and everything it reads from the thread', async () => {
+        const [presentation] = await build(
+            [success('revenue', { description: 'Monthly revenue' })],
+            null,
+        );
+        expect(presentation).toEqual({
+            artifactType: 'chart',
+            title: 'Title revenue',
+            description: 'Monthly revenue',
+            vizConfig: {
+                source: 'composer',
+                schemaVersion: 1,
+                queries: [
+                    node('orders'),
+                    node('enriched', ['orders']),
+                    node('revenue', ['enriched']),
+                ],
+                terminalNodeId: 'revenue',
+                vizConfig: null,
+            },
+        });
+    });
+
+    it('plans the viz from the presented execution result', async () => {
+        const planned: Parameters<PlanComposerViz>[0][] = [];
+        const planViz: PlanComposerViz = async (args) => {
+            planned.push(args);
+            return lineViz;
+        };
+
+        const [presentation] = await build([success('revenue')], planViz);
+
+        expect(planned).toEqual([
+            expect.objectContaining({
+                ...executionResult('query-revenue'),
+                terminalNode: { title: 'revenue', description: null },
+                previousVizConfig: null,
+            }),
+        ]);
+        expect(presentation.vizConfig.vizConfig).toEqual(lineViz);
+    });
+
+    it('plans each presentation from the one before it', async () => {
+        const previousVizConfigs: (AllVizChartConfig | null)[] = [];
+        const planViz: PlanComposerViz = async (args) => {
+            previousVizConfigs.push(args.previousVizConfig);
+            return args.previousVizConfig ? null : lineViz;
+        };
+
+        const presentations = await build(
+            [success('enriched'), success('revenue')],
+            planViz,
+        );
+
+        expect(previousVizConfigs).toEqual([null, lineViz]);
+        expect(
+            presentations.map(
+                (presentation) => presentation.vizConfig.vizConfig,
+            ),
+        ).toEqual([lineViz, null]);
+    });
+
+    it('starts from the thread viz config', async () => {
+        const previousVizConfigs: (AllVizChartConfig | null)[] = [];
+        await build(
+            [success('revenue')],
+            async (args) => {
+                previousVizConfigs.push(args.previousVizConfig);
+                return null;
+            },
+            lineViz,
+        );
+        expect(previousVizConfigs).toEqual([lineViz]);
+    });
+
+    it('saves without a viz when there is no planner (Slack)', async () => {
+        const [presentation] = await build([success('revenue')], null);
+        expect(presentation.vizConfig.vizConfig).toBeNull();
+    });
+
+    it('still presents when the execution result is unavailable', async () => {
+        const presentations = await buildComposerPresentations({
+            presented: [success('revenue')],
+            threadNodes,
+            planViz: async () => lineViz,
+            getExecutionResult: async () => {
+                throw new Error('Results expired');
+            },
+            previousVizConfig: null,
+            enableDataAccess: true,
+        });
+        expect(
+            presentations.map(
+                (presentation) => presentation.vizConfig.vizConfig,
+            ),
+        ).toEqual([null]);
+    });
+
+    it('skips a node missing from the thread', async () => {
+        expect(await build([success('missing')], null)).toEqual([]);
     });
 });
