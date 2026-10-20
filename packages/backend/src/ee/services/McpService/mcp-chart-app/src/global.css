@@ -1,3 +1,70 @@
+/* Host style variables (MCP Apps spec) with neutral fallbacks for hosts that send none */
+:root {
+    --app-bg: var(--color-background-primary, light-dark(#ffffff, #1f1f1f));
+    --app-bg-secondary: var(
+        --color-background-secondary,
+        light-dark(#f5f5f5, #2a2a2a)
+    );
+    --app-bg-inverse: var(
+        --color-background-inverse,
+        light-dark(#1a1a1a, #f2f2f2)
+    );
+    --app-bg-danger: var(
+        --color-background-danger,
+        light-dark(#fdf0ef, #3a1a18)
+    );
+    --app-text: var(--color-text-primary, light-dark(#1a1a1a, #f2f2f2));
+    --app-text-secondary: var(
+        --color-text-secondary,
+        light-dark(#333333, #c8c8c8)
+    );
+    --app-text-tertiary: var(
+        --color-text-tertiary,
+        light-dark(#636363, #9a9a9a)
+    );
+    --app-text-inverse: var(--color-text-inverse, light-dark(#ffffff, #1a1a1a));
+    --app-text-danger: var(--color-text-danger, light-dark(#a3261d, #f4877d));
+    --app-border: var(
+        --color-border-primary,
+        light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.2))
+    );
+    --app-border-tertiary: var(
+        --color-border-tertiary,
+        light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1))
+    );
+    --app-border-danger: var(
+        --color-border-danger,
+        light-dark(#d9534a, #c4544c)
+    );
+    --app-ring: var(
+        --color-ring-primary,
+        light-dark(rgba(0, 0, 0, 0.7), rgba(255, 255, 255, 0.7))
+    );
+    --app-border-width: var(--border-width-regular, 0.5px);
+    --app-radius-md: var(--border-radius-md, 8px);
+    --app-radius-xl: var(--border-radius-xl, 12px);
+    --app-font-xs: var(--font-text-xs-size, 12px);
+    --app-font-sm: var(--font-text-sm-size, 13px);
+    --app-font-medium: var(--font-weight-medium, 500);
+    --app-font-semibold: var(--font-weight-semibold, 600);
+
+    /* @lightdash/common chart styles reference the frontend's Mantine scale */
+    --mantine-color-ldGray-0: var(--app-bg-secondary);
+    --mantine-color-ldGray-1: var(--app-bg-secondary);
+    --mantine-color-ldGray-2: var(--app-border-tertiary);
+    --mantine-color-ldGray-3: var(--app-border-tertiary);
+    --mantine-color-ldGray-4: var(--app-border);
+    --mantine-color-ldGray-5: var(--app-text-tertiary);
+    --mantine-color-ldGray-6: var(--app-text-tertiary);
+    --mantine-color-ldGray-7: var(--app-text-secondary);
+    --mantine-color-ldGray-8: var(--app-text-secondary);
+    --mantine-color-ldGray-9: var(--app-text);
+    --mantine-color-gray-6: var(--app-text-tertiary);
+    --mantine-color-white: var(--app-bg);
+    --mantine-color-background-0: var(--app-bg);
+    --mantine-color-foreground-0: var(--app-text);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -17,26 +84,51 @@ body {
         Roboto,
         sans-serif;
     background: transparent;
-    color: var(--color-text-primary, #1a1a1a);
+    color: var(--app-text);
+}
+
+html[data-display-mode='fullscreen'] body {
+    padding: var(--safe-area-top, 0) var(--safe-area-right, 0)
+        var(--safe-area-bottom, 0) var(--safe-area-left, 0);
+}
+
+#card {
+    border: var(--app-border-width) solid var(--app-border);
+    border-radius: var(--app-radius-xl);
+    background: var(--app-bg);
+    overflow: hidden;
+}
+
+#card[data-framed='false'] {
+    border: 0;
+    background: transparent;
+}
+
+html[data-display-mode='fullscreen'] #card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+}
+
+html[data-display-mode='fullscreen'] #chart,
+html[data-display-mode='fullscreen'] #custom-chart,
+html[data-display-mode='fullscreen'] #result-container {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 #chart {
     width: auto;
     height: auto;
     min-height: 480px;
-    margin: 8px;
     padding: 16px;
-    background: var(--color-background-primary, #ffffff);
-    border-radius: 12px;
-    outline: 0.5px solid var(--color-border-primary, #e0e0e0);
 }
 
 #custom-chart {
+    position: relative;
     min-height: 480px;
-    margin: 8px;
-    border-radius: 12px;
-    overflow: hidden;
-    outline: 0.5px solid var(--color-border-primary, #e0e0e0);
 }
 
 #custom-chart iframe {
@@ -44,6 +136,99 @@ body {
     width: 100%;
     height: 480px;
     border: 0;
+}
+
+html[data-display-mode='fullscreen'] #custom-chart iframe {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+}
+
+#card-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px 8px 16px;
+    border-top: var(--app-border-width) solid var(--app-border-tertiary);
+}
+
+#card-footer[hidden] {
+    display: none;
+}
+
+#card-caption {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--app-font-xs);
+    color: var(--app-text-tertiary);
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 32px;
+    font: inherit;
+    font-size: var(--app-font-sm);
+    font-weight: var(--app-font-medium);
+    border-radius: var(--app-radius-md);
+    cursor: pointer;
+}
+
+.btn[hidden] {
+    display: none;
+}
+
+.btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--app-ring);
+    outline-offset: 2px;
+}
+
+.btn-icon {
+    width: 32px;
+    padding: 0;
+    color: var(--app-text-secondary);
+    background: transparent;
+    border: var(--app-border-width) solid var(--app-border);
+}
+
+.btn-icon:hover {
+    background: var(--app-bg-secondary);
+}
+
+.btn-primary {
+    padding: 0 12px;
+    color: var(--app-text-inverse);
+    background: var(--app-bg-inverse);
+    border: 0;
+}
+
+.btn-primary:hover {
+    opacity: 0.88;
+}
+
+@media (pointer: coarse) {
+    .btn {
+        height: 44px;
+    }
+
+    .btn-icon {
+        width: 44px;
+    }
 }
 
 #result-container {
@@ -56,76 +241,51 @@ body {
 #result-container table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 13px;
+    font-size: var(--app-font-sm);
 }
 
 #result-container th,
 #result-container td {
     padding: 8px 12px;
     text-align: left;
-    border-bottom: 1px solid var(--color-border-primary, #e0e0e0);
+    border-bottom: var(--app-border-width) solid var(--app-border-tertiary);
 }
 
 #result-container th {
-    font-weight: 600;
-    background: var(--color-background-secondary, #f5f5f5);
+    font-weight: var(--app-font-semibold);
+    background: var(--app-bg-secondary);
     position: sticky;
     top: 0;
 }
 
 #result-container tr:hover td {
-    background: var(--color-background-secondary, #f5f5f5);
+    background: var(--app-bg-secondary);
 }
 
 .message {
-    border-radius: 8px;
+    border-radius: var(--app-radius-md);
     padding: 12px 14px;
-    border: 1px solid var(--color-border-primary, #e0e0e0);
-    background: var(--color-background-secondary, #f5f5f5);
+    border: var(--app-border-width) solid var(--app-border);
+    background: var(--app-bg-secondary);
 }
 
 .message pre {
     white-space: pre-wrap;
-    font-size: 13px;
+    font-size: var(--app-font-sm);
     line-height: 1.5;
     font-family: inherit;
 }
 
 .message--loading {
-    border-color: #d0d5dd;
+    border-color: var(--app-border-tertiary);
 }
 
 .message--error {
-    color: #9f1239;
-    background: #fff1f2;
-    border-color: #fecdd3;
+    color: var(--app-text-danger);
+    background: var(--app-bg-danger);
+    border-color: var(--app-border-danger);
 }
 
 .message--info {
-    border-color: var(--color-border-primary, #e0e0e0);
-}
-
-#explore-btn {
-    position: fixed;
-    bottom: 16px;
-    right: 16px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: 400;
-    font-family: 'Inter', sans-serif;
-    color: #363636;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: 0 2px 1px rgba(214, 214, 214, 0.3);
-    z-index: 1000;
-    transition: background 0.15s;
-}
-
-#explore-btn:hover {
-    background: #ececec;
+    border-color: var(--app-border);
 }

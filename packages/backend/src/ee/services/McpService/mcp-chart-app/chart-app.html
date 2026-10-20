@@ -3,13 +3,48 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="color-scheme" content="light dark" />
         <title>Lightdash Chart</title>
         <link rel="stylesheet" href="./src/global.css" />
     </head>
     <body>
-        <div id="chart"></div>
-        <div id="result-container" style="display: none"></div>
-        <div id="custom-chart" style="display: none"></div>
+        <div id="card" data-framed="true">
+            <div id="chart"></div>
+            <div id="result-container" style="display: none"></div>
+            <div id="custom-chart" style="display: none"></div>
+            <div id="card-footer" hidden>
+                <span id="card-caption"></span>
+                <div class="card-actions">
+                    <button
+                        type="button"
+                        id="expand-btn"
+                        class="btn btn-icon"
+                        hidden
+                    ></button>
+                    <button
+                        type="button"
+                        id="explore-btn"
+                        class="btn btn-primary"
+                        hidden
+                    >
+                        Open in Explore
+                        <svg
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.4"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M11.5 9.5v3a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h3"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
         <script type="module" src="./src/chart-app.ts"></script>
     </body>
 </html>

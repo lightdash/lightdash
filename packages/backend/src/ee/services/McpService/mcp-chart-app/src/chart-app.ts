@@ -9,7 +9,12 @@ import {
     formatTooltipRow,
     formatTooltipValue,
 } from '@lightdash/common/src/visualizations/helpers/styles/tooltipStyles';
-import { App } from '@modelcontextprotocol/ext-apps';
+import {
+    App,
+    applyDocumentTheme,
+    applyHostStyleVariables,
+    type McpUiHostContext,
+} from '@modelcontextprotocol/ext-apps';
 import * as echarts from 'echarts';
 import { loadMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
 import {
@@ -25,9 +30,7 @@ import {
 } from '../../mcpCustomChartFrameProtocol';
 import { lightdashTheme } from './lightdash-theme';
 
-// Register the custom Lightdash theme
-echarts.registerTheme('lightdash', lightdashTheme);
-
+const card = document.getElementById('card') as HTMLDivElement;
 const chartContainer = document.getElementById('chart') as HTMLDivElement;
 const resultContainer = document.getElementById(
     'result-container',
@@ -35,8 +38,15 @@ const resultContainer = document.getElementById(
 const customChartContainer = document.getElementById(
     'custom-chart',
 ) as HTMLDivElement;
+const cardFooter = document.getElementById('card-footer') as HTMLDivElement;
+const cardCaption = document.getElementById('card-caption') as HTMLSpanElement;
+const expandButton = document.getElementById('expand-btn') as HTMLButtonElement;
+const exploreButton = document.getElementById(
+    'explore-btn',
+) as HTMLButtonElement;
 
 let chart: echarts.ECharts | null = null;
+let lastChartOption: echarts.EChartsOption | null = null;
 
 // ---------------------------------------------------------------------------
 // Tooltip formatter helpers (client-side, functions can't be serialized)
@@ -136,10 +146,44 @@ function itemTooltipFormatter(
     );
 }
 
+const colorProbe = document.createElement('span');
+colorProbe.hidden = true;
+document.body.appendChild(colorProbe);
+
+/** Resolves a CSS colour (var(), light-dark()) to a value the canvas renderer can draw. */
+function resolveCssColor(value: string): string {
+    colorProbe.style.color = value;
+    const resolved = colorProbe.style.color
+        ? getComputedStyle(colorProbe).color
+        : value;
+    colorProbe.style.color = '';
+    return resolved;
+}
+
+function resolveCssVariables<T>(value: T): T {
+    if (typeof value === 'string') {
+        return (
+            value.startsWith('var(--') ? resolveCssColor(value) : value
+        ) as T;
+    }
+    if (Array.isArray(value)) return value.map(resolveCssVariables) as T;
+    if (isRecord(value)) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, v]) => [
+                key,
+                resolveCssVariables(v),
+            ]),
+        ) as T;
+    }
+    return value;
+}
+
 function initChart(): echarts.ECharts {
     if (chart) {
         chart.dispose();
     }
+    // Re-registered on every init so the theme picks up the host's current colours
+    echarts.registerTheme('lightdash', resolveCssVariables(lightdashTheme));
     chart = echarts.init(chartContainer, 'lightdash');
     return chart;
 }
@@ -148,7 +192,7 @@ function renderChart(echartsOption: echarts.EChartsOption): void {
     chartContainer.style.display = 'block';
     resultContainer.style.display = 'none';
 
-    const instance = chart ?? initChart();
+    const instance = initChart();
 
     // Inject client-side tooltip formatter (can't be serialized in JSON)
     const tooltip = (echartsOption.tooltip ?? {}) as Record<string, unknown>;
@@ -165,7 +209,37 @@ function renderChart(echartsOption: echarts.EChartsOption): void {
         },
     };
 
-    instance.setOption(optionWithFormatter, true);
+    lastChartOption = optionWithFormatter;
+    setChartOption(instance, optionWithFormatter);
+}
+
+/** Redraws the visible chart so the canvas picks up the host's current colours. */
+function redrawChart(): void {
+    if (chart && lastChartOption && chartContainer.style.display !== 'none') {
+        setChartOption(initChart(), lastChartOption);
+    }
+}
+
+function setChartOption(
+    instance: echarts.ECharts,
+    option: echarts.EChartsOption,
+): void {
+    // ECharts themes can't style `graphic` text, which the AI chart config uses for axis titles
+    const fill = 'var(--app-text-secondary)';
+    const graphic = Array.isArray(option.graphic)
+        ? option.graphic.map((element: unknown) =>
+              isRecord(element) &&
+              element.type === 'text' &&
+              isRecord(element.style) &&
+              element.style.fill === undefined
+                  ? { ...element, style: { ...element.style, fill } }
+                  : element,
+          )
+        : option.graphic;
+    instance.setOption(
+        resolveCssVariables({ ...option, graphic }) as echarts.EChartsOption,
+        true,
+    );
 }
 
 function renderTable(
@@ -204,25 +278,95 @@ function escapeHtml(str: string): string {
     return div.innerHTML;
 }
 
-function renderExploreButton(url: string): void {
-    // Remove existing button if any
-    const existing = document.getElementById('explore-btn');
-    if (existing) existing.remove();
+const EXPAND_ICON =
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9"/></svg>';
+const COLLAPSE_ICON =
+    '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 6.5h-4v-4M2.5 9.5h4v4M9.5 6.5 14 2M6.5 9.5 2 14"/></svg>';
 
-    const btn = document.createElement('button');
-    btn.id = 'explore-btn';
-    btn.textContent = 'Explore from here';
-    btn.addEventListener('click', async () => {
-        const { isError } = await app.openLink({ url });
-        if (isError) {
-            console.warn('Host denied the request - URL:', url);
-        }
-    });
+let exploreUrl: string | null = null;
 
-    document.body.appendChild(btn);
+exploreButton.addEventListener('click', async () => {
+    if (!exploreUrl) return;
+    const { isError } = await app.openLink({ url: exploreUrl });
+    if (isError) {
+        console.warn('Host denied the request - URL:', exploreUrl);
+    }
+});
+
+function isFullscreen(): boolean {
+    return document.documentElement.dataset.displayMode === 'fullscreen';
 }
 
-const app = new App({ name: 'Lightdash Chart', version: '1.0.0' });
+expandButton.addEventListener('click', async () => {
+    try {
+        const { mode } = await app.requestDisplayMode({
+            mode: isFullscreen() ? 'inline' : 'fullscreen',
+        });
+        document.documentElement.dataset.displayMode = mode;
+    } catch (error) {
+        console.warn('Host denied the display mode request', error);
+    }
+    updateExpandButton();
+});
+
+function updateExpandButton(): void {
+    const canExpand =
+        app.getHostContext()?.availableDisplayModes?.includes('fullscreen') ??
+        false;
+    expandButton.hidden = !canExpand;
+    const fullscreen = isFullscreen();
+    const label = fullscreen ? 'Exit full screen' : 'Expand to full screen';
+    expandButton.innerHTML = fullscreen ? COLLAPSE_ICON : EXPAND_ICON;
+    expandButton.setAttribute('aria-label', label);
+    expandButton.title = label;
+}
+
+function renderCardFooter({
+    rowCount,
+    url,
+}: {
+    rowCount: number | null;
+    url: string | null;
+}): void {
+    card.dataset.framed = 'true';
+    exploreUrl = url;
+    exploreButton.hidden = url === null;
+    cardCaption.textContent =
+        rowCount === null
+            ? ''
+            : `${rowCount.toLocaleString()} ${rowCount === 1 ? 'row' : 'rows'}`;
+    updateExpandButton();
+    cardFooter.hidden = false;
+}
+
+function hideCardFooter(): void {
+    exploreUrl = null;
+    cardFooter.hidden = true;
+}
+
+function applyHostContext(ctx: Partial<McpUiHostContext>): void {
+    if (ctx.theme) applyDocumentTheme(ctx.theme);
+    if (ctx.styles?.variables) applyHostStyleVariables(ctx.styles.variables);
+    if (ctx.displayMode) {
+        document.documentElement.dataset.displayMode = ctx.displayMode;
+    }
+    if (ctx.safeAreaInsets) {
+        const root = document.documentElement.style;
+        root.setProperty('--safe-area-top', `${ctx.safeAreaInsets.top}px`);
+        root.setProperty('--safe-area-right', `${ctx.safeAreaInsets.right}px`);
+        root.setProperty(
+            '--safe-area-bottom',
+            `${ctx.safeAreaInsets.bottom}px`,
+        );
+        root.setProperty('--safe-area-left', `${ctx.safeAreaInsets.left}px`);
+    }
+    updateExpandButton();
+}
+
+const app = new App(
+    { name: 'Lightdash Chart', version: '1.0.0' },
+    { availableDisplayModes: ['inline', 'fullscreen'] },
+);
 
 type ChartToolStatus = 'done' | 'running' | 'error' | 'cancelled' | 'expired';
 
@@ -251,7 +395,12 @@ let postToCustomChart: ((message: CustomChartHostMessage) => void) | null =
     null;
 
 function getHostColorScheme(): CustomChartColorScheme {
-    return app.getHostContext()?.theme === 'dark' ? 'dark' : 'light';
+    const theme =
+        app.getHostContext()?.theme ??
+        (window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light');
+    return theme === 'dark' ? 'dark' : 'light';
 }
 
 function clearCustomChart(): void {
@@ -465,15 +614,12 @@ function getToolResultPayload(result: unknown): ChartToolResult {
     };
 }
 
-function removeExploreButton(): void {
-    document.getElementById('explore-btn')?.remove();
-}
-
 function clearRenderedContent(): void {
     chartContainer.style.display = 'none';
     resultContainer.style.display = 'none';
     resultContainer.innerHTML = '';
-    removeExploreButton();
+    card.dataset.framed = 'false';
+    hideCardFooter();
 }
 
 function getTextContent(result: unknown): string | null {
@@ -515,6 +661,8 @@ function getMessageKind(
 function renderMessageContent(text: string, kind: MessageKind): void {
     chartContainer.style.display = 'none';
     resultContainer.style.display = 'block';
+    card.dataset.framed = 'false';
+    hideCardFooter();
     resultContainer.innerHTML = `<div class="message message--${kind}"><pre>${escapeHtml(
         text,
     )}</pre></div>`;
@@ -543,17 +691,26 @@ app.ontoolresult = (result) => {
         return;
     }
 
-    // Show "Explore from here" button if URL is present
-    if (structured?.exploreUrl) {
-        renderExploreButton(structured.exploreUrl);
-    } else {
-        removeExploreButton();
+    renderCardFooter({
+        rowCount: structured.rows?.length ?? null,
+        url: structured.exploreUrl ?? null,
+    });
+};
+
+app.onhostcontextchanged = (changed) => {
+    applyHostContext(changed);
+    postToCustomChart?.(getCustomChartThemeMessage(getHostColorScheme()));
+    if (changed.theme !== undefined || changed.styles !== undefined) {
+        redrawChart();
     }
 };
 
-app.onhostcontextchanged = () => {
-    postToCustomChart?.(getCustomChartThemeMessage(getHostColorScheme()));
-};
+// Without a host theme the colours follow the OS colour scheme
+window
+    .matchMedia('(prefers-color-scheme: dark)')
+    .addEventListener('change', () => {
+        if (!app.getHostContext()?.theme) redrawChart();
+    });
 
 let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 const resizeObserver = new ResizeObserver(() => {
@@ -565,6 +722,9 @@ const resizeObserver = new ResizeObserver(() => {
     }
 });
 resizeObserver.observe(chartContainer);
-new ResizeObserver(reportViewSize).observe(customChartContainer);
+new ResizeObserver(reportViewSize).observe(card);
 
-app.connect();
+void app.connect().then(() => {
+    const hostContext = app.getHostContext();
+    if (hostContext) applyHostContext(hostContext);
+});
