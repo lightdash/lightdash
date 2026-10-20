@@ -232,7 +232,9 @@ export const createToolComposerQueriesArgsSchema = ({
             title: z
                 .string()
                 .nullable()
-                .describe('A short title for the results artifact.'),
+                .describe(
+                    'A short title for the result, used when it is presented.',
+                ),
             description: z
                 .string()
                 .nullable()

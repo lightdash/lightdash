@@ -145,7 +145,7 @@ export const resolveTerminalNodeId = (
         throw new Error(
             `The pipeline has ${sinks.length} sinks (${sinks.join(
                 ', ',
-            )}); pass terminalNodeId to pick which node's result the artifact shows`,
+            )}); pass terminalNodeId to pick which node's result this tool returns`,
         );
     }
     return sinks[0];

@@ -21193,7 +21193,7 @@ Presenting results: results are hidden from the user by default. Each successful
               "type": "null",
             },
           ],
-          "description": "A short title for the results artifact.",
+          "description": "A short title for the result, used when it is presented.",
         },
       },
       "required": [

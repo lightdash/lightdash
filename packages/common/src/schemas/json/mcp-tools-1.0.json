@@ -4411,7 +4411,7 @@
                         "type": "string"
                     },
                     "title": {
-                        "description": "A short title for the results artifact.",
+                        "description": "A short title for the result, used when it is presented.",
                         "type": "string"
                     }
                 },
