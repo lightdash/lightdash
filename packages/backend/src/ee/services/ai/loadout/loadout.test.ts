@@ -153,12 +153,13 @@ const contract = (loadout: Loadout) =>
         4,
     )}\n`;
 
-// Wording flags stay at their defaults; systemV2.test pins their variants.
+// Wording flags stay at their defaults; composer renders with the data access it requires.
 const renderPrompt = (loadout: Loadout) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
         promptSections: loadout.promptSections,
+        enableDataAccess: loadout.base === 'composer',
     }).content;
 
 const fixture = (name: string) =>
