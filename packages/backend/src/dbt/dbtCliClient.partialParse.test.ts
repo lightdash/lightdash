@@ -4,6 +4,8 @@ import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import Logger from '../logging/logger';
+import { DbtBaseProjectAdapter } from '../projectAdapters/dbtBaseProjectAdapter';
+import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtCliClient } from './dbtCliClient';
 import { cliArgs, manifestMock } from './dbtCliClient.mock';
 import { DBT_PARTIAL_PARSE_FILE } from './dbtPartialParseBaseline';
@@ -97,6 +99,28 @@ describe('DbtCliClient partial parse', () => {
             'dbt.partialParse command=ls seeded=true reused=true',
             expect.objectContaining({ seeded: true, reused: true }),
         );
+    });
+
+    it('keeps the baseline when adapter disk is released before destroy', async () => {
+        fakeDbt([], 'leaf_a baseline');
+        const client = buildClient(baselinePath);
+        const adapter = new DbtBaseProjectAdapter(
+            client,
+            warehouseClientMock,
+            { warehouseCatalog: {}, onWarehouseCatalogChange: vi.fn() },
+            SupportedDbtVersions.V1_11,
+            root,
+        );
+        await adapter.getDbtManifest();
+        const target = execaMock.mock.calls.find(([, args]) =>
+            args.includes('ls'),
+        )![2].env.DBT_TARGET_PATH;
+        await adapter.releaseDisk();
+        await expect(fs.stat(target)).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(fs.readFile(baselinePath, 'utf8')).resolves.toBe(
+            'leaf_a baseline',
+        );
+        await expect(adapter.destroy()).resolves.toBeUndefined();
     });
 
     it('saves a baseline after the first compile of a project', async () => {

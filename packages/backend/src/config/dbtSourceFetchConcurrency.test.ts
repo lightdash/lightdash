@@ -1,10 +1,16 @@
-import { resolveDbtSourceFetchConcurrency } from './dbtSourceFetchConcurrency';
+import {
+    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES,
+    resolveDbtSourceFetchConcurrency,
+} from './dbtSourceFetchConcurrency';
 
 const GIB = 1024 * 1024 * 1024;
 
 const runtime = (cores: number, memoryBytes: number | undefined) => ({
     availableParallelism: () => cores,
     constrainedMemory: () => memoryBytes,
+    statfs: () => {
+        throw new Error('unknown');
+    },
 });
 
 describe('resolveDbtSourceFetchConcurrency', () => {
@@ -97,7 +103,78 @@ describe('resolveDbtSourceFetchConcurrency', () => {
             availableParallelism: 8,
             constrainedMemoryBytes: 8 * GIB,
             memoryDerivedLimit: 5,
+            diskAvailableBytes: null,
+            diskBudgetSource: 'unknown',
+            diskDerivedLimit: null,
             chosen: 5,
         });
+    });
+});
+
+describe('disk concurrency bound', () => {
+    it('uses the explicit budget before querying the filesystem', () => {
+        const statfs = vi.fn(() => ({ bavail: 1000, bsize: GIB }));
+        const result = resolveDbtSourceFetchConcurrency(
+            undefined,
+            {
+                ...runtime(8, undefined),
+                statfs,
+            },
+            {
+                sourceFetchDiskBudgetBytes:
+                    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES + 3 * 256 * 1024 ** 2,
+            },
+        );
+        expect(result).toMatchObject({
+            diskBudgetSource: 'env',
+            diskDerivedLimit: 3,
+            chosen: 3,
+        });
+        expect(statfs).not.toHaveBeenCalled();
+    });
+    it('uses available blocks from statfs', () => {
+        const result = resolveDbtSourceFetchConcurrency(undefined, {
+            ...runtime(8, undefined),
+            statfs: () => ({ bavail: 3, bsize: GIB }),
+        });
+        expect(result).toMatchObject({
+            diskAvailableBytes: 3 * GIB,
+            diskBudgetSource: 'statfs',
+            diskDerivedLimit: 3,
+            chosen: 3,
+        });
+    });
+    it('keeps the existing bound when statfs fails', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined)),
+        ).toMatchObject({
+            diskAvailableBytes: null,
+            diskBudgetSource: 'unknown',
+            diskDerivedLimit: null,
+            chosen: 8,
+        });
+    });
+    it('lets an override win over a disk budget', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(8, runtime(8, undefined), {
+                sourceFetchDiskBudgetBytes: 1,
+            }).chosen,
+        ).toBe(8);
+    });
+    it('floors at one even when the reserve exceeds the budget', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined), {
+                sourceFetchDiskBudgetBytes: GIB,
+            }),
+        ).toMatchObject({ diskDerivedLimit: 1, chosen: 1 });
+    });
+    it('uses the configured per-source estimate', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined), {
+                sourceFetchDiskBudgetBytes:
+                    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES + GIB,
+                sourceFetchDiskPerSourceBytes: GIB / 2,
+            }).chosen,
+        ).toBe(2);
     });
 });

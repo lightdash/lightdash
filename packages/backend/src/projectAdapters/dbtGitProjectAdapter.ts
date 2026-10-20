@@ -120,8 +120,20 @@ export class DbtGitProjectAdapter
 
     async destroy(): Promise<void> {
         Logger.debug(`Destroy git project adapter`);
-        await this._destroyLocal();
         await super.destroy();
+    }
+
+    async releaseDisk(options?: { keepProject?: boolean }): Promise<void> {
+        await Promise.allSettled([
+            ...(this.gitRefresh ? [this.gitRefresh] : []),
+            ...(this.gitPreparation ? [this.gitPreparation] : []),
+        ]);
+        await super.releaseDisk(options);
+        if (!options?.keepProject) {
+            await this._destroyLocal();
+            this.gitRefresh = null;
+            this.gitPreparation = null;
+        }
     }
 
     private async _destroyLocal() {

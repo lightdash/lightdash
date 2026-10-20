@@ -1,15 +1,28 @@
 import {
     AuthorizationError,
     NotFoundError,
+    SupportedDbtVersions,
     UnexpectedGitError,
     UnexpectedServerError,
     type DbtManifest,
     type ExploreError,
 } from '@lightdash/common';
 import { GitError } from 'simple-git';
+import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
 import { gitErrorHandler } from './gitRepository';
+
+const buildGitAdapter = () => {
+    const adapter = new DbtBaseProjectAdapter(
+        {} as DbtGitProjectAdapter['dbtClient'],
+        warehouseClientMock,
+        { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
+        SupportedDbtVersions.V1_7,
+    );
+    Object.setPrototypeOf(adapter, DbtGitProjectAdapter.prototype);
+    return adapter as DbtGitProjectAdapter;
+};
 
 const TOKEN_URL =
     'https://lightdash:ghp_secret_token_123@github.com/org/repo.git';
@@ -97,9 +110,7 @@ describe('Git explore compilation', () => {
     it.each(['prepareExploreStream', 'compileAllExplores'] as const)(
         '%s refreshes the checkout before preparing the compile',
         async (method) => {
-            const adapter = Object.create(
-                DbtGitProjectAdapter.prototype,
-            ) as DbtGitProjectAdapter;
+            const adapter = buildGitAdapter();
             const refresh = vi.fn(async () => undefined);
             Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
             adapter.dbtClient = {
@@ -150,9 +161,7 @@ describe('Git manifest fetch', () => {
     });
 
     it('refreshes and installs dependencies once across two manifest fetches', async () => {
-        const adapter = Object.create(
-            DbtGitProjectAdapter.prototype,
-        ) as DbtGitProjectAdapter;
+        const adapter = buildGitAdapter();
         const refresh = vi.fn(async () => {
             vi.advanceTimersByTime(12500);
         });

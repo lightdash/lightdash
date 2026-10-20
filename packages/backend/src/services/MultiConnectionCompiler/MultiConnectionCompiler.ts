@@ -96,7 +96,27 @@ export type LoadExtraConnectionCredentials = (
     warehouseConnectionUuid: string,
 ) => Promise<CreateWarehouseCredentials>;
 
+type SourceDiskLifecycle = {
+    withSourceDisk?: <R>(
+        source: CompilableDbtSource,
+        credentials: CreateWarehouseCredentials,
+        connection: ScopedWarehouseConnection,
+        operation: () => Promise<R>,
+        signal: AbortSignal,
+    ) => Promise<R>;
+    prepareSourceFetch?: (
+        source: CompilableDbtSource,
+        credentials: CreateWarehouseCredentials,
+        connection: ScopedWarehouseConnection,
+        options: { signal: AbortSignal },
+    ) => Promise<void>;
+    releaseSourceDisk?: (source: CompilableDbtSource) => Promise<void>;
+    releaseAllSourceDisk?: () => Promise<void>;
+    diskStats?: { diskEvictions: number; diskRecreations: number };
+};
+
 export type PrimaryCompileInput = {
+    releaseDisk?: () => Promise<void>;
     prepare?: (options?: {
         signal?: AbortSignal;
     }) => Promise<DbtProjectScan | null>;
@@ -174,7 +194,7 @@ class ExtraConnectionCheckError extends Error {
     }
 }
 
-type MultiConnectionCompileInput = {
+type MultiConnectionCompileInput = SourceDiskLifecycle & {
     projectUuid: string;
     context: ConnectionContext;
     primary: PrimaryCompileInput;
@@ -236,10 +256,10 @@ export class MultiConnectionCompiler {
         projectUuid: string,
         primaryTask?: CrossSourceFetchTask<
             Omit<SourceManifest, 'manifest' | 'selectedModelIds'>
-        >,
+        > & { releaseDisk?: () => Promise<void> },
         prepareSourceManifest?: PrepareSourceManifest,
         warnings: string[] = [],
-        resolutionOptions: {
+        resolutionOptions: SourceDiskLifecycle & {
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
             resolutionElapsedMs?: number;
@@ -251,7 +271,37 @@ export class MultiConnectionCompiler {
             }[];
         } = {},
     ): Promise<SourceManifest[]> {
+        const activeFetches = new Set<Promise<CrossSourceFetchResult>>();
+        const releaseFailed = async (error: unknown): Promise<never> => {
+            await Promise.allSettled([...activeFetches]);
+            await Promise.allSettled(
+                sources.map(async (source) =>
+                    resolutionOptions.releaseSourceDisk?.(source),
+                ),
+            );
+            await primaryTask?.releaseDisk?.();
+            throw error;
+        };
         const sourceTasks = sources.map((source) => ({
+            withDisk: resolutionOptions.withSourceDisk
+                ? <R>(operation: () => Promise<R>, signal: AbortSignal) =>
+                      resolutionOptions.withSourceDisk!(
+                          source,
+                          warehouseCredentials,
+                          connection,
+                          operation,
+                          signal,
+                      )
+                : undefined,
+            prepareFetch: resolutionOptions.prepareSourceFetch
+                ? (options: { signal: AbortSignal }) =>
+                      resolutionOptions.prepareSourceFetch!(
+                          source,
+                          warehouseCredentials,
+                          connection,
+                          options,
+                      )
+                : undefined,
             prepare: prepareSourceManifest
                 ? async (options?: { signal?: AbortSignal }) => {
                       try {
@@ -288,12 +338,15 @@ export class MultiConnectionCompiler {
                         ? ` (${source.dbtConnection.repository})`
                         : '';
                 try {
-                    return await fetchSourceManifest(
+                    const result = await fetchSourceManifest(
                         source,
                         warehouseCredentials,
                         connection,
                         options,
                     );
+                    if (!enabled)
+                        await resolutionOptions.releaseSourceDisk?.(source);
+                    return result;
                 } catch (error) {
                     const hinted = withCrossSourceRefsHint(error, enabled);
                     throw new DbtSourceError(
@@ -307,6 +360,7 @@ export class MultiConnectionCompiler {
             const primarySources: SourceManifest[] = [];
             if (primaryTask) {
                 const result = await primaryTask.fetch({ externalNodes: [] });
+                await primaryTask.releaseDisk?.();
                 primarySources.push({
                     ...primaryTask.context,
                     manifest: result.manifest,
@@ -315,16 +369,25 @@ export class MultiConnectionCompiler {
             }
             return [
                 ...primarySources,
-                ...(await Promise.all(
-                    sourceTasks.map(async (task) => {
-                        const result = await task.fetch({ externalNodes: [] });
+                ...(await runWithConcurrency(
+                    sourceTasks,
+                    concurrency,
+                    async (task) => {
+                        const fetch = task.fetch({ externalNodes: [] });
+                        activeFetches.add(fetch);
+                        let result: CrossSourceFetchResult;
+                        try {
+                            result = await fetch;
+                        } finally {
+                            activeFetches.delete(fetch);
+                        }
                         return {
                             ...task.context,
                             manifest: result.manifest,
                             selectedModelIds: result.selectedModelIds,
                         };
-                    }),
-                )),
+                    },
+                ).catch(releaseFailed)),
             ];
         }
         const resolution = await resolveCrossSourceManifests({
@@ -333,10 +396,20 @@ export class MultiConnectionCompiler {
             tasks: [...(primaryTask ? [primaryTask] : []), ...sourceTasks],
             signal: armCompileShutdown(),
             ...resolutionOptions,
-        });
+            onSourceFinal: async (task) => {
+                const source = sources.find(
+                    (candidate) =>
+                        candidate.projectDbtSourceUuid ===
+                        task.context.dbtSourceUuid,
+                );
+                if (source) await resolutionOptions.releaseSourceDisk?.(source);
+                else await primaryTask?.releaseDisk?.();
+            },
+        }).catch(releaseFailed);
         warnings.push(...resolution.warnings);
         if (enabled) {
             Logger.info('dbt.compile.crossSourceRefsResolved', {
+                ...resolutionOptions.diskStats,
                 event: 'dbt.compile.crossSourceRefsResolved',
                 projectUuid,
                 rounds: resolution.rounds,
@@ -583,7 +656,11 @@ export class MultiConnectionCompiler {
                 ? await cancellation.wait('connections', compile)
                 : await compile();
         } catch (error) {
-            if (cancellation) return await cancellation.fail(error);
+            try {
+                if (cancellation) await cancellation.fail(error);
+            } finally {
+                await input.releaseAllSourceDisk?.();
+            }
             throw error;
         } finally {
             cancellation?.dispose();
@@ -607,6 +684,11 @@ export class MultiConnectionCompiler {
             trackingParams,
             analytics,
             crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
+            withSourceDisk,
+            prepareSourceFetch,
+            releaseSourceDisk,
+            releaseAllSourceDisk,
+            diskStats,
         }: MultiConnectionCompileInput,
         compileSignal: AbortSignal | undefined,
         callerSignal: AbortSignal | undefined,
@@ -715,7 +797,15 @@ export class MultiConnectionCompiler {
                             },
                         );
                     } catch (error) {
-                        await groupCancellation.fail(error);
+                        try {
+                            await groupCancellation.fail(error);
+                        } finally {
+                            await Promise.allSettled(
+                                plan.sources.map(async (source) =>
+                                    releaseSourceDisk?.(source),
+                                ),
+                            );
+                        }
                     } finally {
                         groupCancellation.dispose();
                     }
@@ -796,8 +886,13 @@ export class MultiConnectionCompiler {
                 preparedSourceManifest = async (source) =>
                     scans.get(source.projectDbtSourceUuid) ?? null;
             }
-            const resolutionOptions = (plan: CompileGroupPlan) =>
-                crossSourceRefsEnabled
+            const resolutionOptions = (plan: CompileGroupPlan) => ({
+                withSourceDisk,
+                prepareSourceFetch,
+                releaseSourceDisk,
+                releaseAllSourceDisk,
+                diskStats,
+                ...(crossSourceRefsEnabled
                     ? {
                           signal: compileSignal,
                           timeouts: crossSourceTimeouts,
@@ -811,7 +906,8 @@ export class MultiConnectionCompiler {
                                   plan.warehouseConnectionUuid,
                           ),
                       }
-                    : undefined;
+                    : {}),
+            });
             const originalSources =
                 await MultiConnectionCompiler.fetchSourceManifests(
                     originalPlan.sources,
@@ -823,6 +919,7 @@ export class MultiConnectionCompiler {
                     projectUuid,
                     {
                         prepare: preparedPrimary.prepare,
+                        releaseDisk: primary.releaseDisk,
                         key: identity.dbtSourceName,
                         context: {
                             name: identity.dbtSourceName,

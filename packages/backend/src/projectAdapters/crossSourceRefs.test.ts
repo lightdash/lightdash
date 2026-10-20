@@ -1133,3 +1133,82 @@ it('starts source deadlines only after a concurrency slot is available', async (
         vi.useRealTimers();
     }
 });
+
+describe('source final callback', () => {
+    it('calls once after the successful retry and skips sources that never resolve', async () => {
+        const final = vi.fn();
+        const leaf = task(
+            'leaf_a',
+            vi
+                .fn()
+                .mockRejectedValueOnce(missing('leaf_b'))
+                .mockImplementationOnce(async () => {
+                    expect(
+                        final.mock.calls.map(([item]) => item.key),
+                    ).not.toContain('leaf_a');
+                    return result('leaf_a');
+                }),
+        );
+        await resolveCrossSourceManifests({
+            tasks: [leaf, task('leaf_b')],
+            enabled: true,
+            concurrency: 1,
+            onSourceFinal: final,
+        });
+        expect(final.mock.calls.map(([item]) => item.key)).toEqual([
+            'leaf_b',
+            'leaf_a',
+        ]);
+        final.mockClear();
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [
+                    task(
+                        'leaf_c',
+                        vi.fn().mockRejectedValue(missing('unknown')),
+                    ),
+                ],
+                enabled: true,
+                concurrency: 1,
+                onSourceFinal: final,
+            }),
+        ).rejects.toThrow();
+        expect(final).not.toHaveBeenCalled();
+    });
+    it('ignores the callback when disabled', async () => {
+        const final = vi.fn();
+        await resolveCrossSourceManifests({
+            tasks: [task('leaf_a')],
+            enabled: false,
+            concurrency: 1,
+            onSourceFinal: final,
+        });
+        expect(final).not.toHaveBeenCalled();
+    });
+});
+
+describe('source recreation deadline', () => {
+    it('applies the prepare deadline before a re-created source can fetch', async () => {
+        const leaf = task('leaf_a');
+        leaf.prepareFetch = async ({ signal }) =>
+            new Promise((_resolve, reject) => {
+                signal.addEventListener('abort', () => reject(signal.reason), {
+                    once: true,
+                });
+            });
+        const final = vi.fn();
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [leaf],
+                concurrency: 1,
+                enabled: true,
+                timeouts: { prepareMs: 10, lsMs: 1000, resolutionMs: 2000 },
+                onSourceFinal: final,
+            }),
+        ).rejects.toThrow(
+            'while cloning the repository and installing dbt packages',
+        );
+        expect(leaf.fetch).not.toHaveBeenCalled();
+        expect(final).not.toHaveBeenCalled();
+    });
+});

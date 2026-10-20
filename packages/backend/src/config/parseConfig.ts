@@ -1724,6 +1724,8 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        sourceFetchDiskBudgetBytes: number | undefined;
+        sourceFetchDiskPerSourceBytes: number;
         crossSourcePrepareTimeoutMs: number;
         crossSourceLsTimeoutMs: number;
         crossSourceResolutionTimeoutMs: number;
@@ -3705,6 +3707,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
                 ) ?? 1200000,
+            sourceFetchDiskBudgetBytes: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
+            ),
+            sourceFetchDiskPerSourceBytes:
+                getPositiveIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES',
+                    256 * 1024 ** 2,
+                ),
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),

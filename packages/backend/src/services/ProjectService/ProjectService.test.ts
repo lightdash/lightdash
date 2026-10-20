@@ -13978,6 +13978,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 projectDir: null,
                 timings: { gitRefreshMs: null, depsMs: null },
             })),
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 ...(selectedModelIds ? { selectedModelIds } : {}),
@@ -14158,6 +14159,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     path: 'models/calendar.sql',
                 });
                 expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(downstreamAdapter.releaseDisk).toHaveBeenCalledOnce();
+                expect(
+                    vi.mocked(downstreamAdapter.releaseDisk).mock
+                        .invocationCallOrder[0],
+                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[1]);
                 expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
                     expect.objectContaining({
                         package_name: 'shared',
@@ -14340,6 +14346,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             waitFor: Promise<void> = Promise.resolve(),
         ) =>
             ({
+                releaseDisk: vi.fn(async () => undefined),
                 getDbtManifest: vi.fn(async () => {
                     events.push(`${name} started`);
                     await waitFor;
@@ -14367,9 +14374,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             vi.spyOn(projectService, 'buildSourceAdapter').mockImplementation(
                 async () =>
                     ({
+                        releaseDisk: vi.fn(async () => {
+                            sourceStarted();
+                        }),
                         getDbtManifest: vi.fn(async () => {
                             events.push('source-b started');
-                            sourceStarted();
                             events.push('source-b finished');
                             return {
                                 manifest: sourceManifest(),
@@ -14487,6 +14496,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             );
             const manifestFetchAdapters: ProjectAdapter[] = [];
             const failingPrimaryAdapter = {
+                releaseDisk: vi.fn(async () => undefined),
                 getDbtManifest: vi.fn(async () => {
                     throw new Error('dbt ls failed in the primary');
                 }),
@@ -15236,6 +15246,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         const primaryCompileAdapter = {
             test: vi.fn(async () => undefined),
             prepareDbtSource: preparePrimary,
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest: primaryManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -15245,6 +15256,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } as unknown as ProjectAdapter;
         const sourceAdapter = {
             prepareDbtSource: vi.fn(async () => ({ projectDir: null })),
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest: sourceManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -21004,6 +21016,7 @@ describe('compile adapter connection credentials', () => {
         };
         const primaryAdapter = {
             ...adapter,
+            releaseDisk: vi.fn(async () => undefined),
             getDbtManifest: vi.fn(async () => ({
                 manifest,
                 timings: NO_FETCH_TIMINGS,

@@ -254,6 +254,10 @@ export class NativeGitProjectAdapter implements ProjectAdapter {
         );
     }
 
+    async releaseDisk(): Promise<void> {
+        await this.destroy();
+    }
+
     async destroy(): Promise<void> {
         try {
             await fsp.rm(this.localRepositoryDir, {

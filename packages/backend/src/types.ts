@@ -72,6 +72,8 @@ export interface ProjectAdapter {
 
     test(options?: { signal?: AbortSignal }): Promise<void>;
 
+    releaseDisk(options?: { keepProject?: boolean }): Promise<void>;
+
     destroy(): Promise<void>;
 
     getLightdashProjectConfig(

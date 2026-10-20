@@ -895,3 +895,79 @@ describe('cross-source compile boundaries', () => {
         expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
     });
 });
+
+describe('multi-connection source disk lifecycle', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it.each([false, true])(
+        'releases final sources before compilation with enabled=%s',
+        async (enabled) => {
+            const h = harness({ providerGroup: 'extra', crossSource: enabled });
+            const events: string[] = [];
+            h.input.concurrency = 1;
+            h.fetchSourceManifest.mockImplementation(async (dbtSource) => {
+                events.push(`fetch ${dbtSource.name}`);
+                return {
+                    manifest: manifest(
+                        dbtSource.name,
+                        dbtSource.name,
+                        SupportedDbtAdapter.POSTGRES,
+                    ),
+                    timings: {
+                        gitRefreshMs: null,
+                        depsMs: null,
+                        manifestMs: 1,
+                    },
+                };
+            });
+            const primaryRelease = vi.fn(async () => {
+                events.push('primary release');
+            });
+            h.input.primary.releaseDisk = primaryRelease;
+            h.input.releaseSourceDisk = vi.fn(async (dbtSource) => {
+                events.push(`release ${dbtSource.name}`);
+            });
+            await h.compiler.compile(h.input);
+            const order = enabled
+                ? ['shared', 'analytics']
+                : ['analytics', 'shared'];
+            expect(events).toEqual([
+                'primary release',
+                ...order.flatMap((name) => [
+                    `fetch ${name}`,
+                    `release ${name}`,
+                ]),
+            ]);
+            expect(primaryRelease).toHaveBeenCalledOnce();
+        },
+    );
+    it('waits for aborted work to settle before releasing all adapters', async () => {
+        const h = harness();
+        h.input.crossSourceTimeouts = {
+            prepareMs: 10,
+            lsMs: 1000,
+            resolutionMs: 2000,
+        };
+        let settled = false;
+        h.input.primary.prepare = async (options) =>
+            new Promise((_resolve, reject) => {
+                options!.signal!.addEventListener(
+                    'abort',
+                    () => {
+                        setImmediate(() => {
+                            settled = true;
+                            reject(options!.signal!.reason);
+                        });
+                    },
+                    { once: true },
+                );
+            });
+        const release = vi.fn(async () => {
+            expect(settled).toBe(true);
+        });
+        h.input.releaseAllSourceDisk = release;
+        await expect(h.compiler.compile(h.input)).rejects.toThrow(
+            'cloning the repository',
+        );
+        expect(release).toHaveBeenCalledOnce();
+    });
+});

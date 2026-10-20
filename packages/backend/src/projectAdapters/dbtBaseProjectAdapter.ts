@@ -73,6 +73,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     private preparation: Promise<DbtSourcePreparation> | null = null;
 
+    private readonly manifestFetches = new Set<
+        Promise<DbtManifestFetchResult>
+    >();
+
     private preparationTimingsReported = false;
 
     constructor(
@@ -93,7 +97,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
+        await this.releaseDisk();
+    }
+
+    async releaseDisk(_options?: { keepProject?: boolean }): Promise<void> {
+        await Promise.allSettled([
+            ...this.manifestFetches,
+            ...(this.preparation ? [this.preparation] : []),
+        ]);
         await this.dbtClient.cleanup?.();
+        this.preparation = null;
+        this.preparationTimingsReported = false;
     }
 
     public async test(options?: { signal?: AbortSignal }): Promise<void> {
@@ -148,6 +162,18 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     }
 
     public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const fetch = this.fetchDbtManifest(options);
+        this.manifestFetches.add(fetch);
+        try {
+            return await fetch;
+        } finally {
+            this.manifestFetches.delete(fetch);
+        }
+    }
+
+    private async fetchDbtManifest(
         options?: DbtManifestFetchOptions,
     ): Promise<DbtManifestFetchResult> {
         const preparation = await this.prepareDbtSource(

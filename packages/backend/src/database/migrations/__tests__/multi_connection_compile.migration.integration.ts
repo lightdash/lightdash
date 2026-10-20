@@ -953,6 +953,7 @@ describe('Multi-connection compile on the real schema', () => {
                                 manifestMs: 0,
                             },
                         }),
+                        releaseDisk: async () => {},
                         destroy: async () => {},
                     };
                 },

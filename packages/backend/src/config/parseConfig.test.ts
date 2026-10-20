@@ -3161,3 +3161,20 @@ describe('cross-source dbt deadlines', () => {
         });
     });
 });
+
+describe('dbt source disk configuration', () => {
+    it('defaults the estimate and leaves the budget unset', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: undefined,
+            sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
+        });
+    });
+    it('parses both disk settings', () => {
+        process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES = '1073741824';
+        process.env.DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = '134217728';
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: 1073741824,
+            sourceFetchDiskPerSourceBytes: 134217728,
+        });
+    });
+});

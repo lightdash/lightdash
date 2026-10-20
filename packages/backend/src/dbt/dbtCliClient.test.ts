@@ -391,23 +391,15 @@ describe.each(['local', 'git'] as const)('%s connection test', (source) => {
         refresh = vi.fn(async () => {
             sequence.push('refresh');
         });
+        adapter = new DbtBaseProjectAdapter(
+            client,
+            warehouseClient,
+            { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
+            SupportedDbtVersions.V1_9,
+        );
         if (source === 'git') {
-            adapter = Object.create(
-                DbtGitProjectAdapter.prototype,
-            ) as DbtGitProjectAdapter;
+            Object.setPrototypeOf(adapter, DbtGitProjectAdapter.prototype);
             Object.defineProperty(adapter, '_refreshRepo', { value: refresh });
-            adapter.dbtClient = client;
-            adapter.warehouseClient = warehouseClient;
-        } else {
-            adapter = new DbtBaseProjectAdapter(
-                client,
-                warehouseClient,
-                {
-                    warehouseCatalog: undefined,
-                    onWarehouseCatalogChange: vi.fn(),
-                },
-                SupportedDbtVersions.V1_9,
-            );
         }
     });
 

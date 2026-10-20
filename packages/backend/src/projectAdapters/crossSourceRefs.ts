@@ -36,6 +36,11 @@ export type CrossSourceFetchTask<T> = {
         options: DbtManifestFetchOptions,
     ) => Promise<CrossSourceFetchResult>;
     context: T;
+    withDisk?: <R>(
+        operation: () => Promise<R>,
+        signal: AbortSignal,
+    ) => Promise<R>;
+    prepareFetch?: (options: { signal: AbortSignal }) => Promise<void>;
     prepare?: (options?: {
         signal?: AbortSignal;
     }) => Promise<DbtProjectScan | null>;
@@ -65,6 +70,7 @@ export const resolveCrossSourceManifests = async <T>({
     enabled,
     concurrency,
     onRoundComplete,
+    onSourceFinal,
     signal,
     timeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
     resolutionElapsedMs = 0,
@@ -75,6 +81,7 @@ export const resolveCrossSourceManifests = async <T>({
     enabled: boolean;
     concurrency: number;
     onRoundComplete?: (round: number) => void;
+    onSourceFinal?: (task: CrossSourceFetchTask<T>) => Promise<void> | void;
     signal?: AbortSignal;
     timeouts?: CrossSourceTimeouts;
     resolutionElapsedMs?: number;
@@ -314,14 +321,23 @@ export const resolveCrossSourceManifests = async <T>({
                 firstAttemptInjected += 1;
             fetchedTasks.add(task);
             try {
-                const result = await cancellation.run(
-                    task.key,
-                    'ls',
-                    (fetchSignal) => {
+                const fetch = async () => {
+                    if (task.prepareFetch) {
+                        await cancellation.run(
+                            task.key,
+                            'prepare',
+                            (prepareSignal) =>
+                                task.prepareFetch!({ signal: prepareSignal }),
+                        );
+                    }
+                    return cancellation.run(task.key, 'ls', (fetchSignal) => {
                         onFetchStart?.();
                         return task.fetch({ ...options, signal: fetchSignal });
-                    },
-                );
+                    });
+                };
+                const result = await (task.withDisk
+                    ? task.withDisk(fetch, cancellation.controller.signal)
+                    : fetch());
                 if (options.externalNodes.length === 0)
                     return { ok: true, result };
                 Object.values(result.manifest.nodes)
@@ -516,6 +532,7 @@ export const resolveCrossSourceManifests = async <T>({
                         (provider) => provider.task.key,
                     ),
                 });
+                await onSourceFinal?.(task);
             } else {
                 if (getMissingDbtNodeReferences(outcome.error).length === 0)
                     throw outcome.error;
@@ -829,7 +846,8 @@ export const resolveCrossSourceManifests = async <T>({
                 },
             );
             let progressed = false;
-            outcomes.forEach((outcome, index) => {
+            const finalized: CrossSourceFetchTask<T>[] = [];
+            for (const [index, outcome] of outcomes.entries()) {
                 const task = ready[index];
                 remaining.delete(task);
                 blocked.delete(task);
@@ -852,6 +870,7 @@ export const resolveCrossSourceManifests = async <T>({
                             )
                             .map((provider) => provider.task.key),
                     });
+                    finalized.push(task);
                     progressed = true;
                 } else {
                     const references = getMissingDbtNodeReferences(
@@ -865,7 +884,8 @@ export const resolveCrossSourceManifests = async <T>({
                         progressed = true;
                     pending.set(task, outcome.error);
                 }
-            });
+            }
+            await Promise.all(finalized.map((task) => onSourceFinal?.(task)));
             if (!progressed && pending.size > 0) return releaseHints();
             return resolvePending();
         };

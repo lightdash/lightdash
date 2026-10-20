@@ -33,6 +33,10 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
+    async releaseDisk(): Promise<void> {
+        await this.destroy();
+    }
+
     async destroy(): Promise<void> {
         Logger.debug(`Destroy none project adapter`);
     }

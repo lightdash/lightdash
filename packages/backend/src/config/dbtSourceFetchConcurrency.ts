@@ -1,4 +1,6 @@
+import fs from 'fs';
 import os from 'os';
+import { DBT_PARTIAL_PARSE_BASELINE_LIMITS } from '../dbt/dbtPartialParseBaseline';
 
 export const DBT_SOURCE_FETCH_MEMORY_RESERVE_BYTES = 3 * 1024 * 1024 * 1024;
 export const DBT_SOURCE_FETCH_MEMORY_PER_SOURCE_BYTES = 1024 * 1024 * 1024;
@@ -10,11 +12,23 @@ export const DBT_SOURCE_FETCH_MAX_CONCURRENCY = 8;
  */
 export const DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY = 2;
 
+export const DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = 256 * 1024 ** 2;
+export const DBT_SOURCE_FETCH_DISK_RESERVE_BYTES =
+    256 * 1024 ** 2 + DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes;
+
+export type DbtSourceFetchDiskConfig = {
+    sourceFetchDiskBudgetBytes?: number;
+    sourceFetchDiskPerSourceBytes?: number;
+};
+
 export type DbtSourceFetchConcurrencyInputs = {
     override: number | undefined;
     availableParallelism: number;
     constrainedMemoryBytes: number | undefined;
     memoryDerivedLimit: number | null;
+    diskAvailableBytes: number | null;
+    diskBudgetSource: 'env' | 'statfs' | 'unknown';
+    diskDerivedLimit: number | null;
     chosen: number;
 };
 
@@ -39,6 +53,7 @@ export const resolveDbtSourceFetchConcurrency = (
     runtime: {
         availableParallelism: () => number;
         constrainedMemory: () => number | undefined;
+        statfs?: () => { bavail: number; bsize: number };
     } = {
         availableParallelism: () => os.availableParallelism(),
         constrainedMemory: () =>
@@ -46,6 +61,7 @@ export const resolveDbtSourceFetchConcurrency = (
                 ? process.constrainedMemory()
                 : undefined,
     },
+    disk: DbtSourceFetchDiskConfig = {},
 ): DbtSourceFetchConcurrencyInputs => {
     const availableParallelism = Math.max(1, runtime.availableParallelism());
     const constrainedMemoryBytes = runtime.constrainedMemory();
@@ -59,8 +75,42 @@ export const resolveDbtSourceFetchConcurrency = (
               )
             : null;
 
+    let diskAvailableBytes = disk.sourceFetchDiskBudgetBytes ?? null;
+    let diskBudgetSource: DbtSourceFetchConcurrencyInputs['diskBudgetSource'] =
+        diskAvailableBytes === null ? 'unknown' : 'env';
+    if (diskAvailableBytes === null) {
+        try {
+            const stats = runtime.statfs?.() ?? fs.statfsSync(os.tmpdir());
+            diskAvailableBytes = stats.bavail * stats.bsize;
+            diskBudgetSource = 'statfs';
+        } catch {
+            diskAvailableBytes = null;
+        }
+    }
+    const diskDerivedLimit =
+        diskAvailableBytes === null
+            ? null
+            : Math.max(
+                  1,
+                  Math.floor(
+                      (diskAvailableBytes -
+                          DBT_SOURCE_FETCH_DISK_RESERVE_BYTES) /
+                          Math.max(
+                              1,
+                              disk.sourceFetchDiskPerSourceBytes ??
+                                  DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES,
+                          ),
+                  ),
+              );
+    const diskInputs = {
+        diskAvailableBytes,
+        diskBudgetSource,
+        diskDerivedLimit,
+    };
+
     if (override !== undefined) {
         return {
+            ...diskInputs,
             override,
             availableParallelism,
             constrainedMemoryBytes,
@@ -80,10 +130,12 @@ export const resolveDbtSourceFetchConcurrency = (
     );
     const chosen = Math.min(
         DBT_SOURCE_FETCH_MAX_CONCURRENCY,
+        diskDerivedLimit ?? Number.POSITIVE_INFINITY,
         Math.max(1, bounded),
     );
 
     return {
+        ...diskInputs,
         override,
         availableParallelism,
         constrainedMemoryBytes,
