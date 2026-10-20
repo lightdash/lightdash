@@ -1,3 +1,20 @@
+# [2.623.0](https://github.com/lightdash/lightdash/compare/2.622.2...2.623.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **mcp:** keep chart types without a paint signal in the chart view ([#31184](https://github.com/lightdash/lightdash/issues/31184)) ([6f9926f](https://github.com/lightdash/lightdash/commit/6f9926f126658bb52f0a23be7c8da51ee28ca65e))
+* **mcp:** open custom chart types from render_chart explore links ([#31181](https://github.com/lightdash/lightdash/issues/31181)) ([9a4bac2](https://github.com/lightdash/lightdash/commit/9a4bac26b21ba4046c2aa5756f49e886b8c5c3e3))
+* **mcp:** pivot custom chart types with a series slot in render_chart ([#31182](https://github.com/lightdash/lightdash/issues/31182)) ([a270f67](https://github.com/lightdash/lightdash/commit/a270f67b522f6fea5b5b9358ee78f3c0cf257864))
+
+
+### Features
+
+* **mcp:** accept custom chart types in render_chart ([#31104](https://github.com/lightdash/lightdash/issues/31104)) ([626549d](https://github.com/lightdash/lightdash/commit/626549d755e8402b1dc646d75a6b932e733a5497))
+* **mcp:** draw custom chart types in the render_chart view ([#31183](https://github.com/lightdash/lightdash/issues/31183)) ([c957efe](https://github.com/lightdash/lightdash/commit/c957efe9d96d23b0fe08d786b9e18efaa0e55650))
+* **mcp:** let the render_chart view load custom chart types ([#31107](https://github.com/lightdash/lightdash/issues/31107)) ([4beff38](https://github.com/lightdash/lightdash/commit/4beff38018ddf27d38b45452826b3fede39f7db5))
+* **mcp:** load custom chart type frames through an app-only tool ([#31212](https://github.com/lightdash/lightdash/issues/31212)) ([a0af465](https://github.com/lightdash/lightdash/commit/a0af4652f5a9362ea69f499052935aa916756a84))
+
 ## [2.622.2](https://github.com/lightdash/lightdash/compare/2.622.1...2.622.2) (2026-10-20)
 
 
