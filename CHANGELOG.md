@@ -1,3 +1,10 @@
+# [2.625.0](https://github.com/lightdash/lightdash/compare/2.624.0...2.625.0) (2026-10-20)
+
+
+### Features
+
+* **ai-agents:** bind threads to a dashboard and accept initial thread context ([#31214](https://github.com/lightdash/lightdash/issues/31214)) ([c6e1eb8](https://github.com/lightdash/lightdash/commit/c6e1eb830d3f5271deb03ea2f331e27ea16a2cf9))
+
 # [2.624.0](https://github.com/lightdash/lightdash/compare/2.623.0...2.624.0) (2026-10-20)
 
 
