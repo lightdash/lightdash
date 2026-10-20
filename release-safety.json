@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "2.617.0",
-  "previousVersion": "2.616.2",
-  "releaseDate": "2026-10-20T07:55:33.824Z",
+  "version": "2.618.0",
+  "previousVersion": "2.617.0",
+  "releaseDate": "2026-10-20T08:25:06.914Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261019160350_create_composer_query_nodes.ts",
+        "edition": "ee",
+        "tables": [
+          "composer_query_nodes"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,10 +33,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `listDataAppConnections` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

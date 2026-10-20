@@ -38812,7 +38812,7 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
-                                                        artifactVersionUuid: {
+                                                        description: {
                                                             dataType: 'union',
                                                             subSchemas: [
                                                                 {
@@ -38821,55 +38821,29 @@ const models: TsoaRoute.Models = {
                                                                 },
                                                                 {
                                                                     dataType:
-                                                                        'undefined',
+                                                                        'enum',
+                                                                    enums: [
+                                                                        null,
+                                                                    ],
                                                                 },
                                                             ],
+                                                            required: true,
+                                                        },
+                                                        title: {
+                                                            dataType: 'string',
+                                                            required: true,
+                                                        },
+                                                        terminalNodeId: {
+                                                            dataType: 'string',
+                                                            required: true,
                                                         },
                                                         queryUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
+                                                            dataType: 'string',
+                                                            required: true,
                                                         },
                                                         status: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'error',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'success',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'rejected',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'timeout',
-                                                                    ],
-                                                                },
-                                                            ],
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
                                                             required: true,
                                                         },
                                                     },
@@ -38894,32 +38868,6 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
-                                                        artifactVersionUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
-                                                        },
-                                                        queryUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
-                                                        },
                                                         status: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -38928,13 +38876,6 @@ const models: TsoaRoute.Models = {
                                                                         'enum',
                                                                     enums: [
                                                                         'error',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'success',
                                                                     ],
                                                                 },
                                                                 {

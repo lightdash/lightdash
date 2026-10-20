@@ -1,3 +1,12 @@
+# [2.618.0](https://github.com/lightdash/lightdash/compare/2.617.0...2.618.0) (2026-10-20)
+
+
+### Features
+
+* **ai-agent:** present composer nodes explicitly on web ([#31202](https://github.com/lightdash/lightdash/issues/31202)) ([c499774](https://github.com/lightdash/lightdash/commit/c499774a8839c19f6f7b1193dc5e99c646d8f0cb))
+* **ai-agent:** Slack presents composer results via slack-table marker ([#31192](https://github.com/lightdash/lightdash/issues/31192)) ([69cd1af](https://github.com/lightdash/lightdash/commit/69cd1af425407b2c9d1ca0f58bd3b94596faec96))
+* **ai-agent:** thread composer query nodes registry ([#31201](https://github.com/lightdash/lightdash/issues/31201)) ([1c43ac5](https://github.com/lightdash/lightdash/commit/1c43ac5bf73e56c813a832b53b1b91e0c29ca903))
+
 # [2.617.0](https://github.com/lightdash/lightdash/compare/2.616.2...2.617.0) (2026-10-20)
 
 
