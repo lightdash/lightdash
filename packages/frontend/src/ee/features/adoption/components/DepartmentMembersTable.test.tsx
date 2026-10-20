@@ -46,6 +46,15 @@ describe('DepartmentMembersTable', () => {
             within(bodyRows()[0]).getByText('stale@example.com'),
         ).toBeVisible();
     });
+    it('says so when a filter matches nobody', async () => {
+        renderWithProviders(
+            <DepartmentMembersTable
+                members={[memberFixture('recent', new Date().toISOString())]}
+            />,
+        );
+        await userEvent.click(screen.getByText('Never active (0)'));
+        expect(screen.getByText('Nobody matches this filter')).toBeVisible();
+    });
     it('says so when no one has an account', () => {
         renderWithProviders(<DepartmentMembersTable members={[]} />);
         expect(

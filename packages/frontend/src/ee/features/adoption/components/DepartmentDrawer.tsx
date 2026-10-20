@@ -63,6 +63,8 @@ type FormProps = {
     departments: DepartmentWithMetrics[];
     onClose: () => void;
     onCreated?: (name: string) => void;
+    onDeleteStart?: () => void;
+    onDeleteEnd?: (succeeded: boolean) => void;
 };
 
 type SavedDepartment = { departmentUuid: string; core: CreateDepartment };
@@ -78,6 +80,8 @@ export const DepartmentForm: FC<FormProps> = ({
     departments,
     onClose,
     onCreated,
+    onDeleteStart,
+    onDeleteEnd,
 }) => {
     const createDepartment = useCreateDepartment();
     const updateDepartment = useUpdateDepartment();
@@ -248,10 +252,13 @@ export const DepartmentForm: FC<FormProps> = ({
 
     const handleDelete = async () => {
         if (department === null || deleteDepartment.isLoading) return;
+        onDeleteStart?.();
         try {
             await deleteDepartment.mutateAsync(department.departmentUuid);
             onClose();
+            onDeleteEnd?.(true);
         } catch {
+            onDeleteEnd?.(false);
             // The failure toast is shown by the hook; the confirmation stays open to retry or cancel
         }
     };
@@ -432,6 +439,8 @@ export const DepartmentDrawer: FC<DrawerProps> = ({
     onClose,
     department,
     departments,
+    onDeleteStart,
+    onDeleteEnd,
 }) => {
     const [createdName, setCreatedName] = useState<string | null>(null);
     useEffect(() => {
@@ -456,6 +465,8 @@ export const DepartmentDrawer: FC<DrawerProps> = ({
                     departments={departments}
                     onClose={onClose}
                     onCreated={setCreatedName}
+                    onDeleteStart={onDeleteStart}
+                    onDeleteEnd={onDeleteEnd}
                 />
             )}
         </Drawer>

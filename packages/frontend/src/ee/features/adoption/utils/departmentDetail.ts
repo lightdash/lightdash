@@ -3,15 +3,37 @@ import {
     type DepartmentTargetProgress,
     type DepartmentWeeklyActivePoint,
 } from '@lightdash/common';
-import dayjs from 'dayjs';
 
 export type MemberFilter = 'all' | 'neverActive' | 'inactive30d';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
 
+// A day is a UTC calendar day everywhere, so labels and filters agree in every time zone
+const utcDay = (ms: number): number => Math.floor(ms / MS_PER_DAY);
+
 const daysSince = (isoTimestamp: string, now: Date): number =>
-    (now.getTime() - Date.parse(isoTimestamp)) / MS_PER_DAY;
+    utcDay(now.getTime()) - utcDay(Date.parse(isoTimestamp));
+
+const MONTHS = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+];
+
+const formatUtcDate = (isoTimestamp: string): string => {
+    const date = new Date(isoTimestamp);
+    return `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+};
 
 const matches = (
     member: DepartmentMember,
@@ -67,13 +89,11 @@ export const formatLastActive = (
     now: Date = new Date(),
 ): string => {
     if (lastActiveAt === null) return 'Never';
-    const days = dayjs(now)
-        .startOf('day')
-        .diff(dayjs(lastActiveAt).startOf('day'), 'day');
+    const days = daysSince(lastActiveAt, now);
     if (days <= 0) return 'Today';
     if (days === 1) return 'Yesterday';
     if (days <= ACTIVE_DAYS) return `${days} days ago`;
-    return dayjs(lastActiveAt).format('D MMM YYYY');
+    return formatUtcDate(lastActiveAt);
 };
 
 // How the person is in the department, in plain words
@@ -130,3 +150,39 @@ export const countWithoutAccount = (
     effectiveHeadcount === null
         ? 0
         : Math.max(0, effectiveHeadcount - memberCount);
+
+const pluralPeople = (count: number): string =>
+    `${count} ${count === 1 ? 'person' : 'people'}`;
+
+// Captions use the same denominator as the percentage beside them (the headcount)
+export const getCoverageCaption = (
+    headcount: number | null,
+    memberCount: number,
+): string => {
+    if (headcount === null) return 'Add a headcount to see a percentage';
+    if (memberCount > headcount) {
+        return `${memberCount} accounts, more than the headcount of ${headcount}`;
+    }
+    return `${memberCount} of ${headcount} people have an account`;
+};
+
+export const getActiveCaption = (
+    headcount: number | null,
+    activeCount: number,
+    memberCount: number,
+): string => {
+    const withAccount =
+        memberCount === 0
+            ? null
+            : `${activeCount} of the ${memberCount} with an account`;
+    if (headcount === null) {
+        return withAccount === null
+            ? 'No one has an account yet'
+            : `${withAccount} ${activeCount === 1 ? 'was' : 'were'} active`;
+    }
+    const overall =
+        activeCount > headcount
+            ? `${pluralPeople(activeCount)} active, more than the headcount of ${headcount}`
+            : `${activeCount} of ${headcount} people ${activeCount === 1 ? 'was' : 'were'} active`;
+    return withAccount === null ? overall : `${overall} · ${withAccount}`;
+};

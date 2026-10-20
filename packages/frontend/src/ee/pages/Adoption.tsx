@@ -14,12 +14,19 @@ import { AttentionStrip } from '../features/adoption/components/AttentionStrip';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
 import { DepartmentsTable } from '../features/adoption/components/DepartmentsTable';
 import { MembershipModal } from '../features/adoption/components/MembershipModal';
+import { AdoptionMap } from '../features/adoption/map/AdoptionMap';
 import {
     ADOPTION_VIEW_LABELS,
     ADOPTION_VIEWS,
     parseAdoptionView,
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
+import {
+    getViewStorageKey,
+    readStoredView,
+    resolveAdoptionView,
+    writeStoredView,
+} from '../features/adoption/utils/viewPreference';
 import { useOrgAdoptionSummary } from '../hooks/useOrgDepartments';
 
 const VIEW_PARAM = 'view';
@@ -39,11 +46,17 @@ const Adoption: FC = () => {
         ) ?? false;
     const summary = useOrgAdoptionSummary();
     const [searchParams, setSearchParams] = useSearchParams();
-    const view = parseAdoptionView(searchParams.get(VIEW_PARAM));
+    // The link wins; without one the page opens on the view this person last chose
+    const viewStorageKey = getViewStorageKey(user.data?.userUuid);
+    const view = resolveAdoptionView(
+        searchParams.get(VIEW_PARAM),
+        readStoredView(viewStorageKey),
+    );
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
     const [isPlacingPeople, setIsPlacingPeople] = useState(false);
 
-    const setView = (next: AdoptionView) =>
+    const setView = (next: AdoptionView) => {
+        writeStoredView(viewStorageKey, next);
         setSearchParams(
             (previous) => {
                 const params = new URLSearchParams(previous);
@@ -52,6 +65,7 @@ const Adoption: FC = () => {
             },
             { replace: true },
         );
+    };
     const openCreate = useCallback(
         () => setDrawer({ opened: true, departmentUuid: null }),
         [],
@@ -156,6 +170,13 @@ const Adoption: FC = () => {
                         canManage={canManage}
                         onReview={() => setIsPlacingPeople(true)}
                     />
+                    {view === 'map' && (
+                        <AdoptionMap
+                            summary={summary.data}
+                            canManage={canManage}
+                            onEdit={openEdit}
+                        />
+                    )}
                     {view === 'list' && (
                         <DepartmentsTable
                             departments={departments}

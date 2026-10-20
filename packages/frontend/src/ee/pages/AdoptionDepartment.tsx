@@ -13,7 +13,7 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
@@ -31,6 +31,8 @@ import {
 import {
     countWithoutAccount,
     formatTargetProgress,
+    getActiveCaption,
+    getCoverageCaption,
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
@@ -81,6 +83,9 @@ const AdoptionDepartment: FC = () => {
     // The drawer's parent picker needs every department
     const summary = useOrgAdoptionSummary(canManage);
     const [isEditing, setIsEditing] = useState(false);
+    // While a delete is in flight the refetch returns 404; keep the last page until we leave
+    const [isDeleting, setIsDeleting] = useState(false);
+    const navigate = useNavigate();
 
     if (detail.isInitialLoading) {
         return (
@@ -89,7 +94,7 @@ const AdoptionDepartment: FC = () => {
             </SettingsPage>
         );
     }
-    if (detail.isError || !detail.data) {
+    if ((detail.isError && !isDeleting) || !detail.data) {
         const { title, description } = getUnavailableCopy(
             detail.error?.error.statusCode,
             detail.error?.error.message,
@@ -132,6 +137,7 @@ const AdoptionDepartment: FC = () => {
                         size="xs"
                         variant="default"
                         leftSection={<MantineIcon icon={IconPencil} />}
+                        disabled={!summary.data}
                         onClick={() => setIsEditing(true)}
                     >
                         Edit department
@@ -206,11 +212,10 @@ const AdoptionDepartment: FC = () => {
                             metrics.coveragePct,
                             metrics.memberCount,
                         )}
-                        detail={
-                            department.effectiveHeadcount === null
-                                ? 'Add a headcount to see a percentage'
-                                : `${metrics.memberCount} of ${department.effectiveHeadcount} people have an account`
-                        }
+                        detail={getCoverageCaption(
+                            department.effectiveHeadcount,
+                            metrics.memberCount,
+                        )}
                     />
                     <StatTile
                         label="Active in 30 days"
@@ -218,7 +223,11 @@ const AdoptionDepartment: FC = () => {
                             metrics.activePct,
                             metrics.activeCount30d,
                         )}
-                        detail={`${metrics.activeCount30d} of ${metrics.memberCount} people with an account`}
+                        detail={getActiveCaption(
+                            department.effectiveHeadcount,
+                            metrics.activeCount30d,
+                            metrics.memberCount,
+                        )}
                     />
                     <StatTile
                         label="Target progress"
@@ -309,6 +318,11 @@ const AdoptionDepartment: FC = () => {
                     onClose={() => setIsEditing(false)}
                     department={department}
                     departments={summary.data?.departments ?? []}
+                    onDeleteStart={() => setIsDeleting(true)}
+                    onDeleteEnd={(succeeded) => {
+                        if (succeeded) void navigate(ADOPTION_PATH);
+                        else setIsDeleting(false);
+                    }}
                 />
             )}
         </SettingsPage>
