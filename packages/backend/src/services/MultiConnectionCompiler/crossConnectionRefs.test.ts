@@ -17,11 +17,18 @@ import { type DbtProjectScan } from '../../dbt/dbtProjectScan';
 import {
     type BoundExplore,
     type MultiConnectionCarry,
+    type StagedExploreWriteCheck,
 } from '../../models/ProjectModel/ProjectModel';
 import {
     type CompilableDbtSource,
     type CompileGroupPlan,
 } from '../../projectAdapters/CompileGroup';
+import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from '../../scheduler/compileShutdown';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
     connectionContextFromUser,
@@ -231,6 +238,7 @@ const harness = ({
             _projectUuid: string,
             explores: AsyncIterable<BoundExplore>,
             _carry: MultiConnectionCarry,
+            _beforeWrite?: StagedExploreWriteCheck,
         ) => {
             saved.push(...(await collect(explores)));
             return {
@@ -238,23 +246,25 @@ const harness = ({
             };
         },
     );
+    const projectModel = {
+        getDbtSourceIdentity: vi.fn(async () => ({
+            dbtSourceUuid: 'primary-uuid',
+            dbtSourceName: 'primary',
+        })),
+        saveMultiConnectionExplores,
+        upsertMergedManifest: vi.fn(),
+        deleteMergedManifest: vi.fn(),
+    };
+    const saveCompileArtifacts = vi.fn();
     const compiler = new MultiConnectionCompiler({
-        projectModel: {
-            getDbtSourceIdentity: vi.fn(async () => ({
-                dbtSourceUuid: 'primary-uuid',
-                dbtSourceName: 'primary',
-            })),
-            saveMultiConnectionExplores,
-            upsertMergedManifest: vi.fn(),
-            deleteMergedManifest: vi.fn(),
-        },
+        projectModel,
         warehouseClientFactory: {
             withWarehouseClient,
         },
         projectDbtSourcesModel: {},
         warehouseConnectionCompileModel: {
             getCatalogCache: vi.fn(async () => undefined),
-            saveCompileArtifacts: vi.fn(),
+            saveCompileArtifacts,
         },
     } as unknown as ConstructorParameters<typeof MultiConnectionCompiler>[0]);
     vi.spyOn(compiler, 'planGroups').mockResolvedValue(plans);
@@ -353,6 +363,8 @@ const harness = ({
         saveMultiConnectionExplores,
         saved,
         withWarehouseClient,
+        projectModel,
+        saveCompileArtifacts,
     };
 };
 
@@ -524,5 +536,287 @@ describe('cross-connection dbt ref diagnostics', () => {
             `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: Failed to load dbt source "analytics": ${missing().message} This model references a model in another dbt project. Connect that project as a dbt source and enable cross-source dbt refs for your organization.`,
         ]);
         expect(h.prepareSourceManifest).not.toHaveBeenCalled();
+    });
+});
+
+describe('cross-source compile boundaries', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.useRealTimers();
+    });
+
+    const shutdownContext = (): CompileShutdownContext => ({
+        controller: new AbortController(),
+        jobUuid: 'leaf_a',
+        armed: false,
+        isStopping: () => false,
+        interrupt: vi.fn(),
+    });
+
+    it.each(['credentials', 'clone'])(
+        'carries an extra group after a %s preparation failure',
+        async (phase) => {
+            const h = harness();
+            const failure = new Error(`leaf_b ${phase} failed`);
+            if (phase === 'credentials')
+                h.input.loadExtraCredentials = vi
+                    .fn()
+                    .mockRejectedValue(failure);
+            else
+                h.prepareSourceManifest.mockImplementation(
+                    async (dbtSource) => {
+                        if (dbtSource.name === 'analytics') throw failure;
+                        return scan('shared_dimensions');
+                    },
+                );
+            const compilation = await h.compiler.compile(h.input);
+            await expectOriginalExplores(compilation.exploreStream);
+            expect(compilation.carry).toEqual({
+                kind: 'connections',
+                warehouseConnectionUuids: ['extra'],
+            });
+            expect(compilation.warnings).toEqual([
+                `Connection "Trino (tpch)" failed to compile, so its previous explores are kept: ${failure.message}`,
+            ]);
+        },
+    );
+
+    it('settles cancelled preparations before releasing their warehouse scope', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        let siblingStarted!: () => void;
+        const started = new Promise<void>((done) => {
+            siblingStarted = done;
+        });
+        let settleSibling!: () => void;
+        let aborted = false;
+        let released = false;
+        h.prepareSourceManifest.mockImplementation(
+            async (dbtSource, _credentials, _connection, options) => {
+                if (dbtSource.name === 'analytics') {
+                    await started;
+                    throw new Error('leaf_a clone failed');
+                }
+                return new Promise((_resolve, reject) => {
+                    options!.signal!.addEventListener(
+                        'abort',
+                        () => {
+                            aborted = true;
+                            settleSibling = () =>
+                                reject(options!.signal!.reason);
+                        },
+                        { once: true },
+                    );
+                    siblingStarted();
+                });
+            },
+        );
+        const acquire = h.withWarehouseClient.getMockImplementation()!;
+        h.withWarehouseClient.mockImplementation(async (...args) => {
+            try {
+                return await acquire(...args);
+            } finally {
+                released = true;
+            }
+        });
+        const work = h.compiler.compile(h.input);
+        await vi.waitFor(() => expect(aborted).toBe(true));
+        expect(released).toBe(false);
+        settleSibling();
+        const compilation = await work;
+        expect(released).toBe(true);
+        expect(compilation.carry).toEqual({
+            kind: 'connections',
+            warehouseConnectionUuids: ['extra'],
+        });
+    });
+
+    it.each(['prepare', 'ls'] as const)(
+        'carries an extra group that times out during %s and names the source and phase',
+        async (phase) => {
+            vi.useFakeTimers();
+            const h = harness();
+            h.input.crossSourceTimeouts = {
+                prepareMs: 10,
+                lsMs: 10,
+                resolutionMs: 1000,
+            };
+            const waitForAbort = (signal: AbortSignal | undefined) =>
+                new Promise<never>((_resolve, reject) => {
+                    signal!.addEventListener(
+                        'abort',
+                        () => reject(signal!.reason),
+                        { once: true },
+                    );
+                });
+            if (phase === 'prepare') {
+                h.prepareSourceManifest.mockImplementation(
+                    async (dbtSource, _credentials, _connection, options) =>
+                        dbtSource.name === 'analytics'
+                            ? waitForAbort(options?.signal)
+                            : scan('shared_dimensions'),
+                );
+            } else {
+                const fetch = h.fetchSourceManifest.getMockImplementation()!;
+                h.fetchSourceManifest.mockImplementation(async (...args) =>
+                    args[0].name === 'analytics'
+                        ? waitForAbort(args[3].signal)
+                        : fetch(...args),
+                );
+            }
+            const work = h.compiler.compile(h.input);
+            await vi.advanceTimersByTimeAsync(10);
+            const compilation = await work;
+            await expectOriginalExplores(compilation.exploreStream);
+            expect(compilation.carry).toEqual({
+                kind: 'connections',
+                warehouseConnectionUuids: ['extra'],
+            });
+            expect(compilation.warnings).toEqual([
+                expect.stringContaining(
+                    `dbt source "analytics" timed out after 0.01 s while ${phase === 'prepare' ? 'cloning the repository and installing dbt packages' : 'running dbt ls'}`,
+                ),
+            ]);
+        },
+    );
+
+    it('keeps preparation time in an extra group resolution deadline', async () => {
+        vi.useFakeTimers();
+        const h = harness();
+        h.input.crossSourceTimeouts = {
+            prepareMs: 100,
+            lsMs: 100,
+            resolutionMs: 10,
+        };
+        const prepare = h.prepareSourceManifest.getMockImplementation()!;
+        h.prepareSourceManifest.mockImplementation(async (...args) => {
+            if (args[0].name === 'analytics')
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, 6);
+                });
+            return prepare(...args);
+        });
+        const fetch = h.fetchSourceManifest.getMockImplementation()!;
+        h.fetchSourceManifest.mockImplementation(async (...args) => {
+            if (args[0].name === 'analytics') {
+                await new Promise<void>((resolve, reject) => {
+                    const timer = setTimeout(resolve, 6);
+                    args[3].signal!.addEventListener(
+                        'abort',
+                        () => {
+                            clearTimeout(timer);
+                            reject(args[3].signal!.reason);
+                        },
+                        { once: true },
+                    );
+                });
+            }
+            return fetch(...args);
+        });
+        const work = h.compiler.compile(h.input);
+        await vi.advanceTimersByTimeAsync(10);
+        const compilation = await work;
+        expect(compilation.carry).toEqual({
+            kind: 'connections',
+            warehouseConnectionUuids: ['extra'],
+        });
+        expect(compilation.warnings).toEqual([
+            expect.stringContaining(
+                'Cross-source dbt resolution timed out after 0.01 s. Sources still in progress: "analytics".',
+            ),
+        ]);
+    });
+
+    it('fails the compile on an original-group deadline', async () => {
+        vi.useFakeTimers();
+        const h = harness();
+        h.input.crossSourceTimeouts = {
+            prepareMs: 10,
+            lsMs: 10,
+            resolutionMs: 1000,
+        };
+        h.input.primary.fetchManifest = async (options) =>
+            new Promise<never>((_resolve, reject) => {
+                options.signal!.addEventListener(
+                    'abort',
+                    () => reject(options.signal!.reason),
+                    { once: true },
+                );
+            });
+        const work = h.compiler
+            .compile(h.input)
+            .catch((error: unknown) => error);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(await work).toEqual(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'dbt source "primary" timed out after 0.01 s while running dbt ls',
+                ),
+            }),
+        );
+        expect(h.saveMultiConnectionExplores).not.toHaveBeenCalled();
+    });
+
+    it('fences a shutdown after the last successful dbt ls before publication', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const context = shutdownContext();
+        const reason = new CompileInterruptedError();
+        const prepareExplores = vi
+            .spyOn(DbtManifestProjectAdapter.prototype, 'prepareExploreStream')
+            .mockImplementation(async () => {
+                context.controller.abort(reason);
+                return (async function* empty() {
+                    yield* [];
+                })();
+            });
+        await expect(
+            compileShutdown.run(context, () => h.compiler.compile(h.input)),
+        ).rejects.toBe(reason);
+        expect(prepareExplores).toHaveBeenCalledOnce();
+        expect(h.saveMultiConnectionExplores).not.toHaveBeenCalled();
+        expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
+    });
+
+    it('checks shutdown after streaming explores and before the staged transaction writes', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const context = shutdownContext();
+        const compilation = await compileShutdown.run(context, () =>
+            h.compiler.compile(h.input),
+        );
+        h.saveMultiConnectionExplores.mockImplementation(
+            async (_projectUuid, stream, _carry, beforeWrite) => {
+                await collect(stream);
+                context.controller.abort(new CompileInterruptedError());
+                await beforeWrite!(
+                    null as unknown as Parameters<StagedExploreWriteCheck>[0],
+                    'leaf_b',
+                );
+                throw new Error('leaf_c write must not run');
+            },
+        );
+        const error = await h.compiler
+            .save('project', compilation)
+            .catch((failure: unknown) => failure);
+        expect(error).toBe(context.controller.signal.reason);
+        expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
+    });
+
+    it('fences detached persistence callbacks and staged explore writes after shutdown', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const context = shutdownContext();
+        const compilation = await compileShutdown.run(context, () =>
+            h.compiler.compile(h.input),
+        );
+        context.controller.abort(new CompileInterruptedError());
+        await expect(compilation.persistArtifacts()).rejects.toBe(
+            context.controller.signal.reason,
+        );
+        await expect(h.compiler.save('project', compilation)).rejects.toBe(
+            context.controller.signal.reason,
+        );
+        expect(h.saveMultiConnectionExplores).not.toHaveBeenCalled();
+        expect(h.projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+        expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
     });
 });

@@ -428,7 +428,13 @@ import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapt
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
-import { armCompileShutdown } from '../../scheduler/compileShutdown';
+import {
+    armCompileShutdown,
+    CompileInterruptedError,
+    disarmCompileShutdown,
+    getCompileShutdownSignal,
+    throwIfCompileAborted,
+} from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import {
@@ -3825,10 +3831,14 @@ export class ProjectService
     private getConnectionStagedWriteChecks(
         projectUuid: string,
     ): [] | [StagedExploreWriteCheck] {
-        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
-            return [];
+        const signal = getCompileShutdownSignal();
+        const checkConnection =
+            !!agentExecutionContext.getStore()?.agentConnectionExecution;
+        if (!checkConnection && !signal) return [];
         return [
             async (trx, saveUuid) => {
+                signal?.throwIfAborted();
+                if (!checkConnection) return;
                 const stored =
                     await this.projectModel.getPreAggregateRefreshSummary(
                         projectUuid,
@@ -3842,6 +3852,7 @@ export class ProjectService
                         trx,
                     );
                 assertIncomingPreAggregateRefresh(incoming);
+                signal?.throwIfAborted();
             },
         ];
     }
@@ -4366,6 +4377,7 @@ export class ProjectService
                         ),
                     );
                 }
+                throwIfCompileAborted();
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
                     observedExplores(),
@@ -4448,6 +4460,7 @@ export class ProjectService
                 projectUuid,
                 'compileProject',
             );
+        throwIfCompileAborted();
         const { cachedExploreUuids } = await saveExplores(summary);
         const connectionIndexCatalogJob = connectionProject
             ? await this.schedulerClient.indexCatalog({
@@ -5740,6 +5753,10 @@ export class ProjectService
         }
     }
 
+    async _markInterruptedCompileAsFailed(jobUuid: string, error: string) {
+        await this.jobModel.failRunningJob(jobUuid, error);
+    }
+
     async _markJobAsFailed(jobUuid: string, error?: string) {
         if (error) await this.jobModel.failRunningSteps(jobUuid, error);
         await this.jobModel.setPendingJobsToSkipped(jobUuid);
@@ -6692,6 +6709,7 @@ export class ProjectService
                                 });
                             timings.getConfig.end = performance.now();
 
+                            throwIfCompileAborted();
                             timings.yaml.start = performance.now();
                             await this.replaceYamlTagsWithoutPermissionCheck(
                                 user,
@@ -6778,10 +6796,12 @@ export class ProjectService
                         }
                     },
                 );
+                throwIfCompileAborted();
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
                 });
+                disarmCompileShutdown();
             } else {
                 try {
                     await this.jobModel.update(job.jobUuid, {
@@ -6841,12 +6861,20 @@ export class ProjectService
                 },
             );
         } catch (error) {
-            await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.ERROR,
-            });
+            if (error instanceof CompileInterruptedError) {
+                await this._markInterruptedCompileAsFailed(
+                    job.jobUuid,
+                    error.message,
+                );
+            } else {
+                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+            }
             throw error;
         } finally {
+            disarmCompileShutdown();
             if (!cleanup.started && cleanup.adapter && cleanup.lease) {
                 try {
                     await cleanup.adapter.destroy();
@@ -8121,6 +8149,7 @@ export class ProjectService
         projectUuid: string,
         stagedMergedManifest: Buffer | undefined,
     ): Promise<void> {
+        throwIfCompileAborted();
         if (!stagedMergedManifest) {
             return;
         }
@@ -13517,6 +13546,7 @@ export class ProjectService
                                 onCompiled,
                                 multiConnection,
                             }) => {
+                                throwIfCompileAborted();
                                 timings.yaml.start = performance.now();
                                 if (
                                     agentExecutionContext.getStore()
@@ -13657,15 +13687,26 @@ export class ProjectService
                         projectUuid,
                         'compileProject',
                     );
+                throwIfCompileAborted();
                 await this.jobModel.update(job.jobUuid, {
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
                 });
+                disarmCompileShutdown();
             } catch (e) {
                 recordCompileFailure(e);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
+                if (e instanceof CompileInterruptedError) {
+                    await this._markInterruptedCompileAsFailed(
+                        job.jobUuid,
+                        e.message,
+                    );
+                } else {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.ERROR,
+                    });
+                }
+            } finally {
+                disarmCompileShutdown();
             }
         };
         await this.projectModel
@@ -13699,8 +13740,9 @@ export class ProjectService
             },
         );
         if (
-            connectionFailure !== null &&
-            agentExecutionContext.getStore()?.agentConnectionExecution
+            connectionFailure instanceof CompileInterruptedError ||
+            (connectionFailure !== null &&
+                agentExecutionContext.getStore()?.agentConnectionExecution)
         )
             throw connectionFailure;
     }

@@ -91,3 +91,22 @@ it('reads installed project names rather than package directory names', async ()
         'leaf_b',
     ]);
 });
+
+it('reads the configured package path and skips package refs in that directory', async () => {
+    await write(
+        'dbt_project.yml',
+        'name: leaf_a\npackages-install-path: vendor',
+    );
+    await write('vendor/leaf_b/dbt_project.yml', 'name: leaf_c');
+    await write(
+        'vendor/leaf_b/models/leaf_b.sql',
+        "{{ ref('leaf_d', 'leaf_e') }}",
+    );
+    await write('models/leaf_a.sql', "{{ ref('leaf_c', 'leaf_e') }}");
+    expect(await scanDbtProject(directory)).toEqual({
+        projectName: 'leaf_a',
+        installedPackages: ['leaf_c'],
+        referencedProjects: ['leaf_c'],
+        declaredUpstreams: [],
+    });
+});

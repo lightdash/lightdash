@@ -1,4 +1,8 @@
-import { ALL_TASK_NAMES, SCHEDULER_TASKS } from '@lightdash/common';
+import {
+    ALL_TASK_NAMES,
+    JobStatusType,
+    SCHEDULER_TASKS,
+} from '@lightdash/common';
 import {
     run as runGraphileWorker,
     type Runner,
@@ -7,7 +11,9 @@ import {
 import { type LightdashConfig } from '../config/parseConfig';
 import {
     armCompileShutdown,
+    CompileInterruptedError,
     compileShutdown,
+    disarmCompileShutdown,
     type CompileShutdownContext,
 } from './compileShutdown';
 import {
@@ -111,7 +117,7 @@ const makeWorker = (
         lightdashConfig: makeConfig(),
         schedulerClient: { graphileUtils },
         workerHealth,
-        projectService: { _markJobAsFailed: markFailed },
+        projectService: { _markInterruptedCompileAsFailed: markFailed },
     } as unknown as SchedulerWorkerArguments);
 };
 
@@ -266,6 +272,13 @@ describe('SchedulerWorker ordinary shutdown', () => {
         });
         try {
             const stopping = worker.stop();
+            expect(markFailed).toHaveBeenCalledExactlyOnceWith(
+                'leaf_a',
+                new CompileInterruptedError().message,
+            );
+            expect(
+                fakeRunner.workerPool.gracefulShutdown,
+            ).not.toHaveBeenCalled();
             await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS);
             await stopping;
             expect(markFailed).toHaveBeenCalledExactlyOnceWith(
@@ -280,6 +293,77 @@ describe('SchedulerWorker ordinary shutdown', () => {
             release();
             await work;
         }
+    });
+
+    it('aborts and fails a compile armed during the drain', async () => {
+        const markFailed = vi.fn().mockResolvedValue(undefined);
+        const worker = makeWorker(undefined, markFailed);
+        await worker.run();
+        let arm!: () => void;
+        let release!: () => void;
+        let signal: AbortSignal | undefined;
+        const run = (
+            worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            }
+        ).runCompileTask.bind(worker);
+        const work = run('leaf_a', async () => {
+            await new Promise<void>((done) => {
+                arm = done;
+            });
+            signal = armCompileShutdown();
+            await new Promise<void>((done) => {
+                release = done;
+            });
+        });
+        const stopping = worker.stop();
+        arm();
+        await vi.advanceTimersByTimeAsync(0);
+        expect(signal?.aborted).toBe(true);
+        expect(signal?.reason).toBeInstanceOf(CompileInterruptedError);
+        expect(markFailed).toHaveBeenCalledExactlyOnceWith(
+            'leaf_a',
+            new CompileInterruptedError().message,
+        );
+        release();
+        await work;
+        fakeRunners[0].finishActiveJobs();
+        await stopping;
+    });
+
+    it('does not fail a completed compile while its scheduler wrapper is pending', async () => {
+        let status = JobStatusType.RUNNING;
+        const markFailed = vi.fn(async () => {
+            status = JobStatusType.ERROR;
+        });
+        const worker = makeWorker(undefined, markFailed);
+        let release!: () => void;
+        let signal: AbortSignal | undefined;
+        const run = (
+            worker as unknown as {
+                runCompileTask(
+                    jobUuid: string,
+                    task: () => Promise<void>,
+                ): Promise<void>;
+            }
+        ).runCompileTask.bind(worker);
+        const work = run('leaf_a', async () => {
+            signal = armCompileShutdown();
+            status = JobStatusType.DONE;
+            disarmCompileShutdown();
+            await new Promise<void>((done) => {
+                release = done;
+            });
+        });
+        await worker.stop();
+        expect(signal?.aborted).toBe(false);
+        expect(markFailed).not.toHaveBeenCalled();
+        expect(status).toBe(JobStatusType.DONE);
+        release();
+        await work;
     });
 
     it('leaves an unarmed compile controller untouched', async () => {

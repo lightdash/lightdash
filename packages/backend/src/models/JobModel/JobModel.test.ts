@@ -1,5 +1,6 @@
 import {
     JobStatusType,
+    JobStepStatusType,
     JobStepType,
     JobType,
     type CreateJob,
@@ -15,6 +16,10 @@ import {
 import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { UserTableName } from '../../database/entities/users';
+import {
+    compileShutdown,
+    type CompileShutdownContext,
+} from '../../scheduler/compileShutdown';
 import { JobModel } from './JobModel';
 
 describe('JobModel.findActiveCreateProjectJob', () => {
@@ -168,5 +173,89 @@ describe('JobModel.findActiveCreateProjectJob', () => {
             }),
         });
         expect(tracker.history.insert).toHaveLength(0);
+    });
+});
+
+describe('JobModel.failRunningJob', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new JobModel({ database });
+    const tracker = getTracker();
+    afterEach(() => tracker.reset());
+
+    it.each([JobStatusType.DONE, JobStatusType.ERROR])(
+        'leaves a terminal %s job and its steps untouched',
+        async (status) => {
+            tracker.on.update(JobsTableName).responseOnce(0);
+            await model.failRunningJob('leaf_a', 'leaf_b');
+            expect(tracker.history.update).toHaveLength(1);
+            const query = tracker.history.update[0];
+            expect(query.sql).toContain(
+                'where "job_uuid" = $3 and "job_status" in ($4, $5)',
+            );
+            expect(query.bindings.slice(2)).toEqual([
+                'leaf_a',
+                JobStatusType.RUNNING,
+                JobStatusType.STARTED,
+            ]);
+            expect(query.bindings.slice(3)).not.toContain(status);
+        },
+    );
+
+    it('guards late compile step and job updates so an interruption stays terminal', async () => {
+        const context: CompileShutdownContext = {
+            controller: new AbortController(),
+            jobUuid: 'leaf_a',
+            armed: true,
+            isStopping: () => true,
+            interrupt: vi.fn(),
+        };
+        tracker.on.update(JobsTableName).response(0);
+        tracker.on.update(JobStepsTableName).response(0);
+        await compileShutdown.run(context, async () => {
+            await model.updateJobStep(
+                'leaf_a',
+                JobStepStatusType.DONE,
+                JobStepType.COMPILING,
+            );
+            await model.update('leaf_a', { jobStatus: JobStatusType.DONE });
+            await model.startJobStep('leaf_a', JobStepType.COMPILING);
+        });
+        const [step, jobStepUpdate, jobUpdate, startStep] =
+            tracker.history.update;
+        expect(startStep.sql).toContain('and "step_status" =');
+        expect(startStep.bindings.at(-1)).toBe(JobStepStatusType.PENDING);
+        const jobs = [jobStepUpdate, jobUpdate];
+        expect(step.sql).toContain('and "step_status" =');
+        expect(step.bindings.at(-1)).toBe(JobStepStatusType.RUNNING);
+        expect(jobs).toHaveLength(2);
+        for (const query of jobs) {
+            expect(query.sql).toContain('and "job_status" in');
+            expect(query.bindings.slice(-2)).toEqual([
+                JobStatusType.RUNNING,
+                JobStatusType.STARTED,
+            ]);
+        }
+    });
+
+    it('changes only active jobs and running or pending steps', async () => {
+        tracker.on.update(JobsTableName).responseOnce(1);
+        tracker.on.update(JobStepsTableName).response(1);
+        await model.failRunningJob('leaf_a', 'leaf_b');
+        const updates = tracker.history.update;
+        expect(updates).toHaveLength(3);
+        expect(updates[1].sql).toContain('and "step_status" =');
+        expect(updates[1].bindings).toEqual([
+            JobStepStatusType.ERROR,
+            'leaf_b',
+            expect.any(Date),
+            'leaf_a',
+            JobStepStatusType.RUNNING,
+        ]);
+        expect(updates[2].bindings).toEqual([
+            JobStepStatusType.SKIPPED,
+            expect.any(Date),
+            'leaf_a',
+            JobStepStatusType.PENDING,
+        ]);
     });
 });

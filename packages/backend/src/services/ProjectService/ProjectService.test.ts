@@ -202,6 +202,11 @@ import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnection
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../../projectAdapters/githubAuthorization';
 import * as projectAdapterModule from '../../projectAdapters/projectAdapter';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import SchedulerTask from '../../scheduler/SchedulerTask';
 import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
@@ -608,6 +613,7 @@ const jobModel = {
     update: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
     setPendingJobsToSkipped: vi.fn(async () => undefined),
+    failRunningJob: vi.fn(async () => undefined),
     tryJobStep: vi.fn(
         async <T>(
             _jobUuid: string,
@@ -15223,6 +15229,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ]);
         const primaryCompileAdapter = {
             test: vi.fn(async () => undefined),
+            prepareDbtSource: vi.fn(async () => ({ projectDir: null })),
             getDbtManifest: vi.fn(async () => ({
                 manifest: primaryManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -15231,6 +15238,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             dbtProjectDir: '/tmp/primary-dbt-project',
         } as unknown as ProjectAdapter;
         const sourceAdapter = {
+            prepareDbtSource: vi.fn(async () => ({ projectDir: null })),
             getDbtManifest: vi.fn(async () => ({
                 manifest: sourceManifest,
                 timings: NO_FETCH_TIMINGS,
@@ -16216,6 +16224,145 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             vi.mocked(adapter.destroy).mock.invocationCallOrder[0],
         ).toBeLessThan(tunnel.disconnect.mock.invocationCallOrder[0]);
     });
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s fences a shutdown after dbt ls before any publication',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const reason = new CompileInterruptedError();
+            const projectService = buildCompilationBoundaryService(
+                vi.fn(async () => {
+                    expect(context.armed).toBe(true);
+                    context.controller.abort(reason);
+                    return [validExplore];
+                }),
+            );
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.MultiDbtSources ||
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            projectModel.saveExploreStreamToCache.mockClear();
+            jobModel.update.mockClear();
+            await expect(
+                compileShutdown.run(context, () =>
+                    projectService[method](
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                ),
+            ).rejects.toBe(reason);
+            expect(
+                projectModel.saveExploreStreamToCache,
+            ).not.toHaveBeenCalled();
+            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+            expect(jobModel.failRunningJob).toHaveBeenCalledWith(
+                'leaf_a',
+                reason.message,
+            );
+            expect(context.armed).toBe(false);
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s disarms shutdown before its scheduler wrapper finishes',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const projectService = buildCompilationBoundaryService(
+                vi.fn(async () => {
+                    expect(context.armed).toBe(true);
+                    return [validExplore];
+                }),
+            );
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.MultiDbtSources ||
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            await compileShutdown.run(context, () =>
+                projectService[method](
+                    compileUser,
+                    'projectUuid',
+                    RequestMethod.WEB_APP,
+                    'leaf_a',
+                ),
+            );
+            expect(jobModel.update).toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+            expect(context.armed).toBe(false);
+        },
+    );
+
+    it.each(['compileProject', 'testAndCompileProject'] as const)(
+        '%s fences manifest and DONE publication when shutdown follows the cache write',
+        async (method) => {
+            const context: CompileShutdownContext = {
+                controller: new AbortController(),
+                jobUuid: 'leaf_a',
+                armed: false,
+                isStopping: () => false,
+                interrupt: vi.fn(),
+            };
+            const projectService = buildCompilationBoundaryService();
+            vi.mocked(projectService.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled:
+                            featureFlagId === FeatureFlags.MultiDbtSources ||
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs,
+                    }) as never,
+            );
+            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+                async () => {
+                    context.controller.abort(new CompileInterruptedError());
+                    return { cachedExploreUuids: [] };
+                },
+            );
+            jobModel.update.mockClear();
+            const failure = await compileShutdown
+                .run(context, () =>
+                    projectService[method](
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.WEB_APP,
+                        'leaf_a',
+                    ),
+                )
+                .catch((error: unknown) => error);
+            expect(failure).toBe(context.controller.signal.reason);
+            expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
+            expect(jobModel.update).not.toHaveBeenCalledWith(
+                'leaf_a',
+                expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+            );
+        },
+    );
 
     it('BC-7: distinguishes manifest staging failures from persistence failures', async () => {
         const projectService = buildCompilationBoundaryService();

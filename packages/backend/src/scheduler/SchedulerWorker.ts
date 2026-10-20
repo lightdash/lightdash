@@ -429,6 +429,18 @@ export class SchedulerWorker extends SchedulerTask {
             controller: new AbortController(),
             jobUuid,
             armed: false,
+            isStopping: () => this.isStopping,
+            interrupt: () => {
+                if (context.controller.signal.aborted) return;
+                Logger.warn('dbt.compile.crossSourceInterrupted', {
+                    event: 'dbt.compile.crossSourceInterrupted',
+                    jobUuid: context.jobUuid,
+                });
+                context.controller.abort(new CompileInterruptedError());
+                void this.failInterruptedCompile(context).catch((error) => {
+                    Logger.error('Failed to record interrupted compile', error);
+                });
+            },
         };
         this.activeCompiles.add(context);
         try {
@@ -438,6 +450,7 @@ export class SchedulerWorker extends SchedulerTask {
                 await this.failInterruptedCompile(context);
             throw error;
         } finally {
+            context.armed = false;
             this.activeCompiles.delete(context);
         }
     }
@@ -448,7 +461,7 @@ export class SchedulerWorker extends SchedulerTask {
         if (!context.armed || context.jobUuid === null) return;
         let failure = this.interruptedCompileFailures.get(context);
         if (!failure) {
-            failure = this.projectService._markJobAsFailed(
+            failure = this.projectService._markInterruptedCompileAsFailed(
                 context.jobUuid,
                 new CompileInterruptedError().message,
             );
@@ -470,13 +483,7 @@ export class SchedulerWorker extends SchedulerTask {
         this.migrationQuiesce?.stop();
         this.stopPgPing();
         for (const context of this.activeCompiles) {
-            if (context.armed) {
-                Logger.warn('dbt.compile.crossSourceInterrupted', {
-                    event: 'dbt.compile.crossSourceInterrupted',
-                    jobUuid: context.jobUuid,
-                });
-                context.controller.abort(new CompileInterruptedError());
-            }
+            if (context.armed) context.interrupt();
         }
         await this.drainManagedRunners();
         await this.failInterruptedCompiles();

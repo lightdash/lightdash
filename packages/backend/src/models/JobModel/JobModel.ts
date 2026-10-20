@@ -23,6 +23,11 @@ import { OrganizationMembershipsTableName } from '../../database/entities/organi
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { UserTableName } from '../../database/entities/users';
 import { DbtSourceError } from '../../dbt/DbtSourceError';
+import {
+    CompileInterruptedError,
+    getCompileShutdownSignal,
+    throwIfCompileAborted,
+} from '../../scheduler/compileShutdown';
 
 type JobModelArguments = {
     database: Knex;
@@ -176,7 +181,14 @@ export class JobModel {
                     ? { results: job.jobResults }
                     : {}),
             })
-            .where('job_uuid', jobUuid);
+            .where('job_uuid', jobUuid)
+            .modify((query) => {
+                if (getCompileShutdownSignal())
+                    query.whereIn('job_status', [
+                        JobStatusType.RUNNING,
+                        JobStatusType.STARTED,
+                    ]);
+            });
     }
 
     async create(job: CreateJob, isPreview: boolean): Promise<Job> {
@@ -293,13 +305,19 @@ export class JobModel {
     }
 
     async startJobStep(jobUuid: string, stepType: JobStepType): Promise<void> {
+        const signal = getCompileShutdownSignal();
+        signal?.throwIfAborted();
         await this.database(JobStepsTableName)
             .update({
                 step_status: JobStepStatusType.RUNNING,
                 started_at: new Date(),
             })
             .where('job_uuid', jobUuid)
-            .andWhere('step_type', stepType);
+            .andWhere('step_type', stepType)
+            .modify((query) => {
+                if (signal)
+                    query.where('step_status', JobStepStatusType.PENDING);
+            });
     }
 
     async updateJobStep(
@@ -317,7 +335,11 @@ export class JobModel {
                 step_dbt_logs: JSON.stringify(stepDbtLogs),
             })
             .where('job_uuid', jobUuid)
-            .andWhere('step_type', stepType);
+            .andWhere('step_type', stepType)
+            .modify((query) => {
+                if (getCompileShutdownSignal())
+                    query.where('step_status', JobStepStatusType.RUNNING);
+            });
 
         await this.database(JobsTableName)
             .update({
@@ -327,7 +349,14 @@ export class JobModel {
                         ? JobStatusType.ERROR
                         : JobStatusType.RUNNING,
             })
-            .where('job_uuid', jobUuid);
+            .where('job_uuid', jobUuid)
+            .modify((query) => {
+                if (getCompileShutdownSignal())
+                    query.whereIn('job_status', [
+                        JobStatusType.RUNNING,
+                        JobStatusType.STARTED,
+                    ]);
+            });
     }
 
     async setPendingJobsToSkipped(jobUuid: string): Promise<void> {
@@ -358,15 +387,49 @@ export class JobModel {
             .andWhere('step_status', JobStepStatusType.RUNNING);
     }
 
+    async failRunningJob(jobUuid: string, error: string): Promise<void> {
+        await this.database.transaction(async (transaction) => {
+            const updated = await transaction(JobsTableName)
+                .where('job_uuid', jobUuid)
+                .whereIn('job_status', [
+                    JobStatusType.RUNNING,
+                    JobStatusType.STARTED,
+                ])
+                .update({
+                    job_status: JobStatusType.ERROR,
+                    updated_at: new Date(),
+                });
+            if (updated === 0) return;
+            await transaction(JobStepsTableName)
+                .where('job_uuid', jobUuid)
+                .where('step_status', JobStepStatusType.RUNNING)
+                .update({
+                    step_status: JobStepStatusType.ERROR,
+                    step_error: error,
+                    updated_at: new Date(),
+                });
+            await transaction(JobStepsTableName)
+                .where('job_uuid', jobUuid)
+                .where('step_status', JobStepStatusType.PENDING)
+                .update({
+                    step_status: JobStepStatusType.SKIPPED,
+                    updated_at: new Date(),
+                });
+        });
+    }
+
     async tryJobStep<T>(
         jobUuid: string,
         jobStepType: JobStepType,
         callback: () => Promise<T>,
     ): Promise<T> {
         try {
+            throwIfCompileAborted();
             await this.startJobStep(jobUuid, jobStepType);
+            throwIfCompileAborted();
 
             const result = await callback();
+            throwIfCompileAborted();
 
             await this.updateJobStep(
                 jobUuid,
@@ -375,6 +438,10 @@ export class JobModel {
             );
             return result;
         } catch (e) {
+            if (e instanceof CompileInterruptedError) {
+                await this.failRunningJob(jobUuid, e.message);
+                throw e;
+            }
             await this.updateJobStep(
                 jobUuid,
                 JobStepStatusType.ERROR,

@@ -66,6 +66,7 @@ export const resolveCrossSourceManifests = async <T>({
     onRoundComplete,
     signal,
     timeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
+    resolutionElapsedMs = 0,
     otherConnectionProjects = [],
     connectionName,
 }: {
@@ -75,6 +76,7 @@ export const resolveCrossSourceManifests = async <T>({
     onRoundComplete?: (round: number) => void;
     signal?: AbortSignal;
     timeouts?: CrossSourceTimeouts;
+    resolutionElapsedMs?: number;
     otherConnectionProjects?: OtherConnectionProject[];
     connectionName?: string;
 }): Promise<CrossSourceResolution<T>> => {
@@ -98,7 +100,11 @@ export const resolveCrossSourceManifests = async <T>({
             firstAttemptInjected: 0,
         };
     }
-    const cancellation = new CrossSourceCancellation(signal, timeouts);
+    const cancellation = new CrossSourceCancellation(
+        signal,
+        timeouts,
+        resolutionElapsedMs,
+    );
     try {
         const resolved = new Map<
             CrossSourceFetchTask<T>,

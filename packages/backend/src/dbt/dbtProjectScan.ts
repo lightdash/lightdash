@@ -31,6 +31,13 @@ export const scanDbtProject = async (
         isRecord(project) && typeof project.name === 'string'
             ? project.name
             : null;
+    const packagesPath = path.resolve(
+        projectDir,
+        isRecord(project) &&
+            typeof project['packages-install-path'] === 'string'
+            ? project['packages-install-path']
+            : 'dbt_packages',
+    );
     const dependencies = await readYaml(
         path.join(projectDir, 'dependencies.yml'),
     );
@@ -56,6 +63,7 @@ export const scanDbtProject = async (
                     const filename = path.join(directory, entry.name);
                     if (
                         entry.isDirectory() &&
+                        path.resolve(filename) !== packagesPath &&
                         !['target', 'dbt_packages', 'logs', '.git'].includes(
                             entry.name,
                         )
@@ -97,7 +105,7 @@ export const scanDbtProject = async (
         }
     };
     const packageDirectories = await fs
-        .readdir(path.join(projectDir, 'dbt_packages'), { withFileTypes: true })
+        .readdir(packagesPath, { withFileTypes: true })
         .catch(() => []);
     const installedPackages = [
         ...new Set(
@@ -111,8 +119,7 @@ export const scanDbtProject = async (
                         .map(async (entry) => {
                             const installed = await readYaml(
                                 path.join(
-                                    projectDir,
-                                    'dbt_packages',
+                                    packagesPath,
                                     entry.name,
                                     'dbt_project.yml',
                                 ),

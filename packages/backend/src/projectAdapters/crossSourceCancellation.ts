@@ -13,10 +13,12 @@ export const DEFAULT_CROSS_SOURCE_TIMEOUTS: CrossSourceTimeouts = {
     resolutionMs: 1200000,
 };
 
+export const CROSS_SOURCE_SETTLE_GRACE_MS = 10000;
+
 export class CrossSourceCancellation {
     readonly controller = new AbortController();
 
-    private readonly inFlight = new Set<Promise<unknown>>();
+    private readonly inFlight = new Map<Promise<unknown>, string>();
 
     private readonly timer: NodeJS.Timeout;
 
@@ -26,22 +28,31 @@ export class CrossSourceCancellation {
     constructor(
         private readonly caller: AbortSignal | undefined,
         readonly timeouts: CrossSourceTimeouts,
+        resolutionElapsedMs = 0,
     ) {
         caller?.addEventListener('abort', this.onCallerAbort, { once: true });
         if (caller?.aborted) this.onCallerAbort();
-        const started = Date.now();
-        this.timer = setTimeout(() => {
-            const error = new ParameterError(
-                `Cross-source dbt resolution timed out after ${timeouts.resolutionMs / 1000} s. Raise DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS if these projects need longer.`,
-            );
-            Logger.warn('dbt.compile.crossSourceTimeout', {
-                event: 'dbt.compile.crossSourceTimeout',
-                source: null,
-                phase: 'resolution',
-                elapsedMs: Date.now() - started,
-            });
-            this.controller.abort(error);
-        }, timeouts.resolutionMs);
+        const started = Date.now() - resolutionElapsedMs;
+        this.timer = setTimeout(
+            () => {
+                const sources = [...new Set(this.inFlight.values())];
+                const pending =
+                    sources.length > 0
+                        ? ` Sources still in progress: ${sources.map((source) => `"${source}"`).join(', ')}.`
+                        : '';
+                const error = new ParameterError(
+                    `Cross-source dbt resolution timed out after ${timeouts.resolutionMs / 1000} s.${pending} Raise DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS if these projects need longer.`,
+                );
+                Logger.warn('dbt.compile.crossSourceTimeout', {
+                    event: 'dbt.compile.crossSourceTimeout',
+                    source: null,
+                    phase: 'resolution',
+                    elapsedMs: Date.now() - started,
+                });
+                this.controller.abort(error);
+            },
+            Math.max(0, timeouts.resolutionMs - resolutionElapsedMs),
+        );
     }
 
     async run<T>(
@@ -87,7 +98,7 @@ export class CrossSourceCancellation {
             controller.signal.throwIfAborted();
             return operation(controller.signal);
         });
-        this.inFlight.add(work);
+        this.inFlight.set(work, source);
         void work.then(
             () => this.inFlight.delete(work),
             () => this.inFlight.delete(work),
@@ -109,7 +120,23 @@ export class CrossSourceCancellation {
 
     async fail(error: unknown): Promise<never> {
         this.controller.abort(error);
-        await Promise.allSettled([...this.inFlight]);
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                Promise.allSettled([...this.inFlight.keys()]),
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(() => {
+                        Logger.warn('dbt.compile.crossSourceSettleTimeout', {
+                            event: 'dbt.compile.crossSourceSettleTimeout',
+                            sources: [...new Set(this.inFlight.values())],
+                        });
+                        resolve();
+                    }, CROSS_SOURCE_SETTLE_GRACE_MS);
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
         throw this.controller.signal.reason;
     }
 

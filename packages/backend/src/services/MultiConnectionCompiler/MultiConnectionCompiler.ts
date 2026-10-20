@@ -111,6 +111,7 @@ export type MultiConnectionSave = {
     bindingOf: (exploreName: string) => string | null;
     carry: MultiConnectionCarry;
     persistArtifacts: () => Promise<void>;
+    signal?: AbortSignal;
 };
 
 export type MultiConnectionCompilation = MultiConnectionSave & {
@@ -220,6 +221,7 @@ export class MultiConnectionCompiler {
         resolutionOptions: {
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
+            resolutionElapsedMs?: number;
             connectionName?: string;
             otherConnectionProjects?: {
                 projectName: string;
@@ -575,12 +577,21 @@ export class MultiConnectionCompiler {
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];
 
-        const cancellation = crossSourceRefsEnabled
-            ? new CrossSourceCancellation(
-                  armCompileShutdown(),
-                  crossSourceTimeouts,
-              )
-            : null;
+        const compileSignal = crossSourceRefsEnabled
+            ? armCompileShutdown()
+            : undefined;
+        const loadedCredentials = new Map<
+            string,
+            ReturnType<LoadExtraConnectionCredentials>
+        >();
+        const loadCredentialsOnce: LoadExtraConnectionCredentials = (uuid) => {
+            const loaded =
+                loadedCredentials.get(uuid) ?? loadExtraCredentials(uuid);
+            loadedCredentials.set(uuid, loaded);
+            return loaded;
+        };
+        const preparationFailures = new Map<string, unknown>();
+        const preparationDurations = new Map<string | null, number>();
         let preparedPrimary = primary;
         let preparedSourceManifest = prepareSourceManifest;
         try {
@@ -590,7 +601,7 @@ export class MultiConnectionCompiler {
                 connectionName: string;
                 connectionUuid: string | null;
             }[] = [];
-            if (cancellation) {
+            if (crossSourceRefsEnabled) {
                 const scans = new Map<string, DbtProjectScan | null>();
                 const prepare = prepareSourceManifest;
                 const primaryPrepare = primary.prepare;
@@ -600,6 +611,12 @@ export class MultiConnectionCompiler {
                     connection: ScopedWarehouseConnection,
                     includePrimary: boolean,
                 ) => {
+                    const started = Date.now();
+                    const cancellation = new CrossSourceCancellation(
+                        compileSignal,
+                        crossSourceTimeouts,
+                    );
+                    const groupProjects: typeof projects = [];
                     const tasks = [
                         ...(includePrimary
                             ? [
@@ -626,26 +643,37 @@ export class MultiConnectionCompiler {
                                 ) ?? Promise.resolve(null),
                         })),
                     ];
-                    await runWithConcurrency(
-                        tasks,
-                        concurrency,
-                        async (task) => {
-                            const scan = await cancellation.run(
-                                task.key,
-                                'prepare',
-                                (signal) => task.prepare({ signal }),
-                            );
-                            scans.set(task.uuid, scan);
-                            if (scan?.projectName)
-                                projects.push({
-                                    projectName: scan.projectName,
-                                    sourceKey: task.key,
-                                    connectionName: plan.connectionName,
-                                    connectionUuid:
-                                        plan.warehouseConnectionUuid,
-                                });
-                        },
-                    );
+                    try {
+                        await runWithConcurrency(
+                            tasks,
+                            concurrency,
+                            async (task) => {
+                                const scan = await cancellation.run(
+                                    task.key,
+                                    'prepare',
+                                    (signal) => task.prepare({ signal }),
+                                );
+                                scans.set(task.uuid, scan);
+                                if (scan?.projectName)
+                                    groupProjects.push({
+                                        projectName: scan.projectName,
+                                        sourceKey: task.key,
+                                        connectionName: plan.connectionName,
+                                        connectionUuid:
+                                            plan.warehouseConnectionUuid,
+                                    });
+                            },
+                        );
+                        projects.push(...groupProjects);
+                        preparationDurations.set(
+                            plan.warehouseConnectionUuid,
+                            Date.now() - started,
+                        );
+                    } catch (error) {
+                        await cancellation.fail(error);
+                    } finally {
+                        cancellation.dispose();
+                    }
                 };
                 await scanGroup(
                     originalPlan,
@@ -655,24 +683,37 @@ export class MultiConnectionCompiler {
                 );
                 await extraPlans.reduce(async (previous, plan) => {
                     await previous;
-                    if (beforeLoadExtraCredentials)
-                        await beforeLoadExtraCredentials();
-                    const credentials = await loadExtraCredentials(
-                        plan.warehouseConnectionUuid!,
-                    );
-                    await this.warehouseClientFactory.withWarehouseClient(
-                        { kind: 'compile', projectUuid, credentials },
-                        context,
-                        (connection) =>
-                            scanGroup(
-                                plan,
-                                connection.connectionCredentials,
-                                connection,
-                                false,
-                            ),
-                    );
+                    try {
+                        if (beforeLoadExtraCredentials)
+                            await beforeLoadExtraCredentials();
+                        const credentials = await loadCredentialsOnce(
+                            plan.warehouseConnectionUuid!,
+                        );
+                        await this.warehouseClientFactory.withWarehouseClient(
+                            { kind: 'compile', projectUuid, credentials },
+                            context,
+                            (connection) =>
+                                scanGroup(
+                                    plan,
+                                    connection.connectionCredentials,
+                                    connection,
+                                    false,
+                                ),
+                        );
+                    } catch (error) {
+                        compileSignal?.throwIfAborted();
+                        preparationFailures.set(
+                            plan.warehouseConnectionUuid!,
+                            error,
+                        );
+                    }
                 }, Promise.resolve());
-                for (const plan of [originalPlan, ...extraPlans]) {
+                const preparedPlans = [originalPlan, ...extraPlans].filter(
+                    (plan) =>
+                        plan.warehouseConnectionUuid === null ||
+                        !preparationFailures.has(plan.warehouseConnectionUuid),
+                );
+                for (const plan of preparedPlans) {
                     validateCrossSourceProjectScans(
                         [
                             ...(plan === originalPlan
@@ -712,8 +753,12 @@ export class MultiConnectionCompiler {
             const resolutionOptions = (plan: CompileGroupPlan) =>
                 crossSourceRefsEnabled
                     ? {
-                          signal: cancellation!.controller.signal,
+                          signal: compileSignal,
                           timeouts: crossSourceTimeouts,
+                          resolutionElapsedMs:
+                              preparationDurations.get(
+                                  plan.warehouseConnectionUuid,
+                              ) ?? 0,
                           connectionName: plan.connectionName,
                           otherConnectionProjects: projects.filter(
                               (project) =>
@@ -754,6 +799,7 @@ export class MultiConnectionCompiler {
                     warnings,
                     resolutionOptions(originalPlan),
                 );
+            compileSignal?.throwIfAborted();
             const originalMerged = mergeCompileGroupManifests(originalSources);
             const originalAdapter = new DbtManifestProjectAdapter({
                 parsedManifest: originalMerged.manifest,
@@ -796,6 +842,14 @@ export class MultiConnectionCompiler {
                     | null = null;
                 const sourceErrors = new Map<string | null, unknown>();
                 try {
+                    if (
+                        preparationFailures.has(
+                            extraPlan.warehouseConnectionUuid,
+                        )
+                    )
+                        throw preparationFailures.get(
+                            extraPlan.warehouseConnectionUuid,
+                        );
                     compiledExtraGroups.push(
                         await this.compileExtraGroup({
                             projectUuid,
@@ -826,8 +880,9 @@ export class MultiConnectionCompiler {
                             crossSourceRefsEnabled,
                             concurrency,
                             loadExtraCredentials: async (uuid) => {
-                                const credentials =
-                                    await loadExtraCredentials(uuid);
+                                const credentials = crossSourceRefsEnabled
+                                    ? await loadCredentialsOnce(uuid)
+                                    : await loadExtraCredentials(uuid);
                                 extraWarehouseType = credentials.type;
                                 return credentials;
                             },
@@ -838,7 +893,7 @@ export class MultiConnectionCompiler {
                         }),
                     );
                 } catch (error) {
-                    cancellation?.controller.signal.throwIfAborted();
+                    compileSignal?.throwIfAborted();
                     if (error instanceof ExtraConnectionCheckError)
                         throw error.refusal;
                     if (error instanceof ManifestCollisionError) throw error;
@@ -979,7 +1034,9 @@ export class MultiConnectionCompiler {
                       )
                     : null;
 
+            compileSignal?.throwIfAborted();
             return {
+                ...(crossSourceRefsEnabled ? { signal: compileSignal } : {}),
                 originalAdapter,
                 exploreStream: MultiConnectionCompiler.groupExplores(
                     originalStream,
@@ -999,6 +1056,7 @@ export class MultiConnectionCompiler {
                 },
                 warnings,
                 persistArtifacts: async () => {
+                    compileSignal?.throwIfAborted();
                     if (originalManifest === null) {
                         await this.projectModel.deleteMergedManifest(
                             projectUuid,
@@ -1010,24 +1068,23 @@ export class MultiConnectionCompiler {
                         );
                     }
                     await Promise.all(
-                        compiledExtraGroups.map((group) =>
-                            this.warehouseConnectionCompileModel.saveCompileArtifacts(
+                        compiledExtraGroups.map((group) => {
+                            compileSignal?.throwIfAborted();
+                            return this.warehouseConnectionCompileModel.saveCompileArtifacts(
                                 projectUuid,
                                 group.plan.warehouseConnectionUuid,
                                 {
                                     manifest: group.manifest,
                                     catalog: group.catalog,
                                 },
-                            ),
-                        ),
+                            );
+                        }),
                     );
                 },
             };
         } catch (error) {
-            if (cancellation) return await cancellation.fail(error);
+            compileSignal?.throwIfAborted();
             throw error;
-        } finally {
-            cancellation?.dispose();
         }
     }
 
@@ -1036,6 +1093,14 @@ export class MultiConnectionCompiler {
         compilation: MultiConnectionSave,
         beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
+        compilation.signal?.throwIfAborted();
+        const checkBeforeWrite: StagedExploreWriteCheck | undefined =
+            compilation.signal
+                ? async (...args) => {
+                      await beforeWrite?.(...args);
+                      compilation.signal?.throwIfAborted();
+                  }
+                : beforeWrite;
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
             (async function* boundExplores(): AsyncIterable<BoundExplore> {
@@ -1049,8 +1114,9 @@ export class MultiConnectionCompiler {
                 }
             })(),
             compilation.carry,
-            ...(beforeWrite ? [beforeWrite] : []),
+            ...(checkBeforeWrite ? [checkBeforeWrite] : []),
         );
+        compilation.signal?.throwIfAborted();
         await compilation.persistArtifacts();
         return saved;
     }
