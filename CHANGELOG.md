@@ -1,3 +1,12 @@
+## [2.629.3](https://github.com/lightdash/lightdash/compare/2.629.2...2.629.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **dbt:** fail cross-source compiles early, cancel them cleanly and bound their disk use ([#31228](https://github.com/lightdash/lightdash/issues/31228)) ([f2962c6](https://github.com/lightdash/lightdash/commit/f2962c671b207375ac1a96baaa82844635ef21e4)), closes [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113) [#31113](https://github.com/lightdash/lightdash/issues/31113)
+* review requests skip reviewers who cannot receive a grant ([#31239](https://github.com/lightdash/lightdash/issues/31239)) ([e4e313e](https://github.com/lightdash/lightdash/commit/e4e313eb24b52865ffff07f0b80311e3fc21f2cc))
+* SQL chart lookup by slug reads only the latest version per chart ([#31237](https://github.com/lightdash/lightdash/issues/31237)) ([e739131](https://github.com/lightdash/lightdash/commit/e73913160ea5f0b8ef1839f94c74b70c2ac76056))
+
 ## [2.629.2](https://github.com/lightdash/lightdash/compare/2.629.1...2.629.2) (2026-10-20)
 
 
