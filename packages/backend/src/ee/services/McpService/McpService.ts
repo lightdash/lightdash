@@ -118,8 +118,8 @@ import {
     type AiAgentSkill,
     type ParametersValuesMap,
     type PivotConfiguration,
-    type PivotValuesColumn,
     type QueryHistory,
+    type ReadyQueryResultsPage,
     type RegisteredAccount,
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryArgsV2,
@@ -250,6 +250,7 @@ import {
     getMcpPreviewOrigin,
 } from './buildMcpCustomChartTypeRender';
 import {
+    buildMcpCustomChartSavedChart,
     buildMcpExploreConfigState,
     type McpExploreCustomChart,
 } from './buildMcpExploreConfigState';
@@ -487,7 +488,7 @@ const mcpRenderChartTool = withProjectScopeInput(
 type McpChartPivot = {
     rows: Record<string, unknown>[];
     fieldsMap: ItemsMap;
-    valuesColumns: PivotValuesColumn[];
+    pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
     parameters: ParametersValuesMap | null;
     timezone: string | null;
 };
@@ -1399,6 +1400,7 @@ export class McpService extends BaseService {
         pivotConfiguration,
         deadlineMs,
         signal,
+        noSeriesMessage,
     }: {
         ctx: McpProtocolContext;
         projectUuid: string;
@@ -1406,6 +1408,7 @@ export class McpService extends BaseService {
         pivotConfiguration: PivotConfiguration;
         deadlineMs: number;
         signal: AbortSignal;
+        noSeriesMessage: string;
     }): Promise<McpChartPivotResult> {
         const { account } = McpService.getAccount(ctx);
         const parameters =
@@ -1451,16 +1454,14 @@ export class McpService extends BaseService {
             aiAccessOnly: true,
         });
         if (!results.pivotDetails) {
-            throw new ParameterError(
-                'The grouped query returned no series to draw. Call render_chart without chartConfig.groupBy, or with defaultVizType table.',
-            );
+            throw new ParameterError(noSeriesMessage);
         }
         return {
             status: 'done',
             pivot: {
                 rows: results.rows,
                 fieldsMap: results.fields,
-                valuesColumns: results.pivotDetails.valuesColumns,
+                pivotDetails: results.pivotDetails,
                 parameters,
                 timezone: results.displayTimezone,
             },
@@ -1541,13 +1542,18 @@ export class McpService extends BaseService {
             },
             // Builders only pivot grouped charts, so ungrouped ones get an empty pivot
             getPivotedResults: getWarehousePivotedResults(
-                pivot ?? {
-                    rows: [],
-                    fieldsMap: fields,
-                    valuesColumns: [],
-                    parameters: null,
-                    timezone: null,
-                },
+                pivot
+                    ? {
+                          ...pivot,
+                          valuesColumns: pivot.pivotDetails.valuesColumns,
+                      }
+                    : {
+                          rows: [],
+                          fieldsMap: fields,
+                          valuesColumns: [],
+                          parameters: null,
+                          timezone: null,
+                      },
             ),
         });
 
@@ -1610,7 +1616,9 @@ export class McpService extends BaseService {
         renderTool,
         chartConfig,
         queryTool,
-        metricQuery,
+        sourceQueryHistory,
+        deadlineMs,
+        signal,
     }: {
         ctx: McpProtocolContext;
         projectUuid: string;
@@ -1618,9 +1626,12 @@ export class McpService extends BaseService {
         renderTool: ToolRenderChartArgsTransformed;
         chartConfig: ToolRunQueryCustomChartTypeConfig;
         queryTool: ToolRunQueryArgsTransformed;
-        metricQuery: MetricQuery;
+        sourceQueryHistory: QueryHistory;
+        deadlineMs: number;
+        signal: AbortSignal;
     }) {
         const { user, account } = McpService.getAccount(ctx);
+        const { metricQuery } = sourceQueryHistory;
         const slug = chartConfig.customChartTypeSlug;
         if (
             !(await this.aiAgentToolsService.canUseCustomChartTypes({
@@ -1629,7 +1640,7 @@ export class McpService extends BaseService {
             }))
         ) {
             throw new ForbiddenError(
-                'You do not have permission to use chart types in this project',
+                "Chart types aren't available in this project, or you don't have permission to use them.",
             );
         }
         const toolsRuntime = await this.getToolsRuntime(
@@ -1670,6 +1681,56 @@ export class McpService extends BaseService {
             }),
             this.projectService.getResolvedColorPalette(user, projectUuid),
         ]);
+        const customChart: McpExploreCustomChart = {
+            config: chartConfig,
+            chartType: {
+                dataAppVizUuid: resolved.dataAppVizUuid,
+                dataAppVizVersion: resolved.dataAppVizVersion,
+                fields: resolved.schema.fields,
+            },
+        };
+        const pivotConfiguration =
+            results.rows.length > 0
+                ? derivePivotConfigurationFromChart(
+                      buildMcpCustomChartSavedChart(customChart),
+                      metricQuery,
+                      results.fields,
+                  )
+                : undefined;
+        const pivotResult = pivotConfiguration
+            ? await this.getPivotedChartResults({
+                  ctx,
+                  projectUuid,
+                  sourceQueryHistory,
+                  pivotConfiguration,
+                  deadlineMs,
+                  signal,
+                  noSeriesMessage: `Custom chart type "${slug}" returned no series to draw. Bind its series slot to a different query dimension, or leave it unbound.`,
+              })
+            : null;
+        if (pivotResult?.status === 'running') {
+            return McpService.getRenderChartRunningResponse(
+                renderTool.queryUuid,
+            );
+        }
+        const pivot = pivotResult?.pivot ?? null;
+        const vizResult = pivot
+            ? {
+                  rows: pivot.rows,
+                  fields: pivot.fieldsMap,
+                  pivotDetails: pivot.pivotDetails,
+                  parameters: pivot.parameters,
+                  displayTimezone: pivot.timezone,
+              }
+            : {
+                  rows: results.rows,
+                  fields: results.fields,
+                  pivotDetails: null,
+                  parameters:
+                      sourceQueryHistory.requestParameters?.parameters ?? null,
+                  displayTimezone: results.displayTimezone,
+              };
+
         const fieldIds = results.rows[0]
             ? Object.keys(results.rows[0])
             : Object.keys(results.fields);
@@ -1680,14 +1741,7 @@ export class McpService extends BaseService {
             fieldsMap: results.fields,
             columnOrder: fieldIds,
             queryTool,
-            customChart: {
-                config: chartConfig,
-                chartType: {
-                    dataAppVizUuid: resolved.dataAppVizUuid,
-                    dataAppVizVersion: resolved.dataAppVizVersion,
-                    fields: resolved.schema.fields,
-                },
-            },
+            customChart,
         });
         const previewOrigin = getMcpPreviewOrigin(this.lightdashConfig);
         const token =
@@ -1743,9 +1797,7 @@ export class McpService extends BaseService {
                         vizContext: buildMcpCustomChartTypeVizContext({
                             chartConfig,
                             schema: resolved.schema,
-                            rows: results.rows,
-                            fields: results.fields,
-                            displayTimezone: results.displayTimezone,
+                            ...vizResult,
                             colorPalette: palette.colors,
                         }),
                         slug,
@@ -4532,7 +4584,9 @@ export class McpService extends BaseService {
                                         renderTool,
                                         chartConfig: renderTool.chartConfig,
                                         queryTool,
-                                        metricQuery: queryHistory.metricQuery,
+                                        sourceQueryHistory: queryHistory,
+                                        deadlineMs,
+                                        signal: extra.signal,
                                     },
                                 );
                             }
@@ -4589,6 +4643,8 @@ export class McpService extends BaseService {
                                       pivotConfiguration,
                                       deadlineMs,
                                       signal: extra.signal,
+                                      noSeriesMessage:
+                                          'The grouped query returned no series to draw. Call render_chart without chartConfig.groupBy, or with defaultVizType table.',
                                   })
                                 : null;
                             if (pivotResult?.status === 'running') {

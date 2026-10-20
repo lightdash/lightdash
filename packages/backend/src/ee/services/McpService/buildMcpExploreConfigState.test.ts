@@ -1,7 +1,6 @@
 import {
     CartesianSeriesType,
     ChartType,
-    deriveDataAppVizPivotConfig,
     isCustomChartTypeSlugChartConfig,
     toolRunQueryArgsSchemaTransformed,
     type DataAppVizSchema,
@@ -197,13 +196,6 @@ describe('buildMcpExploreConfigState', () => {
                     optionValues: { curved: false },
                 },
             });
-            expect(configState.pivotConfig).toEqual(
-                deriveDataAppVizPivotConfig(customChartTypeFields, {
-                    date: 'orders_date',
-                    category: 'orders_status',
-                    value: 'orders_count',
-                }),
-            );
             expect(configState.pivotConfig).toEqual({
                 columns: ['orders_status'],
             });
