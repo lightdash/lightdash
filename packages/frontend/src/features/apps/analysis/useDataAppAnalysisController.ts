@@ -8,6 +8,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { useCallback, useContext, useMemo, useState } from 'react';
 import { LauncherDockContext } from '../../../ee/features/aiCopilot/components/Launcher/LauncherDockContext';
 import { useProjectAiAgents } from '../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
+import { useGetUserAgentPreferences } from '../../../ee/features/aiCopilot/hooks/useUserAgentPreferences';
 import { store as aiAgentStore } from '../../../ee/features/aiCopilot/store';
 import { openPanel } from '../../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
@@ -121,6 +122,12 @@ export const useDataAppAnalysisController = ({
     const [agentByApp, setAgentByApp] = useLocalStorage<Record<string, string>>(
         { key: AGENT_STORAGE_KEY, defaultValue: {} },
     );
+    // Investigations need a concrete agent, so the launcher's "auto" router
+    // can't apply here; the user's default-agent preference is its anchor.
+    const preferencesQuery = useGetUserAgentPreferences(projectUuid, {
+        enabled: availability.status === 'available',
+    });
+    const preferredAgentUuid = preferencesQuery.data?.defaultAgentUuid;
     const rememberedAgent = appUuid ? agentByApp[appUuid] : undefined;
     // An agent that disappeared or lost access shows as unavailable rather
     // than silently falling back to another one.
@@ -129,7 +136,9 @@ export const useDataAppAnalysisController = ({
         ? rememberedIsUsable
             ? rememberedAgent
             : null
-        : (agents[0]?.uuid ?? null);
+        : (agents.find((a) => a.uuid === preferredAgentUuid)?.uuid ??
+          agents[0]?.uuid ??
+          null);
     const rememberedAgentMissing =
         !!rememberedAgent &&
         !rememberedIsUsable &&
