@@ -27,6 +27,19 @@ export const lightdashTheme = {
     ],
     backgroundColor: 'rgba(0,0,0,0)',
     textStyle: {},
+    title: {
+        textStyle: {
+            color: '#333',
+        },
+        subtextStyle: {
+            color: '#636363',
+        },
+    },
+    legend: {
+        textStyle: {
+            color: '#333',
+        },
+    },
     line: {
         itemStyle: {
             borderWidth: 1,
@@ -116,6 +129,9 @@ export const lightdashTheme = {
         },
     },
     categoryAxis: {
+        nameTextStyle: {
+            color: '#636363',
+        },
         axisLine: {
             show: true,
             lineStyle: {
@@ -146,6 +162,9 @@ export const lightdashTheme = {
         },
     },
     valueAxis: {
+        nameTextStyle: {
+            color: '#636363',
+        },
         axisLine: {
             show: true,
             lineStyle: {
@@ -176,6 +195,9 @@ export const lightdashTheme = {
         },
     },
     logAxis: {
+        nameTextStyle: {
+            color: '#636363',
+        },
         axisLine: {
             show: true,
         },
@@ -203,6 +225,9 @@ export const lightdashTheme = {
         },
     },
     timeAxis: {
+        nameTextStyle: {
+            color: '#636363',
+        },
         axisLine: {
             show: true,
             lineStyle: {
@@ -275,3 +300,36 @@ export const lightdashTheme = {
         },
     },
 };
+
+// Axis, label and grid greys mapped to Claude's dark-mode text and border tokens
+const DARK_THEME_COLORS: Record<string, string> = {
+    '#333': '#c2c0b6',
+    '#636363': '#9c9a92',
+    '#969696': '#9c9a92',
+    '#aaa': '#9c9a92',
+    '#ccc': '#5a5955',
+    '#dedede': '#4a4946',
+    '#e9e9e9': '#3f3e3b',
+    '#ebebeb': '#3f3e3b',
+    '#eee': '#3f3e3b',
+};
+
+const toDarkThemeValue = (value: unknown): unknown => {
+    if (typeof value === 'string') return DARK_THEME_COLORS[value] ?? value;
+    if (Array.isArray(value)) return value.map(toDarkThemeValue);
+    if (typeof value === 'object' && value !== null) {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, v]) => [key, toDarkThemeValue(v)]),
+        );
+    }
+    return value;
+};
+
+export const lightdashDarkTheme = toDarkThemeValue(lightdashTheme) as Record<
+    string,
+    unknown
+>;
+
+// ECharts themes can't style `graphic` text, which the AI chart config uses for axis titles
+export const getChartTextColor = (scheme: 'light' | 'dark'): string =>
+    scheme === 'dark' ? DARK_THEME_COLORS['#333'] : '#333';

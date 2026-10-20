@@ -4421,6 +4421,7 @@ export class McpService extends BaseService {
                             text: html,
                             _meta: {
                                 ui: {
+                                    prefersBorder: false,
                                     csp: {
                                         connectDomains: previewDomains,
                                         resourceDomains: previewDomains,
