@@ -2,6 +2,7 @@ import {
     CloudRunExecChannel,
     CloudRunGatewayClient,
 } from './CloudRunExecChannel';
+import { SandboxOutputLimitError } from './errors';
 
 const execJson = (payload: {
     stdout?: string;
@@ -118,5 +119,40 @@ describe('CloudRunExecChannel', () => {
             }),
         ).rejects.toThrow('Invalid sandbox env var name');
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+    test('rejects buffered output above maxOutputBytes', async () => {
+        fetchMock.mockResolvedValue(execJson({ stdout: 'x'.repeat(64) }));
+        const channel = new CloudRunExecChannel(
+            new CloudRunGatewayClient('https://gateway.example.test', 's'),
+            'sandbox-1',
+        );
+
+        await expect(
+            channel.commands.run('python3 main.py', {
+                timeoutMs: 1_000,
+                maxOutputBytes: 16,
+            }),
+        ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+        // the cap is also applied inside the sandbox, one byte over the limit
+        const init = fetchMock.mock.calls[0][1] as RequestInit;
+        const body = JSON.parse(String(init.body)) as { command: string };
+        expect(body.command).toContain('head -c 17');
+        expect(body.command).toContain('python3 main.py');
+    });
+
+    test('refuses to download a file above maxBytes', async () => {
+        fetchMock.mockResolvedValue(execJson({ stdout: '1048577\n' }));
+        const channel = new CloudRunExecChannel(
+            new CloudRunGatewayClient('https://gateway.example.test', 's'),
+            'sandbox-1',
+        );
+
+        await expect(
+            channel.files.readBytes('/work/out/result.jsonl', {
+                maxBytes: 1024 * 1024,
+            }),
+        ).rejects.toBeInstanceOf(SandboxOutputLimitError);
+        // only the size probe ran, no chunk downloads
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });

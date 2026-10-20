@@ -25,12 +25,12 @@ export interface RunOptions {
     timeoutMs?: number;
     onStdout?: (chunk: string) => void;
     onStderr?: (chunk: string) => void;
-    /** Combined stdout/stderr byte ceiling; supported by Docker and E2B. */
+    /** Combined stdout/stderr byte ceiling; supported by Docker, E2B and Cloud Run. */
     maxOutputBytes?: number;
 }
 
 export interface FileReadOptions {
-    /** Abort the transfer before collecting more bytes; Docker and E2B only. */
+    /** Abort the transfer before collecting more bytes; Docker, E2B and Cloud Run. */
     maxBytes: number;
 }
 

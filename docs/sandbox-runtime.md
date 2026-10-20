@@ -274,13 +274,15 @@ The full operator reference is on the public docs site. The values are parsed in
 
 | Variable | Used by | Notes |
 | --- | --- | --- |
-| `SANDBOX_PROVIDER` | all | `e2b` (default) · `docker` · `lambda-microvm` · `azure-sandboxes` |
+| `SANDBOX_PROVIDER` | all | `e2b` (default) · `docker` · `lambda-microvm` · `azure-sandboxes` · `gcp-cloud-run` |
 | `E2B_API_KEY`, `E2B_*_TEMPLATE_NAME/TAG` | e2b | Separate data-app vs writeback templates |
 | `SANDBOX_DOCKER_IMAGE`, `SANDBOX_AI_WRITEBACK_DOCKER_IMAGE` | docker | Local images built from `sandboxes/<feature>/` |
 | `LAMBDA_MICROVM_*` (region, role, connectors, image ARNs) | lambda-microvm | Image ARNs are separate per feature |
 | `AZURE_SANDBOXES_SUBSCRIPTION_ID`, `AZURE_SANDBOXES_RESOURCE_GROUP`, `AZURE_SANDBOXES_REGION` | azure-sandboxes | Locate the sandbox groups (ADC data plane is regional) |
 | `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_GROUP`, `AZURE_SANDBOXES_{DATA_APP,AI_WRITEBACK}_DISK_IMAGE` | azure-sandboxes | One sandbox group + disk image per feature |
 | `AZURE_SANDBOXES_API_VERSION`, `AZURE_SANDBOXES_TOKEN_SCOPE`, `AZURE_SANDBOXES_RESOURCE_TIER` | azure-sandboxes | Data-plane API version, Entra token scope, tier (`M` default) — sensible defaults |
+| `GCP_CLOUD_RUN_SANDBOX_URL`, `GCP_CLOUD_RUN_SANDBOX_SECRET` | gcp-cloud-run | Data-app gateway service (data-app image baked in) |
+| `GCP_CLOUD_RUN_PYTHON_SANDBOX_URL`, `GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET` | gcp-cloud-run | Separate gateway for python query nodes (python-runner image baked in) |
 | `SANDBOX_IDLE_TIMEOUT_MS` | lambda-microvm, azure-sandboxes | Feeds the auto-suspend idle policy; ignored by e2b/docker |
 | `SANDBOX_SNAPSHOT_RETENTION_MS` | lambda-microvm | Feeds the AWS auto-terminate policy |
 | `ANTHROPIC_API_KEY` | all | The Claude Code agent runs inside the sandbox |

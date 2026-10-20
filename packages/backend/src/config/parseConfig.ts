@@ -2303,6 +2303,15 @@ export type AppRuntimeConfig = {
         sandboxUrl: string | null;
         sandboxSecret: string | null;
     };
+    /**
+     * Config for python query nodes on `gcp-cloud-run`: URL + shared secret of
+     * a separate gateway service (python-runner image baked in). Required only
+     * when `sandboxProvider === 'gcp-cloud-run'` and python nodes run.
+     */
+    gcpCloudRunPython: {
+        sandboxUrl: string | null;
+        sandboxSecret: string | null;
+    };
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
@@ -2849,6 +2858,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         gcpCloudRun: {
             sandboxUrl: process.env.GCP_CLOUD_RUN_SANDBOX_URL || null,
             sandboxSecret: process.env.GCP_CLOUD_RUN_SANDBOX_SECRET || null,
+        },
+        gcpCloudRunPython: {
+            sandboxUrl: process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_URL || null,
+            sandboxSecret:
+                process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET || null,
         },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,

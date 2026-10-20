@@ -1,4 +1,8 @@
-import { getErrorMessage, MissingConfigError } from '@lightdash/common';
+import {
+    assertUnreachable,
+    getErrorMessage,
+    MissingConfigError,
+} from '@lightdash/common';
 import { createHash } from 'crypto';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
@@ -7,6 +11,7 @@ import {
     SandboxCommandError,
     SandboxOutputLimitError,
     SandboxTimeoutError,
+    type CloudRunSandboxesConfig,
     type SandboxHandle,
     type SandboxLogger,
     type SandboxProvider,
@@ -58,6 +63,7 @@ const COMPILE_TIMEOUT_MS = 30_000;
 const SANDBOX_IDLE_MARGIN_MS = 60_000;
 const MAX_LOG_BYTES = 1024 * 1024;
 const MAX_META_BYTES = 1024 * 1024;
+const CLOUD_RUN_PYTHON_TEMPLATE_REF = 'gcp-cloud-run-python-gateway';
 
 /**
  * Runs one python query in a fresh sandbox: create, compile, feed inputs,
@@ -82,40 +88,76 @@ export class PythonSandboxRunner {
     private getProvider(): SandboxProvider {
         if (!this.provider) {
             const { appRuntime } = this.lightdashConfig;
-            if (
-                appRuntime.sandboxProvider !== 'e2b' &&
-                appRuntime.sandboxProvider !== 'docker'
-            ) {
-                throw new MissingConfigError(
-                    `Python queries are not supported on the ${appRuntime.sandboxProvider} sandbox provider yet`,
-                );
-            }
+            const provider = PythonSandboxRunner.getSupportedProvider(
+                appRuntime.sandboxProvider,
+            );
             this.provider = createSandboxProvider({
-                provider: appRuntime.sandboxProvider,
+                provider,
                 e2bApiKey: appRuntime.e2bApiKey,
                 dockerImage: appRuntime.sandboxPythonDockerImage,
                 lambdaMicroVm: null,
                 azureSandboxes: null,
-                gcpCloudRun: null,
-                // One-shot sandboxes are never suspended; the Docker provider
-                // still requires a store at construction.
-                snapshotStore:
-                    appRuntime.sandboxProvider === 'docker'
-                        ? new S3SnapshotStore({
-                              lightdashConfig: this.lightdashConfig,
-                          })
+                gcpCloudRun:
+                    provider === 'gcp-cloud-run'
+                        ? this.getCloudRunConfig()
                         : null,
+                // One-shot sandboxes are never suspended; Docker and Cloud Run
+                // still require a store at construction.
+                snapshotStore:
+                    provider === 'e2b'
+                        ? null
+                        : new S3SnapshotStore({
+                              lightdashConfig: this.lightdashConfig,
+                          }),
                 logger: this.logger,
             });
         }
         return this.provider;
     }
 
+    private static getSupportedProvider(
+        provider: LightdashConfig['appRuntime']['sandboxProvider'],
+    ): 'e2b' | 'docker' | 'gcp-cloud-run' {
+        switch (provider) {
+            case 'e2b':
+            case 'docker':
+            case 'gcp-cloud-run':
+                return provider;
+            case 'lambda-microvm':
+            case 'azure-sandboxes':
+                throw new MissingConfigError(
+                    `Python queries are not supported on the ${provider} sandbox provider yet`,
+                );
+            default:
+                return assertUnreachable(
+                    provider,
+                    `Unknown sandbox provider ${provider}`,
+                );
+        }
+    }
+
+    private getCloudRunConfig(): CloudRunSandboxesConfig {
+        const { sandboxUrl, sandboxSecret } =
+            this.lightdashConfig.appRuntime.gcpCloudRunPython;
+        if (!sandboxUrl || !sandboxSecret) {
+            throw new MissingConfigError(
+                'GCP Cloud Run python sandboxes are not configured (GCP_CLOUD_RUN_PYTHON_SANDBOX_URL / GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET)',
+            );
+        }
+        return { sandboxUrl, sandboxSecret };
+    }
+
     private getTemplateRef(): string {
         const { appRuntime } = this.lightdashConfig;
-        return appRuntime.sandboxProvider === 'e2b'
-            ? `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`
-            : appRuntime.sandboxPythonDockerImage;
+        switch (appRuntime.sandboxProvider) {
+            case 'e2b':
+                return `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`;
+            // The gateway bakes in its image; the ref only feeds `version`.
+            case 'gcp-cloud-run':
+                return CLOUD_RUN_PYTHON_TEMPLATE_REF;
+            default:
+                return appRuntime.sandboxPythonDockerImage;
+        }
     }
 
     /** What runs the code: the sandbox template and the harness inside it. */

@@ -565,6 +565,10 @@ export const lightdashConfigMock: LightdashConfig = {
             sandboxUrl: null,
             sandboxSecret: null,
         },
+        gcpCloudRunPython: {
+            sandboxUrl: null,
+            sandboxSecret: null,
+        },
         e2bAgentOnboardingTemplateName: 'lightdash-agent-onboarding',
         e2bAgentOnboardingTemplateTag: 'test',
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
