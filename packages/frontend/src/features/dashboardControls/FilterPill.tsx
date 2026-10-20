@@ -5,7 +5,8 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
-    IconAsterisk,
+    IconCircleCheck,
+    IconCircleDashed,
     IconGripVertical,
     IconLock,
     IconLockOpen,
@@ -15,6 +16,7 @@ import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
+import { getFieldColor } from '../../utils/fieldColors';
 import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { showsComposedFilterValue } from '../dashboardFilters/ActiveFilters/filterLabels';
 import {
@@ -121,12 +123,10 @@ export const FilterPill: FC<Props> = memo(
                         size="xs"
                         variant="default"
                         aria-pressed={isSelected}
+                        data-requirement-unmet={isRequirementUnmet || undefined}
                         classNames={{ label: pillClasses.label }}
                         className={[
                             pillClasses.button,
-                            isRequirementUnmet
-                                ? pillClasses.requirementUnmet
-                                : '',
                             isOrphaned ? pillClasses.inactiveFilter : '',
                             isSelected ? classes.selectedPill : '',
                             isDraft ? classes.draftPill : '',
@@ -149,12 +149,18 @@ export const FilterPill: FC<Props> = memo(
                                             disabled={!isRequirementUnmet}
                                         >
                                             <MantineIcon
-                                                icon={IconAsterisk}
+                                                icon={
+                                                    isRequirementUnmet
+                                                        ? IconCircleDashed
+                                                        : IconCircleCheck
+                                                }
                                                 size="sm"
                                                 color={
                                                     isRequirementUnmet
                                                         ? 'yellow.7'
-                                                        : 'ldGray.6'
+                                                        : field
+                                                          ? getFieldColor(field)
+                                                          : 'dimmed'
                                                 }
                                             />
                                         </Tooltip>

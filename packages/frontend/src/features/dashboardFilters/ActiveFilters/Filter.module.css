@@ -2,32 +2,75 @@
     border-radius: 100px !important;
 }
 
-/* Active pill: blue border, plus a ring only when it applies to a tile */
-.button[data-filter-active]:not([data-disabled], :disabled),
-.button[data-filter-active]:hover:not([data-disabled], :disabled) {
-    border-color: alpha(var(--mantine-color-indigo-8), 0.8);
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-4);
-    }
+.button:not([data-disabled], :disabled) {
+    box-shadow: none;
 }
 
-.button[data-filter-active]:not([data-disabled], :disabled, .inactiveFilter),
+.button.button:not(
+        [data-filter-active],
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled,
+        .inactiveFilter
+    ) {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-4)
+    );
+    background-color: var(--mantine-color-default);
+}
+
+.button.button:hover:not(
+        [data-filter-active],
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled,
+        .inactiveFilter
+    ) {
+    border-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
+    background-color: var(--mantine-color-default-hover);
+}
+
+.button.button[data-filter-active]:not(
+        [data-disabled],
+        :disabled,
+        .inactiveFilter
+    ),
+.button.button[data-filter-active]:hover:not(
+        [data-disabled],
+        :disabled,
+        .inactiveFilter
+    ) {
+    border-color: var(--mantine-color-blue-outline);
+}
+
+.button[data-filter-active]:not([data-disabled], :disabled, .inactiveFilter) {
+    background-color: light-dark(
+        color-mix(in srgb, var(--mantine-color-blue-light) 35%, transparent),
+        color-mix(in srgb, var(--mantine-color-blue-light) 50%, transparent)
+    );
+}
+
 .button[data-filter-active]:hover:not(
         [data-disabled],
         :disabled,
         .inactiveFilter
     ) {
-    box-shadow:
-        var(--mantine-shadow-xs),
-        0 0 0 2px alpha(var(--mantine-color-indigo-8), 0.22),
-        0 0 6px alpha(var(--mantine-color-indigo-8), 0.18);
-
-    @mixin dark {
-        box-shadow:
-            0 0 0 2px alpha(var(--mantine-color-indigo-5), 0.4),
-            0 0 10px alpha(var(--mantine-color-indigo-5), 0.35);
-    }
+    background-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-light-hover) 35%,
+            transparent
+        ),
+        color-mix(
+            in srgb,
+            var(--mantine-color-blue-light-hover) 50%,
+            transparent
+        )
+    );
 }
 
 /* Translucent so tinted pills (requirement unmet) keep their colour under the hover */
@@ -40,7 +83,8 @@
     transition: color 120ms ease;
 }
 
-.button[data-requirement-unmet] {
+.button.button[data-requirement-unmet]:not([data-disabled], :disabled),
+.button.button[data-requirement-unmet]:hover:not([data-disabled], :disabled) {
     border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
 
     @mixin light {
@@ -58,10 +102,33 @@
     );
 }
 
-.inactiveFilter {
+.button.button.inactiveFilter:not(
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled
+    ),
+.button.button.inactiveFilter:hover:not(
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled
+    ) {
+    border-color: var(--mantine-color-ldGray-4);
     border-style: dashed;
     border-width: 1px;
-    background-color: rgba(var(--mantine-color-background-0), 0.7);
+    background-color: transparent;
+}
+
+.button.button.inactiveFilter[data-filter-active]:not(
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled
+    ),
+.button.button.inactiveFilter[data-filter-active]:hover:not(
+        [data-requirement-unmet],
+        [data-disabled],
+        :disabled
+    ) {
+    border-color: var(--mantine-color-blue-outline);
 }
 
 .lockSlot {
