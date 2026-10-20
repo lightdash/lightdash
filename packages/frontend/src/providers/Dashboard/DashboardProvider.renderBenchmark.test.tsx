@@ -17,7 +17,11 @@ import {
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+    selectChartZoomableFieldsByTileUuid,
+    selectControlGranularities,
     selectDashboardFilters,
+    selectDateZoomGranularity,
+    selectIsDateZoomAppliedToTile,
     selectDashboardParameters,
     selectHaveFiltersChanged,
     selectMissingRequiredParameters,
@@ -75,16 +79,19 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 // ---------------------------------------------------------------------------
 
 const useWholeContext = () => useDashboardContext((c) => c);
-const useTileState = () => ({
+const useTileState = (tileUuid: string) => ({
     tiles: useDashboardContext((c) => c.dashboardTiles),
     activeTab: useDashboardContext((c) => c.activeTab),
-    dateZoomGranularity: useDashboardContext((c) => c.dateZoomGranularity),
-    controlGranularities: useDashboardContext((c) => c.controlGranularities),
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    controlGranularities: useDashboardSelector(selectControlGranularities),
+    isDateZoomApplied: useDashboardSelector((state) =>
+        selectIsDateZoomAppliedToTile(state, tileUuid),
+    ),
 });
 const useDateZoomControlState = () => ({
-    dateZoomGranularity: useDashboardContext((c) => c.dateZoomGranularity),
-    chartZoomableFieldsByTileUuid: useDashboardContext(
-        (c) => c.chartZoomableFieldsByTileUuid,
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    chartZoomableFieldsByTileUuid: useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
     ),
 });
 const useFilterBarState = () => useDashboardAllFilters();
@@ -224,7 +231,7 @@ const WholeContextProbe = memo(() => {
     return null;
 });
 const TileProbe = memo(({ index }: { index: number }) => {
-    useTileState();
+    useTileState(`tile-${index}`);
     counts.tiles += 1;
     return <span data-index={index} />;
 });
@@ -442,16 +449,17 @@ describe('dashboard render benchmark', () => {
     });
 });
 
-// Filter and parameter state comes from the dashboard store, so tiles and the
-// parameter bar only re-render for the router update a URL write causes (the
-// context provider re-ran every consumer on each of its 1-3 renders per edit).
+// Filter, parameter and date zoom state comes from the dashboard store, so
+// tiles only re-render for the state they read and for the router update a URL
+// write causes (the context provider re-ran every consumer on each of its 1-3
+// renders per edit, and once per tile report while tiles loaded).
 const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
         filterBar: 2,
         parameterBar: 0,
-        dateZoomControl: 1,
+        dateZoomControl: 0,
         page: 2,
     },
     'add a temporary filter': {
@@ -459,7 +467,7 @@ const BASELINE: Record<string, Counts> = {
         tiles: TILE_COUNT,
         filterBar: 2,
         parameterBar: 0,
-        dateZoomControl: 1,
+        dateZoomControl: 0,
         page: 2,
     },
     'set one parameter': {
@@ -467,7 +475,7 @@ const BASELINE: Record<string, Counts> = {
         tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 1,
-        dateZoomControl: 1,
+        dateZoomControl: 0,
         page: 2,
     },
     'toggle a parameter pin': {
@@ -479,43 +487,43 @@ const BASELINE: Record<string, Counts> = {
         page: 1,
     },
     'set the date zoom granularity': {
-        wholeContextConsumer: 2,
+        wholeContextConsumer: 1,
         tiles: 2 * TILE_COUNT,
-        filterBar: 2,
+        filterBar: 1,
         parameterBar: 0,
-        dateZoomControl: 2,
-        page: 2,
+        dateZoomControl: 1,
+        page: 1,
     },
     'set a date zoom control granularity': {
-        wholeContextConsumer: 2,
+        wholeContextConsumer: 1,
         tiles: 2 * TILE_COUNT,
-        filterBar: 2,
+        filterBar: 1,
         parameterBar: 0,
-        dateZoomControl: 2,
-        page: 2,
+        dateZoomControl: 0,
+        page: 1,
     },
     'every tile reports its zoomable fields': {
-        wholeContextConsumer: TILE_COUNT,
-        tiles: TILE_COUNT * TILE_COUNT,
-        filterBar: TILE_COUNT,
+        wholeContextConsumer: 0,
+        tiles: 0,
+        filterBar: 0,
         parameterBar: 0,
         dateZoomControl: TILE_COUNT,
-        page: TILE_COUNT,
+        page: 0,
     },
     'every tile reports date zoom applied': {
-        wholeContextConsumer: TILE_COUNT,
-        tiles: TILE_COUNT * TILE_COUNT,
-        filterBar: TILE_COUNT,
+        wholeContextConsumer: 0,
+        tiles: TILE_COUNT,
+        filterBar: 0,
         parameterBar: 0,
-        dateZoomControl: TILE_COUNT,
-        page: TILE_COUNT,
+        dateZoomControl: 0,
+        page: 0,
     },
     '10 rapid filter updates': {
         wholeContextConsumer: 10,
         tiles: 10 * TILE_COUNT,
         filterBar: 20,
         parameterBar: 0,
-        dateZoomControl: 10,
+        dateZoomControl: 0,
         page: 20,
     },
 };

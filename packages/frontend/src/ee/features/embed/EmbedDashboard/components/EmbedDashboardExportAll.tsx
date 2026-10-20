@@ -9,12 +9,12 @@ import { IconCsv, IconFileTypeXls, IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
+    selectDateZoomGranularity,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
 import { useExportDashboardContent } from '../../../../../hooks/dashboard/useDashboard';
-import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { type EventData } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
@@ -33,9 +33,7 @@ const EmbedDashboardExportAll: FC<Props> = ({ dashboard, projectUuid }) => {
     const { track } = useTracking();
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardAllFilters();
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const parameterValues = useDashboardSelector(selectParameterValues);
 
     if (!dashboard.canExportDashboardCsv) {

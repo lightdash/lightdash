@@ -159,3 +159,18 @@ export const selectMissingRequiredParameters = createSelector(
             definitions: parameterDefinitions,
         }),
 );
+
+// Date zoom
+export const selectDateZoomGranularity = (state: DashboardStoreState) =>
+    state.dateZoom.granularity;
+export const selectControlGranularities = (state: DashboardStoreState) =>
+    state.dateZoom.controlGranularities;
+export const selectChartZoomableFieldsByTileUuid = (
+    state: DashboardStoreState,
+) => state.dateZoom.chartZoomableFieldsByTileUuid;
+export const selectTilesWithDateZoomApplied = (state: DashboardStoreState) =>
+    state.dateZoom.tilesWithDateZoomApplied;
+export const selectIsDateZoomAppliedToTile = (
+    state: DashboardStoreState,
+    tileUuid: string,
+) => !!state.dateZoom.tilesWithDateZoomApplied?.has(tileUuid);

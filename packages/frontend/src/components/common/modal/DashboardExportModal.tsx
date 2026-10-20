@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import {
+    selectDateZoomGranularity,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -38,7 +39,6 @@ import {
     useExportDashboardContent,
     useExportDashboardContentPreview,
 } from '../../../hooks/dashboard/useDashboard';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
@@ -65,9 +65,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         exportType === SchedulerFormat.XLSX;
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardAllFilters();
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const parameterValues = useDashboardSelector(selectParameterValues);
 
     const [previews, setPreviews] = useState<Record<string, string>>({});

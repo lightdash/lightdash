@@ -20,6 +20,10 @@ import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import {
     selectAppliedParameterValues,
+    selectChartZoomableFieldsByTileUuid,
+    selectControlGranularities,
+    selectDateZoomGranularity,
+    selectTilesWithDateZoomApplied,
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
@@ -143,17 +147,13 @@ const useStoreValues = () => ({
 });
 
 const useDateZoomValues = () => ({
-    dateZoomGranularity: useDashboardContext(
-        (context) => context.dateZoomGranularity,
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    controlGranularities: useDashboardSelector(selectControlGranularities),
+    tilesWithDateZoomApplied: useDashboardSelector(
+        selectTilesWithDateZoomApplied,
     ),
-    controlGranularities: useDashboardContext(
-        (context) => context.controlGranularities,
-    ),
-    tilesWithDateZoomApplied: useDashboardContext(
-        (context) => context.tilesWithDateZoomApplied,
-    ),
-    chartZoomableFieldsByTileUuid: useDashboardContext(
-        (context) => context.chartZoomableFieldsByTileUuid,
+    chartZoomableFieldsByTileUuid: useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
     ),
 });
 

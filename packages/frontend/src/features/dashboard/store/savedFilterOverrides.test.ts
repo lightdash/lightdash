@@ -135,6 +135,7 @@ describe('parseSavedFilterOverridesParam', () => {
             )}`,
             isEditMode: false,
             parameterLabelOverrides: undefined,
+            dateZoom: undefined,
         });
         expect(state.filters.savedFilterOverrides).toStrictEqual({
             dimensions: [sanitizedRule],
