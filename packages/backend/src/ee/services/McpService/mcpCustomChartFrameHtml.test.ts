@@ -138,7 +138,7 @@ describe('fetchMcpCustomChartFrameHtml', () => {
             ),
         ).resolves.toEqual({
             kind: 'html',
-            html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><head></head>`,
+            html: `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><base href="${indexUrl}"><!doctype html><head></head>`,
         });
         expect(fetchFn).toHaveBeenCalledWith(indexUrl, {
             credentials: 'omit',
