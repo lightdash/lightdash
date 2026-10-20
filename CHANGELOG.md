@@ -1,3 +1,10 @@
+# [2.626.0](https://github.com/lightdash/lightdash/compare/2.625.0...2.626.0) (2026-10-20)
+
+
+### Features
+
+* **ai:** data-app viewer serves analysis through the AI launcher ([#31211](https://github.com/lightdash/lightdash/issues/31211)) ([7d52773](https://github.com/lightdash/lightdash/commit/7d52773667a8b2e083267eee7b68cb51b0a41ee1))
+
 # [2.625.0](https://github.com/lightdash/lightdash/compare/2.624.0...2.625.0) (2026-10-20)
 
 
