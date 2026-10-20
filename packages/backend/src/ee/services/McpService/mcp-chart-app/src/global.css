@@ -9,7 +9,10 @@
         --color-background-inverse,
         light-dark(#1a1a1a, #f2f2f2)
     );
-    --app-bg-danger: var(--color-background-danger, light-dark(#fdf0ef, #3a1a18));
+    --app-bg-danger: var(
+        --color-background-danger,
+        light-dark(#fdf0ef, #3a1a18)
+    );
     --app-text: var(--color-text-primary, light-dark(#1a1a1a, #f2f2f2));
     --app-text-secondary: var(
         --color-text-secondary,
