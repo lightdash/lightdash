@@ -133,6 +133,13 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
 };
 const BASE_NAMES = Object.keys(BASES) as LoadoutBase[];
 
+const CLASSIC_QUERY_TOOLS = [
+    'runQuery',
+    'generateVisualization',
+    'runSql',
+    'exportChartAsCode',
+] as const;
+
 const contract = (loadout: Loadout) =>
     `${JSON.stringify(
         {
@@ -286,12 +293,12 @@ describe('resolveLoadout', () => {
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
     });
 
-    test('composer drops runSql but keeps the classic query tools for now', () => {
+    test('composer queries only through runComposerQueries', () => {
         const { toolNames } = resolveLoadout(inputs.composer);
-        expect(toolNames.has('runSql')).toBe(false);
         expect(toolNames.has('runComposerQueries')).toBe(true);
-        expect(toolNames.has('runQuery')).toBe(true);
-        expect(toolNames.has('generateVisualization')).toBe(true);
+        expect(
+            CLASSIC_QUERY_TOOLS.filter((tool) => toolNames.has(tool)),
+        ).toEqual([]);
     });
 
     test('deep research coordinator reads saved content but cannot change it', () => {

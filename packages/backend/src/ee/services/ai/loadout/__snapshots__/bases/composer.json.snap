@@ -3,11 +3,9 @@
     "addOns": [],
     "toolNames": [
         "analyzeFieldImpact",
-        "exportChartAsCode",
         "findContent",
         "generateHashes",
         "generateUuids",
-        "generateVisualization",
         "getKnowledgeDocumentContent",
         "getMetadata",
         "getProjectInfo",
@@ -17,7 +15,6 @@
         "readPinnedThread",
         "resolveUrl",
         "runComposerQueries",
-        "runQuery",
         "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer"

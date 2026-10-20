@@ -19,7 +19,6 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'resolveUrl',
-    'generateVisualization',
     'runSavedChart',
     'generateHashes',
     'generateUuids',
@@ -45,6 +44,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     classic: (input) => ({
         tools: [
             ...CORE_TOOLS,
+            'generateVisualization',
             'searchFieldValues',
             ...onlyIf(hasDecisionsInStandardMode(input), [
                 'runQuery',
@@ -55,24 +55,24 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
-    // runQuery and generateVisualization stay until the composer-only agent lands.
+    // runComposerQueries is the only query path; exportChartAsCode only exports semantic and merge charts.
     composer: (input) => ({
         tools: [
             ...CORE_TOOLS,
             'runComposerQueries',
             // The service enables composer only with data access; kept for exact parity.
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(
-                input.enableDataAccess && hasDecisionsInStandardMode(input),
-                ['runQuery', 'exportChartAsCode'],
-            ),
         ],
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
     // Today every add-on can apply without data access; narrowing it is a behaviour change.
     no_data_access: (input) => ({
-        tools: [...CORE_TOOLS, ...onlyIf(input.canRunSql, ['runSql'])],
+        tools: [
+            ...CORE_TOOLS,
+            'generateVisualization',
+            ...onlyIf(input.canRunSql, ['runSql']),
+        ],
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
@@ -94,6 +94,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...CORE_TOOLS.filter(
                 (tool) => tool !== 'generateHashes' && tool !== 'generateUuids',
             ),
+            'generateVisualization',
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
             ...onlyIf(canRunRawSql(input), ['runSql']),
             'delegateResearchTask',
