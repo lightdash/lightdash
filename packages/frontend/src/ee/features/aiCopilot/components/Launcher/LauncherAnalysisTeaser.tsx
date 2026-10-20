@@ -50,7 +50,7 @@ const StoredAnalysisCard: FC<{
     const anomalies = analysis.anomalies.slice(0, TEASER_ANOMALY_COUNT);
     const remaining = analysis.anomalies.length - anomalies.length;
     return (
-        <Box className={styles.card} mx="md" mb="xs">
+        <Box className={styles.card} w="100%" mt="md">
             <Stack gap="xs">
                 <Group gap="xs" wrap="nowrap" justify="space-between">
                     <Group gap="xxs" wrap="nowrap">
@@ -151,7 +151,7 @@ export const AnalysisTeaserContent: FC<{
     }
 
     return (
-        <Stack gap="xxs" px="md" pb="xs">
+        <Stack gap="xs" align="center" mt="md">
             <Button
                 variant="default"
                 leftSection={
@@ -162,7 +162,7 @@ export const AnalysisTeaserContent: FC<{
             >
                 Analyse this view
             </Button>
-            <Text size="xs" c="dimmed" ta="center">
+            <Text size="xs" c="dimmed" ta="center" maw={280}>
                 Find what is out of the ordinary across the charts you have open
             </Text>
         </Stack>

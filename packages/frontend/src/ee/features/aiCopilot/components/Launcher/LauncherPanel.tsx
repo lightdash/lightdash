@@ -367,8 +367,8 @@ const NewThreadPanel: FC<{
                             {description}
                         </Text>
                     )}
+                    <LauncherAnalysisTeaser projectUuid={projectUuid} />
                 </Stack>
-                <LauncherAnalysisTeaser projectUuid={projectUuid} />
                 {concreteAgent && (
                     <Stack px="md" pb="xs">
                         <AiAgentNewThreadMcpConnections
