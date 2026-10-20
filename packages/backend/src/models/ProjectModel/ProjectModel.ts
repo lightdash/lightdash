@@ -3697,16 +3697,21 @@ export class ProjectModel {
                         const insertQuery = trx<DbCachedExplore>(
                             CachedExploreTableName,
                         ).insert(rows);
-                        // A single-connection save owns every explore, so a
-                        // survivor loses any multi-connection binding it had
+                        // A complete single-connection save owns every
+                        // explore, so a survivor loses any multi-connection
+                        // binding it had; a partial save leaves it alone
                         // eslint-disable-next-line no-await-in-loop
                         const saved = await insertQuery
                             .onConflict(['name', 'project_uuid'])
-                            .merge([
-                                'table_names',
-                                'explore',
-                                'warehouse_connection_uuid',
-                            ])
+                            .merge(
+                                complete
+                                    ? [
+                                          'table_names',
+                                          'explore',
+                                          'warehouse_connection_uuid',
+                                      ]
+                                    : ['table_names', 'explore'],
+                            )
                             .returning('cached_explore_uuid');
                         individualCachedExplores.push(...saved);
                     }
