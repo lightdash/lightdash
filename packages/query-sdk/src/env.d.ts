@@ -4,6 +4,7 @@ interface ImportMetaEnv {
     readonly VITE_LIGHTDASH_API_KEY?: string;
     readonly VITE_LIGHTDASH_URL?: string;
     readonly VITE_LIGHTDASH_PROJECT_UUID?: string;
+    readonly VITE_LIGHTDASH_APP_UUID?: string;
 }
 
 interface ImportMeta {

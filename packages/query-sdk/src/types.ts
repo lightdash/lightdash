@@ -364,6 +364,12 @@ export type LightdashClientConfig = {
     apiKey: string;
     /** Use relative /api paths instead of baseUrl (for dev proxy setups) */
     useProxy?: boolean;
+    /**
+     * The data app this client runs as. Needed by `useAppState` /
+     * `useSharedAppState` outside the Lightdash iframe (local dev); set via
+     * VITE_LIGHTDASH_APP_UUID. Without it, saved state stays in memory.
+     */
+    appUuid?: string;
 };
 
 // --- User ---
@@ -416,6 +422,74 @@ export type ExternalFetchOptions = {
     body?: unknown;
 };
 
+// --- App state (durable, Lightdash-hosted) ---
+// Structural copies of `@lightdash/common`'s app state types. The SDK is
+// published standalone with no `@lightdash/common` dependency; keep in sync.
+
+export type AppStateAuthor = { userUuid: string; name: string | null };
+
+export type AppStateUserEntry = { value: unknown; updatedAt: string };
+
+export type AppStateSharedEntry = {
+    value: unknown;
+    version: number;
+    updatedAt: string;
+    updatedBy: AppStateAuthor | null;
+};
+
+export type AppStateHistoryAuthor =
+    | { kind: 'user'; userUuid: string | null; name: string | null }
+    | { kind: 'agent' };
+
+export type AppStateHistoryEntry = {
+    version: number;
+    value: unknown;
+    createdAt: string;
+    author: AppStateHistoryAuthor;
+};
+
+export type AppStateSnapshot = {
+    user: Record<string, AppStateUserEntry>;
+    shared: Record<string, AppStateSharedEntry>;
+};
+
+export type AppStateHistoryOptions = {
+    limit?: number;
+    beforeVersion?: number;
+};
+
+export type AppStateErrorCode =
+    | 'conflict'
+    | 'feature_disabled'
+    | 'forbidden'
+    | 'invalid'
+    | 'unavailable'
+    | 'unknown';
+
+/** Wire shape of a failed app state call, before it becomes an AppStateError. */
+export type AppStateErrorPayload = {
+    code: AppStateErrorCode;
+    message: string;
+    /** On `conflict`: what the shared key holds now (null when deleted). */
+    current?: AppStateSharedEntry | null;
+};
+
+export type AppStateTransport = {
+    getSnapshot: () => Promise<AppStateSnapshot>;
+    setUser: (key: string, value: unknown) => Promise<AppStateUserEntry>;
+    deleteUser: (key: string) => Promise<void>;
+    setShared: (
+        key: string,
+        value: unknown,
+        expectedVersion: number | null,
+    ) => Promise<AppStateSharedEntry>;
+    deleteShared: (key: string) => Promise<void>;
+    getSharedHistory: (
+        key: string,
+        options: AppStateHistoryOptions,
+    ) => Promise<AppStateHistoryEntry[]>;
+};
+
 // --- Transport ---
 
 /** Wire shape of a `useAiPrompt` request, proxied by the host. */
@@ -442,6 +516,12 @@ export type Transport = {
         alias: string,
         opts: ExternalFetchOptions,
     ) => Promise<ExternalFetchResult>;
+    /**
+     * Durable app state (`useAppState` / `useSharedAppState`). Absent when
+     * the transport has no app to attribute state to; the hooks then keep
+     * values in memory for the session.
+     */
+    appState?: AppStateTransport;
     /**
      * Fetch the raw rows behind a viz data point via the host bridge.
      * Optional so custom transports predating the capability stay valid —
