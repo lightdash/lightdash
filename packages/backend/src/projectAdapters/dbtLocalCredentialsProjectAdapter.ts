@@ -96,7 +96,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
 
     async destroy() {
         Logger.debug(`Destroy local project adapter`);
-        await fspromises.rm(this.profilesDir, { recursive: true, force: true });
         await super.destroy();
+        await fspromises.rm(this.profilesDir, { recursive: true, force: true });
     }
 }

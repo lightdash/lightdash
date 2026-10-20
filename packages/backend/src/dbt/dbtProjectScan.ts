@@ -8,6 +8,7 @@ export type DbtProjectScan = {
     referencesOwnProject?: boolean;
     referencedProjects: string[];
     declaredUpstreams: string[];
+    installedPackages: string[];
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -30,6 +31,13 @@ export const scanDbtProject = async (
         isRecord(project) && typeof project.name === 'string'
             ? project.name
             : null;
+    const packagesPath = path.resolve(
+        projectDir,
+        isRecord(project) &&
+            typeof project['packages-install-path'] === 'string'
+            ? project['packages-install-path']
+            : 'dbt_packages',
+    );
     const dependencies = await readYaml(
         path.join(projectDir, 'dependencies.yml'),
     );
@@ -55,6 +63,7 @@ export const scanDbtProject = async (
                     const filename = path.join(directory, entry.name);
                     if (
                         entry.isDirectory() &&
+                        path.resolve(filename) !== packagesPath &&
                         !['target', 'dbt_packages', 'logs', '.git'].includes(
                             entry.name,
                         )
@@ -95,11 +104,41 @@ export const scanDbtProject = async (
             return [];
         }
     };
+    const packageDirectories = await fs
+        .readdir(packagesPath, { withFileTypes: true })
+        .catch(() => []);
+    const installedPackages = [
+        ...new Set(
+            (
+                await Promise.all(
+                    packageDirectories
+                        .filter(
+                            (entry) =>
+                                entry.isDirectory() || entry.isSymbolicLink(),
+                        )
+                        .map(async (entry) => {
+                            const installed = await readYaml(
+                                path.join(
+                                    packagesPath,
+                                    entry.name,
+                                    'dbt_project.yml',
+                                ),
+                            );
+                            return isRecord(installed) &&
+                                typeof installed.name === 'string'
+                                ? [installed.name]
+                                : [];
+                        }),
+                )
+            ).flat(),
+        ),
+    ];
     const references = [...new Set(await walk(projectDir))];
     return {
         projectName,
         referencedProjects: references.filter((name) => name !== projectName),
         declaredUpstreams,
+        installedPackages,
         ...(projectName !== null && references.includes(projectName)
             ? { referencesOwnProject: true }
             : {}),

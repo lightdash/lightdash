@@ -5,6 +5,7 @@ import {
     SupportedDbtVersions,
     type DbtRawModelNode,
 } from '@lightdash/common';
+import execa from 'execa';
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -39,7 +40,7 @@ const fixtures = path.resolve(
     '../../../../examples/cross-source-dbt-refs',
 );
 const cycleError =
-    'Cannot resolve cross-source dbt refs: the pending sources depend on each other or on an upstream source that failed. Source "cycle_a": cycle_b.model_b; Source "cycle_b": cycle_a.model_a';
+    'Cannot resolve cross-source dbt refs: the pending sources depend on each other. Source "cycle_a": cycle_b.model_b; Source "cycle_b": cycle_a.model_a';
 const missingUpstreamError =
     'Cannot resolve dbt source "missing_upstream": ref "nowhere.ghost" was not found. No connected dbt source provides project "nowhere".';
 
@@ -198,8 +199,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 clients.push(client);
                 return {
                     prepare: scan
-                        ? async () => {
-                              await client.installDeps();
+                        ? async (options) => {
+                              await client.installDeps(options?.signal);
                               return scanDbtProject(copy);
                           }
                         : undefined,
@@ -236,6 +237,41 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ]);
                 return accessResolution;
             };
+
+            it('cancels a slow dbt ls without leaving a dbt process', async () => {
+                const source = await task('shared_dimensions');
+                const client = clients[clients.length - 1];
+                await fs.writeFile(
+                    path.join(
+                        client.dbtProjectDirectory,
+                        'models',
+                        'leaf_slow.sql',
+                    ),
+                    `{% for j in range(100000) %}{% for i in range(100000) %}{% set x = i * j %}{% endfor %}{% endfor %} select 1`,
+                );
+                await expect(
+                    resolveCrossSourceManifests({
+                        tasks: [source],
+                        enabled: true,
+                        concurrency: 1,
+                        timeouts: {
+                            prepareMs: 30000,
+                            lsMs: 2000,
+                            resolutionMs: 60000,
+                        },
+                    }),
+                ).rejects.toThrow('timed out after 2 s while running dbt ls.');
+                const processes = await execa('ps', ['-eo', 'pid,args']);
+                expect(
+                    processes.stdout
+                        .split('\n')
+                        .filter(
+                            (line) =>
+                                line.includes('--project-dir') &&
+                                line.includes(client.dbtProjectDirectory),
+                        ),
+                ).toEqual([]);
+            }, 30000);
 
             it('orders a scanned chain with one dbt ls per source', async () => {
                 const resolution = await resolveCrossSourceManifests({

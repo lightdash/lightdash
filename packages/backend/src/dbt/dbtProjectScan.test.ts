@@ -35,6 +35,7 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: 'local',
             referencedProjects: ['upstream', 'other', 'comment_only'],
+            installedPackages: [],
             declaredUpstreams: [],
             referencesOwnProject: true,
         });
@@ -53,6 +54,7 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: null,
             referencedProjects: [],
+            installedPackages: [],
             declaredUpstreams: [],
         });
     });
@@ -76,7 +78,35 @@ describe('scanDbtProject', () => {
         expect(await scanDbtProject(directory)).toEqual({
             projectName: null,
             referencedProjects: [],
+            installedPackages: [],
             declaredUpstreams: [],
         });
+    });
+});
+
+it('reads installed project names rather than package directory names', async () => {
+    await write('dbt_packages/leaf_a/dbt_project.yml', 'name: leaf_b');
+    await write('dbt_packages/leaf_c/dbt_project.yml', 'name: [');
+    expect((await scanDbtProject(directory)).installedPackages).toEqual([
+        'leaf_b',
+    ]);
+});
+
+it('reads the configured package path and skips package refs in that directory', async () => {
+    await write(
+        'dbt_project.yml',
+        'name: leaf_a\npackages-install-path: vendor',
+    );
+    await write('vendor/leaf_b/dbt_project.yml', 'name: leaf_c');
+    await write(
+        'vendor/leaf_b/models/leaf_b.sql',
+        "{{ ref('leaf_d', 'leaf_e') }}",
+    );
+    await write('models/leaf_a.sql', "{{ ref('leaf_c', 'leaf_e') }}");
+    expect(await scanDbtProject(directory)).toEqual({
+        projectName: 'leaf_a',
+        installedPackages: ['leaf_c'],
+        referencedProjects: ['leaf_c'],
+        declaredUpstreams: [],
     });
 });

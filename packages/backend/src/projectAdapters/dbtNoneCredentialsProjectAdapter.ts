@@ -33,11 +33,17 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
     }
 
     // eslint-disable-next-line class-methods-use-this
+    async releaseDisk(): Promise<void> {
+        await this.destroy();
+    }
+
     async destroy(): Promise<void> {
         Logger.debug(`Destroy none project adapter`);
     }
 
-    public async prepareDbtSource(): Promise<DbtSourcePreparation> {
+    public async prepareDbtSource(_options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
         return this.sourcePreparation;
     }
 
@@ -73,9 +79,11 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
 
     // eslint-disable-next-line class-methods-use-this
     public async getDbtManifest(
-        _options?: DbtManifestFetchOptions,
+        options?: DbtManifestFetchOptions,
     ): Promise<never> {
-        await this.prepareDbtSource();
+        await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
         throw new ParameterError(
             'Cannot read a dbt manifest as this project was created via CLI and has no dbt connection configured.',
         );

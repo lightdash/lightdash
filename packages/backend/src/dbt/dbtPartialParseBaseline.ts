@@ -1,5 +1,6 @@
 import { getErrorMessage } from '@lightdash/common';
 import { createHash, randomUUID } from 'crypto';
+import * as fsSync from 'fs';
 import * as fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -21,6 +22,39 @@ export const DBT_PARTIAL_PARSE_BASELINE_LIMITS = {
 };
 
 type BaselineLimits = typeof DBT_PARTIAL_PARSE_BASELINE_LIMITS;
+
+export const getDbtPartialParseBaselineLimits = (
+    diskBudgetBytes = Number(process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES),
+): BaselineLimits => ({
+    ...DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    maxBytes:
+        Number.isFinite(diskBudgetBytes) && diskBudgetBytes > 0
+            ? Math.min(
+                  DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes,
+                  Math.floor(diskBudgetBytes / 4),
+              )
+            : DBT_PARTIAL_PARSE_BASELINE_LIMITS.maxBytes,
+});
+
+export const getDbtPartialParseBaselineSize = (
+    root = DBT_PARTIAL_PARSE_BASELINE_ROOT,
+): number => {
+    const walk = (directory: string): number =>
+        fsSync
+            .readdirSync(directory, { withFileTypes: true })
+            .reduce((bytes, entry) => {
+                const filename = path.join(directory, entry.name);
+                if (entry.isDirectory()) return bytes + walk(filename);
+                return entry.isFile()
+                    ? bytes + fsSync.statSync(filename).size
+                    : bytes;
+            }, 0);
+    try {
+        return walk(root);
+    } catch {
+        return 0;
+    }
+};
 
 /**
  * One baseline per project and dbt source. `dbtSourceUuid` is null for the
@@ -73,7 +107,7 @@ export const seedDbtPartialParse = async (
 export const pruneDbtPartialParseBaselines = async (
     root: string,
     now: number,
-    limits: BaselineLimits = DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
 ): Promise<void> => {
     const names = await fs.readdir(root);
     const entries = (
@@ -125,7 +159,7 @@ export const pruneDbtPartialParseBaselines = async (
 export const saveDbtPartialParse = async (
     baselinePath: string,
     targetDirectory: string,
-    limits: BaselineLimits = DBT_PARTIAL_PARSE_BASELINE_LIMITS,
+    limits: BaselineLimits = getDbtPartialParseBaselineLimits(),
 ): Promise<void> => {
     const root = path.dirname(baselinePath);
     const temporaryPath = `${baselinePath}.${randomUUID()}.tmp`;

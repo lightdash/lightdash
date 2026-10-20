@@ -423,11 +423,24 @@ import {
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnectionTablesModel/WarehouseConnectionTablesModel';
 import { type CompilableDbtSource } from '../../projectAdapters/CompileGroup';
+import {
+    CrossSourceCancellation,
+    waitForDbtSourceCleanup,
+} from '../../projectAdapters/crossSourceCancellation';
 import { resolveCrossSourceManifests } from '../../projectAdapters/crossSourceRefs';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtSourceDiskPool } from '../../projectAdapters/DbtSourceDiskPool';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
+import {
+    armCompileShutdown,
+    CompileInterruptedError,
+    disarmCompileShutdown,
+    getCompileShutdownSignal,
+    markCompilePublished,
+    throwIfCompileAborted,
+} from '../../scheduler/compileShutdown';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import {
@@ -3824,10 +3837,14 @@ export class ProjectService
     private getConnectionStagedWriteChecks(
         projectUuid: string,
     ): [] | [StagedExploreWriteCheck] {
-        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
-            return [];
+        const signal = getCompileShutdownSignal();
+        const checkConnection =
+            !!agentExecutionContext.getStore()?.agentConnectionExecution;
+        if (!checkConnection && !signal) return [];
         return [
             async (trx, saveUuid) => {
+                signal?.throwIfAborted();
+                if (!checkConnection) return;
                 const stored =
                     await this.projectModel.getPreAggregateRefreshSummary(
                         projectUuid,
@@ -3841,6 +3858,7 @@ export class ProjectService
                         trx,
                     );
                 assertIncomingPreAggregateRefresh(incoming);
+                signal?.throwIfAborted();
             },
         ];
     }
@@ -4365,6 +4383,7 @@ export class ProjectService
                         ),
                     );
                 }
+                throwIfCompileAborted();
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
                     observedExplores(),
@@ -4381,7 +4400,7 @@ export class ProjectService
                 args.projectUuid,
                 'compileProject',
             );
-            await multiConnection.persistArtifacts();
+            await multiConnection.persistArtifacts({ exploresCommitted: true });
             return result;
         }
         return saving;
@@ -4447,7 +4466,9 @@ export class ProjectService
                 projectUuid,
                 'compileProject',
             );
+        throwIfCompileAborted();
         const { cachedExploreUuids } = await saveExplores(summary);
+        markCompilePublished();
         const connectionIndexCatalogJob = connectionProject
             ? await this.schedulerClient.indexCatalog({
                   projectUuid,
@@ -5739,6 +5760,10 @@ export class ProjectService
         }
     }
 
+    async _markInterruptedCompileAsFailed(jobUuid: string, error: string) {
+        await this.jobModel.failRunningJob(jobUuid, error);
+    }
+
     async _markJobAsFailed(jobUuid: string) {
         await this.jobModel.setPendingJobsToSkipped(jobUuid);
         await this.jobModel.update(jobUuid, {
@@ -6572,6 +6597,7 @@ export class ProjectService
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
+            await this.armCrossSourceCompile(projectUuid, user);
             timings.testAdapter.start = performance.now();
             const {
                 adapter: primaryAdapter,
@@ -6690,6 +6716,7 @@ export class ProjectService
                                 });
                             timings.getConfig.end = performance.now();
 
+                            throwIfCompileAborted();
                             timings.yaml.start = performance.now();
                             await this.replaceYamlTagsWithoutPermissionCheck(
                                 user,
@@ -6780,6 +6807,7 @@ export class ProjectService
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
                 });
+                disarmCompileShutdown();
             } else {
                 try {
                     await this.jobModel.update(job.jobUuid, {
@@ -6839,10 +6867,17 @@ export class ProjectService
                 },
             );
         } catch (error) {
-            await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.ERROR,
-            });
+            if (error instanceof CompileInterruptedError) {
+                await this._markInterruptedCompileAsFailed(
+                    job.jobUuid,
+                    error.message,
+                );
+            } else {
+                await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
+                await this.jobModel.update(job.jobUuid, {
+                    jobStatus: JobStatusType.ERROR,
+                });
+            }
             throw error;
         } finally {
             if (!cleanup.started && cleanup.adapter && cleanup.lease) {
@@ -6857,6 +6892,7 @@ export class ProjectService
                     await cleanup.lease.release();
                 }
             }
+            disarmCompileShutdown();
         }
     }
 
@@ -7044,7 +7080,37 @@ export class ProjectService
                 this.analytics,
             );
             try {
-                await adapter.test();
+                const signal = getCompileShutdownSignal();
+                if (signal) {
+                    const cancellation = new CrossSourceCancellation(signal, {
+                        prepareMs:
+                            this.lightdashConfig.dbt
+                                .crossSourcePrepareTimeoutMs,
+                        lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                        resolutionMs:
+                            this.lightdashConfig.dbt
+                                .crossSourceResolutionTimeoutMs,
+                    });
+                    try {
+                        await cancellation.run(
+                            'primary',
+                            'prepare',
+                            (prepareSignal) =>
+                                adapter!.prepareDbtSource({
+                                    signal: prepareSignal,
+                                }),
+                        );
+                        await cancellation.run('primary', 'ls', (testSignal) =>
+                            adapter!.test({ signal: testSignal }),
+                        );
+                    } catch (error) {
+                        await cancellation.fail(error);
+                    } finally {
+                        cancellation.dispose();
+                    }
+                } else {
+                    await adapter.test();
+                }
             } catch (error) {
                 const refs = getMissingDbtNodeReferences(error);
                 if (refs.length === 0) throw error;
@@ -7871,6 +7937,7 @@ export class ProjectService
             dbtVersionOption,
             dbtPartialParse,
         } = await this.prepareCompileAdapter(projectUuid, user);
+        await this.armCrossSourceCompile(projectUuid, user);
         const dbtTargetPolicy = await this.getDbtTargetPolicy(
             project.organizationUuid,
         );
@@ -8195,8 +8262,30 @@ export class ProjectService
         );
     }
 
-    private static async scanAdapter(adapter: ProjectAdapter) {
-        const { projectDir } = await adapter.prepareDbtSource();
+    private async armCrossSourceCompile(
+        projectUuid: string,
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user,
+        });
+        if (!enabled) return;
+        const { enabled: multiSource } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.MultiDbtSources,
+            user,
+        });
+        if (!multiSource) return;
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        if (sources.length > 0) armCompileShutdown();
+    }
+
+    private static async scanAdapter(
+        adapter: ProjectAdapter,
+        options?: { signal?: AbortSignal },
+    ) {
+        const { projectDir } = await adapter.prepareDbtSource(options);
         return projectDir === null ? null : scanDbtProject(projectDir);
     }
 
@@ -8279,7 +8368,10 @@ export class ProjectService
 
         const concurrencyDecision = resolveDbtSourceFetchConcurrency(
             this.lightdashConfig.dbt.sourceFetchConcurrency,
+            undefined,
+            this.lightdashConfig.dbt,
         );
+        const diskPool = new DbtSourceDiskPool(concurrencyDecision.chosen);
         // The default log format renders the message and drops metadata, so the decisive
         // values ride in both. Typed fields stay for instances on the json format.
         this.logger.info(
@@ -8289,7 +8381,7 @@ export class ProjectService
                 concurrencyDecision.availableParallelism
             } memoryDerivedLimit=${
                 concurrencyDecision.memoryDerivedLimit ?? 'none'
-            } envOverride=${concurrencyDecision.override ?? 'none'}`,
+            } envOverride=${concurrencyDecision.override ?? 'none'} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskEvictions=0 diskRecreations=0`,
             {
                 event: 'dbt.compile.sourceFetchStart',
                 projectUuid,
@@ -8301,6 +8393,10 @@ export class ProjectService
                 constrainedMemoryBytes:
                     concurrencyDecision.constrainedMemoryBytes ?? null,
                 memoryDerivedLimit: concurrencyDecision.memoryDerivedLimit,
+                diskAvailableBytes: concurrencyDecision.diskAvailableBytes,
+                diskBudgetSource: concurrencyDecision.diskBudgetSource,
+                diskDerivedLimit: concurrencyDecision.diskDerivedLimit,
+                ...diskPool.stats,
                 nodeHeapLimitBytes: v8.getHeapStatistics().heap_size_limit,
             },
         );
@@ -8310,6 +8406,8 @@ export class ProjectService
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
                 user: { userUuid, organizationUuid },
             });
+        const activeFetches = new Set<Promise<DbtManifestFetchResult>>();
+        const sourceAdapterBuilds = new Set<Promise<ProjectAdapter>>();
         const logFetched = async (
             event:
                 | 'dbt.compile.primarySourceFetched'
@@ -8318,7 +8416,14 @@ export class ProjectService
             fetchManifest: () => Promise<DbtManifestFetchResult>,
         ): Promise<DbtManifestFetchResult> => {
             const startedAt = Date.now();
-            const result = await fetchManifest();
+            const manifestFetch = fetchManifest();
+            activeFetches.add(manifestFetch);
+            let result: DbtManifestFetchResult;
+            try {
+                result = await manifestFetch;
+            } finally {
+                activeFetches.delete(manifestFetch);
+            }
             this.logDbtSourceFetched({
                 event,
                 projectUuid,
@@ -8334,10 +8439,32 @@ export class ProjectService
         const sourceFetchStartedAt = Date.now();
         const resolution = await resolveCrossSourceManifests({
             enabled: crossSourceRefsEnabled,
+            onSourceFinal: async (task) => {
+                if (task.context.uuid === identity.dbtSourceUuid) {
+                    await primary.adapter.releaseDisk({ keepProject: true });
+                } else {
+                    await diskPool.release(task.context.uuid);
+                }
+            },
+            ...(crossSourceRefsEnabled
+                ? {
+                      signal: armCompileShutdown(),
+                      timeouts: {
+                          prepareMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourcePrepareTimeoutMs,
+                          lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                          resolutionMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourceResolutionTimeoutMs,
+                      },
+                  }
+                : {}),
             concurrency: concurrencyDecision.chosen,
             tasks: [
                 {
-                    prepare: () => ProjectService.scanAdapter(primary.adapter),
+                    prepare: (options) =>
+                        ProjectService.scanAdapter(primary.adapter, options),
                     key: identity.dbtSourceName,
                     context: {
                         name: identity.dbtSourceName,
@@ -8350,9 +8477,15 @@ export class ProjectService
                             identity.dbtSourceName,
                             async () => {
                                 try {
-                                    return await primary.adapter.getDbtManifest(
-                                        options,
-                                    );
+                                    const result =
+                                        await primary.adapter.getDbtManifest(
+                                            options,
+                                        );
+                                    if (!crossSourceRefsEnabled)
+                                        await primary.adapter.releaseDisk({
+                                            keepProject: true,
+                                        });
+                                    return result;
                                 } catch (error) {
                                     throw withCrossSourceRefsHint(
                                         error,
@@ -8372,7 +8505,7 @@ export class ProjectService
                     const getAdapter = async (): Promise<ProjectAdapter> => {
                         if (adapter === null) {
                             try {
-                                adapter = await this.buildSourceAdapter(
+                                const build = this.buildSourceAdapter(
                                     source.dbtConnection,
                                     source.warehouseLocation,
                                     organizationUuid,
@@ -8386,6 +8519,12 @@ export class ProjectService
                                         : null,
                                     primary.dbtTargetPolicy,
                                 );
+                                sourceAdapterBuilds.add(build);
+                                try {
+                                    adapter = await build;
+                                } finally {
+                                    sourceAdapterBuilds.delete(build);
+                                }
                                 manifestFetchAdapters.push(adapter);
                             } catch (error) {
                                 throw new DbtSourceError(
@@ -8396,12 +8535,34 @@ export class ProjectService
                         }
                         return adapter!;
                     };
+                    const withDisk = <R>(
+                        operation: () => Promise<R>,
+                        signal?: AbortSignal,
+                    ) =>
+                        diskPool.run(
+                            source.projectDbtSourceUuid,
+                            getAdapter,
+                            operation,
+                            signal,
+                        );
                     return {
-                        prepare: async () => {
-                            const sourceAdapter = await getAdapter();
+                        withDisk,
+                        prepareFetch: async (options: {
+                            signal: AbortSignal;
+                        }) =>
+                            ProjectService.scanAdapter(
+                                await getAdapter(),
+                                options,
+                            ),
+                        prepare: async (options?: { signal?: AbortSignal }) => {
                             try {
-                                return await ProjectService.scanAdapter(
-                                    sourceAdapter,
+                                return await withDisk(
+                                    async () =>
+                                        ProjectService.scanAdapter(
+                                            await getAdapter(),
+                                            options,
+                                        ),
+                                    options?.signal,
                                 );
                             } catch (error) {
                                 throw new DbtSourceError(
@@ -8423,9 +8584,13 @@ export class ProjectService
                                 async () => {
                                     const sourceAdapter = await getAdapter();
                                     try {
-                                        return await sourceAdapter.getDbtManifest(
-                                            options,
-                                        );
+                                        const result =
+                                            await sourceAdapter.getDbtManifest(
+                                                options,
+                                            );
+                                        if (!crossSourceRefsEnabled)
+                                            await sourceAdapter.releaseDisk();
+                                        return result;
                                     } catch (error) {
                                         const hinted = withCrossSourceRefsHint(
                                             error,
@@ -8441,20 +8606,62 @@ export class ProjectService
                     };
                 }),
             ],
+        }).catch(async (error: unknown) => {
+            const cleanup = (async () => {
+                await Promise.allSettled([
+                    ...activeFetches,
+                    ...sourceAdapterBuilds,
+                ]);
+                await Promise.allSettled(
+                    manifestFetchAdapters.map((adapter) =>
+                        adapter.releaseDisk(),
+                    ),
+                );
+            })();
+            if (crossSourceRefsEnabled) {
+                await waitForDbtSourceCleanup(cleanup);
+                this.logger.info(
+                    `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations} status=failed`,
+                    {
+                        event: 'dbt.compile.crossSourceRefsResolved',
+                        projectUuid,
+                        ...diskPool.stats,
+                        status: 'failed',
+                    },
+                );
+            } else await cleanup;
+            throw error;
         });
         if (crossSourceRefsEnabled) {
-            this.logger.info('dbt.compile.crossSourceRefsResolved', {
-                event: 'dbt.compile.crossSourceRefsResolved',
-                projectUuid,
-                rounds: resolution.rounds,
-                scannedEdges: resolution.scan.known,
-                firstAttemptInjected: resolution.firstAttemptInjected,
-                dbtLsRuns: resolution.attempts,
-                sources: resolution.results.map(({ task, injectedFrom }) => ({
-                    name: task.key,
-                    injectedFrom,
-                })),
-            });
+            this.logger.info(
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations}`,
+                {
+                    ...diskPool.stats,
+                    event: 'dbt.compile.crossSourceRefsResolved',
+                    projectUuid,
+                    rounds: resolution.rounds,
+                    scannedEdges: resolution.scan.known,
+                    firstAttemptInjected: resolution.firstAttemptInjected,
+                    dbtLsRuns: resolution.attempts,
+                    preflightWarnings: resolution.preflightWarnings,
+                    signatureExhausted: resolution.signatureExhausted,
+                    timeouts: {
+                        prepareMs:
+                            this.lightdashConfig.dbt
+                                .crossSourcePrepareTimeoutMs,
+                        lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                        resolutionMs:
+                            this.lightdashConfig.dbt
+                                .crossSourceResolutionTimeoutMs,
+                    },
+                    sources: resolution.results.map(
+                        ({ task, injectedFrom }) => ({
+                            name: task.key,
+                            injectedFrom,
+                        }),
+                    ),
+                },
+            );
         }
         const fetched = resolution.results.map(({ task, result }) => {
             const { manifest, selectedModelIds } = result;
@@ -8679,6 +8886,7 @@ export class ProjectService
                 user: { userUuid, organizationUuid },
             });
         const sourceAdapters = new Map<string, ProjectAdapter>();
+        const sourceAdapterBuilds = new Set<Promise<ProjectAdapter>>();
         const compileContext = connectionContextFromUser(
             { userUuid },
             {
@@ -8697,7 +8905,7 @@ export class ProjectService
         ): Promise<ProjectAdapter> => {
             let sourceAdapter = sourceAdapters.get(source.projectDbtSourceUuid);
             if (!sourceAdapter) {
-                sourceAdapter = await this.buildSourceAdapter(
+                const build = this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
                     organizationUuid,
@@ -8715,21 +8923,86 @@ export class ProjectService
                         : null,
                     primary.dbtTargetPolicy,
                 );
+                sourceAdapterBuilds.add(build);
+                try {
+                    sourceAdapter = await build;
+                } finally {
+                    sourceAdapterBuilds.delete(build);
+                }
                 sourceAdapters.set(source.projectDbtSourceUuid, sourceAdapter);
                 manifestFetchAdapters.push(sourceAdapter);
             }
             return sourceAdapter;
         };
+        const concurrencyDecision = resolveDbtSourceFetchConcurrency(
+            this.lightdashConfig.dbt.sourceFetchConcurrency,
+            undefined,
+            this.lightdashConfig.dbt,
+        );
+        const diskPool = new DbtSourceDiskPool(concurrencyDecision.chosen);
+        this.logger.info(
+            `dbt.compile.sourceFetchStart projectUuid=${projectUuid} concurrency=${concurrencyDecision.chosen} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskEvictions=0 diskRecreations=0`,
+            {
+                event: 'dbt.compile.sourceFetchStart',
+                projectUuid,
+                ...concurrencyDecision,
+                ...diskPool.stats,
+            },
+        );
         const primaryManifest = crossSourceRefsEnabled
             ? null
             : await primary.adapter.getDbtManifest();
         return this.multiConnectionCompiler.compile({
             projectUuid,
-            concurrency: resolveDbtSourceFetchConcurrency(
-                this.lightdashConfig.dbt.sourceFetchConcurrency,
-            ).chosen,
+            concurrency: concurrencyDecision.chosen,
+            diskStats: diskPool.stats,
+            releaseAllSourceDisk: async () => {
+                const cleanup = (async () => {
+                    await Promise.allSettled([...sourceAdapterBuilds]);
+                    await Promise.allSettled(
+                        [primary.adapter, ...sourceAdapters.values()].map(
+                            (adapter) => adapter.releaseDisk(),
+                        ),
+                    );
+                })();
+                if (crossSourceRefsEnabled)
+                    await waitForDbtSourceCleanup(cleanup);
+                else await cleanup;
+            },
+            withSourceDisk: (
+                source,
+                credentials,
+                connection,
+                operation,
+                signal,
+            ) =>
+                diskPool.run(
+                    source.projectDbtSourceUuid,
+                    () => getSourceAdapter(source, credentials, connection),
+                    operation,
+                    signal,
+                ),
+            releaseSourceDisk: (source) =>
+                crossSourceRefsEnabled
+                    ? diskPool.release(source.projectDbtSourceUuid)
+                    : (sourceAdapters
+                          .get(source.projectDbtSourceUuid)
+                          ?.releaseDisk() ?? Promise.resolve()),
+            prepareSourceFetch: async (
+                source,
+                credentials,
+                connection,
+                options,
+            ) =>
+                ProjectService.scanAdapter(
+                    await getSourceAdapter(source, credentials, connection),
+                    options,
+                ),
             primary: {
-                prepare: () => ProjectService.scanAdapter(primary.adapter),
+                releaseDisk: () =>
+                    primary.adapter.releaseDisk({ keepProject: true }),
+                prepare: (options) =>
+                    ProjectService.scanAdapter(primary.adapter, options),
                 fetchManifest: async (options) =>
                     primaryManifest ?? primary.adapter.getDbtManifest(options),
                 connection: primary.connection,
@@ -8742,9 +9015,30 @@ export class ProjectService
             includeUnboundSources,
             crossSourceRefsEnabled,
             mixedWarehouseConnectionsEnabled,
-            prepareSourceManifest: async (source, credentials, connection) =>
-                ProjectService.scanAdapter(
-                    await getSourceAdapter(source, credentials, connection),
+            ...(crossSourceRefsEnabled
+                ? {
+                      crossSourceTimeouts: {
+                          prepareMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourcePrepareTimeoutMs,
+                          lsMs: this.lightdashConfig.dbt.crossSourceLsTimeoutMs,
+                          resolutionMs:
+                              this.lightdashConfig.dbt
+                                  .crossSourceResolutionTimeoutMs,
+                      },
+                  }
+                : {}),
+            prepareSourceManifest: async (
+                source,
+                credentials,
+                connection,
+                options,
+            ) =>
+                diskPool.run(
+                    source.projectDbtSourceUuid,
+                    () => getSourceAdapter(source, credentials, connection),
+                    (adapter) => ProjectService.scanAdapter(adapter, options),
+                    options?.signal,
                 ),
             fetchSourceManifest: async (
                 source,
@@ -13467,6 +13761,7 @@ export class ProjectService
                                 onCompiled,
                                 multiConnection,
                             }) => {
+                                throwIfCompileAborted();
                                 timings.yaml.start = performance.now();
                                 if (
                                     agentExecutionContext.getStore()
@@ -13611,11 +13906,21 @@ export class ProjectService
                     jobStatus: JobStatusType.DONE,
                     jobResults: compileResult,
                 });
+                disarmCompileShutdown();
             } catch (e) {
                 recordCompileFailure(e);
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.ERROR,
-                });
+                if (e instanceof CompileInterruptedError) {
+                    await this._markInterruptedCompileAsFailed(
+                        job.jobUuid,
+                        e.message,
+                    );
+                } else {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.ERROR,
+                    });
+                }
+            } finally {
+                disarmCompileShutdown();
             }
         };
         await this.projectModel
@@ -13649,8 +13954,9 @@ export class ProjectService
             },
         );
         if (
-            connectionFailure !== null &&
-            agentExecutionContext.getStore()?.agentConnectionExecution
+            connectionFailure instanceof CompileInterruptedError ||
+            (connectionFailure !== null &&
+                agentExecutionContext.getStore()?.agentConnectionExecution)
         )
             throw connectionFailure;
     }

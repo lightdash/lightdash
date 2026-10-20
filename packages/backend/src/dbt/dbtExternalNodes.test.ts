@@ -68,20 +68,28 @@ describe('external dbt nodes', () => {
     it('parses every missing reference and ignores unrelated output', () => {
         expect(
             parseMissingDbtNodeReferences(missing('orders', 'upstream')),
-        ).toEqual([{ model: 'orders', packageName: 'upstream' }]);
+        ).toEqual([
+            { model: 'orders', packageName: 'upstream', version: null },
+        ]);
         expect(
             parseMissingDbtNodeReferences(
                 `${missing('orders', 'upstream')}\n${missing('users', 'shared')}`,
             ),
         ).toEqual([
-            { model: 'orders', packageName: 'upstream' },
-            { model: 'users', packageName: 'shared' },
+            { model: 'orders', packageName: 'upstream', version: null },
+            { model: 'users', packageName: 'shared', version: null },
         ]);
         expect(
             parseMissingDbtNodeReferences(
                 "Model 'model.analytics.uses_versioned' depends on a node named 'dim_product' with version '2' in package or project 'access_upstream' which was not found",
             ),
-        ).toEqual([{ model: 'dim_product', packageName: 'access_upstream' }]);
+        ).toEqual([
+            {
+                model: 'dim_product',
+                packageName: 'access_upstream',
+                version: '2',
+            },
+        ]);
         expect(
             parseMissingDbtNodeReferences('Compilation Error: invalid SQL'),
         ).toEqual([]);
@@ -92,8 +100,8 @@ describe('external dbt nodes', () => {
             { info: { msg: missing('orders', 'upstream') } } as DbtLog,
         ]);
         expect(getMissingDbtNodeReferences(error)).toEqual([
-            { model: 'orders', packageName: 'upstream' },
-            { model: 'users', packageName: 'shared' },
+            { model: 'orders', packageName: 'upstream', version: null },
+            { model: 'users', packageName: 'shared', version: null },
         ]);
         expect(
             getMissingDbtNodeReferences(
@@ -113,4 +121,19 @@ describe('external dbt nodes', () => {
             );
         },
     );
+});
+
+it('keeps distinct missing versions and supports both dbt version positions', () => {
+    const error = new DbtError(
+        [
+            "depends on a node named 'leaf_a' with version '1' in package or project 'ring_0' which was not found",
+            "depends on a node named 'leaf_a' in package or project 'ring_0' with version '2' which was not found",
+            "depends on a node named 'leaf_a' with version '1' in package or project 'ring_0' which was not found",
+        ].join('\n'),
+    );
+    expect(parseMissingDbtNodeReferences(error.message)).toHaveLength(2);
+    expect(getMissingDbtNodeReferences(error)).toEqual([
+        { model: 'leaf_a', packageName: 'ring_0', version: '1' },
+        { model: 'leaf_a', packageName: 'ring_0', version: '2' },
+    ]);
 });

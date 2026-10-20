@@ -395,6 +395,7 @@ describe('cross-source compilation', () => {
                     ? {
                           projectName: 'analytics',
                           referencedProjects: ['shared'],
+                          installedPackages: [],
                           declaredUpstreams: [],
                       }
                     : null,
@@ -404,6 +405,7 @@ describe('cross-source compilation', () => {
                     ? {
                           projectName: 'shared',
                           referencedProjects: [],
+                          installedPackages: [],
                           declaredUpstreams: [],
                       }
                     : null,
@@ -449,7 +451,7 @@ describe('cross-source compilation', () => {
                 expect.objectContaining({ concurrency: 1 }),
             );
             expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved',
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0',
                 expect.objectContaining({
                     projectUuid: 'project-uuid',
                     rounds: 2,
@@ -457,6 +459,7 @@ describe('cross-source compilation', () => {
             );
             expect(fetchManifest).toHaveBeenCalledTimes(scanned ? 1 : 2);
             expect(fetchManifest.mock.calls[scanned ? 0 : 1][0]).toEqual({
+                signal: expect.any(AbortSignal),
                 externalNodes: [
                     expect.objectContaining({
                         package_name: 'shared',
@@ -466,6 +469,7 @@ describe('cross-source compilation', () => {
             });
             expect(fetchSourceManifest).toHaveBeenCalledTimes(1);
             expect(fetchSourceManifest.mock.calls[0][3]).toEqual({
+                signal: expect.any(AbortSignal),
                 externalNodes: [],
             });
             expect(prepare).toHaveBeenCalledTimes(1);
