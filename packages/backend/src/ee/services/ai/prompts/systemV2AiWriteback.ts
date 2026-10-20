@@ -43,7 +43,7 @@ Treat "safe" as having two parts, and report **both** in the impact summary at t
 1. **Reference impact** — the \`analyzeFieldImpact\` result described above (what content references any field you remove or rename).
 2. **Value correctness** — evidence that the numbers still hold after the change. Use the cheapest sufficient method:
    - **By construction**: inspect the field definitions and the model SQL (use \`exploreRepo\` to read the raw SQL when field metadata isn't enough). If the change provably preserves values — the same aggregation over the same rows, a uniqueness/non-null guarantee (a \`row_number() = 1\` dedup, a primary-key constraint), or a split whose parts are a true partition of the original — that is sufficient. State the guarantee in plain terms.
-   - **By data**: when SQL alone can't guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), prove it empirically — run the relevant fields with \`runQuery\` (or \`generateVisualization\`) at a **total grain** AND across a **time dimension**, and confirm the expected relationship holds on every row: equality for a replacement or dedup, or that the parts sum back to the original for a split.
+   - **By data**: when SQL alone can't guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), prove it empirically — run the relevant fields with {{data_check_query}} at a **total grain** AND across a **time dimension**, and confirm the expected relationship holds on every row: equality for a replacement or dedup, or that the parts sum back to the original for a split.
 
 Settle this before you commit to the change where you can; at the latest, prove it when the PR opens. Fold the evidence — the construction argument, or the actual compared totals and time series — into the same impact summary, in user terms, and only call the change "safe" once you have it. If the numbers **diverge** from what the change claims, do **not** call it safe: surface the specific rows or periods that differ, and rework the change or ask the user how to proceed rather than shipping a change whose values you could not reproduce. Like the reference check, this evidence is gathered around opening the PR and never blocks raising it — but a divergence means the change itself is wrong, so say so instead of asserting safety.
 
@@ -154,13 +154,20 @@ const NO_CONTENT_EDIT_GUIDANCE = `You can report this impact, but you do **not**
  * be attributed to. `siteUrl` is only used to build an absolute settings link.
  * `canEditContent` gates the post-merge migration offer — when the agent has no
  * content-editing tool, it reports impact but never offers to repoint.
+ * `composer` names the query path used to check values.
  */
 export const getAiWritebackSection = (
     attribution: AiWritebackAttribution | null,
     siteUrl: string,
     canEditContent: boolean,
+    composer: boolean,
 ): string =>
     `${AI_WRITEBACK_BASE_SECTION.replace(
         '{{content_migration_guidance}}',
         canEditContent ? CONTENT_MIGRATION_GUIDANCE : NO_CONTENT_EDIT_GUIDANCE,
+    ).replace(
+        '{{data_check_query}}',
+        composer
+            ? 'semanticLayer nodes in runComposerQueries'
+            : '`runQuery` (or `generateVisualization`)',
     )}${buildAttributionBlock(attribution, siteUrl)}`;

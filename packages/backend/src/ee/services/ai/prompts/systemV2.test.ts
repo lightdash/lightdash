@@ -552,76 +552,106 @@ describe('getSystemPromptV2 merge queries', () => {
 });
 
 describe('getSystemPromptV2 composer queries', () => {
-    test('directs cross-explore questions to runComposerQueries when enabled', () => {
+    const composerSections = (...sections: PromptSection[]) =>
+        new Set<PromptSection>(['queryingComposer', ...sections]);
+
+    test('directs cross-explore questions to a duckdb node over semanticLayer nodes', () => {
         const content = promptText({
             availableExplores: [],
-            promptSections: new Set<PromptSection>(['runSql']),
+            promptSections: composerSections('runSql'),
             canRunSql: true,
-            enableComposerQueries: true,
         });
 
         expect(content).toContain(
             'one semanticLayer node per explore plus a duckdb node',
         );
-        expect(content).not.toContain(
-            'use the runSql tool to write raw SQL across those tables',
-        );
     });
 
-    test('teaches raw SQL through composer sql nodes instead of a runSql tool', () => {
+    test('teaches raw SQL through composer sql nodes', () => {
         const content = promptText({
             availableExplores: [],
-            promptSections: new Set<PromptSection>(['runSql']),
+            promptSections: composerSections('runSql'),
             canRunSql: true,
-            enableComposerQueries: true,
         });
 
-        expect(content).toContain('There is NO standalone runSql tool');
-        expect(content).toContain('sql` nodes inside runComposerQueries');
-        expect(content).not.toContain('You have access to a runSql tool');
-        // No-explores guidance points at composer, not runSql.
+        expect(content).toContain(
+            'Raw SELECT queries against the warehouse run as `sql` nodes in runComposerQueries.',
+        );
         expect(content).toContain(
             'answer questions with runComposerQueries using a sql node',
         );
     });
 
-    test('web answers present composer results with a show marker', () => {
+    test('web answers present composer results with their marker', () => {
         const content = promptText({
             availableExplores: [],
-            enableComposerQueries: true,
+            promptSections: composerSections(),
         });
 
+        expect(content).toContain('Present the result your answer rests on');
         expect(content).toContain(
-            'Composer results stay hidden until you present one.',
-        );
-        expect(content).toContain(
-            'the terminal node is the result you can present',
+            'the terminal node is the result you present',
         );
     });
 
-    test('Slack answers keep selecting composer tables without show markers', () => {
+    test('Slack answers share composer tables without show markers', () => {
         const content = promptText({
             availableExplores: [],
-            enableComposerQueries: true,
+            promptSections: composerSections(),
             slackChannelId: 'channel',
         });
 
-        expect(content).not.toContain('stay hidden until you present');
+        expect(content).not.toContain(
+            'Present the result your answer rests on',
+        );
         expect(content).toContain(
             'the terminal node is the table you can share',
         );
     });
 
-    test('keeps the standalone runSql wording when composer queries are off', () => {
+    test.each([
+        ['web', null],
+        ['Slack', 'channel'],
+    ])(
+        'names no classic query tool in any %s composer variant',
+        (_, slackChannelId) => {
+            const variants = [false, true].flatMap((enableFilterExpressions) =>
+                [false, true].map((canRunSql) =>
+                    promptText({
+                        availableExplores: [],
+                        promptSections: composerSections(
+                            'runSql',
+                            'contentTools',
+                            'documents',
+                            'aiWriteback',
+                            'fastMetadata',
+                        ),
+                        canRunSql,
+                        enableDataAccess: true,
+                        enableFilterExpressions,
+                        enableComposerPythonNodes: true,
+                        enableDocumentNudges: true,
+                        slackChannelId,
+                    }),
+                ),
+            );
+            for (const content of variants) {
+                expect(content).not.toMatch(
+                    /runQuery|generateVisualization|runSql/,
+                );
+            }
+        },
+    );
+
+    test('keeps the standalone runSql wording for the classic query path', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: new Set<PromptSection>(['runSql']),
             canRunSql: true,
-            enableComposerQueries: false,
         });
 
         expect(content).toContain('You have access to a runSql tool');
-        expect(content).not.toContain('There is NO standalone runSql tool');
+        expect(content).not.toContain('runComposerQueries');
     });
 });
 

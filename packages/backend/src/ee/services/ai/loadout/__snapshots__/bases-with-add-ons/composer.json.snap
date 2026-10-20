@@ -85,6 +85,7 @@
         "mcpTools",
         "memories",
         "projectContext",
+        "queryingComposer",
         "repoFs",
         "requestingUser",
         "runSql",

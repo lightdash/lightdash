@@ -2472,7 +2472,6 @@ const getCapabilitySectionArgs = (
     enableDocumentCustomCharts:
         customChartTypeLibrary.totalCount > 0 && isChartExportEnabled(args),
     slackChannelId: args.slackChannelId,
-    enableComposerQueries: args.enableComposerQueries,
     warehouseType: args.warehouseType,
     warehouseSchema: args.warehouseSchema,
     warehouseConnections: args.warehouseConnections ?? [],

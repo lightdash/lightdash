@@ -19,5 +19,7 @@
         "searchFieldValues",
         "searchSemanticLayer"
     ],
-    "promptSections": []
+    "promptSections": [
+        "queryingComposer"
+    ]
 }

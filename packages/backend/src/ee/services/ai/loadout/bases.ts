@@ -63,7 +63,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             // The service enables composer only with data access; kept for exact parity.
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
         ],
-        sections: [],
+        sections: ['queryingComposer'],
         accepts: ADD_ON_NAMES,
     }),
     // Today every add-on can apply without data access; narrowing it is a behaviour change.

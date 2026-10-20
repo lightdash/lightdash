@@ -158,7 +158,6 @@ const renderPrompt = (loadout: Loadout) =>
         availableExplores: [],
         date: '2026-08-27',
         promptSections: loadout.promptSections,
-        enableComposerQueries: loadout.base === 'composer',
     }).content;
 
 const fixture = (name: string) =>
@@ -299,6 +298,19 @@ describe('resolveLoadout', () => {
         expect(
             CLASSIC_QUERY_TOOLS.filter((tool) => toolNames.has(tool)),
         ).toEqual([]);
+    });
+
+    // The sqlCatalog section keeps its `runSql` id; its composer text names sql nodes.
+    test('composer tools and prompts name no classic query tool', () => {
+        const loadouts = [
+            buildLoadout('composer', inputs.composer, []),
+            buildLoadout('composer', inputs.composer, ADD_ON_NAMES),
+        ];
+        for (const loadout of loadouts) {
+            expect(
+                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout)}`,
+            ).not.toMatch(/runQuery|generateVisualization|runSql/);
+        }
     });
 
     test('deep research coordinator reads saved content but cannot change it', () => {
