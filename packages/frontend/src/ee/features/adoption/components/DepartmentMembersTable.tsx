@@ -17,10 +17,10 @@ const PAGE_SIZE = 50;
 
 const FILTER_LABELS: Record<MemberFilter, string> = {
     all: 'All',
-    neverActive: 'Never active',
+    noRecordedActivity: 'No recorded activity',
     inactive30d: 'Not active in 30 days',
 };
-const FILTERS: MemberFilter[] = ['all', 'neverActive', 'inactive30d'];
+const FILTERS: MemberFilter[] = ['all', 'noRecordedActivity', 'inactive30d'];
 
 const isMemberFilter = (value: string): value is MemberFilter =>
     FILTERS.some((filter) => filter === value);

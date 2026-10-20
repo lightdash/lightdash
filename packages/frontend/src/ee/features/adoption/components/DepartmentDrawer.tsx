@@ -1,8 +1,10 @@
 import {
     type CreateDepartment,
+    type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import {
+    Anchor,
     Button,
     Divider,
     Drawer,
@@ -18,6 +20,7 @@ import {
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
 import TruncatedText from '../../../../components/common/TruncatedText';
@@ -32,6 +35,7 @@ import {
     useSetDepartmentOwners,
     useUpdateDepartment,
 } from '../../../hooks/useOrgDepartments';
+import { getDepartmentPath } from '../utils/adoptionNav';
 import {
     buildDepartmentUpdate,
     decodeOwners,
@@ -39,6 +43,7 @@ import {
     formatTargetDate,
     getParentOptions,
     getResolvedMembers,
+    getResolvedMembersFromDetail,
     HEADCOUNT_NOTE_MAX_LENGTH,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
@@ -58,9 +63,15 @@ type FormValues = {
     memberUuids: string[];
 };
 
+// Options and people drawn at once; pickers rely on search beyond this
+const PICKER_LIMIT = 50;
+const RESOLVED_MEMBER_LIMIT = 50;
+
 type FormProps = {
     department: DepartmentWithMetrics | null;
     departments: DepartmentWithMetrics[];
+    // The department's people when the caller has already loaded them, otherwise null
+    members: DepartmentMember[] | null;
     onClose: () => void;
     onCreated?: (name: string) => void;
     onDeleteStart?: () => void;
@@ -78,6 +89,7 @@ const getFullName = (person: {
 export const DepartmentForm: FC<FormProps> = ({
     department,
     departments,
+    members,
     onClose,
     onCreated,
     onDeleteStart,
@@ -91,8 +103,9 @@ export const DepartmentForm: FC<FormProps> = ({
     const setMembers = useSetDepartmentMembers();
     const { data: users = [] } = useOrganizationUsers();
     const { data: groups = [] } = useOrganizationGroups({});
+    // Everyone in the organization is only fetched when the caller has no list to hand over
     const { data: membership = [] } = useDepartmentMembership(
-        department !== null,
+        department !== null && members === null,
     );
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -178,16 +191,19 @@ export const DepartmentForm: FC<FormProps> = ({
         () => getParentOptions(departments, department?.departmentUuid ?? null),
         [departments, department],
     );
-    const resolvedMembers = useMemo(
-        () =>
-            department === null
-                ? []
-                : getResolvedMembers(
-                      membership,
-                      departments,
-                      department.departmentUuid,
-                  ),
-        [membership, departments, department],
+    const resolvedMembers = useMemo(() => {
+        if (department === null) return [];
+        return members !== null
+            ? getResolvedMembersFromDetail(members)
+            : getResolvedMembers(
+                  membership,
+                  departments,
+                  department.departmentUuid,
+              );
+    }, [members, membership, departments, department]);
+    const hiddenMemberCount = Math.max(
+        resolvedMembers.length - RESOLVED_MEMBER_LIMIT,
+        0,
     );
     const hasSubDepartments =
         department !== null &&
@@ -303,6 +319,7 @@ export const DepartmentForm: FC<FormProps> = ({
                         description="People or groups responsible for this rollout. The first one is shown in the table"
                         placeholder="Add a person or group"
                         data={ownerOptions}
+                        limit={PICKER_LIMIT}
                         searchable
                         clearable
                         {...form.getInputProps('owners')}
@@ -332,6 +349,7 @@ export const DepartmentForm: FC<FormProps> = ({
                         description="Everyone in these groups counts towards this department"
                         placeholder="Add a group"
                         data={groupOptions}
+                        limit={PICKER_LIMIT}
                         searchable
                         clearable
                         {...form.getInputProps('groupUuids')}
@@ -341,6 +359,7 @@ export const DepartmentForm: FC<FormProps> = ({
                         description="Assigning someone here overrides their groups"
                         placeholder="Add a person"
                         data={userOptions}
+                        limit={PICKER_LIMIT}
                         searchable
                         clearable
                         {...form.getInputProps('memberUuids')}
@@ -355,24 +374,42 @@ export const DepartmentForm: FC<FormProps> = ({
                             </Text>
                             <ScrollArea.Autosize mah={220}>
                                 <Stack gap="xs">
-                                    {resolvedMembers.map(({ member, via }) => (
-                                        <Group
-                                            key={member.userUuid}
-                                            justify="space-between"
-                                            wrap="nowrap"
-                                        >
-                                            <TruncatedText maxWidth="70%">
-                                                {getFullName(member)}
-                                            </TruncatedText>
-                                            <Text fz="xs" c="dimmed">
-                                                {via === null
-                                                    ? 'Direct'
-                                                    : `Via ${via}`}
-                                            </Text>
-                                        </Group>
-                                    ))}
+                                    {resolvedMembers
+                                        .slice(0, RESOLVED_MEMBER_LIMIT)
+                                        .map(({ member, via }) => (
+                                            <Group
+                                                key={member.userUuid}
+                                                justify="space-between"
+                                                wrap="nowrap"
+                                            >
+                                                <TruncatedText maxWidth="70%">
+                                                    {getFullName(member)}
+                                                </TruncatedText>
+                                                <Text fz="xs" c="dimmed">
+                                                    {via === null
+                                                        ? 'Direct'
+                                                        : `Via ${via}`}
+                                                </Text>
+                                            </Group>
+                                        ))}
                                 </Stack>
                             </ScrollArea.Autosize>
+                            {hiddenMemberCount > 0 &&
+                                (members !== null ? (
+                                    <Text fz="xs" c="dimmed">
+                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, everyone is listed under People on this page`}
+                                    </Text>
+                                ) : (
+                                    <Anchor
+                                        component={Link}
+                                        to={getDepartmentPath(
+                                            department.departmentUuid,
+                                        )}
+                                        fz="xs"
+                                    >
+                                        {`Showing ${RESOLVED_MEMBER_LIMIT} of ${resolvedMembers.length.toLocaleString('en-US')}, see everyone on the department page`}
+                                    </Anchor>
+                                ))}
                         </Stack>
                     )}
 
@@ -439,6 +476,7 @@ export const DepartmentDrawer: FC<DrawerProps> = ({
     onClose,
     department,
     departments,
+    members,
     onDeleteStart,
     onDeleteEnd,
 }) => {
@@ -463,6 +501,7 @@ export const DepartmentDrawer: FC<DrawerProps> = ({
                     key={department?.departmentUuid ?? 'new'}
                     department={department}
                     departments={departments}
+                    members={members}
                     onClose={onClose}
                     onCreated={setCreatedName}
                     onDeleteStart={onDeleteStart}

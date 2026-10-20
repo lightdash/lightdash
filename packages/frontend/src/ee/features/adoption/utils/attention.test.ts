@@ -4,7 +4,13 @@ import {
     type MembershipResolution,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { formatAttention, getAttentionRows } from './attention';
+import {
+    countAttentionNames,
+    formatAttention,
+    getAttentionRows,
+    getMemberName,
+    searchAttentionRows,
+} from './attention';
 
 const departments = [
     { departmentUuid: 'ops', parentDepartmentUuid: null, name: 'Operations' },
@@ -75,5 +81,42 @@ describe('getAttentionRows', () => {
             ['clash', 'conflict', ['Finance', 'Operations']],
             ['none', 'unassigned', []],
         ]);
+    });
+});
+
+describe('attention row helpers', () => {
+    const rows = getAttentionRows(
+        [
+            member('ann', { kind: 'unassigned' }),
+            { ...member('ann2', { kind: 'unassigned' }), firstName: 'ann' },
+            {
+                ...member('nameless', { kind: 'unassigned' }),
+                firstName: '',
+                lastName: '',
+            },
+        ],
+        departments,
+    );
+    it('falls back to the email when a person has no name', () => {
+        expect(rows.map((row) => getMemberName(row.member))).toEqual([
+            'ann L',
+            'ann L',
+            'nameless@example.com',
+        ]);
+    });
+    it('counts how many rows share each name', () => {
+        const counts = countAttentionNames(rows);
+        expect(counts.get('ann L')).toBe(2);
+        expect(counts.get('nameless@example.com')).toBe(1);
+    });
+    it('searches name and email without regard to case, and returns everything for a blank search', () => {
+        expect(searchAttentionRows(rows, '  ')).toBe(rows);
+        expect(
+            searchAttentionRows(rows, 'ANN2@').map((r) => r.member.userUuid),
+        ).toEqual(['ann2']);
+        expect(
+            searchAttentionRows(rows, 'ann l').map((r) => r.member.userUuid),
+        ).toEqual(['ann', 'ann2']);
+        expect(searchAttentionRows(rows, 'nobody')).toEqual([]);
     });
 });

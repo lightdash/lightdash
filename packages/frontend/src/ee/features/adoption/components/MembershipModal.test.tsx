@@ -1,5 +1,8 @@
-import { OrganizationMemberRole } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import {
+    OrganizationMemberRole,
+    type DepartmentMembership,
+} from '@lightdash/common';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -8,15 +11,15 @@ import { MembershipModal } from './MembershipModal';
 
 const mutate = vi.fn();
 
-const person = (userUuid: string, firstName: string) => ({
+const person = (userUuid: string, firstName: string): DepartmentMembership => ({
     userUuid,
     email: `${userUuid}@example.com`,
     firstName,
     lastName: 'Test',
     role: OrganizationMemberRole.VIEWER,
-    resolution: { kind: 'unassigned' as const },
+    resolution: { kind: 'unassigned' },
 });
-const membership = [
+const membership: DepartmentMembership[] = [
     person('u1', 'Ann'),
     person('u2', 'Bob'),
     {
@@ -140,5 +143,76 @@ describe('MembershipModal', () => {
                 name: 'Department for Ann Test (ann.other@example.com)',
             }),
         ).toBeInTheDocument();
+    });
+
+    describe('with more people than fit', () => {
+        const crowd = Array.from({ length: 300 }, (_, index) =>
+            person(`crowd${index}`, `Person${index}`),
+        );
+        const withCrowd = (run: () => Promise<void>) => async () => {
+            membership.push(...crowd);
+            try {
+                await run();
+            } finally {
+                membership.splice(membership.length - crowd.length);
+            }
+        };
+
+        it(
+            'shows the first 50 and says how many there are',
+            withCrowd(async () => {
+                renderModal();
+                expect(screen.getAllByRole('combobox')).toHaveLength(50);
+                expect(
+                    screen.getByText('Showing 50 of 303, search to narrow'),
+                ).toBeInTheDocument();
+            }),
+        );
+
+        it(
+            'narrows by name or email when searching',
+            withCrowd(async () => {
+                renderModal();
+                const search = screen.getByRole('textbox', {
+                    name: 'Search people',
+                });
+                fireEvent.change(search, { target: { value: 'person299' } });
+                expect(screen.getAllByRole('combobox')).toHaveLength(1);
+                expect(
+                    screen.getByRole('combobox', {
+                        name: 'Department for Person299 Test',
+                    }),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByText(/search to narrow/),
+                ).not.toBeInTheDocument();
+                fireEvent.change(search, { target: { value: 'U2@EXAMPLE' } });
+                expect(
+                    screen.getByRole('combobox', {
+                        name: 'Department for Bob Test',
+                    }),
+                ).toBeInTheDocument();
+                fireEvent.change(search, { target: { value: 'zzz' } });
+                expect(
+                    screen.getByText('Nobody matches this search'),
+                ).toBeInTheDocument();
+            }),
+        );
+
+        it(
+            'still places a person found by search, keeping existing members',
+            withCrowd(async () => {
+                renderModal();
+                fireEvent.change(
+                    screen.getByRole('textbox', { name: 'Search people' }),
+                    { target: { value: 'person299' } },
+                );
+                await place('Department for Person299 Test', 'Ops');
+                expect(mutate).toHaveBeenCalledWith({
+                    departmentUuid: 'Ops',
+                    userUuids: ['u9', 'crowd299'],
+                });
+            }),
+        );
     });
 });

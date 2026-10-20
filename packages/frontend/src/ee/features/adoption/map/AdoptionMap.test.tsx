@@ -256,6 +256,7 @@ describe('AdoptionMap', () => {
     it('names people inside a small department and inspects the one selected', async () => {
         loadMembers('Finance', [
             memberFixture('ada', new Date().toISOString(), {
+                isActive30d: true,
                 firstName: 'Ada',
                 lastName: 'Lovelace',
                 departmentUuid: 'Finance',
@@ -293,26 +294,29 @@ describe('AdoptionMap', () => {
             screen.getByRole('button', { name: 'Grace Hopper' }),
         );
         expect(screen.getByText('grace@example.com')).toBeInTheDocument();
-        expect(screen.getByText('Never active')).toBeInTheDocument();
+        expect(screen.getByText('No recorded activity')).toBeInTheDocument();
         expect(container.querySelectorAll('[data-selected]')).toHaveLength(1);
     });
 
-    it('leaves first names out when more than 150 people are in view', async () => {
+    it('does not fetch the people of a department with more than 150 in view, and draws its dots from the counts', async () => {
         const big = [d('Field', null, 151, 1, 1)];
         loadMembers('Field', [
             memberFixture('ada', new Date().toISOString(), {
+                isActive30d: true,
                 firstName: 'Ada',
                 departmentUuid: 'Field',
             }),
         ]);
         const { container } = renderMap(big);
         await userEvent.click(screen.getByRole('button', { name: /^Field,/ }));
+        expect(useDepartmentDetail).not.toHaveBeenCalledWith('Field');
+        expect(useDepartmentDetail).toHaveBeenLastCalledWith(undefined);
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(151);
         expect(
             container.querySelectorAll('svg[role="img"] [data-user]'),
-        ).toHaveLength(1);
+        ).toHaveLength(0);
         expect(
             screen.queryByRole('list', { name: 'People on the map' }),
         ).toBeNull();
@@ -321,6 +325,12 @@ describe('AdoptionMap', () => {
                 (node) => node.textContent,
             ),
         ).not.toContain('Ada');
+    });
+
+    it('fetches the people of a department with 150 in view', async () => {
+        renderMap([d('Field', null, 150, 1, 1)]);
+        await userEvent.click(screen.getByRole('button', { name: /^Field,/ }));
+        expect(useDepartmentDetail).toHaveBeenLastCalledWith('Field');
     });
 
     it('hides person dots above 5,000 people and says so', () => {
@@ -333,7 +343,9 @@ describe('AdoptionMap', () => {
         ).toHaveLength(0);
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
-            screen.getByText(/Dots are hidden above 5,000 people/),
+            screen.getByText(
+                'Dots are hidden above 5,000 people. Open a department to see its people',
+            ),
         ).toBeInTheDocument();
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
@@ -351,6 +363,11 @@ describe('AdoptionMap', () => {
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(5000);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
+        expect(
+            screen.getByText(
+                'Dots show how many people are active, not who they are. Open a department to see its people',
+            ),
+        ).toBeInTheDocument();
     });
 
     it('says when small circles are not to scale', () => {
@@ -697,6 +714,44 @@ describe('AdoptionMap', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Reset view' }));
         expect(viewport()).toBe(fitted);
+    });
+
+    it('shows the same No account number in the inspector tile and the legend', async () => {
+        // Stores has more accounts than headcount, so netting across Ops would hide 5 of Depots' 10
+        const lopsided = [
+            d('Ops', null, 30, 25, 0, {
+                directMetrics: metricsFixture(0, null),
+            }),
+            d('Stores', 'Ops', 20, 25, 0),
+            d('Depots', 'Ops', 10, 0, 0),
+        ];
+        renderMap(lopsided);
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        const tile = within(details).getByText('No account').parentElement;
+        expect(tile).toHaveTextContent(/^No account10$/);
+        const legend = screen.getByRole('list', { name: 'Legend' });
+        expect(
+            within(legend).getByText('No account').closest('li'),
+        ).toHaveTextContent(/^No account10$/);
+    });
+
+    it('says the organization tile counts people placed in a department', async () => {
+        renderMap();
+        const details = screen.getByRole('complementary', {
+            name: 'Details',
+        });
+        expect(
+            within(details).getByText('On Lightdash').parentElement,
+        ).toHaveTextContent('placed in a department');
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Finance,/ }),
+        );
+        expect(
+            within(details).queryByText('placed in a department'),
+        ).not.toBeInTheDocument();
     });
 
     it('lists departments lowest coverage first, the biggest first among equals', () => {

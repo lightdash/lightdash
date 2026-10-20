@@ -40,9 +40,15 @@ type Props = {
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
-type TileProps = { label: string; value: number; note: string | null };
+type TileProps = {
+    label: string;
+    value: number;
+    note: string | null;
+    // A line under the value saying who the number covers
+    caption: string | null;
+};
 
-const Tile: FC<TileProps> = ({ label, value, note }) => (
+const Tile: FC<TileProps> = ({ label, value, note, caption }) => (
     <Box className={styles.tile}>
         <Text fz="xs" c="dimmed">
             {label}
@@ -57,10 +63,22 @@ const Tile: FC<TileProps> = ({ label, value, note }) => (
                 </Text>
             )}
         </Group>
+        {caption !== null && (
+            <Text fz="xs" c="dimmed">
+                {caption}
+            </Text>
+        )}
     </Box>
 );
 
-const getDepartmentTiles = (department: DepartmentWithMetrics): TileProps[] => {
+// Summed over the circles in view, exactly as the legend counts its "No account" dots
+const countWithoutAccount = (totals: ViewTotals): number =>
+    Math.max(totals.people - totals.members, 0);
+
+const getDepartmentTiles = (
+    department: DepartmentWithMetrics,
+    totals: ViewTotals,
+): TileProps[] => {
     const { metrics, effectiveHeadcount, targetActiveUsers } = department;
     const remaining =
         targetActiveUsers === null
@@ -74,22 +92,22 @@ const getDepartmentTiles = (department: DepartmentWithMetrics): TileProps[] => {
                 effectiveHeadcount === null
                     ? 'no headcount'
                     : `of ${formatCount(effectiveHeadcount)}`,
+            caption: null,
         },
         {
             label: 'Active in 30 days',
             value: metrics.activeCount30d,
             note: formatPct(metrics.activePct, metrics.activeCount30d),
+            caption: null,
         },
         ...(effectiveHeadcount === null
             ? []
             : [
                   {
                       label: 'No account',
-                      value: Math.max(
-                          effectiveHeadcount - metrics.memberCount,
-                          0,
-                      ),
+                      value: countWithoutAccount(totals),
                       note: null,
+                      caption: null,
                   },
               ]),
         ...(targetActiveUsers === null
@@ -102,6 +120,7 @@ const getDepartmentTiles = (department: DepartmentWithMetrics): TileProps[] => {
                           remaining === 0
                               ? 'met'
                               : `${formatCount(remaining)} to go`,
+                      caption: null,
                   },
               ]),
     ];
@@ -112,12 +131,20 @@ const getOrganizationTiles = (totals: ViewTotals): TileProps[] => [
         label: 'On Lightdash',
         value: totals.members,
         note: `of ${formatCount(totals.people)}`,
+        // People who still need a department are on Lightdash but not on the map
+        caption: 'placed in a department',
     },
-    { label: 'Active in 30 days', value: totals.active, note: null },
+    {
+        label: 'Active in 30 days',
+        value: totals.active,
+        note: null,
+        caption: null,
+    },
     {
         label: 'No account',
-        value: Math.max(totals.people - totals.members, 0),
+        value: countWithoutAccount(totals),
         note: null,
+        caption: null,
     },
 ];
 
@@ -159,7 +186,7 @@ export const MapInspector: FC<Props> = ({
     const tiles =
         department === null
             ? getOrganizationTiles(totals)
-            : getDepartmentTiles(department);
+            : getDepartmentTiles(department, totals);
     return (
         <Paper p="md" component="aside" aria-label="Details">
             <Stack gap="md" h="100%">

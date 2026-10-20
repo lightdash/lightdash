@@ -21,8 +21,6 @@ export type Department = {
     owners: DepartmentOwner[]; // ordered, first is the display owner
     linkedGroups: DepartmentLinkedGroup[];
     explicitMemberUuids: string[];
-    createdAt: Date;
-    updatedAt: Date;
 };
 
 export type CreateDepartment = {
@@ -60,11 +58,11 @@ export type WeeklyActivePoint = { weekStart: string; activeUsers: number };
 export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
-    activeCount12w: number; // any activity in the 12-week trend window
+    activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
     coveragePct: number | null;
     activePct: number | null;
     roleSplit: RoleSplit;
-    weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first
+    weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first; chart and dashboard views only
 };
 
 export type DepartmentWithMetrics = Department & {
@@ -166,7 +164,8 @@ export type DepartmentMember = {
     isDirect: boolean;
     source: 'explicit' | 'group';
     sourceGroupName: string | null;
-    lastActiveAt: string | null; // ISO timestamp, null = never active
+    lastActiveAt: string | null; // ISO timestamp, null = no recorded activity (queries are only kept for a limited time)
+    isActive30d: boolean; // same definition and bound as activeCount30d
     queries30d: number;
     dashboardViews30d: number;
 };

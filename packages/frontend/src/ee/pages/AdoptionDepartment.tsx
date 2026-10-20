@@ -318,6 +318,7 @@ const AdoptionDepartment: FC = () => {
                     onClose={() => setIsEditing(false)}
                     department={department}
                     departments={summary.data?.departments ?? []}
+                    members={members}
                     onDeleteStart={() => setIsDeleting(true)}
                     onDeleteEnd={(succeeded) => {
                         if (succeeded) void navigate(ADOPTION_PATH);

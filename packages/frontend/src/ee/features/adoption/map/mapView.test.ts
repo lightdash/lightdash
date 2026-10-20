@@ -21,6 +21,7 @@ import {
     groupMembersByDepartment,
     NAME_LABEL_LIMIT,
     nameLoneBucket,
+    shouldLoadPeople,
     shouldShowNames,
     sortForInspector,
 } from './mapView';
@@ -121,7 +122,10 @@ describe('countDotKinds', () => {
     });
     it('counts named people by their own activity once they are loaded', () => {
         const members = groupMembersByDepartment([
-            memberFixture('a', RECENT, { departmentUuid: 'Finance' }),
+            memberFixture('a', RECENT, {
+                departmentUuid: 'Finance',
+                isActive30d: true,
+            }),
             memberFixture('b', null, { departmentUuid: 'Finance' }),
             memberFixture('c', null, { departmentUuid: 'Finance' }),
         ]);
@@ -146,7 +150,10 @@ describe('buildDots', () => {
     it('attaches loaded people to the account dots, most active first', () => {
         const members = groupMembersByDepartment([
             memberFixture('idle', null, { departmentUuid: 'Finance' }),
-            memberFixture('busy', RECENT, { departmentUuid: 'Finance' }),
+            memberFixture('busy', RECENT, {
+                departmentUuid: 'Finance',
+                isActive30d: true,
+            }),
         ]);
         const [circle] = layout('Finance');
         const dots = buildDots(circle, 'active', members, NOW);
@@ -178,6 +185,10 @@ describe('dot and name thresholds', () => {
         expect(shouldShowNames(150, true)).toBe(true);
         expect(shouldShowNames(151, true)).toBe(false);
         expect(shouldShowNames(20, false)).toBe(false);
+    });
+    it('loads people only where their names can be drawn', () => {
+        expect(shouldLoadPeople(150)).toBe(true);
+        expect(shouldLoadPeople(151)).toBe(false);
     });
     it('keeps the dot limit at 5,000', () => {
         expect(SVG_DOT_LIMIT).toBe(5000);
@@ -309,7 +320,7 @@ describe('formatPct', () => {
 
 describe('formatMemberActivity', () => {
     it('reads as a sentence for recent days and keeps dates as written', () => {
-        expect(formatMemberActivity(null, NOW)).toBe('Never active');
+        expect(formatMemberActivity(null, NOW)).toBe('No recorded activity');
         expect(formatMemberActivity('2026-10-07T08:00:00Z', NOW)).toBe(
             'Last active today',
         );

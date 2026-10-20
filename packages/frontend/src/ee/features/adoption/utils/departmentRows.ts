@@ -8,8 +8,7 @@ import {
 import dayjs from 'dayjs';
 
 // Levels shown in the table; deeper levels open on the department page
-// ts-unused-exports:disable-next-line
-export const MAX_TABLE_DEPTH = 3;
+const MAX_TABLE_DEPTH = 3;
 
 export type DepartmentRow = {
     department: DepartmentWithMetrics;

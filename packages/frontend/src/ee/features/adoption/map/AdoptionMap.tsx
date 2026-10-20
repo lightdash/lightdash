@@ -50,6 +50,7 @@ import {
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
+    shouldLoadPeople,
     shouldShowNames,
 } from './mapView';
 import { createTextMeasurer } from './textMeasure';
@@ -146,18 +147,19 @@ export const AdoptionMap: FC<Props> = ({
     const showDots = shouldRenderDots(peopleInView);
 
     // Names, roles and last activity for the people inside the focused department.
-    // Not asked for when the view is too large to draw people at all.
+    // Not asked for when there are too many people in view to name them.
+    const loadPeople = showDots && shouldLoadPeople(peopleInView);
     const detail = useDepartmentDetail(
-        showDots ? (focusedUuid ?? undefined) : undefined,
+        loadPeople ? (focusedUuid ?? undefined) : undefined,
     );
     const loadedMembers =
-        showDots &&
+        loadPeople &&
         focusedUuid !== null &&
         detail.data?.department.departmentUuid === focusedUuid
             ? detail.data.members
             : null;
     const haveNamesFailed =
-        showDots && focusedUuid !== null && detail.isError === true;
+        loadPeople && focusedUuid !== null && detail.isError === true;
     const membersByDepartment = useMemo(
         () =>
             loadedMembers === null

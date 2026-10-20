@@ -50,3 +50,31 @@ export const getAttentionRows = (
     );
     return [...conflicts, ...unassigned];
 };
+
+export const getMemberName = (member: DepartmentMembership): string =>
+    `${member.firstName} ${member.lastName}`.trim() || member.email;
+
+// How many rows carry each name, so two people with one name can be told apart
+export const countAttentionNames = (
+    rows: AttentionRow[],
+): Map<string, number> => {
+    const counts = new Map<string, number>();
+    rows.forEach((row) => {
+        const name = getMemberName(row.member);
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+    return counts;
+};
+
+export const searchAttentionRows = (
+    rows: AttentionRow[],
+    search: string,
+): AttentionRow[] => {
+    const term = search.trim().toLowerCase();
+    if (term.length === 0) return rows;
+    return rows.filter(
+        ({ member }) =>
+            getMemberName(member).toLowerCase().includes(term) ||
+            member.email.toLowerCase().includes(term),
+    );
+};

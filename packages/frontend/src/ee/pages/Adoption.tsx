@@ -193,6 +193,7 @@ const Adoption: FC = () => {
                         onClose={() => setDrawer({ opened: false })}
                         department={editing}
                         departments={departments}
+                        members={null}
                     />
                     <MembershipModal
                         opened={isPlacingPeople}

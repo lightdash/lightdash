@@ -78,12 +78,11 @@ export const MapLegend: FC<Props> = ({
                 </li>
             )}
         </ul>
-        {areDotsHidden && (
-            <Text fz="xs" c="dimmed">
-                Dots are hidden above {formatCount(dotLimit)} people, so select
-                a department to see its people
-            </Text>
-        )}
+        <Text fz="xs" c="dimmed">
+            {areDotsHidden
+                ? `Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`
+                : 'Dots show how many people are active, not who they are. Open a department to see its people'}
+        </Text>
         {hasEnlargedCircle && (
             <Text fz="xs" c="dimmed">
                 The smallest circles are enlarged so you can select them, which
