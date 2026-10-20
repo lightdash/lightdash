@@ -58946,6 +58946,10 @@
             },
             "CreateTrainingPreviewResults": {
                 "properties": {
+                    "reused": {
+                        "type": "boolean",
+                        "description": "The learner's live copy was handed back, with what earlier walkthroughs left in it."
+                    },
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
@@ -58955,7 +58959,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["expiresAt", "projectUuid"],
+                "required": ["reused", "expiresAt", "projectUuid"],
                 "type": "object",
                 "description": "A learner's own throwaway copy of the training project, made for one walkthrough."
             },
@@ -73278,7 +73282,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.619.0",
+        "version": "2.620.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -101506,7 +101510,7 @@
                         }
                     }
                 },
-                "description": "Make (or remake) the caller's own throwaway copy of the training\nproject for a walkthrough. The copy starts from the seeded state and\nexpires on its own.",
+                "description": "The caller's own copy of the training project for a walkthrough: the\ncopy they already have, kept for another day, or a new one from the\nseeded state when they have none or it has expired.",
                 "summary": "Create training preview",
                 "tags": ["Projects"],
                 "security": [],

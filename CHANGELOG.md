@@ -1,3 +1,16 @@
+# [2.620.0](https://github.com/lightdash/lightdash/compare/2.619.0...2.620.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **learn:** defer first-visit overlays during walkthroughs ([#30225](https://github.com/lightdash/lightdash/issues/30225)) ([b651f86](https://github.com/lightdash/lightdash/commit/b651f868f584346c6952170b748603f72ac3b7e4))
+
+
+### Features
+
+* **learn:** a finished walkthrough keeps the learner's copy; Start fresh removes it (CS-372) ([#30735](https://github.com/lightdash/lightdash/issues/30735)) ([6c24087](https://github.com/lightdash/lightdash/commit/6c2408732f74b0149dc84df9ca5913bd92192b18)), closes [#30732](https://github.com/lightdash/lightdash/issues/30732)
+* **learn:** a walkthrough starts in the learner's live training copy (CS-372) ([#30732](https://github.com/lightdash/lightdash/issues/30732)) ([0edcaed](https://github.com/lightdash/lightdash/commit/0edcaedb01552500441b96cdcba36483874cfc75))
+
 # [2.619.0](https://github.com/lightdash/lightdash/compare/2.618.1...2.619.0) (2026-10-20)
 
 
