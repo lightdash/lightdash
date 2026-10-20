@@ -2,8 +2,11 @@ import {
     assertRegisteredAccount,
     MissingConfigError,
     NotFoundError,
+    parseOverlapList,
+    parseUuid,
     type ApiDepartmentDetailResponse,
     type ApiDepartmentMembershipResponse,
+    type ApiDepartmentOverlapsResponse,
     type ApiDepartmentResponse,
     type ApiErrorPayload,
     type ApiOrganizationAdoptionSummaryResponse,
@@ -12,6 +15,7 @@ import {
     type SetDepartmentGroups,
     type SetDepartmentMembers,
     type SetDepartmentOwners,
+    type SetPrimaryDepartment,
     type UpdateDepartment,
     type UUID,
 } from '@lightdash/common';
@@ -26,6 +30,7 @@ import {
     Path,
     Post,
     Put,
+    Query,
     Request,
     Response,
     Route,
@@ -38,6 +43,10 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { type DepartmentService } from '../services/DepartmentService/DepartmentService';
+
+// Comma-separated; an empty value is the same as leaving it out
+const splitQueryList = (value: string | undefined): string[] | undefined =>
+    value === undefined || value === '' ? undefined : value.split(',');
 
 @Route('/api/v1/org/departments')
 // Under development: hidden until the feature is generally available
@@ -115,6 +124,38 @@ export class OrgDepartmentsController extends BaseController {
         const results = await this.departmentService().getDetail(
             req.account,
             departmentUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{departmentUuid}/overlaps')
+    @OperationId('getDepartmentOverlaps')
+    async getOverlaps(
+        @Request() req: express.Request,
+        @Path() departmentUuid: UUID,
+        @Query('with') withDepartmentUuids?: string,
+        @Query('without') withoutDepartmentUuids?: string,
+    ): Promise<ApiDepartmentOverlapsResponse> {
+        assertRegisteredAccount(req.account);
+        const validDepartmentUuid = parseUuid(departmentUuid, 'Department');
+        const withUuids = parseOverlapList(
+            'with',
+            splitQueryList(withDepartmentUuids),
+            validDepartmentUuid,
+        );
+        const withoutUuids = parseOverlapList(
+            'without',
+            splitQueryList(withoutDepartmentUuids),
+            validDepartmentUuid,
+        );
+        const results = await this.departmentService().getOverlaps(
+            req.account,
+            validDepartmentUuid,
+            withUuids ?? undefined,
+            withoutUuids ?? undefined,
         );
         this.setStatus(200);
         return { status: 'ok', results };
@@ -208,5 +249,29 @@ export class OrgDepartmentsController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Put('/people/{userUuid}/primary')
+    @OperationId('setPrimaryDepartment')
+    async setPrimaryDepartment(
+        @Request() req: express.Request,
+        @Path() userUuid: UUID,
+        @Body() body: SetPrimaryDepartment,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        const validUserUuid = parseUuid(userUuid, 'User');
+        const validDepartmentUuid =
+            body.departmentUuid === null
+                ? null
+                : parseUuid(body.departmentUuid, 'Department');
+        await this.departmentService().setPrimaryDepartment(
+            req.account,
+            validUserUuid,
+            { departmentUuid: validDepartmentUuid },
+        );
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
     }
 }

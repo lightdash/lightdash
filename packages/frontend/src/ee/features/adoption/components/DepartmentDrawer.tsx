@@ -11,12 +11,14 @@ import {
     Drawer,
     Group,
     MultiSelect,
+    Pill,
     ScrollArea,
     Select,
     Stack,
     Text,
     Textarea,
     TextInput,
+    type ComboboxRenderPillInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -41,6 +43,7 @@ import {
     cleanHeadcountNote,
     decodeOwners,
     encodeOwner,
+    getAlsoIn,
     getAssignableUsers,
     getParentOptions,
     getResolvedMembers,
@@ -49,6 +52,8 @@ import {
     MAX_OWNERS,
     MAX_WHOLE_NUMBER,
     NAME_MAX_LENGTH,
+    placementsFromDetail,
+    placementsFromMembership,
     toNullableNumber,
     validateWholeNumber,
 } from '../utils/departmentForm';
@@ -131,9 +136,20 @@ export const DepartmentForm: FC<FormProps> = ({
     const setMembers = useSetDepartmentMembers();
     const { data: users = [] } = useOrganizationUsers();
     const { data: groups = [] } = useOrganizationGroups({});
-    // Everyone in the organization is only fetched when the caller has no list to hand over
-    const { data: membership = [] } = useDepartmentMembership(
-        department !== null && members === null,
+    // The department page's people leave out anyone who counts elsewhere, so an assigned person missing there needs everyone's list
+    const isAssignedPersonUnlisted = useMemo(() => {
+        if (department === null || members === null) return false;
+        const listed = new Set(members.map((member) => member.userUuid));
+        return department.explicitMemberUuids.some(
+            (userUuid) => !listed.has(userUuid),
+        );
+    }, [department, members]);
+    // Everyone loads for the index's list of people, for an unlisted assigned person, or once the people picker opens
+    const [hasOpenedPeoplePicker, setHasOpenedPeoplePicker] = useState(false);
+    const { data: everyone } = useDepartmentMembership(
+        (department !== null &&
+            (members === null || isAssignedPersonUnlisted)) ||
+            hasOpenedPeoplePicker,
     );
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -232,11 +248,47 @@ export const DepartmentForm: FC<FormProps> = ({
         return members !== null
             ? getResolvedMembersFromDetail(members)
             : getResolvedMembers(
-                  membership,
+                  everyone ?? [],
                   departments,
                   department.departmentUuid,
               );
-    }, [members, membership, departments, department]);
+    }, [members, everyone, departments, department]);
+    const { parentDepartmentUuid } = form.values;
+    const alsoIn = useMemo(
+        () =>
+            getAlsoIn(
+                everyone !== undefined
+                    ? placementsFromMembership(everyone)
+                    : placementsFromDetail(members ?? []),
+                departments,
+                {
+                    departmentUuid: department?.departmentUuid ?? null,
+                    parentDepartmentUuid,
+                },
+            ),
+        [everyone, members, departments, department, parentDepartmentUuid],
+    );
+    // A chosen person's chip says where else they are, as assigning here keeps them there too
+    const renderPersonChip = ({
+        option,
+        value,
+        onRemove,
+        disabled,
+    }: ComboboxRenderPillInput) => {
+        const userUuid = value ?? '';
+        const elsewhere = alsoIn.get(userUuid);
+        return (
+            <Pill withRemoveButton onRemove={onRemove} disabled={disabled}>
+                {/* No option comes for someone no longer offered, such as a person who left the organization */}
+                {option?.label ?? userUuid}
+                {elsewhere !== undefined && (
+                    <Text span inherit c="dimmed">
+                        {`, also in ${elsewhere.join(', ')}`}
+                    </Text>
+                )}
+            </Pill>
+        );
+    };
     const hiddenMemberCount = Math.max(
         resolvedMembers.length - RESOLVED_MEMBER_LIMIT,
         0,
@@ -378,12 +430,14 @@ export const DepartmentForm: FC<FormProps> = ({
                     />
                     <MultiSelect
                         label="Assigned people"
-                        description="Assigning someone here overrides their groups"
+                        description="Assigning someone here keeps them in any other department they are in"
                         placeholder="Add a person"
                         data={userOptions}
                         limit={PICKER_LIMIT}
                         searchable
                         clearable
+                        renderPill={renderPersonChip}
+                        onDropdownOpen={() => setHasOpenedPeoplePicker(true)}
                         {...form.getInputProps('memberUuids')}
                     />
 

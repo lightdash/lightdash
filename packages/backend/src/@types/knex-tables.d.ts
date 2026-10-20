@@ -150,6 +150,8 @@ import {
     DepartmentMemberTableName,
     DepartmentOwnerTable,
     DepartmentOwnerTableName,
+    DepartmentPrimaryMembershipTable,
+    DepartmentPrimaryMembershipTableName,
     DepartmentTable,
     DepartmentTableName,
 } from '../database/entities/departments';
@@ -880,6 +882,7 @@ declare module 'knex/types/tables' {
         [DepartmentLinkTableName]: DepartmentLinkTable;
         [DepartmentMemberTableName]: DepartmentMemberTable;
         [DepartmentOwnerTableName]: DepartmentOwnerTable;
+        [DepartmentPrimaryMembershipTableName]: DepartmentPrimaryMembershipTable;
         [GroupMembershipTableName]: GroupMembershipTable;
         [HeadlessBrowserLoginGrantsTableName]: HeadlessBrowserLoginGrantTable;
         [SshKeyPairTableName]: SshKeyPairTable;

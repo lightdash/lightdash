@@ -1,7 +1,13 @@
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { type ColourBy } from '../map/geometry';
 import { deepOrganization } from '../map/organizationFixtures';
-import { dept, metricsFixture, withServerHeadcounts } from './adoptionFixtures';
+import {
+    dept,
+    metricsFixture,
+    placedFixture,
+    withServerHeadcounts,
+} from './adoptionFixtures';
 import {
     getCoverageRows,
     getDepartmentBreakdown,
@@ -162,10 +168,19 @@ describe('getDirectRow', () => {
 });
 
 describe('getOrganizationBreakdown', () => {
-    it('adds up the top-level departments only, whose numbers already hold their sub-departments', () => {
+    const organization = (
+        departments: DepartmentWithMetrics[],
+        colourBy: ColourBy,
+    ) =>
+        getOrganizationBreakdown(
+            { placed: placedFixture(departments), departments },
+            colourBy,
+        );
+
+    it("reads the people placed from the summary, and the top-level departments' people without an account", () => {
         expect(
             parts(
-                getOrganizationBreakdown(
+                organization(
                     withServerHeadcounts([
                         d('Ops', null, 30, 9, 4, 0, 0),
                         d('Stores', 'Ops', 20, 6, 4),
@@ -177,10 +192,42 @@ describe('getOrganizationBreakdown', () => {
             ),
         ).toEqual({ healthy: 6, atRisk: 0, lost: 6, noAccount: 26 });
     });
+    it('counts a person in two top-level departments once, as the summary does, in either colouring', () => {
+        // One active person is in both: 9 and 3 people but 11 placed, 4 and 2 active but 5 placed
+        const departments = withServerHeadcounts([
+            d('Ops', null, 30, 9, 4),
+            d('Finance', null, 8, 3, 2),
+        ]);
+        const placed = {
+            memberCount: 11,
+            activeCount30d: 5,
+            roleSplit: {
+                viewers: 11,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 0,
+            },
+            activitySplit: { healthy: 5, atRisk: 0, lost: 6 },
+        };
+        expect(
+            parts(
+                getOrganizationBreakdown({ placed, departments }, 'activity'),
+            ),
+        ).toEqual({ healthy: 5, atRisk: 0, lost: 6, noAccount: 26 });
+        expect(
+            parts(getOrganizationBreakdown({ placed, departments }, 'role')),
+        ).toEqual({
+            admin: 0,
+            editor: 0,
+            interactiveViewer: 0,
+            viewer: 11,
+            noAccount: 26,
+        });
+    });
     it('counts headcount entered on a department beyond its sub-departments as without an account', () => {
         expect(
             parts(
-                getOrganizationBreakdown(
+                organization(
                     withServerHeadcounts([
                         d('Ops', null, 40, 9, 4, 2, 1),
                         d('Stores', 'Ops', 20, 5, 2),
@@ -191,10 +238,10 @@ describe('getOrganizationBreakdown', () => {
             ).noAccount,
         ).toBe(31);
     });
-    it('counts a department whose parent is gone at the top level, as the map draws it', () => {
+    it('counts the people without an account in a department whose parent is gone at the top level, as the map draws it', () => {
         expect(
             parts(
-                getOrganizationBreakdown(
+                organization(
                     [
                         d('Orphan', 'Deleted', 10, 4, 1),
                         d('Finance', null, 8, 3, 2),
@@ -205,10 +252,7 @@ describe('getOrganizationBreakdown', () => {
         ).toEqual({ healthy: 3, atRisk: 0, lost: 4, noAccount: 11 });
     });
     it('gives the people placed in the 6,000-headcount organization', () => {
-        const breakdown = getOrganizationBreakdown(
-            deepOrganization,
-            'activity',
-        );
+        const breakdown = organization(deepOrganization, 'activity');
         expect(parts(breakdown)).toEqual({
             healthy: 1076,
             atRisk: 256,
@@ -219,15 +263,13 @@ describe('getOrganizationBreakdown', () => {
         expect(breakdown.reduce((sum, part) => sum + part.count, 0)).toBe(5587);
     });
     it('is all zeros without departments, in the order the legend lists the parts', () => {
-        expect(getOrganizationBreakdown([], 'activity')).toEqual([
+        expect(organization([], 'activity')).toEqual([
             { kind: 'healthy', count: 0 },
             { kind: 'atRisk', count: 0 },
             { kind: 'lost', count: 0 },
             { kind: 'noAccount', count: 0 },
         ]);
-        expect(
-            getOrganizationBreakdown([], 'role').map((part) => part.kind),
-        ).toEqual([
+        expect(organization([], 'role').map((part) => part.kind)).toEqual([
             'admin',
             'editor',
             'interactiveViewer',

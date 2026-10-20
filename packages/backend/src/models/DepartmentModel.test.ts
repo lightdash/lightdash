@@ -13,11 +13,12 @@ import {
     DepartmentLinkTableName,
     DepartmentMemberTableName,
     DepartmentOwnerTableName,
+    DepartmentPrimaryMembershipTableName,
     DepartmentTableName,
 } from '../database/entities/departments';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
-import { DepartmentModel } from './DepartmentModel';
+import { DepartmentModel, notAnActiveMemberMessage } from './DepartmentModel';
 
 const departmentRow = (over: Record<string, unknown> = {}) => ({
     department_uuid: 'dep',
@@ -44,18 +45,34 @@ const SELECT_TREE = new RegExp(
 );
 const LOCK = /pg_advisory_xact_lock/;
 const LOCK_TIMEOUT = /lock_timeout/;
+// The department check before a primary is stored
+const SELECT_PRIMARY_DEPARTMENT = new RegExp(
+    `^select "department_uuid" from "${DepartmentTableName}" where`,
+);
+// Who counts as a member, the same text in the membership read and the primary check
+const MEMBERS =
+    /FROM organization_memberships om\s+JOIN org ON org\.organization_id = om\.organization_id\s+JOIN users u ON u\.user_id = om\.user_id\s+JOIN emails e ON e\.user_id = u\.user_id AND e\.is_primary = true\s+WHERE u\.is_internal = false\s+AND u\.is_active = true\s+AND \(\s+e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)\s+\)/;
 const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
+// The people with a primary stored, read inside each write that can change where people are placed
+const PRIMARY_HOLDERS =
+    /(?<!LEFT )JOIN primaries pr ON pr\.user_uuid = ou\.user_uuid/;
 
 describe('DepartmentModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new DepartmentModel({ database });
     let tracker: Tracker;
+    // Nobody has a primary stored unless a test says so
+    let primaryHolders: Record<string, unknown>[] = [];
     beforeAll(() => {
         tracker = getTracker();
     });
     beforeEach(() => {
+        primaryHolders = [];
         tracker.on.any(LOCK_TIMEOUT).response([]);
         tracker.on.any(LOCK).response([]);
+        tracker.on.any(PRIMARY_HOLDERS).response(() => ({
+            rows: primaryHolders,
+        }));
     });
     afterEach(() => {
         tracker.reset();
@@ -443,7 +460,7 @@ describe('DepartmentModel', () => {
         });
     });
 
-    it('replaces group links, taking each group from any other department', async () => {
+    it("replaces only this department's group links, leaving each group linked to its other departments", async () => {
         tracker.on
             .select(/^select .* from "groups"/)
             .responseOnce([{ group_uuid: 'g1' }]);
@@ -456,8 +473,11 @@ describe('DepartmentModel', () => {
 
         await model.setGroupLinks('org', 'dep', ['g1', 'g1']);
 
-        expect(tracker.history.delete).toHaveLength(2);
-        expect(tracker.history.delete[0].bindings).toEqual(['group', 'g1']);
+        expect(tracker.history.delete).toHaveLength(1);
+        expect(tracker.history.delete[0].sql).toBe(
+            `delete from "${DepartmentLinkTableName}" where "department_uuid" = $1 and "link_type" = $2`,
+        );
+        expect(tracker.history.delete[0].bindings).toEqual(['dep', 'group']);
         expect(tracker.history.insert).toHaveLength(1);
         expect(tracker.history.insert[0].bindings).toEqual([
             'dep',
@@ -466,7 +486,7 @@ describe('DepartmentModel', () => {
         ]);
     });
 
-    it('replaces members, clearing the user from other departments in the org', async () => {
+    it("replaces only this department's members, keeping the person in their other departments", async () => {
         tracker.on
             .select(/inner join "organizations"/)
             .responseOnce([{ user_uuid: 'u1' }]);
@@ -482,10 +502,11 @@ describe('DepartmentModel', () => {
 
         await model.setMembers('org', 'dep', ['u1']);
 
-        expect(tracker.history.delete).toHaveLength(2);
-        expect(tracker.history.delete[0].sql).toContain(
-            `"department_uuid" in (select "department_uuid" from "${DepartmentTableName}"`,
+        expect(tracker.history.delete).toHaveLength(1);
+        expect(tracker.history.delete[0].sql).toBe(
+            `delete from "${DepartmentMemberTableName}" where "department_uuid" = $1`,
         );
+        expect(tracker.history.delete[0].bindings).toEqual(['dep']);
         expect(tracker.history.insert[0].bindings).toEqual(['dep', 'u1']);
     });
 
@@ -537,6 +558,9 @@ describe('DepartmentModel', () => {
 
     describe('who can be newly assigned or made an owner', () => {
         const ON_LIGHTDASH = /is_active = true/;
+        // The check on the people being added, not the read of the people with a primary that follows the write
+        const isNewcomerCheck = (sql: string) =>
+            ON_LIGHTDASH.test(sql) && !PRIMARY_HOLDERS.test(sql);
         const respondToMemberWrite = (listed: string[]) => {
             tracker.on
                 .select(OrganizationMembershipsTableName)
@@ -603,7 +627,7 @@ describe('DepartmentModel', () => {
                 { type: 'user', uuid: 'u1' },
             ]);
             const checks = tracker.history.all.filter((q) =>
-                ON_LIGHTDASH.test(q.sql),
+                isNewcomerCheck(q.sql),
             );
             expect(checks.map((q) => q.bindings)).toEqual([[['u1']], [['u1']]]);
             expect(tracker.history.insert).toHaveLength(2);
@@ -612,7 +636,7 @@ describe('DepartmentModel', () => {
             respondToMemberWrite(['quiet']);
             await model.setMembers('org', 'dep', ['quiet']);
             expect(
-                tracker.history.all.some((q) => ON_LIGHTDASH.test(q.sql)),
+                tracker.history.all.some((q) => isNewcomerCheck(q.sql)),
             ).toBe(false);
         });
     });
@@ -705,23 +729,170 @@ describe('DepartmentModel', () => {
             expect(userCheck?.bindings[0]).toBe('org');
         });
 
-        it("clears a person's other assignment only within the organization", async () => {
-            tracker.on
-                .select(OrganizationMembershipsTableName)
-                .response([{ user_uuid: 'u1' }]);
-            tracker.on.select(SELECT_DEPARTMENTS).response([departmentRow()]);
-            tracker.on.select(/from "department_/).response([]);
-            tracker.on.delete(DepartmentMemberTableName).response(0);
-            tracker.on.insert(DepartmentMemberTableName).response([]);
+        it("reads each person's explicit departments and primary through the organization", async () => {
+            tracker.on.any(/with org as/i).response({ rows: [] });
+            await model.getResolvedMemberRows('org');
+            const [query] = tracker.history.all;
+            // The organization is bound once and every part of the read joins it
+            expect(query.bindings).toEqual(['org']);
+            expect(query.sql).toMatch(
+                /FROM department_members dm\s+JOIN organization_departments d ON d\.department_uuid = dm\.department_uuid\s+JOIN org ON org\.organization_uuid = d\.organization_uuid/,
+            );
+            expect(query.sql).toMatch(
+                /FROM department_primary_memberships pm\s+JOIN org ON org\.organization_uuid = pm\.organization_uuid/,
+            );
+        });
+
+        it('checks the person and the department against the organization when setting a primary', async () => {
             tracker.on
                 .any(/is_active = true/)
                 .response({ rows: [{ user_uuid: 'u1' }] });
-            await model.setMembers('org', 'dep', ['u1']);
-            const [otherAssignments] = tracker.history.delete;
-            expect(otherAssignments.sql).toContain(
-                'where "department_uuid" in (select "department_uuid" from "organization_departments" where "organization_uuid" = $1)',
+            tracker.on.select(SELECT_PRIMARY_DEPARTMENT).response([]);
+            await expect(
+                model.setPrimaryDepartment('org', 'u1', 'theirs'),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'Department theirs is not in this organization',
+                ),
             );
-            expect(otherAssignments.bindings).toEqual(['org', 'u1']);
+            const memberCheck = tracker.history.all.find((q) =>
+                /is_active = true/.test(q.sql),
+            );
+            expect(memberCheck?.sql).toMatch(
+                /WITH org AS \(\s+SELECT organization_id FROM organizations WHERE organization_uuid = \$1\s+\)/,
+            );
+            expect(memberCheck?.sql).toMatch(/AND u\.user_uuid = \$2\s*$/);
+            expect(memberCheck?.bindings).toEqual(['org', 'u1']);
+            const departmentCheck = tracker.history.select.find((q) =>
+                SELECT_PRIMARY_DEPARTMENT.test(q.sql),
+            );
+            expect(departmentCheck?.sql).toMatch(
+                /where "organization_uuid" = \$1 and "department_uuid" = \$2/,
+            );
+            expect(departmentCheck?.bindings).toEqual(['org', 'theirs', 1]);
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it("clears only the organization's primary for the person", async () => {
+            tracker.on
+                .any(/is_active = true/)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            tracker.on.delete(DepartmentPrimaryMembershipTableName).response(1);
+            await model.setPrimaryDepartment('org', 'u1', null);
+            const [cleared] = tracker.history.delete;
+            expect(cleared.sql).toBe(
+                `delete from "${DepartmentPrimaryMembershipTableName}" where "organization_uuid" = $1 and "user_uuid" = $2`,
+            );
+            expect(cleared.bindings).toEqual(['org', 'u1']);
+        });
+    });
+
+    describe('the department a person counts in', () => {
+        const ON_LIGHTDASH = /is_active = true/;
+
+        it('stores it for the person in the organization, replacing any earlier one, after checking both inside the lock', async () => {
+            tracker.on
+                .any(ON_LIGHTDASH)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            tracker.on
+                .select(SELECT_PRIMARY_DEPARTMENT)
+                .response([{ department_uuid: 'dep' }]);
+            tracker.on
+                .insert(DepartmentPrimaryMembershipTableName)
+                .response([]);
+
+            await model.setPrimaryDepartment('org', 'u1', 'dep');
+
+            const [upsert] = tracker.history.insert;
+            expect(upsert.sql).toBe(
+                `insert into "${DepartmentPrimaryMembershipTableName}" ("department_uuid", "organization_uuid", "user_uuid") values ($1, $2, $3) on conflict ("organization_uuid", "user_uuid") do update set "department_uuid" = excluded."department_uuid"`,
+            );
+            expect(upsert.bindings).toEqual(['dep', 'org', 'u1']);
+            const [transaction] = tracker.history.transactions;
+            expect(transaction.state).toBe('committed');
+            expect(
+                transaction.queries.map((q) => {
+                    if (LOCK_TIMEOUT.test(q.sql)) return 'timeout';
+                    if (LOCK.test(q.sql)) return 'lock';
+                    if (ON_LIGHTDASH.test(q.sql)) return 'person';
+                    if (SELECT_PRIMARY_DEPARTMENT.test(q.sql))
+                        return 'department';
+                    return q.method;
+                }),
+            ).toEqual(['timeout', 'lock', 'person', 'department', 'insert']);
+        });
+
+        it('clears it with null, without looking a department up', async () => {
+            tracker.on
+                .any(ON_LIGHTDASH)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            tracker.on.delete(DepartmentPrimaryMembershipTableName).response(1);
+
+            await model.setPrimaryDepartment('org', 'u1', null);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.select).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it('refuses a person who is not an active member of the organization, before reading or writing anything else', async () => {
+            tracker.on.any(ON_LIGHTDASH).response({ rows: [] });
+
+            await expect(
+                model.setPrimaryDepartment('org', 'gone', 'dep'),
+            ).rejects.toThrow(
+                new NotFoundError(
+                    'User gone is not an active member of this organization',
+                ),
+            );
+            // The text the service also answers with when it finds no such member
+            expect(notAnActiveMemberMessage('gone')).toBe(
+                'User gone is not an active member of this organization',
+            );
+
+            const check = tracker.history.all.find((q) =>
+                ON_LIGHTDASH.test(q.sql),
+            );
+            // The same people the membership read counts: in the organization, not internal, active and signed up
+            expect(check?.sql).toMatch(MEMBERS);
+            expect(check?.bindings).toEqual(['org', 'gone']);
+            expect(tracker.history.select).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.delete).toHaveLength(0);
+            const [transaction] = tracker.history.transactions;
+            expect(transaction.state).toBe('rolled back');
+        });
+
+        it('defines a member with the same text as the membership read', async () => {
+            tracker.on.any(/with org as/i).response({ rows: [] });
+            await model.getResolvedMemberRows('org');
+            await model
+                .setPrimaryDepartment('org', 'u1', null)
+                .catch(() => undefined);
+            const [read, check] = tracker.history.all
+                .filter((q) => !LOCK_TIMEOUT.test(q.sql) && !LOCK.test(q.sql))
+                .map((q) => q.sql.match(MEMBERS)?.[0]);
+            expect(read).toEqual(expect.any(String));
+            expect(check).toBe(read);
+        });
+
+        it('refuses a department that is not in the organization and writes nothing', async () => {
+            tracker.on
+                .any(ON_LIGHTDASH)
+                .response({ rows: [{ user_uuid: 'u1' }] });
+            tracker.on.select(SELECT_PRIMARY_DEPARTMENT).response([]);
+
+            await expect(
+                model.setPrimaryDepartment('org', 'u1', 'dep9'),
+            ).rejects.toThrow(
+                new ParameterError(
+                    'Department dep9 is not in this organization',
+                ),
+            );
+
+            expect(tracker.history.insert).toHaveLength(0);
+            const [transaction] = tracker.history.transactions;
+            expect(transaction.state).toBe('rolled back');
         });
     });
 
@@ -893,6 +1064,14 @@ describe('DepartmentModel', () => {
                         { type: 'group', uuid: 'g1' },
                     ]),
             ],
+            [
+                'setPrimaryDepartment',
+                () => model.setPrimaryDepartment('org', 'u1', 'dep'),
+            ],
+            [
+                'setPrimaryDepartment to null',
+                () => model.setPrimaryDepartment('org', 'u1', null),
+            ],
         ];
         const databaseError = (code: string, message: string) =>
             Object.assign(new DatabaseError(message, 0, 'error'), { code });
@@ -938,6 +1117,99 @@ describe('DepartmentModel', () => {
             );
             expect(treeIndex).toBeGreaterThan(0);
             expect(transaction.queries[treeIndex].bindings).toEqual(['org']);
+        });
+
+        // Writes that can change where people are placed, and those that cannot
+        const placementWrites = writes.filter(([name]) =>
+            ['update', 'delete', 'setGroupLinks', 'setMembers'].includes(name),
+        );
+        const otherWrites: Array<[string, () => Promise<unknown>]> = [
+            ...writes.filter(
+                ([name]) =>
+                    ![
+                        'update',
+                        'delete',
+                        'setGroupLinks',
+                        'setMembers',
+                    ].includes(name),
+            ),
+            [
+                'update without a move',
+                () =>
+                    model.update('org', 'dep', { name: 'Ops' }, 'user', LIMITS),
+            ],
+        ];
+        const isWrite = (sql: string) => /^(insert|update|delete) /.test(sql);
+
+        it.each(placementWrites)(
+            '%s reads the people with a primary inside its transaction, after writing',
+            async (_name, write) => {
+                respondToEveryRead();
+                await write();
+                const [transaction] = tracker.history.transactions;
+                const read = transaction.queries.findIndex((q) =>
+                    PRIMARY_HOLDERS.test(q.sql),
+                );
+                const lastWrite = transaction.queries.findLastIndex((q) =>
+                    isWrite(q.sql),
+                );
+                expect(read).toBeGreaterThan(lastWrite);
+                expect(transaction.queries[read].bindings).toEqual(['org']);
+            },
+        );
+        it.each(otherWrites)(
+            '%s leaves primaries alone',
+            async (_name, write) => {
+                respondToEveryRead();
+                await write();
+                expect(
+                    tracker.history.all.some((q) =>
+                        PRIMARY_HOLDERS.test(q.sql),
+                    ),
+                ).toBe(false);
+            },
+        );
+        it('clears, in the same transaction, the primary of someone the write leaves without that placement, and only theirs', async () => {
+            respondToEveryRead();
+            const holder = (
+                userUuid: string,
+                explicit: string[],
+                groupDepartments: string[] = [],
+            ) => ({
+                user_uuid: userUuid,
+                email: `${userUuid}@example.com`,
+                first_name: userUuid,
+                last_name: 'L',
+                role: 'viewer',
+                explicit_department_uuids: explicit,
+                group_links: groupDepartments.map((departmentUuid) => ({
+                    departmentUuid,
+                    groupUuid: 'g1',
+                    groupName: 'Staff',
+                })),
+                primary_department_uuid: 'dep',
+            });
+            // As read after the write: Ann is no longer in dep; Bob still is, and Cy is through a group
+            primaryHolders = [
+                holder('ann', [PARENT]),
+                holder('bob', ['dep', PARENT]),
+                holder('cy', [PARENT], ['dep']),
+            ];
+
+            await model.setMembers('org', 'dep', ['u1']);
+
+            const [transaction] = tracker.history.transactions;
+            const cleared = transaction.queries.filter((q) =>
+                q.sql.startsWith(
+                    `delete from "${DepartmentPrimaryMembershipTableName}"`,
+                ),
+            );
+            expect(cleared).toHaveLength(1);
+            expect(cleared[0].sql).toBe(
+                `delete from "${DepartmentPrimaryMembershipTableName}" where "organization_uuid" = $1 and "user_uuid" in ($2)`,
+            );
+            expect(cleared[0].bindings).toEqual(['org', 'ann']);
+            expect(transaction.state).toBe('committed');
         });
 
         it('rolls back without writing when a check inside the lock fails', async () => {
@@ -1003,7 +1275,17 @@ describe('DepartmentModel', () => {
         });
     });
 
-    it('maps resolved member rows and defaults missing group links to empty', async () => {
+    it('reads every explicit department of a person, not one of them', async () => {
+        tracker.on.any(/with org as/i).response({ rows: [] });
+        await model.getResolvedMemberRows('org');
+        const [query] = tracker.history.all;
+        expect(query.sql).toContain(
+            'array_agg(dm.department_uuid ORDER BY dm.department_uuid)',
+        );
+        expect(query.sql).not.toMatch(/\bMIN\(/i);
+    });
+
+    it('maps resolved member rows and defaults missing explicit departments and group links to empty', async () => {
         tracker.on.any(/with org as/i).response({
             rows: [
                 {
@@ -1012,8 +1294,9 @@ describe('DepartmentModel', () => {
                     first_name: 'Ada',
                     last_name: 'Lovelace',
                     role: 'editor',
-                    explicit_department_uuid: 'dep',
+                    explicit_department_uuids: ['dep', 'dep2'],
                     group_links: null,
+                    primary_department_uuid: 'dep2',
                 },
                 {
                     user_uuid: 'u2',
@@ -1021,7 +1304,7 @@ describe('DepartmentModel', () => {
                     first_name: 'Bo',
                     last_name: 'Smith',
                     role: 'viewer',
-                    explicit_department_uuid: null,
+                    explicit_department_uuids: null,
                     group_links: [
                         {
                             departmentUuid: 'dep',
@@ -1029,6 +1312,7 @@ describe('DepartmentModel', () => {
                             groupName: 'Finance',
                         },
                     ],
+                    primary_department_uuid: null,
                 },
             ],
         });
@@ -1042,8 +1326,9 @@ describe('DepartmentModel', () => {
                 firstName: 'Ada',
                 lastName: 'Lovelace',
                 role: 'editor',
-                explicitDepartmentUuid: 'dep',
+                explicitDepartmentUuids: ['dep', 'dep2'],
                 groupLinks: [],
+                primaryDepartmentUuid: 'dep2',
             },
             {
                 userUuid: 'u2',
@@ -1051,7 +1336,7 @@ describe('DepartmentModel', () => {
                 firstName: 'Bo',
                 lastName: 'Smith',
                 role: 'viewer',
-                explicitDepartmentUuid: null,
+                explicitDepartmentUuids: [],
                 groupLinks: [
                     {
                         departmentUuid: 'dep',
@@ -1059,6 +1344,7 @@ describe('DepartmentModel', () => {
                         groupName: 'Finance',
                     },
                 ],
+                primaryDepartmentUuid: null,
             },
         ]);
     });

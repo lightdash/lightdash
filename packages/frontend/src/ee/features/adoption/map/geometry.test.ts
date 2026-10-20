@@ -18,11 +18,13 @@ import {
     getDotSegments,
     getSunflowerSpacing,
     getMemberDotKind,
+    getSharedDotShape,
     layoutDots,
     layoutPack,
     MIN_CIRCLE_RADIUS,
     orderMembersForDots,
     shouldRenderDots,
+    spreadEvenly,
     sunflowerPositions,
     SVG_DOT_LIMIT,
     type PackedCircle,
@@ -1101,5 +1103,52 @@ describe('dots for 20,000 people in view', () => {
             return sum + positions.length;
         }, 0);
         expect(drawn).toBe(SVG_DOT_LIMIT);
+    });
+});
+
+describe('the dot of a person in several departments', () => {
+    it('keeps a 1 px ring at the edge of the room the dot has, and the dot inside it with a gap', () => {
+        [5, 11].forEach((room) => {
+            const { ringRadius, ringWidth, dotRadius } =
+                getSharedDotShape(room);
+            expect(ringWidth).toBe(1);
+            // The ring's outer edge is where the dot's edge would be, so it never reaches a neighbour
+            expect(ringRadius + ringWidth / 2).toBeCloseTo(room, 9);
+            expect(dotRadius).toBeLessThan(ringRadius - ringWidth / 2);
+            expect(dotRadius).toBeGreaterThan(room / 2);
+        });
+    });
+    it('thins the ring for dots too small for 1 px, leaving the dot and the gap their room', () => {
+        const { ringRadius, ringWidth, dotRadius } = getSharedDotShape(0.75);
+        expect(ringWidth).toBeGreaterThan(0);
+        expect(ringWidth).toBeLessThan(1);
+        expect(ringRadius + ringWidth / 2).toBeCloseTo(0.75, 9);
+        expect(dotRadius).toBeGreaterThan(0);
+        expect(dotRadius).toBeLessThan(ringRadius - ringWidth / 2);
+    });
+});
+
+describe('spreadEvenly', () => {
+    it('picks that many places spread through the range, each once', () => {
+        expect([...spreadEvenly(3, 10)]).toEqual([1, 5, 8]);
+        expect([...spreadEvenly(1, 10)]).toEqual([5]);
+        expect([...spreadEvenly(4, 4)]).toEqual([0, 1, 2, 3]);
+    });
+    it('picks nothing for none, and never more places than there are', () => {
+        expect(spreadEvenly(0, 10).size).toBe(0);
+        expect(spreadEvenly(3, 0).size).toBe(0);
+        expect([...spreadEvenly(5, 2)]).toEqual([0, 1]);
+    });
+    it('keeps every place in the range, whatever the counts', () => {
+        for (let total = 1; total <= 60; total += 1) {
+            for (let count = 0; count <= total; count += 1) {
+                const places = [...spreadEvenly(count, total)];
+                expect(places).toHaveLength(count);
+                places.forEach((place) => {
+                    expect(place).toBeGreaterThanOrEqual(0);
+                    expect(place).toBeLessThan(total);
+                });
+            }
+        }
     });
 });

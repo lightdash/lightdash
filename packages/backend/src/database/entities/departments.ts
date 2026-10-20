@@ -64,6 +64,20 @@ export type DepartmentMemberTable = Knex.CompositeTableType<
     never
 >;
 
+// Where a person placed in several departments counts; at most one per person per organization
+export type DbDepartmentPrimaryMembership = {
+    organization_uuid: string;
+    user_uuid: string;
+    department_uuid: string;
+};
+export const DepartmentPrimaryMembershipTableName =
+    'department_primary_memberships';
+export type DepartmentPrimaryMembershipTable = Knex.CompositeTableType<
+    DbDepartmentPrimaryMembership,
+    DbDepartmentPrimaryMembership,
+    Pick<DbDepartmentPrimaryMembership, 'department_uuid'>
+>;
+
 export type DepartmentPrincipalType = 'user' | 'group';
 export type DbDepartmentOwner = {
     department_uuid: string;

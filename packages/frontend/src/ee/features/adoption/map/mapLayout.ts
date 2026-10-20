@@ -8,6 +8,7 @@ import {
 } from './geometry';
 import {
     formatDirectPeople,
+    formatSharedPeople,
     nameLoneBucket,
     type CircleInfo,
     type CircleStats,
@@ -298,11 +299,16 @@ const measureLabel = (
     height: LINE_PX[role] + (text.detail === null ? 0 : LINE_PX.detail),
 });
 
-// The fuller line a hover label gives under the name of a circle of the level in view: the full caption, then
-// its sub-departments where it has any
-const getFullCaption = (stats: CircleStats, subDepartments: number): string =>
+// The fuller line a hover label gives under the name of a circle of the level in view: the full caption, the
+// people who count in another department too, then its sub-departments, each only where it applies
+const getFullCaption = (
+    stats: CircleStats,
+    subDepartments: number,
+    shared: string | null,
+): string =>
     [
         getCaptionVariants(stats)[0],
+        ...(shared === null ? [] : [shared]),
         ...(subDepartments > 0
             ? [formatQuantity(subDepartments, SUB_DEPARTMENTS)]
             : []),
@@ -329,22 +335,30 @@ const getRestTexts = (
     ];
 };
 
-// What a hover label says: for a circle of the level in view the fuller line first, so hovering one named at
-// rest adds to its name
+// A hover label: the fuller line first for a circle of the level in view, then what its name at rest says. The count
+// of people in another department too comes first and is the first thing left out for room
 const getHoverTexts = (
     circle: PackedCircle,
     stats: CircleStats,
-): LabelText[] => [
-    ...(circle.depth === 1
-        ? [
-              {
-                  name: circle.name,
-                  detail: getFullCaption(stats, circle.childDepartmentCount),
-              },
-          ]
-        : []),
-    ...getRestTexts(circle, stats),
-];
+): LabelText[] => {
+    const shared = stats.shared > 0 ? formatSharedPeople(stats.shared) : null;
+    const rest = getRestTexts(circle, stats);
+    if (circle.depth === 1) {
+        const full = (also: string | null): LabelText => ({
+            name: circle.name,
+            detail: getFullCaption(stats, circle.childDepartmentCount, also),
+        });
+        return [
+            ...(shared === null ? [] : [full(shared)]),
+            full(null),
+            ...rest,
+        ];
+    }
+    return [
+        ...(shared === null ? [] : [{ name: rest[0].name, detail: shared }]),
+        ...rest,
+    ];
+};
 
 // Shortened to fit the width; null when even the numbers are too wide
 const getOutsideText = (

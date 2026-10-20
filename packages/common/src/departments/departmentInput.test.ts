@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
+import { ParameterError } from '../types/errors';
 import {
     hasControlCharacter,
+    MAX_DEPARTMENT_LIST_LENGTH,
     normalizeDepartmentName,
+    parseOverlapList,
+    parseUuid,
+    parseUuids,
     truncateForMessage,
 } from './departmentInput';
+
+const DEPARTMENT = '6b1f0d7e-2c4a-4e8b-9f3d-1a2b3c4d5e6f';
+const MARKETING = 'a3e9c2d1-5b7f-4c6a-8e0d-2f1a3b4c5d6e';
+const SALES = 'c8d7e6f5-4a3b-4c2d-b1e0-9f8e7d6c5b4a';
+const FINANCE = 'd4c3b2a1-9e8f-4a7b-8c6d-5e4f3a2b1c0d';
 
 const range = (from: number, to: number): number[] =>
     Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -98,5 +108,87 @@ describe('truncateForMessage', () => {
     it('prints values that are not strings', () => {
         expect(truncateForMessage(42)).toBe('42');
         expect(truncateForMessage(undefined)).toBe('undefined');
+    });
+});
+
+describe('parseUuid', () => {
+    it('lower-cases a valid uuid', () => {
+        expect(parseUuid(MARKETING.toUpperCase(), 'Department')).toBe(
+            MARKETING,
+        );
+    });
+    it.each([
+        ['a malformed string', 'nope'],
+        ['a number', 42],
+        ['null', null],
+    ])('refuses %s with a message naming the label', (_case, value) => {
+        expect(() => parseUuid(value, 'User')).toThrow(
+            new ParameterError(`User must be a valid UUID: ${String(value)}`),
+        );
+    });
+});
+
+describe('parseUuids', () => {
+    it('lower-cases every entry', () => {
+        expect(parseUuids([SALES.toUpperCase(), MARKETING], 'Group')).toEqual([
+            SALES,
+            MARKETING,
+        ]);
+    });
+    it('refuses a value that is not a list', () => {
+        expect(() => parseUuids(SALES, 'Group')).toThrow(
+            new ParameterError('Group must be a list'),
+        );
+    });
+    it('refuses a list longer than the limit', () => {
+        const tooMany = Array.from(
+            { length: MAX_DEPARTMENT_LIST_LENGTH + 1 },
+            () => SALES,
+        );
+        expect(() => parseUuids(tooMany, 'User')).toThrow(
+            new ParameterError(
+                `User can hold at most ${MAX_DEPARTMENT_LIST_LENGTH} entries`,
+            ),
+        );
+    });
+});
+
+describe('parseOverlapList', () => {
+    it('reads an absent or empty list as left out', () => {
+        expect(parseOverlapList('with', undefined, DEPARTMENT)).toBeNull();
+        expect(parseOverlapList('without', [], DEPARTMENT)).toBeNull();
+    });
+    it('lower-cases and de-duplicates the departments', () => {
+        expect(
+            parseOverlapList(
+                'with',
+                [MARKETING.toUpperCase(), MARKETING],
+                DEPARTMENT,
+            ),
+        ).toEqual([MARKETING]);
+    });
+    it.each([
+        [
+            'more than two departments',
+            'without' as const,
+            [MARKETING, SALES, FINANCE],
+            '"without" can list at most 2 departments',
+        ],
+        [
+            'the department itself',
+            'with' as const,
+            [DEPARTMENT.toUpperCase()],
+            '"with" cannot list the department itself',
+        ],
+        [
+            'a malformed uuid',
+            'with' as const,
+            [MARKETING, 'nope'],
+            'Department must be a valid UUID: nope',
+        ],
+    ])('refuses %s', (_case, listName, values, message) => {
+        expect(() => parseOverlapList(listName, values, DEPARTMENT)).toThrow(
+            new ParameterError(message),
+        );
     });
 });

@@ -3,6 +3,7 @@ import {
     computeEffectiveHeadcounts,
     getAncestorUuids,
     getBranchHeight,
+    getChildrenHeadcount,
     getChildrenMap,
     getDepthMap,
     getDescendantUuids,
@@ -10,6 +11,7 @@ import {
     getResidualHeadcount,
     rollUpByDepartment,
     wouldCreateCycle,
+    type DepartmentHeadcountNode,
 } from './departmentTree';
 
 // ops ─┬─ stores ── north
@@ -239,6 +241,118 @@ describe('computeEffectiveHeadcounts', () => {
             headcountBelowChildren: false,
         });
     });
+
+    // A parent with sub-departments A and B, people counted from a roll-up that lists each person once
+    const parentOfTwo = (
+        headcounts: Record<string, number | null>,
+    ): DepartmentHeadcountNode[] =>
+        [
+            { departmentUuid: 'parent', parentDepartmentUuid: null },
+            { departmentUuid: 'a', parentDepartmentUuid: 'parent' },
+            { departmentUuid: 'b', parentDepartmentUuid: 'parent' },
+        ].map((n) => ({
+            ...n,
+            headcount: headcounts[n.departmentUuid] ?? null,
+        }));
+    const countPeople = (
+        tree: DepartmentHeadcountNode[],
+        people: Record<string, string[]>,
+    ): Map<string, number> =>
+        new Map(
+            [
+                ...rollUpByDepartment(
+                    tree,
+                    new Map(
+                        Object.entries(people).map(([uuid, userUuids]) => [
+                            uuid,
+                            userUuids.map((userUuid) => ({ userUuid })),
+                        ]),
+                    ),
+                ),
+            ].map(([uuid, rolled]) => [uuid, rolled.length]),
+        );
+
+    it('counts a person in two sub-departments once when no headcount is entered anywhere', () => {
+        const tree = parentOfTwo({});
+        const people = countPeople(tree, { a: ['shared'], b: ['shared'] });
+        const result = computeEffectiveHeadcounts(tree, people);
+        // One person for a headcount of one, so coverage reads 100 %
+        expect(people.get('parent')).toBe(1);
+        expect(result.get('parent')).toEqual({
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+        });
+    });
+    it('does not flag a parent headcount that matches its people when its sub-departments share one', () => {
+        const tree = parentOfTwo({ parent: 5 });
+        // Five people, three in each sub-department and one of them in both, so the sub-departments add up to 6
+        const people = countPeople(tree, {
+            a: ['a1', 'a2', 'shared'],
+            b: ['shared', 'b1', 'b2'],
+        });
+        const result = computeEffectiveHeadcounts(tree, people);
+        expect(
+            (result.get('a')?.effectiveHeadcount ?? 0) +
+                (result.get('b')?.effectiveHeadcount ?? 0),
+        ).toBe(6);
+        expect(result.get('parent')).toEqual({
+            effectiveHeadcount: 5,
+            hasHeadcount: true,
+            headcountBelowChildren: false,
+        });
+    });
+    it('adds up the sub-departments as before when nobody is shared', () => {
+        const tree = parentOfTwo({ parent: 5 });
+        const people = countPeople(tree, {
+            a: ['a1', 'a2', 'a3'],
+            b: ['b1', 'b2', 'b3'],
+        });
+        // Six different people, above the 5 entered
+        expect(computeEffectiveHeadcounts(tree, people).get('parent')).toEqual({
+            effectiveHeadcount: 6,
+            hasHeadcount: true,
+            headcountBelowChildren: true,
+        });
+    });
+    it("counts a sub-department's people without an account once beside a person it shares", () => {
+        // A's headcount of 4 has 2 people on Lightdash; B's one person is also in A
+        const tree = parentOfTwo({ a: 4 });
+        const people = countPeople(tree, {
+            a: ['a1', 'shared'],
+            b: ['shared'],
+        });
+        // The 2 people on Lightdash and A's 2 without an account
+        expect(
+            computeEffectiveHeadcounts(tree, people).get('parent')
+                ?.effectiveHeadcount,
+        ).toBe(4);
+    });
+});
+
+describe('getChildrenHeadcount', () => {
+    it("counts a person in two sub-departments once, and each one's people without an account", () => {
+        // 4 people rolled up, 1 directly in the department; A has 2 for a headcount of 5, B 2, and 1 is in both
+        expect(
+            getChildrenHeadcount({ memberCount: 4, directMemberCount: 1 }, [
+                { effectiveHeadcount: 5, memberCount: 2 },
+                { effectiveHeadcount: 2, memberCount: 2 },
+            ]),
+        ).toBe(6);
+    });
+    it("adds up the sub-departments' effective headcounts when nobody is shared", () => {
+        expect(
+            getChildrenHeadcount({ memberCount: 6, directMemberCount: 1 }, [
+                { effectiveHeadcount: 10, memberCount: 3 },
+                { effectiveHeadcount: 4, memberCount: 2 },
+            ]),
+        ).toBe(14);
+    });
+    it('is 0 without sub-departments', () => {
+        expect(
+            getChildrenHeadcount({ memberCount: 3, directMemberCount: 3 }, []),
+        ).toBe(0);
+    });
 });
 
 describe('getResidualHeadcount', () => {
@@ -252,19 +366,59 @@ describe('getResidualHeadcount', () => {
     it('is the effective headcount for a department without sub-departments', () => {
         expect(getResidualHeadcount(8, 0, 3)).toBe(8);
     });
+    it('keeps what the headcount leaves over its sub-departments with a person they share counted once', () => {
+        // 10 entered; A and B have 2 people each, 1 of them in both, and 1 person is directly in the department
+        const childrenHeadcount = getChildrenHeadcount(
+            { memberCount: 4, directMemberCount: 1 },
+            [
+                { effectiveHeadcount: 2, memberCount: 2 },
+                { effectiveHeadcount: 2, memberCount: 2 },
+            ],
+        );
+        expect(childrenHeadcount).toBe(3);
+        expect(getResidualHeadcount(10, childrenHeadcount, 1)).toBe(7);
+    });
 });
 
 describe('rollUpByDepartment', () => {
-    it('gives a parent its own items plus all descendants', () => {
+    const person = (userUuid: string, countedIn = '') => ({
+        userUuid,
+        countedIn,
+    });
+    const userUuids = (people: { userUuid: string }[] | undefined) =>
+        people?.map((p) => p.userUuid);
+
+    it('gives a parent its own people plus all descendants', () => {
         const direct = new Map([
-            ['ops', ['a']],
-            ['north', ['b']],
-            ['depots', ['c']],
+            ['ops', [person('a')]],
+            ['north', [person('b')]],
+            ['depots', [person('c')]],
         ]);
         const rolled = rollUpByDepartment(nodes, direct);
-        expect(rolled.get('ops')?.sort()).toEqual(['a', 'b', 'c']);
-        expect(rolled.get('stores')).toEqual(['b']);
+        expect(userUuids(rolled.get('ops'))?.sort()).toEqual(['a', 'b', 'c']);
+        expect(userUuids(rolled.get('stores'))).toEqual(['b']);
         expect(rolled.get('finance')).toEqual([]);
+    });
+    it('lists a person once per department, keeping the first occurrence in order', () => {
+        const direct = new Map([
+            ['ops', [person('a', 'ops')]],
+            ['stores', [person('b', 'stores')]],
+            ['depots', [person('b', 'depots'), person('d', 'depots')]],
+            ['north', [person('a', 'north'), person('c', 'north')]],
+        ]);
+        const rolled = rollUpByDepartment(nodes, direct);
+        // Own people first, then descendants breadth first: stores, depots, north
+        expect(rolled.get('ops')).toEqual([
+            person('a', 'ops'),
+            person('b', 'stores'),
+            person('d', 'depots'),
+            person('c', 'north'),
+        ]);
+        expect(rolled.get('stores')).toEqual([
+            person('b', 'stores'),
+            person('a', 'north'),
+            person('c', 'north'),
+        ]);
     });
 });
 
@@ -313,19 +467,23 @@ describe('very deep and very wide trees', () => {
     });
 
     it('rolls up people without overflowing the stack', () => {
-        const deep = rollUpByDepartment(chain, new Map([[leaf, ['p']]]));
-        expect(deep.get('d0')).toEqual(['p']);
-        expect(deep.get(`d${SIZE - 2}`)).toEqual(['p']);
+        const p = { userUuid: 'p' };
+        const deep = rollUpByDepartment(chain, new Map([[leaf, [p]]]));
+        expect(deep.get('d0')).toEqual([p]);
+        expect(deep.get(`d${SIZE - 2}`)).toEqual([p]);
         const broad = rollUpByDepartment(
             wide,
             new Map(
                 wide
                     .slice(1)
-                    .map((n) => [n.departmentUuid, [n.departmentUuid]]),
+                    .map((n) => [
+                        n.departmentUuid,
+                        [{ userUuid: n.departmentUuid }],
+                    ]),
             ),
         );
         expect(broad.get('root')).toEqual(
-            wide.slice(1).map((n) => n.departmentUuid),
+            wide.slice(1).map((n) => ({ userUuid: n.departmentUuid })),
         );
     });
 
@@ -370,7 +528,8 @@ describe('getBranchHeight', () => {
     });
 });
 
-// The recursive versions these replaced, kept to prove the walks give the same answers
+// The recursive versions these replaced, kept to prove the walks give the same answers. 'summed' is the rule
+// before people could be shared: the sub-departments' effective headcounts added up
 const recursiveEffectiveHeadcounts = (
     input: {
         departmentUuid: string;
@@ -378,6 +537,7 @@ const recursiveEffectiveHeadcounts = (
         headcount: number | null;
     }[],
     memberCounts: Map<string, number>,
+    rule: 'deduped' | 'summed' = 'deduped',
 ) => {
     const children = getChildrenMap(input);
     const byUuid = new Map(input.map((n) => [n.departmentUuid, n]));
@@ -408,18 +568,25 @@ const recursiveEffectiveHeadcounts = (
             0,
         );
         const own = byUuid.get(uuid)?.headcount ?? null;
-        const value = {
-            effectiveHeadcount: Math.max(
-                own ?? sum ?? 0,
-                (memberCounts.get(uuid) ?? 0) + gaps,
-            ),
-            hasHeadcount:
-                own !== null || visited.some((child) => child.hasHeadcount),
-            headcountBelowChildren:
-                own !== null &&
-                sum !== null &&
-                own < Math.max(sum, (memberCounts.get(uuid) ?? 0) + gaps),
-        };
+        const floor = (memberCounts.get(uuid) ?? 0) + gaps;
+        const hasHeadcount =
+            own !== null || visited.some((child) => child.hasHeadcount);
+        const value =
+            rule === 'deduped'
+                ? {
+                      effectiveHeadcount: Math.max(own ?? 0, floor),
+                      hasHeadcount,
+                      headcountBelowChildren:
+                          own !== null && visited.length > 0 && own < floor,
+                  }
+                : {
+                      effectiveHeadcount: Math.max(own ?? sum ?? 0, floor),
+                      hasHeadcount,
+                      headcountBelowChildren:
+                          own !== null &&
+                          sum !== null &&
+                          own < Math.max(sum, floor),
+                  };
         result.set(uuid, value);
         return value;
     };
@@ -427,18 +594,28 @@ const recursiveEffectiveHeadcounts = (
     return result;
 };
 
-const perDepartmentRollUp = <T>(
+const perDepartmentRollUp = <T extends { userUuid: string }>(
     input: { departmentUuid: string; parentDepartmentUuid: string | null }[],
     direct: Map<string, T[]>,
 ) =>
     new Map(
-        input.map((n) => [
-            n.departmentUuid,
-            [
+        input.map((n) => {
+            // Same rule as the walk under test: each person once, first occurrence kept
+            const seen = new Set<string>();
+            return [
                 n.departmentUuid,
-                ...getDescendantUuids(n.departmentUuid, input),
-            ].flatMap((uuid) => direct.get(uuid) ?? []),
-        ]),
+                [
+                    n.departmentUuid,
+                    ...getDescendantUuids(n.departmentUuid, input),
+                ]
+                    .flatMap((uuid) => direct.get(uuid) ?? [])
+                    .filter((person) => {
+                        if (seen.has(person.userUuid)) return false;
+                        seen.add(person.userUuid);
+                        return true;
+                    }),
+            ];
+        }),
     );
 
 describe('iterative walks match the recursive ones', () => {
@@ -486,12 +663,16 @@ describe('iterative walks match the recursive ones', () => {
             expect([...computeEffectiveHeadcounts(tree, memberCounts)]).toEqual(
                 [...recursiveEffectiveHeadcounts(tree, memberCounts)],
             );
+            // The second person comes from a small shared pool, so some count in several departments
             const direct = new Map(
                 tree
                     .filter((_, i) => i % 3 !== 0)
-                    .map((n) => [
+                    .map((n, i) => [
                         n.departmentUuid,
-                        [`${n.departmentUuid}-a`, `${n.departmentUuid}-b`],
+                        [
+                            { userUuid: `${n.departmentUuid}-a` },
+                            { userUuid: `p${i % 7}` },
+                        ],
                     ]),
             );
             expect([...rollUpByDepartment(tree, direct)]).toEqual([
@@ -504,6 +685,68 @@ describe('iterative walks match the recursive ones', () => {
                     getAncestorUuids(n.departmentUuid, parentMap).length,
                 ),
             );
+        },
+    );
+
+    it.each(Array.from({ length: 200 }, (_, seed) => seed + 1))(
+        'gives what adding up the sub-departments gives when nobody is shared, for random tree %i',
+        (seed) => {
+            const next = random(seed);
+            const size = 1 + Math.floor(next() * 25);
+            // Each parent comes before its children, so there is no cycle, and everyone is in one department
+            const tree = Array.from({ length: size }, (_, i) => ({
+                departmentUuid: `n${i}`,
+                parentDepartmentUuid:
+                    i === 0 || next() < 0.25
+                        ? null
+                        : `n${Math.floor(next() * i)}`,
+                headcount: next() < 0.5 ? null : Math.floor(next() * 50),
+            }));
+            const direct = new Map(
+                tree.map((n) => [
+                    n.departmentUuid,
+                    Array.from({ length: Math.floor(next() * 6) }, (_, k) => ({
+                        userUuid: `${n.departmentUuid}-${k}`,
+                    })),
+                ]),
+            );
+            const memberCounts = new Map(
+                [...rollUpByDepartment(tree, direct)].map(([uuid, people]) => [
+                    uuid,
+                    people.length,
+                ]),
+            );
+            const result = computeEffectiveHeadcounts(tree, memberCounts);
+            expect(Object.fromEntries(result)).toEqual(
+                Object.fromEntries(
+                    recursiveEffectiveHeadcounts(tree, memberCounts, 'summed'),
+                ),
+            );
+            const children = getChildrenMap(tree);
+            tree.forEach((n) => {
+                const childUuids = children.get(n.departmentUuid) ?? [];
+                const effectiveOf = (uuid: string) =>
+                    result.get(uuid)?.effectiveHeadcount ?? 0;
+                expect(
+                    getChildrenHeadcount(
+                        {
+                            memberCount:
+                                memberCounts.get(n.departmentUuid) ?? 0,
+                            directMemberCount:
+                                direct.get(n.departmentUuid)?.length ?? 0,
+                        },
+                        childUuids.map((uuid) => ({
+                            effectiveHeadcount: effectiveOf(uuid),
+                            memberCount: memberCounts.get(uuid) ?? 0,
+                        })),
+                    ),
+                ).toBe(
+                    childUuids.reduce(
+                        (sum, uuid) => sum + effectiveOf(uuid),
+                        0,
+                    ),
+                );
+            });
         },
     );
 });

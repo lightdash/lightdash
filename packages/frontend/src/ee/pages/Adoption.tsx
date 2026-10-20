@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
-import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconUsers } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useSearchParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -21,6 +21,7 @@ import {
     parseAdoptionView,
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
+import { type MembershipTab } from '../features/adoption/utils/attention';
 import {
     getViewStorageKey,
     readStoredView,
@@ -54,6 +55,12 @@ const Adoption: FC = () => {
     );
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
     const [isPlacingPeople, setIsPlacingPeople] = useState(false);
+    // Kept apart from opened, so the dialog keeps its tab while it closes
+    const [placingTab, setPlacingTab] = useState<MembershipTab>('unassigned');
+    const openPlacing = (tab: MembershipTab) => {
+        setPlacingTab(tab);
+        setIsPlacingPeople(true);
+    };
 
     const setView = (next: AdoptionView) => {
         writeStoredView(viewStorageKey, next);
@@ -80,6 +87,7 @@ const Adoption: FC = () => {
     );
 
     const departments = summary.data?.departments ?? [];
+    const unassignedCount = summary.data?.attention.unassignedCount ?? 0;
     // Read the edited department from fresh data so the drawer never shows stale values
     const found =
         drawer.opened && drawer.departmentUuid !== null
@@ -117,13 +125,28 @@ const Adoption: FC = () => {
                 />
             )}
             {canManage && summary.data && departments.length > 0 && (
-                <Button
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    onClick={openCreate}
-                >
-                    New department
-                </Button>
+                <>
+                    {/* Always here, so where shared people count can be changed once nobody needs placing */}
+                    <Button
+                        size="xs"
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconUsers} />}
+                        onClick={() =>
+                            openPlacing(
+                                unassignedCount > 0 ? 'unassigned' : 'shared',
+                            )
+                        }
+                    >
+                        Place people
+                    </Button>
+                    <Button
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={openCreate}
+                    >
+                        New department
+                    </Button>
+                </>
             )}
         </Group>
     );
@@ -160,10 +183,11 @@ const Adoption: FC = () => {
             {summary.data && departments.length > 0 && (
                 <Stack gap="md">
                     <AttentionStrip
-                        conflictCount={summary.data.attention.conflictCount}
                         unassignedCount={summary.data.attention.unassignedCount}
+                        sharedCount={summary.data.attention.sharedCount}
                         canManage={canManage}
-                        onReview={() => setIsPlacingPeople(true)}
+                        onPlace={() => openPlacing('unassigned')}
+                        onReviewShared={() => openPlacing('shared')}
                     />
                     {view === 'map' && (
                         <AdoptionMap
@@ -192,6 +216,8 @@ const Adoption: FC = () => {
                     />
                     <MembershipModal
                         opened={isPlacingPeople}
+                        tab={placingTab}
+                        onTabChange={setPlacingTab}
                         onClose={() => setIsPlacingPeople(false)}
                         departments={departments}
                     />

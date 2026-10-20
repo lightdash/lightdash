@@ -1,15 +1,15 @@
 import {
+    getChildrenHeadcount,
     getChildrenMap,
     type AdoptionMetrics,
     type DepartmentWithMetrics,
+    type OrganizationAdoptionSummary,
 } from '@lightdash/common';
 import {
     getDotSegments,
     type ColourBy,
-    type DotKind,
     type DotSegment,
 } from '../map/geometry';
-import { LEGEND_KINDS } from '../map/mapStyles';
 import { getDirectHeadcount } from './headcount';
 
 // Everyone counted, in the parts the map colours them by, the people without an account last; the parts add up
@@ -17,7 +17,10 @@ import { getDirectHeadcount } from './headcount';
 export type PeopleBreakdown = DotSegment[];
 
 export const getPeopleBreakdown = (
-    metrics: AdoptionMetrics,
+    metrics: Pick<
+        AdoptionMetrics,
+        'memberCount' | 'activitySplit' | 'roleSplit'
+    >,
     effectiveHeadcount: number,
     colourBy: ColourBy,
 ): PeopleBreakdown =>
@@ -33,25 +36,24 @@ export const getDepartmentBreakdown = (
         colourBy,
     );
 
-// Everyone placed in a department: the top-level departments added up. The summary's organization
-// numbers are not used, as they count everyone on Lightdash, placed or not
+// The people placed in a department, each once as the summary counts them, plus each top-level department's people
+// without an account. Not the summary's organization numbers, which count everyone on Lightdash, placed or not
 export const getOrganizationBreakdown = (
-    departments: DepartmentWithMetrics[],
+    summary: Pick<OrganizationAdoptionSummary, 'placed' | 'departments'>,
     colourBy: ColourBy,
 ): PeopleBreakdown => {
+    const { placed, departments } = summary;
     const topLevel = new Set(getChildrenMap(departments).get(null));
-    const totals = new Map<DotKind, number>();
-    departments.forEach((department) => {
-        if (!topLevel.has(department.departmentUuid)) return;
-        getDepartmentBreakdown(department, colourBy).forEach(
-            ({ kind, count }) =>
-                totals.set(kind, (totals.get(kind) ?? 0) + count),
-        );
-    });
-    return LEGEND_KINDS[colourBy].map((kind) => ({
-        kind,
-        count: totals.get(kind) ?? 0,
-    }));
+    const headcount = getChildrenHeadcount(
+        { memberCount: placed.memberCount, directMemberCount: 0 },
+        departments
+            .filter((department) => topLevel.has(department.departmentUuid))
+            .map((department) => ({
+                effectiveHeadcount: department.effectiveHeadcount,
+                memberCount: department.metrics.memberCount,
+            })),
+    );
+    return getPeopleBreakdown(placed, headcount, colourBy);
 };
 
 // Coverage needs a headcount on the open department or below it, or across the organization in any department

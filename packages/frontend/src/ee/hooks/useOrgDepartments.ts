@@ -4,8 +4,10 @@ import {
     type Department,
     type DepartmentDetail,
     type DepartmentMembership,
+    type DepartmentOverlaps,
     type DepartmentOwnerInput,
     type OrganizationAdoptionSummary,
+    type SetPrimaryDepartment,
     type UpdateDepartment,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +47,47 @@ export const useDepartmentDetail = (departmentUuid: string | undefined) => {
                 body: undefined,
             }),
         // Nothing is requested for a value that is not a uuid
+        enabled: departmentUuid !== undefined && isUuid(departmentUuid),
+        retry: false,
+    });
+};
+
+// Each list is left out when empty, as the server reads an empty list as no list
+const getOverlapsQuery = (
+    withUuids: string[],
+    withoutUuids: string[],
+): string => {
+    const params = new URLSearchParams();
+    if (withUuids.length > 0) params.set('with', withUuids.join(','));
+    if (withoutUuids.length > 0) params.set('without', withoutUuids.join(','));
+    const query = params.toString();
+    return query.length > 0 ? `?${query}` : '';
+};
+
+// The people of the department who are also in every "with" department and in no "without" one, plus its overlaps
+export const useDepartmentOverlaps = (
+    departmentUuid: string | undefined,
+    withUuids: string[] = [],
+    withoutUuids: string[] = [],
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DepartmentOverlaps, ApiError>({
+        queryKey: [
+            ...ORG_ADOPTION_QUERY_KEY,
+            'overlaps',
+            departmentUuid,
+            withUuids,
+            withoutUuids,
+        ],
+        queryFn: () =>
+            lightdashApi<DepartmentOverlaps>({
+                url: departmentUrl(
+                    departmentUuid ?? '',
+                    `/overlaps${getOverlapsQuery(withUuids, withoutUuids)}`,
+                ),
+                method: 'GET',
+                body: undefined,
+            }),
         enabled: departmentUuid !== undefined && isUuid(departmentUuid),
         retry: false,
     });
@@ -223,6 +266,33 @@ export const useSetDepartmentOwners = () => {
             onError: ({ error }) =>
                 showToastApiError({
                     title: 'Failed to update owners',
+                    apiError: error,
+                }),
+        },
+    );
+};
+
+// Null counts the person in every department they are in again
+export const useSetPrimaryDepartment = () => {
+    const lightdashApi = useLightdashApi();
+    const invalidate = useInvalidateAdoption();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        null,
+        ApiError,
+        { userUuid: string } & SetPrimaryDepartment
+    >(
+        ({ userUuid, departmentUuid }) =>
+            lightdashApi<null>({
+                url: `/org/departments/people/${encodeURIComponent(userUuid)}/primary`,
+                method: 'PUT',
+                body: JSON.stringify({ departmentUuid }),
+            }),
+        {
+            onSuccess: invalidate,
+            onError: ({ error }) =>
+                showToastApiError({
+                    title: 'Failed to update where this person counts',
                     apiError: error,
                 }),
         },
