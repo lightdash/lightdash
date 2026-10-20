@@ -1,3 +1,11 @@
+# [2.617.0](https://github.com/lightdash/lightdash/compare/2.616.2...2.617.0) (2026-10-20)
+
+
+### Features
+
+* **agent:** link external connections in agent data app builds ([#31186](https://github.com/lightdash/lightdash/issues/31186)) ([31109af](https://github.com/lightdash/lightdash/commit/31109af41279ffeb30e0fdb891e71fa2e96d681a))
+* **mcp:** link external connections in data app builds ([#31175](https://github.com/lightdash/lightdash/issues/31175)) ([1f63887](https://github.com/lightdash/lightdash/commit/1f63887392f93ffa4f932e2af88aa566ee95051f))
+
 ## [2.616.2](https://github.com/lightdash/lightdash/compare/2.616.1...2.616.2) (2026-10-19)
 
 
