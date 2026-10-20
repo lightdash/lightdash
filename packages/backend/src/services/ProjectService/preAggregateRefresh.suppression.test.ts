@@ -29,7 +29,7 @@ test.each([
         {
             assertAgentConnectionEffect: vi.fn().mockResolvedValue(undefined),
             syncPreAggregateDefinitionsRegistry: vi.fn(async () => ({
-                supersededDefinitionUuids: [],
+                changedDefinitionUuids: [],
             })),
             preAggregateModel: {
                 getDefinitionUuidsEverMaterialized: async () =>

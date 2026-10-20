@@ -76,12 +76,20 @@ export class PreAggregateModel {
      * every definition whose fingerprint moved, so a changed explore is never
      * served from a file built for its old shape. Rows with no stored
      * fingerprint (written before tracking) take the new one as baseline.
+     * `changedDefinitionUuids` lists every definition whose fingerprint moved,
+     * whether or not it had an active materialization to supersede.
      */
     async upsertPreAggregateDefinitions(
         definitions: DbPreAggregateDefinitionIn[],
-    ): Promise<{ supersededDefinitionUuids: string[] }> {
+    ): Promise<{
+        changedDefinitionUuids: string[];
+        supersededDefinitionUuids: string[];
+    }> {
         if (definitions.length === 0) {
-            return { supersededDefinitionUuids: [] };
+            return {
+                changedDefinitionUuids: [],
+                supersededDefinitionUuids: [],
+            };
         }
 
         return this.database.transaction(async (trx) => {
@@ -149,7 +157,10 @@ export class PreAggregateModel {
                 });
 
             if (staleDefinitionUuids.length === 0) {
-                return { supersededDefinitionUuids: [] };
+                return {
+                    changedDefinitionUuids: [],
+                    supersededDefinitionUuids: [],
+                };
             }
             const supersededRows = await trx(
                 PreAggregateMaterializationsTableName,
@@ -164,6 +175,7 @@ export class PreAggregateModel {
                     >[]
                 >('pre_aggregate_definition_uuid');
             return {
+                changedDefinitionUuids: staleDefinitionUuids,
                 supersededDefinitionUuids: Array.from(
                     new Set(
                         supersededRows.map(

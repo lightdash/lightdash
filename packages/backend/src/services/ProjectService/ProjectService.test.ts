@@ -510,6 +510,7 @@ const organizationWarehouseCredentialsModel = {
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(async () => ({
+        changedDefinitionUuids: [] as string[],
         supersededDefinitionUuids: [] as string[],
     })),
     getPreAggregateDefinitionsForProject: vi.fn(async () => []),
@@ -10850,7 +10851,11 @@ describe('ProjectService', () => {
                 },
             });
             preAggregateModel.upsertPreAggregateDefinitions.mockResolvedValueOnce(
-                { supersededDefinitionUuids: ['def-changed', 'def-waits'] },
+                {
+                    changedDefinitionUuids: ['def-changed', 'def-waits'],
+                    // def-changed had nothing active to supersede
+                    supersededDefinitionUuids: ['def-waits'],
+                },
             );
             preAggregateModel.getPreAggregateDefinitionsForProject.mockResolvedValueOnce(
                 [

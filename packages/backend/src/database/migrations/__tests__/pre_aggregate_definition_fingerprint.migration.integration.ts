@@ -121,7 +121,10 @@ const served = () =>
     model.getActiveMaterialization(projectUuid, PRE_AGG_EXPLORE_NAME);
 
 test('first upsert stores the fingerprint and supersedes nothing', async () => {
-    expect(await upsert('fp-a')).toEqual({ supersededDefinitionUuids: [] });
+    expect(await upsert('fp-a')).toEqual({
+        changedDefinitionUuids: [],
+        supersededDefinitionUuids: [],
+    });
     const [row] = await model.getPreAggregateDefinitionsForProject(projectUuid);
     definitionUuid = row.preAggregateDefinitionUuid;
     expect(row.definitionFingerprint).toBe('fp-a');
@@ -130,7 +133,10 @@ test('first upsert stores the fingerprint and supersedes nothing', async () => {
 test('an unchanged fingerprint keeps the active materialization', async () => {
     const first = await build('fp-a');
     expect(await promote(first)).toEqual({ status: 'active' });
-    expect(await upsert('fp-a')).toEqual({ supersededDefinitionUuids: [] });
+    expect(await upsert('fp-a')).toEqual({
+        changedDefinitionUuids: [],
+        supersededDefinitionUuids: [],
+    });
     expect(await statusOf(first)).toBe('active');
     expect((await served())?.materializationUuid).toBe(first);
 });
@@ -144,14 +150,18 @@ test('a changed fingerprint supersedes the active materialization', async () => 
         })
         .select('pre_aggregate_materialization_uuid');
     expect(await upsert('fp-b')).toEqual({
+        changedDefinitionUuids: [definitionUuid],
         supersededDefinitionUuids: [definitionUuid],
     });
     expect(await statusOf(active.pre_aggregate_materialization_uuid)).toBe(
         'superseded',
     );
     expect(await served()).toBeUndefined();
-    // Nothing active any more, so a second sync has nothing to supersede
-    expect(await upsert('fp-c')).toEqual({ supersededDefinitionUuids: [] });
+    // Nothing active any more: the change is still reported, nothing superseded
+    expect(await upsert('fp-c')).toEqual({
+        changedDefinitionUuids: [definitionUuid],
+        supersededDefinitionUuids: [],
+    });
 });
 
 test('a run built for an older definition never becomes active', async () => {
@@ -174,7 +184,10 @@ test('a definition with no stored fingerprint takes the new one as baseline', as
     const legacy = await build(null);
     expect(await promote(legacy)).toEqual({ status: 'active' });
 
-    expect(await upsert('fp-e')).toEqual({ supersededDefinitionUuids: [] });
+    expect(await upsert('fp-e')).toEqual({
+        changedDefinitionUuids: [],
+        supersededDefinitionUuids: [],
+    });
     expect(await statusOf(legacy)).toBe('active');
     expect((await served())?.materializationUuid).toBe(legacy);
 });

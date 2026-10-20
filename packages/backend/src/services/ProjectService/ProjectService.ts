@@ -3864,7 +3864,7 @@ export class ProjectService
 
     private async syncPreAggregateDefinitionsRegistry(
         projectUuid: string,
-    ): Promise<{ supersededDefinitionUuids: string[] }> {
+    ): Promise<{ changedDefinitionUuids: string[] }> {
         const exploresByUuid =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
@@ -3978,7 +3978,7 @@ export class ProjectService
                 projectUuid,
                 'compileProject',
             );
-        const { supersededDefinitionUuids } =
+        const { changedDefinitionUuids, supersededDefinitionUuids } =
             await this.preAggregateModel.upsertPreAggregateDefinitions(
                 definitionRows,
             );
@@ -3990,15 +3990,16 @@ export class ProjectService
             `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
             {
                 invalidDefinitionsCount,
+                changedDefinitionUuids,
                 supersededDefinitionUuids,
             },
         );
-        if (supersededDefinitionUuids.length > 0) {
+        if (changedDefinitionUuids.length > 0) {
             this.logger.info(
-                `Superseded the active materialization of ${supersededDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} whose definition changed`,
+                `${changedDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} changed; superseded ${supersededDefinitionUuids.length} active materialization(s)`,
             );
         }
-        return { supersededDefinitionUuids };
+        return { changedDefinitionUuids };
     }
 
     private async syncAndEnqueuePreAggregateMaterializations(args: {
@@ -4013,7 +4014,7 @@ export class ProjectService
                     args.projectUuid,
                     'compileProject',
                 );
-            const { supersededDefinitionUuids } =
+            const { changedDefinitionUuids } =
                 await this.syncPreAggregateDefinitionsRegistry(
                     args.projectUuid,
                 );
@@ -4038,7 +4039,7 @@ export class ProjectService
             // for cron, and one whose definition just changed when it opted
             // in with refresh.on_change. Everything else is left to cron or
             // a manual refresh.
-            const superseded = new Set(supersededDefinitionUuids);
+            const changed = new Set(changedDefinitionUuids);
             const everMaterialized =
                 materializableDefinitions.length > 0
                     ? await this.preAggregateModel.getDefinitionUuidsEverMaterialized(
@@ -4051,7 +4052,7 @@ export class ProjectService
                         definition.preAggregateDefinitionUuid,
                     ) ||
                     (definition.materializeOnChange &&
-                        superseded.has(definition.preAggregateDefinitionUuid)),
+                        changed.has(definition.preAggregateDefinitionUuid)),
             );
             const skippedCount =
                 materializableDefinitions.length - compileDefinitions.length;
