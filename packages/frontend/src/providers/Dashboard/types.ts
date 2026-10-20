@@ -104,7 +104,6 @@ export type DashboardContextType = {
         | Record<string, DashboardFilterableField[]>
         | undefined;
     temporaryFilterLocks: TemporaryFilterLocks | undefined;
-    chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
     setChartZoomableFields: (
         tileUuid: string,
         fields: ChartZoomableField[],
@@ -112,11 +111,9 @@ export type DashboardContextType = {
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
-    dateZoomGranularity: DateGranularity | string | undefined;
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | string | undefined>
     >;
-    tilesWithDateZoomApplied: Set<string> | undefined;
     setTilesWithDateZoomApplied: Dispatch<
         SetStateAction<Set<string> | undefined>
     >;
@@ -124,7 +121,6 @@ export type DashboardContextType = {
     setDateZoomConfig: (config: DateZoomConfig) => void;
     hasDateZoomConfigChanged: boolean;
     setHasDateZoomConfigChanged: Dispatch<SetStateAction<boolean>>;
-    controlGranularities: Record<string, DateGranularity | string>;
     setControlGranularity: (
         controlUuid: string,
         granularity: DateGranularity | string | undefined,

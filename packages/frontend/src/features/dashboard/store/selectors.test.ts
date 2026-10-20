@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type DashboardStoreState } from '.';
+import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
 import { initialDashboardFiltersState } from './dashboardFiltersReducer';
 import {
     initialDashboardParametersState,
@@ -25,6 +26,7 @@ const stateWith = (
 ): DashboardStoreState => ({
     filters: initialDashboardFiltersState,
     parameters: { ...initialDashboardParametersState, ...parameters },
+    dateZoom: initialDashboardDateZoomState,
 });
 
 const rule = (

@@ -20,6 +20,10 @@ import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import {
     selectAppliedParameterValues,
+    selectChartZoomableFieldsByTileUuid,
+    selectControlGranularities,
+    selectDateZoomGranularity,
+    selectTilesWithDateZoomApplied,
     selectDashboardFilters,
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
@@ -51,6 +55,10 @@ const mocks = vi.hoisted(() => ({
     showToastWarning: vi.fn(),
     showToastInfo: vi.fn(),
     dispatchEmbedEvent: vi.fn(),
+    tileStatus: {
+        areAllChartsLoaded: false,
+        availableCustomGranularities: {} as Record<string, string>,
+    },
     embed: { mode: 'direct', filters: undefined } as {
         mode: string;
         filters: unknown;
@@ -95,10 +103,7 @@ vi.mock('./DashboardTileStatusProvider', () => ({
 }));
 vi.mock('./useDashboardTileStatusContext', () => ({
     default: (selector: (context: Record<string, unknown>) => unknown) =>
-        selector({
-            areAllChartsLoaded: false,
-            availableCustomGranularities: {},
-        }),
+        selector(mocks.tileStatus),
 }));
 
 // ---------------------------------------------------------------------------
@@ -141,9 +146,21 @@ const useStoreValues = () => ({
     ),
 });
 
+const useDateZoomValues = () => ({
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    controlGranularities: useDashboardSelector(selectControlGranularities),
+    tilesWithDateZoomApplied: useDashboardSelector(
+        selectTilesWithDateZoomApplied,
+    ),
+    chartZoomableFieldsByTileUuid: useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
+    ),
+});
+
 const useHarness = () => ({
     ...useDashboardContext((context) => context),
     ...useStoreValues(),
+    ...useDateZoomValues(),
     search: useLocation().search,
 });
 
@@ -151,6 +168,7 @@ type ProviderOptions = {
     schedulerParameters?: ParametersValuesMap;
     parameterLabelOverrides?: LanguageMap['parameters'];
     projectUuid?: string;
+    dateZoom?: string;
     // Mirrors pages/Dashboard.tsx: seed tiles, tabs and saved parameters once
     // the dashboard query resolves.
     loadLikeDashboardPage?: boolean;
@@ -186,6 +204,7 @@ const renderDashboard = (
         schedulerParameters,
         parameterLabelOverrides,
         projectUuid = 'project-uuid',
+        dateZoom,
         loadLikeDashboardPage = true,
     }: ProviderOptions = {},
 ) =>
@@ -196,6 +215,7 @@ const renderDashboard = (
                     projectUuid={projectUuid}
                     schedulerParameters={schedulerParameters}
                     parameterLabelOverrides={parameterLabelOverrides}
+                    dateZoom={dateZoom}
                 >
                     {loadLikeDashboardPage && <DashboardPageLoader />}
                     {children}
@@ -318,6 +338,10 @@ beforeEach(() => {
     mocks.isDashboardLoading = false;
     mocks.availableFilters = undefined;
     mocks.projectParameters = undefined;
+    mocks.tileStatus = {
+        areAllChartsLoaded: false,
+        availableCustomGranularities: {},
+    };
     mocks.embed = {
         mode: 'direct',
         filters: undefined,
@@ -1935,5 +1959,374 @@ describe('parameters: definitions and references', () => {
             result.current.addParameterReferences('tile-1', ['status']);
         });
         expect(result.current.missingRequiredParameters).toEqual([]);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// DATE ZOOM
+// ---------------------------------------------------------------------------
+
+const zoomConfig = (
+    config: Partial<NonNullable<Dashboard['config']>> = {},
+): Dashboard['config'] => ({ isDateZoomDisabled: false, ...config });
+
+describe('date zoom: URL', () => {
+    it('restores a standard granularity in canonical case', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=week',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Week');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('week');
+    });
+
+    it('restores a custom granularity verbatim', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=fiscal_quarter',
+        );
+        expect(result.current.dateZoomGranularity).toBe('fiscal_quarter');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe(
+            'fiscal_quarter',
+        );
+    });
+
+    it('restores the URL granularity in edit mode too', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid/edit?dateZoom=month',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Month');
+    });
+
+    it('writes the granularity lowercased and removes it when cleared', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+        act(() => result.current.setDateZoomGranularity('Quarter'));
+        expect(result.current.dateZoomGranularity).toBe('Quarter');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('quarter');
+        act(() => result.current.setDateZoomGranularity(undefined));
+        expect(searchParam(result.current.search, 'dateZoom')).toBeNull();
+    });
+
+    it('accepts an updater', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=day',
+        );
+        act(() =>
+            result.current.setDateZoomGranularity((previous) =>
+                previous === 'Day' ? 'Week' : 'Year',
+            ),
+        );
+        expect(result.current.dateZoomGranularity).toBe('Week');
+    });
+
+    it('keeps other params when writing', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            urlFor('/dashboard/dashboard-uuid', {
+                parameters: { region: 'US' },
+            }),
+        );
+        act(() => result.current.setDateZoomGranularity('Year'));
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('year');
+        expect(jsonParam(result.current.search, 'parameters')).toEqual({
+            region: 'US',
+        });
+    });
+
+    it('does not write the URL in sdk mode', () => {
+        mocks.embed = { ...mocks.embed, mode: 'sdk' };
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        act(() => result.current.setDateZoomGranularity('Week'));
+        expect(result.current.dateZoomGranularity).toBe('Week');
+        expect(result.current.search).toBe('');
+    });
+
+    it('seeds from the dateZoom prop and writes it to the URL', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(undefined, { dateZoom: 'Month' });
+        expect(result.current.dateZoomGranularity).toBe('Month');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('month');
+    });
+
+    it('prefers the URL over the dateZoom prop', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=year',
+            { dateZoom: 'Month' },
+        );
+        expect(result.current.dateZoomGranularity).toBe('Year');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('year');
+    });
+});
+
+describe('date zoom: default granularity', () => {
+    it('applies the configured default in view mode', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Month' }),
+        });
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomGranularity).toBe('Month');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('month');
+    });
+
+    it('lets the URL win over the default', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Month' }),
+        });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=week',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Week');
+    });
+
+    it('does not apply the default in edit mode', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Month' }),
+        });
+        const { result } = renderDashboard('/dashboard/dashboard-uuid/edit');
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+    });
+
+    it('does not apply the default when date zoom is disabled', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({
+                isDateZoomDisabled: true,
+                defaultDateZoomGranularity: 'Month',
+            }),
+        });
+        const { result } = renderDashboard();
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+    });
+
+    it('applies the default once the dashboard loads after mount', () => {
+        const { result, rerender } = renderDashboard();
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Year' }),
+        });
+        rerender();
+        expect(result.current.dateZoomGranularity).toBe('Year');
+    });
+
+    it('stays cleared after the viewer clears the default', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Month' }),
+        });
+        const { result, rerender } = renderDashboard();
+        act(() => result.current.setDateZoomGranularity(undefined));
+        rerender();
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+        expect(searchParam(result.current.search, 'dateZoom')).toBeNull();
+    });
+});
+
+describe('date zoom: allowed granularities', () => {
+    it('resets a standard granularity outside the allowed list to the default', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({
+                dateZoomGranularities: ['Month', 'Year'],
+                defaultDateZoomGranularity: 'Year',
+            }),
+        });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=day',
+        );
+        expect(result.current.dateZoomGranularity).toBe('Year');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('year');
+    });
+
+    it('clears a disallowed standard granularity when there is no default', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ dateZoomGranularities: ['Month'] }),
+        });
+        const { result } = renderDashboard();
+        act(() => result.current.setDateZoomGranularity('Day'));
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+        expect(searchParam(result.current.search, 'dateZoom')).toBeNull();
+    });
+
+    it('offers no sub-day granularity by default, so a sub-day URL value is cleared', () => {
+        mocks.dashboard = makeDashboard({ config: zoomConfig() });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=hour',
+        );
+        expect(result.current.dateZoomGranularity).toBeUndefined();
+    });
+
+    it('keeps a custom granularity while charts are loading', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ dateZoomGranularities: ['Month'] }),
+        });
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=fiscal_quarter',
+        );
+        expect(result.current.dateZoomGranularity).toBe('fiscal_quarter');
+    });
+
+    it('resets a stale custom granularity once all charts load', () => {
+        mocks.dashboard = makeDashboard({
+            config: zoomConfig({ defaultDateZoomGranularity: 'Month' }),
+        });
+        const { result, rerender } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=fiscal_quarter',
+        );
+        expect(result.current.dateZoomGranularity).toBe('fiscal_quarter');
+        mocks.tileStatus = {
+            areAllChartsLoaded: true,
+            availableCustomGranularities: {},
+        };
+        rerender();
+        expect(result.current.dateZoomGranularity).toBe('Month');
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('month');
+    });
+
+    it('keeps an available custom granularity once all charts load', () => {
+        mocks.tileStatus = {
+            areAllChartsLoaded: true,
+            availableCustomGranularities: { fiscal_quarter: 'Fiscal quarter' },
+        };
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=fiscal_quarter',
+        );
+        expect(result.current.dateZoomGranularity).toBe('fiscal_quarter');
+    });
+});
+
+describe('date zoom: control granularities', () => {
+    it('restores per-control overrides from the URL in canonical case', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom.ctrl-1=week&dateZoom.ctrl-2=fiscal_quarter',
+        );
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-1': 'Week',
+            'ctrl-2': 'fiscal_quarter',
+        });
+        expect(searchParam(result.current.search, 'dateZoom.ctrl-1')).toBe(
+            'week',
+        );
+        expect(searchParam(result.current.search, 'dateZoom.ctrl-2')).toBe(
+            'fiscal_quarter',
+        );
+    });
+
+    it('keeps URL overrides when the dashboard loads after mount', () => {
+        const { result, rerender } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom.ctrl-1=week',
+        );
+        mocks.dashboard = makeDashboard();
+        rerender();
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-1': 'Week',
+        });
+    });
+
+    it('keeps overrides set before the dashboard loads', () => {
+        const { result, rerender } = renderDashboard();
+        act(() => result.current.setControlGranularity('ctrl-1', 'Week'));
+        mocks.dashboard = makeDashboard();
+        rerender();
+        // quirk: the override is already in the URL, so the load-time reset skips
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-1': 'Week',
+        });
+        expect(searchParam(result.current.search, 'dateZoom.ctrl-1')).toBe(
+            'week',
+        );
+    });
+
+    it('writes and removes control overrides in the URL', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard(
+            '/dashboard/dashboard-uuid?dateZoom=day',
+        );
+        act(() => result.current.setControlGranularity('ctrl-1', 'Month'));
+        act(() => result.current.setControlGranularity('ctrl-2', 'Year'));
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-1': 'Month',
+            'ctrl-2': 'Year',
+        });
+        expect(searchParam(result.current.search, 'dateZoom.ctrl-1')).toBe(
+            'month',
+        );
+        expect(searchParam(result.current.search, 'dateZoom')).toBe('day');
+        act(() => result.current.setControlGranularity('ctrl-1', undefined));
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-2': 'Year',
+        });
+        expect(
+            searchParam(result.current.search, 'dateZoom.ctrl-1'),
+        ).toBeNull();
+        expect(searchParam(result.current.search, 'dateZoom.ctrl-2')).toBe(
+            'year',
+        );
+    });
+
+    it('does not write control overrides to the URL in sdk mode', () => {
+        mocks.embed = { ...mocks.embed, mode: 'sdk' };
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        act(() => result.current.setControlGranularity('ctrl-1', 'Week'));
+        expect(result.current.controlGranularities).toEqual({
+            'ctrl-1': 'Week',
+        });
+        expect(result.current.search).toBe('');
+    });
+});
+
+describe('date zoom: tile reports', () => {
+    const fields = [
+        { fieldId: 'orders_created', label: 'Created', tableName: 'orders' },
+    ];
+
+    it('stores zoomable fields per tile and keeps identity on identical reports', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.chartZoomableFieldsByTileUuid).toEqual({});
+        act(() => result.current.setChartZoomableFields('tile-1', fields));
+        const first = result.current.chartZoomableFieldsByTileUuid;
+        expect(first).toEqual({ 'tile-1': fields });
+        act(() => result.current.setChartZoomableFields('tile-1', [...fields]));
+        expect(result.current.chartZoomableFieldsByTileUuid).toBe(first);
+    });
+
+    it('drops zoomable fields of tiles removed from the dashboard', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        act(() => {
+            result.current.setChartZoomableFields('tile-1', fields);
+            result.current.setChartZoomableFields('tile-2', fields);
+        });
+        act(() => result.current.setDashboardTiles([chartTile('tile-2')]));
+        expect(result.current.chartZoomableFieldsByTileUuid).toEqual({
+            'tile-2': fields,
+        });
+    });
+
+    it('tracks tiles with date zoom applied', () => {
+        mocks.dashboard = makeDashboard();
+        const { result } = renderDashboard();
+        expect(result.current.tilesWithDateZoomApplied).toBeUndefined();
+        act(() =>
+            result.current.setTilesWithDateZoomApplied(
+                (previous) => new Set([...(previous ?? []), 'tile-1']),
+            ),
+        );
+        act(() =>
+            result.current.setTilesWithDateZoomApplied(
+                (previous) => new Set([...(previous ?? []), 'tile-2']),
+            ),
+        );
+        expect(result.current.tilesWithDateZoomApplied).toEqual(
+            new Set(['tile-1', 'tile-2']),
+        );
+        act(() => result.current.setTilesWithDateZoomApplied(new Set()));
+        expect(result.current.tilesWithDateZoomApplied).toEqual(new Set());
     });
 });

@@ -28,6 +28,11 @@ import useDashboardContext from '../../../providers/Dashboard/useDashboardContex
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import {
+    selectChartZoomableFieldsByTileUuid,
+    selectDateZoomGranularity,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlPills } from './DateZoomControlPills';
@@ -130,9 +135,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
     );
@@ -154,8 +157,8 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     );
     const { track } = useTracking();
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
-    const chartZoomableFieldsByTileUuid = useDashboardContext(
-        (c) => c.chartZoomableFieldsByTileUuid,
+    const chartZoomableFieldsByTileUuid = useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
     );
 
     // Charts the Default governs: date-zoomable tiles not claimed by a control.

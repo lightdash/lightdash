@@ -1,5 +1,7 @@
 import {
+    type ChartZoomableField,
     type DashboardFilters,
+    type DateGranularity,
     type DashboardParameters,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -28,6 +30,10 @@ export type DashboardStoreTestValues = Partial<{
     havePinnedParametersChanged: boolean;
     parameterOrder: string[];
     hasParameterOrderChanged: boolean;
+    dateZoomGranularity: DateGranularity | string;
+    controlGranularities: Record<string, DateGranularity | string>;
+    tilesWithDateZoomApplied: Set<string>;
+    chartZoomableFieldsByTileUuid: Record<string, ChartZoomableField[]>;
 }>;
 
 /** A real dashboard store seeded with the given state, for component tests */
@@ -38,6 +44,7 @@ export const createDashboardTestStore = (
         search: '',
         isEditMode: values.isEditMode ?? false,
         parameterLabelOverrides: undefined,
+        dateZoom: undefined,
     });
     const filters = { ...state.filters };
     if (values.dashboardFilters) {
@@ -81,5 +88,19 @@ export const createDashboardTestStore = (
     if (values.hasParameterOrderChanged !== undefined) {
         parameters.hasParameterOrderChanged = values.hasParameterOrderChanged;
     }
-    return createDashboardStore({ filters, parameters });
+    const dateZoom = { ...state.dateZoom };
+    if (values.dateZoomGranularity !== undefined) {
+        dateZoom.granularity = values.dateZoomGranularity;
+    }
+    if (values.controlGranularities) {
+        dateZoom.controlGranularities = values.controlGranularities;
+    }
+    if (values.tilesWithDateZoomApplied) {
+        dateZoom.tilesWithDateZoomApplied = values.tilesWithDateZoomApplied;
+    }
+    if (values.chartZoomableFieldsByTileUuid) {
+        dateZoom.chartZoomableFieldsByTileUuid =
+            values.chartZoomableFieldsByTileUuid;
+    }
+    return createDashboardStore({ filters, parameters, dateZoom });
 };

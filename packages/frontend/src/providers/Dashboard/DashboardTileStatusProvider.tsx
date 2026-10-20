@@ -19,6 +19,7 @@ import { useLocation } from 'react-router';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
+    selectDateZoomGranularity,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -105,9 +106,7 @@ const DashboardTileStatusProvider: React.FC<
     const dashboard = useDashboardContext((c) => c.dashboard);
     const allFilters = useDashboardAllFilters();
     const parameterValues = useDashboardSelector(selectParameterValues);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const { embedToken, dispatchEmbedEvent, isEmbedEventReady } = useEmbed();
 
     const visibleEmbedTileUuids = useMemo(() => {
