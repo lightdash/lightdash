@@ -1,20 +1,26 @@
 import {
+    FilterOperator,
     getComposerNodeConflictMessage,
     isSameComposerNodeDefinition,
     ParameterError,
     QuerySourceType,
+    toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
     type SlackPrompt,
     type SourceQuery,
+    type SubmittedSourceQuery,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
+    type ToolComposerSemanticLayerNode,
 } from '@lightdash/common';
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
+import { mockOrdersExplore } from '../utils/validationExplore.mock';
+import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
@@ -91,6 +97,18 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
 };
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
+
+// Test nodes carry no filters, so no explore is needed to resolve them.
+const asSubmitted = (nodes: ComposerNode[]): SubmittedSourceQuery[] =>
+    nodes.map((node) =>
+        toolComposerQueryNodeToSourceQuery(
+            resolveComposerQueryNode(node, {
+                getExplore: () => {
+                    throw new Error('unexpected explore lookup');
+                },
+            }),
+        ),
+    );
 
 const semanticNode: ComposerNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -183,7 +201,7 @@ const makeTool = ({
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
-    agentContext = new AgentContext([]),
+    agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
 }: {
@@ -1135,25 +1153,29 @@ describe('composer query review', () => {
 describe('python composer nodes', () => {
     it('treats python references as edges when resolving the terminal node', () => {
         expect(
-            resolveTerminalNodeId([semanticNode, pythonNode], null, []),
+            resolveTerminalNodeId(
+                asSubmitted([semanticNode, pythonNode]),
+                null,
+                [],
+            ),
         ).toBe('forecast');
         expect(
             resolveTerminalNodeId(
-                [
+                asSubmitted([
                     semanticNode,
                     pythonNode,
                     {
                         ...duckdbNode,
                         references: { f: 'forecast' },
                     },
-                ],
+                ]),
                 null,
                 [],
             ),
         ).toBe('joined');
         expect(() =>
             resolveTerminalNodeId(
-                [semanticNode, { ...pythonNode, references: [] }],
+                asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
@@ -1228,5 +1250,149 @@ describe('python composer nodes', () => {
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('"forecast"');
         expect(output.result).toContain("KeyError: 'amount'");
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const ordersNodeWithFilters = (
+        filters: ToolComposerSemanticLayerNode['filters'],
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'revenue',
+        title: 'Revenue by customer',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_customer_name'],
+        metrics: ['orders_total_revenue'],
+        sorts: null,
+        limit: 500,
+        filters,
+    });
+    const submittedFilters = (dependencies: {
+        runComposerQueries: import('vitest').Mock;
+    }) => {
+        const [{ queries }] = dependencies.runComposerQueries.mock.calls[0];
+        const [node] = queries as SourceQuery[];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            throw new Error('expected the semanticLayer node first');
+        }
+        return node.filters;
+    };
+
+    it('resolves flat expressions against the explore into metric query filters', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions:
+                            'orders_customer_name equals=Alice AND orders_amount greaterThan=100',
+                        metrics: 'orders_total_revenue greaterThan=1000',
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submittedFilters(dependencies)).toMatchObject({
+            dimensions: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_customer_name' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Alice'],
+                    },
+                    {
+                        target: { fieldId: 'orders_amount' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [100],
+                    },
+                ],
+            },
+            metrics: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_total_revenue' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [1000],
+                    },
+                ],
+            },
+        });
+    });
+
+    it('rejects an unknown field with suggestions before anything runs', async () => {
+        const { tool, dependencies, registry } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions: 'orders_customer_nam equals=Alice',
+                        metrics: null,
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "revenue"',
+        );
+        expect(output.result).toContain('orders_customer_nam');
+        expect(output.result).toContain('orders_customer_name');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(registry.nodes('thread-uuid')).toEqual([]);
+    });
+
+    it('accepts an unchanged filtered node resubmitted in a later call', async () => {
+        const expression = {
+            dimensions: 'orders_customer_name equals=Alice',
+            metrics: null,
+        };
+        const registry = makeNodeRegistry();
+        const first = makeTool({ registry });
+        const firstOutput = await executeTool(
+            first.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+        );
+        expect(firstOutput.metadata.status).toBe('success');
+
+        const second = makeTool({ registry });
+        const secondOutput = await executeTool(
+            second.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+            'tool-call-2',
+        );
+
+        expect(secondOutput.metadata.status).toBe('success');
+        expect(registry.nodes('thread-uuid')).toHaveLength(1);
+    });
+
+    it('rejects a metric placed in the dimension expression', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions: 'orders_total_revenue greaterThan=100',
+                        metrics: null,
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('semanticLayer node "revenue"');
+        expect(output.result).toContain('orders_total_revenue');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

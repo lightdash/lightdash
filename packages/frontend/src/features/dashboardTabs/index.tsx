@@ -48,6 +48,7 @@ import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
 import {
     selectDashboardFilters,
+    selectDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -370,9 +371,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const getUiString = useUiStrings();
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state

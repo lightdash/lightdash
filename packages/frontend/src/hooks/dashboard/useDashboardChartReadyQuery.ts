@@ -17,6 +17,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
 import {
+    selectControlGranularities,
+    selectDateZoomGranularity,
     selectParameterValues,
     selectTileParameterReferences,
     useDashboardSelector,
@@ -108,7 +110,7 @@ export const useDashboardChartReadyQuery = (
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
     );
-    const granularity = useDashboardContext((c) => c.dateZoomGranularity);
+    const granularity = useDashboardSelector(selectDateZoomGranularity);
     const autoRefresh = useDashboardTileStatusContext((c) => c.isAutoRefresh);
     const context =
         useSearchParams<QueryExecutionContext>('context') || undefined;
@@ -120,8 +122,8 @@ export const useDashboardChartReadyQuery = (
     // grain; unassigned tiles (and dashboards with no config) fall through to
     // the Default branch — the existing global picker.
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
-    const controlGranularities = useDashboardContext(
-        (c) => c.controlGranularities,
+    const controlGranularities = useDashboardSelector(
+        selectControlGranularities,
     );
     const addParameterDefinitions = useDashboardContext(
         (c) => c.addParameterDefinitions,

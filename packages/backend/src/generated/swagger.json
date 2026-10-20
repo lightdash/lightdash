@@ -15142,6 +15142,10 @@
             },
             "UpdateExternalSourcePayload": {
                 "properties": {
+                    "columnLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Display names keyed by column reference; unlisted columns keep theirs."
+                    },
                     "label": {
                         "type": "string"
                     }
@@ -29835,8 +29839,36 @@
                 "required": ["source", "stateChangedAt", "state", "threadUuid"],
                 "type": "object"
             },
+            "AiThreadBinding": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["dashboard"],
+                        "nullable": false
+                    }
+                },
+                "required": ["dashboardUuid", "type"],
+                "type": "object",
+                "description": "Resource a thread is bound to for its whole life. Same shape as the matching pinned context item."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Initial context set at creation."
+                    },
+                    "binding": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadBinding"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "liveStatus": {
                         "allOf": [
                             {
@@ -29894,6 +29926,8 @@
                     }
                 },
                 "required": [
+                    "threadContext",
+                    "binding",
                     "liveStatus",
                     "user",
                     "firstMessage",
@@ -31235,6 +31269,19 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Initial context set at creation."
+                    },
+                    "binding": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadBinding"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "liveStatus": {
                         "allOf": [
                             {
@@ -31292,6 +31339,8 @@
                     }
                 },
                 "required": [
+                    "threadContext",
+                    "binding",
                     "liveStatus",
                     "user",
                     "firstMessage",
@@ -36286,6 +36335,14 @@
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "description": "Initial context for the agent, up to 10,000 characters. Cannot be changed after creation."
+                    },
+                    "binding": {
+                        "$ref": "#/components/schemas/AiThreadBinding",
+                        "description": "Binds the thread to this resource. Cannot be changed after creation."
+                    },
                     "battleProfile": {
                         "$ref": "#/components/schemas/AiAgentBattleProfile",
                         "description": "Internal feature-speed battle; accepted only behind battle mode."
@@ -73282,7 +73339,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.621.1",
+        "version": "2.628.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

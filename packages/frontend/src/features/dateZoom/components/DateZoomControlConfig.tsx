@@ -35,6 +35,7 @@ import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import {
+    selectChartZoomableFieldsByTileUuid,
     selectTileParameterReferences,
     useDashboardSelector,
 } from '../../dashboard/store';
@@ -72,8 +73,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-    const chartZoomableFieldsByTileUuid = useDashboardContext(
-        (c) => c.chartZoomableFieldsByTileUuid,
+    const chartZoomableFieldsByTileUuid = useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
     );
     // Param-only tiles (custom SQL referencing `${ld.parameters.date_zoom}` but
     // no re-grainable date field) are also affected by a control's grain.

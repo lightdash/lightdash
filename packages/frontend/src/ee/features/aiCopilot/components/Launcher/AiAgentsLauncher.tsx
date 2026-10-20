@@ -1,6 +1,6 @@
 import { Box, Transition } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { useEffect, useRef, type FC } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import {
@@ -66,8 +66,20 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents, agentsUpdatedAt, selectedAgent, isResolving } =
-        useDefaultAiAgent(activeProjectUuid);
+    const {
+        agents: cachedAgents,
+        agentsUpdatedAt: cachedAgentsUpdatedAt,
+        selectedAgent: cachedSelectedAgent,
+        isResolving,
+    } = useDefaultAiAgent(activeProjectUuid);
+    // The analysis controller fills the shared agents cache even when the org
+    // hides the chat surface, so chat gates on the setting, never the cache.
+    const agents = useMemo(
+        () => (isAiAgentEnabled ? cachedAgents : []),
+        [cachedAgents, isAiAgentEnabled],
+    );
+    const agentsUpdatedAt = isAiAgentEnabled ? cachedAgentsUpdatedAt : 0;
+    const selectedAgent = isAiAgentEnabled ? cachedSelectedAgent : null;
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -143,8 +155,11 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         dispatch,
     ]);
 
+    // A registered analysis adapter grants access on its own: detection is
+    // agentless, so viewers without any accessible agent still get analysis.
     const isAllowed =
-        Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
+        Boolean(activeProjectUuid) &&
+        ((isAiAgentEnabled && agents.length > 0) || analysisAdapter !== null);
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
@@ -227,6 +242,7 @@ const AiAgentsLauncherInner: FC<{ isModalHosted: boolean }> = ({
         !activeProjectUuid ||
         !shouldRenderAiAgentsLauncherContent({
             dockItemCount: dock.length,
+            hasAnalysisTab: analysisAdapter !== null,
             hasSelectedAgent: !!selectedAgent,
             isAllowed,
             isContentPage,

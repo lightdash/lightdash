@@ -2738,6 +2738,8 @@ export const getAgentMessages = (
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
+        threadBinding: args.threadBinding,
+        threadContext: args.threadContext,
         availableExplores,
         availableCustomChartTypes: customChartTypeLibrary,
         knowledgeDocuments: args.knowledgeDocuments,

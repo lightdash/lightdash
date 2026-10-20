@@ -184,7 +184,11 @@ export const buildUsageDashboards = (
             spaceSlug,
             name: spec.name,
             description: `${spec.description} Duplicate this dashboard to keep a customized copy separate from future Sync content updates.`,
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            filters: spec.filters ?? {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
             tabs: existing
                 ? [{ slug: 'overview', name: 'Overview', order: 0 }]
                 : [],

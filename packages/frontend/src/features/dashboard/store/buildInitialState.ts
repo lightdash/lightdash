@@ -1,6 +1,8 @@
 import {
     convertDashboardFiltersParamToDashboardFilters,
+    normalizeGranularityParam,
     type DashboardParameters,
+    type DateGranularity,
     type LanguageMap,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
@@ -9,6 +11,7 @@ import {
     parseDashboardParametersUrl,
     toDashboardParameters,
 } from '../../../providers/Dashboard/dashboardParametersUrl';
+import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
 import {
     emptyDashboardFilters,
     initialDashboardFiltersState,
@@ -33,15 +36,17 @@ const parseOrNull = <T>(parse: () => T): T | null => {
     }
 };
 
-/** Restores runtime filter and parameter state from the dashboard URL */
+/** Restores runtime filter, parameter and date zoom state from the dashboard URL */
 export const buildInitialDashboardState = ({
     search,
     isEditMode,
     parameterLabelOverrides,
+    dateZoom,
 }: {
     search: string;
     isEditMode: boolean;
     parameterLabelOverrides: LanguageMap['parameters'];
+    dateZoom: DateGranularity | string | undefined;
 }): {
     state: DashboardStoreState;
     urlRestoreErrors: DashboardUrlRestoreErrors;
@@ -71,6 +76,16 @@ export const buildInitialDashboardState = ({
               ),
           );
 
+    const dateZoomParam = searchParams.get('dateZoom');
+    // Written lowercased; restored in canonical DateGranularity case
+    const controlGranularities: Record<string, DateGranularity | string> = {};
+    searchParams.forEach((value, key) => {
+        if (key.startsWith('dateZoom.')) {
+            controlGranularities[key.slice('dateZoom.'.length)] =
+                normalizeGranularityParam(value);
+        }
+    });
+
     return {
         state: {
             filters: {
@@ -85,6 +100,13 @@ export const buildInitialDashboardState = ({
                 parameterLabelOverrides,
                 parameters: parameters ?? {},
                 parametersHaveChanged: !isEqual(parameters ?? {}, {}),
+            },
+            dateZoom: {
+                ...initialDashboardDateZoomState,
+                granularity: dateZoomParam
+                    ? normalizeGranularityParam(dateZoomParam)
+                    : dateZoom,
+                controlGranularities,
             },
         },
         urlRestoreErrors: {

@@ -25,6 +25,7 @@ import {
 import { getHandledAgentToolCallIds } from '../../ee/features/aiCopilot/streaming/handledAgentToolCalls';
 import { useAiAgentProjectStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import {
+    selectDateZoomGranularity,
     selectParameterValues,
     useDashboardAllFilters,
     useDashboardSelector,
@@ -79,9 +80,7 @@ const DashboardAiAgentContextBridge = () => {
     const allFilters = useDashboardAllFilters();
     const originalDashboardFilters = dashboard?.filters ?? emptyFilters;
     const parameterValues = useDashboardSelector(selectParameterValues);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const defaultDateZoomGranularity = useDashboardContext(
         (c) => c.defaultDateZoomGranularity,
     );

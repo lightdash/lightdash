@@ -195,7 +195,15 @@ export class AnalyticsProjectService extends BaseService {
                             user,
                             project.projectUuid,
                             dashboard.slug,
-                            { ...dashboard, tiles: [] },
+                            {
+                                ...dashboard,
+                                tiles: [],
+                                filters: {
+                                    dimensions: [],
+                                    metrics: [],
+                                    tableCalculations: [],
+                                },
+                            },
                             options,
                         );
                     }

@@ -1,3 +1,81 @@
+# [2.628.0](https://github.com/lightdash/lightdash/compare/2.627.0...2.628.0) (2026-10-20)
+
+
+### Features
+
+* add Data App outcomes to Adoption dashboard ([#31220](https://github.com/lightdash/lightdash/issues/31220)) ([67a3f11](https://github.com/lightdash/lightdash/commit/67a3f11ddf7aa8aec2cb101b12da01df305b8d9d))
+
+# [2.627.0](https://github.com/lightdash/lightdash/compare/2.626.0...2.627.0) (2026-10-20)
+
+
+### Features
+
+* **dashboards:** show active and requirement state on filter pills ([#30770](https://github.com/lightdash/lightdash/issues/30770)) ([444650a](https://github.com/lightdash/lightdash/commit/444650ac643ebe4bbb0b40a7dc67bfd4c67087af)), closes [#23252](https://github.com/lightdash/lightdash/issues/23252)
+
+# [2.626.0](https://github.com/lightdash/lightdash/compare/2.625.0...2.626.0) (2026-10-20)
+
+
+### Features
+
+* **ai:** data-app viewer serves analysis through the AI launcher ([#31211](https://github.com/lightdash/lightdash/issues/31211)) ([7d52773](https://github.com/lightdash/lightdash/commit/7d52773667a8b2e083267eee7b68cb51b0a41ee1))
+
+# [2.625.0](https://github.com/lightdash/lightdash/compare/2.624.0...2.625.0) (2026-10-20)
+
+
+### Features
+
+* **ai-agents:** bind threads to a dashboard and accept initial thread context ([#31214](https://github.com/lightdash/lightdash/issues/31214)) ([c6e1eb8](https://github.com/lightdash/lightdash/commit/c6e1eb830d3f5271deb03ea2f331e27ea16a2cf9))
+
+# [2.624.0](https://github.com/lightdash/lightdash/compare/2.623.0...2.624.0) (2026-10-20)
+
+
+### Features
+
+* **ai:** composer semanticLayer node filters validated like runQuery, with filter expressions ([#31222](https://github.com/lightdash/lightdash/issues/31222)) ([3b649ee](https://github.com/lightdash/lightdash/commit/3b649ee8a81f007ef796b7372afbfbc64376d51d))
+
+
+### Performance Improvements
+
+* **dashboard:** move runtime date zoom state into the dashboard store ([#31224](https://github.com/lightdash/lightdash/issues/31224)) ([9be3d12](https://github.com/lightdash/lightdash/commit/9be3d12c2a47f31b263c69c7520819e6b777c550))
+
+# [2.623.0](https://github.com/lightdash/lightdash/compare/2.622.2...2.623.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **mcp:** keep chart types without a paint signal in the chart view ([#31184](https://github.com/lightdash/lightdash/issues/31184)) ([6f9926f](https://github.com/lightdash/lightdash/commit/6f9926f126658bb52f0a23be7c8da51ee28ca65e))
+* **mcp:** open custom chart types from render_chart explore links ([#31181](https://github.com/lightdash/lightdash/issues/31181)) ([9a4bac2](https://github.com/lightdash/lightdash/commit/9a4bac26b21ba4046c2aa5756f49e886b8c5c3e3))
+* **mcp:** pivot custom chart types with a series slot in render_chart ([#31182](https://github.com/lightdash/lightdash/issues/31182)) ([a270f67](https://github.com/lightdash/lightdash/commit/a270f67b522f6fea5b5b9358ee78f3c0cf257864))
+
+
+### Features
+
+* **mcp:** accept custom chart types in render_chart ([#31104](https://github.com/lightdash/lightdash/issues/31104)) ([626549d](https://github.com/lightdash/lightdash/commit/626549d755e8402b1dc646d75a6b932e733a5497))
+* **mcp:** draw custom chart types in the render_chart view ([#31183](https://github.com/lightdash/lightdash/issues/31183)) ([c957efe](https://github.com/lightdash/lightdash/commit/c957efe9d96d23b0fe08d786b9e18efaa0e55650))
+* **mcp:** let the render_chart view load custom chart types ([#31107](https://github.com/lightdash/lightdash/issues/31107)) ([4beff38](https://github.com/lightdash/lightdash/commit/4beff38018ddf27d38b45452826b3fede39f7db5))
+* **mcp:** load custom chart type frames through an app-only tool ([#31212](https://github.com/lightdash/lightdash/issues/31212)) ([a0af465](https://github.com/lightdash/lightdash/commit/a0af4652f5a9362ea69f499052935aa916756a84))
+
+## [2.622.2](https://github.com/lightdash/lightdash/compare/2.622.1...2.622.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **learn:** make the shared training project read-only for org admins ([#30156](https://github.com/lightdash/lightdash/issues/30156)) ([3025b4a](https://github.com/lightdash/lightdash/commit/3025b4ab16c04014ca6b491ca3f4b4cb930c2654))
+
+## [2.622.1](https://github.com/lightdash/lightdash/compare/2.622.0...2.622.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **documents:** draw split chart series saved without pivot values ([#31216](https://github.com/lightdash/lightdash/issues/31216)) ([d20f078](https://github.com/lightdash/lightdash/commit/d20f078d61bf1629a5b6ae26a7c01894ac8024e7))
+
+# [2.622.0](https://github.com/lightdash/lightdash/compare/2.621.1...2.622.0) (2026-10-20)
+
+
+### Features
+
+* **external-sources:** name columns when importing a sheet or CSV, and rename them later ([#31219](https://github.com/lightdash/lightdash/issues/31219)) ([d214297](https://github.com/lightdash/lightdash/commit/d21429750dbeeeb4e27ccf8a904e3976363cf2ef))
+
 ## [2.621.1](https://github.com/lightdash/lightdash/compare/2.621.0...2.621.1) (2026-10-20)
 
 

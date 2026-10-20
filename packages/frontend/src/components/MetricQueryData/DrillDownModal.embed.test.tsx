@@ -103,6 +103,7 @@ const outsideEmbed: EmbedContext = {
     theme: 'light',
     backgroundColor: null,
     timezone: null,
+    aiAgentThreadSetup: null,
 };
 
 const renderModal = (embed: EmbedContext) =>

@@ -14720,7 +14720,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { label: { dataType: 'string', required: true } },
+            nestedProperties: {
+                columnLabels: { ref: 'Record_string.string_' },
+                label: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -28255,11 +28258,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadBinding: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboardUuid: { dataType: 'string', required: true },
+                type: {
+                    dataType: 'enum',
+                    enums: ['dashboard'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadSummary_AiAgentUser_: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                binding: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadBinding' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 liveStatus: {
                     dataType: 'union',
                     subSchemas: [
@@ -29718,6 +29753,22 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                binding: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadBinding' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 liveStatus: {
                     dataType: 'union',
                     subSchemas: [
@@ -41168,6 +41219,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: { dataType: 'string' },
+                binding: { ref: 'AiThreadBinding' },
                 battleProfile: { ref: 'AiAgentBattleProfile' },
                 originatingInstallationUuid: { dataType: 'string' },
                 modelConfig: { ref: 'AiAgentModelConfig' },

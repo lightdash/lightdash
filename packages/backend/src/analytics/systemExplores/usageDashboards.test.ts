@@ -1,6 +1,8 @@
 /* eslint-disable no-await-in-loop -- One native DuckDB connection. */
 import { DuckDBInstance } from '@duckdb/node-api';
 import {
+    DashboardTileTypes,
+    FilterOperator,
     WarehouseTypes,
     type ChartAsCode,
     type Filters,
@@ -40,6 +42,38 @@ const compile = (chart: ChartAsCode) =>
     }).compileQuery();
 
 describe('built-in usage dashboards', () => {
+    it('scopes outcome filters and the default date range to the two outcome charts', () => {
+        const { dashboard, charts: adoptionCharts } =
+            analyticsContentAsCode.find(
+                ({ dashboard: item }) =>
+                    item.slug === 'lightdash-analytics-adoption',
+            )!;
+        const outcomeCharts = adoptionCharts.filter(
+            ({ tableName }) => tableName === 'data_app_outcomes',
+        );
+        expect(outcomeCharts).toHaveLength(2);
+        expect(dashboard.filters?.dimensions?.[0]).toMatchObject({
+            label: 'Date',
+            operator: FilterOperator.IN_THE_PAST,
+            values: [30],
+        });
+        for (const filter of dashboard.filters?.dimensions ?? []) {
+            for (const chart of adoptionCharts) {
+                expect(filter.tileTargets?.[chart.slug]).toEqual(
+                    chart.tableName === 'data_app_outcomes'
+                        ? filter.target
+                        : false,
+                );
+            }
+        }
+        const outcomeTiles = dashboard.tiles.filter(
+            (tile) =>
+                tile.type === DashboardTileTypes.SAVED_CHART &&
+                tile.tabSlug === 'app-outcomes',
+        );
+        expect(outcomeTiles).toHaveLength(2);
+    });
+
     it.each(charts.map((chart) => [chart.slug, chart] as const))(
         'compiles %s without missing fields or join warnings',
         (_slug, chart) => {
@@ -105,6 +139,15 @@ describe('built-in usage dashboards', () => {
                 ('org','project','app','issuer','2026-01-05','data_app.view','embed'),
                 ('org','project','app','a','2026-01-05','data_app.view','delivery'),
                 ('org','project','app','historic','2026-01-05','data_app.view',NULL)`);
+            await db.run(`INSERT INTO data_app_events (org_id,project_id,app_id,event_ts,event_name,view_context,version,navigation_id,outcome) VALUES
+                ('org','project','app','2026-01-05','data_app.view_outcome','standalone',1,'a','html_loaded'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','standalone',1,'a','html_loaded'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','standalone',1,'a','sdk_started'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','standalone',1,'a','runtime_error'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','builder',1,'b','html_loaded'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','builder',1,'b','sdk_started'),
+                ('org','project','app','2026-01-05','data_app.view_outcome','embed',1,'c','html_error'),
+                ('org','project','app','2026-01-05','data_app.view_outcome',NULL,1,NULL,'runtime_error')`);
             const rows = new Map<string, Record<string, unknown>[]>();
             for (const chart of charts.filter(
                 (c) => c.dashboardSlug === 'lightdash-analytics-adoption',
@@ -130,6 +173,39 @@ describe('built-in usage dashboards', () => {
                     ?.map((row) => Number(row.user_activity_unique_users)),
             ).toEqual([2]);
             expect(rows.get('people-history')).toHaveLength(3);
+            expect(rows.get('app-outcome-trend')).toEqual([
+                expect.objectContaining({
+                    data_app_outcomes_html_error: 1n,
+                    data_app_outcomes_runtime_error: 1n,
+                }),
+            ]);
+            expect(rows.get('app-outcome-detail')).toHaveLength(4);
+            expect(rows.get('app-outcome-detail')).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        data_app_outcomes_app_name: 'Sales',
+                        data_app_outcomes_view_context: 'standalone',
+                        data_app_outcomes_html_loaded: 1n,
+                        data_app_outcomes_sdk_started: 1n,
+                        data_app_outcomes_runtime_error: 1n,
+                        data_app_outcomes_total_signals: 4n,
+                    }),
+                    expect.objectContaining({
+                        data_app_outcomes_view_context: 'builder',
+                        data_app_outcomes_html_loaded: 1n,
+                        data_app_outcomes_sdk_started: 1n,
+                    }),
+                    expect.objectContaining({
+                        data_app_outcomes_view_context: 'embed',
+                        data_app_outcomes_html_error: 1n,
+                    }),
+                    expect.objectContaining({
+                        data_app_outcomes_view_context: 'unknown',
+                        data_app_outcomes_runtime_error: 0n,
+                        data_app_outcomes_total_signals: 1n,
+                    }),
+                ]),
+            );
             expect(rows.get('ask-ai-questions')).toEqual([
                 expect.objectContaining({ agent_requests_total_requests: 4n }),
             ]);

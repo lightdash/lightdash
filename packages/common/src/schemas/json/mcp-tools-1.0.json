@@ -3845,98 +3845,205 @@
                 "readOnlyHint": true,
                 "title": "Render chart"
             },
-            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status \"running\", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status \"running\", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nTo render a custom chart type instead, set chartConfig to { customChartTypeSlug, fieldMapping, options } using the slots and options from find_custom_chart_types or list_custom_chart_types.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "chartConfig": {
-                        "properties": {
-                            "defaultVizType": {
-                                "description": "The default visualization type to render",
-                                "enum": [
-                                    "table",
-                                    "bar",
-                                    "horizontal",
-                                    "line",
-                                    "scatter",
-                                    "pie",
-                                    "funnel"
-                                ],
-                                "type": "string"
-                            },
-                            "groupBy": {
-                                "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=[\"order_date\", \"status\"], groupBy=[\"status\"] creates separate series for each status value. Leave null for simple single-series charts.",
-                                "items": {
-                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "lineType": {
-                                "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
-                                "enum": ["line", "area"],
-                                "type": "string"
-                            },
-                            "secondaryYAxisLabel": {
-                                "anyOf": [
-                                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "defaultVizType": {
+                                        "description": "The default visualization type to render",
+                                        "enum": [
+                                            "table",
+                                            "bar",
+                                            "horizontal",
+                                            "line",
+                                            "scatter",
+                                            "pie",
+                                            "funnel"
+                                        ],
                                         "type": "string"
                                     },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
-                                "default": null,
-                                "description": "A helpful label for the secondary y-axis"
-                            },
-                            "secondaryYAxisMetric": {
-                                "anyOf": [
-                                    {
+                                    "groupBy": {
+                                        "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=[\"order_date\", \"status\"], groupBy=[\"status\"] creates separate series for each status value. Leave null for simple single-series charts.",
+                                        "items": {
+                                            "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "lineType": {
+                                        "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
+                                        "enum": ["line", "area"],
                                         "type": "string"
                                     },
-                                    {
-                                        "type": "null"
+                                    "secondaryYAxisLabel": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "A helpful label for the secondary y-axis"
+                                    },
+                                    "secondaryYAxisMetric": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                    },
+                                    "stackBars": {
+                                        "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
+                                        "type": "boolean"
+                                    },
+                                    "xAxisDimension": {
+                                        "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
+                                        "type": "string"
+                                    },
+                                    "xAxisLabel": {
+                                        "description": "A helpful label to explain the x-axis",
+                                        "type": "string"
+                                    },
+                                    "xAxisType": {
+                                        "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
+                                        "enum": ["category", "time"],
+                                        "type": "string"
+                                    },
+                                    "yAxisLabel": {
+                                        "description": "A helpful label to explain the y-axis",
+                                        "type": "string"
+                                    },
+                                    "yAxisMetrics": {
+                                        "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
+                                        "items": {
+                                            "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
-                                ],
-                                "default": null,
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
-                            },
-                            "stackBars": {
-                                "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
-                                "type": "boolean"
-                            },
-                            "xAxisDimension": {
-                                "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
-                                "type": "string"
-                            },
-                            "xAxisLabel": {
-                                "description": "A helpful label to explain the x-axis",
-                                "type": "string"
-                            },
-                            "xAxisType": {
-                                "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
-                                "enum": ["category", "time"],
-                                "type": "string"
-                            },
-                            "yAxisLabel": {
-                                "description": "A helpful label to explain the y-axis",
-                                "type": "string"
-                            },
-                            "yAxisMetrics": {
-                                "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
-                                "items": {
-                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
-                                    "type": "string"
                                 },
-                                "type": "array"
+                                "required": [
+                                    "defaultVizType",
+                                    "xAxisLabel",
+                                    "yAxisLabel"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "customChartTypeSlug": {
+                                        "description": "Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.",
+                                        "type": "string"
+                                    },
+                                    "fieldMapping": {
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "items": {
+                                                        "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                                        "type": "string"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            ]
+                                        },
+                                        "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
+                                        "propertyNames": {
+                                            "type": "string"
+                                        },
+                                        "type": "object"
+                                    },
+                                    "options": {
+                                        "anyOf": [
+                                            {
+                                                "additionalProperties": {
+                                                    "anyOf": [
+                                                        {
+                                                            "properties": {
+                                                                "colors": {
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "maxItems": 5,
+                                                                    "minItems": 2,
+                                                                    "type": "array"
+                                                                },
+                                                                "max": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "number"
+                                                                        },
+                                                                        {
+                                                                            "const": "auto",
+                                                                            "type": "string"
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                "min": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "number"
+                                                                        },
+                                                                        {
+                                                                            "const": "auto",
+                                                                            "type": "string"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "colors",
+                                                                "min",
+                                                                "max"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        },
+                                                        {
+                                                            "type": "boolean"
+                                                        }
+                                                    ]
+                                                },
+                                                "propertyNames": {
+                                                    "type": "string"
+                                                },
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults."
+                                    }
+                                },
+                                "required": [
+                                    "customChartTypeSlug",
+                                    "fieldMapping"
+                                ],
+                                "type": "object"
                             }
-                        },
-                        "required": [
-                            "defaultVizType",
-                            "xAxisLabel",
-                            "yAxisLabel"
-                        ],
-                        "type": "object"
+                        ]
                     },
                     "description": {
                         "description": "Optional chart description used in the saved Explore URL.",
@@ -4308,11 +4415,21 @@
                                             "type": "string"
                                         },
                                         "filters": {
-                                            "description": "Filters in the metric query filters shape: an optional filter group per field kind, e.g. {\"dimensions\": {\"id\": \"<uuid>\", \"and\": [{\"id\": \"<uuid>\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\", \"values\": [\"completed\"]}]}}.",
+                                            "additionalProperties": false,
+                                            "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                                             "properties": {
-                                                "dimensions": {},
-                                                "metrics": {},
-                                                "tableCalculations": {}
+                                                "dimensions": {
+                                                    "description": "Flat filter expression for dimension fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                },
+                                                "metrics": {
+                                                    "description": "Flat filter expression for metric fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                }
                                             },
                                             "type": "object"
                                         },

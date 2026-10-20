@@ -102,6 +102,8 @@ const thread: AiAgentThread = {
     pinnedAt: null,
     battleProfile: null,
     liveStatus: null,
+    binding: null,
+    threadContext: null,
     firstMessage: { uuid: 'prompt-1', message: 'Build me a revenue app' },
     user: { uuid: 'user-1', name: 'Demo User' },
     compactions: [],

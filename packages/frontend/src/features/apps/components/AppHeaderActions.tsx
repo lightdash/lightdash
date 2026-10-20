@@ -40,8 +40,6 @@ type Props = Pick<
      *  and the overflow menu to match the dashboard header's ordering. Pass
      *  null on surfaces without it (the builder). */
     fullscreenToggle: ReactNode;
-    /** "Analyse this view" entry point; null when the org isn't rolled out. */
-    analysisToggle?: ReactNode;
 };
 
 /**
@@ -59,7 +57,6 @@ const AppHeaderActions: FC<Props> = ({
     onEdit,
     shareUrl,
     fullscreenToggle,
-    analysisToggle = null,
     ...menuProps
 }) => {
     return (
@@ -115,7 +112,6 @@ const AppHeaderActions: FC<Props> = ({
                     <MantineIcon icon={IconRefresh} />
                 </ActionIcon>
             </Tooltip>
-            {analysisToggle}
             {fullscreenToggle}
             {shareUrl && (
                 <ShareLinkButton url={shareUrl} label="Copy link to the app" />

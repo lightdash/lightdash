@@ -8,6 +8,7 @@ import {
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
+    AI_THREAD_CONTEXT_MAX_LENGTH,
     AI_THREAD_FILE_INLINE_BUDGET_BYTES,
     AI_THREAD_FILE_MOUNT_PATH,
     AI_USER_THREAD_CREATED_FROM,
@@ -48,6 +49,7 @@ import {
     AiPromptContext,
     AiPromptSteer,
     AiResultType,
+    AiThreadBinding,
     AiVizMetadata,
     AiWebAppPrompt,
     AiWritebackAttribution,
@@ -1852,6 +1854,55 @@ export class AiAgentService extends BaseService {
         );
 
         return deduped;
+    }
+
+    private static parseThreadContext(
+        threadContext: string | undefined,
+    ): string | null {
+        if (threadContext === undefined || threadContext.trim() === '') {
+            return null;
+        }
+        if (threadContext.length > AI_THREAD_CONTEXT_MAX_LENGTH) {
+            throw new ParameterError(
+                `Thread context must be at most ${AI_THREAD_CONTEXT_MAX_LENGTH} characters`,
+            );
+        }
+        return threadContext;
+    }
+
+    private async resolveThreadBinding(
+        user: SessionUser,
+        agent: AiAgent,
+        binding: AiThreadBinding,
+        allowedSpaceUuids: string[] | undefined,
+    ): Promise<AiThreadBinding> {
+        switch (binding.type) {
+            case 'dashboard': {
+                const dashboard = await this.dashboardService.getByIdOrSlug(
+                    user,
+                    binding.dashboardUuid,
+                    { projectUuid: agent.projectUuid },
+                );
+                if (dashboard.projectUuid !== agent.projectUuid) {
+                    throw new NotFoundError('Dashboard not found');
+                }
+                if (
+                    allowedSpaceUuids &&
+                    allowedSpaceUuids.length > 0 &&
+                    !allowedSpaceUuids.includes(dashboard.spaceUuid)
+                ) {
+                    throw new ForbiddenError(
+                        'Dashboard is outside the embedded space',
+                    );
+                }
+                return { type: 'dashboard', dashboardUuid: dashboard.uuid };
+            }
+            default:
+                return assertUnreachable(
+                    binding.type,
+                    'Unknown thread binding type',
+                );
+        }
     }
 
     // A pinned thread may live in another project (e.g. verifying a fix in a
@@ -5125,6 +5176,23 @@ export class AiAgentService extends BaseService {
               )
             : undefined;
 
+        const threadContext = AiAgentService.parseThreadContext(
+            body.threadContext,
+        );
+        if (!body.prompt && (body.binding || threadContext !== null)) {
+            throw new ParameterError(
+                'A prompt is required when creating a thread with a binding or thread context',
+            );
+        }
+        const binding = body.binding
+            ? await this.resolveThreadBinding(
+                  user,
+                  agent,
+                  body.binding,
+                  runtimeOptions?.spaceAccess,
+              )
+            : null;
+
         if (body.battleProfile) {
             const battleMode = await this.featureFlagService.get({
                 user,
@@ -5161,6 +5229,8 @@ export class AiAgentService extends BaseService {
             agentUuid,
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
             battleProfile: body.battleProfile ?? null,
+            binding,
+            threadContext,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
@@ -13497,7 +13567,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
     ) {
         const { projectUuid, organizationUuid } = prompt;
         const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
-        const sqlScope = await this.projectModel.getAgentSqlScope(projectUuid);
+        const [sqlScope, threadBinding] = await Promise.all([
+            this.projectModel.getAgentSqlScope(projectUuid),
+            this.aiAgentModel.findThreadBinding(prompt.threadUuid),
+        ]);
         const toolsRuntime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -13514,6 +13587,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            threadBinding,
             sqlScope,
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
@@ -15451,6 +15525,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
+            // Read-only runtime; the binding only limits writes.
+            threadBinding: null,
             agentUuid: agent.uuid,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
@@ -16821,6 +16897,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     };
                 }
 
+                const { threadBinding, threadContext } =
+                    await this.aiAgentModel.findThreadPromptSetup(
+                        prompt.threadUuid,
+                    );
+
                 let execution: AiAgentExecutionConfig;
                 if (responseExecution.mode === 'deep_research') {
                     // Steps are budgeted directly now; the executor separately counts
@@ -16900,6 +16981,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                     agentSettings,
                     requestingUser,
+                    threadBinding,
+                    threadContext,
                     knowledgeDocuments,
                     deepResearchRuns,
                     projectContext,
