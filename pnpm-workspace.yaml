@@ -19,7 +19,7 @@ overrides:
   'glob@>=10.2.0 <10.5.0': 10.5.0
   jws: 4.0.1
   qs: 6.16.0
-  hono: 4.13.7
+  hono: 4.13.11
   tar: 7.5.21
   eslint: 8.57.1
   canvas: 3.2.1
@@ -42,8 +42,8 @@ minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min
 minimumReleaseAgeExclude:
   # Decisions API client (POST /v1/decisions) first shipped in openai@7.30.0
   - openai@7.30.0
-  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5 || 4.13.7
-  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5 || 4.13.7
+  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5 || 4.13.7 || 4.13.11
+  - hono@4.12.18 || 4.12.21 || 4.12.25 || 4.12.27 || 4.13.5 || 4.13.7 || 4.13.11
   # Renovate security update: nunjucks@3.2.4
   - nunjucks@3.2.4
   # Renovate security update: next@16.2.6 || 16.3.3
