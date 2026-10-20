@@ -76,9 +76,6 @@ export const getMcpProviderMetadata = (
     };
 };
 
-export const getMcpServerDisplayName = (toolName: string) =>
-    getMcpProviderMetadata(toolName).label;
-
 export const getMcpToolDisplayName = (toolName: string) => {
     const parts = getMcpToolParts(toolName);
     if (!parts?.toolKey) {

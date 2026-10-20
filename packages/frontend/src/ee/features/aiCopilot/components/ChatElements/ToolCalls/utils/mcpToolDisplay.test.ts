@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
     getMcpProviderMetadata,
-    getMcpServerDisplayName,
     getMcpServerForToolName,
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
@@ -24,7 +23,7 @@ describe('mcpToolDisplay', () => {
             shortLabel: 'G',
         });
 
-        expect(getMcpServerDisplayName('mcp_internal_tools__lookup')).toBe(
+        expect(getMcpProviderMetadata('mcp_internal_tools__lookup').label).toBe(
             'Internal tools',
         );
     });

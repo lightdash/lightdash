@@ -101,14 +101,3 @@ export const getStartWritebackKind = (
 export const isWritebackRetry = (item: AiAgentReviewItemSummary): boolean =>
     item.prWritebackStatus === 'failed' ||
     item.remediation?.status === 'failed';
-
-export const partitionInProgress = (
-    items: AiAgentReviewItemSummary[],
-): { active: AiAgentReviewItemSummary[]; rest: AiAgentReviewItemSummary[] } => {
-    const active: AiAgentReviewItemSummary[] = [];
-    const rest: AiAgentReviewItemSummary[] = [];
-    items.forEach((item) => {
-        (isWritebackInFlight(item) ? active : rest).push(item);
-    });
-    return { active, rest };
-};

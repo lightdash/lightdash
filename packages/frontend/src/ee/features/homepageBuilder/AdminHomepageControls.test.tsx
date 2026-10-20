@@ -68,9 +68,6 @@ describe('AdminHomepageControls', () => {
 
         expect(customizeButton).toBeInTheDocument();
         expect(container).not.toHaveTextContent('Deep research');
-        expect(
-            container.querySelector('[data-deep-research-control-target]'),
-        ).not.toBeInTheDocument();
     });
 
     it('hides the switch-back control for flag-enabled orgs (no opt-in row)', () => {

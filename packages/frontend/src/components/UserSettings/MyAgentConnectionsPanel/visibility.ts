@@ -4,12 +4,6 @@ import {
     type OrganizationProject,
 } from '@lightdash/common';
 
-export const shouldShowMyAgentConnections = (
-    flagEnabled: boolean,
-    rules: OrganizationAgentIdentityRule[],
-): boolean =>
-    flagEnabled && rules.some(({ source }) => source !== 'marked_person');
-
 export const getAgentConnectionVisibility = (
     rules: OrganizationAgentIdentityRule[],
     projects: OrganizationProject[],

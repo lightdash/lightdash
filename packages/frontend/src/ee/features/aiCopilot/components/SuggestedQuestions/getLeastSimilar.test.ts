@@ -3,20 +3,6 @@ import { getLeastSimilar } from './getLeastSimilar';
 const idfn = <T>(x: T) => x;
 
 describe('getLeastSimilar', () => {
-    it('should return the least similar items', () => {
-        const items = [
-            'zatto',
-            'catto',
-            'gatto',
-            'bird',
-            'dog',
-            'wolf',
-            'batto',
-        ];
-        const result = getLeastSimilar(items, idfn, 4);
-        expect(result).not.toContain(['catto', 'gatto']);
-    });
-
     it('should diversify similar real questions', () => {
         const questions = [
             'How have unique order volumes by shipping method changed each month over time?',

@@ -7,7 +7,6 @@ import {
     type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
     type AiAccessForUser,
-    type AiWarehouseCapabilities,
     type ApiError,
     type OrganizationAgentIdentitySnowflakeSetup,
     type UpdateOrganizationSnowflakeAgentClient,
@@ -51,17 +50,6 @@ const get = <T extends ApiResponse['results']>(
         body: undefined,
     });
 export const aiAccessApi = {
-    capabilities: (
-        lightdashApi: LightdashApi,
-        project: string,
-        connection: string | null,
-    ) =>
-        get<AiWarehouseCapabilities>(
-            lightdashApi,
-            project,
-            'capabilities',
-            connection,
-        ),
     me: (
         lightdashApi: LightdashApi,
         project: string,
