@@ -181,7 +181,7 @@ return (
             <option value="">Start a new thread</option>
             {threads.data?.map((thread) => (
                 <option key={thread.uuid} value={thread.uuid}>
-                    {thread.title ?? thread.firstMessage.message}
+                    {thread.title ?? thread.firstMessage?.message ?? 'Untitled thread'}
                 </option>
             ))}
         </select>
@@ -203,7 +203,9 @@ const truncateThreadLabel = (label: string) =>
     label.length > 96 ? `${label.slice(0, 93)}...` : label;
 
 const getThreadLabel = (thread: LightdashAiAgentThread) =>
-    truncateThreadLabel(thread.title ?? thread.firstMessage.message);
+    truncateThreadLabel(
+        thread.title ?? thread.firstMessage?.message ?? 'Untitled thread',
+    );
 
 const getProjectUuid = (
     aiAgentEmbedProjectUuid: string | null,

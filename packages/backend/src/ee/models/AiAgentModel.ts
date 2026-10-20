@@ -495,10 +495,11 @@ type AiThreadSummaryRow = Pick<
     | 'bound_entity_type'
     | 'bound_entity_uuid'
     | 'thread_context'
-> &
-    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
-        user_uuid: DbUser['user_uuid'] | null;
-    } & Pick<DbAiSlackThread, 'slack_user_id'> & {
+> & {
+    prompt: DbAiPrompt['prompt'] | null;
+    ai_prompt_uuid: DbAiPrompt['ai_prompt_uuid'] | null;
+    user_uuid: DbUser['user_uuid'] | null;
+} & Pick<DbAiSlackThread, 'slack_user_id'> & {
         user_name: string | null;
         agent_name: string | null;
         agent_image_url: string | null;
@@ -3357,17 +3358,29 @@ export class AiAgentModel {
             .delete();
     }
 
+    // Threads without a prompt are only listed when created bound or with context.
     private buildThreadSummaryQuery(organizationUuid: string) {
         return this.database(AiThreadTableName)
-            .join(
-                AiPromptTableName,
+            .joinRaw(
+                `left join lateral (
+                    select ai_prompt_uuid, prompt, created_by_user_uuid
+                    from ${AiPromptTableName}
+                    where ${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid
+                    order by created_at asc
+                    limit 1
+                ) as first_prompt on true`,
+            )
+            .leftJoin(
+                AiWebAppThreadTableName,
                 `${AiThreadTableName}.ai_thread_uuid`,
-                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiWebAppThreadTableName}.ai_thread_uuid`,
             )
             .leftJoin(
                 UserTableName,
-                `${AiPromptTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
+                this.database.raw(
+                    `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid)`,
+                ),
             )
             .leftJoin(
                 AiSlackThreadTableName,
@@ -3379,14 +3392,12 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiAgentTableName}.ai_agent_uuid`,
             )
-            .where(
-                `${AiPromptTableName}.created_at`,
-                this.database(AiPromptTableName)
-                    .select(this.database.raw('MIN(created_at)'))
-                    .whereRaw(
-                        `${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid`,
-                    ),
-            )
+            .where((builder) => {
+                void builder
+                    .whereNotNull('first_prompt.ai_prompt_uuid')
+                    .orWhereNotNull(`${AiThreadTableName}.bound_entity_type`)
+                    .orWhereNotNull(`${AiThreadTableName}.thread_context`);
+            })
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
@@ -3403,8 +3414,8 @@ export class AiAgentModel {
                 `${AiThreadTableName}.bound_entity_type`,
                 `${AiThreadTableName}.bound_entity_uuid`,
                 `${AiThreadTableName}.thread_context`,
-                `${AiPromptTableName}.prompt`,
-                `${AiPromptTableName}.ai_prompt_uuid`,
+                'first_prompt.prompt',
+                'first_prompt.ai_prompt_uuid',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
@@ -3454,10 +3465,10 @@ export class AiAgentModel {
             titleGeneratedAt: row.title_generated_at?.toString() ?? null,
             pinnedAt: row.pinned_at?.toString() ?? null,
             battleProfile: row.battle_profile,
-            firstMessage: {
-                uuid: row.ai_prompt_uuid,
-                message: row.prompt,
-            },
+            firstMessage:
+                row.ai_prompt_uuid !== null && row.prompt !== null
+                    ? { uuid: row.ai_prompt_uuid, message: row.prompt }
+                    : null,
             user: {
                 uuid: row.user_uuid ?? '',
                 name: row.user_name || 'Unknown user',

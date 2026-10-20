@@ -93,7 +93,8 @@ export const EvalPromptThreadReference: FC<Props> = ({
                             <Group gap="xs" align="center">
                                 <Title order={6} lineClamp={1} lh={1.2}>
                                     {thread.title ??
-                                        thread.firstMessage.message}
+                                        thread.firstMessage?.message ??
+                                        'Untitled thread'}
                                 </Title>
                                 {!openInSidebar && (
                                     <MantineIcon

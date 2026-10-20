@@ -5179,9 +5179,9 @@ export class AiAgentService extends BaseService {
         const threadContext = AiAgentService.parseThreadContext(
             body.threadContext,
         );
-        if (!body.prompt && (body.binding || threadContext !== null)) {
+        if (!body.prompt && !body.binding && threadContext === null) {
             throw new ParameterError(
-                'A prompt is required when creating a thread with a binding or thread context',
+                'A prompt, binding or thread context is required to create a thread',
             );
         }
         const binding = body.binding
