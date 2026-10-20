@@ -21,7 +21,7 @@ GATEWAY_TGZ="$STAGE/computesdk-cloud-run-0.1.8.tgz"
 # Pinned sha512 of the registry tarball (npm view <pkg> dist.integrity).
 GATEWAY_INTEGRITY="sha512-yDeHr0n1CD7HpHwwxCtLPENqJQ/P0YoqbYlAQ7ouCGzhrsH0wrOP26T9FjiDA3nh0RdwHkAI+HzZ1gt1ahu4zg=="
 npm pack "$GATEWAY_PKG" --ignore-scripts --pack-destination "$STAGE" >/dev/null
-ACTUAL="sha512-$(openssl dgst -sha512 -binary "$GATEWAY_TGZ" | base64)"
+ACTUAL="sha512-$(openssl dgst -sha512 -binary "$GATEWAY_TGZ" | openssl base64 -A)"
 if [ "$ACTUAL" != "$GATEWAY_INTEGRITY" ]; then
     echo "Integrity mismatch for $GATEWAY_PKG: $ACTUAL" >&2
     exit 1

@@ -1,10 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { StringDecoder } from 'node:string_decoder';
 import { Agent, type Dispatcher } from 'undici';
-import { SandboxCommandError, SandboxTimeoutError } from './errors';
+import {
+    SandboxCommandError,
+    SandboxOutputLimitError,
+    SandboxTimeoutError,
+} from './errors';
 import { shQuote } from './gitOverCommands';
 import {
     type CommandResult,
+    type FileReadOptions,
     type RunOptions,
     type SandboxCommands,
     type SandboxFiles,
@@ -166,6 +171,24 @@ const decodeExecResponse = (value: unknown): ExecResponse => {
  * authenticated with a static shared secret header. Sandbox ids must match the
  * gateway's `[A-Za-z0-9_-]+` rule.
  */
+/**
+ * The gateway buffers a command's output server-side and returns it whole, so
+ * the ceiling is applied once the bytes arrive rather than mid-stream.
+ */
+const assertWithinOutputLimit = (
+    stdout: string,
+    stderr: string,
+    maxOutputBytes: number | undefined,
+): void => {
+    if (maxOutputBytes === undefined) return;
+    if (
+        Buffer.byteLength(stdout) + Buffer.byteLength(stderr) >
+        maxOutputBytes
+    ) {
+        throw new SandboxOutputLimitError(maxOutputBytes);
+    }
+};
+
 export class CloudRunGatewayClient {
     private readonly baseUrl: string;
 
@@ -320,6 +343,11 @@ export class CloudRunExecChannel {
                 },
             );
             const result = decodeExecResponse(raw);
+            assertWithinOutputLimit(
+                result.stdout,
+                result.stderr,
+                options?.maxOutputBytes,
+            );
             // The gateway reports its own spawn timeout as exit 124.
             if (result.exitCode === 124 && /timed out/i.test(result.stderr)) {
                 throw new SandboxTimeoutError(
@@ -460,6 +488,14 @@ export class CloudRunExecChannel {
                 stderr += errText;
                 options.onStderr?.(errText);
             }
+            if (
+                options.maxOutputBytes !== undefined &&
+                outOffset + errOffset > options.maxOutputBytes
+            ) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.killDetachedProcessGroup(runDir);
+                throw new SandboxOutputLimitError(options.maxOutputBytes);
+            }
 
             if (tick.exitCode !== null) {
                 // Flush bytes the decoders held back waiting for the rest of a
@@ -490,11 +526,17 @@ export class CloudRunExecChannel {
     }
 
     readonly files: SandboxFiles = {
-        read: async (path: string): Promise<string> => {
-            const bytes = await this.files.readBytes(path);
+        read: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<string> => {
+            const bytes = await this.files.readBytes(path, options);
             return bytes.toString('utf8');
         },
-        readBytes: async (path: string): Promise<Buffer> => {
+        readBytes: async (
+            path: string,
+            options?: FileReadOptions,
+        ): Promise<Buffer> => {
             const quoted = shQuote(path);
             const sizeResult = await this.runBuffered(`wc -c < ${quoted}`, {
                 timeoutMs: INTERNAL_EXEC_TIMEOUT_MS,
@@ -506,6 +548,9 @@ export class CloudRunExecChannel {
                     `could not size ${path}: ${sizeResult.stdout.slice(0, 100)}`,
                     '',
                 );
+            }
+            if (options && size > options.maxBytes) {
+                throw new SandboxOutputLimitError(options.maxBytes);
             }
             const chunks: Buffer[] = [];
             for (let offset = 0; offset < size; offset += READ_CHUNK_BYTES) {
