@@ -12,7 +12,6 @@ export function mountRuntimeErrorObserver(targetWindow: Window): () => void {
     const report = () => {
         if (reported) return;
         reported = true;
-        cleanup();
         try {
             targetWindow.postMessage(
                 {
