@@ -1,6 +1,6 @@
 # Agent loadouts
 
-What an AI agent run can do: its tools and the system prompt sections that explain them. Spec: `docs/ai-agent/loadouts.md`.
+What an AI agent run can do: its tools and the system prompt sections that explain them. Spec and ADR: branch `docs/zap-1275-loadouts`, `docs/ai-agent/loadouts.md`.
 
 - **Loadout**: the resolved bundle for one run, from `resolveLoadout`; `getAgentTools` builds exactly `loadout.toolNames`, the prompt renders exactly `loadout.promptSections`.
 - **Base**: the one exclusive core (`bases.ts`) that owns the query path and lists the add-ons it accepts.
