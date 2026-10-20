@@ -4,6 +4,7 @@ import {
     type ChartZoomableField,
     type Dashboard,
     type DashboardFilterRule,
+    type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
 import { act, cleanup, render } from '@testing-library/react';
@@ -138,6 +139,8 @@ type Actions = {
         update: (previous: DashboardTile[] | undefined) => DashboardTile[],
     ) => void;
     setHaveTilesChanged: (changed: boolean) => void;
+    setActiveTab: (tab: DashboardTab) => void;
+    setDateZoomGranularities: (granularities: string[]) => void;
 };
 const useActions = (): Actions => ({
     updateDimensionDashboardFilter: useDashboardContext(
@@ -160,6 +163,10 @@ const useActions = (): Actions => ({
     ),
     setDashboardTiles: useDashboardContext((c) => c.setDashboardTiles),
     setHaveTilesChanged: useDashboardContext((c) => c.setHaveTilesChanged),
+    setActiveTab: useDashboardContext((c) => c.setActiveTab),
+    setDateZoomGranularities: useDashboardContext(
+        (c) => c.setDateZoomGranularities,
+    ),
 });
 
 const DashboardPageLoader = () => {
@@ -422,6 +429,12 @@ const scenarios: Record<string, () => void> = {
             );
             getActions().setHaveTilesChanged(true);
         }),
+    'switch the active tab': () =>
+        act(() =>
+            getActions().setActiveTab({ uuid: 'tab-x', name: 'X', order: 0 }),
+        ),
+    'edit the allowed date zoom granularities': () =>
+        act(() => getActions().setDateZoomGranularities(['Day', 'Week'])),
     '10 rapid filter updates': () => {
         for (let i = 0; i < 10; i += 1) {
             act(() =>
@@ -535,6 +548,22 @@ const BASELINE: Record<string, Counts> = {
         page: 0,
     },
     'drop one dragged tile': {
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 1,
+    },
+    'switch the active tab': {
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 1,
+    },
+    'edit the allowed date zoom granularities': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
         filterBar: 1,
