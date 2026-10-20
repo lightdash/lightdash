@@ -1,5 +1,7 @@
-// Deep import bypasses @lightdash/common's barrel, which transitively pulls
+import type { DataAppVizContext } from '@lightdash/common';
+// Deep imports bypass @lightdash/common's barrel, which transitively pulls
 // in pegjs/postcss and breaks the browser bundle (path.isAbsolute externalized).
+import assertUnreachable from '@lightdash/common/src/utils/assertUnreachable';
 import {
     formatCartesianTooltipRow,
     formatColorIndicator,
@@ -9,6 +11,15 @@ import {
 } from '@lightdash/common/src/visualizations/helpers/styles/tooltipStyles';
 import { App } from '@modelcontextprotocol/ext-apps';
 import * as echarts from 'echarts';
+import { fetchMcpCustomChartFrameHtml } from '../../mcpCustomChartFrameHtml';
+import {
+    getCustomChartFrameHandshake,
+    getCustomChartFrameUrl,
+    getCustomChartThemeMessage,
+    handleCustomChartFrameMessage,
+    type CustomChartColorScheme,
+    type CustomChartHostMessage,
+} from '../../mcpCustomChartFrameProtocol';
 import { lightdashTheme } from './lightdash-theme';
 
 // Register the custom Lightdash theme
@@ -17,6 +28,9 @@ echarts.registerTheme('lightdash', lightdashTheme);
 const chartContainer = document.getElementById('chart') as HTMLDivElement;
 const resultContainer = document.getElementById(
     'result-container',
+) as HTMLDivElement;
+const customChartContainer = document.getElementById(
+    'custom-chart',
 ) as HTMLDivElement;
 
 let chart: echarts.ECharts | null = null;
@@ -209,13 +223,144 @@ const app = new App({ name: 'Lightdash Chart', version: '1.0.0' });
 
 type ChartToolStatus = 'done' | 'running' | 'error' | 'cancelled' | 'expired';
 
+type CustomChartTypeResult = {
+    indexUrl: string;
+    contentSecurityPolicy: string | null;
+    vizContext: DataAppVizContext;
+    renderArgs: { projectUuid: string };
+};
+
 type ChartToolResult = {
     status?: ChartToolStatus;
     echartsOption?: echarts.EChartsOption | null;
     rows?: Record<string, unknown>[];
     fields?: Record<string, { label?: string }>;
     exploreUrl?: string | null;
+    customChartType?: CustomChartTypeResult;
 };
+
+const CUSTOM_CHART_RENDER_TIMEOUT_MS = 10_000;
+
+let teardownCustomChart: (() => void) | null = null;
+let postToCustomChart: ((message: CustomChartHostMessage) => void) | null =
+    null;
+
+function getHostColorScheme(): CustomChartColorScheme {
+    return app.getHostContext()?.theme === 'dark' ? 'dark' : 'light';
+}
+
+function clearCustomChart(): void {
+    teardownCustomChart?.();
+    teardownCustomChart = null;
+    postToCustomChart = null;
+    customChartContainer.style.display = 'none';
+}
+
+/** Runs the chart type bundle in an opaque-origin blob frame and bridges its SDK. */
+function renderCustomChart(
+    html: string,
+    customChartType: CustomChartTypeResult,
+    onFailure: () => void,
+): void {
+    clearCustomChart();
+    chartContainer.style.display = 'none';
+    resultContainer.style.display = 'none';
+    customChartContainer.style.display = 'block';
+
+    const blobUrl = URL.createObjectURL(
+        new Blob([html], { type: 'text/html;charset=utf-8' }),
+    );
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    iframe.title = 'Chart';
+    iframe.src = getCustomChartFrameUrl({
+        blobUrl,
+        projectUuid: customChartType.renderArgs.projectUuid,
+        colorScheme: getHostColorScheme(),
+    });
+
+    const post = (message: CustomChartHostMessage) =>
+        iframe.contentWindow?.postMessage(message, '*');
+    const timeout = setTimeout(() => {
+        clearCustomChart();
+        onFailure();
+    }, CUSTOM_CHART_RENDER_TIMEOUT_MS);
+    const onLoad = () =>
+        getCustomChartFrameHandshake(getHostColorScheme()).forEach(post);
+    const onMessage = (event: MessageEvent) => {
+        if (event.source !== iframe.contentWindow) return;
+        const action = handleCustomChartFrameMessage(event.data, {
+            vizContext: customChartType.vizContext,
+            colorScheme: getHostColorScheme(),
+        });
+        switch (action.kind) {
+            case 'reply':
+                post(action.message);
+                return;
+            case 'rendered':
+                clearTimeout(timeout);
+                return;
+            case 'ignore':
+                return;
+            default:
+                assertUnreachable(action, 'Unknown chart frame action');
+        }
+    };
+
+    iframe.addEventListener('load', onLoad);
+    window.addEventListener('message', onMessage);
+    customChartContainer.appendChild(iframe);
+    postToCustomChart = post;
+    teardownCustomChart = () => {
+        clearTimeout(timeout);
+        window.removeEventListener('message', onMessage);
+        iframe.removeEventListener('load', onLoad);
+        iframe.remove();
+        URL.revokeObjectURL(blobUrl);
+    };
+}
+
+// html and body fill the viewport, so the auto-resize observer misses later content changes
+function reportViewSize(): void {
+    const root = document.documentElement;
+    const previousHeight = root.style.height;
+    root.style.height = 'max-content';
+    const height = Math.ceil(root.getBoundingClientRect().height);
+    root.style.height = previousHeight;
+    void app.sendSizeChanged({ width: Math.ceil(window.innerWidth), height });
+}
+
+/** Fetches the bundle from the preview origin; a newer tool result discards a pending fetch. */
+function loadCustomChart(
+    customChartType: CustomChartTypeResult,
+    onFailure: () => void,
+): void {
+    clearCustomChart();
+    chartContainer.style.display = 'none';
+    resultContainer.style.display = 'none';
+    // Keep the view's height while the bundle loads so the host doesn't collapse it
+    customChartContainer.style.display = 'block';
+
+    const controller = new AbortController();
+    teardownCustomChart = () => controller.abort();
+    void fetchMcpCustomChartFrameHtml(customChartType, {
+        fetchFn: (url, init) => fetch(url, init),
+        signal: controller.signal,
+    }).then((result) => {
+        if (controller.signal.aborted) return;
+        switch (result.kind) {
+            case 'html':
+                renderCustomChart(result.html, customChartType, onFailure);
+                return;
+            case 'unavailable':
+                clearCustomChart();
+                onFailure();
+                return;
+            default:
+                assertUnreachable(result, 'Unknown chart type html result');
+        }
+    });
+}
 
 type MessageKind = 'loading' | 'error' | 'info';
 
@@ -311,8 +456,14 @@ function renderMessageContent(text: string, kind: MessageKind): void {
 
 app.ontoolresult = (result) => {
     const structured = getToolResultPayload(result);
+    clearCustomChart();
+    const customChartType = structured?.customChartType;
 
-    if (structured?.echartsOption) {
+    if (customChartType?.indexUrl) {
+        loadCustomChart(customChartType, () =>
+            renderTable(structured.rows ?? [], structured.fields ?? {}),
+        );
+    } else if (structured?.echartsOption) {
         renderChart(structured.echartsOption);
     } else if (structured?.rows) {
         renderTable(structured.rows ?? [], structured.fields ?? {});
@@ -334,6 +485,10 @@ app.ontoolresult = (result) => {
     }
 };
 
+app.onhostcontextchanged = () => {
+    postToCustomChart?.(getCustomChartThemeMessage(getHostColorScheme()));
+};
+
 let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 const resizeObserver = new ResizeObserver(() => {
     if (chart) {
@@ -344,5 +499,6 @@ const resizeObserver = new ResizeObserver(() => {
     }
 });
 resizeObserver.observe(chartContainer);
+new ResizeObserver(reportViewSize).observe(customChartContainer);
 
 app.connect();
