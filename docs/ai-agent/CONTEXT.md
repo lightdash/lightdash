@@ -102,6 +102,36 @@ and lands in triage, where "Create skill" opens the skill editor prefilled
 and resolves the card on save.
 _Avoid_: skill suggestion, auto-skill, skill finding
 
+**Loadout**:
+The resolved bundle one AI agent run gets: a base, the add-ons that apply,
+and the tool names and prompt sections they declare. Resolved once per run
+from the agent's settings, feature flags and execution mode; it is the single
+answer to "what can this agent do", recorded per thread, and the unit the
+contract snapshots pin. See [loadouts.md](loadouts.md).
+_Avoid_: mode (already execution mode), profile, preset, toolset, capability
+(already agent permissions in agent identity)
+
+**Base**:
+The mutually exclusive core of a loadout. It owns the query path and the
+tools every run of that kind gets: classic, composer, no data access, deep
+research worker, deep research coordinator. Exactly one base per loadout;
+bases never combine, and each lists which add-ons it accepts.
+_Avoid_: core, default loadout, agent type
+
+**Add-on**:
+An additive, independent unit a base accepts into a loadout: a condition on
+the agent's arguments, the tools it contributes, and at most one prompt
+section. Add-ons compose by union; no two add-ons contribute the same tool,
+and no add-on removes anything.
+_Avoid_: capability, feature, extension, module
+
+**Overlay**:
+A per-turn narrowing of a loadout: the intent gate that hides tools until the
+agent asks for more, or a thread's tool allowlist such as a data app
+investigation. An overlay only removes tools the loadout declared; it never
+adds one.
+_Avoid_: filter, gate (for the concept), allowlist (for the concept)
+
 **SQL chart**:
 A chart saved from raw warehouse SQL rather than from an explore. Lives
 alongside semantic-layer charts in content as code (type `sql_chart`) and on
