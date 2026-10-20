@@ -69,6 +69,11 @@ Themes are organization-wide looks the coding agent applies from theme files it 
 - iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
 - An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
 
+External connections are admin-configured proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a connection linked to it, and naming one in the brief does not link it:
+- The user wants the app to use an outside API or names a connection → call listDataAppConnections, match the request to a connection by name, slug, or origin, and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.
+- iterateDataApp: externalConnectionSlugs adds connections; the ones the app already links stay. Pass appSlug to listDataAppConnections to see what an app links.
+- An unknown or unlinkable slug returns an error and starts no build. A build result can carry warnings, such as a connection named in the brief that is not linked: relay them to the user.
+
 When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and href; the user views the app from this thread; "error" carries the failure message; "pending" means still building. readContent (type data_app) reads a finished app; the content tools create and edit charts and dashboards, never data apps.
 
 ## Scheduled deliveries

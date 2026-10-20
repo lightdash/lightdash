@@ -923,7 +923,7 @@
                 "readOnlyHint": false,
                 "title": "Generate data app"
             },
-            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's permanent slug; pass it to get_data_app_build_status\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, or chartSlug returns an error and starts no build.\n",
+            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's permanent slug; pass it to get_data_app_build_status\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -953,6 +953,21 @@
                         ],
                         "default": null,
                         "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard."
+                    },
+                    "externalConnectionSlugs": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API."
                     },
                     "name": {
                         "description": "Display name for the app: a headline-short title, in title case, naming what the app shows (\"Revenue Overview\"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
@@ -1010,9 +1025,16 @@
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991,
                         "type": "integer"
+                    },
+                    "warnings": {
+                        "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["slug", "version"],
+                "required": ["slug", "version", "warnings"],
                 "type": "object"
             },
             "title": "Generate data app"
@@ -2677,7 +2699,7 @@
                 "readOnlyHint": false,
                 "title": "Iterate on data app"
             },
-            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:    string, // the app's slug, unchanged by this build\n    version: number  // the version of the app this build produces\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, or chartSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.\n",
+            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's slug, unchanged by this build\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -2711,6 +2733,21 @@
                         ],
                         "default": null,
                         "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard."
+                    },
+                    "externalConnectionSlugs": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API."
                     },
                     "prompt": {
                         "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
@@ -2746,9 +2783,16 @@
                         "exclusiveMinimum": 0,
                         "maximum": 9007199254740991,
                         "type": "integer"
+                    },
+                    "warnings": {
+                        "description": "Non-blocking issues with the request, such as a connection the brief names that the app does not link. Empty when there are none.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     }
                 },
-                "required": ["slug", "version"],
+                "required": ["slug", "version", "warnings"],
                 "type": "object"
             },
             "title": "Iterate on data app"
@@ -3173,6 +3217,97 @@
                 "type": "object"
             },
             "title": "List custom chart types"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false,
+                "readOnlyHint": true,
+                "title": "List data app connections"
+            },
+            "description": "Tool: list_data_app_connections\n\nPurpose:\nList the project's external connections you can link to a data app. An external connection is an admin-configured, credentialed proxy to an outside API (product analytics, billing, CRM, ...); a data app can call an API only through a linked connection.\n\nImportant:\n- Call it when the user wants a data app to use an outside API or names a connection, then pass the matching slugs as externalConnectionSlugs to generate_data_app or iterate_data_app.\n- Only connections you may link are listed. Credentials are never returned.\n- Pass appSlug to also see which connections that app already links.\n\nParameters:\n- appSlug: Optional. A data app's slug; fills linkedAliases for that app.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<the connections, one per line>\" }]\n- structuredContent: {\n    connections: [{\n      slug:          string,        // pass in externalConnectionSlugs\n      name:          string,\n      authType:      string,        // \"none\" | \"api_key\" | \"bearer_token\" | \"google_service_account\" | \"oauth_client_credentials\"\n      origin:        string,        // the API's base URL\n      instructions:  string | null, // how to use the API, written by an admin\n      linkedAliases: string[]       // aliases the appSlug app links it under; empty when not linked or no appSlug\n    }]\n  }\n\nErrors: an unknown appSlug, or an app this caller may not view, returns an error.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "properties": {
+                    "appSlug": {
+                        "anyOf": [
+                            {
+                                "minLength": 1,
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "default": null,
+                        "description": "A data app's slug. Pass it to see which connections that app already links; omit to list connections only."
+                    }
+                },
+                "type": "object"
+            },
+            "name": "list_data_app_connections",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "connections": {
+                        "description": "Connections you may link; empty when there are none.",
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "authType": {
+                                    "description": "How the proxy authenticates to the API.",
+                                    "type": "string"
+                                },
+                                "instructions": {
+                                    "anyOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "null"
+                                        }
+                                    ],
+                                    "description": "How to use the API, written by an admin."
+                                },
+                                "linkedAliases": {
+                                    "description": "Aliases the appSlug app links this connection under; empty when not linked or no appSlug was given.",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "type": "array"
+                                },
+                                "name": {
+                                    "description": "The connection's display name.",
+                                    "type": "string"
+                                },
+                                "origin": {
+                                    "description": "The API's base URL.",
+                                    "type": "string"
+                                },
+                                "slug": {
+                                    "description": "Pass in externalConnectionSlugs when starting a data app build.",
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "slug",
+                                "name",
+                                "authType",
+                                "origin",
+                                "instructions",
+                                "linkedAliases"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["connections"],
+                "type": "object"
+            },
+            "title": "List data app connections"
         },
         {
             "annotations": {
@@ -3710,98 +3845,205 @@
                 "readOnlyHint": true,
                 "title": "Render chart"
             },
-            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status \"running\", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+            "description": "Render a completed run_metric_query result in Lightdash's built-in chart app in MCP App-capable clients.\n\nUse when the user wants a visual. If the query is running, call get_query_result first. For a grouped bar, horizontal_bar, line or scatter chart (chartConfig.groupBy), this tool runs the grouped query for the chart itself. While that query runs it returns status \"running\", not an error: wait nextPollAfterMs, then call render_chart again with the same arguments. Otherwise it does not start, poll or rerun queries.\nPass the exact queryUuid returned for this query by run_metric_query or get_query_result (also available in the `queryUuid: <id>` text block). Never invent an ID or reuse one from another query or session. SQL Runner/run_sql results are not supported.\n\nSupported types: table, bar, horizontal_bar, line, scatter, pie, funnel.\n- For time series: use `line` with `xAxisType: 'time'`.\n- For categorical comparisons: use `bar` or `horizontal_bar`.\n- For single values or detailed data: use `table`.\n- Always provide axis labels.\n\nTo render a custom chart type instead, set chartConfig to { customChartTypeSlug, fieldMapping, options } using the slots and options from find_custom_chart_types or list_custom_chart_types.\n\nThe full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, `echartsOption: {}` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.\n\nWhen building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: \"mcp-artifact-integration\") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "chartConfig": {
-                        "properties": {
-                            "defaultVizType": {
-                                "description": "The default visualization type to render",
-                                "enum": [
-                                    "table",
-                                    "bar",
-                                    "horizontal",
-                                    "line",
-                                    "scatter",
-                                    "pie",
-                                    "funnel"
-                                ],
-                                "type": "string"
-                            },
-                            "groupBy": {
-                                "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=[\"order_date\", \"status\"], groupBy=[\"status\"] creates separate series for each status value. Leave null for simple single-series charts.",
-                                "items": {
-                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "lineType": {
-                                "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
-                                "enum": ["line", "area"],
-                                "type": "string"
-                            },
-                            "secondaryYAxisLabel": {
-                                "anyOf": [
-                                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "defaultVizType": {
+                                        "description": "The default visualization type to render",
+                                        "enum": [
+                                            "table",
+                                            "bar",
+                                            "horizontal",
+                                            "line",
+                                            "scatter",
+                                            "pie",
+                                            "funnel"
+                                        ],
                                         "type": "string"
                                     },
-                                    {
-                                        "type": "null"
-                                    }
-                                ],
-                                "default": null,
-                                "description": "A helpful label for the secondary y-axis"
-                            },
-                            "secondaryYAxisMetric": {
-                                "anyOf": [
-                                    {
+                                    "groupBy": {
+                                        "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=[\"order_date\", \"status\"], groupBy=[\"status\"] creates separate series for each status value. Leave null for simple single-series charts.",
+                                        "items": {
+                                            "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "lineType": {
+                                        "description": "default line. The type of line to display. If area then the area under the line will be filled in.",
+                                        "enum": ["line", "area"],
                                         "type": "string"
                                     },
-                                    {
-                                        "type": "null"
+                                    "secondaryYAxisLabel": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "A helpful label for the secondary y-axis"
+                                    },
+                                    "secondaryYAxisMetric": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
+                                    },
+                                    "stackBars": {
+                                        "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
+                                        "type": "boolean"
+                                    },
+                                    "xAxisDimension": {
+                                        "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
+                                        "type": "string"
+                                    },
+                                    "xAxisLabel": {
+                                        "description": "A helpful label to explain the x-axis",
+                                        "type": "string"
+                                    },
+                                    "xAxisType": {
+                                        "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
+                                        "enum": ["category", "time"],
+                                        "type": "string"
+                                    },
+                                    "yAxisLabel": {
+                                        "description": "A helpful label to explain the y-axis",
+                                        "type": "string"
+                                    },
+                                    "yAxisMetrics": {
+                                        "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
+                                        "items": {
+                                            "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
-                                ],
-                                "default": null,
-                                "description": "(Optional) A single metric field ID to display on a secondary (right) y-axis. Must NOT be included in yAxisMetrics. Use when one metric has a very different scale than others (e.g., percentage vs count)."
-                            },
-                            "stackBars": {
-                                "description": "If groupBy is provided then this will stack the bars on top of each other instead of side by side. Applies to bar and horizontal charts.",
-                                "type": "boolean"
-                            },
-                            "xAxisDimension": {
-                                "description": "The dimension field ID to use for the x-axis. Must be included in queryConfig.dimensions",
-                                "type": "string"
-                            },
-                            "xAxisLabel": {
-                                "description": "A helpful label to explain the x-axis",
-                                "type": "string"
-                            },
-                            "xAxisType": {
-                                "description": "The x-axis type can be categorical for string value or time if the dimension is a date or timestamp. Applies to bar, horizontal, and scatter charts.",
-                                "enum": ["category", "time"],
-                                "type": "string"
-                            },
-                            "yAxisLabel": {
-                                "description": "A helpful label to explain the y-axis",
-                                "type": "string"
-                            },
-                            "yAxisMetrics": {
-                                "description": "The metric field IDs to display on the y-axis. Must be included in queryConfig.metrics or come from tableCalculations",
-                                "items": {
-                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
-                                    "type": "string"
                                 },
-                                "type": "array"
+                                "required": [
+                                    "defaultVizType",
+                                    "xAxisLabel",
+                                    "yAxisLabel"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "customChartTypeSlug": {
+                                        "description": "Slug of the custom chart type to render this answer through, as returned by the custom chart type discovery tools.",
+                                        "type": "string"
+                                    },
+                                    "fieldMapping": {
+                                        "additionalProperties": {
+                                            "anyOf": [
+                                                {
+                                                    "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "items": {
+                                                        "description": "\"fieldId\" must come from the previously searched Fields; otherwise, it will throw an error",
+                                                        "type": "string"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            ]
+                                        },
+                                        "description": "Binds each custom chart type slot to this query's fields: a field id for a single slot, or ordered unique field ids for a slot declared multiple. Every required slot must be bound.",
+                                        "propertyNames": {
+                                            "type": "string"
+                                        },
+                                        "type": "object"
+                                    },
+                                    "options": {
+                                        "anyOf": [
+                                            {
+                                                "additionalProperties": {
+                                                    "anyOf": [
+                                                        {
+                                                            "properties": {
+                                                                "colors": {
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "maxItems": 5,
+                                                                    "minItems": 2,
+                                                                    "type": "array"
+                                                                },
+                                                                "max": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "number"
+                                                                        },
+                                                                        {
+                                                                            "const": "auto",
+                                                                            "type": "string"
+                                                                        }
+                                                                    ]
+                                                                },
+                                                                "min": {
+                                                                    "anyOf": [
+                                                                        {
+                                                                            "type": "number"
+                                                                        },
+                                                                        {
+                                                                            "const": "auto",
+                                                                            "type": "string"
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "colors",
+                                                                "min",
+                                                                "max"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        {
+                                                            "type": "string"
+                                                        },
+                                                        {
+                                                            "type": "number"
+                                                        },
+                                                        {
+                                                            "type": "boolean"
+                                                        }
+                                                    ]
+                                                },
+                                                "propertyNames": {
+                                                    "type": "string"
+                                                },
+                                                "type": "object"
+                                            },
+                                            {
+                                                "type": "null"
+                                            }
+                                        ],
+                                        "default": null,
+                                        "description": "Values for the type's config options, keyed by option name from the type's schema. null to use the type's defaults."
+                                    }
+                                },
+                                "required": [
+                                    "customChartTypeSlug",
+                                    "fieldMapping"
+                                ],
+                                "type": "object"
                             }
-                        },
-                        "required": [
-                            "defaultVizType",
-                            "xAxisLabel",
-                            "yAxisLabel"
-                        ],
-                        "type": "object"
+                        ]
                     },
                     "description": {
                         "description": "Optional chart description used in the saved Explore URL.",
@@ -4143,7 +4385,7 @@
                 "readOnlyHint": true,
                 "title": "Run composer queries"
             },
-            "description": "Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n\nEvery node has a \"nodeId\" (for references) and a \"title\" (what users see). The terminal node is the unique sink by default, or \"terminalNodeId\".\n\nReuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in \"references\" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.",
+            "description": "Run a pipeline: one or more queries submitted together, where duckdb queries join or transform the others' results. The terminal node's rows are returned to you.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; may need user approval. A lone sql node is how raw SQL runs when there is no runSql tool.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n\nEvery node has a \"nodeId\" (for references) and a \"title\" (what users see). The terminal node is the unique sink by default, or \"terminalNodeId\".\n\nReuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in \"references\" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.\n\nResults stay hidden until you present one; each successful result says how.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -4173,11 +4415,21 @@
                                             "type": "string"
                                         },
                                         "filters": {
-                                            "description": "Filters in the metric query filters shape: an optional filter group per field kind, e.g. {\"dimensions\": {\"id\": \"<uuid>\", \"and\": [{\"id\": \"<uuid>\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\", \"values\": [\"completed\"]}]}}.",
+                                            "additionalProperties": false,
+                                            "description": "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
                                             "properties": {
-                                                "dimensions": {},
-                                                "metrics": {},
-                                                "tableCalculations": {}
+                                                "dimensions": {
+                                                    "description": "Flat filter expression for dimension fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                },
+                                                "metrics": {
+                                                    "description": "Flat filter expression for metric fields.",
+                                                    "maxLength": 16384,
+                                                    "minLength": 1,
+                                                    "type": "string"
+                                                }
                                             },
                                             "type": "object"
                                         },
@@ -4407,11 +4659,11 @@
                         "type": "array"
                     },
                     "terminalNodeId": {
-                        "description": "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
+                        "description": "Which node's result this tool returns and you can present. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
                         "type": "string"
                     },
                     "title": {
-                        "description": "A short title for the results artifact.",
+                        "description": "A short title for the result, used when it is presented.",
                         "type": "string"
                     }
                 },

@@ -15142,6 +15142,10 @@
             },
             "UpdateExternalSourcePayload": {
                 "properties": {
+                    "columnLabels": {
+                        "$ref": "#/components/schemas/Record_string.string_",
+                        "description": "Display names keyed by column reference; unlisted columns keep theirs."
+                    },
                     "label": {
                         "type": "string"
                     }
@@ -23168,6 +23172,26 @@
                 ],
                 "description": "Client-supplied context for signed-in app previews; unknown keeps older clients\nunclassified. The separate embed endpoint assigns 'embed' server-side after\nverifying embed access, so it is intentionally excluded from this input type."
             },
+            "Extract_DataAppViewOutcome.sdk_started-or-runtime_error_": {
+                "type": "string",
+                "enum": ["sdk_started", "runtime_error"],
+                "description": "Extract from T those types that are assignable to U"
+            },
+            "RecordDataAppViewOutcome": {
+                "properties": {
+                    "outcome": {
+                        "$ref": "#/components/schemas/Extract_DataAppViewOutcome.sdk_started-or-runtime_error_"
+                    },
+                    "navigationId": {
+                        "$ref": "#/components/schemas/UUID"
+                    },
+                    "previewToken": {
+                        "type": "string"
+                    }
+                },
+                "required": ["outcome", "navigationId", "previewToken"],
+                "type": "object"
+            },
             "DataAppManifestExternalConnection": {
                 "properties": {
                     "connectionSlug": {
@@ -29776,6 +29800,18 @@
                 "enum": ["fast", "baseline", "luna"],
                 "description": "`fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions."
             },
+            "AiAgentThreadFirstMessage": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message", "uuid"],
+                "type": "object"
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -29815,8 +29851,36 @@
                 "required": ["source", "stateChangedAt", "state", "threadUuid"],
                 "type": "object"
             },
+            "AiThreadBinding": {
+                "properties": {
+                    "dashboardUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["dashboard"],
+                        "nullable": false
+                    }
+                },
+                "required": ["dashboardUuid", "type"],
+                "type": "object",
+                "description": "Resource a thread is bound to for its whole life. Same shape as the matching pinned context item."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Initial context set at creation."
+                    },
+                    "binding": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadBinding"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "liveStatus": {
                         "allOf": [
                             {
@@ -29829,16 +29893,13 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadFirstMessage"
                             }
-                        },
-                        "required": ["message", "uuid"],
-                        "type": "object"
+                        ],
+                        "nullable": true,
+                        "description": "Null when the thread was created with a binding or context and no prompt yet."
                     },
                     "battleProfile": {
                         "allOf": [
@@ -29874,6 +29935,8 @@
                     }
                 },
                 "required": [
+                    "threadContext",
+                    "binding",
                     "liveStatus",
                     "user",
                     "firstMessage",
@@ -31215,6 +31278,19 @@
             },
             "AiAgentThreadSummary": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Initial context set at creation."
+                    },
+                    "binding": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiThreadBinding"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "liveStatus": {
                         "allOf": [
                             {
@@ -31227,16 +31303,13 @@
                         "$ref": "#/components/schemas/AiAgentUser"
                     },
                     "firstMessage": {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentThreadFirstMessage"
                             }
-                        },
-                        "required": ["message", "uuid"],
-                        "type": "object"
+                        ],
+                        "nullable": true,
+                        "description": "Null when the thread was created with a binding or context and no prompt yet."
                     },
                     "battleProfile": {
                         "allOf": [
@@ -31272,6 +31345,8 @@
                     }
                 },
                 "required": [
+                    "threadContext",
+                    "binding",
                     "liveStatus",
                     "user",
                     "firstMessage",
@@ -32721,6 +32796,7 @@
                     "grepFields",
                     "iterateDataApp",
                     "listContent",
+                    "listDataAppConnections",
                     "listDataAppThemes",
                     "listKnowledgeDocuments",
                     "listProjects",
@@ -34926,7 +35002,14 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
-                                                            "artifactVersionUuid": {
+                                                            "description": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
+                                                            "title": {
+                                                                "type": "string"
+                                                            },
+                                                            "terminalNodeId": {
                                                                 "type": "string"
                                                             },
                                                             "queryUuid": {
@@ -34935,14 +35018,18 @@
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "error",
-                                                                    "success",
-                                                                    "rejected",
-                                                                    "timeout"
-                                                                ]
+                                                                    "success"
+                                                                ],
+                                                                "nullable": false
                                                             }
                                                         },
-                                                        "required": ["status"],
+                                                        "required": [
+                                                            "description",
+                                                            "title",
+                                                            "terminalNodeId",
+                                                            "queryUuid",
+                                                            "status"
+                                                        ],
                                                         "type": "object"
                                                     },
                                                     {
@@ -34964,17 +35051,10 @@
                                                 "allOf": [
                                                     {
                                                         "properties": {
-                                                            "artifactVersionUuid": {
-                                                                "type": "string"
-                                                            },
-                                                            "queryUuid": {
-                                                                "type": "string"
-                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
                                                                     "error",
-                                                                    "success",
                                                                     "rejected",
                                                                     "timeout"
                                                                 ]
@@ -36261,6 +36341,14 @@
             },
             "ApiAiAgentThreadCreateRequest": {
                 "properties": {
+                    "threadContext": {
+                        "type": "string",
+                        "description": "Initial context for the agent, up to 10,000 characters. Cannot be changed after creation."
+                    },
+                    "binding": {
+                        "$ref": "#/components/schemas/AiThreadBinding",
+                        "description": "Binds the thread to this resource. Cannot be changed after creation."
+                    },
                     "battleProfile": {
                         "$ref": "#/components/schemas/AiAgentBattleProfile",
                         "description": "Internal feature-speed battle; accepted only behind battle mode."
@@ -36275,7 +36363,8 @@
                         "$ref": "#/components/schemas/AiPromptContextInput"
                     },
                     "prompt": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "First message. Optional when `binding` or `threadContext` is set; the thread then starts empty."
                     }
                 },
                 "type": "object"
@@ -58921,6 +59010,10 @@
             },
             "CreateTrainingPreviewResults": {
                 "properties": {
+                    "reused": {
+                        "type": "boolean",
+                        "description": "The learner's live copy was handed back, with what earlier walkthroughs left in it."
+                    },
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
@@ -58930,7 +59023,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["expiresAt", "projectUuid"],
+                "required": ["reused", "expiresAt", "projectUuid"],
                 "type": "object",
                 "description": "A learner's own throwaway copy of the training project, made for one walkthrough."
             },
@@ -73253,7 +73346,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.616.2",
+        "version": "2.631.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -101481,7 +101574,7 @@
                         }
                     }
                 },
-                "description": "Make (or remake) the caller's own throwaway copy of the training\nproject for a walkthrough. The copy starts from the seeded state and\nexpires on its own.",
+                "description": "The caller's own copy of the training project for a walkthrough: the\ncopy they already have, kept for another day, or a new one from the\nseeded state when they have none or it has expired.",
                 "summary": "Create training preview",
                 "tags": ["Projects"],
                 "security": [],

@@ -18,9 +18,11 @@ import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { duckdbTypeToDimensionType } from '../../../utils/duckdb/duckdbTypeToDimensionType';
 import {
+    applyColumnLabels,
     ExternalSourceService,
     getAttachmentTableName,
     shouldPublishExternalSourceExplore,
+    toSheetCsvRow,
 } from './ExternalSourceService';
 
 /**
@@ -229,5 +231,51 @@ describe('external source ingest capacity', () => {
         await expect(
             service.runIngest({ attemptUuid: 'attempt-uuid' } as never),
         ).resolves.toBeUndefined();
+    });
+});
+
+describe('toSheetCsvRow', () => {
+    it('sizes Sheets rows to the header width', () => {
+        expect(toSheetCsvRow(['2025-01-01', 'Retail'], 3)).toEqual([
+            '2025-01-01',
+            'Retail',
+            '',
+        ]);
+        expect(toSheetCsvRow(['a', 'b', 'c', 'stray'], 3)).toEqual([
+            'a',
+            'b',
+            'c',
+        ]);
+    });
+});
+
+describe('applyColumnLabels', () => {
+    const columns: ResultColumns = {
+        _month: { reference: '_month', type: DimensionType.DATE },
+        regiao: {
+            reference: 'regiao',
+            type: DimensionType.STRING,
+            label: 'Old',
+        },
+    };
+
+    it('sets typed names, drops generated ones, and keeps unlisted columns', () => {
+        expect(
+            applyColumnLabels(columns, { _month: 'Target month', regiao: '' }),
+        ).toEqual({
+            _month: {
+                reference: '_month',
+                type: DimensionType.DATE,
+                label: 'Target month',
+            },
+            regiao: { reference: 'regiao', type: DimensionType.STRING },
+        });
+        expect(applyColumnLabels(columns, {}).regiao.label).toBe('Old');
+    });
+
+    it('rejects unknown columns', () => {
+        expect(() => applyColumnLabels(columns, { nope: 'x' })).toThrow(
+            'The table has no column "nope"',
+        );
     });
 });

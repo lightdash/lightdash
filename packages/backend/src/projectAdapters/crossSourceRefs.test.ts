@@ -3,6 +3,7 @@ import {
     type DbtManifest,
     type DbtRawModelNode,
 } from '@lightdash/common';
+import { placeholderExternalNode } from '../dbt/dbtExternalNodes';
 import { type DbtProjectScan } from '../dbt/dbtProjectScan';
 import { type DbtManifestFetchOptions } from '../types';
 import {
@@ -24,6 +25,7 @@ const model = (
     original_file_path: `models/${name}.sql`,
     alias: name,
     schema: 'public',
+    access: 'public',
     database: 'warehouse',
     columns: {},
     meta: {},
@@ -66,306 +68,6 @@ const resolve = (
     concurrency = 2,
 ) => resolveCrossSourceManifests({ tasks, enabled, concurrency });
 
-describe('resolveCrossSourceManifests', () => {
-    it('fetches independent sources once and preserves their order and manifests', async () => {
-        const a = task('a');
-        const b = task('b');
-        const resolution = await resolve([a, b]);
-        expect(resolution.rounds).toBe(1);
-        expect(
-            resolution.results.map(
-                ({ task: resolvedTask }) => resolvedTask.context,
-            ),
-        ).toEqual(['a', 'b']);
-        expect(
-            resolution.results.map(({ result: fetched }) => fetched.manifest),
-        ).toEqual([manifest('a'), manifest('b')]);
-        expect(a.fetch).toHaveBeenCalledExactlyOnceWith({ externalNodes: [] });
-        expect(b.fetch).toHaveBeenCalledExactlyOnceWith({ externalNodes: [] });
-    });
-    it('retries a dependent source with real sibling models and strips its external stubs and selections', async () => {
-        const a = task('a');
-        const stub = { ...model('a'), path: '', original_file_path: '' };
-        const bResult = result('b');
-        bResult.manifest.nodes[stub.unique_id] = stub;
-        const b = task(
-            'b',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('a'))
-                .mockResolvedValueOnce({
-                    ...bResult,
-                    selectedModelIds: ['model.a.orders', 'model.b.orders'],
-                }),
-        );
-        const resolution = await resolve([b, a]);
-        expect(resolution.rounds).toBe(2);
-        expect(b.fetch.mock.calls[1][0].externalNodes).toEqual([
-            expect.objectContaining({ package_name: 'a', name: 'orders' }),
-        ]);
-        expect(resolution.results[0].injectedFrom).toEqual(['a']);
-        expect(resolution.results[0].result.manifest.nodes).toEqual(
-            manifest('b').nodes,
-        );
-        expect(resolution.results[0].result.selectedModelIds).toEqual([
-            'model.b.orders',
-        ]);
-        expect(a.fetch).toHaveBeenCalledTimes(1);
-    });
-    it('resolves a three-source chain over three rounds', async () => {
-        const a = task('a');
-        const b = task(
-            'b',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('a'))
-                .mockResolvedValueOnce(result('b')),
-        );
-        const c = task(
-            'c',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('b'))
-                .mockResolvedValueOnce(result('c')),
-        );
-        const resolution = await resolve([c, b, a]);
-        expect(resolution.rounds).toBe(3);
-        expect(
-            c.fetch.mock.calls[1][0].externalNodes.map(
-                (node: { package_name: string }) => node.package_name,
-            ),
-        ).toEqual(['a', 'b']);
-        expect(resolution.results[0].injectedFrom).toEqual(['b']);
-    });
-    it('propagates the first rejection when disabled without waiting for in-flight or queued tasks', async () => {
-        let rejectSlow!: (error: unknown) => void;
-        const slowError = missing('slow');
-        const firstError = missing('fast');
-        const slow = task(
-            'slow',
-            vi.fn(
-                () =>
-                    new Promise<ReturnType<typeof result>>((_, reject) => {
-                        rejectSlow = reject;
-                    }),
-            ),
-        );
-        const fast = task('fast', vi.fn().mockRejectedValue(firstError));
-        const queued = task('queued');
-        const rejected = vi.fn();
-        const resolution = resolve([slow, fast, queued], false).catch(rejected);
-        try {
-            await vi.waitFor(() =>
-                expect(rejected).toHaveBeenCalledWith(firstError),
-            );
-            expect(slow.fetch).toHaveBeenCalledTimes(1);
-            expect(fast.fetch).toHaveBeenCalledTimes(1);
-            expect(queued.fetch).not.toHaveBeenCalled();
-        } finally {
-            rejectSlow(slowError);
-            await resolution;
-        }
-    });
-    it('injects every version of a provider model', async () => {
-        const provider = result('a');
-        provider.manifest.nodes = Object.fromEntries(
-            [1, 2].map((version) => {
-                const node = {
-                    ...model('a', 'product'),
-                    unique_id: `model.a.product.v${version}`,
-                    version,
-                    latest_version: 2,
-                };
-                return [node.unique_id, node];
-            }),
-        );
-        const consumer = task(
-            'b',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('a', 'product'))
-                .mockResolvedValueOnce(result('b')),
-        );
-        await resolve([
-            task('a', vi.fn().mockResolvedValue(provider)),
-            consumer,
-        ]);
-        expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
-            expect.objectContaining({
-                package_name: 'a',
-                name: 'product',
-                version: 1,
-            }),
-            expect.objectContaining({
-                package_name: 'a',
-                name: 'product',
-                version: 2,
-            }),
-        ]);
-    });
-    it.each([
-        { projectName: undefined, packageName: 'root', modelName: 'orders' },
-        { projectName: 'root', packageName: 'installed', modelName: 'first' },
-    ])(
-        'resolves refs to $packageName and records the provider with metadata project $projectName',
-        async ({ projectName, packageName, modelName }) => {
-            const provider = result('root');
-            provider.manifest.metadata.project_name = projectName;
-            for (const name of ['first', 'second']) {
-                const node = model('installed', name);
-                provider.manifest.nodes[node.unique_id] = node;
-            }
-            const consumer = task(
-                'consumer',
-                vi
-                    .fn()
-                    .mockRejectedValueOnce(missing(packageName, modelName))
-                    .mockResolvedValueOnce(result('consumer')),
-            );
-            const resolution = await resolve([
-                task('provider', vi.fn().mockResolvedValue(provider)),
-                consumer,
-            ]);
-            expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
-                expect.objectContaining({
-                    package_name: 'root',
-                    name: 'orders',
-                }),
-                expect.objectContaining({
-                    package_name: 'installed',
-                    name: 'first',
-                }),
-                expect.objectContaining({
-                    package_name: 'installed',
-                    name: 'second',
-                }),
-            ]);
-            expect(resolution.results[1].injectedFrom).toEqual(['provider']);
-            expect(resolution.rounds).toBe(2);
-        },
-    );
-    it('names the source, ref and project when no provider exists', async () => {
-        await expect(
-            resolve([
-                task('a'),
-                task('b', vi.fn().mockRejectedValue(missing('unknown'))),
-            ]),
-        ).rejects.toThrow(
-            'Cannot resolve dbt source "b": ref "unknown.orders" was not found. No connected dbt source provides project "unknown".',
-        );
-    });
-    it('lists missing providers for each of two pending sources', async () => {
-        await expect(
-            resolve([
-                task('a', vi.fn().mockRejectedValue(missing('unknown'))),
-                task(
-                    'b',
-                    vi.fn().mockRejectedValue(missing('nowhere', 'ghost')),
-                ),
-            ]),
-        ).rejects.toHaveProperty(
-            'message',
-            'Cannot resolve cross-source dbt refs: Source "a": unknown.orders: No connected dbt source provides project "unknown"; Source "b": nowhere.ghost: No connected dbt source provides project "nowhere"',
-        );
-    });
-    it('classifies each ref when a source has missing and pending providers', async () => {
-        const error = new DbtError(
-            [missing('a', 'absent'), missing('unknown'), missing('c')]
-                .map((failure) => failure.message)
-                .join('\n'),
-        );
-        await expect(
-            resolve([
-                task('a'),
-                task('b', vi.fn().mockRejectedValue(error)),
-                task('c', vi.fn().mockRejectedValue(missing('b'))),
-            ]),
-        ).rejects.toHaveProperty(
-            'message',
-            'Cannot resolve cross-source dbt refs: Source "b": a.absent: source "a" provides project "a" but has no model "absent", unknown.orders: No connected dbt source provides project "unknown", c.orders: the pending sources depend on each other or on an upstream source that failed; Source "c": b.orders: the pending sources depend on each other or on an upstream source that failed',
-        );
-    });
-    it('identifies a pending upstream source separately from its missing provider', async () => {
-        await expect(
-            resolve([
-                task('b', vi.fn().mockRejectedValue(missing('c'))),
-                task('c', vi.fn().mockRejectedValue(missing('unknown'))),
-            ]),
-        ).rejects.toHaveProperty(
-            'message',
-            'Cannot resolve cross-source dbt refs: Source "b": c.orders: the pending sources depend on each other or on an upstream source that failed; Source "c": unknown.orders: No connected dbt source provides project "unknown"',
-        );
-    });
-    it('lists pending sources and refs when they form a cycle', async () => {
-        await expect(
-            resolve([
-                task('b', vi.fn().mockRejectedValue(missing('c'))),
-                task('c', vi.fn().mockRejectedValue(missing('b'))),
-            ]),
-        ).rejects.toThrow(
-            'Cannot resolve cross-source dbt refs: the pending sources depend on each other or on an upstream source that failed. Source "b": c.orders; Source "c": b.orders',
-        );
-    });
-    it('rethrows unrelated retry errors', async () => {
-        const error = new Error('invalid SQL');
-        const b = task(
-            'b',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('a'))
-                .mockRejectedValueOnce(error),
-        );
-        await expect(resolve([task('a'), b])).rejects.toBe(error);
-    });
-    it('rethrows unrelated first-round errors without retrying', async () => {
-        const error = new Error('git authentication failed');
-        const b = task('b', vi.fn().mockRejectedValue(error));
-        const c = task('c', vi.fn().mockRejectedValue(missing('a')));
-        await expect(resolve([task('a'), b, c])).rejects.toBe(error);
-        expect(c.fetch).toHaveBeenCalledTimes(1);
-    });
-    it('accepts newly revealed missing packages without retrying forever', async () => {
-        const b = task(
-            'b',
-            vi
-                .fn()
-                .mockRejectedValueOnce(missing('a'))
-                .mockRejectedValueOnce(missing('unknown')),
-        );
-        await expect(resolve([task('a'), b])).rejects.toThrow(
-            'No connected dbt source provides project "unknown".',
-        );
-        expect(b.fetch).toHaveBeenCalledTimes(2);
-    });
-    it('stops when an injected project still cannot resolve a model', async () => {
-        const b = task('b', vi.fn().mockRejectedValue(missing('a', 'absent')));
-        await expect(resolve([task('a'), b])).rejects.toThrow(
-            'Cannot resolve cross-source dbt refs: Source "b": a.absent: source "a" provides project "a" but has no model "absent"',
-        );
-        expect(b.fetch).toHaveBeenCalledTimes(2);
-    });
-    it('runs the initial fetch within the requested concurrency', async () => {
-        let active = 0;
-        let maximum = 0;
-        const tasks = ['a', 'b', 'c'].map((name) =>
-            task(
-                name,
-                vi.fn(async () => {
-                    active += 1;
-                    maximum = Math.max(maximum, active);
-                    await new Promise<void>((done) => {
-                        setTimeout(done, 1);
-                    });
-                    active -= 1;
-                    return result(name);
-                }),
-            ),
-        );
-        await resolve(tasks, true, 1);
-        expect(maximum).toBe(1);
-    });
-});
-
 const scannedTask = (
     key: string,
     references: string[] = [],
@@ -375,421 +77,1636 @@ const scannedTask = (
     prepare: vi.fn(
         async (): Promise<DbtProjectScan> => ({
             projectName: key,
+            refs: references.map((packageName) => ({
+                packageName,
+                name: 'orders',
+                version: null,
+            })),
+            localModels: ['orders'],
+            installedPackageModels: [],
             referencedProjects: references,
             declaredUpstreams: declared,
+            installedPackages: [],
         }),
     ),
 });
+describe('cross-source hygiene', () => {
+    it('keeps learning other unresolved refs through the pass cap', async () => {
+        const leaf = scannedTask('leaf_a');
+        const first = scannedTask('ring_0');
+        first.fetch.mockRejectedValue(missing('leaf_a', 'absent'));
+        const second = scannedTask('ring_1');
+        second.fetch
+            .mockRejectedValueOnce(missing('leaf_a', 'before'))
+            .mockRejectedValueOnce(missing('leaf_a', 'after'));
+        await expect(resolve([first, second, leaf])).rejects.toThrow('absent');
+        expect(first.fetch).toHaveBeenCalledTimes(3);
+        expect(second.fetch).toHaveBeenCalledTimes(3);
+    });
 
-describe('ordered cross-source refs', () => {
-    it('orders a reversed chain and injects only direct providers on each first attempt', async () => {
-        const a = scannedTask('a');
-        const b = scannedTask('b', ['a']);
-        const c = scannedTask('c', ['b']);
-        const resolution = await resolve([c, b, a]);
-        expect(resolution.attempts).toBe(3);
-        expect(resolution.firstAttemptInjected).toBe(2);
-        expect(resolution.scan).toEqual({ known: 2, ordered: 2 });
-        for (const entry of [a, b, c])
-            expect(entry.fetch).toHaveBeenCalledTimes(1);
-        expect(a.fetch.mock.calls[0][0].externalNodes).toEqual([]);
-        expect(
-            b.fetch.mock.calls[0][0].externalNodes.map(
-                (node) => node.package_name,
-            ),
-        ).toEqual(['a']);
-        expect(
-            c.fetch.mock.calls[0][0].externalNodes.map(
-                (node) => node.package_name,
-            ),
-        ).toEqual(['b']);
+    it('groups all missing declarations before any fetch', async () => {
+        const first = scannedTask('leaf_a', [], ['ring_0', 'ring_1']);
+        const second = scannedTask('leaf_b', [], ['ring_2']);
+        const failure = resolve([first, second]);
+        await expect(failure).rejects.toThrow('ring_0');
+        await expect(failure).rejects.toThrow('ring_1');
+        await expect(failure).rejects.toThrow('leaf_b');
+        expect(first.fetch).not.toHaveBeenCalled();
+        expect(second.fetch).not.toHaveBeenCalled();
     });
-    it('orders a diamond without failed attempts', async () => {
-        const a = scannedTask('a');
-        const b = scannedTask('b', ['a']);
-        const c = scannedTask('c', ['a']);
-        const d = scannedTask('d', ['b', 'c']);
-        const resolution = await resolve([d, c, b, a]);
-        expect(resolution.attempts).toBe(4);
-        for (const entry of [a, b, c, d])
-            expect(entry.fetch).toHaveBeenCalledTimes(1);
-        expect(
-            d.fetch.mock.calls[0][0].externalNodes.map(
-                (node) => node.package_name,
-            ),
-        ).toEqual(['b', 'c']);
-    });
-    it('starts a ready dependent while an unrelated source is still running', async () => {
-        let release!: () => void;
-        const slow = task(
-            'slow',
-            vi.fn(async () => {
-                await new Promise<void>((done) => {
-                    release = done;
-                });
-                return result('slow');
-            }),
-        );
-        const a = scannedTask('a');
-        const b = scannedTask('b', ['a']);
-        const promise = resolve([slow, b, a]);
-        try {
-            await vi.waitFor(() => expect(b.fetch).toHaveBeenCalledTimes(1));
-        } finally {
-            release();
-            await promise;
-        }
-    });
-    it('accepts a false positive hint and ignores unknown hints', async () => {
-        const b = scannedTask('b', ['a', 'ghost']);
-        await resolve([b, scannedTask('a')]);
-        expect(b.fetch).toHaveBeenCalledTimes(1);
-        expect(b.fetch.mock.calls[0][0].externalNodes).toHaveLength(1);
-    });
-    it('uses the retry loop for a dynamic ref missed by the scan', async () => {
-        const b = scannedTask('b');
-        b.fetch.mockRejectedValueOnce(missing('a'));
-        const resolution = await resolve([b, scannedTask('a')]);
-        expect(resolution.attempts).toBe(3);
-        expect(b.fetch).toHaveBeenCalledTimes(2);
-    });
-    it('releases a Jinja comment scan hint when its provider dynamically refs the consumer', async () => {
-        const a = scannedTask('a', ['b']);
-        const b = scannedTask('b');
-        b.fetch.mockRejectedValueOnce(missing('a'));
-        const resolution = await resolve([a, b]);
-        expect(resolution.attempts).toBe(3);
-        expect(a.fetch).toHaveBeenCalledExactlyOnceWith({ externalNodes: [] });
-        expect(b.fetch).toHaveBeenCalledTimes(2);
-        expect(b.fetch.mock.calls[1][0].externalNodes).toEqual([
-            expect.objectContaining({ package_name: 'a' }),
-        ]);
-    });
-    it('releases blocked scan hints after a retry round makes no progress', async () => {
-        const a = scannedTask('a', ['b']);
-        const b = scannedTask('b');
-        b.fetch.mockRejectedValueOnce(missing('a'));
-        const stuck = scannedTask('stuck');
-        stuck.fetch.mockRejectedValue(missing('c', 'absent'));
-        await expect(resolve([a, b, stuck, scannedTask('c')])).rejects.toThrow(
-            'source "c" provides project "c" but has no model "absent"',
-        );
-        expect(a.fetch).toHaveBeenCalledExactlyOnceWith({ externalNodes: [] });
-        expect(b.fetch).toHaveBeenCalledTimes(2);
-    });
-    it('injects only direct providers on a first attempt unblocked by a retry', async () => {
-        const a = scannedTask('a', ['b']);
-        const b = scannedTask('b');
-        b.fetch.mockRejectedValueOnce(missing('c'));
-        const resolution = await resolve([
-            a,
-            b,
-            scannedTask('c'),
-            scannedTask('u'),
-        ]);
-        expect(resolution.attempts).toBe(5);
-        expect(a.fetch).toHaveBeenCalledExactlyOnceWith({
-            externalNodes: [expect.objectContaining({ package_name: 'b' })],
+
+    it('warns for unknown scanned projects but accepts installed packages', async () => {
+        const leaf = scannedTask('leaf_a', ['ring_0', 'ring_1']);
+        leaf.prepare.mockResolvedValue({
+            projectName: 'leaf_a',
+            referencedProjects: ['ring_0', 'ring_1'],
+            declaredUpstreams: [],
+            refs: [],
+            localModels: [],
+            installedPackageModels: [],
+            installedPackages: ['ring_1'],
         });
-        expect(resolution.results[0].injectedFrom).toEqual(['b']);
-    });
-    it('rejects a declared cycle before any fetch', async () => {
-        const a = scannedTask('a', [], ['b']);
-        const b = scannedTask('b', [], ['a']);
-        await expect(resolve([a, b])).rejects.toHaveProperty(
-            'message',
-            'Declared dbt upstreams form a cycle: "a" -> "b" -> "a". Fix dependencies.yml in one of the repositories.',
-        );
-        expect(a.fetch).not.toHaveBeenCalled();
-        expect(b.fetch).not.toHaveBeenCalled();
-    });
-    it('drops scan cycle edges and falls back to retries', async () => {
-        const a = scannedTask('a', ['b']);
-        const b = scannedTask('b', ['a']);
-        b.fetch.mockRejectedValueOnce(missing('a'));
-        const resolution = await resolve([a, b]);
-        expect(resolution.attempts).toBe(3);
-        expect(resolution.scan.ordered).toBe(0);
-    });
-    it('keeps declared ordering when a reverse scan hint forms a cycle', async () => {
-        const a = scannedTask('a', ['b']);
-        const b = scannedTask('b', [], ['a']);
-        const resolution = await resolve([b, a]);
-        expect(resolution.scan).toEqual({ known: 2, ordered: 1 });
-        expect(resolution.attempts).toBe(2);
-        expect(a.fetch.mock.calls[0][0].externalNodes).toEqual([]);
-        expect(b.fetch.mock.calls[0][0].externalNodes).toEqual([
-            expect.objectContaining({ package_name: 'a' }),
+        const resolution = await resolve([leaf]);
+        expect(resolution.warnings).toEqual([
+            expect.stringContaining('ring_0'),
         ]);
+        expect(resolution.preflightWarnings).toBe(1);
     });
-    it('rejects an unknown declared upstream before dbt ls', async () => {
-        const a = scannedTask('a', [], ['p']);
-        await expect(resolve([a])).rejects.toHaveProperty(
-            'message',
-            'dbt source "a" declares upstream project "p" in dependencies.yml, but no connected dbt source provides project "p".',
+
+    it('names both sources and connections for a declared upstream elsewhere', async () => {
+        const leaf = scannedTask('leaf_a', [], ['ring_0']);
+        const failure = resolveCrossSourceManifests({
+            tasks: [leaf],
+            enabled: true,
+            concurrency: 2,
+            connectionName: 'Warehouse A',
+            otherConnectionProjects: [
+                {
+                    projectName: 'ring_0',
+                    sourceKey: 'leaf_b',
+                    connectionName: 'Warehouse B',
+                },
+            ],
+        });
+        await Promise.all(
+            [
+                'leaf_a',
+                'leaf_b',
+                'Warehouse A',
+                'Warehouse B',
+                'same warehouse connection',
+            ].map((text) => expect(failure).rejects.toThrow(text)),
         );
-        expect(a.fetch).not.toHaveBeenCalled();
+        expect(leaf.fetch).not.toHaveBeenCalled();
     });
-    it.each(['metadata', 'package'])(
-        'resolves a declared upstream from a scan-less provider manifest %s',
-        async (providedBy) => {
-            const consumer = scannedTask('consumer', [], ['upstream']);
-            const providerResult = result('root');
-            if (providedBy === 'metadata') {
-                providerResult.manifest.metadata.project_name = 'upstream';
-            } else {
-                const upstream = model('upstream');
-                providerResult.manifest.nodes[upstream.unique_id] = upstream;
-            }
-            const provider = {
-                ...task('provider', vi.fn().mockResolvedValue(providerResult)),
-                prepare: vi.fn().mockResolvedValue(null),
-            };
-            const resolution = await resolve([consumer, provider]);
-            expect(resolution.attempts).toBe(2);
-            expect(provider.fetch).toHaveBeenCalledExactlyOnceWith({
-                externalNodes: [],
-            });
-            expect(consumer.fetch).toHaveBeenCalledExactlyOnceWith({
-                externalNodes: expect.arrayContaining([
-                    expect.objectContaining({ package_name: 'root' }),
-                ]),
-            });
-            expect(resolution.results[0].injectedFrom).toEqual(['provider']);
-        },
-    );
-    it('rejects an unknown declared upstream after fetching scan-less providers', async () => {
-        const consumer = scannedTask('consumer', [], ['unknown']);
-        const provider = task('provider');
-        await expect(resolve([consumer, provider])).rejects.toHaveProperty(
-            'message',
-            'dbt source "consumer" declares upstream project "unknown" in dependencies.yml, but no connected dbt source provides project "unknown".',
+
+    it('warns for a scanned project elsewhere and uses that explanation in the final error', async () => {
+        const leaf = scannedTask('leaf_a', ['ring_0']);
+        const options = {
+            tasks: [leaf],
+            enabled: true,
+            concurrency: 2,
+            connectionName: 'Warehouse A',
+            otherConnectionProjects: [
+                {
+                    projectName: 'ring_0',
+                    sourceKey: 'leaf_b',
+                    connectionName: 'Warehouse B',
+                },
+            ],
+        };
+        expect((await resolveCrossSourceManifests(options)).warnings).toEqual([
+            expect.stringContaining('leaf_b'),
+        ]);
+        leaf.fetch.mockRejectedValue(missing('ring_0'));
+        await expect(resolveCrossSourceManifests(options)).rejects.toThrow(
+            'different warehouse connection',
         );
-        expect(provider.fetch).toHaveBeenCalledTimes(1);
-        expect(consumer.fetch).not.toHaveBeenCalled();
     });
-    it.each([true, false])(
-        'compiles disjoint same-named sources with a comment-only own-project hint: %s',
-        async (referencesOwnProject) => {
-            const sources = ['a', 'b'].map((key) => {
-                const source = scannedTask(key);
-                source.prepare.mockResolvedValue({
-                    projectName: 'p',
-                    referencedProjects: [],
-                    declaredUpstreams: [],
-                    referencesOwnProject,
+
+    it.each(['prepare', 'ls', 'resolution'] as const)(
+        'cancels and settles sibling work on a %s deadline',
+        async (phase) => {
+            vi.useFakeTimers();
+            try {
+                const settled: string[] = [];
+                const operation = (key: string, signal: AbortSignal) =>
+                    new Promise<ReturnType<typeof result>>((done) => {
+                        signal.addEventListener(
+                            'abort',
+                            () => {
+                                setTimeout(() => {
+                                    settled.push(key);
+                                    done(result(key));
+                                }, 10);
+                            },
+                            { once: true },
+                        );
+                    });
+                const tasks: CrossSourceFetchTask<string>[] = [
+                    'leaf_a',
+                    'leaf_b',
+                ].map((key) => ({
+                    key,
+                    context: key,
+                    prepare:
+                        phase === 'prepare'
+                            ? async (options) => {
+                                  await operation(key, options!.signal!);
+                                  return null;
+                              }
+                            : undefined,
+                    fetch: async (options) => operation(key, options.signal!),
+                }));
+                const resolution = resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    timeouts: {
+                        prepareMs: phase === 'prepare' ? 20 : 1000,
+                        lsMs: phase === 'ls' ? 20 : 1000,
+                        resolutionMs: phase === 'resolution' ? 20 : 1000,
+                    },
                 });
-                const fetched = result('p');
-                const node = {
-                    ...model('p', key),
-                    raw_code: "{# {{ ref('p', 'comment_only') }} #} select 1",
-                };
-                fetched.manifest.nodes = { [node.unique_id]: node };
-                source.fetch.mockResolvedValue(fetched);
-                return source;
-            });
-            const resolution = await resolve(sources);
-            expect(resolution.attempts).toBe(2);
-            expect(
-                resolution.results.map(({ result: fetched }) =>
-                    Object.keys(fetched.manifest.nodes),
-                ),
-            ).toEqual([['model.p.a'], ['model.p.b']]);
-            sources.forEach((source) =>
-                expect(source.fetch).toHaveBeenCalledExactlyOnceWith({
-                    externalNodes: [],
-                }),
-            );
-        },
-    );
-    it.each([false, true])(
-        'rejects an actual missing ref to a shared project name on a retry: %s',
-        async (onRetry) => {
-            const a = scannedTask('a');
-            const b = scannedTask('b');
-            for (const source of [a, b]) {
-                source.prepare.mockResolvedValue({
-                    projectName: 'p',
-                    referencedProjects: [],
-                    declaredUpstreams: [],
-                });
+                const rejected = resolution.catch((error: unknown) => error);
+                const expectedMessage = {
+                    prepare:
+                        'dbt source "leaf_a" timed out after 0.02 s while cloning the repository and installing dbt packages.',
+                    ls: 'dbt source "leaf_a" timed out after 0.02 s while running dbt ls.',
+                    resolution:
+                        'Cross-source dbt resolution timed out after 0.02 s. Sources still in progress: "leaf_a", "leaf_b".',
+                }[phase];
+                await vi.advanceTimersByTimeAsync(21);
+                expect(settled).toEqual([]);
+                await vi.runAllTimersAsync();
+                expect(await rejected).toHaveProperty(
+                    'message',
+                    expectedMessage,
+                );
+                expect(settled.sort()).toEqual(['leaf_a', 'leaf_b']);
+            } finally {
+                vi.useRealTimers();
             }
-            b.fetch.mockResolvedValue(result('p'));
-            if (onRetry) a.fetch.mockRejectedValueOnce(missing('upstream'));
-            a.fetch.mockRejectedValue(missing('p'));
-            await expect(
-                resolve([a, b, scannedTask('upstream')]),
-            ).rejects.toHaveProperty(
-                'message',
-                'dbt sources "a" and "b" both use the dbt project name "p". A model cannot reference another dbt project that has its own name. Change the name: value in one repository\'s dbt_project.yml.',
-            );
-            expect(a.fetch).toHaveBeenCalledTimes(onRetry ? 2 : 1);
         },
     );
-    it('does not blame shared project names for an unrelated missing ref', async () => {
-        const sources = ['a', 'b'].map((key) => {
-            const source = scannedTask(key);
-            source.prepare.mockResolvedValue({
-                projectName: 'p',
+
+    it('throws the caller reason unchanged after sibling cancellation settles', async () => {
+        const controller = new AbortController();
+        const reason = new Error('leaf_a interrupted');
+        const settled = vi.fn();
+        const leaf = task(
+            'leaf_a',
+            vi.fn(
+                async (options: DbtManifestFetchOptions) =>
+                    new Promise<ReturnType<typeof result>>((done) => {
+                        options.signal!.addEventListener(
+                            'abort',
+                            () => {
+                                settled();
+                                done(result('leaf_a'));
+                            },
+                            { once: true },
+                        );
+                    }),
+            ),
+        );
+        Object.assign(leaf, {
+            prepare: async () => ({
+                projectName: 'leaf_a',
                 referencedProjects: [],
                 declaredUpstreams: [],
-                referencesOwnProject: true,
+                refs: [],
+                localModels: [],
+                installedPackageModels: [],
+                installedPackages: [],
+            }),
+        });
+        const dependent = scannedTask('leaf_b', ['leaf_a']);
+        const resolution = resolveCrossSourceManifests({
+            tasks: [leaf, dependent],
+            enabled: true,
+            concurrency: 2,
+            signal: controller.signal,
+        });
+        const rejected = resolution.catch((error: unknown) => error);
+        await vi.waitFor(() => expect(leaf.fetch).toHaveBeenCalledTimes(1));
+        controller.abort(reason);
+        expect(await rejected).toBe(reason);
+        expect(settled).toHaveBeenCalledOnce();
+        expect(dependent.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not pass an already-aborted caller signal to disabled work', async () => {
+        const controller = new AbortController();
+        controller.abort(new Error('leaf_a interrupted'));
+        const leaf = task('leaf_a');
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [leaf],
+            enabled: false,
+            concurrency: 1,
+            signal: controller.signal,
+            timeouts: { prepareMs: 0, lsMs: 0, resolutionMs: 0 },
+        });
+        expect(leaf.fetch).toHaveBeenCalledExactlyOnceWith({
+            externalNodes: [],
+        });
+        expect(resolution.results).toHaveLength(1);
+    });
+});
+
+it('retries a newly revealed missing version of the same ref', async () => {
+    const missingVersion = (version: string) =>
+        new DbtError(
+            `depends on a node named 'orders' with version '${version}' in package or project 'leaf_a' which was not found`,
+        );
+    const consumer = task(
+        'ring_0',
+        vi
+            .fn()
+            .mockRejectedValueOnce(missingVersion('1'))
+            .mockRejectedValueOnce(missingVersion('2'))
+            .mockResolvedValue(result('ring_0')),
+    );
+    const resolution = await resolve([consumer, task('leaf_a')]);
+    expect(consumer.fetch).toHaveBeenCalledTimes(3);
+    expect(resolution.results).toHaveLength(2);
+});
+
+it('settles an in-flight sibling before propagating a thrown fetch failure', async () => {
+    let settled = false;
+    const reason = new Error('leaf_b failed');
+    const first = task(
+        'leaf_a',
+        vi.fn(
+            async (options: DbtManifestFetchOptions) =>
+                new Promise<ReturnType<typeof result>>((done) => {
+                    options.signal!.addEventListener(
+                        'abort',
+                        () => {
+                            settled = true;
+                            done(result('leaf_a'));
+                        },
+                        { once: true },
+                    );
+                }),
+        ),
+    );
+    const second = task('leaf_b', vi.fn().mockRejectedValue(reason));
+    await expect(resolve([first, second])).rejects.toBe(reason);
+    expect(settled).toBe(true);
+});
+
+it('starts source deadlines only after a concurrency slot is available', async () => {
+    vi.useFakeTimers();
+    try {
+        const tasks: CrossSourceFetchTask<string>[] = ['leaf_a', 'leaf_b'].map(
+            (key) => ({
+                key,
+                context: key,
+                prepare: async () => {
+                    await new Promise<void>((done) => {
+                        setTimeout(done, 5);
+                    });
+                    return null;
+                },
+                fetch: async () => {
+                    await new Promise<void>((done) => {
+                        setTimeout(done, 5);
+                    });
+                    return result(key);
+                },
+            }),
+        );
+        const resolution = resolveCrossSourceManifests({
+            tasks,
+            enabled: true,
+            concurrency: 1,
+            timeouts: { prepareMs: 6, lsMs: 6, resolutionMs: 100 },
+        });
+        await vi.runAllTimersAsync();
+        expect((await resolution).results).toHaveLength(2);
+    } finally {
+        vi.useRealTimers();
+    }
+});
+
+const withRefs = (
+    key: string,
+    refs: DbtProjectScan['refs'],
+    names = ['orders'],
+) => {
+    const source = scannedTask(key);
+    source.prepare.mockResolvedValue({
+        projectName: key,
+        refs,
+        localModels: names,
+        installedPackageModels: [],
+        referencedProjects: refs.flatMap((ref) =>
+            ref.packageName === null ? [] : [ref.packageName],
+        ),
+        declaredUpstreams: [],
+        installedPackages: [],
+    });
+    return source;
+};
+const ref = (
+    packageName: string | null,
+    name = 'orders',
+    version: string | null = null,
+) => ({ packageName, name, version });
+const boundResult = (
+    key: string,
+    nodes: DbtManifestFetchOptions['externalNodes'],
+    refs: DbtProjectScan['refs'],
+    expectedIds: string[] | null = null,
+) => {
+    const fetched = result(key);
+    const own = fetched.manifest.nodes[
+        `model.${key}.orders`
+    ] as DbtRawModelNode;
+    own.refs = refs.map((entry) => ({
+        package: entry.packageName,
+        name: entry.name,
+        version: entry.version,
+    }));
+    own.depends_on = { nodes: [] };
+    refs.forEach((entry, index) => {
+        const candidates = nodes.filter(
+            (node) =>
+                node.name === entry.name &&
+                (entry.packageName === null ||
+                    node.package_name === entry.packageName),
+        );
+        const stub = candidates.find((node) => {
+            if (expectedIds !== null)
+                return (
+                    `model.${node.package_name}.${node.name}${node.version === null ? '' : `.v${node.version}`}` ===
+                    expectedIds[index]
+                );
+            if (entry.version !== null)
+                return String(node.version) === entry.version;
+            return (
+                node.version === null ||
+                String(node.version) === String(node.latest_version)
+            );
+        });
+        if (!stub) throw missing(entry.packageName ?? '', entry.name);
+        const id = `model.${stub.package_name}.${stub.name}${stub.version === null ? '' : `.v${stub.version}`}`;
+        fetched.manifest.nodes[id] = {
+            ...model(stub.package_name, stub.name),
+            unique_id: id,
+            version: stub.version ?? undefined,
+            latest_version: stub.latest_version ?? undefined,
+            access: stub.access ?? undefined,
+            path: '',
+            original_file_path: '',
+        } as DbtRawModelNode & DbtManifest['nodes'][string];
+        own.depends_on!.nodes!.push(id);
+    });
+    return fetched;
+};
+
+it('preserves disabled work byte for byte and never prepares or writes cache rows', async () => {
+    const source = scannedTask('a');
+    const onSourceResolved = vi.fn();
+    const resolved = await resolveCrossSourceManifests({
+        tasks: [source],
+        enabled: false,
+        concurrency: 1,
+        onSourceResolved,
+    });
+    expect(source.fetch).toHaveBeenCalledExactlyOnceWith({ externalNodes: [] });
+    expect(source.prepare).not.toHaveBeenCalled();
+    expect(onSourceResolved).not.toHaveBeenCalled();
+    expect(resolved).toEqual({
+        results: [{ task: source, result: result('a'), injectedFrom: [] }],
+        rounds: 1,
+        attempts: 1,
+        warnings: [],
+        scan: { known: 0, ordered: 0 },
+        firstAttemptInjected: 0,
+    });
+});
+
+it.each([2, 9])(
+    'resolves a %i-source project ring through the primary in one pass',
+    async (count) => {
+        const tasks = Array.from({ length: count }, (_, index) => {
+            const key = `ring_${index}`;
+            const refs = [ref(`ring_${(index + 1) % count}`, 'base')];
+            const source = withRefs(key, refs, ['base', 'orders']);
+            source.fetch.mockImplementation(async ({ externalNodes }) => {
+                const fetched = boundResult(key, externalNodes, refs);
+                const base = model(key, 'base');
+                fetched.manifest.nodes[base.unique_id] = base;
+                return fetched;
             });
             return source;
         });
-        sources[0].fetch.mockRejectedValue(missing('unknown'));
-        await expect(resolve(sources)).rejects.toHaveProperty(
-            'message',
-            'Cannot resolve dbt source "a": ref "unknown.orders" was not found. No connected dbt source provides project "unknown".',
-        );
-    });
-    it('reports declared dependents without fetching them before their provider resolves', async () => {
-        const a = scannedTask('provider');
-        a.prepare.mockResolvedValue({
-            projectName: 'upstream',
-            referencedProjects: [],
-            declaredUpstreams: [],
+        const onSourceResolved = vi.fn();
+        const resolved = await resolveCrossSourceManifests({
+            tasks,
+            enabled: true,
+            concurrency: 3,
+            onSourceResolved,
         });
-        a.fetch.mockRejectedValue(missing('unknown'));
-        const b = scannedTask('consumer', [], ['upstream']);
-        await expect(resolve([b, a])).rejects.toHaveProperty(
-            'message',
-            'Cannot resolve cross-source dbt refs: Source "provider": unknown.orders: No connected dbt source provides project "unknown"; Source "consumer": upstream.*: the pending sources depend on each other or on an upstream source that failed',
+        expect(resolved.passes).toBe(1);
+        expect(resolved.attempts).toBe(count);
+        expect(resolved.contradictions).toBe(0);
+        expect(resolved.stubs?.placeholder).toBe(count);
+        expect(onSourceResolved).toHaveBeenCalledTimes(count);
+        expect(
+            resolved.results[0].result.manifest.nodes['model.ring_1.base'],
+        ).toBeUndefined();
+        expect(resolved.sources?.map((source) => source.lsRuns)).toEqual(
+            Array(count).fill(1),
         );
-        expect(b.fetch).not.toHaveBeenCalled();
-    });
-    it('keeps a dependent blocked until every declared provider resolves through retries', async () => {
-        const a = scannedTask('a');
-        a.fetch.mockRejectedValueOnce(missing('x'));
-        const b = scannedTask('b');
-        b.fetch.mockRejectedValue(missing('unknown'));
-        const consumer = scannedTask('consumer', [], ['a', 'b']);
-        await expect(
-            resolve([consumer, a, b, scannedTask('x')]),
-        ).rejects.toThrow(
-            'Source "consumer": b.*: the pending sources depend on each other or on an upstream source that failed',
-        );
-        expect(consumer.fetch).not.toHaveBeenCalled();
-        expect(a.fetch).toHaveBeenCalledTimes(2);
-    });
-    it.each([true, false])(
-        'warns only when a single-argument ref resolves externally: %s',
-        async (external) => {
-            const b = scannedTask('b', ['a']);
-            const fetched = result('b');
-            const dependency = {
-                ...model('a'),
-                ...(external ? { path: '', original_file_path: '' } : {}),
-            };
-            fetched.manifest.nodes[dependency.unique_id] = dependency;
-            Object.assign(fetched.manifest.nodes['model.b.orders'], {
-                refs: [{ name: 'orders', package: null, version: null }],
-                depends_on: { nodes: [dependency.unique_id] },
-            });
-            b.fetch.mockResolvedValue(fetched);
-            const resolution = await resolve([b, scannedTask('a')]);
-            expect(resolution.warnings).toEqual(
-                external
-                    ? [
-                          "Model \"orders\" in dbt source \"b\" uses ref('orders'), which resolved to external model model.a.orders from another dbt source. Use ref('a', 'orders') to make the cross-source reference explicit.",
-                      ]
-                    : [],
-            );
-        },
+    },
+);
+
+it('allows declared project cycles', async () => {
+    const a = scannedTask('a', [], ['b']);
+    const b = scannedTask('b', [], ['a']);
+    expect((await resolve([a, b])).passes).toBe(1);
+});
+
+it('uses cached stubs with zero contradictions', async () => {
+    const consumer = withRefs('b', [ref('a')]);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('b', externalNodes, [ref('a')]),
     );
-    it.each([
-        { versions: [1, 2], requested: [1, 2], expected: [1, 2] },
-        { versions: [1, 2], requested: [null], expected: [2] },
-        { versions: [1], requested: [null], expected: [1] },
-    ])(
-        'warns for external versions $expected requested as $requested',
-        async ({ versions, requested, expected }) => {
-            const consumer = scannedTask('b', ['a']);
-            const fetched = result('b');
-            const dependencies = versions.map((version) => ({
+    const cached = {
+        ...placeholderExternalNode({
+            packageName: 'a',
+            name: 'orders',
+            version: null,
+            latestVersion: null,
+        }),
+        schema: 'real_schema',
+    };
+    const resolved = await resolveCrossSourceManifests({
+        tasks: [consumer, scannedTask('a')],
+        enabled: true,
+        concurrency: 2,
+        cache: [
+            {
+                key: 'a',
+                projectName: 'a',
+                referencedProjects: [],
+                nodes: [cached],
+            },
+        ],
+    });
+    expect(resolved.passes).toBe(1);
+    expect(resolved.stubs?.cached).toBe(1);
+    expect(resolved.contradictions).toBe(0);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes[0].schema).toBe(
+        'real_schema',
+    );
+});
+
+it('ignores cache rows whose project name no longer matches the scan', async () => {
+    const consumer = withRefs('b', [ref('a')]);
+    const resolved = await resolveCrossSourceManifests({
+        tasks: [consumer, scannedTask('a')],
+        enabled: true,
+        concurrency: 2,
+        cache: [
+            {
+                key: 'a',
+                projectName: 'old_name',
+                referencedProjects: [],
+                nodes: [
+                    placeholderExternalNode({
+                        packageName: 'old_name',
+                        name: 'orders',
+                        version: null,
+                        latestVersion: null,
+                    }),
+                ],
+            },
+        ],
+    });
+    expect(resolved.stubs?.cached).toBe(0);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes[0].package_name).toBe(
+        'a',
+    );
+});
+
+it('reruns only the consumer when cached latest_version changes', async () => {
+    const provider = scannedTask('a');
+    const provided = result('a');
+    provided.manifest.nodes = Object.fromEntries(
+        [1, 2].map((version) => {
+            const node = {
                 ...model('a'),
                 unique_id: `model.a.orders.v${version}`,
                 version,
                 latest_version: 2,
-                path: '',
-                original_file_path: '',
-            }));
-            dependencies.forEach((dependency) => {
-                fetched.manifest.nodes[dependency.unique_id] = dependency;
-            });
-            Object.assign(fetched.manifest.nodes['model.b.orders'], {
-                refs: requested.map((version) => ({
+            };
+            return [node.unique_id, node];
+        }),
+    );
+    provider.fetch.mockResolvedValue(provided);
+    const consumer = withRefs('b', [ref('a')]);
+    consumer.fetch
+        .mockImplementationOnce(async ({ externalNodes }) =>
+            boundResult('b', externalNodes, [ref('a')], ['model.a.orders.v1']),
+        )
+        .mockImplementationOnce(async ({ externalNodes }) =>
+            boundResult('b', externalNodes, [ref('a')], ['model.a.orders.v2']),
+        );
+    const cache = [
+        {
+            key: 'a',
+            projectName: 'a',
+            referencedProjects: [],
+            nodes: [1, 2].map((version) =>
+                placeholderExternalNode({
+                    packageName: 'a',
                     name: 'orders',
-                    package: null,
-                    version,
-                })),
-                depends_on: {
-                    nodes: dependencies.map(({ unique_id }) => unique_id),
-                },
-            });
-            consumer.fetch.mockResolvedValue(fetched);
-            const resolution = await resolve([consumer, scannedTask('a')]);
-            expect(resolution.warnings).toEqual(
-                expected.map((version, index) => {
-                    const versionArg =
-                        requested[index] === null ? '' : `, v=${version}`;
-                    return `Model "orders" in dbt source "b" uses ref('orders'${versionArg}), which resolved to external model model.a.orders.v${version} from another dbt source. Use ref('a', 'orders'${versionArg}) to make the cross-source reference explicit.`;
+                    version: String(version),
+                    latestVersion: '1',
                 }),
+            ),
+        },
+    ];
+    const resolved = await resolveCrossSourceManifests({
+        tasks: [consumer, provider],
+        enabled: true,
+        concurrency: 2,
+        cache,
+    });
+    expect(resolved.passes).toBe(2);
+    expect(resolved.contradictions).toBe(1);
+    expect(consumer.fetch).toHaveBeenCalledTimes(2);
+    expect(provider.fetch).toHaveBeenCalledTimes(1);
+    expect(
+        (
+            resolved.results[0].result.manifest.nodes[
+                'model.b.orders'
+            ] as DbtRawModelNode
+        ).depends_on?.nodes,
+    ).toEqual(['model.a.orders.v2']);
+});
+
+it.each(['deleted', 'private'])(
+    'rejects a %s fresh model with consumer, model, ref and provider before another fetch',
+    async (condition) => {
+        const consumer = withRefs('b', [ref('a')]);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('b', externalNodes, [ref('a')]),
+        );
+        const provided = result('a');
+        if (condition === 'deleted') provided.manifest.nodes = {};
+        else
+            (
+                provided.manifest.nodes['model.a.orders'] as DbtRawModelNode
+            ).access = 'private';
+        const provider = scannedTask('a');
+        provider.fetch.mockResolvedValue(provided);
+        const resolution = resolve([consumer, provider]);
+        await Promise.all(
+            [
+                'Model "orders"',
+                'dbt source "b"',
+                "ref('a', 'orders')",
+                'dbt source "a"',
+                condition === 'private'
+                    ? 'private'
+                    : 'does not define that model (or version)',
+            ].map((text) => expect(resolution).rejects.toThrow(text)),
+        );
+        expect(consumer.fetch).toHaveBeenCalledTimes(1);
+    },
+);
+
+it('learns a hidden versioned ref from dbt and resolves it in pass two', async () => {
+    const consumer = withRefs('b', []);
+    consumer.fetch
+        .mockRejectedValueOnce(
+            new DbtError(
+                "depends on a node named 'orders' with version '2' in package or project 'a' which was not found",
+            ),
+        )
+        .mockResolvedValue(result('b'));
+    const provider = scannedTask('a');
+    provider.fetch
+        .mockRejectedValueOnce(missing('b', 'base'))
+        .mockResolvedValue(result('a'));
+    const resolved = await resolve([consumer, provider]);
+    expect(resolved.passes).toBe(2);
+    expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
+        expect.objectContaining({
+            name: 'orders',
+            version: '2',
+            latest_version: '2',
+        }),
+    ]);
+    expect(resolved.stubs?.error).toBe(2);
+});
+
+it('resolves a unique one-argument provider and warns to make the ref explicit', async () => {
+    const consumer = withRefs('b', [ref(null)], ['uses']);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('b', externalNodes, [ref(null)]),
+    );
+    const resolved = await resolve([consumer, scannedTask('a')]);
+    expect(resolved.passes).toBe(1);
+    expect(resolved.warnings).toEqual([
+        expect.stringContaining("ref('a', 'orders')"),
+    ]);
+});
+
+it.each(['ambiguous', 'local', 'installed'])(
+    'does not emit one-argument stubs when the name is %s',
+    async (condition) => {
+        const consumer = withRefs(
+            'b',
+            [ref(null)],
+            condition === 'local' ? ['orders'] : ['uses'],
+        );
+        if (condition === 'installed')
+            consumer.prepare.mockResolvedValue({
+                ...(await consumer.prepare()),
+                installedPackageModels: ['orders'],
+            });
+        await resolve([
+            consumer,
+            scannedTask('a'),
+            ...(condition === 'ambiguous' ? [scannedTask('c')] : []),
+        ]);
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+    },
+);
+
+it('aggregates unresolved refs at the configured pass cap', async () => {
+    const a = withRefs('a', []);
+    const b = withRefs('b', []);
+    a.fetch.mockRejectedValue(missing('unknown', 'gone'));
+    b.fetch.mockRejectedValue(
+        new DbtError("depends on a node named 'hidden' which was not found"),
+    );
+    const resolution = resolveCrossSourceManifests({
+        tasks: [a, b],
+        enabled: true,
+        concurrency: 2,
+        maxPasses: 1,
+    });
+    await Promise.all(
+        [
+            'dbt source "a"',
+            "ref('unknown', 'gone')",
+            'no connected dbt source provides project',
+            'dbt source "b"',
+            "ref('project', 'model')",
+        ].map((text) => expect(resolution).rejects.toThrow(text)),
+    );
+    await expect(resolution).rejects.not.toThrow('DBT_');
+});
+
+it('reports a node-level cycle in node order', async () => {
+    const tasks = ['a', 'b', 'c'].map((key, index, keys) => {
+        const refs = [ref(keys[(index + 1) % keys.length])];
+        const source = withRefs(key, refs);
+        source.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult(key, externalNodes, refs),
+        );
+        return source;
+    });
+    await expect(resolve(tasks)).rejects.toThrow(
+        'model.a.orders -> model.b.orders -> model.c.orders -> model.a.orders',
+    );
+});
+
+it('reports the failed provider and its root cause to a dependent source', async () => {
+    const consumer = withRefs('b', [ref('a')]);
+    const provider = scannedTask('a');
+    provider.fetch.mockRejectedValue(new Error('bad profile configuration'));
+    const resolution = resolve([consumer, provider]);
+    await Promise.all(
+        ['dbt source "b"', 'dbt source "a"', 'bad profile configuration'].map(
+            (text) => expect(resolution).rejects.toThrow(text),
+        ),
+    );
+});
+
+it('rejects duplicate scanned project names before a fetch', async () => {
+    const a = scannedTask('a');
+    const b = scannedTask('b');
+    b.prepare.mockResolvedValue({ ...(await b.prepare()), projectName: 'a' });
+    await expect(resolve([a, b])).rejects.toThrow(
+        'both use the dbt project name "a"',
+    );
+    expect(a.fetch).not.toHaveBeenCalled();
+    expect(b.fetch).not.toHaveBeenCalled();
+});
+
+it('keeps the late duplicate-name guard for scan-less sources', async () => {
+    await expect(
+        resolve([
+            task('a'),
+            task(
+                'b',
+                vi.fn(async () => result('a')),
+            ),
+        ]),
+    ).rejects.toThrow('both use the dbt project name "a"');
+});
+
+it('never mixes unversioned and versioned placeholders for one model', async () => {
+    const consumer = withRefs('b', [
+        ref('a'),
+        ref('a', 'orders', '1'),
+        ref('a', 'orders', '2'),
+    ]);
+    await resolve([consumer, scannedTask('a')]);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([
+        expect.objectContaining({ version: '1', latest_version: '2' }),
+        expect.objectContaining({ version: '2', latest_version: '2' }),
+    ]);
+});
+
+it('waits for failed source cancellation and fences callbacks from late success', async () => {
+    const onSourceResolved = vi.fn();
+    const late = task(
+        'a',
+        vi.fn(
+            async ({ signal }) =>
+                new Promise<ReturnType<typeof result>>((done) => {
+                    signal!.addEventListener('abort', () => done(result('a')), {
+                        once: true,
+                    });
+                }),
+        ),
+    );
+    const error = new Error('bad profile');
+    const failure = task('b', vi.fn().mockRejectedValue(error));
+    await expect(
+        resolveCrossSourceManifests({
+            tasks: [late, failure],
+            enabled: true,
+            concurrency: 2,
+            onSourceResolved,
+        }),
+    ).rejects.toBe(error);
+    expect(onSourceResolved).not.toHaveBeenCalled();
+});
+
+it('does not inject cached copies of the consumer or its installed packages', async () => {
+    const consumer = withRefs('b', [ref('a')]);
+    consumer.prepare.mockResolvedValue({
+        ...(await consumer.prepare()),
+        installedPackages: ['installed'],
+    });
+    const nodes = ['a', 'b', 'installed'].map((packageName) =>
+        placeholderExternalNode({
+            packageName,
+            name: 'orders',
+            version: null,
+            latestVersion: null,
+        }),
+    );
+    await resolveCrossSourceManifests({
+        tasks: [consumer, scannedTask('a')],
+        enabled: true,
+        concurrency: 2,
+        cache: [{ key: 'a', projectName: 'a', referencedProjects: [], nodes }],
+    });
+    expect(
+        consumer.fetch.mock.calls[0][0].externalNodes.map(
+            (node) => node.package_name,
+        ),
+    ).toEqual(['a']);
+});
+
+it('reports a contradicted binding accurately when the pass cap prevents validation', async () => {
+    const consumer = withRefs('b', [ref('a')]);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('b', externalNodes, [ref('a')]),
+    );
+    const provider = scannedTask('a');
+    const provided = result('a');
+    (provided.manifest.nodes['model.a.orders'] as DbtRawModelNode).access =
+        'protected';
+    provider.fetch.mockResolvedValue(provided);
+    await expect(
+        resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            maxPasses: 1,
+        }),
+    ).rejects.toThrow(
+        'dbt source "b" was compiled against an out-of-date version of model "orders" from dbt source "a" and the compile ran out of retries. Refresh again; the next compile usually succeeds.',
+    );
+    expect(consumer.fetch).toHaveBeenCalledTimes(1);
+});
+
+it.each(['scanned', 'declared', 'cached'])(
+    'injects only providers referenced by the %s consumer on a warm run',
+    async (kind) => {
+        const consumer = withRefs(
+            'consumer',
+            kind === 'scanned' ? [ref('provider')] : [],
+        );
+        if (kind === 'declared')
+            consumer.prepare.mockResolvedValue({
+                ...(await consumer.prepare()),
+                declaredUpstreams: ['provider'],
+            });
+        const provided = result('provider');
+        const extra = model('provider', 'extra');
+        provided.manifest.nodes[extra.unique_id] = extra;
+        const provider = scannedTask('provider');
+        provider.fetch.mockResolvedValue(provided);
+        const unrelated = scannedTask('unrelated');
+        const nodes = ['orders', 'extra'].map((name) =>
+            placeholderExternalNode({
+                packageName: 'provider',
+                name,
+                version: null,
+                latestVersion: null,
+            }),
+        );
+        const onSourceResolved = vi.fn();
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, [ref('provider')]),
+        );
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [consumer, provider, unrelated],
+            enabled: true,
+            concurrency: 3,
+            cache: [
+                {
+                    key: 'consumer',
+                    projectName: 'consumer',
+                    nodes: [],
+                    referencedProjects: kind === 'cached' ? ['provider'] : [],
+                },
+                {
+                    key: 'provider',
+                    projectName: 'provider',
+                    nodes,
+                    referencedProjects: [],
+                },
+                {
+                    key: 'unrelated',
+                    projectName: 'unrelated',
+                    nodes: [
+                        placeholderExternalNode({
+                            packageName: 'unrelated',
+                            name: 'orders',
+                            version: null,
+                            latestVersion: null,
+                        }),
+                    ],
+                    referencedProjects: [],
+                },
+            ],
+            onSourceResolved,
+        });
+        expect(resolution.passes).toBe(1);
+        expect(resolution.contradictions).toBe(0);
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(nodes);
+        expect(provider.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+        expect(unrelated.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+        expect(
+            resolution.sources?.map(({ key, injectedStubs }) => ({
+                key,
+                injectedStubs,
+            })),
+        ).toEqual([
+            { key: 'consumer', injectedStubs: 2 },
+            { key: 'provider', injectedStubs: 0 },
+            { key: 'unrelated', injectedStubs: 0 },
+        ]);
+        expect(onSourceResolved).toHaveBeenCalledWith(
+            expect.objectContaining({
+                task: consumer,
+                referencedProjects: ['provider'],
+            }),
+        );
+    },
+);
+
+it('learns a new hidden provider on a warm run and records its actual dependencies', async () => {
+    const consumer = withRefs('consumer', []);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, [ref('provider')]),
+    );
+    const provider = scannedTask('provider');
+    const onSourceResolved = vi.fn();
+    const resolution = await resolveCrossSourceManifests({
+        tasks: [consumer, provider, scannedTask('unrelated')],
+        enabled: true,
+        concurrency: 2,
+        cache: [
+            {
+                key: 'consumer',
+                projectName: 'consumer',
+                nodes: [],
+                referencedProjects: [],
+            },
+            {
+                key: 'provider',
+                projectName: 'provider',
+                nodes: [
+                    placeholderExternalNode({
+                        packageName: 'provider',
+                        name: 'orders',
+                        version: null,
+                        latestVersion: null,
+                    }),
+                ],
+                referencedProjects: [],
+            },
+        ],
+        onSourceResolved,
+    });
+    expect(resolution.passes).toBe(2);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+    expect(consumer.fetch.mock.calls[1][0].externalNodes).toEqual([
+        expect.objectContaining({ package_name: 'provider', name: 'orders' }),
+    ]);
+    expect(onSourceResolved).toHaveBeenCalledWith(
+        expect.objectContaining({
+            task: consumer,
+            referencedProjects: ['provider'],
+        }),
+    );
+    expect(
+        resolution.sources?.find(({ key }) => key === 'consumer'),
+    ).toMatchObject({ injectedStubs: 1, lsRuns: 2 });
+});
+
+it('validates a fresh provider learned from a hidden ref on a later pass', async () => {
+    const consumer = withRefs('consumer', []);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, [ref('provider')]),
+    );
+    const provider = scannedTask('provider');
+    const provided = result('provider');
+    (
+        provided.manifest.nodes['model.provider.orders'] as DbtRawModelNode
+    ).access = 'private';
+    provider.fetch.mockResolvedValue(provided);
+    await expect(resolve([consumer, provider])).rejects.toThrow(
+        'defines that model as private',
+    );
+    expect(consumer.fetch).toHaveBeenCalledTimes(2);
+});
+
+it('injects all versions of only the named model for one-argument refs', async () => {
+    const consumer = withRefs('consumer', [ref(null)], ['uses']);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult(
+            'consumer',
+            externalNodes,
+            [ref(null)],
+            ['model.provider.orders.v2'],
+        ),
+    );
+    const provider = scannedTask('provider');
+    const provided = result('provider');
+    provided.manifest.nodes = Object.fromEntries(
+        [1, 2].map((version) => {
+            const node = {
+                ...model('provider'),
+                unique_id: `model.provider.orders.v${version}`,
+                version,
+                latest_version: 2,
+            };
+            return [node.unique_id, node];
+        }),
+    );
+    const extra = model('provider', 'extra');
+    provided.manifest.nodes[extra.unique_id] = extra;
+    provider.fetch.mockResolvedValue(provided);
+    const nodes = [1, 2].map((version) =>
+        placeholderExternalNode({
+            packageName: 'provider',
+            name: 'orders',
+            version: String(version),
+            latestVersion: '2',
+        }),
+    );
+    const resolution = await resolveCrossSourceManifests({
+        tasks: [consumer, provider],
+        enabled: true,
+        concurrency: 2,
+        cache: [
+            {
+                key: 'provider',
+                projectName: 'provider',
+                nodes: [
+                    ...nodes,
+                    placeholderExternalNode({
+                        packageName: 'provider',
+                        name: 'extra',
+                        version: null,
+                        latestVersion: null,
+                    }),
+                ],
+                referencedProjects: [],
+            },
+        ],
+    });
+    expect(resolution.passes).toBe(1);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(nodes);
+    expect(resolution.stubs?.cached).toBe(2);
+});
+
+it('accepts a shared installed package with the same model name as an explicit provider ref', async () => {
+    const refs = [ref('p', 'm')];
+    const consumer = withRefs('c', refs);
+    consumer.prepare.mockResolvedValue({
+        ...(await consumer.prepare()),
+        installedPackages: ['x'],
+        installedPackageModels: ['m'],
+    });
+    consumer.fetch.mockImplementation(async ({ externalNodes }) => {
+        const fetched = boundResult('c', externalNodes, refs);
+        fetched.manifest.nodes['model.x.m'] = model('x', 'm');
+        return fetched;
+    });
+    const provider = withRefs('p', [], ['m']);
+    provider.prepare.mockResolvedValue({
+        ...(await provider.prepare()),
+        installedPackages: ['x'],
+        installedPackageModels: ['m'],
+    });
+    const provided = result('p');
+    provided.manifest.nodes = Object.fromEntries(
+        [model('p', 'm'), model('x', 'm')].map((node) => [
+            node.unique_id,
+            node,
+        ]),
+    );
+    provider.fetch.mockResolvedValue(provided);
+    const resolution = await resolve([consumer, provider]);
+    expect(resolution.passes).toBe(1);
+    expect(resolution.contradictions).toBe(0);
+    expect(consumer.fetch).toHaveBeenCalledTimes(1);
+});
+
+it.each(['deleted', 'private'])(
+    'validates a %s provider model referenced by a snapshot',
+    async (condition) => {
+        const refs = [ref('p', 'm')];
+        const consumer = withRefs('c', refs);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) => {
+            const fetched = boundResult('c', externalNodes, refs);
+            const own = fetched.manifest.nodes['model.c.orders'];
+            delete fetched.manifest.nodes['model.c.orders'];
+            const snapshot = {
+                ...own,
+                name: 's',
+                unique_id: 'snapshot.c.s',
+                resource_type: 'snapshot',
+            };
+            fetched.manifest.nodes['snapshot.c.s'] = snapshot;
+            return fetched;
+        });
+        const provider = withRefs('p', [], ['m']);
+        const provided = result('p');
+        provided.manifest.nodes =
+            condition === 'deleted'
+                ? {}
+                : {
+                      'model.p.m': Object.assign(model('p', 'm'), {
+                          access: 'private',
+                      }),
+                  };
+        provider.fetch.mockResolvedValue(provided);
+        await expect(resolve([consumer, provider])).rejects.toThrow(
+            `Model "s" in dbt source "c" references ref('p', 'm'), but dbt source "p" ${condition === 'deleted' ? 'does not define that model (or version)' : 'defines that model as private'}.`,
+        );
+        expect(consumer.fetch).toHaveBeenCalledTimes(1);
+    },
+);
+
+it('rejects a cycle through a snapshot with its node path', async () => {
+    const a = withRefs('a', [ref('b', 'm')], ['m']);
+    const b = withRefs('b', [ref('a', 'm')], ['m']);
+    a.fetch.mockImplementation(async ({ externalNodes }) => {
+        const fetched = boundResult('a', externalNodes, [ref('b', 'm')]);
+        const own = fetched.manifest.nodes['model.a.orders'];
+        delete fetched.manifest.nodes['model.a.orders'];
+        const renamed = { ...own, unique_id: 'model.a.m', name: 'm' };
+        fetched.manifest.nodes['model.a.m'] = renamed;
+        return fetched;
+    });
+    b.fetch.mockImplementation(async ({ externalNodes }) => {
+        const fetched = boundResult('b', externalNodes, [ref('a', 'm')]);
+        const own = fetched.manifest.nodes['model.b.orders'];
+        delete fetched.manifest.nodes['model.b.orders'];
+        const snapshot = {
+            ...own,
+            unique_id: 'snapshot.b.s',
+            name: 's',
+            resource_type: 'snapshot',
+        };
+        fetched.manifest.nodes['snapshot.b.s'] = snapshot;
+        fetched.manifest.nodes['model.b.m'] = Object.assign(model('b', 'm'), {
+            depends_on: { nodes: ['snapshot.b.s'] },
+        });
+        return fetched;
+    });
+    await expect(resolve([a, b])).rejects.toThrow(
+        'model.a.m -> model.b.m -> snapshot.b.s -> model.a.m',
+    );
+});
+
+it('names only the contradicted refs at the retry cap', async () => {
+    const refs = [ref('p', 'm'), ref('q', 'stable')];
+    const consumer = withRefs('c', refs);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('c', externalNodes, refs),
+    );
+    const p = withRefs('p', [], ['m']);
+    const q = withRefs('q', [], ['stable']);
+    p.fetch.mockResolvedValue({
+        ...result('p'),
+        manifest: {
+            ...manifest('p'),
+            nodes: {
+                'model.p.m': Object.assign(model('p', 'm'), {
+                    access: 'protected',
+                }),
+            },
+        },
+    });
+    q.fetch.mockResolvedValue({
+        ...result('q'),
+        manifest: {
+            ...manifest('q'),
+            nodes: { 'model.q.stable': model('q', 'stable') },
+        },
+    });
+    const resolution = resolveCrossSourceManifests({
+        tasks: [consumer, p, q],
+        enabled: true,
+        concurrency: 2,
+        maxPasses: 1,
+    });
+    await expect(resolution).rejects.toThrow('model "m" from dbt source "p"');
+    await expect(resolution).rejects.not.toThrow('stable');
+    await expect(resolution).rejects.not.toThrow('dbt source "q"');
+});
+
+it('restores the clear error for a single missing provider', async () => {
+    const consumer = withRefs('analytics', []);
+    consumer.fetch.mockRejectedValue(missing('shared_dimensions', 'calendar'));
+    await expect(resolve([consumer])).rejects.toThrow(
+        `dbt source "analytics" references ref('shared_dimensions', 'calendar'), but no connected dbt source provides project "shared_dimensions".`,
+    );
+});
+
+it('groups each missing provider ref by its source', async () => {
+    const a = withRefs('a', []);
+    const b = withRefs('b', []);
+    a.fetch.mockRejectedValue(
+        new DbtError(
+            [missing('p', 'm').message, missing('q', 'n').message].join('\n'),
+        ),
+    );
+    b.fetch.mockRejectedValue(missing('r', 'o'));
+    await expect(resolve([a, b])).rejects.toThrow(
+        [
+            `dbt source "a" references ref('p', 'm'), but no connected dbt source provides project "p".`,
+            `dbt source "a" references ref('q', 'n'), but no connected dbt source provides project "q".`,
+            `dbt source "b" references ref('r', 'o'), but no connected dbt source provides project "r".`,
+        ].join(' '),
+    );
+});
+
+it('reports only the contradicted version of a model at the retry cap', async () => {
+    const refs = [ref('p', 'm', '1'), ref('p', 'm', '2')];
+    const consumer = withRefs('c', refs);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('c', externalNodes, refs, ['model.p.m.v1', 'model.p.m.v2']),
+    );
+    const provider = withRefs('p', [], ['m']);
+    const provided = result('p');
+    provided.manifest.nodes = Object.fromEntries(
+        [1, 2].map((version) => {
+            const node = {
+                ...model('p', 'm'),
+                unique_id: `model.p.m.v${version}`,
+                version,
+                latest_version: 2,
+                access: version === 1 ? 'protected' : 'public',
+            };
+            return [node.unique_id, node];
+        }),
+    );
+    provider.fetch.mockResolvedValue(provided);
+    const nodes = [1, 2].map((version) =>
+        placeholderExternalNode({
+            packageName: 'p',
+            name: 'm',
+            version: String(version),
+            latestVersion: '2',
+        }),
+    );
+    const resolution = resolveCrossSourceManifests({
+        tasks: [consumer, provider],
+        enabled: true,
+        concurrency: 2,
+        maxPasses: 1,
+        cache: [{ key: 'p', projectName: 'p', nodes, referencedProjects: [] }],
+    });
+    await expect(resolution).rejects.toThrow(
+        'model "m" (version "1") from dbt source "p"',
+    );
+    await expect(resolution).rejects.not.toThrow('version "2"');
+});
+
+describe('source final callback', () => {
+    it('finalizes the provider after pass one and a contradicted consumer only after pass two', async () => {
+        const provider = scannedTask('provider');
+        const provided = result('provider');
+        (
+            provided.manifest.nodes['model.provider.orders'] as DbtRawModelNode
+        ).access = 'protected';
+        provider.fetch.mockResolvedValue(provided);
+        const consumer = withRefs('consumer', [ref('provider')]);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, [ref('provider')]),
+        );
+        const final = vi.fn();
+        const rounds: string[][] = [];
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: 'provider',
+                    projectName: 'provider',
+                    referencedProjects: [],
+                    nodes: [
+                        placeholderExternalNode({
+                            packageName: 'provider',
+                            name: 'orders',
+                            version: null,
+                            latestVersion: null,
+                        }),
+                    ],
+                },
+            ],
+            onSourceFinal: (source) => {
+                final(
+                    source.key,
+                    consumer.fetch.mock.calls.length,
+                    provider.fetch.mock.calls.length,
+                );
+            },
+            onRoundComplete: () => {
+                rounds.push(final.mock.calls.map(([key]) => key));
+            },
+        });
+        expect(resolution.passes).toBe(2);
+        expect(resolution.contradictions).toBe(1);
+        expect(rounds).toEqual([['provider'], ['provider', 'consumer']]);
+        expect(final.mock.calls).toEqual([
+            ['provider', 1, 1],
+            ['consumer', 2, 1],
+        ]);
+    });
+
+    it('keeps consumers available while a fresh provider still needs another pass', async () => {
+        const provider = withRefs('provider', [ref('root')]);
+        provider.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('provider', externalNodes, [ref('root')]),
+        );
+        const root = scannedTask('root');
+        const provided = result('root');
+        (
+            provided.manifest.nodes['model.root.orders'] as DbtRawModelNode
+        ).access = 'protected';
+        root.fetch.mockResolvedValue(provided);
+        const consumer = withRefs('consumer', [ref('provider')]);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, [ref('provider')]),
+        );
+        const final = vi.fn();
+        const rounds: string[][] = [];
+        await resolveCrossSourceManifests({
+            tasks: [consumer, provider, root],
+            enabled: true,
+            concurrency: 3,
+            cache: ['provider', 'root'].map((key) => ({
+                key,
+                projectName: key,
+                referencedProjects: [],
+                nodes: [
+                    placeholderExternalNode({
+                        packageName: key,
+                        name: 'orders',
+                        version: null,
+                        latestVersion: null,
+                    }),
+                ],
+            })),
+            onSourceFinal: final,
+            onRoundComplete: () => {
+                rounds.push(final.mock.calls.map(([item]) => item.key).sort());
+            },
+        });
+        expect(rounds).toEqual([['root'], ['consumer', 'provider', 'root']]);
+        expect(consumer.fetch).toHaveBeenCalledOnce();
+        expect(provider.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('calls once after the successful retry and skips sources that never resolve', async () => {
+        const final = vi.fn();
+        const leaf = task(
+            'leaf_a',
+            vi
+                .fn()
+                .mockRejectedValueOnce(missing('leaf_b'))
+                .mockImplementationOnce(async () => {
+                    expect(
+                        final.mock.calls.map(([item]) => item.key),
+                    ).not.toContain('leaf_a');
+                    return result('leaf_a');
+                }),
+        );
+        await resolveCrossSourceManifests({
+            tasks: [leaf, task('leaf_b')],
+            enabled: true,
+            concurrency: 1,
+            onSourceFinal: final,
+        });
+        expect(final.mock.calls.map(([item]) => item.key)).toEqual([
+            'leaf_b',
+            'leaf_a',
+        ]);
+        final.mockClear();
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [
+                    task(
+                        'leaf_c',
+                        vi.fn().mockRejectedValue(missing('unknown')),
+                    ),
+                ],
+                enabled: true,
+                concurrency: 1,
+                onSourceFinal: final,
+            }),
+        ).rejects.toThrow();
+        expect(final).not.toHaveBeenCalled();
+    });
+    it('ignores the callback when disabled', async () => {
+        const final = vi.fn();
+        await resolveCrossSourceManifests({
+            tasks: [task('leaf_a')],
+            enabled: false,
+            concurrency: 1,
+            onSourceFinal: final,
+        });
+        expect(final).not.toHaveBeenCalled();
+    });
+});
+
+describe('source recreation deadline', () => {
+    it.each(['projectName', 'declaredUpstreams'] as const)(
+        'rejects a recreated source with a changed %s before fetching',
+        async (field) => {
+            const source: CrossSourceFetchTask<string> = scannedTask('leaf_a');
+            const original = await source.prepare!();
+            source.prepareFetch = vi.fn(async () => ({
+                ...original!,
+                [field]: field === 'projectName' ? 'renamed' : ['new_upstream'],
+            }));
+            const final = vi.fn();
+            await expect(
+                resolveCrossSourceManifests({
+                    tasks: [source],
+                    enabled: true,
+                    concurrency: 1,
+                    onSourceFinal: final,
+                }),
+            ).rejects.toThrow(
+                'dbt source "leaf_a" changed while this project was compiling. Refresh dbt again.',
             );
+            expect(source.fetch).not.toHaveBeenCalled();
+            expect(final).not.toHaveBeenCalled();
         },
     );
-    it('does not warn for a local single-argument ref beside a qualified external ref with the same name', async () => {
-        const consumer = scannedTask('consumer', ['upstream']);
-        const fetched = result('consumer');
-        const local = model('consumer');
-        const stub = {
-            ...model('upstream'),
-            path: '',
-            original_file_path: '',
+
+    it('allows declared upstreams to be reordered when a source is recreated', async () => {
+        const source: CrossSourceFetchTask<string> = scannedTask(
+            'leaf_a',
+            [],
+            ['leaf_b', 'leaf_c'],
+        );
+        const original = await source.prepare!();
+        source.prepareFetch = vi.fn(async () => ({
+            ...original!,
+            declaredUpstreams: ['leaf_c', 'leaf_b'],
+        }));
+        await resolve([source, scannedTask('leaf_b'), scannedTask('leaf_c')]);
+        expect(source.fetch).toHaveBeenCalledOnce();
+    });
+
+    it('applies the prepare deadline before a re-created source can fetch', async () => {
+        const leaf = task('leaf_a');
+        leaf.prepareFetch = async ({ signal }) =>
+            new Promise((_resolve, reject) => {
+                signal.addEventListener('abort', () => reject(signal.reason), {
+                    once: true,
+                });
+            });
+        const final = vi.fn();
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [leaf],
+                concurrency: 1,
+                enabled: true,
+                timeouts: { prepareMs: 10, lsMs: 1000, resolutionMs: 2000 },
+                onSourceFinal: final,
+            }),
+        ).rejects.toThrow(
+            'while cloning the repository and installing dbt packages',
+        );
+        expect(leaf.fetch).not.toHaveBeenCalled();
+        expect(final).not.toHaveBeenCalled();
+    });
+});
+
+it.each(['cached', 'fresh'])(
+    'drops dangling provider dependencies from targeted %s injection',
+    async (origin) => {
+        const refs = [ref(null)];
+        const consumer = withRefs('consumer', refs, ['uses']);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, refs),
+        );
+        const provider = scannedTask('p');
+        const provided = result('p');
+        (
+            provided.manifest.nodes['model.p.orders'] as DbtRawModelNode
+        ).depends_on = {
+            nodes: ['model.p.base'],
         };
-        const mixed = {
-            ...model('consumer', 'mixed'),
-            refs: [
-                { name: 'orders', package: null, version: null },
-                { name: 'orders', package: 'upstream', version: null },
+        provided.manifest.nodes['model.p.base'] = model('p', 'base');
+        provider.fetch.mockResolvedValue(provided);
+        if (origin === 'fresh')
+            consumer.prepare.mockResolvedValue({
+                ...(await consumer.prepare()),
+                refs: [],
+            });
+        if (origin === 'fresh')
+            consumer.fetch.mockRejectedValueOnce(
+                new DbtError(
+                    "depends on a node named 'orders' which was not found",
+                ),
+            );
+        await resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache:
+                origin === 'cached'
+                    ? [
+                          {
+                              key: 'p',
+                              projectName: 'p',
+                              referencedProjects: [],
+                              nodes: [
+                                  {
+                                      ...placeholderExternalNode({
+                                          packageName: 'p',
+                                          name: 'orders',
+                                          version: null,
+                                          latestVersion: null,
+                                      }),
+                                      depends_on_nodes: ['model.p.base'],
+                                  },
+                              ],
+                          },
+                      ]
+                    : [],
+        });
+        const injected = consumer.fetch.mock.calls.at(-1)![0].externalNodes;
+        expect(injected).toHaveLength(1);
+        expect(injected[0].depends_on_nodes).toEqual([]);
+        expect(
+            (provided.manifest.nodes['model.p.orders'] as DbtRawModelNode)
+                .depends_on?.nodes,
+        ).toEqual(['model.p.base']);
+    },
+);
+
+it.each(['private', 'public'] as const)(
+    'validates fresh access after injecting a permissive %s cache hint',
+    async (cachedAccess) => {
+        const refs = [ref('p')];
+        const consumer = withRefs('consumer', refs, ['uses']);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) => {
+            if (externalNodes.some((node) => node.access === 'private'))
+                throw new DbtError('dbt rejected a private stub');
+            return boundResult('consumer', externalNodes, refs);
+        });
+        const provider = scannedTask('p');
+        const provided = result('p');
+        (provided.manifest.nodes['model.p.orders'] as DbtRawModelNode).access =
+            cachedAccess === 'private' ? 'public' : 'private';
+        provider.fetch.mockResolvedValue(provided);
+        const resolution = resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: 'p',
+                    projectName: 'p',
+                    referencedProjects: [],
+                    nodes: [
+                        {
+                            ...placeholderExternalNode({
+                                packageName: 'p',
+                                name: 'orders',
+                                version: null,
+                                latestVersion: null,
+                            }),
+                            access: cachedAccess,
+                        },
+                    ],
+                },
             ],
-            depends_on: { nodes: [stub.unique_id, local.unique_id] },
+        });
+        if (cachedAccess === 'private')
+            expect((await resolution).passes).toBe(1);
+        else
+            await expect(resolution).rejects.toThrow(
+                `Model "orders" in dbt source "consumer" references ref('p', 'orders'), but dbt source "p" defines that model as private.`,
+            );
+    },
+);
+
+it('selects different one-argument providers for disjoint requested versions', async () => {
+    const refs = [ref(null, 'orders', '1'), ref(null, 'orders', '2')];
+    const consumer = withRefs('consumer', refs, ['uses']);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, refs),
+    );
+    const providers = ['p', 'q'].map((key, index) => {
+        const provider = scannedTask(key);
+        const provided = result(key);
+        const node = {
+            ...model(key),
+            version: index + 1,
+            latest_version: index + 1,
+            unique_id: `model.${key}.orders.v${index + 1}`,
         };
-        fetched.manifest.nodes[stub.unique_id] = stub;
-        fetched.manifest.nodes[mixed.unique_id] = mixed;
-        consumer.fetch.mockResolvedValue(fetched);
-        const resolution = await resolve([consumer, scannedTask('upstream')]);
-        expect(resolution.warnings).toEqual([]);
+        provided.manifest.nodes = { [node.unique_id]: node };
+        provider.fetch.mockResolvedValue(provided);
+        return provider;
     });
-    it('does not warn for an installed-package ref resolved in the root project beside a qualified external version', async () => {
-        const consumer = scannedTask('root', ['upstream']);
-        const fetched = result('root');
-        const local = model('root');
-        const stub = {
-            ...model('upstream'),
-            unique_id: 'model.upstream.orders.v2',
-            version: 2,
-            latest_version: 2,
-            path: '',
-            original_file_path: '',
-        };
-        const mixed = {
-            ...model('installed', 'mixed'),
-            refs: [
-                { name: 'orders', package: null, version: null },
-                { name: 'orders', package: 'upstream', version: 2 },
+    const resolution = await resolveCrossSourceManifests({
+        tasks: [consumer, ...providers],
+        enabled: true,
+        concurrency: 2,
+        cache: ['p', 'q'].map((key, index) => ({
+            key,
+            projectName: key,
+            referencedProjects: [],
+            nodes: [
+                placeholderExternalNode({
+                    packageName: key,
+                    name: 'orders',
+                    version: String(index + 1),
+                    latestVersion: String(index + 1),
+                }),
             ],
-            depends_on: { nodes: [stub.unique_id, local.unique_id] },
-        };
-        fetched.manifest.nodes[stub.unique_id] = stub;
-        fetched.manifest.nodes[mixed.unique_id] = mixed;
-        consumer.fetch.mockResolvedValue(fetched);
-        const resolution = await resolve([consumer, scannedTask('upstream')]);
-        expect(resolution.warnings).toEqual([]);
+        })),
     });
-    it('does not prepare or inject when disabled', async () => {
-        const a = scannedTask('a');
-        await resolve([a], false);
-        expect(a.prepare).not.toHaveBeenCalled();
-    });
+    expect(resolution.passes).toBe(1);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toHaveLength(2);
+    expect(
+        (
+            resolution.results[0].result.manifest.nodes[
+                'model.consumer.orders'
+            ] as DbtRawModelNode
+        ).depends_on?.nodes,
+    ).toEqual(['model.p.orders.v1', 'model.q.orders.v2']);
+});
+
+it('explains ambiguous one-argument names without calling them hidden refs', async () => {
+    const consumer = withRefs('consumer', [ref(null)], ['uses']);
+    consumer.fetch.mockRejectedValue(
+        new DbtError("depends on a node named 'orders' which was not found"),
+    );
+    const resolution = resolve([consumer, scannedTask('p'), scannedTask('q')]);
+    await expect(resolution).rejects.toThrow(
+        "name 'orders' is defined by several dbt sources. Use ref('project', 'model')",
+    );
+    await expect(resolution).rejects.not.toThrow(
+        'could not be found before compiling',
+    );
 });

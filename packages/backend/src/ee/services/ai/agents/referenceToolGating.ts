@@ -47,12 +47,14 @@ const DATA_APP_CREATE_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'generateDataApp',
     'listDataAppThemes',
+    'listDataAppConnections',
 ]);
 
 const DATA_APP_ITERATE_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'iterateDataApp',
     'listDataAppThemes',
+    'listDataAppConnections',
 ]);
 
 const DATA_APP_READ_TOOLS = new Set(REFERENCE_TOOLS);

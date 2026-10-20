@@ -23,6 +23,7 @@ const tools = () => ({
     generateDataApp: tool({ inputSchema: z.object({}) }),
     iterateDataApp: tool({ inputSchema: z.object({}) }),
     listDataAppThemes: tool({ inputSchema: z.object({}) }),
+    listDataAppConnections: tool({ inputSchema: z.object({}) }),
     createContent: tool({ inputSchema: z.object({}) }),
     runContentQuery: tool({ inputSchema: z.object({}) }),
     runSql: tool({ inputSchema: z.object({}) }),
@@ -133,6 +134,7 @@ describe('intent toolbox', () => {
                 'findContent',
                 'generateDataApp',
                 'listDataAppThemes',
+                'listDataAppConnections',
             ]),
         );
         expect(
@@ -145,6 +147,7 @@ describe('intent toolbox', () => {
                 'findContent',
                 'iterateDataApp',
                 'listDataAppThemes',
+                'listDataAppConnections',
             ]),
         );
         expect(

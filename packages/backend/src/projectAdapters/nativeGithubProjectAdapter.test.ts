@@ -14,6 +14,7 @@ import { toDbtTarget } from '../dbt/targets';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
+import { GitRepository } from './gitRepository';
 import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 import { projectAdapterFromConfig } from './projectAdapter';
 
@@ -73,6 +74,28 @@ describe('native GitHub server compilation', () => {
             },
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];
+
+    it('passes cancellation through the native repository test', async () => {
+        const adapter = await createAdapter();
+        adapters.push(adapter);
+        const controller = new AbortController();
+        const reason = new Error('leaf_a interrupted');
+        const refresh = vi
+            .spyOn(GitRepository.prototype, 'refresh')
+            .mockImplementationOnce(async (signal) => {
+                expect(signal).toBe(controller.signal);
+                controller.abort(reason);
+                signal!.throwIfAborted();
+            });
+        try {
+            await expect(
+                adapter.test({ signal: controller.signal }),
+            ).rejects.toBe(reason);
+            expect(refresh).toHaveBeenCalledOnce();
+        } finally {
+            refresh.mockRestore();
+        }
+    });
 
     beforeEach(() => {
         vi.clearAllMocks();

@@ -351,6 +351,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
             }) =>
                 new ContentReviewNotificationService({
+                    directAccessModel: models.getDirectAccessModel(),
                     groupsModel: models.getGroupsModel(),
                     notificationsModel: models.getNotificationsModel(),
                     schedulerClient: clients.getSchedulerClient(),
@@ -1208,6 +1209,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    dbtSourceRefCatalogModel:
+                        models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
                         repository.getAgentConnectionGrantService(),
                     refreshTokenRotation: models.getRefreshTokenRotation(),
@@ -1448,6 +1451,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    dbtSourceRefCatalogModel:
+                        models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     getDocumentService: () => repository.getDocumentService(),

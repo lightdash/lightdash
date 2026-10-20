@@ -86,6 +86,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionLink,
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppThread,
@@ -138,6 +139,7 @@ import {
     type DocumentQueryReference,
     type EmbedProjectApp,
     type Explore,
+    type ExternalConnection,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
@@ -152,6 +154,7 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RecordDataAppViewOutcome,
     type RegisteredAccount,
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
@@ -217,6 +220,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { type UserModel } from '../../../models/UserModel';
 import {
     mintPreviewToken,
+    verifyPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
 import {
@@ -386,6 +390,7 @@ import {
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { assertValidDistTar } from './distTarValidation';
+import type { ConnectionSlugLookup } from './externalConnectionSlugLookup';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import {
@@ -1834,29 +1839,6 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /**
-     * Link the given external connections to the app before its catalog stage,
-     * so the generated app can call them via client.externalFetch. A connection
-     * from another project is never linked (that would expose its credentialed
-     * proxy to a foreign app). Linking is idempotent, so re-sending an
-     * already-linked connection is fine.
-     */
-    private async linkExternalConnections(
-        user: SessionUser,
-        projectUuid: string,
-        appId: string,
-        externalConnections: AppExternalConnectionReference[] | undefined,
-    ): Promise<AppVersionExternalConnectionResource[]> {
-        const resolved = await this.resolveExternalConnectionResources(
-            user,
-            projectUuid,
-            appId,
-            externalConnections,
-        );
-        await this.linkResolvedExternalConnections(appId, resolved);
-        return resolved;
-    }
-
     private async resolveExternalConnectionResources(
         user: SessionUser,
         projectUuid: string,
@@ -1954,38 +1936,119 @@ export class AppGenerateService extends BaseService {
             seenAliases.add(link.alias);
         }
 
-        const ability = this.createAuditedAbility(user);
+        const lookups = await this.lookupExternalConnectionSlugsInOrganization(
+            user,
+            projectUuid,
+            organizationUuid,
+            links.map((link) => link.connectionSlug),
+        );
         const resolvedLinks: AppExternalConnectionReference[] = [];
         const linkWarnings: string[] = [];
-        for (const link of links) {
-            // eslint-disable-next-line no-await-in-loop
-            const connection = await this.externalConnectionModel.findBySlug(
-                projectUuid,
-                organizationUuid,
-                link.connectionSlug,
-            );
-            if (!connection) {
-                linkWarnings.push(
-                    `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
-                );
-                // eslint-disable-next-line no-continue
-                continue;
+        links.forEach((link, index) => {
+            const lookup = lookups[index];
+            switch (lookup.status) {
+                case 'not_found':
+                    linkWarnings.push(
+                        `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
+                    );
+                    break;
+                case 'not_linkable':
+                    throw new ForbiddenError(
+                        'You do not have permission to link this external connection',
+                    );
+                case 'found':
+                    resolvedLinks.push({
+                        externalConnectionUuid:
+                            lookup.connection.externalConnectionUuid,
+                        alias: link.alias,
+                    });
+                    break;
+                default:
+                    assertUnreachable(lookup, 'Unknown connection lookup');
             }
-            // Linking attaches a credentialed connection to an app — hold the
-            // same bar as the link API and the generation pipeline.
-            if (
-                ability.cannot('view', getExternalConnectionSubject(connection))
-            ) {
-                throw new ForbiddenError(
-                    'You do not have permission to link this external connection',
-                );
-            }
-            resolvedLinks.push({
-                externalConnectionUuid: connection.externalConnectionUuid,
-                alias: link.alias,
-            });
-        }
+        });
         return { resolvedLinks, linkWarnings };
+    }
+
+    /**
+     * Resolves connection slugs in a project. Linking attaches a credentialed
+     * connection to an app, so it holds the same bar as the link API.
+     */
+    private async lookupExternalConnectionSlugsInOrganization(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        slugs: string[],
+    ): Promise<ConnectionSlugLookup[]> {
+        const ability = this.createAuditedAbility(user);
+        return Promise.all(
+            slugs.map(async (slug): Promise<ConnectionSlugLookup> => {
+                const connection =
+                    await this.externalConnectionModel.findBySlug(
+                        projectUuid,
+                        organizationUuid,
+                        slug,
+                    );
+                if (!connection) return { slug, status: 'not_found' };
+                if (
+                    ability.cannot(
+                        'view',
+                        getExternalConnectionSubject(connection),
+                    )
+                ) {
+                    return { slug, status: 'not_linkable' };
+                }
+                return { slug, status: 'found', connection };
+            }),
+        );
+    }
+
+    async lookupExternalConnectionSlugs(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ConnectionSlugLookup[]> {
+        if (slugs.length === 0) return [];
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return this.lookupExternalConnectionSlugsInOrganization(
+            user,
+            projectUuid,
+            organizationUuid,
+            slugs,
+        );
+    }
+
+    /** Project connections the user may link to a data app. */
+    async listLinkableExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ExternalConnection[]> {
+        await this.assertDataAppsEnabled(user);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(user);
+        const connections = await this.externalConnectionModel.list(
+            projectUuid,
+            organizationUuid,
+        );
+        return connections.filter((connection) =>
+            ability.can('view', getExternalConnectionSubject(connection)),
+        );
+    }
+
+    async listAppExternalConnectionLinks(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+    ): Promise<AppExternalConnectionLink[]> {
+        await this.assertCanViewApp(user, app);
+        const links = await this.externalConnectionModel.listAppLinks(
+            app.app_id,
+        );
+        return links.map(({ alias, connection }) => ({
+            alias,
+            externalConnectionUuid: connection.externalConnectionUuid,
+        }));
     }
 
     /**
@@ -7938,12 +8001,14 @@ export class AppGenerateService extends BaseService {
                 : undefined;
         const codingAgentModel = codexModel ?? claudeModel;
 
-        const externalConnectionResources = await this.linkExternalConnections(
-            user,
-            projectUuid,
-            appUuid,
-            externalConnections,
-        );
+        // Validated now, linked only after every rejection check below.
+        const externalConnectionResources =
+            await this.resolveExternalConnectionResources(
+                user,
+                projectUuid,
+                appUuid,
+                externalConnections,
+            );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -8048,6 +8113,11 @@ export class AppGenerateService extends BaseService {
             appUuid,
             newVersion,
             latestVersion?.dependencies,
+        );
+
+        await this.linkResolvedExternalConnections(
+            appUuid,
+            externalConnectionResources,
         );
 
         const agentIdentity = getContentWriteAgentIdentity({
@@ -11238,6 +11308,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
         version: number,
+        viewContext: 'chart' | 'mcp' = 'chart',
     ): Promise<string> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
@@ -11261,7 +11332,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
-            'chart',
+            viewContext,
         );
     }
 
@@ -12220,6 +12291,47 @@ export class AppGenerateService extends BaseService {
                 passThrough.end(tarBuffer);
             },
         );
+    }
+
+    recordViewOutcome(
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+        body: RecordDataAppViewOutcome,
+    ): void {
+        const verified = verifyPreviewToken(
+            body.previewToken,
+            this.lightdashConfig.lightdashSecrets,
+            appUuid,
+            version,
+        );
+        if (!verified.ok || verified.payload.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Invalid or expired preview token');
+        }
+        if (
+            !isValidUuid(body.navigationId) ||
+            !['sdk_started', 'runtime_error'].includes(body.outcome)
+        ) {
+            throw new ParameterError('Invalid app view outcome');
+        }
+        const { payload } = verified;
+        try {
+            this.analytics.track({
+                event: 'data_app.view_outcome',
+                userId: payload.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    appUuid: payload.appUuid,
+                    version: payload.version,
+                    viewContext: payload.viewContext,
+                    navigationId: body.navigationId,
+                    outcome: body.outcome,
+                },
+            });
+        } catch {
+            this.logger.warn('Failed to record app view outcome');
+        }
     }
 
     async getPreviewToken(

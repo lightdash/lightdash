@@ -11,6 +11,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
+    getTrainingProjectLockedSubjects,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
     getUserAbilityBuilder,
@@ -102,6 +103,11 @@ export type CreatePasswordlessUserArgs = {
 
 type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
 
+type OrganizationTrainingProject = {
+    project_uuid: string;
+    created_by_user_uuid: string | null;
+};
+
 export type DbUserDetails = {
     user_id: number;
     user_uuid: string;
@@ -125,6 +131,14 @@ export type DbUserDetails = {
     avatar_gradient: string | null;
     avatar_content_hash: string | null;
     updated_at: Date;
+    /**
+     * The organization's shared training project, joined in by
+     * `userDetailsQueryBuilder` so building abilities needs no extra read.
+     * `null` when the organization has none; `undefined` when the row came
+     * from a query that did not select it.
+     */
+    training_project_uuid?: string | null;
+    training_project_created_by_user_uuid?: string | null;
 };
 
 export const mapDbUserDetailsToLightdashUser = (
@@ -186,6 +200,24 @@ const userDetailsQueryBuilder = (
             'organizations',
             'organization_memberships.organization_id',
             'organizations.organization_id',
+        )
+        // The org's shared training project (one per org; DISTINCT ON keeps
+        // a stray second one from duplicating the user row).
+        .leftJoin(
+            db(ProjectTableName)
+                .distinctOn('organization_id')
+                .select(
+                    'organization_id as training_organization_id',
+                    'project_uuid as training_project_uuid',
+                    'created_by_user_uuid as training_project_created_by_user_uuid',
+                )
+                // A literal, not a binding: a parameter here would renumber
+                // every placeholder after it in queries built on this one.
+                .whereRaw(`project_type = '${ProjectType.TRAINING}'`)
+                .orderBy(['organization_id', 'project_id'])
+                .as('org_training_projects'),
+            'organizations.organization_id',
+            'org_training_projects.training_organization_id',
         );
 
 type UserModelArguments = {
@@ -1407,6 +1439,7 @@ export class UserModel {
             isEnterprise,
             abilityBuilder,
             learnFlag.enabled,
+            UserModel.trainingProjectFromUserDetails(user),
             trx,
         );
 
@@ -1417,6 +1450,41 @@ export class UserModel {
     }
 
     /**
+     * The training project the user-details row carries: `null` when the
+     * org has none, `undefined` when the row did not select it (then it is
+     * read from the database).
+     */
+    private static trainingProjectFromUserDetails(
+        user: DbUserDetails,
+    ): OrganizationTrainingProject | null | undefined {
+        if (user.training_project_uuid === undefined) return undefined;
+        if (user.training_project_uuid === null) return null;
+        return {
+            project_uuid: user.training_project_uuid,
+            created_by_user_uuid:
+                user.training_project_created_by_user_uuid ?? null,
+        };
+    }
+
+    /** The organization's shared training project, if one has been provisioned. */
+    private async getOrganizationTrainingProject(
+        organizationId: number,
+        trx: Knex = this.database,
+    ): Promise<
+        | { project_uuid: string; created_by_user_uuid: string | null }
+        | undefined
+    > {
+        return trx(ProjectTableName)
+            .select<{
+                project_uuid: string;
+                created_by_user_uuid: string | null;
+            }>('project_uuid', 'created_by_user_uuid')
+            .where('organization_id', organizationId)
+            .where('project_type', ProjectType.TRAINING)
+            .first();
+    }
+
+    /**
      * The organization's training project, if one has been provisioned, plus
      * this user's own preview copies of it (made for walkthroughs). Other
      * users' copies are not included.
@@ -1424,6 +1492,7 @@ export class UserModel {
     private async getTrainingProjects(
         organizationId: number,
         userUuid: string,
+        training: OrganizationTrainingProject | undefined,
         trx: Knex = this.database,
     ): Promise<
         {
@@ -1432,14 +1501,6 @@ export class UserModel {
             createdByUserUuid: string | null;
         }[]
     > {
-        const training = await trx(ProjectTableName)
-            .select<{
-                project_uuid: string;
-                created_by_user_uuid: string | null;
-            }>('project_uuid', 'created_by_user_uuid')
-            .where('organization_id', organizationId)
-            .where('project_type', ProjectType.TRAINING)
-            .first();
         if (!training) {
             return [];
         }
@@ -1470,6 +1531,21 @@ export class UserModel {
     }
 
     /**
+     * Nobody writes to the shared training project, org admins and its
+     * assigned admin included: walkthrough copies are cloned from it, so a
+     * write there would reach every learner's next copy. Inverted rules
+     * override the org-wide `manage` an org admin already holds.
+     */
+    private static lockTrainingProject(
+        projectUuid: string,
+        builder: AbilityBuilder<MemberAbility>,
+    ): void {
+        getTrainingProjectLockedSubjects().forEach((lockedSubject) => {
+            builder.cannot('manage', lockedSubject, { projectUuid });
+        });
+    }
+
+    /**
      * The trainee layer: every member of an organization, whatever their org
      * role, gets `getTrainingProjectScopes()` on the org's training project
      * (`projects.project_type = 'TRAINING'`) and on their own preview copies
@@ -1485,21 +1561,33 @@ export class UserModel {
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
         learnEnabled: boolean,
+        knownTrainingProject: OrganizationTrainingProject | null | undefined,
         trx: Knex = this.database,
     ): Promise<void> {
-        // Learn off for the org: no trainee scopes, even if a training
-        // project is left over, so switching off also closes the sandbox.
-        if (!learnEnabled) return;
+        const training =
+            knownTrainingProject === undefined
+                ? await this.getOrganizationTrainingProject(organizationId, trx)
+                : (knownTrainingProject ?? undefined);
+        // Learn off for the org, or this user may not see Learn: no trainee
+        // scopes, so switching off also closes the sandbox. The lock still
+        // applies, so the seed cannot be edited meanwhile and then cloned
+        // once Learn is back.
         if (
+            !learnEnabled ||
             !organizationUuid ||
             builder
                 .build()
                 .cannot('view', caslSubject('Learn', { organizationUuid }))
-        )
+        ) {
+            if (training) {
+                UserModel.lockTrainingProject(training.project_uuid, builder);
+            }
             return;
+        }
         const trainingProjects = await this.getTrainingProjects(
             organizationId,
             userUuid,
+            training,
             trx,
         );
         // The shared training project is read-only for learners; their own
@@ -1507,6 +1595,11 @@ export class UserModel {
         const viewerScopes = getTrainingProjectViewerScopes();
         const traineeScopes = getTrainingProjectScopes();
         trainingProjects.forEach((project) => {
+            // Before the viewer grants: CASL's last matching rule wins, so
+            // they re-open `view` on the locked subjects and nothing else.
+            if (project.projectType === ProjectType.TRAINING) {
+                UserModel.lockTrainingProject(project.projectUuid, builder);
+            }
             buildAbilityFromScopes(
                 {
                     projectUuid: project.projectUuid,

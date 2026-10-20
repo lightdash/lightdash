@@ -199,6 +199,13 @@ const buildService = () => {
         isEnabledForUser: vi.fn().mockResolvedValue(true),
     };
     const directAccessModel = {
+        listUsers: vi
+            .fn()
+            .mockResolvedValue([
+                { userUuid: REVIEWER },
+                { userUuid: 'viewer-uuid' },
+                { userUuid: REQUESTER },
+            ]),
         upsertAccess: vi.fn().mockResolvedValue({}),
         revokeAccess: vi.fn().mockResolvedValue({}),
     };
@@ -347,6 +354,53 @@ describe('ContentReviewRequestService', () => {
                 slug: 'weekly-revenue',
             });
             expect(detail.targetSpaceName).toBe('Finance');
+        });
+
+        test('skips space admins who cannot receive a grant instead of failing the request', async () => {
+            const {
+                service,
+                directAccessModel,
+                spacePermissionService,
+                contentReviewRequestModel,
+            } = buildService();
+            spacePermissionService.getPaginatedSpaceAccess.mockResolvedValue({
+                data: [
+                    { userUuid: REVIEWER, role: SpaceMemberRole.EDITOR },
+                    {
+                        userUuid: 'service-account-admin',
+                        role: SpaceMemberRole.ADMIN,
+                    },
+                    { userUuid: REQUESTER, role: SpaceMemberRole.ADMIN },
+                ],
+            });
+
+            await service.submit(requester, PROJECT, submitBody);
+
+            expect(directAccessModel.listUsers).toHaveBeenCalledWith({
+                organizationUuid: ORG,
+                projectUuid: PROJECT,
+            });
+            expect(directAccessModel.upsertAccess).toHaveBeenCalledTimes(1);
+            expect(directAccessModel.upsertAccess).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    principal: {
+                        type: DirectAccessPrincipalType.USER,
+                        uuid: REVIEWER,
+                    },
+                }),
+            );
+            expect(contentReviewRequestModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    grantedPrincipals: [
+                        expect.objectContaining({
+                            principal: {
+                                type: DirectAccessPrincipalType.USER,
+                                uuid: REVIEWER,
+                            },
+                        }),
+                    ],
+                }),
+            );
         });
 
         test('routes to the reviewer group when one is configured', async () => {

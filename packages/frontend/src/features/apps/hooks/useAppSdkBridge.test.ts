@@ -154,6 +154,59 @@ describe('useAppSdkBridge', () => {
         vi.clearAllMocks();
     });
 
+    it('accepts generic runtime observations only from this frame with a valid navigation ID', () => {
+        const onRuntimeError = vi.fn();
+        const onSdkManifest = vi.fn();
+        const navigationId = '11111111-1111-4111-8111-111111111111';
+        renderHook(() =>
+            useAppSdkBridge({
+                colorScheme: 'light',
+                iframeRef: {
+                    current: {
+                        contentWindow: window,
+                    } as unknown as HTMLIFrameElement,
+                },
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                previewToken: PREVIEW_TOKEN,
+                onRuntimeError,
+                onSdkManifest,
+            }),
+        );
+        const data = {
+            type: 'lightdash:sdk:runtime-error',
+            navigationId,
+            error: 'private',
+        };
+        window.dispatchEvent(
+            new MessageEvent('message', { data, source: null, origin: 'null' }),
+        );
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                data,
+                source: window,
+                origin: 'https://foreign.example',
+            }),
+        );
+        dispatchFetchMessage({ ...data, navigationId: 'invalid' });
+        expect(onRuntimeError).not.toHaveBeenCalled();
+        dispatchFetchMessage(data);
+        expect(onRuntimeError).toHaveBeenCalledExactlyOnceWith(navigationId);
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:manifest',
+            sdkVersion: '1',
+            features: [],
+            navigationId,
+        });
+        expect(onSdkManifest).toHaveBeenCalledWith({
+            sdkVersion: '1',
+            features: [],
+            fixes: [],
+            navigationId,
+        });
+    });
+
     it('preserves valid fixes and normalizes missing or malformed fix reports', () => {
         const onSdkManifest = vi.fn();
         const iframeRef = {

@@ -8,6 +8,7 @@ import {
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
     AI_AGENT_THREAD_TITLE_MAX_LENGTH,
     AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS,
+    AI_THREAD_CONTEXT_MAX_LENGTH,
     AI_THREAD_FILE_INLINE_BUDGET_BYTES,
     AI_THREAD_FILE_MOUNT_PATH,
     AI_USER_THREAD_CREATED_FROM,
@@ -48,6 +49,7 @@ import {
     AiPromptContext,
     AiPromptSteer,
     AiResultType,
+    AiThreadBinding,
     AiVizMetadata,
     AiWebAppPrompt,
     AiWritebackAttribution,
@@ -165,6 +167,7 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    runComposerQueriesToolDefinition,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -191,6 +194,7 @@ import {
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiComposerChartArtifactConfig,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -214,6 +218,8 @@ import {
     type SlackPromptJobPayload,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
+    type ThreadComposerQueryNode,
+    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -361,6 +367,7 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
+import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
     AI_AGENT_MEMORY_THREAD_SOURCES,
@@ -429,6 +436,10 @@ import {
 } from '../ai/attachmentFs/attachmentFileSystem';
 import { Compaction } from '../ai/compaction';
 import {
+    getAgentDecisionContext,
+    getAgentQuestion,
+} from '../ai/decisions/agentQuestion';
+import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
@@ -476,6 +487,10 @@ import {
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
+import {
+    createVizPlanner,
+    type PlanComposerViz,
+} from '../ai/decisions/vizPlanner';
 import {
     getCompactionModelMetadata,
     getDefaultModel,
@@ -574,6 +589,12 @@ import {
     classifyWritebackError,
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
+import {
+    buildComposerPresentations,
+    resolveComposerPresentations,
+    type ComposerExecutionResult,
+    type TurnToolResult,
+} from '../ai/utils/composerPresentation';
 import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
@@ -1833,6 +1854,55 @@ export class AiAgentService extends BaseService {
         );
 
         return deduped;
+    }
+
+    private static parseThreadContext(
+        threadContext: string | undefined,
+    ): string | null {
+        if (threadContext === undefined || threadContext.trim() === '') {
+            return null;
+        }
+        if (threadContext.length > AI_THREAD_CONTEXT_MAX_LENGTH) {
+            throw new ParameterError(
+                `Thread context must be at most ${AI_THREAD_CONTEXT_MAX_LENGTH} characters`,
+            );
+        }
+        return threadContext;
+    }
+
+    private async resolveThreadBinding(
+        user: SessionUser,
+        agent: AiAgent,
+        binding: AiThreadBinding,
+        allowedSpaceUuids: string[] | undefined,
+    ): Promise<AiThreadBinding> {
+        switch (binding.type) {
+            case 'dashboard': {
+                const dashboard = await this.dashboardService.getByIdOrSlug(
+                    user,
+                    binding.dashboardUuid,
+                    { projectUuid: agent.projectUuid },
+                );
+                if (dashboard.projectUuid !== agent.projectUuid) {
+                    throw new NotFoundError('Dashboard not found');
+                }
+                if (
+                    allowedSpaceUuids &&
+                    allowedSpaceUuids.length > 0 &&
+                    !allowedSpaceUuids.includes(dashboard.spaceUuid)
+                ) {
+                    throw new ForbiddenError(
+                        'Dashboard is outside the embedded space',
+                    );
+                }
+                return { type: 'dashboard', dashboardUuid: dashboard.uuid };
+            }
+            default:
+                return assertUnreachable(
+                    binding.type,
+                    'Unknown thread binding type',
+                );
+        }
     }
 
     // A pinned thread may live in another project (e.g. verifying a fix in a
@@ -5106,6 +5176,23 @@ export class AiAgentService extends BaseService {
               )
             : undefined;
 
+        const threadContext = AiAgentService.parseThreadContext(
+            body.threadContext,
+        );
+        if (!body.prompt && !body.binding && threadContext === null) {
+            throw new ParameterError(
+                'A prompt, binding or thread context is required to create a thread',
+            );
+        }
+        const binding = body.binding
+            ? await this.resolveThreadBinding(
+                  user,
+                  agent,
+                  body.binding,
+                  runtimeOptions?.spaceAccess,
+              )
+            : null;
+
         if (body.battleProfile) {
             const battleMode = await this.featureFlagService.get({
                 user,
@@ -5142,6 +5229,8 @@ export class AiAgentService extends BaseService {
             agentUuid,
             embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
             battleProfile: body.battleProfile ?? null,
+            binding,
+            threadContext,
         });
 
         const modelConfig = await this.resolvePromptModelConfig({
@@ -8221,6 +8310,108 @@ export class AiAgentService extends BaseService {
         } catch (error) {
             Logger.warn('Failed to track agent request lifecycle', error);
         }
+    }
+
+    /** One composer artifact version per presented node, in answer order. */
+    private async saveComposerPresentations({
+        user,
+        prompt,
+        presented,
+        planViz,
+        enableDataAccess,
+        onArtifactReady,
+    }: {
+        user: SessionUser;
+        prompt: AiPrompt;
+        presented: ToolComposerQueriesSuccessMetadata[];
+        planViz: PlanComposerViz | null;
+        enableDataAccess: boolean;
+        onArtifactReady: (artifact: AiArtifact) => void;
+    }): Promise<void> {
+        if (presented.length === 0) return;
+        const { threadUuid, promptUuid } = prompt;
+        try {
+            const [threadNodes, previousVizConfig] = await Promise.all([
+                this.aiAgentModel.listComposerQueryNodes(
+                    threadComposerQueryScope(threadUuid),
+                ),
+                planViz ? this.getLatestComposerVizConfig(threadUuid) : null,
+            ]);
+            const presentations = await buildComposerPresentations({
+                presented,
+                threadNodes,
+                planViz,
+                getExecutionResult: (queryUuid) =>
+                    this.getComposerExecutionResult(user, prompt, queryUuid),
+                previousVizConfig,
+                enableDataAccess,
+            });
+            await presentations.reduce<Promise<void>>(
+                (previous, presentation) =>
+                    previous.then(async () => {
+                        const artifact =
+                            await this.aiAgentModel.createOrUpdateArtifact({
+                                threadUuid,
+                                promptUuid,
+                                ...presentation,
+                            });
+                        onArtifactReady(artifact);
+                    }),
+                Promise.resolve(),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to save composer presentations for prompt ${promptUuid}`,
+                error,
+            );
+        }
+    }
+
+    private async getLatestComposerVizConfig(
+        threadUuid: string,
+    ): Promise<AiComposerChartArtifactConfig['vizConfig']> {
+        return (
+            (
+                await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
+                    threadUuid,
+                )
+            )
+                .filter(isAiComposerChartArtifactConfig)
+                .at(-1)?.vizConfig ?? null
+        );
+    }
+
+    /** The presented execution's columns and rows, read as the agent read them. */
+    private async getComposerExecutionResult(
+        user: SessionUser,
+        prompt: AiPrompt,
+        queryUuid: string,
+    ): Promise<ComposerExecutionResult> {
+        const account = fromSession(user);
+        const results = await this.asyncQueryService.getAsyncQueryResults({
+            account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.AI,
+                querySurfaceFromPrompt(prompt),
+            ),
+            projectUuid: prompt.projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            page: 1,
+            pageSize: this.lightdashConfig.ai.copilot.maxQueryLimit,
+        });
+        if (results.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Composer query ${queryUuid} is not ready`,
+            );
+        }
+        const rows = results.rows.map((row) =>
+            Object.fromEntries(
+                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
+            ),
+        );
+        return { columns: results.columns, rows, rowCount: rows.length };
     }
 
     private persistTrackedPromptUpdate(
@@ -13376,7 +13567,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
     ) {
         const { projectUuid, organizationUuid } = prompt;
         const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
-        const sqlScope = await this.projectModel.getAgentSqlScope(projectUuid);
+        const [sqlScope, threadBinding] = await Promise.all([
+            this.projectModel.getAgentSqlScope(projectUuid),
+            this.aiAgentModel.findThreadBinding(prompt.threadUuid),
+        ]);
         const toolsRuntime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -13393,6 +13587,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            threadBinding,
             sqlScope,
             userAttributeOverrides:
                 options?.runtimeOptions?.userAttributeOverrides,
@@ -14134,6 +14329,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             generateDataApp: toolsRuntime.generateDataApp,
             iterateDataApp: toolsRuntime.iterateDataApp,
             listDataAppThemes: toolsRuntime.listDataAppThemes,
+            listDataAppConnections: toolsRuntime.listDataAppConnections,
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
@@ -15329,6 +15525,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
+            // Read-only runtime; the binding only limits writes.
+            threadBinding: null,
             agentUuid: agent.uuid,
             threadUuid: prompt.threadUuid,
             promptUuid: prompt.promptUuid,
@@ -15611,6 +15809,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
+        // This turn's tool results, so the final answer can present composer nodes.
+        const turnToolResults: TurnToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -16460,6 +16660,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     generateDataApp,
                     iterateDataApp,
                     listDataAppThemes,
+                    listDataAppConnections,
                     resolveUrl,
                     editContent,
                     createContent,
@@ -16696,6 +16897,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     };
                 }
 
+                const { threadBinding, threadContext } =
+                    await this.aiAgentModel.findThreadPromptSetup(
+                        prompt.threadUuid,
+                    );
+
                 let execution: AiAgentExecutionConfig;
                 if (responseExecution.mode === 'deep_research') {
                     // Steps are budgeted directly now; the executor separately counts
@@ -16775,6 +16981,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                     agentSettings,
                     requestingUser,
+                    threadBinding,
+                    threadContext,
                     knowledgeDocuments,
                     deepResearchRuns,
                     projectContext,
@@ -16917,6 +17125,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                 };
 
+                // Data access only gates the row-derived stats the planner sends.
+                const planComposerViz: PlanComposerViz | null =
+                    args.decisions && args.execution.mode === 'standard'
+                        ? createVizPlanner({
+                              decisions: args.decisions,
+                              question: getAgentQuestion(args),
+                              conversation: getAgentDecisionContext(args),
+                              usage: args.decisionUsage,
+                              recordDecision: args.recordPromptDecision,
+                          })
+                        : null;
                 const dependencies: AiAgentDependencies = {
                     assertToolOperation: (kind, key, connectedTool) =>
                         this.agentPermissionService.assertOperation({
@@ -16944,6 +17163,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     generateDataApp,
                     iterateDataApp,
                     listDataAppThemes,
+                    listDataAppConnections,
                     resolveUrl,
                     editContent,
                     createContent,
@@ -17003,7 +17223,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateSlackMessage,
                     storeToolCall,
                     storeToolCallError,
-                    storeToolResults,
+                    storeToolResults: (results) => {
+                        turnToolResults.push(
+                            ...results.map(
+                                ({ promptUuid, toolName, metadata }) => ({
+                                    promptUuid,
+                                    toolName,
+                                    metadata,
+                                }),
+                            ),
+                        );
+                        return storeToolResults(results);
+                    },
                     storeReasoning,
                     isPromptInterrupted,
                     consumePromptSteers,
@@ -17038,17 +17269,23 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // Generation saves step and terminal responses before Slack
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
-                        const visibleUpdate =
-                            isSlackPrompt(prompt) &&
+                        const composerPresentation =
                             update.response !== undefined
-                                ? {
-                                      ...update,
-                                      response:
-                                          stripSlackVisualizationSelection(
-                                              update.response,
-                                          ),
-                                  }
-                                : update;
+                                ? resolveComposerPresentations({
+                                      channel: isSlackPrompt(prompt)
+                                          ? 'slack'
+                                          : 'web',
+                                      response: update.response,
+                                      promptUuid: prompt.promptUuid,
+                                      toolResults: turnToolResults,
+                                  })
+                                : null;
+                        const visibleUpdate = composerPresentation
+                            ? {
+                                  ...update,
+                                  response: composerPresentation.response,
+                              }
+                            : update;
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17063,6 +17300,35 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!updatePromise) {
                             return Promise.resolve();
                         }
+                        const presentationPromise = updatePromise.then(
+                            async (persisted) => {
+                                if (!persisted || !composerPresentation) return;
+                                await this.saveComposerPresentations({
+                                    user,
+                                    prompt,
+                                    presented: composerPresentation.presented,
+                                    planViz: isSlackPrompt(prompt)
+                                        ? null
+                                        : planComposerViz,
+                                    enableDataAccess: args.enableDataAccess,
+                                    onArtifactReady: (artifact) => {
+                                        if (decisions) {
+                                            stepProgressEmitter?.emit(
+                                                'artifactReady',
+                                                {
+                                                    promptUuid:
+                                                        prompt.promptUuid,
+                                                    artifactUuid:
+                                                        artifact.artifactUuid,
+                                                    versionUuid:
+                                                        artifact.versionUuid,
+                                                },
+                                            );
+                                        }
+                                    },
+                                });
+                            },
+                        );
                         const updateWithCitationTelemetryPromise =
                             aiAgentMemoryEnabled &&
                             update.response !== undefined &&
@@ -17198,9 +17464,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 });
                         }
 
-                        return updateWithCitationTelemetryPromise.then(
-                            () => undefined,
-                        );
+                        return Promise.all([
+                            updateWithCitationTelemetryPromise,
+                            presentationPromise,
+                        ]).then(() => undefined);
                     },
                     trackEvent: (event) => this.analytics.track(event),
 
@@ -17221,12 +17488,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         return artifact;
                     },
 
-                    listThreadComposerPipelines: async (threadUuid) =>
-                        (
-                            await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
-                                threadUuid,
-                            )
-                        ).filter(isAiComposerChartArtifactConfig),
+                    listThreadComposerQueryNodes: (threadUuid) =>
+                        this.aiAgentModel.listComposerQueryNodes(
+                            threadComposerQueryScope(threadUuid),
+                        ),
+                    registerThreadComposerQueryNodes: ({ threadUuid, nodes }) =>
+                        this.aiAgentModel.registerComposerQueryNodes({
+                            scope: threadComposerQueryScope(threadUuid),
+                            nodes,
+                        }),
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
                         this.aiAgentModel.waitForSqlApproval(
@@ -17745,6 +18015,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
+    /** Composer previews need the thread's nodes; without them the answer still goes out, minus those previews. */
+    private async getSlackComposerThreadNodes(
+        slackPrompt: Pick<SlackPrompt, 'promptUuid' | 'threadUuid'>,
+        toolCalls: { tool_name: string }[],
+    ): Promise<ThreadComposerQueryNode[]> {
+        const hasComposerCall = toolCalls.some(
+            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
+        );
+        if (!hasComposerCall) return [];
+        try {
+            return await this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(slackPrompt.threadUuid),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Failed to load composer nodes for Slack previews of prompt ${slackPrompt.promptUuid}`,
+                error,
+            );
+            return [];
+        }
+    }
+
     // TODO: user permissions
     private async getSlackAgentFinalBlocks({
         user,
@@ -17839,6 +18131,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
+        const threadNodes = await this.getSlackComposerThreadNodes(
+            slackPrompt,
+            toolCalls,
+        );
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -17846,6 +18142,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
+            threadNodes,
             url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
             runtimeResults: runtimeTableResults,
             authorize: async ({ queryUuid, exploreNames }) => {
@@ -18815,6 +19112,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Starting the data app build...';
                 case 'listDataAppThemes':
                     return 'Checking the available themes...';
+                case 'listDataAppConnections':
+                    return 'Checking the available connections...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
                 case 'exploreRepo':

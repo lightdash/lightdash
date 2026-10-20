@@ -34,6 +34,7 @@ export const ToolNameSchema = z.enum([
     'generateDataApp',
     'iterateDataApp',
     'listDataAppThemes',
+    'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
     'editRepo',

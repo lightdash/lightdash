@@ -532,7 +532,7 @@ describe('FilterPills', () => {
     });
 
     describe('required filters', () => {
-        // The grip, plus the asterisk on a required filter
+        // The grip, plus the requirement status icon
         const leftIcons = (element: HTMLElement) =>
             element.querySelectorAll('[data-position="left"] svg').length;
         const requiredRule: DashboardFilterRule = {
@@ -553,10 +553,10 @@ describe('FilterPills', () => {
 
             const required = pill(/^Status/);
             expect(leftIcons(required)).toBe(2);
-            expect(required.className).toContain('requirementUnmet');
+            expect(required).toHaveAttribute('data-requirement-unmet');
             const optional = pill(/^Region/);
             expect(leftIcons(optional)).toBe(1);
-            expect(optional.className).not.toContain('requirementUnmet');
+            expect(optional).not.toHaveAttribute('data-requirement-unmet');
         });
 
         it('keeps the marker without the unmet style once it has a value', () => {
@@ -572,7 +572,7 @@ describe('FilterPills', () => {
 
             const required = pill(/^Status/);
             expect(leftIcons(required)).toBe(2);
-            expect(required.className).not.toContain('requirementUnmet');
+            expect(required).not.toHaveAttribute('data-requirement-unmet');
         });
     });
 

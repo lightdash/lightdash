@@ -1,24 +1,26 @@
 import {
-    ChartKind,
-    parseAiArtifactChartConfig,
+    FilterOperator,
+    getComposerNodeConflictMessage,
+    isSameComposerNodeDefinition,
+    ParameterError,
     QuerySourceType,
-    VizAggregationOptions,
-    VizIndexType,
-    type AiArtifact,
-    type AiComposerChartArtifactConfig,
+    toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
-    type SemanticLayerSourceQuery,
     type SlackPrompt,
     type SourceQuery,
+    type SubmittedSourceQuery,
+    type ThreadComposerQueryNode,
     type ToolComposerQueriesArgs,
     type ToolComposerQueriesOutput,
+    type ToolComposerSemanticLayerNode,
 } from '@lightdash/common';
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
-import type { PlanComposerViz } from '../decisions/vizPlanner';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
+import { mockOrdersExplore } from '../utils/validationExplore.mock';
+import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
@@ -56,34 +58,57 @@ const makeSlackPrompt = (): SlackPrompt => ({
     slackThreadTs: 'thread-ts',
 });
 
-// Fake artifact store: returns the saved version as the database would.
-const storeArtifact = async ({
-    title,
-    vizConfig,
-}: {
-    title?: string;
-    vizConfig: Record<string, unknown>;
-}): Promise<AiArtifact> => ({
-    artifactUuid: 'artifact-uuid',
-    threadUuid: 'thread-uuid',
-    artifactType: 'chart',
-    savedQueryUuid: null,
-    savedSqlUuid: null,
-    savedDashboardUuid: null,
-    createdAt: new Date(),
-    versionNumber: 1,
-    versionUuid: 'version-uuid',
-    title: title ?? null,
-    description: null,
-    chartConfig: parseAiArtifactChartConfig(vizConfig),
-    dashboardConfig: null,
-    promptUuid: 'prompt-uuid',
-    versionCreatedAt: new Date(),
-    verifiedByUserUuid: null,
-    verifiedAt: null,
-});
+// In-memory thread composer query nodes, with the model's register semantics.
+const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
+    const byThread = new Map<string, ThreadComposerQueryNode[]>([
+        ['thread-uuid', [...initial]],
+    ]);
+    const list = (threadUuid: string) => byThread.get(threadUuid) ?? [];
+    return {
+        nodes: list,
+        listThreadComposerQueryNodes: async (threadUuid: string) =>
+            list(threadUuid),
+        registerThreadComposerQueryNodes: async ({
+            threadUuid,
+            nodes,
+        }: {
+            threadUuid: string;
+            nodes: ThreadComposerQueryNode[];
+        }) => {
+            const registered = list(threadUuid);
+            nodes.forEach((node) => {
+                const existing = registered.find(
+                    (r) => r.nodeId === node.nodeId,
+                );
+                if (existing && !isSameComposerNodeDefinition(existing, node)) {
+                    throw new ParameterError(
+                        getComposerNodeConflictMessage(existing),
+                    );
+                }
+            });
+            byThread.set(threadUuid, [
+                ...registered,
+                ...nodes.filter(
+                    (node) => !registered.some((r) => r.nodeId === node.nodeId),
+                ),
+            ]);
+        },
+    };
+};
 
 type ComposerNode = ToolComposerQueriesArgs['queries'][number];
+
+// Test nodes carry no filters, so no explore is needed to resolve them.
+const asSubmitted = (nodes: ComposerNode[]): SubmittedSourceQuery[] =>
+    nodes.map((node) =>
+        toolComposerQueryNodeToSourceQuery(
+            resolveComposerQueryNode(node, {
+                getExplore: () => {
+                    throw new Error('unexpected explore lookup');
+                },
+            }),
+        ),
+    );
 
 const semanticNode: ComposerNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -160,9 +185,15 @@ const executeTool = (
         context: {},
     }) as Promise<ComposerOutput>;
 
+const successMetadata = (output: ComposerOutput) => {
+    if (output.metadata.status !== 'success') {
+        throw new Error(`Expected success, got ${output.metadata.status}`);
+    }
+    return output.metadata;
+};
+
 const makeTool = ({
     reviewQuery,
-    planViz,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     canRunSql = true,
@@ -170,11 +201,11 @@ const makeTool = ({
     enableDataAccess = true,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     prompt = makePrompt(),
-    agentContext = new AgentContext([]),
+    agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
+    registry = makeNodeRegistry(),
 }: {
     reviewQuery?: QueryReviewer;
-    planViz?: PlanComposerViz;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     canRunSql?: boolean;
@@ -184,11 +215,11 @@ const makeTool = ({
     prompt?: AiWebAppPrompt | SlackPrompt;
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
+    registry?: ReturnType<typeof makeNodeRegistry>;
 } = {}) => {
     const dependencies = {
         agentContext,
         reviewQuery,
-        planViz,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -227,8 +258,9 @@ const makeTool = ({
         listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
-        createOrUpdateArtifact: vi.fn(storeArtifact),
-        listThreadComposerPipelines: vi.fn().mockResolvedValue([]),
+        listThreadComposerQueryNodes: registry.listThreadComposerQueryNodes,
+        registerThreadComposerQueryNodes:
+            registry.registerThreadComposerQueryNodes,
         maxQueryLimit: 5000,
         enableDataAccess,
         canRunSql,
@@ -241,26 +273,23 @@ const makeTool = ({
     return {
         tool: getRunComposerQueries(dependencies),
         dependencies,
+        registry,
     };
 };
 
 describe('getRunComposerQueries', () => {
-    it('in Slack, the reply can show the terminal result as a table that links to the thread', async () => {
+    it('in Slack, the reply can show the terminal result as a table that links to the thread, without an artifact', async () => {
         const agentContext = new AgentContext([]);
-        const { tool, dependencies } = makeTool({
+        const { tool, registry } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
             agentContext,
         });
 
         const output = await executeTool(tool, makeArgs(), 'composer-call');
-        const [artifact] = await Promise.all(
-            dependencies.createOrUpdateArtifact.mock.results.map(
-                (result) => result.value,
-            ),
-        );
+        expect(output.result).not.toContain('<show');
         // The model selects the table using the queryUuid it was given.
-        const queryUuid = output.result.match(/queryUuid is ([^;\s]+)/)?.[1];
+        const queryUuid = output.result.match(/queryUuid="([^"]+)"/)?.[1];
 
         const previews = await getSlackTablePreviews({
             enableDataAccess: true,
@@ -281,7 +310,8 @@ describe('getRunComposerQueries', () => {
                     metadata: output.metadata,
                 },
             ],
-            artifacts: [artifact],
+            artifacts: [],
+            threadNodes: registry.nodes('thread-uuid'),
             url: 'https://lightdash.test/threads/thread-uuid',
             runtimeResults: agentContext.getSlackTableResults(),
             authorize: vi.fn().mockResolvedValue(undefined),
@@ -303,8 +333,10 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
-    it('runs the pipeline, stores a composer artifact and returns the terminal snapshot', async () => {
-        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+    it('runs the pipeline and returns the terminal without presenting it', async () => {
+        const { tool, dependencies } = makeTool({
+            autoApproveSql: true,
+        });
 
         const output = await executeTool(tool, makeArgs());
 
@@ -317,45 +349,16 @@ describe('getRunComposerQueries', () => {
             terminalNodeId: 'joined',
             onNodeStatus: expect.any(Function),
         });
-        expect(dependencies.createOrUpdateArtifact).toHaveBeenCalledWith(
-            expect.objectContaining({
-                threadUuid: 'thread-uuid',
-                promptUuid: 'prompt-uuid',
-                artifactType: 'chart',
-                title: 'Revenue vs signups',
-            }),
-        );
-        const [{ vizConfig }] =
-            dependencies.createOrUpdateArtifact.mock.calls[0];
-        expect(Object.keys(vizConfig)).toEqual([
-            'source',
-            'schemaVersion',
-            'queries',
-            'terminalNodeId',
-            'vizConfig',
-        ]);
-        expect(vizConfig).toEqual({
-            source: 'composer',
-            schemaVersion: 1,
-            queries: [
-                expect.objectContaining({
-                    nodeId: 'revenue',
-                    title: 'Revenue by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'signups',
-                    title: 'Signups by month',
-                }),
-                expect.objectContaining({
-                    nodeId: 'joined',
-                    title: 'Revenue vs signups',
-                    description: 'Joins monthly revenue with monthly signups.',
-                }),
-            ],
+        expect(successMetadata(output)).toEqual({
+            status: 'success',
+            queryUuid: 'query-3',
             terminalNodeId: 'joined',
-            vizConfig: null,
+            title: 'Revenue vs signups',
+            description: null,
         });
-        expect(output.metadata?.status).toBe('success');
+        expect(output.result).toContain(
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer.',
+        );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
@@ -392,7 +395,6 @@ describe('getRunComposerQueries', () => {
                 { reference: 'month', type: 'string' },
                 { reference: 'signups', type: 'number' },
             ],
-            visualization: expect.any(String),
             review: null,
             preview: {
                 rows: [{ month: '2026-01', signups: 12 }],
@@ -561,7 +563,65 @@ describe('getRunComposerQueries', () => {
 
         expect(output.metadata?.status).toBe('rejected');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
-        expect(dependencies.createOrUpdateArtifact).not.toHaveBeenCalled();
+    });
+
+    it('registers every node of a successful pipeline for later calls in the thread', async () => {
+        const { tool, registry } = makeTool({ autoApproveSql: true });
+
+        await executeTool(tool, makeArgs());
+
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'revenue',
+            'signups',
+            'joined',
+        ]);
+    });
+
+    it.each([
+        ['rejected', 'rejected'],
+        ['times out', 'timeout'],
+    ] as const)(
+        'registers nothing when the SQL approval is %s',
+        async (_, outcome) => {
+            const { tool, registry } = makeTool({
+                waitForSqlApproval: vi.fn().mockResolvedValue(outcome),
+            });
+
+            const output = await executeTool(tool, makeArgs());
+
+            expect(output.metadata?.status).toBe(outcome);
+            expect(registry.nodes('thread-uuid')).toEqual([]);
+        },
+    );
+
+    it('registers nothing when the run fails, so the node id can be resubmitted corrected', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockRejectedValueOnce(
+            new Error('Composer query failed on node(s): "joined"'),
+        );
+
+        const failed = await executeTool(tool, makeArgs(), 'tool-call-1');
+        const corrected = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    semanticNode,
+                    sqlNode,
+                    { ...duckdbNode, sql: 'SELECT 1 AS fixed' },
+                ],
+            }),
+            'tool-call-2',
+        );
+
+        expect(failed.metadata?.status).toBe('error');
+        expect(corrected.metadata?.status).toBe('success');
+        expect(
+            registry
+                .nodes('thread-uuid')
+                .find((node) => node.nodeId === 'joined'),
+        ).toEqual(expect.objectContaining({ sql: 'SELECT 1 AS fixed' }));
     });
 
     it('does not open another approval wait after approval times out', async () => {
@@ -753,7 +813,7 @@ describe('getRunComposerQueries', () => {
     });
 });
 
-const ordersNode: SemanticLayerSourceQuery = {
+const ordersNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'orders',
     title: 'Orders by customer',
@@ -763,7 +823,7 @@ const ordersNode: SemanticLayerSourceQuery = {
     limit: 500,
 };
 
-const customersNode: SemanticLayerSourceQuery = {
+const customersNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'customers',
     title: 'Customers',
@@ -773,7 +833,7 @@ const customersNode: SemanticLayerSourceQuery = {
     limit: 500,
 };
 
-const enrichedNode: SourceQuery = {
+const enrichedNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'enriched',
     title: 'Orders with customer names',
@@ -782,7 +842,7 @@ const enrichedNode: SourceQuery = {
     limit: 500,
 };
 
-const rankedNode: SourceQuery = {
+const rankedNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
     nodeId: 'ranked',
     title: 'Customers ranked by spend',
@@ -791,21 +851,7 @@ const rankedNode: SourceQuery = {
     limit: 500,
 };
 
-const version1: AiComposerChartArtifactConfig = {
-    source: 'composer',
-    schemaVersion: 1,
-    queries: [ordersNode, customersNode, enrichedNode],
-    terminalNodeId: 'enriched',
-    vizConfig: null,
-};
-
-const version2: AiComposerChartArtifactConfig = {
-    source: 'composer',
-    schemaVersion: 1,
-    queries: [ordersNode, customersNode, enrichedNode, rankedNode],
-    terminalNodeId: 'ranked',
-    vizConfig: null,
-};
+const enrichedPipeline = [ordersNode, customersNode, enrichedNode];
 
 const readerNode = (references: Record<string, string>): ComposerNode => ({
     sourceType: QuerySourceType.DUCKDB,
@@ -832,17 +878,15 @@ const resubmittedOrders = (limit: number): ComposerNode => ({
 
 const runReuse = async ({
     queries,
-    earlierPipelines,
+    threadNodes,
     terminalNodeId = null,
 }: {
     queries: ComposerNode[];
-    earlierPipelines: AiComposerChartArtifactConfig[];
+    threadNodes: ThreadComposerQueryNode[];
     terminalNodeId?: string | null;
 }) => {
-    const { tool, dependencies } = makeTool();
-    dependencies.listThreadComposerPipelines.mockResolvedValue(
-        earlierPipelines,
-    );
+    const registry = makeNodeRegistry(threadNodes);
+    const { tool, dependencies } = makeTool({ registry });
     // Warehouse boundary: every node gets a query id, the terminal returns one row
     dependencies.runComposerQueries.mockImplementation(
         async (args: { queries: SourceQuery[]; terminalNodeId: string }) => ({
@@ -867,22 +911,54 @@ const runReuse = async ({
         makeArgs({ queries, terminalNodeId }),
     );
 
-    const stored = dependencies.createOrUpdateArtifact.mock.calls[0]?.[0]
-        ?.vizConfig as AiComposerChartArtifactConfig | undefined;
+    const stored =
+        output.metadata.status === 'success' ? output.metadata : undefined;
     const executed = dependencies.runComposerQueries.mock.calls[0]?.[0] as
         | { queries: SourceQuery[]; terminalNodeId: string }
         | undefined;
-    return { output, stored, executed, dependencies };
+    return { output, stored, executed, dependencies, registry };
 };
 
 const nodeIdsOf = (queries: SourceQuery[] | undefined) =>
     queries?.map((node) => node.nodeId);
 
 describe('composer artifact with reused nodes', () => {
-    it('runs and stores a reused node and what it reads, without query ids', async () => {
-        const { output, stored, executed } = await runReuse({
+    it('reads a node an earlier call in the thread registered', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        await executeTool(tool, makeArgs(), 'tool-call-1');
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [readerNode({ o: 'joined' })],
+            }),
+            'tool-call-2',
+        );
+
+        expect(output.metadata?.status).toBe('success');
+        expect(
+            nodeIdsOf(dependencies.runComposerQueries.mock.calls[1][0].queries),
+        ).toEqual(['revenue', 'signups', 'joined', 'summary']);
+    });
+
+    it('registers reused nodes alongside the new ones', async () => {
+        const { registry } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
+        });
+
+        expect(registry.nodes('thread-uuid').map((n) => n.nodeId)).toEqual([
+            'orders',
+            'customers',
+            'enriched',
+            'summary',
+        ]);
+    });
+
+    it('runs and stores a reused node and what it reads, without query ids', async () => {
+        const { output, stored, executed, registry } = await runReuse({
+            queries: [readerNode({ o: 'enriched' })],
+            threadNodes: enrichedPipeline,
         });
 
         expect(executed?.terminalNodeId).toBe('summary');
@@ -895,14 +971,11 @@ describe('composer artifact with reused nodes', () => {
                 references: { o: 'enriched' },
             }),
         ]);
-        expect(stored).toEqual({
-            source: 'composer',
-            schemaVersion: 1,
-            queries: executed?.queries,
-            terminalNodeId: 'summary',
-            vizConfig: null,
-        });
-        expect(JSON.stringify(stored)).not.toContain('run-query');
+        expect(stored?.terminalNodeId).toBe('summary');
+        expect(registry.nodes('thread-uuid')).toEqual(executed?.queries);
+        expect(JSON.stringify(registry.nodes('thread-uuid'))).not.toContain(
+            'run-query',
+        );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
@@ -925,7 +998,7 @@ describe('composer artifact with reused nodes', () => {
     it('copies a node reached directly and transitively once', async () => {
         const { executed } = await runReuse({
             queries: [readerNode({ o: 'orders', r: 'ranked' })],
-            earlierPipelines: [version1, version2],
+            threadNodes: [...enrichedPipeline, rankedNode],
         });
 
         expect(nodeIdsOf(executed?.queries)).toEqual([
@@ -937,10 +1010,10 @@ describe('composer artifact with reused nodes', () => {
         ]);
     });
 
-    it('shows a reused node when it is named as the terminal node', async () => {
+    it('can present a reused node named as the terminal node', async () => {
         const { stored } = await runReuse({
             queries: [readerNode({ o: 'enriched' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
             terminalNodeId: 'enriched',
         });
 
@@ -950,7 +1023,7 @@ describe('composer artifact with reused nodes', () => {
     it('accepts an unchanged earlier node resubmitted under its node id', async () => {
         const { output, executed } = await runReuse({
             queries: [resubmittedOrders(500), readerNode({ o: 'orders' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('success');
@@ -960,7 +1033,7 @@ describe('composer artifact with reused nodes', () => {
     it('refuses a node id redefined with a different definition', async () => {
         const { output, executed, stored } = await runReuse({
             queries: [resubmittedOrders(10), readerNode({ o: 'orders' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('error');
@@ -974,12 +1047,12 @@ describe('composer artifact with reused nodes', () => {
     it("refuses an unknown node id, listing the thread's node ids and titles", async () => {
         const { output, executed } = await runReuse({
             queries: [readerNode({ o: 'ordrs' })],
-            earlierPipelines: [version1],
+            threadNodes: enrichedPipeline,
         });
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain(
-            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier version in this thread. Nodes from earlier versions: orders ("Orders by customer"), customers ("Customers"), enriched ("Orders with customer names").',
+            'Node "summary" reads "ordrs", which is not a node of this submission or of an earlier call in this thread. Nodes defined earlier in this thread: orders ("Orders by customer"), customers ("Customers"), enriched ("Orders with customer names").',
         );
         expect(executed).toBeUndefined();
     });
@@ -1000,7 +1073,7 @@ describe('composer artifact with reused nodes', () => {
     });
 
     it('does not ask again for approval of sql it reuses from an earlier version', async () => {
-        const approvedSql: SourceQuery = {
+        const approvedSql: ThreadComposerQueryNode = {
             sourceType: QuerySourceType.SQL,
             nodeId: 'signups',
             title: 'Signups by month',
@@ -1009,13 +1082,7 @@ describe('composer artifact with reused nodes', () => {
         };
         const { output, executed, dependencies } = await runReuse({
             queries: [readerNode({ o: 'signups' })],
-            earlierPipelines: [
-                {
-                    ...version1,
-                    queries: [approvedSql],
-                    terminalNodeId: 'signups',
-                },
-            ],
+            threadNodes: [approvedSql],
         });
 
         expect(output.metadata?.status).toBe('success');
@@ -1083,62 +1150,32 @@ describe('composer query review', () => {
     });
 });
 
-describe('composer viz config', () => {
-    it('stores the planned viz config on the artifact and names it in the result', async () => {
-        const vizConfig = {
-            type: ChartKind.VERTICAL_BAR,
-            metadata: { version: 1 },
-            fieldConfig: {
-                x: { reference: 'month', type: VizIndexType.CATEGORY },
-                y: [
-                    {
-                        reference: 'signups',
-                        aggregation: VizAggregationOptions.ANY,
-                    },
-                ],
-                groupBy: [],
-            },
-            display: undefined,
-        } as const;
-        const planViz = vi.fn().mockResolvedValue(vizConfig);
-        const { tool, dependencies } = makeTool({ planViz });
-
-        const output = await executeTool(tool, makeArgs());
-
-        expect(
-            dependencies.createOrUpdateArtifact.mock.calls[0][0].vizConfig
-                .vizConfig,
-        ).toEqual(vizConfig);
-        expect(
-            output.result.endsWith(
-                'Visualization: bar chart, x = month, y = signups.',
-            ),
-        ).toBe(true);
-    });
-});
-
 describe('python composer nodes', () => {
     it('treats python references as edges when resolving the terminal node', () => {
         expect(
-            resolveTerminalNodeId([semanticNode, pythonNode], null, []),
+            resolveTerminalNodeId(
+                asSubmitted([semanticNode, pythonNode]),
+                null,
+                [],
+            ),
         ).toBe('forecast');
         expect(
             resolveTerminalNodeId(
-                [
+                asSubmitted([
                     semanticNode,
                     pythonNode,
                     {
                         ...duckdbNode,
                         references: { f: 'forecast' },
                     },
-                ],
+                ]),
                 null,
                 [],
             ),
         ).toBe('joined');
         expect(() =>
             resolveTerminalNodeId(
-                [semanticNode, { ...pythonNode, references: [] }],
+                asSubmitted([semanticNode, { ...pythonNode, references: [] }]),
                 null,
                 [],
             ),
@@ -1213,5 +1250,149 @@ describe('python composer nodes', () => {
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('"forecast"');
         expect(output.result).toContain("KeyError: 'amount'");
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const ordersNodeWithFilters = (
+        filters: ToolComposerSemanticLayerNode['filters'],
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'revenue',
+        title: 'Revenue by customer',
+        description: null,
+        exploreName: mockOrdersExplore.name,
+        dimensions: ['orders_customer_name'],
+        metrics: ['orders_total_revenue'],
+        sorts: null,
+        limit: 500,
+        filters,
+    });
+    const submittedFilters = (dependencies: {
+        runComposerQueries: import('vitest').Mock;
+    }) => {
+        const [{ queries }] = dependencies.runComposerQueries.mock.calls[0];
+        const [node] = queries as SourceQuery[];
+        if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            throw new Error('expected the semanticLayer node first');
+        }
+        return node.filters;
+    };
+
+    it('resolves flat expressions against the explore into metric query filters', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions:
+                            'orders_customer_name equals=Alice AND orders_amount greaterThan=100',
+                        metrics: 'orders_total_revenue greaterThan=1000',
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('success');
+        expect(submittedFilters(dependencies)).toMatchObject({
+            dimensions: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_customer_name' },
+                        operator: FilterOperator.EQUALS,
+                        values: ['Alice'],
+                    },
+                    {
+                        target: { fieldId: 'orders_amount' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [100],
+                    },
+                ],
+            },
+            metrics: {
+                and: [
+                    {
+                        target: { fieldId: 'orders_total_revenue' },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [1000],
+                    },
+                ],
+            },
+        });
+    });
+
+    it('rejects an unknown field with suggestions before anything runs', async () => {
+        const { tool, dependencies, registry } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions: 'orders_customer_nam equals=Alice',
+                        metrics: null,
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "revenue"',
+        );
+        expect(output.result).toContain('orders_customer_nam');
+        expect(output.result).toContain('orders_customer_name');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(registry.nodes('thread-uuid')).toEqual([]);
+    });
+
+    it('accepts an unchanged filtered node resubmitted in a later call', async () => {
+        const expression = {
+            dimensions: 'orders_customer_name equals=Alice',
+            metrics: null,
+        };
+        const registry = makeNodeRegistry();
+        const first = makeTool({ registry });
+        const firstOutput = await executeTool(
+            first.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+        );
+        expect(firstOutput.metadata.status).toBe('success');
+
+        const second = makeTool({ registry });
+        const secondOutput = await executeTool(
+            second.tool,
+            makeArgs({ queries: [ordersNodeWithFilters(expression)] }),
+            'tool-call-2',
+        );
+
+        expect(secondOutput.metadata.status).toBe('success');
+        expect(registry.nodes('thread-uuid')).toHaveLength(1);
+    });
+
+    it('rejects a metric placed in the dimension expression', async () => {
+        const { tool, dependencies } = makeTool();
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    ordersNodeWithFilters({
+                        dimensions: 'orders_total_revenue greaterThan=100',
+                        metrics: null,
+                    }),
+                    sqlNode,
+                    duckdbNode,
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('semanticLayer node "revenue"');
+        expect(output.result).toContain('orders_total_revenue');
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
     });
 });

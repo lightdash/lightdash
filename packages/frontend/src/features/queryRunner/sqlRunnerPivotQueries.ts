@@ -210,6 +210,7 @@ export const getDashboardSqlChartPivotChartData = async (
         dashboardSorts,
         context,
         parameters,
+        invalidateCache,
     }: {
         projectUuid: string;
         dashboardUuid: string;
@@ -220,6 +221,7 @@ export const getDashboardSqlChartPivotChartData = async (
         dashboardSorts: SortField[]; // TODO: check if dashboardSorts is needed, seems to be unused
         context?: QueryExecutionContext;
         parameters?: ParametersValuesMap;
+        invalidateCache?: boolean;
     },
 ): Promise<
     PivotChartData & { queryUuid: string; originalColumns: ResultColumns }
@@ -236,6 +238,7 @@ export const getDashboardSqlChartPivotChartData = async (
             dashboardSorts,
             limit,
             parameters,
+            invalidateCache,
         },
     );
 

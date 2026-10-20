@@ -3,18 +3,20 @@ import {
     ContentReviewNotificationEvent,
     EE_SCHEDULER_TASKS,
     getContentReviewRequestPath,
-    SpaceMemberRole,
     type ContentReviewRequestListItem,
     type ContentReviewSettings,
     type NotificationContentReview,
 } from '@lightdash/common';
+import { type DirectAccessModel } from '../../../models/DirectAccessModel';
 import { type GroupsModel } from '../../../models/GroupsModel';
 import { type NotificationsModel } from '../../../models/NotificationsModel/NotificationsModel';
 import { type SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import { resolveSpaceReviewerUserUuids } from '../ContentReviewRequestService/resolveSpaceReviewerUserUuids';
 
 type ContentReviewNotificationServiceArguments = {
+    directAccessModel: DirectAccessModel;
     groupsModel: GroupsModel;
     notificationsModel: NotificationsModel;
     schedulerClient: SchedulerClient;
@@ -56,6 +58,8 @@ export const buildContentReviewNotificationMessage = (
 };
 
 export class ContentReviewNotificationService extends BaseService {
+    private readonly directAccessModel: DirectAccessModel;
+
     private readonly groupsModel: GroupsModel;
 
     private readonly notificationsModel: NotificationsModel;
@@ -66,6 +70,7 @@ export class ContentReviewNotificationService extends BaseService {
 
     constructor(args: ContentReviewNotificationServiceArguments) {
         super({ serviceName: 'ContentReviewNotificationService' });
+        this.directAccessModel = args.directAccessModel;
         this.groupsModel = args.groupsModel;
         this.notificationsModel = args.notificationsModel;
         this.schedulerClient = args.schedulerClient;
@@ -79,11 +84,13 @@ export class ContentReviewNotificationService extends BaseService {
         targetSpaceUuid,
         requesterUuid,
         organizationUuid,
+        projectUuid,
     }: {
         settings: ContentReviewSettings;
         targetSpaceUuid: string;
         requesterUuid: string;
         organizationUuid: string;
+        projectUuid: string;
     }): Promise<string[]> {
         if (settings.reviewerGroupUuid !== null) {
             const { data: members } = await this.groupsModel.findGroupMembers({
@@ -98,19 +105,14 @@ export class ContentReviewNotificationService extends BaseService {
                 ),
             ];
         }
-        const { data: access } =
-            await this.spacePermissionService.getPaginatedSpaceAccess(
-                targetSpaceUuid,
-                {},
-            );
-        return access
-            .filter(
-                (share) =>
-                    share.userUuid !== requesterUuid &&
-                    (share.role === SpaceMemberRole.EDITOR ||
-                        share.role === SpaceMemberRole.ADMIN),
-            )
-            .map((share) => share.userUuid);
+        return resolveSpaceReviewerUserUuids({
+            spacePermissionService: this.spacePermissionService,
+            directAccessModel: this.directAccessModel,
+            organizationUuid,
+            projectUuid,
+            targetSpaceUuid,
+            requesterUuid,
+        });
     }
 
     async notifySubmitted({
@@ -128,6 +130,7 @@ export class ContentReviewNotificationService extends BaseService {
             targetSpaceUuid: item.targetSpaceUuid,
             requesterUuid: item.requestedBy.userUuid,
             organizationUuid,
+            projectUuid: item.projectUuid,
         });
         await this.dispatch({
             item,

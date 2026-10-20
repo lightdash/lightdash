@@ -8,6 +8,7 @@ import {
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type ExternalConnection,
+    uniqueAliasFromName,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -67,7 +68,6 @@ import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
-import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,

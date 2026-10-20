@@ -115,7 +115,7 @@ const withParameters = (
                   !isEqual(parameters, state.savedParameters),
           };
 
-const keepTiles = <T>(
+export const keepTiles = <T>(
     byTileUuid: Record<string, T>,
     tileUuids: Set<string>,
 ): Record<string, T> =>

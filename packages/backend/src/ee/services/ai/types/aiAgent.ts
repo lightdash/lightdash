@@ -74,12 +74,13 @@ import {
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppConnectionsFn,
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
     ListSqlApprovalDecisionsFn,
-    ListThreadComposerPipelinesFn,
+    ListThreadComposerQueryNodesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
@@ -89,6 +90,7 @@ import {
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
     RecordSqlApprovalFn,
+    RegisterThreadComposerQueryNodesFn,
     ResolveCustomChartTypeFn,
     ResolveUrlFn,
     RunAsyncQueryFn,
@@ -140,6 +142,12 @@ export type AiAgentRequestingUser = {
     name: string;
     role: AiAgentRequestingUserRole | null;
     groups: string[];
+};
+
+/** The resource a thread is bound to, resolved for the prompt. `dashboard` is null once it no longer exists. */
+export type AiAgentThreadBindingContext = {
+    type: 'dashboard';
+    dashboard: { name: string; slug: string } | null;
 };
 
 /**
@@ -239,6 +247,9 @@ export type AiAgentArgs = AnyAiModel & {
     externalUserId: string | null;
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
+    threadBinding: AiAgentThreadBindingContext | null;
+    // User-supplied background set when the thread was created.
+    threadContext: string | null;
     knowledgeDocuments: AiAgentDocumentContext[];
     deepResearchRuns: AiAgentDeepResearchRunContext[];
     projectContext: ProjectContextEntry[];
@@ -419,10 +430,12 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    listThreadComposerPipelines: ListThreadComposerPipelinesFn;
+    listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;
+    listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;

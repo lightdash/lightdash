@@ -34,6 +34,7 @@ const executeGenerateDataApp = async (tool: GenerateDataAppTool) => {
             dashboardSlug: null,
             chartSlugs: ['revenue-by-month'],
             themeSlug: null,
+            externalConnectionSlugs: ['amplitude-1'],
         },
         { messages: [], toolCallId: 'tool-call-1', context: {} },
     );
@@ -51,9 +52,11 @@ describe('getGenerateDataApp', () => {
     });
 
     it('forwards the args and the tool call id, returning a pending result', async () => {
-        const generateDataApp = vi
-            .fn()
-            .mockResolvedValue({ appUuid: 'app-1', version: 1 });
+        const generateDataApp = vi.fn().mockResolvedValue({
+            appUuid: 'app-1',
+            version: 1,
+            warnings: ['Brief mentions "Stripe"'],
+        });
 
         const output = await executeGenerateDataApp(
             getGenerateDataApp({ generateDataApp }),
@@ -66,10 +69,11 @@ describe('getGenerateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: ['revenue-by-month'],
             themeSlug: null,
+            externalConnectionSlugs: ['amplitude-1'],
             toolCallId: 'tool-call-1',
         });
         expect(output).toEqual({
-            result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.',
+            result: 'Started the data app build. Tell the user it has started and will take a few minutes, then end your turn.\nWarnings:\n- Brief mentions "Stripe"',
             metadata: {
                 status: 'pending',
                 appUuid: 'app-1',
@@ -78,6 +82,7 @@ describe('getGenerateDataApp', () => {
             },
             structuredContent: {
                 status: 'pending',
+                warnings: ['Brief mentions "Stripe"'],
             },
         });
     });

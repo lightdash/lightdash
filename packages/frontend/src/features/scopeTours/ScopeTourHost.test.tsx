@@ -129,9 +129,11 @@ vi.mock('../learn/LearnDoneModal', () => ({
     LearnDoneModal: ({
         onNext,
         onBack,
+        onExplore,
     }: {
         onNext: (scope: string) => void;
         onBack: () => void;
+        onExplore: () => void;
     }) => (
         <>
             <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
@@ -139,6 +141,9 @@ vi.mock('../learn/LearnDoneModal', () => ({
             </button>
             <button type="button" onClick={onBack}>
                 back to library
+            </button>
+            <button type="button" onClick={onExplore}>
+                continue exploring
             </button>
         </>
     ),
@@ -329,6 +334,20 @@ describe('ScopeTourHost analytics', () => {
             '/projects/training-1/learn?extra=1&group=developer',
             expect.anything(),
         );
+        expect(mutate).not.toHaveBeenCalled();
+    });
+
+    it('stays in the copy, dialog closed, on Continue exploring', () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('continue exploring'));
+
+        expect(
+            screen.queryByText('continue exploring'),
+        ).not.toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+        expect(mutate).not.toHaveBeenCalled();
     });
 
     it('returns to the library as the learner left it on skip', () => {
@@ -341,6 +360,8 @@ describe('ScopeTourHost analytics', () => {
             '/projects/training-1/learn?extra=1',
             expect.anything(),
         );
+        // The copy stays for the next walkthrough.
+        expect(mutate).not.toHaveBeenCalled();
     });
 
     it('ends the tour as a dismissal when the learner goes back to the library', () => {
@@ -362,11 +383,9 @@ describe('ScopeTourHost analytics', () => {
             EventName.LEARN_WALKTHROUGH_DISMISSED,
         ]);
         expect(learnEvents()[0].properties.stepIndex).toBe(2);
-        // The copy they walked away from is put away, as Skip does, and
-        // they are left where they chose to go.
-        expect(mutate).toHaveBeenCalledWith({
-            trainingProjectUuid: 'training-1',
-        });
+        // The copy they walked away from waits for them, and they are left
+        // where they chose to go.
+        expect(mutate).not.toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalled();
     });
 

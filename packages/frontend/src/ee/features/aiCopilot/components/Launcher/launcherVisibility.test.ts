@@ -4,6 +4,7 @@ import { shouldRenderAiAgentsLauncherContent } from './launcherVisibility';
 describe('shouldRenderAiAgentsLauncherContent', () => {
     const base = {
         dockItemCount: 0,
+        hasAnalysisTab: false,
         hasSelectedAgent: true,
         isAllowed: true,
         isContentPage: true,
@@ -40,5 +41,26 @@ describe('shouldRenderAiAgentsLauncherContent', () => {
                 isModalHosted: false,
             }),
         ).toBe(true);
+    });
+
+    it('shows the launcher for analysis alone, with no agent to chat with', () => {
+        expect(
+            shouldRenderAiAgentsLauncherContent({
+                ...base,
+                hasSelectedAgent: false,
+                hasAnalysisTab: true,
+                isModalHosted: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('hides the launcher without an agent or an analysis tab', () => {
+        expect(
+            shouldRenderAiAgentsLauncherContent({
+                ...base,
+                hasSelectedAgent: false,
+                isModalHosted: false,
+            }),
+        ).toBe(false);
     });
 });

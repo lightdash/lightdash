@@ -10,9 +10,13 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactElement } from 'react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import type * as LazySelectModule from './LazySelect';
 import { TileOverlays } from './TileOverlay';
 
@@ -41,9 +45,6 @@ vi.mock('./useControlsSidebar', () => ({
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
-}));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatusContext.current)),
 }));
 vi.mock('./usePortalTargets', () => ({
     usePortalTargets: (keys: string[], _: unknown, enabled: boolean) =>
@@ -167,6 +168,24 @@ const overlay = (tileUuid: string) =>
     container(tileUuid).firstElementChild as HTMLElement | null;
 const clearButton = (tileUuid: string) =>
     card(tileUuid).queryByRole('button', { name: 'Stop filtering this tile' });
+
+// Seeds the store's SQL chart metadata from `mockTileStatusContext` at render time
+const renderWithProviders = (ui: ReactElement) => {
+    const store = createDashboardTestStore({
+        sqlChartTilesMetadata: mockTileStatusContext.current
+            .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+    });
+    const wrap = (node: ReactElement) => (
+        <DashboardStoreTestProvider store={store}>
+            {node}
+        </DashboardStoreTestProvider>
+    );
+    const result = renderWithAppProviders(wrap(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => result.rerender(wrap(node)),
+    };
+};
 
 describe('TileOverlays', () => {
     beforeEach(() => {

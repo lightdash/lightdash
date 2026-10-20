@@ -63,7 +63,6 @@ import {
 } from '../decisions/prepareContext';
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
-import { createVizPlanner } from '../decisions/vizPlanner';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
@@ -110,6 +109,7 @@ import {
 } from '../tools/grepFieldsIndex';
 import { getIterateDataApp } from '../tools/iterateDataApp';
 import { getListContent } from '../tools/listContent';
+import { getListDataAppConnections } from '../tools/listDataAppConnections';
 import { getListDataAppThemes } from '../tools/listDataAppThemes';
 import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
 import { getListProjects } from '../tools/listProjects';
@@ -1806,17 +1806,6 @@ export const getAgentTools = (
                   explores: availableExplores,
               })
             : undefined;
-    // Data access only gates the row-derived stats the planner sends.
-    const planViz =
-        args.decisions && args.execution.mode === 'standard'
-            ? createVizPlanner({
-                  decisions: args.decisions,
-                  question: getAgentQuestion(args),
-                  conversation: decisionContext,
-                  usage: args.decisionUsage,
-                  recordDecision: args.recordPromptDecision,
-              })
-            : undefined;
 
     const grepFields = getGrepFields({
         availableExplores,
@@ -2026,7 +2015,6 @@ export const getAgentTools = (
         ? getRunComposerQueries({
               agentContext,
               reviewQuery,
-              planViz,
               updateProgress: dependencies.updateProgress,
               runComposerQueries: queryDependencies.runComposerQueries,
               getPrompt: dependencies.getPrompt,
@@ -2038,9 +2026,10 @@ export const getAgentTools = (
               listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
               trackSqlApprovalTimeout,
               storeToolResults: dependencies.storeToolResults,
-              createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
-              listThreadComposerPipelines:
-                  dependencies.listThreadComposerPipelines,
+              listThreadComposerQueryNodes:
+                  dependencies.listThreadComposerQueryNodes,
+              registerThreadComposerQueryNodes:
+                  dependencies.registerThreadComposerQueryNodes,
               maxQueryLimit: args.runSqlMaxLimit,
               enableDataAccess: args.enableDataAccess,
               canRunSql: args.canRunSql,
@@ -2160,6 +2149,12 @@ export const getAgentTools = (
     const listDataAppThemes = args.enableGenerateDataApp
         ? getListDataAppThemes({
               listDataAppThemes: dependencies.listDataAppThemes,
+          })
+        : null;
+
+    const listDataAppConnections = args.enableGenerateDataApp
+        ? getListDataAppConnections({
+              listDataAppConnections: dependencies.listDataAppConnections,
           })
         : null;
 
@@ -2377,6 +2372,7 @@ export const getAgentTools = (
         ...(generateDataApp ? { generateDataApp } : {}),
         ...(iterateDataApp ? { iterateDataApp } : {}),
         ...(listDataAppThemes ? { listDataAppThemes } : {}),
+        ...(listDataAppConnections ? { listDataAppConnections } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(editProjectContext ? { editProjectContext } : {}),
         ...(editRepo ? { editRepo } : {}),
@@ -2742,6 +2738,8 @@ export const getAgentMessages = (
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,
         requestingUser: args.requestingUser,
+        threadBinding: args.threadBinding,
+        threadContext: args.threadContext,
         availableExplores,
         availableCustomChartTypes: customChartTypeLibrary,
         knowledgeDocuments: args.knowledgeDocuments,

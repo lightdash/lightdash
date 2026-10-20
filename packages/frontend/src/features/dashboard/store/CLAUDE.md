@@ -1,16 +1,23 @@
 # Dashboard store
 
-Filter and parameter state for one mounted dashboard. `DashboardProvider`
+Filter, parameter, runtime date zoom and tile status state for one mounted
+dashboard. `DashboardProvider`
 creates the store with `createDashboardStore(buildInitialDashboardState(...))`
 and mounts it on `DashboardStoreContext`.
 
 ## Rules
 
 - **Read values from the store, call actions from the context.** Values
-  (`dashboardFilters`, `parameterValues`, ...) come from `useDashboardSelector`
+  (`dashboardFilters`, `parameterValues`, `dateZoomGranularity`, ...) come from `useDashboardSelector`
   and the hooks in `hooks.ts`. Mutations stay on `useDashboardContext` (e.g.
   `c.updateDimensionDashboardFilter`). Those callbacks are stable and dispatch to
-  the store, so the provider never re-renders on a filter or parameter edit.
+  the store, so the provider never re-renders on a filter, parameter or date
+  zoom change, nor when tiles report their zoomable fields or applied zoom.
+- **Tile reports go to the store.** `DashboardTileStatusProvider` keeps only
+  stable callbacks and values derived from the tiles and tabs. Read what tiles
+  report (loaded tiles, cache time, refresh counter, SQL metadata, custom
+  granularities) with selectors, and use `useAreAllChartsLoaded` and
+  `useScreenshotReadiness` for the derived states.
 - **Use the dashboard hooks, never plain `useSelector`/`useDispatch`.** The store
   lives on its own context so it can't shadow the app-wide AI agent store or an
   explorer store mounted inside a dashboard.
@@ -24,8 +31,14 @@ and mounts it on `DashboardStoreContext`.
 - **Read at call time in handlers.** When a callback needs current values but the
   component doesn't render them, use `useDashboardStore().getState()` instead of
   subscribing (see `pages/Dashboard.tsx` save and add-tile handlers).
+- **Select per tile, not the whole map.** Tiles read their own applied zoom with
+  `selectIsDateZoomAppliedToTile`, so one tile's report doesn't re-render the rest.
+- **The date zoom config stays on the context.** Editor-authored settings
+  (`dateZoomConfig`, allowed and default granularities, `isDateZoomDisabled`)
+  move with the rest of the edit-mode state, not with the runtime grains.
 - **URL, session storage and embed sync** live in
-  `providers/Dashboard/DashboardFiltersSync.tsx` and `DashboardParametersSync.tsx`.
+  `providers/Dashboard/DashboardFiltersSync.tsx`, `DashboardParametersSync.tsx`
+  and `DashboardDateZoomSync.tsx`.
 
 ## Tests
 

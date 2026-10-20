@@ -54,6 +54,7 @@ import {
     AiPromptThreadFileSnapshot,
     AiResultType,
     AiThread,
+    AiThreadBinding,
     AiThreadCompaction,
     AiThreadCreatedFrom,
     AiWebAppPrompt,
@@ -76,6 +77,7 @@ import {
     elementReferenceToWireString,
     generateSlug,
     getAppDisplayName,
+    getComposerNodeConflictMessage,
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
@@ -84,6 +86,7 @@ import {
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
     isAiWritebackRunInProgress,
+    isSameComposerNodeDefinition,
     isThreadPrompt,
     isToolDataAppBuildResult,
     isToolEditDbtProjectResult,
@@ -112,6 +115,7 @@ import {
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
     type ServedSkillMetadata,
+    type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
     type ToolGenerateDataAppOutput,
     type VerifiedContentListItem,
@@ -262,6 +266,12 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import {
+    ComposerQueryNodesTableName,
+    THREAD_COMPOSER_QUERY_SCOPE_TYPE,
+    threadComposerQueryScope,
+    type ComposerQueryNodeScope,
+} from '../database/entities/composerQueryNodes';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
 import {
     isNativeSqlApprovalToolCall,
@@ -270,6 +280,7 @@ import {
     type SqlApprovalDecision,
     type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
+import { type AiAgentThreadBindingContext } from '../services/ai/types/aiAgent';
 import { normalizeAiMcpOAuthClientCredentials } from '../services/ai/utils/mcpServerCredentials';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
@@ -481,10 +492,14 @@ type AiThreadSummaryRow = Pick<
     | 'title_generated_at'
     | 'pinned_at'
     | 'battle_profile'
-> &
-    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
-        user_uuid: DbUser['user_uuid'] | null;
-    } & Pick<DbAiSlackThread, 'slack_user_id'> & {
+    | 'bound_entity_type'
+    | 'bound_entity_uuid'
+    | 'thread_context'
+> & {
+    prompt: DbAiPrompt['prompt'] | null;
+    ai_prompt_uuid: DbAiPrompt['ai_prompt_uuid'] | null;
+    user_uuid: DbUser['user_uuid'] | null;
+} & Pick<DbAiSlackThread, 'slack_user_id'> & {
         user_name: string | null;
         agent_name: string | null;
         agent_image_url: string | null;
@@ -3343,17 +3358,29 @@ export class AiAgentModel {
             .delete();
     }
 
+    // Threads without a prompt are only listed when created bound or with context.
     private buildThreadSummaryQuery(organizationUuid: string) {
         return this.database(AiThreadTableName)
-            .join(
-                AiPromptTableName,
+            .joinRaw(
+                `left join lateral (
+                    select ai_prompt_uuid, prompt, created_by_user_uuid
+                    from ${AiPromptTableName}
+                    where ${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid
+                    order by created_at asc
+                    limit 1
+                ) as first_prompt on true`,
+            )
+            .leftJoin(
+                AiWebAppThreadTableName,
                 `${AiThreadTableName}.ai_thread_uuid`,
-                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiWebAppThreadTableName}.ai_thread_uuid`,
             )
             .leftJoin(
                 UserTableName,
-                `${AiPromptTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
+                this.database.raw(
+                    `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid)`,
+                ),
             )
             .leftJoin(
                 AiSlackThreadTableName,
@@ -3365,14 +3392,12 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiAgentTableName}.ai_agent_uuid`,
             )
-            .where(
-                `${AiPromptTableName}.created_at`,
-                this.database(AiPromptTableName)
-                    .select(this.database.raw('MIN(created_at)'))
-                    .whereRaw(
-                        `${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid`,
-                    ),
-            )
+            .where((builder) => {
+                void builder
+                    .whereNotNull('first_prompt.ai_prompt_uuid')
+                    .orWhereNotNull(`${AiThreadTableName}.bound_entity_type`)
+                    .orWhereNotNull(`${AiThreadTableName}.thread_context`);
+            })
             .andWhere(
                 `${AiThreadTableName}.organization_uuid`,
                 organizationUuid,
@@ -3386,8 +3411,11 @@ export class AiAgentModel {
                 `${AiThreadTableName}.title_generated_at`,
                 `${AiThreadTableName}.pinned_at`,
                 `${AiThreadTableName}.battle_profile`,
-                `${AiPromptTableName}.prompt`,
-                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiThreadTableName}.bound_entity_type`,
+                `${AiThreadTableName}.bound_entity_uuid`,
+                `${AiThreadTableName}.thread_context`,
+                'first_prompt.prompt',
+                'first_prompt.ai_prompt_uuid',
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
                     `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
@@ -3397,6 +3425,28 @@ export class AiAgentModel {
                 `${AiAgentTableName}.image_url as agent_image_url`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
+    }
+
+    private static getThreadBindingEntityUuid(binding: AiThreadBinding) {
+        switch (binding.type) {
+            case 'dashboard':
+                return binding.dashboardUuid;
+            default:
+                return assertUnreachable(binding.type, 'Unknown binding type');
+        }
+    }
+
+    private static toThreadBinding(
+        type: AiThreadBinding['type'] | null,
+        entityUuid: string | null,
+    ): AiThreadBinding | null {
+        if (type === null || entityUuid === null) return null;
+        switch (type) {
+            case 'dashboard':
+                return { type, dashboardUuid: entityUuid };
+            default:
+                return assertUnreachable(type, 'Unknown binding type');
+        }
     }
 
     // eslint-disable-next-line class-methods-use-this
@@ -3415,16 +3465,21 @@ export class AiAgentModel {
             titleGeneratedAt: row.title_generated_at?.toString() ?? null,
             pinnedAt: row.pinned_at?.toString() ?? null,
             battleProfile: row.battle_profile,
-            firstMessage: {
-                uuid: row.ai_prompt_uuid,
-                message: row.prompt,
-            },
+            firstMessage:
+                row.ai_prompt_uuid !== null && row.prompt !== null
+                    ? { uuid: row.ai_prompt_uuid, message: row.prompt }
+                    : null,
             user: {
                 uuid: row.user_uuid ?? '',
                 name: row.user_name || 'Unknown user',
                 slackUserId: row.slack_user_id,
             },
             liveStatus: null,
+            binding: AiAgentModel.toThreadBinding(
+                row.bound_entity_type,
+                row.bound_entity_uuid,
+            ),
+            threadContext: row.thread_context,
         };
     }
 
@@ -7053,6 +7108,11 @@ export class AiAgentModel {
                     created_from: data.createdFrom,
                     agent_uuid: data.agentUuid,
                     battle_profile: data.battleProfile ?? null,
+                    bound_entity_type: data.binding?.type ?? null,
+                    bound_entity_uuid: data.binding
+                        ? AiAgentModel.getThreadBindingEntityUuid(data.binding)
+                        : null,
+                    thread_context: data.threadContext ?? null,
                 })
                 .returning('ai_thread_uuid');
             if (row === undefined) {
@@ -7083,6 +7143,82 @@ export class AiAgentModel {
             })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first();
+    }
+
+    async findThreadBinding(
+        threadUuid: string,
+    ): Promise<AiThreadBinding | null> {
+        const row = await this.database(AiThreadTableName)
+            .select('bound_entity_type', 'bound_entity_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+        return row
+            ? AiAgentModel.toThreadBinding(
+                  row.bound_entity_type,
+                  row.bound_entity_uuid,
+              )
+            : null;
+    }
+
+    async findThreadPromptSetup(threadUuid: string): Promise<{
+        threadBinding: AiAgentThreadBindingContext | null;
+        threadContext: string | null;
+    }> {
+        const row = await this.database(AiThreadTableName)
+            .leftJoin(DashboardsTableName, function joinBoundDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'dashboard',
+                    )
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
+            .first<
+                | {
+                      bound_entity_type: DbAiThread['bound_entity_type'];
+                      thread_context: string | null;
+                      dashboard_name: string | null;
+                      dashboard_slug: string | null;
+                  }
+                | undefined
+            >(
+                `${AiThreadTableName}.bound_entity_type`,
+                `${AiThreadTableName}.thread_context`,
+                `${DashboardsTableName}.name as dashboard_name`,
+                `${DashboardsTableName}.slug as dashboard_slug`,
+            );
+        if (!row) return { threadBinding: null, threadContext: null };
+
+        let threadBinding: AiAgentThreadBindingContext | null = null;
+        switch (row.bound_entity_type) {
+            case null:
+                break;
+            case 'dashboard':
+                threadBinding = {
+                    type: 'dashboard',
+                    dashboard:
+                        row.dashboard_name !== null &&
+                        row.dashboard_slug !== null
+                            ? {
+                                  name: row.dashboard_name,
+                                  slug: row.dashboard_slug,
+                              }
+                            : null,
+                };
+                break;
+            default:
+                return assertUnreachable(
+                    row.bound_entity_type,
+                    'Unknown binding type',
+                );
+        }
+        return { threadBinding, threadContext: row.thread_context };
     }
 
     async getWebAppThreadEmbedSpace(threadUuid: string) {
@@ -9776,6 +9912,60 @@ export class AiAgentModel {
         return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
     }
 
+    async listComposerQueryNodes(
+        scope: ComposerQueryNodeScope,
+    ): Promise<ThreadComposerQueryNode[]> {
+        const rows = await this.database(ComposerQueryNodesTableName)
+            .select('definition')
+            .where({ scope_type: scope.scopeType, scope_uuid: scope.scopeUuid })
+            .orderBy('created_at', 'asc')
+            .orderBy('node_id', 'asc');
+        return rows.map((row) => row.definition);
+    }
+
+    /** Identical definitions are a no-op; a different one under a registered node id throws. */
+    async registerComposerQueryNodes({
+        scope,
+        nodes,
+    }: {
+        scope: ComposerQueryNodeScope;
+        nodes: ThreadComposerQueryNode[];
+    }): Promise<void> {
+        if (nodes.length === 0) return;
+        const submitted = new Map(nodes.map((node) => [node.nodeId, node]));
+        await this.database.transaction(async (trx) => {
+            await trx(ComposerQueryNodesTableName)
+                .insert(
+                    nodes.map((node) => ({
+                        scope_type: scope.scopeType,
+                        scope_uuid: scope.scopeUuid,
+                        node_id: node.nodeId,
+                        definition: node,
+                    })),
+                )
+                .onConflict(['scope_type', 'scope_uuid', 'node_id'])
+                .ignore();
+            const registered = await trx(ComposerQueryNodesTableName)
+                .select('node_id', 'definition')
+                .where({
+                    scope_type: scope.scopeType,
+                    scope_uuid: scope.scopeUuid,
+                })
+                .whereIn('node_id', [...submitted.keys()]);
+            registered.forEach((row) => {
+                const node = submitted.get(row.node_id);
+                if (
+                    node &&
+                    !isSameComposerNodeDefinition(row.definition, node)
+                ) {
+                    throw new ParameterError(
+                        getComposerNodeConflictMessage(row.definition),
+                    );
+                }
+            });
+        });
+    }
+
     async findArtifactVersionsByPromptUuid(
         promptUuid: string,
         { db }: { db: Knex } = { db: this.database },
@@ -11282,6 +11472,18 @@ export class AiAgentModel {
                     });
             }
 
+            await trx.raw(
+                `INSERT INTO ${ComposerQueryNodesTableName}
+                    (scope_type, scope_uuid, node_id, definition, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, created_at
+                 FROM ${ComposerQueryNodesTableName}
+                 WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
+                {
+                    targetThreadUuid: newThreadUuid,
+                    ...threadComposerQueryScope(sourceThreadUuid),
+                },
+            );
+
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({
                 sourceThreadUuid,
@@ -11562,7 +11764,8 @@ export class AiAgentModel {
     /**
      * Removes the derived rows the FK graph does not cascade — memories
      * distilled from a thread, runSql approval decisions (keyed by tool call
-     * id), and pinned-context references — then the threads themselves.
+     * id), pinned-context references and thread composer query nodes — then
+     * the threads themselves.
      * Everything else is covered by ON DELETE CASCADE.
      */
     private static async deleteThreadsCascade(
@@ -11589,6 +11792,11 @@ export class AiAgentModel {
         await trx(AiPromptContextTableName)
             .where('entity_type', 'thread')
             .whereIn('entity_uuid', deletedThreadUuids)
+            .delete();
+
+        await trx(ComposerQueryNodesTableName)
+            .where('scope_type', THREAD_COMPOSER_QUERY_SCOPE_TYPE)
+            .whereIn('scope_uuid', deletedThreadUuids)
             .delete();
 
         const deletedMemoriesCount = await trx(AiAgentMemoryTableName)

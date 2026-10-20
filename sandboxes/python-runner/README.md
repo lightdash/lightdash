@@ -10,6 +10,10 @@ egress and no credentials.
   `lightdash-python-runner`) at tag `E2B_PYTHON_TEMPLATE_TAG` (default: running version).
 - Local: `SANDBOX_PROVIDER=docker`, image `SANDBOX_PYTHON_DOCKER_IMAGE` (default
   `lightdash-python-runner:local`), built with `./build-local-image.sh`.
+- Cloud Run: `SANDBOX_PROVIDER=gcp-cloud-run`. The gateway bakes in one image, so
+  python needs its own gateway service, separate from the data-app one. Build it
+  with `./build-cloud-run-image.sh` and point the backend at it with
+  `GCP_CLOUD_RUN_PYTHON_SANDBOX_URL` / `GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET`.
 
 Preinstalled libraries: pandas, numpy, scipy, pyarrow, scikit-learn, polars
 (pinned in `e2b.Dockerfile`). `run()` must still return a pandas DataFrame.

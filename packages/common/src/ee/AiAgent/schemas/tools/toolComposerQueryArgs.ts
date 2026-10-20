@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DimensionType } from '../../../../types/field';
+import { type Filters } from '../../../../types/filter';
 import {
     type MetricQueryRequest,
     type SortField,
@@ -9,10 +10,12 @@ import {
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type PythonSourceQuery,
+    type QueryNodeId,
     type SemanticLayerSourceQuery,
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
@@ -27,7 +30,7 @@ export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more queries submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
-} queries join or transform the others' results. The terminal node's table is shown in the thread as a chart artifact and its rows are returned to you.
+} queries join or transform the others' results. The terminal node's rows are returned to you.
 
 Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
@@ -42,7 +45,9 @@ Node kinds:
 
 Every node has a "nodeId" (for references) and a "title" (what users see). The terminal node is the unique sink by default, or "terminalNodeId".
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles. The artifact always shows your latest call's terminal result, so end with the pipeline that produces the table the user should see.`;
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id. Every call lists its nodes' ids and titles.
+
+Results stay hidden until you present one; each successful result says how.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
@@ -75,14 +80,14 @@ const nodeMetaSchema = {
     description: nodeDescriptionSchema,
 };
 
-const semanticLayerFiltersSchema = z
-    .object({
-        dimensions: z.unknown().optional(),
-        metrics: z.unknown().optional(),
-        tableCalculations: z.unknown().optional(),
-    })
+// runQuery's filter-expression contract, minus table calculations: a node has
+// none, DuckDB nodes do that work downstream.
+export const composerSemanticLayerFiltersSchema = filterExpressionsSchema
+    .omit({ tableCalculations: true })
+    .strict()
+    .nullable()
     .describe(
-        'Filters in the metric query filters shape: an optional filter group per field kind, e.g. {"dimensions": {"id": "<uuid>", "and": [{"id": "<uuid>", "target": {"fieldId": "orders_status"}, "operator": "equals", "values": ["completed"]}]}}.',
+        "Filters on this node's explore as flat expression strings, never structured rule objects: one for dimension fields and one for metric fields, each choosing AND or OR independently and combined with AND. Null when unfiltered, or null for an unused kind.",
     );
 
 const sortFieldSchema = z.object({
@@ -143,7 +148,7 @@ export const createToolComposerQueriesArgsSchema = ({
             .describe(
                 "Metric field ids to compute, from the explore's schema.",
             ),
-        filters: semanticLayerFiltersSchema.nullable(),
+        filters: composerSemanticLayerFiltersSchema,
         sorts: z
             .array(sortFieldSchema)
             .nullable()
@@ -230,7 +235,9 @@ export const createToolComposerQueriesArgsSchema = ({
             title: z
                 .string()
                 .nullable()
-                .describe('A short title for the results artifact.'),
+                .describe(
+                    'A short title for the result, used when it is presented.',
+                ),
             description: z
                 .string()
                 .nullable()
@@ -249,7 +256,7 @@ export const createToolComposerQueriesArgsSchema = ({
                 .string()
                 .nullable()
                 .describe(
-                    "Which node's result the artifact shows and this tool returns. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
+                    "Which node's result this tool returns and you can present. Pass null to default to the unique sink among the submitted nodes (the one node no other submitted node reads); required when there are multiple sinks.",
                 ),
         })
         .build();
@@ -262,8 +269,21 @@ export type ToolComposerQueryNode = z.infer<
     ReturnType<typeof createToolComposerQueriesArgsSchema>
 >['queries'][number];
 
+export type ToolComposerSemanticLayerNode = Extract<
+    ToolComposerQueryNode,
+    { sourceType: QuerySourceType.SEMANTIC_LAYER }
+>;
+
+// A submitted node with semanticLayer filters already resolved to domain
+// Filters; only this shape converts to a SourceQuery.
+export type ResolvedToolComposerQueryNode =
+    | Exclude<ToolComposerQueryNode, ToolComposerSemanticLayerNode>
+    | (Omit<ToolComposerSemanticLayerNode, 'filters'> & {
+          filters: Filters | null;
+      });
+
 const toSourceQueryNodeMeta = (
-    node: ToolComposerQueryNode,
+    node: ResolvedToolComposerQueryNode,
 ): Pick<SqlSourceQuery, 'title' | 'description'> => ({
     title: node.title,
     description: node.description ?? undefined,
@@ -274,14 +294,18 @@ const toSourceQueryNodeMeta = (
  * query source service takes. The explicit return types pin drift at compile
  * time: if types/querySources.ts changes incompatibly, this stops compiling.
  */
-export const toolComposerQueryNodeToSourceQuery = (
-    node: ToolComposerQueryNode,
-):
+/** A SourceQuery built from a tool node, so its node id is always set. */
+export type SubmittedSourceQuery = (
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
     | ExternalSourceQuery
-    | PythonSourceQuery => {
+    | PythonSourceQuery
+) & { nodeId: QueryNodeId };
+
+export const toolComposerQueryNodeToSourceQuery = (
+    node: ResolvedToolComposerQueryNode,
+): SubmittedSourceQuery => {
     switch (node.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER: {
             const filters: MetricQueryRequest['filters'] | undefined =
@@ -474,7 +498,7 @@ const composerQueryColumnSchema = z.object({
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
     terminalNodeId: nodeIdSchema.describe(
-        'Node whose result the artifact shows and whose rows are returned.',
+        'Node whose rows are returned and which a presentation can show.',
     ),
     rowCount: z
         .number()
@@ -506,17 +530,33 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
         .describe(
             'Raw values of the preview rows rendered as CSV in the result; null when data access is disabled or the terminal result is empty.',
         ),
-    visualization: z.string().nullable(),
     review: z.string().nullable(),
 });
 
+const toolComposerQueriesSuccessMetadataSchema = z.object({
+    status: z.literal('success'),
+    queryUuid: z.string(),
+    terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
+    title: z.string(),
+    description: z.string().nullable(),
+});
+
+export type ToolComposerQueriesSuccessMetadata = z.infer<
+    typeof toolComposerQueriesSuccessMetadataSchema
+>;
+
+export const parseToolComposerQueriesSuccessMetadata = (
+    metadata: unknown,
+): ToolComposerQueriesSuccessMetadata | null => {
+    const parsed = toolComposerQueriesSuccessMetadataSchema.safeParse(metadata);
+    return parsed.success ? parsed.data : null;
+};
+
 export const toolComposerQueriesOutputSchema = structuredToolOutputSchema({
-    metadata: z.object({
-        status: z.enum(['success', 'error', 'rejected', 'timeout']),
-        // Set on success: the terminal execution and the artifact version it saved.
-        queryUuid: z.string().optional(),
-        artifactVersionUuid: z.string().optional(),
-    }),
+    metadata: z.discriminatedUnion('status', [
+        toolComposerQueriesSuccessMetadataSchema,
+        z.object({ status: z.enum(['error', 'rejected', 'timeout']) }),
+    ]),
     structuredContent: toolComposerQueriesStructuredContentSchema,
     // Rejection and timeout are failures for this tool: they carry an error,
     // not a result set.

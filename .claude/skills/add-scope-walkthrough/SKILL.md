@@ -8,7 +8,7 @@ allowed-tools: Read, Edit, Write, Glob, Grep, Bash
 
 # Add a scope walkthrough
 
-A walkthrough teaches one permission scope by having a learner click the real UI, step by step, inside their own throwaway copy of the training project. Nothing about a walkthrough is written by hand: steps come from markers placed beside the ability checks that gate the controls, titles come from the controls' own hints, explanatory text comes from docs sentences, and the result is proved by a recorded flow. This skill is the recipe. Follow it in order; every rule below was settled in review and the checker (CS-209) will enforce them.
+A walkthrough teaches one permission scope by having a learner click the real UI, step by step, inside their own copy of the training project. Nothing about a walkthrough is written by hand: steps come from markers placed beside the ability checks that gate the controls, titles come from the controls' own hints, explanatory text comes from docs sentences, and the result is proved by a recorded flow. This skill is the recipe. Follow it in order; every rule below was settled in review and the checker (CS-209) will enforce them.
 
 ## Rules that never bend
 
@@ -107,7 +107,7 @@ SMOKE_SCOPES=<scope> pnpm scope-tours:smoke
 
 It fails when a step makes no progress, when the tour ends anywhere but the shared training project, or when the learner already holds the scope in a real project. A walkthrough that needs anything the driver cannot do (a click outside the highlight) is wrong by definition. The same driver runs nightly over every tour.
 
-Then the recorded flow, which proves what the driver cannot see (the change exists in the copy and not in the shared project, the real project refuses the action). Copy `~/.claude/scripts/verify-recorder/flows/cs-207-chart-tour.mjs` to `cs-207-<scope>-tour.mjs`. The flow plays the learner: starts the tour from the shared training project, asserts it landed in a fresh copy, and at each step waits for the control, checks the ring is on it (`spotlightOn`), clicks it, and waits for the next step number. It must also assert: the change exists in the copy and not in the shared project; the result surface shows it; Got it removes the copy; the same action is refused in the real project (HTTP 403). Run with `node record.mjs flows/<file>.mjs` from the recorder directory; every check must be green.
+Then the recorded flow, which proves what the driver cannot see (the change exists in the copy and not in the shared project, the real project refuses the action). Copy `~/.claude/scripts/verify-recorder/flows/cs-207-chart-tour.mjs` to `cs-207-<scope>-tour.mjs`. The flow plays the learner: starts the tour from the shared training project, asserts it landed in their copy, and at each step waits for the control, checks the ring is on it (`spotlightOn`), clicks it, and waits for the next step number. It must also assert: the change exists in the copy and not in the shared project; the result surface shows it; Got it keeps the copy (Start fresh in the library removes it); the same action is refused in the real project (HTTP 403). Run with `node record.mjs flows/<file>.mjs` from the recorder directory; every check must be green.
 
 ### 7. Report and record
 

@@ -884,6 +884,10 @@ export type HealthState = {
     preAggregates: {
         enabled: boolean;
     };
+    externalSources: {
+        /** Whether the DuckDB engine external sources ingest into is configured. */
+        engineAvailable: boolean;
+    };
     dataApps: {
         /**
          * Origin where data-app preview iframes are served (e.g.,

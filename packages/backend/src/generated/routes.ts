@@ -14720,7 +14720,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { label: { dataType: 'string', required: true } },
+            nestedProperties: {
+                columnLabels: { ref: 'Record_string.string_' },
+                label: { dataType: 'string', required: true },
+            },
             validators: {},
         },
     },
@@ -21836,6 +21839,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Extract_DataAppViewOutcome.sdk_started-or-runtime_error_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['sdk_started'] },
+                { dataType: 'enum', enums: ['runtime_error'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RecordDataAppViewOutcome: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                outcome: {
+                    ref: 'Extract_DataAppViewOutcome.sdk_started-or-runtime_error_',
+                    required: true,
+                },
+                navigationId: { ref: 'UUID', required: true },
+                previewToken: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppManifestExternalConnection: {
         dataType: 'refAlias',
         type: {
@@ -28169,6 +28200,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiAgentThreadFirstMessage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                message: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentUser: {
         dataType: 'refAlias',
         type: {
@@ -28227,11 +28270,43 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadBinding: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboardUuid: { dataType: 'string', required: true },
+                type: {
+                    dataType: 'enum',
+                    enums: ['dashboard'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadSummary_AiAgentUser_: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                binding: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadBinding' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 liveStatus: {
                     dataType: 'union',
                     subSchemas: [
@@ -28242,11 +28317,11 @@ const models: TsoaRoute.Models = {
                 },
                 user: { ref: 'AiAgentUser', required: true },
                 firstMessage: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        message: { dataType: 'string', required: true },
-                        uuid: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentThreadFirstMessage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 battleProfile: {
@@ -29690,6 +29765,22 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                binding: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiThreadBinding' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 liveStatus: {
                     dataType: 'union',
                     subSchemas: [
@@ -29700,11 +29791,11 @@ const models: TsoaRoute.Models = {
                 },
                 user: { ref: 'AiAgentUser', required: true },
                 firstMessage: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        message: { dataType: 'string', required: true },
-                        uuid: { dataType: 'string', required: true },
-                    },
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiAgentThreadFirstMessage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 battleProfile: {
@@ -31134,6 +31225,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['grepFields'] },
                 { dataType: 'enum', enums: ['iterateDataApp'] },
                 { dataType: 'enum', enums: ['listContent'] },
+                { dataType: 'enum', enums: ['listDataAppConnections'] },
                 { dataType: 'enum', enums: ['listDataAppThemes'] },
                 { dataType: 'enum', enums: ['listKnowledgeDocuments'] },
                 { dataType: 'enum', enums: ['listProjects'] },
@@ -35999,6 +36091,278 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        status: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'error',
+                                                                    ],
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'enum',
+                                                                    enums: [
+                                                                        'success',
+                                                                    ],
+                                                                },
+                                                            ],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
+                                                        refusal: {
+                                                            dataType: 'union',
+                                                            subSchemas: [
+                                                                {
+                                                                    dataType:
+                                                                        'nestedObjectLiteral',
+                                                                    nestedProperties:
+                                                                        {
+                                                                            projectUuid:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            policyVersion:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'double',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            operation:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            policyLayer:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            capability:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
+                                                                            connectUrl:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            settingsUrl:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'enum',
+                                                                                                enums: [
+                                                                                                    null,
+                                                                                                ],
+                                                                                            },
+                                                                                        ],
+                                                                                    required: true,
+                                                                                },
+                                                                            action: {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                            message:
+                                                                                {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                            reason: {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                            code: {
+                                                                                dataType:
+                                                                                    'enum',
+                                                                                enums: [
+                                                                                    'ai_access_refused',
+                                                                                ],
+                                                                                required: true,
+                                                                            },
+                                                                        },
+                                                                },
+                                                                {
+                                                                    dataType:
+                                                                        'undefined',
+                                                                },
+                                                            ],
+                                                        },
+                                                        status: {
+                                                            dataType: 'enum',
+                                                            enums: ['error'],
+                                                            required: true,
+                                                        },
+                                                    },
+                                                },
+                                            ],
+                                        },
+                                        {
+                                            dataType: 'intersection',
+                                            subSchemas: [
+                                                {
+                                                    dataType:
+                                                        'nestedObjectLiteral',
+                                                    nestedProperties: {
                                                         skill: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -38539,7 +38903,7 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
-                                                        artifactVersionUuid: {
+                                                        description: {
                                                             dataType: 'union',
                                                             subSchemas: [
                                                                 {
@@ -38548,55 +38912,29 @@ const models: TsoaRoute.Models = {
                                                                 },
                                                                 {
                                                                     dataType:
-                                                                        'undefined',
+                                                                        'enum',
+                                                                    enums: [
+                                                                        null,
+                                                                    ],
                                                                 },
                                                             ],
+                                                            required: true,
+                                                        },
+                                                        title: {
+                                                            dataType: 'string',
+                                                            required: true,
+                                                        },
+                                                        terminalNodeId: {
+                                                            dataType: 'string',
+                                                            required: true,
                                                         },
                                                         queryUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
+                                                            dataType: 'string',
+                                                            required: true,
                                                         },
                                                         status: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'error',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'success',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'rejected',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'timeout',
-                                                                    ],
-                                                                },
-                                                            ],
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
                                                             required: true,
                                                         },
                                                     },
@@ -38621,32 +38959,6 @@ const models: TsoaRoute.Models = {
                                                     dataType:
                                                         'nestedObjectLiteral',
                                                     nestedProperties: {
-                                                        artifactVersionUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
-                                                        },
-                                                        queryUuid: {
-                                                            dataType: 'union',
-                                                            subSchemas: [
-                                                                {
-                                                                    dataType:
-                                                                        'string',
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'undefined',
-                                                                },
-                                                            ],
-                                                        },
                                                         status: {
                                                             dataType: 'union',
                                                             subSchemas: [
@@ -38655,13 +38967,6 @@ const models: TsoaRoute.Models = {
                                                                         'enum',
                                                                     enums: [
                                                                         'error',
-                                                                    ],
-                                                                },
-                                                                {
-                                                                    dataType:
-                                                                        'enum',
-                                                                    enums: [
-                                                                        'success',
                                                                     ],
                                                                 },
                                                                 {
@@ -40926,6 +41231,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                threadContext: { dataType: 'string' },
+                binding: { ref: 'AiThreadBinding' },
                 battleProfile: { ref: 'AiAgentBattleProfile' },
                 originatingInstallationUuid: { dataType: 'string' },
                 modelConfig: { ref: 'AiAgentModelConfig' },
@@ -63844,6 +64151,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                reused: { dataType: 'boolean', required: true },
                 expiresAt: {
                     dataType: 'union',
                     subSchemas: [
@@ -92821,6 +93129,84 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getPreviewToken',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_recordViewOutcome: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        appUuid: {
+            in: 'path',
+            name: 'appUuid',
+            required: true,
+            dataType: 'string',
+        },
+        version: {
+            in: 'path',
+            name: 'version',
+            required: true,
+            dataType: 'double',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'RecordDataAppViewOutcome',
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/versions/:version/view-outcome',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.recordViewOutcome,
+        ),
+
+        async function AppGenerateController_recordViewOutcome(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_recordViewOutcome,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'recordViewOutcome',
                     controller,
                     response,
                     next,

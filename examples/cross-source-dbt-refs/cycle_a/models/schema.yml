@@ -1,16 +1,18 @@
 version: 2
 models:
-  - name: model_a
-    access: public
-    config:
-      meta:
-        primary_key: id
-        metrics:
-          row_count:
-            type: count
-            sql: ${TABLE}.id
-    columns:
-      - name: id
-        meta:
-          dimension:
-            type: number
+    - name: model_a
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  row_count:
+                      type: count
+                      sql: ${TABLE}.id
+      columns:
+          - name: id
+            meta:
+                dimension:
+                    type: number
+    - name: base_a
+      access: public

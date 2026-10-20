@@ -7,9 +7,9 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import {
     selectHaveFiltersChanged,
+    selectSqlChartTilesMetadata,
     useDashboardSelector,
     useHasDashboardTemporaryFilters,
 } from '../dashboard/store';
@@ -66,8 +66,8 @@ const AddFilterButton: FC<Props> = ({
     );
     const isMetricFiltersEnabled =
         metricDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const disabled = useMemo(() => {
         return (

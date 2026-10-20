@@ -11,6 +11,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectDashboardFilters,
+    selectDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
@@ -18,7 +19,6 @@ import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFil
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
-import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
@@ -44,9 +44,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const getUiString = useUiStrings();
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const parametersEnabled = isParameterInteractivityEnabled(
         dashboard.parameterInteractivity,
     );

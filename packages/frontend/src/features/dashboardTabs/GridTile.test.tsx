@@ -60,7 +60,6 @@ const renderLockedTile = () =>
     renderWithProviders(
         <GridTile
             tile={chartTile}
-            index={0}
             isEditMode={false}
             locked
             onEdit={vi.fn()}
@@ -91,7 +90,6 @@ describe('GridTile (locked)', () => {
         renderWithProviders(
             <GridTile
                 tile={markdownTile}
-                index={0}
                 isEditMode={false}
                 locked
                 onEdit={vi.fn()}

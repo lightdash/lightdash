@@ -30,6 +30,7 @@ import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
+import { getListDataAppConnections } from './listDataAppConnections';
 import { getListDataAppThemes } from './listDataAppThemes';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -132,6 +133,9 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
         iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
         listDataAppThemes: getListDataAppThemes({ listDataAppThemes: noop }),
+        listDataAppConnections: getListDataAppConnections({
+            listDataAppConnections: noop,
+        }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),
@@ -211,8 +215,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         runComposerQueries: getRunComposerQueries({
             agentContext: new AgentContext([]),
-            createOrUpdateArtifact: noop,
-            listThreadComposerPipelines: noop,
+            listThreadComposerQueryNodes: noop,
+            registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,
             canRunSql: true,
             enablePythonNodes: false,
@@ -309,9 +313,19 @@ describe('AI agent tool contracts', () => {
             enableFilterExpressions: true,
             enableGenerateDataApp: true,
         },
+        {
+            name: 'structured-filter-with-composer',
+            enableFilterExpressions: false,
+            enableGenerateDataApp: false,
+            enableComposerQueries: true,
+        },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({ enableFilterExpressions, enableGenerateDataApp }) => {
+        ({
+            enableFilterExpressions,
+            enableGenerateDataApp,
+            enableComposerQueries,
+        }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
@@ -319,6 +333,7 @@ describe('AI agent tool contracts', () => {
                     enableFilterExpressions,
                     enableContentTools: enableGenerateDataApp,
                     enableGenerateDataApp,
+                    enableComposerQueries,
                 }).content,
             ).toMatchSnapshot();
         },

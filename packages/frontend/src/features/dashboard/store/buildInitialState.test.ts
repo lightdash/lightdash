@@ -38,6 +38,8 @@ const build = (search: string, isEditMode = false) =>
         search,
         isEditMode,
         parameterLabelOverrides: undefined,
+        dateZoom: undefined,
+        invalidateCache: false,
     });
 
 describe('buildInitialDashboardState', () => {
@@ -106,12 +108,39 @@ describe('buildInitialDashboardState', () => {
         expect(urlRestoreErrors.parameters).toBe(false);
     });
 
+    it('restores date zoom granularities in canonical case', () => {
+        const { state } = build(
+            '?dateZoom=week&dateZoom.ctrl-1=MONTH&dateZoom.ctrl-2=fiscal_quarter',
+        );
+        expect(state.dateZoom.granularity).toBe('Week');
+        expect(state.dateZoom.controlGranularities).toEqual({
+            'ctrl-1': 'Month',
+            'ctrl-2': 'fiscal_quarter',
+        });
+    });
+
+    it('falls back to the dateZoom prop when the URL has none', () => {
+        const fromProp = (search: string) =>
+            buildInitialDashboardState({
+                search,
+                isEditMode: false,
+                parameterLabelOverrides: undefined,
+                dateZoom: 'Quarter',
+                invalidateCache: false,
+            }).state.dateZoom.granularity;
+        expect(fromProp('')).toBe('Quarter');
+        expect(fromProp('?dateZoom=')).toBe('Quarter');
+        expect(fromProp('?dateZoom=year')).toBe('Year');
+    });
+
     it('keeps the parameter label overrides', () => {
         const parameterLabelOverrides = { status: { label: 'Estado' } };
         const { state } = buildInitialDashboardState({
             search: '',
             isEditMode: false,
             parameterLabelOverrides,
+            dateZoom: undefined,
+            invalidateCache: false,
         });
         expect(state.parameters.parameterLabelOverrides).toBe(
             parameterLabelOverrides,

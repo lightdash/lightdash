@@ -49,6 +49,7 @@ import {
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
+    type RecordDataAppViewOutcome,
     type UpgradeAppRequestBody,
     type UUID,
     type UuidOrSlug,
@@ -1139,6 +1140,28 @@ export class AppGenerateController extends BaseController {
             status: 'ok',
             results: { token },
         };
+    }
+
+    /**
+     * Records a technical observation authorized by an exact-version preview token.
+     * @summary Record app outcome
+     */
+    @Post('/{appUuid}/versions/{version}/view-outcome')
+    @SuccessResponse('200', 'Success')
+    @OperationId('recordDataAppViewOutcome')
+    async recordViewOutcome(
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+        @Body() body: RecordDataAppViewOutcome,
+    ): Promise<ApiSuccessEmpty> {
+        this.getAppGenerateService().recordViewOutcome(
+            projectUuid,
+            appUuid,
+            version,
+            body,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**

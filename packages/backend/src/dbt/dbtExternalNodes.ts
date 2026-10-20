@@ -10,7 +10,8 @@ import { DbtSourceError } from './DbtSourceError';
 export const DBT_EXTERNAL_NODES_PLUGIN_FILENAME =
     'dbt_lightdash_external_nodes.py';
 
-export const DBT_EXTERNAL_NODES_PLUGIN_SOURCE = `import json
+export const DBT_EXTERNAL_NODES_PLUGIN_SOURCE = `import hashlib
+import json
 import os
 
 from dbt.contracts.graph.node_args import ModelNodeArgs
@@ -37,7 +38,13 @@ class LightdashExternalNodes(dbtPlugin):
                 ModelNodeArgs(
                     name=raw["name"],
                     package_name=raw["package_name"],
-                    identifier=raw["identifier"],
+                    identifier=(
+                        "lightdash_" + hashlib.sha256(
+                            json.dumps([raw["package_name"], raw["name"], raw.get("version")]).encode()
+                        ).hexdigest()
+                        if raw["schema"] == "lightdash_placeholder"
+                        else raw["identifier"]
+                    ),
                     schema=raw["schema"],
                     database=raw.get("database"),
                     relation_name=raw.get("relation_name"),
@@ -77,17 +84,27 @@ export const writeDbtExternalNodesPlugin = async (
 
 export const parseMissingDbtNodeReferences = (
     output: string,
-): { model: string; packageName: string }[] =>
-    Array.from(
-        output.matchAll(
-            /depends on a node named '([^']+)'(?: with version '[^']*')? in package or project '([^']+)'(?: with version '[^']*')? which was not found/g,
-        ),
-        ([, model, packageName]) => ({ model, packageName }),
-    );
+): { model: string; packageName: string | null; version: string | null }[] => [
+    ...new Map(
+        Array.from(
+            output.matchAll(
+                /depends on a node named '([^']+)'(?: with version '([^']*)')?(?: in package or project '([^']+)'(?: with version '([^']*)')?)? which was not found/g,
+            ),
+            ([, model, modelVersion, packageName, projectVersion]) => ({
+                model,
+                packageName: packageName ?? null,
+                version: modelVersion ?? projectVersion ?? null,
+            }),
+        ).map((ref) => [
+            `${ref.packageName}.${ref.model}.${ref.version ?? ''}`,
+            ref,
+        ]),
+    ).values(),
+];
 
 export const getMissingDbtNodeReferences = (
     error: unknown,
-): { model: string; packageName: string }[] => {
+): { model: string; packageName: string | null; version: string | null }[] => {
     const output = [
         error instanceof Error ? error.message : '',
         ...(error instanceof DbtError || error instanceof DbtSourceError
@@ -97,7 +114,7 @@ export const getMissingDbtNodeReferences = (
     return [
         ...new Map(
             parseMissingDbtNodeReferences(output).map((ref) => [
-                `${ref.packageName}.${ref.model}`,
+                `${ref.packageName}.${ref.model}.${ref.version ?? ''}`,
                 ref,
             ]),
         ).values(),
@@ -120,7 +137,9 @@ export const withCrossSourceRefsHint = (
     if (
         !enabled &&
         error instanceof Error &&
-        getMissingDbtNodeReferences(error).length > 0 &&
+        getMissingDbtNodeReferences(error).some(
+            (ref) => ref.packageName !== null,
+        ) &&
         !error.message.includes(CROSS_SOURCE_REFS_HINT)
     ) {
         const hintedError = error;
@@ -128,3 +147,26 @@ export const withCrossSourceRefsHint = (
     }
     return error;
 };
+
+export const placeholderExternalNode = ({
+    packageName,
+    name,
+    version,
+    latestVersion,
+}: {
+    packageName: string;
+    name: string;
+    version: string | null;
+    latestVersion: string | null;
+}): DbtExternalModelNode => ({
+    package_name: packageName,
+    name,
+    identifier: name,
+    schema: 'lightdash_placeholder',
+    database: null,
+    relation_name: null,
+    version,
+    latest_version: latestVersion,
+    access: 'public',
+    depends_on_nodes: [],
+});

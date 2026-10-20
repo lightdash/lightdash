@@ -10,6 +10,7 @@ import {
 import { fireEvent, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
@@ -21,7 +22,14 @@ import { FilterSettings } from './FilterSettings';
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore({ parameterValues: {} })}
+            store={createDashboardTestStore({
+                parameterValues: {},
+                sqlChartTilesMetadata: mockTileStatus.current
+                    .sqlChartTilesMetadata as Record<
+                    string,
+                    SqlChartTileMetadata
+                >,
+            })}
         >
             {ui}
         </DashboardStoreTestProvider>,
@@ -36,9 +44,6 @@ const mockTileStatus = vi.hoisted(() => ({
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
-}));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatus.current)),
 }));
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',

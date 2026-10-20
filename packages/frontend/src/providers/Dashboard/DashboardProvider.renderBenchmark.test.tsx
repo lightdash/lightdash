@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     FilterOperator,
+    type ChartZoomableField,
     type Dashboard,
     type DashboardFilterRule,
     type DashboardTile,
@@ -16,7 +17,11 @@ import {
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+    selectChartZoomableFieldsByTileUuid,
+    selectControlGranularities,
     selectDashboardFilters,
+    selectDateZoomGranularity,
+    selectIsDateZoomAppliedToTile,
     selectDashboardParameters,
     selectHaveFiltersChanged,
     selectMissingRequiredParameters,
@@ -74,9 +79,20 @@ vi.mock('./useDashboardTileStatusContext', () => ({
 // ---------------------------------------------------------------------------
 
 const useWholeContext = () => useDashboardContext((c) => c);
-const useTileState = () => ({
+const useTileState = (tileUuid: string) => ({
     tiles: useDashboardContext((c) => c.dashboardTiles),
     activeTab: useDashboardContext((c) => c.activeTab),
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    controlGranularities: useDashboardSelector(selectControlGranularities),
+    isDateZoomApplied: useDashboardSelector((state) =>
+        selectIsDateZoomAppliedToTile(state, tileUuid),
+    ),
+});
+const useDateZoomControlState = () => ({
+    dateZoomGranularity: useDashboardSelector(selectDateZoomGranularity),
+    chartZoomableFieldsByTileUuid: useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
+    ),
 });
 const useFilterBarState = () => useDashboardAllFilters();
 const useParameterBarState = () => ({
@@ -106,6 +122,22 @@ type Actions = {
     ) => void;
     setParameter: (key: string, value: string) => void;
     toggleParameterPin: (key: string) => void;
+    setDateZoomGranularity: (granularity: string | undefined) => void;
+    setControlGranularity: (
+        controlUuid: string,
+        granularity: string | undefined,
+    ) => void;
+    setChartZoomableFields: (
+        tileUuid: string,
+        fields: ChartZoomableField[],
+    ) => void;
+    setTilesWithDateZoomApplied: (
+        update: (previous: Set<string> | undefined) => Set<string>,
+    ) => void;
+    setDashboardTiles: (
+        update: (previous: DashboardTile[] | undefined) => DashboardTile[],
+    ) => void;
+    setHaveTilesChanged: (changed: boolean) => void;
 };
 const useActions = (): Actions => ({
     updateDimensionDashboardFilter: useDashboardContext(
@@ -116,6 +148,18 @@ const useActions = (): Actions => ({
     ),
     setParameter: useDashboardContext((c) => c.setParameter),
     toggleParameterPin: useDashboardContext((c) => c.toggleParameterPin),
+    setDateZoomGranularity: useDashboardContext(
+        (c) => c.setDateZoomGranularity,
+    ),
+    setControlGranularity: useDashboardContext((c) => c.setControlGranularity),
+    setChartZoomableFields: useDashboardContext(
+        (c) => c.setChartZoomableFields,
+    ),
+    setTilesWithDateZoomApplied: useDashboardContext(
+        (c) => c.setTilesWithDateZoomApplied,
+    ),
+    setDashboardTiles: useDashboardContext((c) => c.setDashboardTiles),
+    setHaveTilesChanged: useDashboardContext((c) => c.setHaveTilesChanged),
 });
 
 const DashboardPageLoader = () => {
@@ -166,6 +210,7 @@ type Counts = {
     tiles: number;
     filterBar: number;
     parameterBar: number;
+    dateZoomControl: number;
     page: number;
 };
 const counts: Counts = {
@@ -173,6 +218,7 @@ const counts: Counts = {
     tiles: 0,
     filterBar: 0,
     parameterBar: 0,
+    dateZoomControl: 0,
     page: 0,
 };
 let actualDuration = 0;
@@ -191,7 +237,7 @@ const WholeContextProbe = memo(() => {
     return null;
 });
 const TileProbe = memo(({ index }: { index: number }) => {
-    useTileState();
+    useTileState(`tile-${index}`);
     counts.tiles += 1;
     return <span data-index={index} />;
 });
@@ -203,6 +249,11 @@ const FilterBarProbe = memo(() => {
 const ParameterBarProbe = memo(() => {
     useParameterBarState();
     counts.parameterBar += 1;
+    return null;
+});
+const DateZoomControlProbe = memo(() => {
+    useDateZoomControlState();
+    counts.dateZoomControl += 1;
     return null;
 });
 const PageProbe = memo(() => {
@@ -297,6 +348,7 @@ const mountBenchmark = () => {
                 ))}
                 <FilterBarProbe />
                 <ParameterBarProbe />
+                <DateZoomControlProbe />
                 <PageProbe />
             </Wrapper>
         </Profiler>,
@@ -334,6 +386,42 @@ const scenarios: Record<string, () => void> = {
         act(() => getActions().setParameter('p1', 'p1-changed')),
     'toggle a parameter pin': () =>
         act(() => getActions().toggleParameterPin('p2')),
+    'set the date zoom granularity': () =>
+        act(() => getActions().setDateZoomGranularity('Week')),
+    'set a date zoom control granularity': () =>
+        act(() => getActions().setControlGranularity('control-1', 'Month')),
+    'every tile reports its zoomable fields': () => {
+        for (let i = 0; i < TILE_COUNT; i += 1) {
+            act(() =>
+                getActions().setChartZoomableFields(`tile-${i}`, [
+                    {
+                        fieldId: 'orders_created',
+                        label: 'Created',
+                        tableName: 'orders',
+                    },
+                ]),
+            );
+        }
+    },
+    'every tile reports date zoom applied': () => {
+        for (let i = 0; i < TILE_COUNT; i += 1) {
+            act(() =>
+                getActions().setTilesWithDateZoomApplied(
+                    (previous) => new Set([...(previous ?? []), `tile-${i}`]),
+                ),
+            );
+        }
+    },
+    // handleUpdateTiles on drag or resize stop: one tile moves
+    'drop one dragged tile': () =>
+        act(() => {
+            getActions().setDashboardTiles((previous) =>
+                (previous ?? []).map((tile) =>
+                    tile.uuid === 'tile-0' ? { ...tile, x: 6, y: 3 } : tile,
+                ),
+            );
+            getActions().setHaveTilesChanged(true);
+        }),
     '10 rapid filter updates': () => {
         for (let i = 0; i < 10; i += 1) {
             act(() =>
@@ -377,15 +465,17 @@ describe('dashboard render benchmark', () => {
     });
 });
 
-// Filter and parameter state comes from the dashboard store, so tiles and the
-// parameter bar only re-render for the router update a URL write causes (the
-// context provider re-ran every consumer on each of its 1-3 renders per edit).
+// Filter, parameter and date zoom state comes from the dashboard store, so
+// tiles only re-render for the state they read and for the router update a URL
+// write causes (the context provider re-ran every consumer on each of its 1-3
+// renders per edit, and once per tile report while tiles loaded).
 const BASELINE: Record<string, Counts> = {
     'update one dimension filter': {
         wholeContextConsumer: 1,
         tiles: TILE_COUNT,
         filterBar: 2,
         parameterBar: 0,
+        dateZoomControl: 0,
         page: 2,
     },
     'add a temporary filter': {
@@ -393,6 +483,7 @@ const BASELINE: Record<string, Counts> = {
         tiles: TILE_COUNT,
         filterBar: 2,
         parameterBar: 0,
+        dateZoomControl: 0,
         page: 2,
     },
     'set one parameter': {
@@ -400,6 +491,7 @@ const BASELINE: Record<string, Counts> = {
         tiles: TILE_COUNT,
         filterBar: 1,
         parameterBar: 1,
+        dateZoomControl: 0,
         page: 2,
     },
     'toggle a parameter pin': {
@@ -407,6 +499,47 @@ const BASELINE: Record<string, Counts> = {
         tiles: 0,
         filterBar: 0,
         parameterBar: 0,
+        dateZoomControl: 0,
+        page: 1,
+    },
+    'set the date zoom granularity': {
+        wholeContextConsumer: 1,
+        tiles: 2 * TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 1,
+        page: 1,
+    },
+    'set a date zoom control granularity': {
+        wholeContextConsumer: 1,
+        tiles: 2 * TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 1,
+    },
+    'every tile reports its zoomable fields': {
+        wholeContextConsumer: 0,
+        tiles: 0,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: TILE_COUNT,
+        page: 0,
+    },
+    'every tile reports date zoom applied': {
+        wholeContextConsumer: 0,
+        tiles: TILE_COUNT,
+        filterBar: 0,
+        parameterBar: 0,
+        dateZoomControl: 0,
+        page: 0,
+    },
+    'drop one dragged tile': {
+        wholeContextConsumer: 1,
+        tiles: TILE_COUNT,
+        filterBar: 1,
+        parameterBar: 0,
+        dateZoomControl: 0,
         page: 1,
     },
     '10 rapid filter updates': {
@@ -414,6 +547,7 @@ const BASELINE: Record<string, Counts> = {
         tiles: 10 * TILE_COUNT,
         filterBar: 20,
         parameterBar: 0,
+        dateZoomControl: 0,
         page: 20,
     },
 };

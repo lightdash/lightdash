@@ -2,6 +2,7 @@ import {
     CustomFormatType,
     FilterOperator,
     TableCalculationType,
+    UnitOfTime,
 } from '@lightdash/common';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
@@ -14,6 +15,7 @@ const appViewingSurfaces: NonNullable<UsageChartSpec['filters']> = [
 const askAi: NonNullable<UsageChartSpec['filters']> = [
     { field: 'agent_requests_surface', values: ['web_app'] },
 ];
+const dashboardKey = 'lightdash-analytics-adoption';
 
 export const adoptionChartSpecs: UsageChartSpec[] = [
     ...(['day', 'week'] as const).map(
@@ -245,6 +247,64 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
         },
     },
     {
+        key: 'adoption-app-outcome-trend',
+        name: 'Observed app errors each day',
+        description:
+            'Distinct app navigations with an HTML delivery failure or an observed runtime error each day, across all surfaces. An app can appear in both series. Missing SDK signals are unknown, not evidence of an error.',
+        explore: 'data_app_outcomes',
+        dimensions: ['data_app_outcomes_event_ts_day'],
+        metrics: [
+            'data_app_outcomes_html_error',
+            'data_app_outcomes_runtime_error',
+        ],
+        limit: 5000,
+        sorts: [
+            { fieldId: 'data_app_outcomes_event_ts_day', descending: false },
+        ],
+        visualization: 'line',
+        fieldLabels: {
+            data_app_outcomes_html_error: 'HTML delivery failures',
+            data_app_outcomes_runtime_error: 'Runtime errors observed',
+        },
+    },
+    {
+        key: 'adoption-app-outcome-detail',
+        name: 'App outcomes by app and surface',
+        description:
+            'Observed HTML delivery, SDK startup and runtime errors, deduplicated by app navigation. Includes builder previews, embeds and deliveries. Captured signals include repeats and observations that cannot be linked to a navigation; missing SDK signals remain unknown.',
+        explore: 'data_app_outcomes',
+        dimensions: [
+            'data_app_outcomes_app_name',
+            'data_app_outcomes_project_name',
+            'data_app_outcomes_view_context',
+            'data_app_outcomes_app_id',
+            'data_app_outcomes_project_id',
+        ],
+        metrics: [
+            'data_app_outcomes_html_loaded',
+            'data_app_outcomes_sdk_started',
+            'data_app_outcomes_html_error',
+            'data_app_outcomes_runtime_error',
+            'data_app_outcomes_total_signals',
+        ],
+        limit: 100,
+        sorts: [
+            { fieldId: 'data_app_outcomes_html_error', descending: true },
+            { fieldId: 'data_app_outcomes_runtime_error', descending: true },
+            { fieldId: 'data_app_outcomes_app_name', descending: false },
+        ],
+        fieldLabels: {
+            data_app_outcomes_app_name: 'App',
+            data_app_outcomes_project_name: 'Project',
+            data_app_outcomes_view_context: 'Surface',
+            data_app_outcomes_html_loaded: 'HTML delivered',
+            data_app_outcomes_sdk_started: 'SDK startup observed',
+            data_app_outcomes_html_error: 'HTML delivery failures',
+            data_app_outcomes_runtime_error: 'Runtime errors observed',
+            data_app_outcomes_total_signals: 'Captured signals',
+        },
+    },
+    {
         key: 'adoption-ask-ai-questions',
         name: 'Ask AI questions each day',
         description:
@@ -349,10 +409,56 @@ export const adoptionChartSpecs: UsageChartSpec[] = [
 ];
 
 export const adoptionDashboardSpec: UsageDashboardSpec = {
-    key: 'lightdash-analytics-adoption',
+    key: dashboardKey,
     name: 'Adoption',
     description:
         'See who is active, which apps and dashboards people use, and how Ask AI use develops. Updated nightly; charts use available captured history.',
+    filters: {
+        dimensions: [
+            {
+                label: 'Date',
+                target: {
+                    fieldId: 'data_app_outcomes_event_ts_day',
+                    tableName: 'data_app_outcomes',
+                },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [30],
+                settings: { unitOfTime: UnitOfTime.days },
+            },
+            {
+                label: 'App',
+                target: {
+                    fieldId: 'data_app_outcomes_app_name',
+                    tableName: 'data_app_outcomes',
+                },
+                operator: FilterOperator.EQUALS,
+                values: [],
+                disabled: true,
+            },
+            {
+                label: 'Surface',
+                target: {
+                    fieldId: 'data_app_outcomes_view_context',
+                    tableName: 'data_app_outcomes',
+                },
+                operator: FilterOperator.EQUALS,
+                values: [],
+                disabled: true,
+            },
+        ].map((filter) => ({
+            ...filter,
+            tileTargets: Object.fromEntries(
+                adoptionChartSpecs.map(({ key, explore }) => [
+                    `${dashboardKey}-${key}`,
+                    explore === 'data_app_outcomes'
+                        ? filter.target
+                        : (false as const),
+                ]),
+            ),
+        })),
+        metrics: [],
+        tableCalculations: [],
+    },
     tabs: [
         {
             key: 'people-content',
@@ -397,6 +503,21 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                         'adoption-app-reader-trend',
                         'adoption-app-reader-detail',
                         'adoption-app-first-audience',
+                    ],
+                },
+            ],
+        },
+        {
+            key: 'app-outcomes',
+            name: 'App outcomes',
+            sections: [
+                {
+                    title: 'Are apps loading reliably?',
+                    description:
+                        'Technical observations across all surfaces, including previews, embeds and deliveries. SDK startup does not confirm complete rendering or readership. Older bundles may have no SDK signals. Counts are per navigation, not people; daily counts should not be summed to deduplicate a longer period.',
+                    charts: [
+                        'adoption-app-outcome-trend',
+                        'adoption-app-outcome-detail',
                     ],
                 },
             ],

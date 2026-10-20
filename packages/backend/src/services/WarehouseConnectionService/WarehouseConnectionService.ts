@@ -30,6 +30,7 @@ import {
 import { DatabaseError } from 'pg';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
+import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -39,6 +40,7 @@ import {
     type WarehouseConnectionModel,
     type WarehouseConnectionProject,
 } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { logCrossSourceCacheError } from '../../projectAdapters/crossSourceCatalogCache';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
@@ -83,6 +85,10 @@ export type WarehouseCredentialPolicy = {
 
 type WarehouseConnectionServiceArguments = {
     warehouseConnectionModel: WarehouseConnectionModel;
+    dbtSourceRefCatalogModel: Pick<
+        DbtSourceRefCatalogModel,
+        'deleteForProject'
+    >;
     projectModel: Pick<
         ProjectModel,
         'getSummary' | 'getWarehouseCredentialsForProject'
@@ -158,6 +164,8 @@ export class WarehouseConnectionService extends BaseService {
 
     private readonly analytics: Pick<LightdashAnalytics, 'track'>;
 
+    private readonly dbtSourceRefCatalogModel: WarehouseConnectionServiceArguments['dbtSourceRefCatalogModel'];
+
     constructor(args: WarehouseConnectionServiceArguments) {
         super({ serviceName: 'WarehouseConnectionService' });
         this.warehouseConnectionModel = args.warehouseConnectionModel;
@@ -167,6 +175,7 @@ export class WarehouseConnectionService extends BaseService {
         this.licenseService = args.licenseService;
         this.credentialPolicy = args.credentialPolicy;
         this.analytics = args.analytics;
+        this.dbtSourceRefCatalogModel = args.dbtSourceRefCatalogModel;
     }
 
     private async trackWithCount(
@@ -1317,6 +1326,23 @@ export class WarehouseConnectionService extends BaseService {
                 }
                 throw error;
             });
+        const { enabled } = await this.featureFlagService.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: summary.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+        });
+        if (enabled) {
+            try {
+                await this.dbtSourceRefCatalogModel.deleteForProject(
+                    projectUuid,
+                    warehouseConnectionUuid,
+                );
+            } catch (error) {
+                logCrossSourceCacheError(error);
+            }
+        }
         await this.trackWithCount(project, (connectionCount) => ({
             event: 'warehouse_connection.removed',
             userId: account.user.userUuid,

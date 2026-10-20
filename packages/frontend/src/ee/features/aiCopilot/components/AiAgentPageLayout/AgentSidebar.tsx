@@ -126,7 +126,11 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     onTogglePin,
 }) => {
     const isPinned = thread.pinnedAt !== null;
-    const threadTitle = (thread.title || thread.firstMessage.message).trim();
+    const threadTitle = (
+        thread.title ||
+        thread.firstMessage?.message ||
+        ''
+    ).trim();
     const hasTitle = threadTitle.length > 0;
     const canManageThread = useCanManageAiAgentThread({
         projectUuid,

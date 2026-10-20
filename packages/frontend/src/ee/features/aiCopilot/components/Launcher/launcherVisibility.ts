@@ -10,6 +10,7 @@ export const shouldRenderAiAgentsLauncher = ({
 
 export const shouldRenderAiAgentsLauncherContent = ({
     dockItemCount,
+    hasAnalysisTab,
     hasSelectedAgent,
     isAllowed,
     isContentPage,
@@ -17,6 +18,7 @@ export const shouldRenderAiAgentsLauncherContent = ({
     isPanelOpen,
 }: {
     dockItemCount: number;
+    hasAnalysisTab: boolean;
     hasSelectedAgent: boolean;
     isAllowed: boolean;
     isContentPage: boolean;
@@ -26,4 +28,6 @@ export const shouldRenderAiAgentsLauncherContent = ({
     isAllowed &&
     (isPanelOpen ||
         dockItemCount > 0 ||
-        (!isModalHosted && isContentPage && hasSelectedAgent));
+        (!isModalHosted &&
+            isContentPage &&
+            (hasSelectedAgent || hasAnalysisTab)));

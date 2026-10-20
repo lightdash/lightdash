@@ -96,6 +96,8 @@ export type CreateExternalSourceTablePayload = {
 /** Rename changes how the table appears; the sql name stays stable so saved charts keep working. */
 export type UpdateExternalSourcePayload = {
     label: string;
+    /** Display names keyed by column reference; unlisted columns keep theirs. */
+    columnLabels?: Record<string, string>;
 };
 
 export type CreateGoogleSheetsSourcePayload = {
@@ -109,6 +111,12 @@ export type CreateGoogleSheetsSourcePayload = {
 export const parseGoogleSheetsSpreadsheetId = (
     url: string,
 ): string | undefined => url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/)?.[1];
+
+/** The tab a sheet URL points at (its `gid`), when the URL names one. */
+export const parseGoogleSheetsTabId = (url: string): number | undefined => {
+    const gid = url.match(/[#&?]gid=(\d+)/)?.[1];
+    return gid === undefined ? undefined : Number(gid);
+};
 
 export type ExternalSourceTablePreview = {
     columns: ResultColumns;

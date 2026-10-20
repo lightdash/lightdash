@@ -37,6 +37,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     generateDataApp: 'keep',
     iterateDataApp: 'keep',
     listDataAppThemes: 'keep',
+    listDataAppConnections: 'keep',
     editDbtProject: 'keep',
     editRepo: 'keep',
     syncDbtProject: 'keep',

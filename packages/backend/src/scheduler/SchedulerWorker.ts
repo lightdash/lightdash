@@ -34,6 +34,11 @@ import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
 import type { SchedulerProjectContext } from '../services/SchedulerService/SchedulerService';
+import {
+    CompileInterruptedError,
+    compileShutdown,
+    type CompileShutdownContext,
+} from './compileShutdown';
 import { MigrationLeaseProbe } from './MigrationLeaseProbe';
 import { SchedulerClient } from './SchedulerClient';
 import {
@@ -180,6 +185,13 @@ export class SchedulerWorker extends SchedulerTask {
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly usageDimensionsModel: UsageDimensionsModel;
+
+    private readonly activeCompiles = new Set<CompileShutdownContext>();
+
+    private readonly interruptedCompileFailures = new WeakMap<
+        CompileShutdownContext,
+        Promise<void>
+    >();
 
     private readonly managedRunners = new Set<ManagedRunner>();
 
@@ -409,10 +421,127 @@ export class SchedulerWorker extends SchedulerTask {
         }
     }
 
+    private async runCompileTask(
+        jobUuid: string | null,
+        task: () => Promise<void>,
+    ): Promise<void> {
+        const context: CompileShutdownContext = {
+            controller: new AbortController(),
+            jobUuid,
+            armed: false,
+            state: 'running',
+            isStopping: () => this.isStopping,
+            interrupt: () => {
+                if (
+                    context.state !== 'running' ||
+                    context.controller.signal.aborted
+                )
+                    return;
+                Logger.warn('dbt.compile.crossSourceInterrupted', {
+                    event: 'dbt.compile.crossSourceInterrupted',
+                    jobUuid: context.jobUuid,
+                });
+                context.controller.abort(new CompileInterruptedError());
+                void this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((error) => {
+                    Logger.error('Failed to record interrupted compile', error);
+                });
+            },
+        };
+        this.activeCompiles.add(context);
+        try {
+            await compileShutdown.run(context, task);
+        } catch (error) {
+            if (context.armed && context.controller.signal.aborted) {
+                await this.boundCompileFailureWrites(
+                    this.failInterruptedCompile(context),
+                ).catch((writeError) => {
+                    Logger.error(
+                        'Failed to record interrupted compile',
+                        writeError,
+                    );
+                });
+            }
+            throw error;
+        } finally {
+            context.state = 'terminal';
+            context.armed = false;
+            this.activeCompiles.delete(context);
+        }
+    }
+
+    private async failInterruptedCompile(
+        context: CompileShutdownContext,
+        deadline = false,
+    ): Promise<void> {
+        if (
+            !context.armed ||
+            (!deadline && !context.controller.signal.aborted) ||
+            context.state === 'terminal' ||
+            context.jobUuid === null
+        )
+            return;
+        let failure = this.interruptedCompileFailures.get(context);
+        if (!failure) {
+            failure = this.projectService._markInterruptedCompileAsFailed(
+                context.jobUuid,
+                new CompileInterruptedError().message,
+            );
+            this.interruptedCompileFailures.set(context, failure);
+        }
+        await failure;
+    }
+
+    private async boundCompileFailureWrites(
+        work: Promise<unknown>,
+    ): Promise<void> {
+        let timer: NodeJS.Timeout | undefined;
+        try {
+            await Promise.race([
+                work,
+                new Promise<void>((resolve) => {
+                    timer = setTimeout(
+                        resolve,
+                        Math.min(
+                            5000,
+                            this.lightdashConfig.scheduler.shutdownTimeout ??
+                                5000,
+                        ),
+                    );
+                }),
+            ]);
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    private async failInterruptedCompiles(deadline = false): Promise<void> {
+        const outcomes = Promise.allSettled(
+            [...this.activeCompiles].map((context) =>
+                this.failInterruptedCompile(context, deadline),
+            ),
+        );
+        await this.boundCompileFailureWrites(
+            outcomes.then((results) => {
+                for (const outcome of results) {
+                    if (outcome.status === 'rejected')
+                        Logger.error(
+                            'Failed to record interrupted compile',
+                            outcome.reason,
+                        );
+                }
+            }),
+        );
+    }
+
     async stop() {
         this.isStopping = true;
         this.migrationQuiesce?.stop();
         this.stopPgPing();
+        for (const context of this.activeCompiles) {
+            if (context.armed) context.interrupt();
+        }
         await this.drainManagedRunners();
         this.isRunning = false;
         this.isQuiesced = false;
@@ -426,6 +555,8 @@ export class SchedulerWorker extends SchedulerTask {
     private async drainManagedRunners(): Promise<void> {
         const managedRunners = [...this.managedRunners];
         if (managedRunners.length === 0) {
+            if (!this.workerHealth?.isPoolDead())
+                await this.failInterruptedCompiles();
             return;
         }
         if (this.workerHealth?.isPoolDead()) {
@@ -455,6 +586,7 @@ export class SchedulerWorker extends SchedulerTask {
 
         const outcome = await Promise.race([drained, deadline]);
         if (outcome === 'timeout') {
+            await this.failInterruptedCompiles(true);
             Logger.warn(
                 `Scheduler shutdown drain exceeded ${shutdownTimeout}ms; releasing in-flight jobs for retry`,
             );
@@ -1445,18 +1577,20 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.COMPILE_PROJECT]: async (payload, helpers) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.compileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.compileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (
@@ -1502,18 +1636,20 @@ export class SchedulerWorker extends SchedulerTask {
                 payload,
                 helpers,
             ) => {
-                await SchedulerClient.processJob(
-                    SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
-                    helpers.job.id,
-                    helpers.job.run_at,
-                    payload,
-                    async () => {
-                        await this.testAndCompileProject(
-                            helpers.job.id,
-                            helpers.job.run_at,
-                            payload,
-                        );
-                    },
+                await this.runCompileTask(payload.jobUuid ?? null, () =>
+                    SchedulerClient.processJob(
+                        SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.testAndCompileProject(
+                                helpers.job.id,
+                                helpers.job.run_at,
+                                payload,
+                            );
+                        },
+                    ),
                 );
             },
             [SCHEDULER_TASKS.VALIDATE_PROJECT]: async (payload, helpers) => {

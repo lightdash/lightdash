@@ -17,6 +17,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
@@ -26,6 +27,7 @@ import {
     type SdkManifest,
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
+import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
 
@@ -265,32 +267,55 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const [iframeNavigation, setIframeNavigation] = useState(() => ({
             key: navigationKey,
             src,
+            id: uuidv4(),
         }));
         useEffect(() => {
             setIframeNavigation((current) =>
                 current.key === navigationKey
                     ? current
-                    : { key: navigationKey, src },
+                    : { key: navigationKey, src, id: uuidv4() },
             );
         }, [navigationKey, src]);
 
         // Seeds are re-latched exactly when the iframe navigates, never on URL
         // state changes alone — that would reload per filter click.
-        const effectiveSrc = useMemo(
-            () =>
+        const effectiveSrc = useMemo(() => {
+            const url = new URL(
                 applyColorSchemeSeed(
                     urlStateSync
                         ? applySeed(iframeNavigation.src)
                         : iframeNavigation.src,
                 ),
-            [
-                urlStateSync,
-                applySeed,
-                applyColorSchemeSeed,
-                iframeNavigation.src,
-            ],
-        );
+            );
+            url.searchParams.set('navigationId', iframeNavigation.id);
+            return url.toString();
+        }, [
+            urlStateSync,
+            applySeed,
+            applyColorSchemeSeed,
+            iframeNavigation.src,
+            iframeNavigation.id,
+        ]);
         const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+        const recordOutcome = useAppViewOutcomes({
+            projectUuid,
+            appUuid,
+            src: iframeNavigation.src,
+            previewToken,
+            navigationId: iframeNavigation.id,
+        });
+        const handleSdkManifest = useCallback(
+            (manifest: SdkManifest) => {
+                recordOutcome('sdk_started', manifest.navigationId);
+                onSdkManifest?.(manifest);
+            },
+            [recordOutcome, onSdkManifest],
+        );
+        const handleRuntimeError = useCallback(
+            (navigationId: string) =>
+                recordOutcome('runtime_error', navigationId),
+            [recordOutcome],
+        );
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -352,7 +377,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizPointMenuIntent: handleVizPointMenuIntent,
             onVizSubtotalsIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
-            onSdkManifest,
+            onSdkManifest: handleSdkManifest,
+            onRuntimeError: handleRuntimeError,
             onVizRendered,
             vizRenderId,
             onVizContextRequest,

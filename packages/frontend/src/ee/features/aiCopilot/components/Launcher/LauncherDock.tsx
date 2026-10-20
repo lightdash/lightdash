@@ -46,9 +46,15 @@ export const LauncherDock: FC<Props> = ({
         (state) => state.aiAgentLauncher.mode === 'panel-open',
     );
     const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    // The tab is a handle to an analysis, not an entry point: before one
+    // exists the new-thread teaser is the way in, so no tab for a quiet view
+    // — unless there is no agent to chat with, making the tab the only door.
     const analysisAdapter = useLauncherAnalysisAdapter(projectUuid);
     const showAnalysisTab =
-        analysisAdapter?.availability.status === 'available';
+        analysisAdapter !== null &&
+        (analysisAdapter.controller.state.status !== 'idle' ||
+            selectedAgent === null ||
+            (isPanelOpen && view === 'analysis'));
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );

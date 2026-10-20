@@ -1724,6 +1724,12 @@ export type LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: string[];
         sourceFetchConcurrency: number | undefined;
+        sourceFetchDiskBudgetBytes: number | undefined;
+        sourceFetchDiskPerSourceBytes: number;
+        crossSourcePrepareTimeoutMs: number;
+        crossSourceLsTimeoutMs: number;
+        crossSourceResolutionTimeoutMs: number;
+        crossSourceMaxPasses: number;
     };
     database: {
         connectionUri: string | undefined;
@@ -2303,6 +2309,15 @@ export type AppRuntimeConfig = {
         sandboxUrl: string | null;
         sandboxSecret: string | null;
     };
+    /**
+     * Config for python query nodes on `gcp-cloud-run`: URL + shared secret of
+     * a separate gateway service (python-runner image baked in). Required only
+     * when `sandboxProvider === 'gcp-cloud-run'` and python nodes run.
+     */
+    gcpCloudRunPython: {
+        sandboxUrl: string | null;
+        sandboxSecret: string | null;
+    };
     /** E2B template used by managed project onboarding. */
     e2bAgentOnboardingTemplateName: string;
     e2bAgentOnboardingTemplateTag: string;
@@ -2849,6 +2864,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         gcpCloudRun: {
             sandboxUrl: process.env.GCP_CLOUD_RUN_SANDBOX_URL || null,
             sandboxSecret: process.env.GCP_CLOUD_RUN_SANDBOX_SECRET || null,
+        },
+        gcpCloudRunPython: {
+            sandboxUrl: process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_URL || null,
+            sandboxSecret:
+                process.env.GCP_CLOUD_RUN_PYTHON_SANDBOX_SECRET || null,
         },
         azureSandboxesAiWritebackGroup:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
@@ -3677,6 +3697,29 @@ export const parseConfig = (): LightdashConfig => {
             environmentVariableAllowlist: getArrayFromCommaSeparatedList(
                 'ALLOW_DBT_COMMANDS_ACCESS_TO_ENV_VARS',
             ),
+            crossSourceMaxPasses:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_MAX_PASSES',
+                ) ?? 3,
+            crossSourcePrepareTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_PREPARE_TIMEOUT_MS',
+                ) ?? 180000,
+            crossSourceLsTimeoutMs:
+                getIntegerFromEnvironmentVariable('DBT_SOURCE_LS_TIMEOUT_MS') ??
+                300000,
+            crossSourceResolutionTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS',
+                ) ?? 1200000,
+            sourceFetchDiskBudgetBytes: getIntegerFromEnvironmentVariable(
+                'DBT_SOURCE_FETCH_DISK_BUDGET_BYTES',
+            ),
+            sourceFetchDiskPerSourceBytes:
+                getPositiveIntegerFromEnvironmentVariable(
+                    'DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES',
+                    256 * 1024 ** 2,
+                ),
             sourceFetchConcurrency: getIntegerFromEnvironmentVariable(
                 'DBT_SOURCE_FETCH_CONCURRENCY',
             ),

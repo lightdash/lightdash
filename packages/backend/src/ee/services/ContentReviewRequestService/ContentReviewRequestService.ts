@@ -61,6 +61,7 @@ import { type SavedSqlService } from '../../../services/SavedSqlService/SavedSql
 import { type SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { type AiService } from '../AiService/AiService';
 import { type ContentReviewNotificationService } from '../ContentReviewNotificationService/ContentReviewNotificationService';
+import { resolveSpaceReviewerUserUuids } from './resolveSpaceReviewerUserUuids';
 
 type ContentReviewRequestServiceArguments = {
     analytics: LightdashAnalytics;
@@ -483,11 +484,19 @@ export class ContentReviewRequestService extends BaseService {
         );
     }
 
-    private async resolveReviewerPrincipals(
-        settings: ContentReviewSettings,
-        targetSpaceUuid: string,
-        requesterUuid: string,
-    ): Promise<DirectAccessPrincipalRef[]> {
+    private async resolveReviewerPrincipals({
+        settings,
+        organizationUuid,
+        projectUuid,
+        targetSpaceUuid,
+        requesterUuid,
+    }: {
+        settings: ContentReviewSettings;
+        organizationUuid: string;
+        projectUuid: string;
+        targetSpaceUuid: string;
+        requesterUuid: string;
+    }): Promise<DirectAccessPrincipalRef[]> {
         if (settings.reviewerGroupUuid !== null) {
             return [
                 {
@@ -496,22 +505,18 @@ export class ContentReviewRequestService extends BaseService {
                 },
             ];
         }
-        const { data: access } =
-            await this.spacePermissionService.getPaginatedSpaceAccess(
-                targetSpaceUuid,
-                {},
-            );
-        return access
-            .filter(
-                (share) =>
-                    share.userUuid !== requesterUuid &&
-                    (share.role === SpaceMemberRole.EDITOR ||
-                        share.role === SpaceMemberRole.ADMIN),
-            )
-            .map((share) => ({
-                type: DirectAccessPrincipalType.USER,
-                uuid: share.userUuid,
-            }));
+        const reviewerUserUuids = await resolveSpaceReviewerUserUuids({
+            spacePermissionService: this.spacePermissionService,
+            directAccessModel: this.directAccessModel,
+            organizationUuid,
+            projectUuid,
+            targetSpaceUuid,
+            requesterUuid,
+        });
+        return reviewerUserUuids.map((uuid) => ({
+            type: DirectAccessPrincipalType.USER,
+            uuid,
+        }));
     }
 
     private async grantReviewerAccess(
@@ -754,11 +759,13 @@ export class ContentReviewRequestService extends BaseService {
             true,
         );
         const settings = await this.contentReviewSettingsModel.get(projectUuid);
-        const principals = await this.resolveReviewerPrincipals(
+        const principals = await this.resolveReviewerPrincipals({
             settings,
-            targetSpace.uuid,
-            user.userUuid,
-        );
+            organizationUuid: context.organizationUuid,
+            projectUuid,
+            targetSpaceUuid: targetSpace.uuid,
+            requesterUuid: user.userUuid,
+        });
         const grantedPrincipals = await this.grantReviewerAccess(
             moveSet,
             principals,

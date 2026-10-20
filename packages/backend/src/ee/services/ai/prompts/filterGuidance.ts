@@ -166,6 +166,14 @@ const getFilterExpressionGuidanceSection = (
 export const MCP_FILTER_EXPRESSION_GUIDANCE_SECTION =
     getFilterExpressionGuidanceSection('mcp');
 
+// Shown to agents whose generateVisualization still takes structured rules:
+// composer nodes never do, so the grammar must travel with the prompt.
+export const COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION = `## Composer node filters
+
+\`runComposerQueries\` semanticLayer nodes take filters as flat expression strings, never the structured rule objects described above: one \`dimensions\` string and one \`metrics\` string, null for an unfiltered kind; nodes have no table calculations, so there is no third kind. Each string is \`<field> <operator form>\` rules joined with AND or OR, in this grammar:
+
+${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
+
 export const FILTER_EXPRESSION_GUIDANCE_SECTION = `${getFilterExpressionGuidanceSection('agent')}
 
 ## Time-based filtering

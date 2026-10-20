@@ -1,12 +1,18 @@
 import {
+    CartesianSeriesType,
     ChartType,
     MergeJoinType,
+    type Series,
     type DocumentExploreChartContent,
     type DocumentSemanticChartContent,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import { type ReactNode } from 'react';
+import {
+    buildInfiniteQueryResults,
+    buildPivotDetails,
+} from '../../hooks/cartesianChartConfig/useCartesianChartConfig.mock';
 import DocumentChart from './DocumentChart';
 import { DocumentExportStatusContext } from './documentExportStatus';
 
@@ -21,6 +27,8 @@ const mocks = vi.hoisted(() => ({
     authoringEnabled: true,
     explore: vi.fn(),
     visualization: vi.fn(),
+    provider: vi.fn(),
+    results: {} as Record<string, unknown>,
 }));
 
 vi.mock('./useCanManageSqlRunner', () => ({
@@ -46,7 +54,7 @@ vi.mock('./useDocument', () => ({
     },
 }));
 vi.mock('../../hooks/useQueryResults', () => ({
-    useInfiniteQueryResults: () => ({}),
+    useInfiniteQueryResults: () => ({ rows: [], ...mocks.results }),
 }));
 vi.mock('../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({}),
@@ -60,7 +68,16 @@ vi.mock('../../components/MetricQueryData/MetricQueryDataProvider', () => ({
 vi.mock(
     '../../components/LightdashVisualization/VisualizationProvider',
     () => ({
-        default: ({ children }: { children: ReactNode }) => children,
+        default: ({
+            children,
+            ...props
+        }: {
+            children: ReactNode;
+            computedSeries?: unknown;
+        }) => {
+            mocks.provider(props);
+            return children;
+        },
     }),
 );
 vi.mock('../../components/LightdashVisualization', () => ({
@@ -348,5 +365,91 @@ describe('Document charts printed to PDF', () => {
         expect(
             screen.queryByRole('button', { name: 'Explore from here' }),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('Document charts split into series', () => {
+    beforeEach(() => {
+        mocks.query.error = undefined;
+        mocks.provider.mockClear();
+    });
+    afterEach(() => {
+        mocks.results = {};
+    });
+
+    test('passes a series per pivot value when the stored series carry none', () => {
+        const metricQuery = {
+            exploreName: 'orders',
+            dimensions: ['orders_month', 'orders_status'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            tableCalculations: [],
+            limit: 100,
+        };
+        mocks.query.data = { metricQuery, fields: {} };
+        mocks.results = buildInfiniteQueryResults({
+            rows: [
+                {
+                    orders_month: {
+                        value: { raw: '2025-01', formatted: '2025-01' },
+                    },
+                    orders_count_any_completed: {
+                        value: { raw: 2, formatted: '2' },
+                    },
+                    orders_count_any_shipped: {
+                        value: { raw: 1, formatted: '1' },
+                    },
+                },
+            ],
+            pivotDetails: buildPivotDetails(
+                'orders_status',
+                ['completed', 'shipped'],
+                ['orders_count'],
+            ),
+        });
+        const cell: ChartFixture = {
+            type: 'chart',
+            content: {
+                source: 'semantic',
+                chart: {
+                    ...semanticCell.content.chart,
+                    metricQuery,
+                    pivotConfig: { columns: ['orders_status'] },
+                    chartConfig: {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: {
+                                xField: 'orders_month',
+                                yField: ['orders_count'],
+                            },
+                            eChartsConfig: {
+                                series: [
+                                    {
+                                        type: CartesianSeriesType.BAR,
+                                        encode: {
+                                            xRef: { field: 'orders_month' },
+                                            yRef: { field: 'orders_count' },
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        renderChart(cell);
+
+        const [{ computedSeries }] = mocks.provider.mock.lastCall as [
+            { computedSeries: Series[] },
+        ];
+        expect(
+            computedSeries.map((series) => series.encode.yRef.pivotValues),
+        ).toEqual([
+            [{ field: 'orders_status', value: 'completed' }],
+            [{ field: 'orders_status', value: 'shipped' }],
+        ]);
     });
 });

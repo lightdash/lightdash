@@ -19,6 +19,7 @@ import {
     mcpFindCustomChartTypesOutputSchema,
     MergeJoinType,
     NotFoundError,
+    ParameterError,
     PossibleAbilities,
     PromotionAction,
     QueryExecutionContext,
@@ -297,6 +298,7 @@ function makeRuntimeContext(
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
         spaceAccess: null,
+        threadBinding: null,
         ...overrides,
     };
 }
@@ -467,6 +469,7 @@ describe('AiAgentToolsService', () => {
         };
         const findDataAppVisualizationBySlug = vi.fn().mockResolvedValue({
             app_id: 'viz-uuid',
+            name: 'Funnel',
             viz_schema: {
                 fields: [
                     {
@@ -506,6 +509,7 @@ describe('AiAgentToolsService', () => {
             resolveCustomChartType(makeRuntimeContext(), 'funnel-viz'),
         ).resolves.toEqual({
             dataAppVizUuid: 'viz-uuid',
+            name: 'Funnel',
             dataAppVizVersion: 2,
             schema: latestRenderableSchema,
         });
@@ -4556,6 +4560,28 @@ const makeDesignModelWithThemes = (themes: DesignModelTheme[]) => ({
     listByOrganization: vi.fn().mockResolvedValue(themes),
 });
 
+const amplitudeConnection = {
+    externalConnectionUuid: 'conn-amplitude',
+    name: 'Amplitude',
+    slug: 'amplitude-1',
+};
+
+const makeConnectionLookups = (
+    existingLinks: { externalConnectionUuid: string; alias: string }[] = [],
+) => ({
+    lookupExternalConnectionSlugs: vi.fn(async (_user, _project, slugs) =>
+        (slugs as string[]).map((slug) =>
+            slug === amplitudeConnection.slug
+                ? { slug, status: 'found', connection: amplitudeConnection }
+                : { slug, status: 'not_found' },
+        ),
+    ),
+    listLinkableExternalConnections: vi
+        .fn()
+        .mockResolvedValue([amplitudeConnection]),
+    listAppExternalConnectionLinks: vi.fn().mockResolvedValue(existingLinks),
+});
+
 describe('AiAgentToolsService generateDataApp', () => {
     const makeAppGenerateService = ({
         enabled = true,
@@ -4568,6 +4594,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             slug: 'revenue-overview',
             version: 1,
         }),
+        ...makeConnectionLookups(),
     });
 
     const dashboardService = {
@@ -4606,6 +4633,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
@@ -4643,6 +4671,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             appUuid: 'app-uuid',
             slug: 'revenue-overview',
             version: 1,
+            warnings: [],
         });
         const [calledUser, calledProject, prompt, , , , , template] =
             appGenerateService.generateApp.mock.calls[0];
@@ -4748,6 +4777,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 dashboardSlug: null,
                 chartSlugs: null,
                 themeSlug: null,
+                externalConnectionSlugs: null,
                 toolCallId: null,
             });
 
@@ -4755,10 +4785,80 @@ describe('AiAgentToolsService generateDataApp', () => {
             appUuid: 'app-uuid',
             slug: 'revenue-overview',
             version: 1,
+            warnings: [],
         });
         expect(generateAppOptions(appGenerateService)).toEqual({
             name: 'Revenue Overview',
             creationExperience: 'mcp',
+        });
+    });
+
+    describe('externalConnectionSlugs', () => {
+        const runMcpGenerate = (
+            service: AiAgentToolsService,
+            prompt: string,
+            externalConnectionSlugs: string[] | null,
+        ) =>
+            service
+                .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+                .generateDataApp({
+                    name: 'Product Usage',
+                    prompt,
+                    template: null,
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug: null,
+                    externalConnectionSlugs,
+                    toolCallId: null,
+                });
+
+        it('links the connections before the build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({ appGenerateService });
+
+            const result = await runMcpGenerate(
+                service,
+                'Show Amplitude events',
+                ['amplitude-1'],
+            );
+
+            expect(
+                generateAppOptions(appGenerateService).externalConnections,
+            ).toEqual([
+                {
+                    externalConnectionUuid: 'conn-amplitude',
+                    alias: 'amplitude',
+                },
+            ]);
+            expect(result.warnings).toEqual([]);
+        });
+
+        it('warns when the brief names a connection it does not link', async () => {
+            const service = makeService({
+                appGenerateService: makeAppGenerateService(),
+            });
+
+            const result = await runMcpGenerate(
+                service,
+                'Use the amplitude-1 connection',
+                null,
+            );
+
+            expect(result.warnings).toEqual([
+                expect.stringContaining(
+                    'externalConnectionSlugs: ["amplitude-1"]',
+                ),
+            ]);
+        });
+
+        it('rejects an unknown slug and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({ appGenerateService });
+
+            await expect(
+                runMcpGenerate(service, 'Show events', ['mixpanel']),
+            ).rejects.toThrow(/"mixpanel" was not found/);
+            expect(appGenerateService.generateApp).not.toHaveBeenCalled();
         });
     });
 
@@ -5038,6 +5138,7 @@ describe('AiAgentToolsService iterateDataApp', () => {
         iterateApp: vi
             .fn()
             .mockResolvedValue({ appUuid: 'app-uuid', version: 2 }),
+        ...makeConnectionLookups(),
     });
 
     const makeAppModel = ({
@@ -5072,9 +5173,38 @@ describe('AiAgentToolsService iterateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
+
+    it('keeps existing connection links and adds only new ones', async () => {
+        const appGenerateService = {
+            ...makeAppGenerateService(),
+            ...makeConnectionLookups([
+                { externalConnectionUuid: 'conn-other', alias: 'amplitude' },
+            ]),
+        };
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel(),
+        });
+
+        const result = await runIterate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            {
+                prompt: 'Add Amplitude events',
+                externalConnectionSlugs: ['amplitude-1'],
+            },
+        );
+
+        const opts = appGenerateService.iterateApp.mock.calls[0][8];
+        expect(opts.externalConnections).toEqual([
+            { externalConnectionUuid: 'conn-amplitude', alias: 'amplitude_2' },
+        ]);
+        expect(result.warnings).toEqual([]);
+    });
 
     it('starts an ai_agent build on the resolved app linked to the tool call', async () => {
         const appGenerateService = makeAppGenerateService();
@@ -5086,7 +5216,11 @@ describe('AiAgentToolsService iterateDataApp', () => {
             makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
         );
 
-        expect(result).toEqual({ appUuid: 'app-uuid', version: 2 });
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            version: 2,
+            warnings: [],
+        });
         expect(appModel.findAppBySlug).toHaveBeenCalledWith(
             projectUuid,
             'revenue-app',
@@ -5326,6 +5460,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
             appGenerateService: {
                 assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
                 iterateApp,
+                ...makeConnectionLookups(),
             },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
@@ -5346,6 +5481,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
                     dashboardSlug: null,
                     chartSlugs: null,
                     themeSlug: null,
+                    externalConnectionSlugs: null,
                     toolCallId: null,
                 }),
         ).rejects.toThrow(
@@ -5360,6 +5496,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
             appGenerateService: {
                 assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
                 iterateApp,
+                ...makeConnectionLookups(),
             },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
@@ -5385,6 +5522,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
                     dashboardSlug: null,
                     chartSlugs: null,
                     themeSlug: null,
+                    externalConnectionSlugs: null,
                     toolCallId: null,
                 }),
         ).rejects.toThrow(
@@ -5401,6 +5539,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
             appGenerateService: {
                 assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
                 iterateApp,
+                ...makeConnectionLookups(),
             },
             appModel: {
                 findAppBySlug: vi.fn().mockResolvedValue({
@@ -5420,6 +5559,7 @@ describe('AiAgentToolsService iterateDataApp over MCP', () => {
                 dashboardSlug: null,
                 chartSlugs: null,
                 themeSlug: null,
+                externalConnectionSlugs: null,
                 toolCallId: 'tool-call-1',
             });
 
@@ -5477,6 +5617,7 @@ describe('AiAgentToolsService iterateDataApp without manage rights', () => {
                     dashboardSlug: null,
                     chartSlugs: null,
                     themeSlug,
+                    externalConnectionSlugs: null,
                     toolCallId: source === 'mcp' ? null : 'tool-call-1',
                 }),
             ).rejects.toThrow(refusal());
@@ -5514,7 +5655,7 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             version: 3,
         }),
         assertCanIterateApp = vi.fn().mockResolvedValue(undefined),
-    ) => ({ assertCanIterateApp, iterateApp });
+    ) => ({ assertCanIterateApp, iterateApp, ...makeConnectionLookups() });
 
     const makeAppModel = ({
         template = DATA_APP_VIZ_TEMPLATE,
@@ -7060,5 +7201,445 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             }),
         ).rejects.toThrow('jaffle');
         expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService in a thread bound to a dashboard', () => {
+    const boundDashboard = {
+        uuid: 'bound-dashboard-uuid',
+        slug: 'bound-dashboard',
+        spaceUuid: 'space-uuid',
+    };
+    const otherDashboard = {
+        uuid: 'other-dashboard-uuid',
+        slug: 'other-dashboard',
+        spaceUuid: 'space-uuid',
+    };
+    const boundContext = () =>
+        makeRuntimeContext({
+            threadBinding: {
+                type: 'dashboard',
+                dashboardUuid: boundDashboard.uuid,
+            },
+        });
+    const dashboardModel = () => ({
+        getByIdOrSlug: vi.fn(async (uuidOrSlug: string) =>
+            [boundDashboard, otherDashboard].find(
+                (d) => d.uuid === uuidOrSlug || d.slug === uuidOrSlug,
+            ),
+        ),
+    });
+    const contentValidation = () => ({
+        validateNewContent: vi.fn(),
+        validatePatch: vi.fn(),
+        validateContent: vi.fn(),
+    });
+    const makeDashboard = (slug: string) => ({
+        slug,
+        name: 'Dashboard',
+        description: '',
+        spaceSlug: 'space',
+        version: 1,
+        verified: false,
+        verification: null,
+        tiles: [],
+        tabs: [],
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+    });
+    const makeChart = (dashboardSlug: string | undefined) => ({
+        name: 'Orders',
+        description: '',
+        tableName: 'orders',
+        slug: 'orders-chart',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: 'table', config: {} },
+        tableConfig: { columnOrder: [] },
+        spaceSlug: 'space',
+        dashboardSlug,
+        version: 1,
+    });
+    const sqlChart = {
+        name: 'SQL chart',
+        description: null,
+        slug: 'sql-chart',
+        spaceSlug: 'space',
+        sql: 'select 1',
+        limit: 500,
+        chartKind: 'table',
+        version: 1,
+        config: {},
+    };
+
+    describe('createContent', () => {
+        it('rejects a new dashboard', async () => {
+            const upsertDashboard = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertDashboard },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'dashboard',
+                    content: makeDashboard('new-dashboard'),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to the dashboard "bound-dashboard". New dashboards cannot be created here.',
+            );
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it.each([undefined, otherDashboard.slug])(
+            'rejects a new chart saved in %s',
+            async (dashboardSlug) => {
+                const upsertChart = vi.fn();
+                const service = makeService({
+                    dashboardModel: dashboardModel(),
+                    coderService: { upsertChart },
+                    aiAgentContentValidation: contentValidation(),
+                });
+
+                await expect(
+                    service.createRuntime(boundContext()).createContent({
+                        type: 'chart',
+                        content: makeChart(dashboardSlug),
+                    } as never),
+                ).rejects.toThrow(ParameterError);
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('creates a chart saved in the bound dashboard', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(boundDashboard.slug)],
+                    }),
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await service.createRuntime(boundContext()).createContent({
+                type: 'chart',
+                content: makeChart(boundDashboard.slug),
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('rejects a new SQL chart', async () => {
+            const upsertSqlChart = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertSqlChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'sql_chart',
+                    content: sqlChart,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a new document', async () => {
+            const service = makeService({ dashboardModel: dashboardModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'document',
+                    content: { name: 'Notes', markdown: '' },
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('fails closed when the bound dashboard no longer exists', async () => {
+            const upsertChart = vi.fn();
+            const service = makeService({
+                dashboardModel: {
+                    getByIdOrSlug: vi
+                        .fn()
+                        .mockRejectedValue(new NotFoundError('not found')),
+                },
+                coderService: { upsertChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'chart',
+                    content: makeChart(boundDashboard.slug),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to a dashboard that no longer exists',
+            );
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('editContent', () => {
+        const dashboardEditService = (upsertDashboard: import('vitest').Mock) =>
+            makeService({
+                dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn(async (_user, slug: string) => ({
+                        uuid: `${slug}-uuid`,
+                    })),
+                },
+                coderService: {
+                    getDashboardsForRead: vi.fn(
+                        async (_user, _project, slugs: string[]) => ({
+                            dashboards: slugs.map(makeDashboard),
+                        }),
+                    ),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertDashboard,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+        const renamePatch = [{ op: 'replace', path: '/name', value: 'New' }];
+
+        it('rejects another dashboard', async () => {
+            const upsertDashboard = vi.fn();
+            const service = dashboardEditService(upsertDashboard);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: otherDashboard.slug,
+                    type: 'dashboard',
+                    patch: renamePatch,
+                } as never),
+            ).rejects.toThrow('Only that dashboard can be edited.');
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('edits the bound dashboard', async () => {
+            const upsertDashboard = vi.fn().mockResolvedValue({
+                dashboards: [{ data: { uuid: boundDashboard.uuid } }],
+            });
+            const service = dashboardEditService(upsertDashboard);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: boundDashboard.slug,
+                type: 'dashboard',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertDashboard).toHaveBeenCalled();
+        });
+
+        const chartEditService = (
+            storedDashboardSlug: string | undefined,
+            upsertChart: import('vitest').Mock,
+        ) =>
+            makeService({
+                dashboardModel: dashboardModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(storedDashboardSlug)],
+                    }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+        it.each([undefined, otherDashboard.slug])(
+            'rejects a chart saved in %s',
+            async (storedDashboardSlug) => {
+                const upsertChart = vi.fn();
+                const service = chartEditService(
+                    storedDashboardSlug,
+                    upsertChart,
+                );
+
+                await expect(
+                    service.createRuntime(boundContext()).editContent({
+                        slug: 'orders-chart',
+                        type: 'chart',
+                        patch: renamePatch,
+                    } as never),
+                ).rejects.toThrow(
+                    'Only charts saved in that dashboard can be edited',
+                );
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('rejects moving a chart out of the bound dashboard', async () => {
+            const upsertChart = vi.fn();
+            const service = chartEditService(boundDashboard.slug, upsertChart);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'orders-chart',
+                    type: 'chart',
+                    patch: [{ op: 'remove', path: '/dashboardSlug' }],
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it('edits a chart saved in the bound dashboard', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: 'chart-uuid' } }],
+            });
+            const service = chartEditService(boundDashboard.slug, upsertChart);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: 'orders-chart',
+                type: 'chart',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('rejects SQL charts', async () => {
+            const upsertSqlChart = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertSqlChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: sqlChart.slug,
+                    type: 'sql_chart',
+                    patch: renamePatch,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects documents', async () => {
+            const service = makeService({ dashboardModel: dashboardModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'notes',
+                    type: 'document',
+                    documentEdit: {},
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+    });
+
+    describe('createScheduledDelivery', () => {
+        const deliveryService = () => {
+            const createChartScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const createDashboardScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                savedChartModel: {
+                    get: vi.fn(async (slug: string) => ({
+                        uuid: `${slug}-uuid`,
+                        spaceUuid: 'space-uuid',
+                        dashboardUuid:
+                            slug === 'dashboard-chart'
+                                ? boundDashboard.uuid
+                                : null,
+                    })),
+                },
+                savedChartService: { createScheduler: createChartScheduler },
+                dashboardService: {
+                    createScheduler: createDashboardScheduler,
+                },
+            });
+            return { service, createChartScheduler, createDashboardScheduler };
+        };
+        const deliver = (
+            service: AiAgentToolsService,
+            resourceType: 'chart' | 'dashboard',
+            resourceUuidOrSlug: string,
+        ) =>
+            service.createRuntime(boundContext()).createScheduledDelivery({
+                resourceType,
+                resourceUuidOrSlug,
+                scheduler: {} as never,
+                aiAugmentationPrompt: null,
+            });
+
+        it('allows the bound dashboard and the charts saved in it', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await deliver(service, 'dashboard', boundDashboard.slug);
+            await deliver(service, 'chart', 'dashboard-chart');
+
+            expect(createDashboardScheduler).toHaveBeenCalled();
+            expect(createChartScheduler).toHaveBeenCalled();
+        });
+
+        it('rejects other dashboards and space charts', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await expect(
+                deliver(service, 'dashboard', otherDashboard.slug),
+            ).rejects.toThrow(ParameterError);
+            await expect(
+                deliver(service, 'chart', 'space-chart'),
+            ).rejects.toThrow(ParameterError);
+
+            expect(createDashboardScheduler).not.toHaveBeenCalled();
+            expect(createChartScheduler).not.toHaveBeenCalled();
+        });
+    });
+
+    it('rejects generating a data app', async () => {
+        const generateApp = vi.fn();
+        const service = makeService({
+            dashboardModel: dashboardModel(),
+            appGenerateService: { generateApp },
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).generateDataApp({
+                name: 'App',
+                prompt: 'Build an app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: null,
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        expect(generateApp).not.toHaveBeenCalled();
     });
 });

@@ -181,7 +181,7 @@ return (
             <option value="">Start a new thread</option>
             {threads.data?.map((thread) => (
                 <option key={thread.uuid} value={thread.uuid}>
-                    {thread.title ?? thread.firstMessage.message}
+                    {thread.title ?? thread.firstMessage?.message ?? 'Untitled thread'}
                 </option>
             ))}
         </select>
@@ -202,8 +202,20 @@ return (
 const truncateThreadLabel = (label: string) =>
     label.length > 96 ? `${label.slice(0, 93)}...` : label;
 
+type AiAgentThreadSetup = {
+    boundDashboardUuid: string;
+    threadContext: string;
+};
+
+const EMPTY_THREAD_SETUP: AiAgentThreadSetup = {
+    boundDashboardUuid: '',
+    threadContext: '',
+};
+
 const getThreadLabel = (thread: LightdashAiAgentThread) =>
-    truncateThreadLabel(thread.title ?? thread.firstMessage.message);
+    truncateThreadLabel(
+        thread.title ?? thread.firstMessage?.message ?? 'Untitled thread',
+    );
 
 const getProjectUuid = (
     aiAgentEmbedProjectUuid: string | null,
@@ -302,6 +314,12 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
     const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
+    const [threadSetupDraft, setThreadSetupDraft] =
+        useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
+    // Applied on demand so typing doesn't reload the agent
+    const [threadSetup, setThreadSetup] =
+        useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
+    const boundDashboardUuid = threadSetup.boundDashboardUuid.trim();
     const remountKey = `${selectedAiAgentEmbedUrl || embedConfig.remountKey}:${
         resumeThreadUuid || 'new'
     }`;
@@ -492,6 +510,60 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                 Use latest
                             </button>
                         </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>
+                                New thread setup
+                            </label>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 8,
+                                }}
+                            >
+                                <input
+                                    aria-label="Bound dashboard UUID"
+                                    placeholder="Dashboard UUID to bind new threads to"
+                                    value={threadSetupDraft.boundDashboardUuid}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            boundDashboardUuid:
+                                                event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
+                                <textarea
+                                    aria-label="Thread context"
+                                    placeholder="Initial context for new threads"
+                                    value={threadSetupDraft.threadContext}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            threadContext: event.target.value,
+                                        }))
+                                    }
+                                    rows={3}
+                                    style={{ padding: '8px 10px' }}
+                                />
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setThreadSetup(threadSetupDraft)
+                                        }
+                                    >
+                                        Apply to new threads
+                                    </button>
+                                </div>
+                            </div>
+                            <p style={helperTextStyle}>
+                                Only threads started here get the binding and
+                                context. The dashboard must be in the token's
+                                embed space.
+                            </p>
+                        </div>
                         <div style={threadHistoryStyle}>
                             <select
                                 aria-label="AI agent thread history"
@@ -535,6 +607,19 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     onThreadChange={handleThreadChange}
                                     renderMode={renderMode}
+                                    binding={
+                                        boundDashboardUuid
+                                            ? {
+                                                  type: 'dashboard',
+                                                  dashboardUuid:
+                                                      boundDashboardUuid,
+                                              }
+                                            : undefined
+                                    }
+                                    threadContext={
+                                        threadSetup.threadContext.trim() ||
+                                        undefined
+                                    }
                                 />
                             </div>
                         ) : (

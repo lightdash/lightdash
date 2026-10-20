@@ -12,14 +12,14 @@ in the Explorer.
 
 **Composer query**:
 One submission of a pipeline by the AI agent in a single tool call. Also the
-name of the tool. Each submission creates one artifact version and runs it
-once.
+name of the tool. Each submission runs its pipeline once and registers its
+nodes as thread composer query nodes; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
 
 **Run**:
-One execution of a version's pipeline, producing a node result for every
-node. The submission runs it once; later runs execute the same pipeline again
-and never change the version. In a run, each node executes or is served from
+One execution of a pipeline, producing a node result for every node. The
+submission runs it once; opening an artifact version runs its snapshot again
+and never changes the version. In a run, each node executes or is served from
 the results cache.
 _Avoid_: re-plan, refresh (a UI action, not the thing), new version
 
@@ -31,7 +31,8 @@ _Avoid_: DAG (in user-facing copy), graph (the visual mode, not the thing)
 **Node**:
 One query in a pipeline, named by a node id, with a title shown to users. Its
 result is a table other nodes can read. A node id names one definition for
-the whole thread. Node ids are internal and never reach the user interface.
+the whole scope it was defined in. Node ids are internal and never reach the
+user interface.
 _Avoid_: step (in code; "N steps" is the user-facing count only), query
 (ambiguous with the composer query), source (a node kind)
 
@@ -47,24 +48,48 @@ SQL on the compose engine, or Python in a sandbox. Grouped under
 _Avoid_: duckdb node, python node (in user-facing copy), join node,
 post-processing step
 
+**Thread composer query nodes**:
+The nodes a thread has defined through successful composer queries, each
+under its node id. A submission may read any of them by node id. The thread
+is one scope; an MCP session is another.
+_Avoid_: registry (in user-facing copy), node store, artifact nodes
+
 **Reused node**:
-A node of an earlier version of the thread that a submission reads by its
-node id instead of writing it again. It is copied, with everything it reads,
-into the new version's pipeline, where it is an ordinary node,
-indistinguishable from the version's own.
+A thread composer query node that a submission reads by its node id instead
+of writing it again. It is copied, with everything it reads, into the
+submission's pipeline, where it is an ordinary node, indistinguishable from
+the submission's own.
 _Avoid_: external reference, cached result, dependency, earlier result
 
 **Reads**:
 The nodes whose results a node declares it reads, by node id: nodes of the
-same submission or of earlier versions of the thread. Shown to users by node
+same submission or thread composer query nodes. Shown to users by node
 title, never by node id.
 _Avoid_: depends on, inputs, references (in user-facing copy)
 
 **Terminal node**:
-The node whose result the tool returns and the artifact displays by default.
-The unique sink by default, or chosen explicitly. Suffixed "result" in the
-pipeline panel.
+The node whose result the tool returns to the agent. The unique sink by
+default, or chosen explicitly. Suffixed "result" in the pipeline panel.
 _Avoid_: output node, final node, sink (in user-facing copy)
+
+**Present**:
+The agent's act of making an artifact from a node: naming a terminal node of
+the current turn in its final answer so its result is shown to the user.
+Results the agent does not present stay exploration, visible only in the
+pipeline card. Web marks it `<show node>`, Slack `<slack-table queryUuid>`.
+_Avoid_: select (the Slack vocabulary), show, publish, render
+
+**Presented node**:
+A node the agent presented. Its result is what the composer artifact version
+displays by default.
+_Avoid_: selected node, displayed node (which may be any node of the panel)
+
+**Snapshot**:
+The closed pipeline stored in an artifact version: the presented node and
+everything it reads, copied from the thread composer query nodes when the node
+is presented, so the version reads no node outside itself. The tool result
+carries no snapshot.
+_Avoid_: pipeline copy, closure (in user-facing copy), frozen pipeline
 
 **Node result**:
 The result table of any one node of a run, terminal or not. Every node result
@@ -73,40 +98,42 @@ expire.
 _Avoid_: intermediate result, step output, preview
 
 **Displayed node**:
-The node whose result is on screen in the composer artifact. The terminal
+The node whose result is on screen in the composer artifact. The presented
 node by default; picking a node in the pipeline panel displays it, and a new
-version resets it to the new terminal node.
+version resets it to its presented node.
 _Avoid_: selected node (selection is a graph-mode concept), active node,
 focused node
 
 **Viz config**:
-How the terminal node's result is visualized: chart kind, axes and display
-options, in the same vocabulary as a SQL runner chart. Picked for each version
-from the question and the result, stored with the composer artifact, and the
-starting point of the viz switcher and of any later configuration. Other
-node results have no viz config and start from their column types.
+How the presented node's result is visualized: chart kind, axes and display
+options, in the same vocabulary as a SQL runner chart. Picked when the node is
+presented, from the question and the presented result, starting from the
+thread's latest viz config; stored with the artifact version and the starting
+point of the viz switcher and of any later configuration. Nothing is picked for
+a submission that is not presented, and the tool result names no viz. Other node results have no viz
+config and start from their column types.
 _Avoid_: viz plan, presentation, chart config (the classic vocabulary)
 
 **Viz switcher**:
 The kind control in the viz config panel: table or a chart kind. On the
-terminal node it edits the stored viz config's kind; on other nodes the choice
-is ephemeral. It starts from the viz config on the terminal node, else from a
+presented node it edits the stored viz config's kind; on other nodes the choice
+is ephemeral. It starts from the viz config on the presented node, else from a
 default picked from the result's column types. The floating pill is retired.
 _Avoid_: chart type selector, visualization toggle, view mode
 
 **Viz config panel**:
 The collapsible "Chart" section above the pipeline panel that shows and edits
 the displayed node's viz config: kind, x axis, y values with aggregation and
-series split. On the terminal node every edit is written back to the artifact
+series split. On the presented node every edit is written back to the artifact
 version; other nodes get the viz switcher alone. Only one of it and the
 pipeline panel is open at a time.
 _Avoid_: chart settings, config sidebar, viz sidebar
 
 **Composer artifact**:
-The chart artifact a successful composer query creates: the displayed node's
-result plus the pipeline that produced it. One per thread, one version per
-submission. A version is declarative: its pipeline, terminal node and viz
-config. It holds no results, and a run never changes it.
+The chart artifact created when the agent presents a node: the presented
+node's result plus the snapshot that produces it. One per thread, one version
+per presented node. A version is declarative: its snapshot, presented node
+and viz config. It holds no results, and a run never changes it.
 _Avoid_: composer chart, result artifact
 
 **Pipeline panel**:
@@ -115,13 +142,14 @@ lists the pipeline, with a List and a Graph mode.
 _Avoid_: footer, pipeline card (that is the live tool-call card), drawer
 
 **Pipeline card**:
-The body of the "Ran composer queries" tool-call row, shown while the submission's
-run is in flight and when it fails. Collapses once the artifact version exists.
+The body of the "Ran composer queries" tool-call row, shown for every
+submission: expanded while its run is in flight or has failed, collapsed once
+it completes. The only record of a submission the agent did not present.
 _Avoid_: tool-call description, pipeline panel
 
 ## Boundaries
 
-- Composer queries are web-chat only and gated by the multi-source query and
+- Composer queries run in web chat and Slack, gated by the multi-source query and
   compose SQL runner flags plus the agent's data access setting.
 - The public query-sources API accepts the same node shapes, including node
   titles, but owns no user interface.

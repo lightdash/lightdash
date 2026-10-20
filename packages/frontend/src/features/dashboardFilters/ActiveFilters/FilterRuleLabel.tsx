@@ -15,7 +15,10 @@ import { useMemo, type FC } from 'react';
 import { getFilterRuleTables } from '../../../components/common/Filters/FilterInputs/utils';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import classes from './Filter.module.css';
 import { getFilterRuleLabels } from './filterLabels';
 import { type TruncatedValuesDisplay } from './utils';
@@ -37,8 +40,8 @@ export const FilterRuleLabel: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
     );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,

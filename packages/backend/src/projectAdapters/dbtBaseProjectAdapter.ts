@@ -73,6 +73,10 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     private preparation: Promise<DbtSourcePreparation> | null = null;
 
+    private readonly manifestFetches = new Set<
+        Promise<DbtManifestFetchResult>
+    >();
+
     private preparationTimingsReported = false;
 
     constructor(
@@ -93,14 +97,30 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
 
     async destroy(): Promise<void> {
         Logger.debug(`Destroy base project adapter`);
-        await this.dbtClient.cleanup?.();
+        await this.releaseDisk();
     }
 
-    public async test(): Promise<void> {
+    async releaseDisk(_options?: { keepProject?: boolean }): Promise<void> {
+        await Promise.allSettled([
+            ...this.manifestFetches,
+            ...(this.preparation ? [this.preparation] : []),
+        ]);
+        await this.dbtClient.cleanup?.();
+        this.preparation = null;
+        this.preparationTimingsReported = false;
+    }
+
+    public async test(options?: { signal?: AbortSignal }): Promise<void> {
         Logger.debug('Test dbt client');
-        await this.dbtClient.test(async () => {
-            await this.prepareDbtSource();
-        });
+        if (options?.signal) {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource(options);
+            }, options.signal);
+        } else {
+            await this.dbtClient.test(async () => {
+                await this.prepareDbtSource();
+            });
+        }
         Logger.debug('Test warehouse client');
         await this.warehouseClient.test();
     }
@@ -113,12 +133,17 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         return undefined;
     }
 
-    public prepareDbtSource(): Promise<DbtSourcePreparation> {
+    public async prepareDbtSource(options?: {
+        signal?: AbortSignal;
+    }): Promise<DbtSourcePreparation> {
+        options?.signal?.throwIfAborted();
         this.preparation ??= (async () => {
             let depsMs: number | null = null;
             if (this.dbtClient.installDeps !== undefined) {
                 const startedAt = Date.now();
-                await this.dbtClient.installDeps();
+                if (options?.signal)
+                    await this.dbtClient.installDeps(options.signal);
+                else await this.dbtClient.installDeps();
                 depsMs = Date.now() - startedAt;
             }
             return {
@@ -128,13 +153,32 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 timings: { gitRefreshMs: null, depsMs },
             };
         })();
-        return this.preparation;
+        try {
+            return await this.preparation;
+        } catch (error) {
+            if (options?.signal?.aborted) this.preparation = null;
+            throw error;
+        }
     }
 
     public async getDbtManifest(
         options?: DbtManifestFetchOptions,
     ): Promise<DbtManifestFetchResult> {
-        const preparation = await this.prepareDbtSource();
+        const fetch = this.fetchDbtManifest(options);
+        this.manifestFetches.add(fetch);
+        try {
+            return await fetch;
+        } finally {
+            this.manifestFetches.delete(fetch);
+        }
+    }
+
+    private async fetchDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        const preparation = await this.prepareDbtSource(
+            options?.signal ? { signal: options.signal } : undefined,
+        );
         const timings = this.preparationTimingsReported
             ? { gitRefreshMs: null, depsMs: null }
             : preparation.timings;

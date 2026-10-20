@@ -11,6 +11,7 @@ import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfigura
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
 import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxService';
@@ -319,6 +320,12 @@ export class HealthService extends BaseService {
             },
             preAggregates: {
                 enabled: this.lightdashConfig.preAggregates.enabled,
+            },
+            externalSources: {
+                engineAvailable:
+                    getDuckdbRuntimeConfig(
+                        this.lightdashConfig.preAggregates.s3,
+                    ) !== undefined,
             },
             dataApps: {
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,

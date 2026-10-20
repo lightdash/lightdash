@@ -243,6 +243,13 @@ import {
     mcpListCustomChartTypesOutputSchema,
 } from './toolListCustomChartTypesMcpArgs';
 import {
+    MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    mcpListDataAppConnectionsStructuredOutputSchema,
+    TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    toolListDataAppConnectionsArgsSchema,
+    toolListDataAppConnectionsOutputSchema,
+} from './toolListDataAppConnectionsArgs';
+import {
     MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
     mcpListDataAppThemesStructuredOutputSchema,
     TOOL_LIST_DATA_APP_THEMES_DESCRIPTION,
@@ -1168,6 +1175,29 @@ export const iterateDataAppToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const listDataAppConnectionsToolDefinition: ToolDefinitionWithMcpOutput<
+    'listDataAppConnections',
+    typeof toolListDataAppConnectionsArgsSchema,
+    typeof toolListDataAppConnectionsArgsSchema,
+    typeof toolListDataAppConnectionsOutputSchema,
+    typeof mcpListDataAppConnectionsStructuredOutputSchema
+> = defineTool({
+    name: 'listDataAppConnections',
+    title: 'List data app connections',
+    description: descriptionByRuntime({
+        agent: TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+        mcp: MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION,
+    }),
+    availability: ['agent', 'mcp'],
+    inputSchema: toolListDataAppConnectionsArgsSchema,
+    agent: { outputSchema: toolListDataAppConnectionsOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema:
+            mcpListDataAppConnectionsStructuredOutputSchema,
+    },
+});
+
 export const listDataAppThemesToolDefinition: ToolDefinitionWithMcpOutput<
     'listDataAppThemes',
     typeof toolListDataAppThemesArgsSchema,
@@ -2000,6 +2030,7 @@ type AgentToolDefinitionsByName = {
     generateDataApp: typeof generateDataAppToolDefinition;
     iterateDataApp: typeof iterateDataAppToolDefinition;
     listDataAppThemes: typeof listDataAppThemesToolDefinition;
+    listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -2059,6 +2090,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateDataApp: generateDataAppToolDefinition,
     iterateDataApp: iterateDataAppToolDefinition,
     listDataAppThemes: listDataAppThemesToolDefinition,
+    listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -2125,6 +2157,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateDataAppToolDefinition,
     iterateDataAppToolDefinition,
     listDataAppThemesToolDefinition,
+    listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,

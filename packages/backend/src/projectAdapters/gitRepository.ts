@@ -5,9 +5,11 @@ import {
     UnexpectedGitError,
     UnexpectedServerError,
 } from '@lightdash/common';
+import execa from 'execa';
 import * as fspromises from 'fs-extra';
 import { GitError, type SimpleGit } from 'simple-git';
 import Logger from '../logging/logger';
+import { awaitDetachedProcess } from '../utils/detachedProcess';
 
 // simple-git blocks every GIT_* variable passed via .env() unless the instance allows it
 export const GIT_REPOSITORY_ENVIRONMENT = ['GIT_TERMINAL_PROMPT'];
@@ -55,6 +57,7 @@ export class GitRepository {
         private readonly remoteRepositoryUrl: string,
         private readonly repository: string,
         private readonly branch: string,
+        private readonly signalEnvironment: Record<string, string> = {},
     ) {}
     private async _cleanLocal() {
         try {
@@ -112,7 +115,66 @@ export class GitRepository {
         }
     }
 
-    public async refresh() {
+    private async runGit(args: string[], signal: AbortSignal, cwd?: string) {
+        signal.throwIfAborted();
+        try {
+            await awaitDetachedProcess(
+                execa('git', args, {
+                    cwd,
+                    extendEnv: false,
+                    env: {
+                        ...this.signalEnvironment,
+                        GIT_TERMINAL_PROMPT: '0',
+                    },
+                    ...(process.platform === 'linux' ? { detached: true } : {}),
+                }),
+                signal,
+            );
+            signal.throwIfAborted();
+        } catch (error) {
+            signal.throwIfAborted();
+            gitErrorHandler(error, this.repository);
+        }
+    }
+
+    private async refreshWithSignal(signal: AbortSignal) {
+        signal.throwIfAborted();
+        try {
+            await fspromises.access(this.localRepositoryDir);
+            await this.runGit(
+                [
+                    'pull',
+                    this.remoteRepositoryUrl,
+                    this.branch,
+                    '--ff-only',
+                    '--depth=1',
+                    '--no-tags',
+                    '--progress',
+                ],
+                signal,
+                this.localRepositoryDir,
+            );
+        } catch (error) {
+            signal.throwIfAborted();
+            await this._cleanLocal();
+            await this.runGit(
+                [
+                    'clone',
+                    '--single-branch',
+                    '--depth=1',
+                    `--branch=${this.branch}`,
+                    '--no-tags',
+                    '--progress',
+                    this.remoteRepositoryUrl,
+                    this.localRepositoryDir,
+                ],
+                signal,
+            );
+        }
+    }
+
+    public async refresh(signal?: AbortSignal) {
+        if (signal) return this.refreshWithSignal(signal);
         const startTime = Date.now();
         try {
             await this._pull();

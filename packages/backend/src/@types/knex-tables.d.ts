@@ -144,6 +144,10 @@ import {
     DashboardSlugMappingTable,
 } from '../database/entities/dashboardSlugMappings';
 import {
+    DbtSourceRefCatalogsTableName,
+    type DbtSourceRefCatalogsTable,
+} from '../database/entities/dbtSourceRefCatalogs';
+import {
     DocumentGroupAccessTable,
     DocumentGroupAccessTableName,
     DocumentUserAccessTable,
@@ -660,6 +664,10 @@ import {
     AiThreadFileTableName,
 } from '../ee/database/entities/aiThreadFile';
 import {
+    ComposerQueryNodesTable,
+    ComposerQueryNodesTableName,
+} from '../ee/database/entities/composerQueryNodes';
+import {
     DataAppAnalysesTable,
     DataAppAnalysesTableName,
     DataAppAnalysisDailyCountersTable,
@@ -756,6 +764,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
@@ -896,6 +905,7 @@ declare module 'knex/types/tables' {
         [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
+        [ComposerQueryNodesTableName]: ComposerQueryNodesTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiSlackArtifactDeliveriesTableName]: AiSlackArtifactDeliveriesTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;

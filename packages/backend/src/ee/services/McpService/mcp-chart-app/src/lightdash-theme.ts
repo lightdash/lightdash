@@ -1,5 +1,6 @@
 /**
  *  MCP App Theme for Lightdash
+ *  Greys are `var(--app-*)` references (see global.css), resolved to the host's colours before ECharts reads them.
  *  NOTE: ideally this should share same colors as the Lightdash frontend theme, but for now we're using a simple theme that works well.
  */
 export const lightdashTheme = {
@@ -27,6 +28,19 @@ export const lightdashTheme = {
     ],
     backgroundColor: 'rgba(0,0,0,0)',
     textStyle: {},
+    title: {
+        textStyle: {
+            color: 'var(--app-text)',
+        },
+        subtextStyle: {
+            color: 'var(--app-text-tertiary)',
+        },
+    },
+    legend: {
+        textStyle: {
+            color: 'var(--app-text-secondary)',
+        },
+    },
     line: {
         itemStyle: {
             borderWidth: 1,
@@ -41,31 +55,31 @@ export const lightdashTheme = {
     bar: {
         itemStyle: {
             barBorderWidth: 0,
-            barBorderColor: '#ccc',
+            barBorderColor: 'var(--app-border)',
         },
     },
     pie: {
         itemStyle: {
             borderWidth: 0,
-            borderColor: '#ccc',
+            borderColor: 'var(--app-border)',
         },
     },
     scatter: {
         itemStyle: {
             borderWidth: 0,
-            borderColor: '#ccc',
+            borderColor: 'var(--app-border)',
         },
     },
     funnel: {
         itemStyle: {
             borderWidth: 0,
-            borderColor: '#e9e9e9',
+            borderColor: 'var(--app-border-tertiary)',
         },
     },
     gauge: {
         itemStyle: {
             borderWidth: 0,
-            borderColor: '#e9e9e9',
+            borderColor: 'var(--app-border-tertiary)',
         },
     },
     candlestick: {
@@ -80,11 +94,11 @@ export const lightdashTheme = {
     graph: {
         itemStyle: {
             borderWidth: 0,
-            borderColor: '#ccc',
+            borderColor: 'var(--app-border)',
         },
         lineStyle: {
             width: 1,
-            color: '#aaa',
+            color: 'var(--app-text-tertiary)',
         },
         symbolSize: 3,
         symbol: 'emptyCircle',
@@ -116,119 +130,131 @@ export const lightdashTheme = {
         },
     },
     categoryAxis: {
+        nameTextStyle: {
+            color: 'var(--app-text-tertiary)',
+        },
         axisLine: {
             show: true,
             lineStyle: {
-                color: '#ebebeb',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisTick: {
             show: true,
             lineStyle: {
-                color: '#dedede',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisLabel: {
             show: true,
-            color: '#333',
+            color: 'var(--app-text-secondary)',
         },
         splitLine: {
             show: false,
             lineStyle: {
-                color: ['#dedede'],
+                color: ['var(--app-border-tertiary)'],
             },
         },
         splitArea: {
             show: false,
             areaStyle: {
-                color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)'],
+                color: ['rgba(0,0,0,0)', 'var(--app-bg-secondary)'],
             },
         },
     },
     valueAxis: {
+        nameTextStyle: {
+            color: 'var(--app-text-tertiary)',
+        },
         axisLine: {
             show: true,
             lineStyle: {
-                color: '#dedede',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisTick: {
             show: true,
             lineStyle: {
-                color: '#dedede',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisLabel: {
             show: true,
-            color: '#636363',
+            color: 'var(--app-text-tertiary)',
         },
         splitLine: {
             show: false,
             lineStyle: {
-                color: ['#eee'],
+                color: ['var(--app-border-tertiary)'],
             },
         },
         splitArea: {
             show: false,
             areaStyle: {
-                color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)'],
+                color: ['rgba(0,0,0,0)', 'var(--app-bg-secondary)'],
             },
         },
     },
     logAxis: {
+        nameTextStyle: {
+            color: 'var(--app-text-tertiary)',
+        },
         axisLine: {
             show: true,
         },
         axisTick: {
             show: true,
             lineStyle: {
-                color: '#dedede',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisLabel: {
             show: true,
-            color: '#333',
+            color: 'var(--app-text-secondary)',
         },
         splitLine: {
             show: true,
             lineStyle: {
-                color: ['#e9e9e9'],
+                color: ['var(--app-border-tertiary)'],
             },
         },
         splitArea: {
             show: true,
             areaStyle: {
-                color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)'],
+                color: ['rgba(0,0,0,0)', 'var(--app-bg-secondary)'],
             },
         },
     },
     timeAxis: {
+        nameTextStyle: {
+            color: 'var(--app-text-tertiary)',
+        },
         axisLine: {
             show: true,
             lineStyle: {
-                color: '#e9e9e9',
+                color: 'var(--app-border-tertiary)',
             },
         },
         axisTick: {
             show: true,
             lineStyle: {
-                color: '#969696',
+                color: 'var(--app-text-tertiary)',
             },
         },
         axisLabel: {
             show: true,
-            color: '#333',
+            color: 'var(--app-text-secondary)',
         },
         splitLine: {
             show: true,
             lineStyle: {
-                color: ['#e9e9e9'],
+                color: ['var(--app-border-tertiary)'],
             },
         },
         splitArea: {
             show: false,
             areaStyle: {
-                color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)'],
+                color: ['rgba(0,0,0,0)', 'var(--app-bg-secondary)'],
             },
         },
     },
@@ -245,10 +271,10 @@ export const lightdashTheme = {
     tooltip: {
         axisPointer: {
             label: {
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderColor: 'rgba(0, 0, 0, 0.1)',
+                backgroundColor: 'var(--app-bg)',
+                borderColor: 'var(--app-border-tertiary)',
                 borderWidth: 1,
-                color: '#636363',
+                color: 'var(--app-text-tertiary)',
                 shadowBlur: 4,
                 shadowColor: 'rgba(0, 0, 0, 0.08)',
                 shadowOffsetX: 0,
@@ -258,10 +284,10 @@ export const lightdashTheme = {
     },
     axisPointer: {
         label: {
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: 'rgba(0, 0, 0, 0.1)',
+            backgroundColor: 'var(--app-bg)',
+            borderColor: 'var(--app-border-tertiary)',
             borderWidth: 1,
-            color: '#636363',
+            color: 'var(--app-text-tertiary)',
             shadowBlur: 4,
             shadowColor: 'rgba(0, 0, 0, 0.08)',
             shadowOffsetX: 0,
@@ -269,7 +295,7 @@ export const lightdashTheme = {
             padding: [6, 10],
         },
         lineStyle: {
-            color: '#dedede',
+            color: 'var(--app-border-tertiary)',
             width: 1,
             type: 'dashed',
         },

@@ -36,6 +36,7 @@ export type UsageDashboardSpec = {
     key: string;
     name: string;
     description: string;
+    filters?: DashboardAsCode['filters'];
     tabs: {
         key: string;
         name: string;

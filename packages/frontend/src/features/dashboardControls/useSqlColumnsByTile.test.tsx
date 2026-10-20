@@ -8,7 +8,11 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -21,10 +25,6 @@ const mockTileStatus = vi.hoisted(() => ({
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatus.current)),
-}));
-
 const field = {
     fieldType: FieldType.DIMENSION,
     type: DimensionType.STRING,
@@ -79,8 +79,23 @@ describe('useSqlColumnsByTile', () => {
     });
 
     const columnsFor = (target: DashboardFilterRule['target'] | null) =>
-        renderHook(() =>
-            useSqlColumnsByTile(target === null ? null : rule(target)),
+        renderHook(
+            () => useSqlColumnsByTile(target === null ? null : rule(target)),
+            {
+                wrapper: ({ children }: { children: ReactNode }) => (
+                    <DashboardStoreTestProvider
+                        store={createDashboardTestStore({
+                            sqlChartTilesMetadata: mockTileStatus.current
+                                .sqlChartTilesMetadata as Record<
+                                string,
+                                SqlChartTileMetadata
+                            >,
+                        })}
+                    >
+                        {children}
+                    </DashboardStoreTestProvider>
+                ),
+            },
         ).result.current;
 
     const all = { 'sql-1': [country, total], 'sql-2': [city] };

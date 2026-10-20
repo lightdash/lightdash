@@ -64,6 +64,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateDataApp: 'generate_data_app',
     iterateDataApp: 'iterate_data_app',
     listDataAppThemes: 'list_data_app_themes',
+    listDataAppConnections: 'list_data_app_connections',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     editRepo: 'edit_repo',

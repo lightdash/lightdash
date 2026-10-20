@@ -513,6 +513,7 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        dbtSourceRefCatalogModel: {} as never,
         refreshTokenRotation: { run: vi.fn() },
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
@@ -25506,6 +25507,7 @@ describe('fresh execution producer to result reader', () => {
             getToolCallsAndResultsForPrompt: vi.fn(
                 async (uuid: string) => provenance.get(uuid) ?? [],
             ),
+            getArtifactVersionsByUuids: vi.fn(async () => []),
         };
         const userModel = {
             findSessionUserAndOrgByUuid: vi.fn(async () =>

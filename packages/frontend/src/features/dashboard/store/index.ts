@@ -1,5 +1,9 @@
 import { configureStore } from '@reduxjs/toolkit';
 import {
+    dashboardDateZoomReducer,
+    type DashboardDateZoomState,
+} from './dashboardDateZoomReducer';
+import {
     dashboardFiltersReducer,
     type DashboardFiltersState,
 } from './dashboardFiltersReducer';
@@ -7,10 +11,16 @@ import {
     dashboardParametersReducer,
     type DashboardParametersState,
 } from './dashboardParametersReducer';
+import {
+    dashboardTileStatusReducer,
+    type DashboardTileStatusState,
+} from './dashboardTileStatusReducer';
 
 export type DashboardStoreState = {
     filters: DashboardFiltersState;
     parameters: DashboardParametersState;
+    dateZoom: DashboardDateZoomState;
+    tileStatus: DashboardTileStatusState;
 };
 
 // One store per mounted dashboard
@@ -19,6 +29,8 @@ export const createDashboardStore = (preloadedState: DashboardStoreState) =>
         reducer: {
             filters: dashboardFiltersReducer,
             parameters: dashboardParametersReducer,
+            dateZoom: dashboardDateZoomReducer,
+            tileStatus: dashboardTileStatusReducer,
         },
         preloadedState,
         middleware: (getDefaultMiddleware) =>
@@ -37,6 +49,8 @@ export {
     emptyDashboardFilters,
 } from './dashboardFiltersReducer';
 export { dashboardParametersActions } from './dashboardParametersReducer';
+export { dashboardDateZoomActions } from './dashboardDateZoomReducer';
+export { dashboardTileStatusActions } from './dashboardTileStatusReducer';
 export * from './hooks';
 export { hasSavedFiltersOverrides } from './savedFilterOverrides';
 export * from './selectors';

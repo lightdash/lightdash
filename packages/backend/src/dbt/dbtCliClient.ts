@@ -16,7 +16,8 @@ import {
     validateDbtSelector,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import execa, { ExecaError, ExecaReturnValue } from 'execa';
+import { createHash } from 'crypto';
+import execa, { ExecaError } from 'execa';
 import * as fs from 'fs/promises';
 import yaml from 'js-yaml';
 import os from 'os';
@@ -24,11 +25,14 @@ import path from 'path';
 import Logger from '../logging/logger';
 import { traceSpan } from '../tracing/tracing';
 import { DbtClient, DbtManifestFetchOptions } from '../types';
+import { awaitDetachedProcess } from '../utils/detachedProcess';
+import { DbtAbortError } from './DbtAbortError';
 import {
     dbtSupportsExternalNodes,
     writeDbtExternalNodesPlugin,
 } from './dbtExternalNodes';
 import {
+    getDbtPartialParseExternalNodesDigest,
     saveDbtPartialParse,
     seedDbtPartialParse,
 } from './dbtPartialParseBaseline';
@@ -94,6 +98,8 @@ export class DbtCliClient implements DbtClient {
 
     partialParseSeeded: boolean;
 
+    private externalNodesDigest: string | null = null;
+
     constructor({
         dbtProjectDirectory,
         dbtProfilesDirectory,
@@ -156,6 +162,7 @@ export class DbtCliClient implements DbtClient {
                 force: true,
             });
             this.targetDirectory = undefined;
+            this.externalNodesDigest = null;
         }
     }
 
@@ -163,6 +170,7 @@ export class DbtCliClient implements DbtClient {
         command: 'ls' | 'parse',
         logs: DbtLog[],
     ): Promise<void> {
+        if (command === 'parse') this.externalNodesDigest = null;
         if (
             this.partialParseBaselinePath === null ||
             this.targetDirectory === undefined
@@ -188,6 +196,8 @@ export class DbtCliClient implements DbtClient {
         await saveDbtPartialParse(
             this.partialParseBaselinePath,
             this.targetDirectory,
+            undefined,
+            this.externalNodesDigest,
         );
     }
 
@@ -238,12 +248,16 @@ export class DbtCliClient implements DbtClient {
     private async _runDbtCommand(
         command: string[],
         pluginEnvironment: Record<string, string> = {},
+        signal?: AbortSignal,
     ): Promise<{
         logs: DbtLog[];
         stdout: string;
     }> {
+        if (signal?.aborted) throw new DbtAbortError(signal.reason);
         const dbtExec = this.getDbtExec();
         const targetPath = await this._getTargetDirectory();
+        const temporaryPath = path.join(targetPath, 'tmp');
+        await fs.mkdir(temporaryPath, { recursive: true, mode: 0o700 });
         const dbtArgs = [
             '--no-use-colors',
             '--log-format',
@@ -268,29 +282,41 @@ export class DbtCliClient implements DbtClient {
                     this.dbtVersion
                 }": ${dbtExec} ${dbtArgs.join(' ')}`,
             );
-            const dbtProcess = await execa(dbtExec, dbtArgs, {
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
+            const subprocess = execa(dbtExec, dbtArgs, {
+                ...(signal && process.platform === 'linux'
+                    ? { detached: true }
+                    : {}),
                 // dbt 1.5 creates dbt_packages relative to the cwd, not the project dir
                 cwd: this.dbtProjectDirectory,
                 all: true,
                 stdio: ['pipe', 'pipe', process.stderr],
                 extendEnv: false,
-                env: getDbtProcessEnvironment({
-                    processEnvironment: process.env,
-                    explicitCredentials: this.explicitCredentials,
-                    environmentVariableAllowlist:
-                        this.environmentVariableAllowlist,
-                    projectEnvironment: this.environment,
-                    pluginEnvironment,
-                    targetPath,
-                    partialParse: this.partialParseBaselinePath !== null,
-                    gitConfigGlobalPath: this.gitConfigGlobalPath,
-                }),
+                env: {
+                    ...getDbtProcessEnvironment({
+                        processEnvironment: process.env,
+                        explicitCredentials: this.explicitCredentials,
+                        environmentVariableAllowlist:
+                            this.environmentVariableAllowlist,
+                        projectEnvironment: this.environment,
+                        pluginEnvironment,
+                        targetPath,
+                        partialParse: this.partialParseBaselinePath !== null,
+                        gitConfigGlobalPath: this.gitConfigGlobalPath,
+                    }),
+                    TMPDIR: temporaryPath,
+                },
             });
+            const dbtProcess = signal
+                ? await awaitDetachedProcess(subprocess, signal)
+                : await subprocess;
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
             return {
                 logs: DbtCliClient.parseDbtJsonLogs(dbtProcess.all),
                 stdout: dbtProcess.stdout,
             };
         } catch (e) {
+            if (signal?.aborted) throw new DbtAbortError(signal.reason);
             Logger.error(
                 `Error running dbt command with version ${
                     this.dbtVersion
@@ -319,7 +345,7 @@ export class DbtCliClient implements DbtClient {
         }
     }
 
-    async installDeps(): Promise<void> {
+    async installDeps(signal?: AbortSignal): Promise<void> {
         return traceSpan(
             {
                 op: 'dbt',
@@ -328,7 +354,7 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 const startTime = Date.now();
                 try {
-                    await this._runDbtCommand(['deps']);
+                    await this._runDbtCommand(['deps'], {}, signal);
                 } catch (error) {
                     if (error instanceof DbtError && this.dbtDepsErrorHint) {
                         throw new DbtError(
@@ -431,15 +457,37 @@ export class DbtCliClient implements DbtClient {
                             'Cross-source dbt refs require dbt 1.6 or newer.',
                         );
                     }
+                    const targetDirectory = await this._getTargetDirectory();
+                    const digest = createHash('sha256')
+                        .update(JSON.stringify(options.externalNodes))
+                        .digest('hex');
+                    const previousDigest =
+                        this.externalNodesDigest ??
+                        (this.partialParseBaselinePath === null ||
+                        !this.partialParseSeeded
+                            ? null
+                            : await getDbtPartialParseExternalNodesDigest(
+                                  this.partialParseBaselinePath,
+                                  targetDirectory,
+                              ));
+                    if (previousDigest !== digest) {
+                        await fs.rm(
+                            path.join(targetDirectory, 'partial_parse.msgpack'),
+                            { force: true },
+                        );
+                        this.partialParseSeeded = false;
+                    }
+                    this.externalNodesDigest = digest;
                     pluginEnvironment = await writeDbtExternalNodesPlugin(
-                        await this._getTargetDirectory(),
+                        targetDirectory,
                         options.externalNodes,
                     );
-                }
+                } else this.externalNodesDigest = null;
                 const startTime = Date.now();
                 const { logs, stdout } = await this._runDbtCommand(
                     dbtCommand,
                     pluginEnvironment,
+                    options?.signal,
                 );
                 const elapsed = Date.now() - startTime;
                 const selectedModelIds =
@@ -540,6 +588,7 @@ export class DbtCliClient implements DbtClient {
 
     async test(
         prepareDependencies: () => Promise<void> = () => this.installDeps(),
+        signal?: AbortSignal,
     ): Promise<void> {
         return traceSpan(
             {
@@ -549,7 +598,11 @@ export class DbtCliClient implements DbtClient {
             async () => {
                 await this.ensureDbtProjectDir();
                 await prepareDependencies();
-                const { logs } = await this._runDbtCommand(['parse']);
+                const { logs } = await this._runDbtCommand(
+                    ['parse'],
+                    {},
+                    signal,
+                );
                 await this.keepPartialParse('parse', logs);
             },
         );

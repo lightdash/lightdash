@@ -48,6 +48,7 @@ import { SectionName } from '../../types/Events';
 import '../../styles/droppable.css';
 import {
     selectDashboardFilters,
+    selectDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
@@ -167,12 +168,11 @@ const TabGridPanel = memo<TabGridPanelProps>(
                         onWidthChange={onWidthChange}
                         layouts={layouts}
                     >
-                        {tiles.map((tile, idx) => (
+                        {tiles.map((tile) => (
                             <div key={tile.uuid} data-tile-uuid={tile.uuid}>
                                 <TrackSection name={SectionName.DASHBOARD_TILE}>
                                     <GridTile
                                         locked={locked}
-                                        index={idx}
                                         isEditMode={isEditMode}
                                         tile={tile}
                                         onDelete={onDeleteTile}
@@ -370,9 +370,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
     const getUiString = useUiStrings();
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state
@@ -1300,7 +1298,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           }
                                                       >
                                                           {visibleTiles.map(
-                                                              (tile, idx) => (
+                                                              (tile) => (
                                                                   <div
                                                                       key={
                                                                           tile.uuid
@@ -1317,9 +1315,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                           <GridTile
                                                                               locked={
                                                                                   hasUnmetFilterRequirementsForCurrentTab
-                                                                              }
-                                                                              index={
-                                                                                  idx
                                                                               }
                                                                               isEditMode={
                                                                                   isEditMode

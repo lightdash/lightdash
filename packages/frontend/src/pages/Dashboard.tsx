@@ -60,20 +60,22 @@ import {
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import {
+    getSafeTemporaryFilters,
     selectDashboardFilters,
+    selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardParameters,
     selectHasParameterOrderChanged,
     selectHaveFiltersChanged,
     selectHavePinnedParametersChanged,
     selectMissingRequiredParameters,
-    selectDashboardParameterDefinitions,
+    selectOldestCacheTime,
     selectParameterOrder,
     selectParametersHaveChanged,
     selectParameterValues,
     selectPinnedParameters,
-    getSafeTemporaryFilters,
     selectRawTemporaryFilters,
+    useAreAllChartsLoaded,
     useDashboardSelector,
     useDashboardStore,
     useHasDashboardTemporaryFilters,
@@ -98,6 +100,7 @@ import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useStableCallback } from '../hooks/useStableCallback';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
@@ -205,9 +208,7 @@ const Dashboard: FC = () => {
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
-    const areAllChartsLoaded = useDashboardTileStatusContext(
-        (c) => c.areAllChartsLoaded,
-    );
+    const areAllChartsLoaded = useAreAllChartsLoaded();
     const missingRequiredParameters = useDashboardSelector(
         selectMissingRequiredParameters,
     );
@@ -241,9 +242,7 @@ const Dashboard: FC = () => {
             (requiredFiltersNote || undefined)
         );
     }, [dashboard, requiredFiltersNote]);
-    const oldestCacheTime = useDashboardTileStatusContext(
-        (c) => c.oldestCacheTime,
-    );
+    const oldestCacheTime = useDashboardSelector(selectOldestCacheTime);
     const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );
@@ -702,6 +701,12 @@ const Dashboard: FC = () => {
             setHaveTilesChanged,
         ],
     );
+
+    // Tiles are memoised; stable handlers keep a dashboard re-render from
+    // re-rendering every tile
+    const stableAddTiles = useStableCallback(handleAddTiles);
+    const stableDeleteTile = useStableCallback(handleDeleteTile);
+    const stableEditTile = useStableCallback(handleEditTiles);
 
     const handleCancel = useCallback(() => {
         if (!dashboard) return;
@@ -1605,11 +1610,11 @@ const Dashboard: FC = () => {
                                 activeTab={activeTab}
                                 addingTab={addingTab}
                                 dashboardTiles={dashboardTiles}
-                                handleAddTiles={handleAddTiles}
+                                handleAddTiles={stableAddTiles}
                                 handleUpdateTiles={handleUpdateTiles}
-                                handleDeleteTile={handleDeleteTile}
+                                handleDeleteTile={stableDeleteTile}
                                 handleBatchDeleteTiles={handleBatchDeleteTiles}
-                                handleEditTile={handleEditTiles}
+                                handleEditTile={stableEditTile}
                                 setGridWidth={setGridWidth}
                                 setAddingTab={setAddingTab}
                                 onNewChart={

@@ -2,6 +2,7 @@ import type {
     AiAgent,
     AiAgentModelConfig,
     AiAgentProjectThreadSummary,
+    AiAgentThreadFirstMessage,
     AiAgentThreadFilters,
     AiPromptContext,
     AiPromptContextItem,
@@ -1249,22 +1250,38 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     });
 };
 
+type CreateAgentThreadRequest = ApiAiAgentThreadCreateRequest & {
+    prompt: string;
+};
+
+type CreatedAgentThread = ApiAiAgentThreadCreateResponse['results'] & {
+    firstMessage: AiAgentThreadFirstMessage;
+};
+
 const createAgentThread = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string | undefined,
-    data: ApiAiAgentThreadCreateRequest,
-) =>
-    lightdashApi<ApiAiAgentThreadCreateResponse['results']>({
+    data: CreateAgentThreadRequest,
+): Promise<CreatedAgentThread> => {
+    const thread = await lightdashApi<
+        ApiAiAgentThreadCreateResponse['results']
+    >({
         url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
         method: 'POST',
         body: JSON.stringify(data),
     });
+    const { firstMessage } = thread;
+    if (firstMessage === null) {
+        throw new Error('Created thread is missing its first message');
+    }
+    return { ...thread, firstMessage };
+};
 
 export const useCreateAgentThreadMutation = (
     projectUuid: string,
     options?: {
-        onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+        onCreated?: (thread: CreatedAgentThread) => void;
         onToolCall?: AiAgentToolCallHandler;
         onToolResult?: AiAgentToolResultHandler;
         // Skip the default `navigate(...)` to the thread page. The launcher
@@ -1284,9 +1301,9 @@ export const useCreateAgentThreadMutation = (
         useGenerateAgentThreadTitleMutation(projectUuid);
 
     return useMutation<
-        ApiAiAgentThreadCreateResponse['results'],
+        CreatedAgentThread,
         ApiError,
-        ApiAiAgentThreadCreateRequest & {
+        CreateAgentThreadRequest & {
             agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
@@ -1346,6 +1363,8 @@ export const useCreateAgentThreadMutation = (
                         pinnedAt: null,
                         battleProfile: variables.battleProfile ?? null,
                         liveStatus: null,
+                        binding: thread.binding,
+                        threadContext: thread.threadContext,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,

@@ -1,6 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SqlChartTileMetadata } from '../../providers/Dashboard/types';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
@@ -15,11 +16,17 @@ const mockDashboardContext = vi.hoisted(() => ({
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const mockTrack = vi.hoisted(() => vi.fn());
 const renderWithProviders = (ui: ReactElement) =>
     renderWithAppProviders(
         <DashboardStoreTestProvider
-            store={createDashboardTestStore({ haveFiltersChanged: false })}
+            store={createDashboardTestStore({
+                haveFiltersChanged: false,
+                sqlChartTilesMetadata: mockTileStatus.current
+                    .sqlChartTilesMetadata as Record<
+                    string,
+                    SqlChartTileMetadata
+                >,
+            })}
         >
             {ui}
         </DashboardStoreTestProvider>,
@@ -33,12 +40,6 @@ vi.mock('./useControlsSidebar', () => ({
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
-vi.mock('../../providers/Dashboard/useDashboardTileStatusContext', () => ({
-    default: vi.fn((selector) => selector(mockTileStatus.current)),
-}));
-vi.mock('../../providers/Tracking/useTracking', () => ({
-    default: () => ({ track: mockTrack }),
-}));
 
 describe('AddControl', () => {
     const add = () => screen.getByRole('button', { name: 'Add filter' });
@@ -49,7 +50,6 @@ describe('AddControl', () => {
         });
 
     beforeEach(() => {
-        mockTrack.mockClear();
         setIsAddFilterDisabled.mockClear();
         mockSidebar.current = { isSidebarOpen: false, openNew: vi.fn() };
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
@@ -123,14 +123,6 @@ describe('AddControl', () => {
         },
     );
 
-    it('opens a new control on click and leaves tracking to the provider', () => {
-        renderWithProviders(<AddControl />);
-
-        fireEvent.click(add());
-
-        expect(mockTrack).not.toHaveBeenCalled();
-    });
-
     it('is disabled until the filterable fields are available', () => {
         mockDashboardContext.current.allFilterableFields = undefined;
         renderWithProviders(<AddControl />);
@@ -138,7 +130,6 @@ describe('AddControl', () => {
         expect(add()).toBeDisabled();
         fireEvent.click(add());
         expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
-        expect(mockTrack).not.toHaveBeenCalled();
     });
 
     it('stays enabled without fields when a SQL chart tile reported columns', () => {

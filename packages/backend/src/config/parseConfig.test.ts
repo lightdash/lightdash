@@ -3141,3 +3141,43 @@ describe('database slow transaction threshold', () => {
         expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
     });
 });
+
+describe('cross-source dbt deadlines', () => {
+    it('uses the default deadlines', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            crossSourceMaxPasses: 3,
+            crossSourcePrepareTimeoutMs: 180000,
+            crossSourceLsTimeoutMs: 300000,
+            crossSourceResolutionTimeoutMs: 1200000,
+        });
+    });
+    it('reads each deadline from the environment', () => {
+        process.env.DBT_CROSS_SOURCE_MAX_PASSES = '5';
+        process.env.DBT_SOURCE_PREPARE_TIMEOUT_MS = '120';
+        process.env.DBT_SOURCE_LS_TIMEOUT_MS = '240';
+        process.env.DBT_CROSS_SOURCE_RESOLUTION_TIMEOUT_MS = '480';
+        expect(parseConfig().dbt).toMatchObject({
+            crossSourceMaxPasses: 5,
+            crossSourcePrepareTimeoutMs: 120,
+            crossSourceLsTimeoutMs: 240,
+            crossSourceResolutionTimeoutMs: 480,
+        });
+    });
+});
+
+describe('dbt source disk configuration', () => {
+    it('defaults the estimate and leaves the budget unset', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: undefined,
+            sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
+        });
+    });
+    it('parses both disk settings', () => {
+        process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES = '1073741824';
+        process.env.DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = '134217728';
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: 1073741824,
+            sourceFetchDiskPerSourceBytes: 134217728,
+        });
+    });
+});

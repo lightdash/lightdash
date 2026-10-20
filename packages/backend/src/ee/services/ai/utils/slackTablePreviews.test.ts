@@ -2,6 +2,8 @@ import {
     parseAiArtifactChartConfig,
     QuerySourceType,
     type AiArtifact,
+    type ThreadComposerQueryNode,
+    type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import {
     getSlackTableBlocks,
@@ -53,6 +55,7 @@ const setup = () => {
         toolCalls: [call('first'), call('chart', 'bar'), call('second')],
         toolResults: [result('first'), result('chart'), result('second')],
         artifacts: [],
+        threadNodes: [] as ThreadComposerQueryNode[],
         url: 'https://lightdash.test/threads/thread',
         getResults,
         authorize,
@@ -117,77 +120,81 @@ const artifact = (
     };
 };
 
-const composerArtifact = (versionUuid: string): AiArtifact => {
-    const chartConfig = parseAiArtifactChartConfig({
-        source: 'composer',
-        schemaVersion: 1,
-        queries: [
-            {
-                sourceType: QuerySourceType.SEMANTIC_LAYER,
-                nodeId: 'revenue',
-                exploreName: 'payments',
-                dimensions: ['payments_month'],
-                metrics: ['payments_total_revenue'],
-            },
-            {
-                sourceType: QuerySourceType.DUCKDB,
-                nodeId: 'joined',
-                sql: 'SELECT * FROM revenue',
-                references: ['revenue'],
-            },
-        ],
-        terminalNodeId: 'joined',
-        vizConfig: null,
-    });
-    if (!chartConfig) throw new Error('Invalid fixture');
-    return {
-        ...artifact(versionUuid, 'table'),
-        title: 'Revenue pipeline',
-        chartConfig,
-    };
+const composerMetadata: ToolComposerQueriesSuccessMetadata = {
+    status: 'success',
+    queryUuid: 'query-composer',
+    terminalNodeId: 'joined',
+    title: 'Revenue pipeline',
+    description: null,
 };
+
+const revenueNode: ThreadComposerQueryNode = {
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'revenue',
+    title: 'Revenue',
+    exploreName: 'payments',
+    dimensions: ['payments_month'],
+    metrics: ['payments_total_revenue'],
+};
+
+const joinedNode = (references: string[]): ThreadComposerQueryNode => ({
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'joined',
+    title: 'Joined',
+    sql: 'SELECT * FROM revenue',
+    references,
+});
+
+// The call submits revenue and joined; earlier calls registered the rest.
+const composerCall = (
+    joined: ThreadComposerQueryNode,
+    earlierNodes: ThreadComposerQueryNode[] = [],
+) => ({
+    selectedQueryUuids: ['query-composer'],
+    toolCalls: [
+        {
+            tool_call_id: 'composer',
+            tool_name: 'runComposerQueries',
+            tool_args: {
+                title: 'Revenue pipeline',
+                description: null,
+                queries: [revenueNode, joined],
+                terminalNodeId: 'joined',
+            },
+        },
+    ],
+    toolResults: [
+        {
+            toolCallId: 'composer',
+            toolType: 'built-in' as const,
+            toolName: 'runComposerQueries',
+            metadata: composerMetadata,
+        },
+    ],
+    artifacts: [],
+    threadNodes: [...earlierNodes, revenueNode, joined],
+});
+
+const authorizeExplores =
+    (allowed: string[]) =>
+    async ({ exploreNames }: { exploreNames: string[] }) => {
+        if (exploreNames.some((name) => !allowed.includes(name))) {
+            throw new Error('Forbidden');
+        }
+    };
 
 describe('getSlackTablePreviews', () => {
     it('hides a composer result from users who cannot access one of its semantic explores', async () => {
-        const composerCall = {
-            selectedQueryUuids: ['query-composer'],
-            toolCalls: [
-                {
-                    tool_call_id: 'composer',
-                    tool_name: 'runComposerQueries',
-                    tool_args: {},
-                },
-            ],
-            toolResults: [
-                {
-                    toolCallId: 'composer',
-                    toolType: 'built-in' as const,
-                    toolName: 'runComposerQueries',
-                    metadata: {
-                        status: 'success',
-                        queryUuid: 'query-composer',
-                        artifactVersionUuid: 'composer-version',
-                    },
-                },
-            ],
-            artifacts: [composerArtifact('composer-version')],
-        };
-        const authorizeExplores =
-            (allowed: string[]) =>
-            async ({ exploreNames }: { exploreNames: string[] }) => {
-                if (exploreNames.some((name) => !allowed.includes(name))) {
-                    throw new Error('Forbidden');
-                }
-            };
+        const composer = composerCall(joinedNode(['revenue']));
 
         const [allowed] = await getSlackTablePreviews({
             ...setup(),
-            ...composerCall,
+            ...composer,
             authorize: authorizeExplores(['payments']),
         });
         const [denied] = await getSlackTablePreviews({
             ...setup(),
-            ...composerCall,
+            ...composer,
             authorize: authorizeExplores(['orders']),
         });
 
@@ -207,6 +214,32 @@ describe('getSlackTablePreviews', () => {
             }),
         );
         expect(denied).not.toHaveProperty('queryResults');
+    });
+
+    it('checks explores of nodes the presented node reads from earlier calls', async () => {
+        const ordersNode: ThreadComposerQueryNode = {
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId: 'orders',
+            title: 'Orders',
+            exploreName: 'orders',
+            dimensions: ['orders_month'],
+            metrics: ['orders_count'],
+        };
+        const authorize = vi.fn(authorizeExplores(['payments']));
+
+        const [preview] = await getSlackTablePreviews({
+            ...setup(),
+            ...composerCall(joinedNode(['revenue', 'orders']), [ordersNode]),
+            authorize,
+        });
+
+        expect(authorize).toHaveBeenCalledWith({
+            queryUuid: 'query-composer',
+            exploreNames: ['payments', 'orders'],
+        });
+        expect(preview).toEqual(
+            expect.objectContaining({ status: 'unavailable' }),
+        );
     });
 
     it('omits all table results when the final answer selects none', async () => {

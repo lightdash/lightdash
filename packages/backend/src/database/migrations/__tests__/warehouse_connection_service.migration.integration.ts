@@ -102,6 +102,7 @@ describe('WarehouseConnectionService on the real schema', () => {
 
     const buildService = (licensed = true) =>
         new WarehouseConnectionService({
+            dbtSourceRefCatalogModel: { deleteForProject: vi.fn() },
             warehouseConnectionModel: model,
             projectModel: new ProjectModel({
                 database,

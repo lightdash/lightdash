@@ -206,6 +206,10 @@ import {
 } from '../../logging/exploreCacheReadMetrics';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import {
+    lockCompilePublication,
+    markCompilePublished,
+} from '../../scheduler/compileShutdown';
 import { type StoredPreAggregateRefresh } from '../../services/ProjectService/preAggregateRefresh';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
@@ -3804,6 +3808,7 @@ export class ProjectModel {
                     const swapStartedAt = performance.now();
                     const { promotedRows, managedNames } =
                         await this.database.transaction(async (trx) => {
+                            await lockCompilePublication(trx);
                             await ProjectModel.lockAndEnsureCachedExplores(
                                 trx,
                                 projectUuid,
@@ -3906,6 +3911,7 @@ export class ProjectModel {
                                 ),
                             };
                         });
+                    markCompilePublished();
                     const swapDurationMs = Math.round(
                         performance.now() - swapStartedAt,
                     );
@@ -4069,6 +4075,7 @@ export class ProjectModel {
 
                     const { promotedRows, managedNames, carriedNames } =
                         await this.database.transaction(async (trx) => {
+                            await lockCompilePublication(trx);
                             await ProjectModel.lockAndEnsureCachedExplores(
                                 trx,
                                 projectUuid,
@@ -4182,6 +4189,7 @@ export class ProjectModel {
                                 carriedNames: carriedResult,
                             };
                         });
+                    markCompilePublished();
                     const cachedExploreUuidsByName = new Map(
                         promotedRows.map(
                             ({

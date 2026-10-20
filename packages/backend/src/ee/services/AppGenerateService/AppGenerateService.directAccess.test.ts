@@ -5,7 +5,10 @@ import {
     SpaceMemberRole,
     type SessionUser,
 } from '@lightdash/common';
-import { verifyPreviewTokenClaims } from '../../../routers/appPreviewToken';
+import {
+    mintPreviewToken,
+    verifyPreviewTokenClaims,
+} from '../../../routers/appPreviewToken';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -68,6 +71,7 @@ const buildUser = (): SessionUser => {
 };
 
 const buildService = (role: SpaceMemberRole) => {
+    const analytics = { track: vi.fn() };
     const appModel = {
         findApp: vi.fn().mockResolvedValue(app),
         getApp: vi.fn().mockResolvedValue(app),
@@ -148,7 +152,7 @@ const buildService = (role: SpaceMemberRole) => {
                 all: ['test-secret'],
             },
         } as never,
-        analytics: { track: vi.fn() } as never,
+        analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         userModel: userModel as never,
@@ -192,8 +196,102 @@ const buildService = (role: SpaceMemberRole) => {
             unverify: async () => undefined,
         } as never,
     });
-    return { appModel, service, spacePermissionService, userModel };
+    return { appModel, service, spacePermissionService, userModel, analytics };
 };
+
+describe('AppGenerateService view outcomes', () => {
+    const makeBody = (viewContext: 'standalone' | 'embed' = 'standalone') => ({
+        previewToken: mintPreviewToken(
+            { active: 'test-secret', fallbacks: [], all: ['test-secret'] },
+            APP_UUID,
+            2,
+            USER_UUID,
+            ORGANIZATION_UUID,
+            PROJECT_UUID,
+            [],
+            viewContext,
+        ),
+        navigationId: '11111111-1111-4111-8111-111111111111',
+        outcome: 'sdk_started' as const,
+    });
+
+    it.each(['standalone', 'embed'] as const)(
+        'derives all scope from the preview capability for %s',
+        (context) => {
+            const { service, analytics, appModel } = buildService(
+                SpaceMemberRole.VIEWER,
+            );
+            service.recordViewOutcome(PROJECT_UUID, APP_UUID, 2, {
+                ...makeBody(context),
+                organizationId: 'foreign-org',
+                userId: 'forged-viewer',
+                error: 'private error contents',
+            } as never);
+            expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
+                event: 'data_app.view_outcome',
+                userId: USER_UUID,
+                properties: {
+                    organizationId: ORGANIZATION_UUID,
+                    projectId: PROJECT_UUID,
+                    appUuid: APP_UUID,
+                    version: 2,
+                    viewContext: context,
+                    navigationId: makeBody().navigationId,
+                    outcome: 'sdk_started',
+                },
+            });
+            expect(appModel.getApp).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rejects invalid capabilities and mismatched app, version or project', () => {
+        const { service, analytics } = buildService(SpaceMemberRole.VIEWER);
+        for (const [project, appUuid, version, body] of [
+            ['foreign-project', APP_UUID, 2, makeBody()],
+            [PROJECT_UUID, 'foreign-app', 2, makeBody()],
+            [PROJECT_UUID, APP_UUID, 3, makeBody()],
+            [
+                PROJECT_UUID,
+                APP_UUID,
+                2,
+                { ...makeBody(), previewToken: 'invalid' },
+            ],
+        ] as const) {
+            expect(() =>
+                service.recordViewOutcome(project, appUuid, version, body),
+            ).toThrow(ForbiddenError);
+        }
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    it('accepts only generic client outcomes with a navigation UUID', () => {
+        const { service, analytics } = buildService(SpaceMemberRole.VIEWER);
+        for (const body of [
+            { ...makeBody(), outcome: 'html_loaded' },
+            { ...makeBody(), navigationId: 'bad-id' },
+        ]) {
+            expect(() =>
+                service.recordViewOutcome(
+                    PROJECT_UUID,
+                    APP_UUID,
+                    2,
+                    body as never,
+                ),
+            ).toThrow();
+        }
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    it('does not turn an analytics failure into an app failure', () => {
+        const { service, analytics } = buildService(SpaceMemberRole.VIEWER);
+        analytics.track.mockImplementation(() => {
+            throw new Error('unavailable');
+        });
+        expect(() =>
+            service.recordViewOutcome(PROJECT_UUID, APP_UUID, 2, makeBody()),
+        ).not.toThrow();
+    });
+});
 
 describe('AppGenerateService direct app access', () => {
     it('gives a direct Viewer the normal app read surface without parent metadata', async () => {

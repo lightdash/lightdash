@@ -11,7 +11,6 @@ import {
     type AnyType,
     type ComposerChartKind,
     type ComposerVizKind,
-    type ComposerVizPlan,
     type ResultColumn,
     type ResultColumns,
 } from '@lightdash/common';
@@ -496,39 +495,6 @@ export const getVizConfigFromAnswers = ({
         kind,
         fieldConfig: fieldConfig(kind, x, y, groupBy),
     });
-};
-
-const KIND_NAMES: Record<ComposerVizKind, string> = {
-    table: 'table',
-    bar: 'bar chart',
-    line: 'line chart',
-    pie: 'pie chart',
-    big_number: 'big number',
-};
-
-const axesNote = (x: string | undefined, y: string | undefined) =>
-    [...(x ? [`x = ${x}`] : []), ...(y ? [`y = ${y}`] : [])].join(', ');
-
-/** The composer tool result line for the column-type default, when nothing was planned. */
-export const getDefaultVizNote = ({ defaultKind, axes }: ComposerVizPlan) => {
-    if (defaultKind === 'table') return 'Visualization: default table.';
-    const defaultAxes = axes[defaultKind];
-    const parts = axesNote(defaultAxes?.x?.reference, defaultAxes?.y.reference);
-    return `Visualization: default ${KIND_NAMES[defaultKind]}${parts ? `, ${parts}` : ''}.`;
-};
-
-/** The composer tool result line telling the agent what the artifact opens on. */
-export const getVizConfigNote = (vizConfig: AllVizChartConfig) => {
-    if (isVizTableConfig(vizConfig)) return 'Visualization: table.';
-    const x = vizConfig.fieldConfig?.x?.reference;
-    const y = vizConfig.fieldConfig?.y[0]?.reference;
-    const groupBy = vizConfig.fieldConfig?.groupBy?.[0]?.reference;
-    const parts = [
-        ...(x ? [`x = ${x}`] : []),
-        ...(y ? [`y = ${y}`] : []),
-        ...(groupBy ? [`split by ${groupBy}`] : []),
-    ].join(', ');
-    return `Visualization: ${KIND_NAMES[getComposerVizKind(vizConfig)]}${parts ? `, ${parts}` : ''}.`;
 };
 
 export const createVizPlanner =

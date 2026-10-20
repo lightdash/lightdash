@@ -11,6 +11,7 @@ import {
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
     type AiProviderBaseUrls,
+    type AiThreadBinding,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -38,6 +39,9 @@ export type DbAiThread = {
     sql_auto_approved_at: Date | null;
     pinned_at: Date | null;
     battle_profile: AiAgentBattleProfile | null;
+    bound_entity_type: AiThreadBinding['type'] | null;
+    bound_entity_uuid: string | null;
+    thread_context: string | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -46,7 +50,15 @@ export type AiThreadTable = Knex.CompositeTableType<
         DbAiThread,
         'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
     > &
-        Partial<Pick<DbAiThread, 'battle_profile'>>,
+        Partial<
+            Pick<
+                DbAiThread,
+                | 'battle_profile'
+                | 'bound_entity_type'
+                | 'bound_entity_uuid'
+                | 'thread_context'
+            >
+        >,
     Partial<
         Pick<
             DbAiThread,

@@ -71,6 +71,7 @@ import {
     isLauncherAutoAgent,
     type LauncherSelectedAgent,
 } from './launcherAgentSelection';
+import { LauncherAnalysisTeaser } from './LauncherAnalysisTeaser';
 import { LauncherPanelFrame } from './LauncherPanelFrame';
 import { PanelHeader } from './PanelHeader';
 import {
@@ -366,6 +367,7 @@ const NewThreadPanel: FC<{
                             {description}
                         </Text>
                     )}
+                    <LauncherAnalysisTeaser projectUuid={projectUuid} />
                 </Stack>
                 {concreteAgent && (
                     <Stack px="md" pb="xs">

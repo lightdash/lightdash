@@ -12,12 +12,14 @@ import { AiAgentSkillReference } from '../skills/types';
 import {
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
+    AiAgentThreadBindingContext,
 } from '../types/aiAgent';
 import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import {
+    COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION,
     EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
@@ -46,6 +48,10 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import {
+    getThreadBindingSection,
+    getThreadContextSection,
+} from './systemV2ThreadSetup';
 
 const getDataAccessSection = (
     enableDataAccess: boolean,
@@ -150,6 +156,8 @@ export const getSystemPromptV2 = (args: {
     instructions?: string;
     agentName?: string;
     requestingUser?: AiAgentRequestingUser | null;
+    threadBinding?: AiAgentThreadBindingContext | null;
+    threadContext?: string | null;
     date?: string;
     enableDataAccess?: boolean;
     enableFilterExpressions?: boolean;
@@ -197,6 +205,8 @@ export const getSystemPromptV2 = (args: {
         instructions,
         agentName = 'Lightdash AI Analyst',
         requestingUser = null,
+        threadBinding = null,
+        threadContext = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableFilterExpressions = false,
@@ -246,7 +256,15 @@ export const getSystemPromptV2 = (args: {
               enableComposerPythonNodes
                   ? ', python nodes run the algorithm'
                   : ''
-          }, and the terminal node is the table the user sees. Build the pipeline instead of running the queries one by one and combining them in prose.`
+          }, and the terminal node is ${
+              slackChannelId
+                  ? 'the table you can share'
+                  : 'the result you can present'
+          }. Build the pipeline instead of running the queries one by one and combining them in prose.${
+              slackChannelId
+                  ? ''
+                  : '\n  - Composer results stay hidden until you present one. Present the result your answer rests on, using the marker its tool result gives you; present a second one only when it adds a distinct view.'
+          }`
         : '';
 
     const customSqlLimitation = canRunSql
@@ -378,7 +396,12 @@ export const getSystemPromptV2 = (args: {
             '{{filter_guidance_section}}',
             enableFilterExpressions
                 ? FILTER_EXPRESSION_GUIDANCE_SECTION
-                : STRUCTURED_FILTER_GUIDANCE_SECTION,
+                : [
+                      STRUCTURED_FILTER_GUIDANCE_SECTION,
+                      ...(enableComposerQueries
+                          ? [COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION]
+                          : []),
+                  ].join('\n\n'),
         )
         .replace(
             '{{ai_writeback_section}}',
@@ -512,6 +535,8 @@ export const getSystemPromptV2 = (args: {
 
     const finalContent = [
         content,
+        getThreadBindingSection(threadBinding, enableContentTools),
+        getThreadContextSection(threadContext),
         args.enableFastMetadata
             ? 'All assistant text is user-visible, including text before and between tool calls. Do not save temporary query results as durable user memories. Prior assistant notes are not evidence.'
             : '',

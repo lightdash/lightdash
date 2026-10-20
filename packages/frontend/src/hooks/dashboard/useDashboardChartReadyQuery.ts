@@ -17,6 +17,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
 import {
+    selectControlGranularities,
+    selectDateZoomGranularity,
+    selectInvalidateCache,
+    selectIsAutoRefresh,
     selectParameterValues,
     selectTileParameterReferences,
     useDashboardSelector,
@@ -86,9 +90,7 @@ export const useDashboardChartReadyQuery = (
     const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const invalidateCache = useDashboardTileStatusContext(
-        (c) => c.invalidateCache,
-    );
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardSelector(selectParameterValues);
@@ -108,8 +110,8 @@ export const useDashboardChartReadyQuery = (
         () => chartSort[tileUuid] || [],
         [chartSort, tileUuid],
     );
-    const granularity = useDashboardContext((c) => c.dateZoomGranularity);
-    const autoRefresh = useDashboardTileStatusContext((c) => c.isAutoRefresh);
+    const granularity = useDashboardSelector(selectDateZoomGranularity);
+    const autoRefresh = useDashboardSelector(selectIsAutoRefresh);
     const context =
         useSearchParams<QueryExecutionContext>('context') || undefined;
     const setTilesWithDateZoomApplied = useDashboardContext(
@@ -120,8 +122,8 @@ export const useDashboardChartReadyQuery = (
     // grain; unassigned tiles (and dashboards with no config) fall through to
     // the Default branch — the existing global picker.
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
-    const controlGranularities = useDashboardContext(
-        (c) => c.controlGranularities,
+    const controlGranularities = useDashboardSelector(
+        selectControlGranularities,
     );
     const addParameterDefinitions = useDashboardContext(
         (c) => c.addParameterDefinitions,

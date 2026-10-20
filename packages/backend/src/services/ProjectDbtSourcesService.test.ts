@@ -95,17 +95,24 @@ const githubAppInstallationsModel = {
 };
 
 const mixedWarehouseConnections = { enabled: false };
+const crossSourceRefs = { enabled: false };
+const dbtSourceRefCatalogModel = {
+    deleteForSource: vi.fn(async () => undefined),
+};
 const featureFlagService = {
     get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
         id: featureFlagId,
         enabled:
-            featureFlagId === FeatureFlags.MixedWarehouseConnections &&
-            mixedWarehouseConnections.enabled,
+            (featureFlagId === FeatureFlags.MixedWarehouseConnections &&
+                mixedWarehouseConnections.enabled) ||
+            (featureFlagId === FeatureFlags.CrossSourceDbtRefs &&
+                crossSourceRefs.enabled),
     })),
 };
 
 const getService = () =>
     new ProjectDbtSourcesService({
+        dbtSourceRefCatalogModel: dbtSourceRefCatalogModel as never,
         lightdashConfig: {} as never,
         analytics: { track: vi.fn() } as never,
         projectModel: projectModel as never,
@@ -118,6 +125,7 @@ describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mixedWarehouseConnections.enabled = false;
+        crossSourceRefs.enabled = false;
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -1145,5 +1153,94 @@ describe('ProjectDbtSourcesService', () => {
                 sourceUuid,
             );
         });
+    });
+});
+
+describe('cross-source catalogue invalidation', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        crossSourceRefs.enabled = true;
+        projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourceUuid: sourceUuid,
+            projectUuid,
+            dbtConnection: primaryDbtConnection,
+        });
+        projectDbtSourcesModel.updateSource.mockResolvedValue({
+            projectDbtSourceUuid: sourceUuid,
+            projectUuid,
+            dbtConnection: primaryDbtConnection,
+        });
+        projectDbtSourcesModel.getSources.mockResolvedValue([]);
+    });
+    afterEach(() => {
+        crossSourceRefs.enabled = false;
+    });
+    it('clears the catalogue after a source connection changes', async () => {
+        await getService().updateProjectDbtSource(
+            adminAccount,
+            projectUuid,
+            sourceUuid,
+            {
+                dbtConnection: {
+                    ...primaryDbtConnection,
+                    branch: 'new_branch',
+                },
+            },
+        );
+        expect(dbtSourceRefCatalogModel.deleteForSource).toHaveBeenCalledWith(
+            projectUuid,
+            sourceUuid,
+        );
+    });
+    it('clears all connection groups after a warehouse location changes', async () => {
+        projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([]);
+        await getService().updateProjectDbtSource(
+            adminAccount,
+            projectUuid,
+            sourceUuid,
+            { warehouseLocation: { database: 'new_database', schema: null } },
+        );
+        expect(dbtSourceRefCatalogModel.deleteForSource).toHaveBeenCalledWith(
+            projectUuid,
+            sourceUuid,
+        );
+    });
+    it('clears the catalogue when a source is removed', async () => {
+        await getService().deleteProjectDbtSource(
+            adminAccount,
+            projectUuid,
+            sourceUuid,
+        );
+        expect(dbtSourceRefCatalogModel.deleteForSource).toHaveBeenCalledWith(
+            projectUuid,
+            sourceUuid,
+        );
+    });
+    it('keeps name-only updates and disabled updates out of the cache', async () => {
+        await getService().updateProjectDbtSource(
+            adminAccount,
+            projectUuid,
+            sourceUuid,
+            { name: 'renamed' },
+        );
+        crossSourceRefs.enabled = false;
+        await getService().deleteProjectDbtSource(
+            adminAccount,
+            projectUuid,
+            sourceUuid,
+        );
+        expect(dbtSourceRefCatalogModel.deleteForSource).not.toHaveBeenCalled();
+    });
+    it('does not fail source deletion when the cache fails', async () => {
+        dbtSourceRefCatalogModel.deleteForSource.mockRejectedValueOnce(
+            new Error('cache unavailable'),
+        );
+        await expect(
+            getService().deleteProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+            ),
+        ).resolves.toBeUndefined();
     });
 });

@@ -107,6 +107,7 @@ describe('multi-source compilation diagnostics', () => {
             },
         };
         const compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: {} as never,
             projectModel: {
                 getDbtSourceIdentity: vi.fn().mockResolvedValue({
                     dbtSourceName: 'primary',
@@ -214,6 +215,7 @@ describe('cross-source compilation', () => {
 
     it('reports a delayed primary failure without starting siblings when cross-source refs are disabled', async () => {
         const compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: {} as never,
             projectModel: {
                 getDbtSourceIdentity: vi.fn().mockResolvedValue({
                     dbtSourceName: 'primary',
@@ -300,6 +302,7 @@ describe('cross-source compilation', () => {
             );
             const log = vi.spyOn(Logger, 'info');
             const compiler = new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: {} as never,
                 projectModel: {
                     getDbtSourceIdentity: vi.fn().mockResolvedValue({
                         dbtSourceName: 'primary',
@@ -349,6 +352,7 @@ describe('cross-source compilation', () => {
                 schema: 'public',
                 database: 'db',
                 alias: 'calendar',
+                access: 'public',
                 columns: {},
                 meta: {},
             };
@@ -394,7 +398,17 @@ describe('cross-source compilation', () => {
                 scanned
                     ? {
                           projectName: 'analytics',
-                          referencedProjects: ['shared'],
+                          referencedProjects: [],
+                          refs: [
+                              {
+                                  packageName: null,
+                                  name: 'calendar',
+                                  version: null,
+                              },
+                          ],
+                          localModels: ['orders'],
+                          installedPackageModels: [],
+                          installedPackages: [],
                           declaredUpstreams: [],
                       }
                     : null,
@@ -404,6 +418,10 @@ describe('cross-source compilation', () => {
                     ? {
                           projectName: 'shared',
                           referencedProjects: [],
+                          refs: [],
+                          localModels: ['calendar'],
+                          installedPackageModels: [],
+                          installedPackages: [],
                           declaredUpstreams: [],
                       }
                     : null,
@@ -449,14 +467,22 @@ describe('cross-source compilation', () => {
                 expect.objectContaining({ concurrency: 1 }),
             );
             expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved',
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0',
                 expect.objectContaining({
                     projectUuid: 'project-uuid',
-                    rounds: 2,
+                    rounds: scanned ? 1 : 2,
+                    sources: expect.arrayContaining([
+                        expect.objectContaining({
+                            name: 'primary',
+                            injectedStubs: 1,
+                        }),
+                        expect.objectContaining({ injectedStubs: 0 }),
+                    ]),
                 }),
             );
             expect(fetchManifest).toHaveBeenCalledTimes(scanned ? 1 : 2);
             expect(fetchManifest.mock.calls[scanned ? 0 : 1][0]).toEqual({
+                signal: expect.any(AbortSignal),
                 externalNodes: [
                     expect.objectContaining({
                         package_name: 'shared',
@@ -466,6 +492,7 @@ describe('cross-source compilation', () => {
             });
             expect(fetchSourceManifest).toHaveBeenCalledTimes(1);
             expect(fetchSourceManifest.mock.calls[0][3]).toEqual({
+                signal: expect.any(AbortSignal),
                 externalNodes: [],
             });
             expect(prepare).toHaveBeenCalledTimes(1);
@@ -527,6 +554,7 @@ describe('extra connection scope cleanup', () => {
                 logger: Logger,
             } as ConstructorParameters<typeof WarehouseClientFactory>[0]);
             const compiler = new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: {} as never,
                 projectModel,
                 warehouseClientFactory: factory,
                 projectDbtSourcesModel: {},
@@ -729,6 +757,7 @@ describe('Snowflake extra compile credentials', () => {
         >[0]);
         const getCatalogCache = vi.fn(async () => undefined);
         const compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: {} as never,
             projectModel,
             warehouseClientFactory: factory,
             projectDbtSourcesModel: {},
@@ -866,6 +895,7 @@ describe('DuckLake extra compile credentials', () => {
             typeof WarehouseClientFactory
         >[0]);
         const compiler = new MultiConnectionCompiler({
+            dbtSourceRefCatalogModel: {} as never,
             projectModel,
             warehouseClientFactory: factory,
             projectDbtSourcesModel: {},

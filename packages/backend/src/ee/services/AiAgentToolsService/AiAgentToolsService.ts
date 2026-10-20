@@ -57,8 +57,10 @@ import {
     type AgentSqlScope,
     type AgentToolName,
     type AiAgentDocumentSummary,
+    type AiThreadBinding,
     type AppChartReference,
     type AppDashboardReference,
+    type AppExternalConnectionLink,
     type ChartAsCode,
     type CustomChartType,
     type DashboardAsCode,
@@ -166,6 +168,7 @@ import {
     IterateDataAppFn,
     ListContentFn,
     ListCustomChartTypesFn,
+    ListDataAppConnectionsFn,
     ListDataAppThemesFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -215,6 +218,10 @@ import type {
 } from '../AppGenerateService/AppGenerateService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
+import {
+    findUnlinkedConnectionMentions,
+    planConnectionLinks,
+} from './dataAppConnections';
 import type {
     DataAppRead,
     DataAppReadDataReferences,
@@ -260,6 +267,8 @@ export type AiAgentToolsRuntimeContext = {
     querySurface: QuerySurface;
     tags: string[] | null;
     spaceAccess: string[] | null;
+    /** Resource the thread is bound to; writes are limited to it. Null outside bound threads. */
+    threadBinding: AiThreadBinding | null;
     sqlScope?: AgentSqlScope | null;
     userAttributeOverrides?: UserAttributeValueMap;
     agentUuid?: string;
@@ -337,6 +346,7 @@ export type AiAgentToolsRuntime = {
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;
     listDataAppThemes: ListDataAppThemesFn;
+    listDataAppConnections: ListDataAppConnectionsFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -386,6 +396,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     generateDataApp: 'generateDataApp',
     iterateDataApp: 'iterateDataApp',
     listDataAppThemes: 'listDataAppThemes',
+    listDataAppConnections: 'listDataAppConnections',
     validateContent: null,
     listKnowledgeDocuments: 'listKnowledgeDocuments',
     getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
@@ -925,6 +936,8 @@ export class AiAgentToolsService extends BaseService {
                     this.iterateDataApp(context, args),
                 ),
             listDataAppThemes: () => this.listDataAppThemes(context),
+            listDataAppConnections: (args) =>
+                this.listDataAppConnections(context, args),
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
                 this.getProjectParameterDefinitions(context),
@@ -1400,6 +1413,22 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    /** MCP chart view: a preview token for a chart type version, minted at display time. */
+    async getMcpCustomChartTypePreviewToken(context: {
+        user: SessionUser;
+        projectUuid: string;
+        dataAppVizUuid: string;
+        version: number;
+    }): Promise<string> {
+        return this.appGenerateService.getDataAppVizPreviewToken(
+            context.user,
+            context.projectUuid,
+            context.dataAppVizUuid,
+            context.version,
+            'mcp',
+        );
+    }
+
     /** MCP-only: the agent's lookups behind the gallery gate, with version and Chart Studio link. */
     private searchCustomChartTypes(
         context: AiAgentToolsRuntimeContext,
@@ -1536,6 +1565,7 @@ export class AiAgentToolsService extends BaseService {
         }
         return {
             dataAppVizUuid: row.app_id,
+            name: row.name,
             dataAppVizVersion: version.version,
             schema: parsed.data,
         };
@@ -2243,6 +2273,79 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    // Resolved per write so a slug renamed earlier in the thread still matches.
+    private async getBoundDashboard(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<{ uuid: string; slug: string } | null> {
+        const { threadBinding } = context;
+        if (threadBinding === null) return null;
+        switch (threadBinding.type) {
+            case 'dashboard':
+                try {
+                    const dashboard = await this.dashboardModel.getByIdOrSlug(
+                        threadBinding.dashboardUuid,
+                        { projectUuid: context.projectUuid },
+                    );
+                    return { uuid: dashboard.uuid, slug: dashboard.slug };
+                } catch (error) {
+                    if (error instanceof NotFoundError) {
+                        throw new ParameterError(
+                            'This conversation is bound to a dashboard that no longer exists, so content cannot be created or changed here.',
+                        );
+                    }
+                    throw error;
+                }
+            default:
+                return assertUnreachable(
+                    threadBinding.type,
+                    'Unknown thread binding type',
+                );
+        }
+    }
+
+    private async refuseOutsideThreadBinding(
+        context: AiAgentToolsRuntimeContext,
+        {
+            objectType,
+            action,
+            boundDashboardSlug,
+            reason,
+        }: {
+            objectType: string;
+            action: 'create' | 'update';
+            boundDashboardSlug: string;
+            reason: string;
+        },
+    ): Promise<never> {
+        await this.recordRefusal(
+            context,
+            objectType,
+            action,
+            'agent_scope',
+            'content_outside_thread_binding',
+        );
+        throw new ParameterError(
+            `This conversation is bound to the dashboard "${boundDashboardSlug}". ${reason}`,
+        );
+    }
+
+    private async assertThreadNotBound(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: 'create' | 'update',
+        reason: string,
+    ) {
+        const boundDashboard = await this.getBoundDashboard(context);
+        if (boundDashboard) {
+            await this.refuseOutsideThreadBinding(context, {
+                objectType,
+                action,
+                boundDashboardSlug: boundDashboard.slug,
+                reason,
+            });
+        }
+    }
+
     // Data apps enabled and the user may create them in the project. Without a
     // project a coarse check keeps tools/list stable across set_project.
     async canGenerateDataApp(context: {
@@ -2353,6 +2456,7 @@ export class AiAgentToolsService extends BaseService {
             dashboardSlug,
             chartSlugs,
             themeSlug,
+            externalConnectionSlugs,
             toolCallId,
         }: Parameters<GenerateDataAppFn>[0],
     ): ReturnType<GenerateDataAppFn> {
@@ -2365,6 +2469,12 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
+                await this.assertThreadNotBound(
+                    context,
+                    'data_app',
+                    'create',
+                    'Data apps cannot be generated here.',
+                );
                 const attribution =
                     AiAgentToolsService.getDataAppBuildAttribution(
                         context,
@@ -2396,7 +2506,18 @@ export class AiAgentToolsService extends BaseService {
                                   ),
                               ),
                           );
-                return this.appGenerateService.generateApp(
+                const externalConnections =
+                    await this.planDataAppConnectionLinks(
+                        context,
+                        externalConnectionSlugs,
+                        [],
+                    );
+                const warnings = await this.getDataAppConnectionWarnings(
+                    context,
+                    prompt,
+                    externalConnections,
+                );
+                const build = await this.appGenerateService.generateApp(
                     context.user,
                     context.projectUuid,
                     prompt,
@@ -2415,9 +2536,99 @@ export class AiAgentToolsService extends BaseService {
                         ...(designUuid === undefined
                             ? {}
                             : { designUuidInput: designUuid }),
+                        ...(externalConnections.length === 0
+                            ? {}
+                            : { externalConnections }),
                     },
                 );
+                return { ...build, warnings };
             },
+        );
+    }
+
+    /** Resolves requested connection slugs to new links; fails on any unusable slug. */
+    private async planDataAppConnectionLinks(
+        context: AiAgentToolsRuntimeContext,
+        slugs: string[] | null,
+        existingLinks: AppExternalConnectionLink[],
+    ): Promise<AppExternalConnectionLink[]> {
+        if (slugs === null || slugs.length === 0) return [];
+        const lookups =
+            await this.appGenerateService.lookupExternalConnectionSlugs(
+                context.user,
+                context.projectUuid,
+                slugs,
+            );
+        return planConnectionLinks(lookups, existingLinks);
+    }
+
+    private async getDataAppConnectionWarnings(
+        context: AiAgentToolsRuntimeContext,
+        prompt: string,
+        links: AppExternalConnectionLink[],
+    ): Promise<string[]> {
+        const visible =
+            await this.appGenerateService.listLinkableExternalConnections(
+                context.user,
+                context.projectUuid,
+            );
+        return findUnlinkedConnectionMentions(
+            prompt,
+            visible,
+            links.map((link) => link.externalConnectionUuid),
+        );
+    }
+
+    private async listDataAppConnections(
+        context: AiAgentToolsRuntimeContext,
+        { appSlug }: Parameters<ListDataAppConnectionsFn>[0],
+    ): ReturnType<ListDataAppConnectionsFn> {
+        const connections =
+            await this.appGenerateService.listLinkableExternalConnections(
+                context.user,
+                context.projectUuid,
+            );
+        const links =
+            appSlug === null
+                ? []
+                : await this.getDataAppConnectionLinks(context, appSlug);
+        return connections.map((connection) => ({
+            slug: connection.slug,
+            name: connection.name,
+            authType: connection.type,
+            origin: connection.origin,
+            instructions: connection.instructions,
+            linkedAliases: links
+                .filter(
+                    (link) =>
+                        link.externalConnectionUuid ===
+                        connection.externalConnectionUuid,
+                )
+                .map((link) => link.alias),
+        }));
+    }
+
+    private async getDataAppConnectionLinks(
+        context: AiAgentToolsRuntimeContext,
+        appSlug: string,
+    ): Promise<AppExternalConnectionLink[]> {
+        const app = await this.appModel.findAppBySlug(
+            context.projectUuid,
+            appSlug,
+        );
+        if (!app) {
+            throw new NotFoundError(`Data app "${appSlug}" was not found`);
+        }
+        await this.assertDataAppInAgentScope(
+            context,
+            app.space_uuid,
+            appSlug,
+            'read',
+            'Data app',
+        );
+        return this.appGenerateService.listAppExternalConnectionLinks(
+            context.user,
+            app,
         );
     }
 
@@ -2563,6 +2774,7 @@ export class AiAgentToolsService extends BaseService {
             dashboardSlug,
             chartSlugs,
             themeSlug,
+            externalConnectionSlugs,
             toolCallId,
         }: Parameters<IterateDataAppFn>[0],
     ): ReturnType<IterateDataAppFn> {
@@ -2574,6 +2786,12 @@ export class AiAgentToolsService extends BaseService {
                 withTheme: themeSlug !== null,
             },
             async () => {
+                await this.assertThreadNotBound(
+                    context,
+                    'data_app',
+                    'update',
+                    'Data apps cannot be changed here.',
+                );
                 const attribution =
                     AiAgentToolsService.getDataAppBuildAttribution(
                         context,
@@ -2634,7 +2852,23 @@ export class AiAgentToolsService extends BaseService {
                                   ),
                               ),
                           );
-                return this.appGenerateService.iterateApp(
+                const existingLinks =
+                    await this.appGenerateService.listAppExternalConnectionLinks(
+                        context.user,
+                        app,
+                    );
+                const externalConnections =
+                    await this.planDataAppConnectionLinks(
+                        context,
+                        externalConnectionSlugs,
+                        existingLinks,
+                    );
+                const warnings = await this.getDataAppConnectionWarnings(
+                    context,
+                    prompt,
+                    [...existingLinks, ...externalConnections],
+                );
+                const build = await this.appGenerateService.iterateApp(
                     context.user,
                     context.projectUuid,
                     app.app_id,
@@ -2645,6 +2879,9 @@ export class AiAgentToolsService extends BaseService {
                     undefined,
                     {
                         ...attribution,
+                        ...(externalConnections.length === 0
+                            ? {}
+                            : { externalConnections }),
                         // The brief is a real change request, so the restyle
                         // rides along with it instead of replacing it.
                         ...(designUuid === undefined
@@ -2655,6 +2892,7 @@ export class AiAgentToolsService extends BaseService {
                               }),
                     },
                 );
+                return { ...build, warnings };
             },
         );
     }
@@ -3152,10 +3390,13 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<EditContentFn>[0],
     ): ReturnType<EditContentFn> {
         if (args.type === 'document') {
-            return this.editDocumentContent(
+            return this.assertThreadNotBound(
                 context,
-                args.slug,
-                args.documentEdit,
+                'document',
+                'update',
+                'Documents cannot be edited here.',
+            ).then(() =>
+                this.editDocumentContent(context, args.slug, args.documentEdit),
             );
         }
         const { slug, type, patch } = args;
@@ -3169,6 +3410,28 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
                 this.aiAgentContentValidation.validatePatch(type, patch);
+
+                const boundDashboard = await this.getBoundDashboard(context);
+                if (boundDashboard && type === 'sql_chart') {
+                    await this.refuseOutsideThreadBinding(context, {
+                        objectType: 'sql_chart',
+                        action: 'update',
+                        boundDashboardSlug: boundDashboard.slug,
+                        reason: 'SQL charts cannot be saved in a dashboard, so they cannot be edited here.',
+                    });
+                }
+                if (
+                    boundDashboard &&
+                    type === 'dashboard' &&
+                    slug !== boundDashboard.slug
+                ) {
+                    await this.refuseOutsideThreadBinding(context, {
+                        objectType: 'dashboard',
+                        action: 'update',
+                        boundDashboardSlug: boundDashboard.slug,
+                        reason: 'Only that dashboard can be edited.',
+                    });
+                }
 
                 const currentContent = await this.readContentAsCode(
                     context,
@@ -3239,6 +3502,20 @@ export class AiAgentToolsService extends BaseService {
                                     ? currentContent.content
                                     : undefined,
                             );
+                        }
+                        if (
+                            boundDashboard &&
+                            ((currentContent.content as ChartAsCode)
+                                .dashboardSlug !== boundDashboard.slug ||
+                                patchedContent.dashboardSlug !==
+                                    boundDashboard.slug)
+                        ) {
+                            await this.refuseOutsideThreadBinding(context, {
+                                objectType: 'chart',
+                                action: 'update',
+                                boundDashboardSlug: boundDashboard.slug,
+                                reason: 'Only charts saved in that dashboard can be edited, and they must stay in it. To change another chart, create a new chart saved in the dashboard instead.',
+                            });
                         }
                         await this.assertContentSpaceInScope(
                             context,
@@ -3323,7 +3600,12 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<CreateContentFn>[0],
     ): ReturnType<CreateContentFn> {
         if (args.type === 'document') {
-            return this.createDocumentContent(context, args.content);
+            return this.assertThreadNotBound(
+                context,
+                'document',
+                'create',
+                'Documents cannot be created here.',
+            ).then(() => this.createDocumentContent(context, args.content));
         }
         const { type, content } = args;
         return wrapSentryTransaction(
@@ -3333,6 +3615,42 @@ export class AiAgentToolsService extends BaseService {
                 this.aiAgentContentValidation.validateNewContent(type, content);
                 if (context.source === 'ai_agent' && type === 'chart') {
                     assertAgentKeepsChartMerge(content, undefined);
+                }
+                const boundDashboard = await this.getBoundDashboard(context);
+                if (boundDashboard) {
+                    switch (type) {
+                        case 'dashboard':
+                            await this.refuseOutsideThreadBinding(context, {
+                                objectType: 'dashboard',
+                                action: 'create',
+                                boundDashboardSlug: boundDashboard.slug,
+                                reason: 'New dashboards cannot be created here. Edit that dashboard instead.',
+                            });
+                            break;
+                        case 'chart':
+                            if (
+                                (content as ChartAsCode).dashboardSlug !==
+                                boundDashboard.slug
+                            ) {
+                                await this.refuseOutsideThreadBinding(context, {
+                                    objectType: 'chart',
+                                    action: 'create',
+                                    boundDashboardSlug: boundDashboard.slug,
+                                    reason: `New charts must be saved in it. Set dashboardSlug to "${boundDashboard.slug}".`,
+                                });
+                            }
+                            break;
+                        case 'sql_chart':
+                            await this.refuseOutsideThreadBinding(context, {
+                                objectType: 'sql_chart',
+                                action: 'create',
+                                boundDashboardSlug: boundDashboard.slug,
+                                reason: 'SQL charts cannot be saved in a dashboard, so they cannot be created here.',
+                            });
+                            break;
+                        default:
+                            assertUnreachable(type, 'Invalid content type');
+                    }
                 }
                 await this.assertContentSpaceInScope(
                     context,
@@ -3540,6 +3858,14 @@ export class AiAgentToolsService extends BaseService {
                 } "${args.resourceUuidOrSlug}" was not found`;
                 // Model-level lookups: the service getters record a view event
                 // per call. User authz is enforced by createScheduler.
+                const boundDashboard = await this.getBoundDashboard(context);
+                const refuseOutsideBoundDashboard = (bound: { slug: string }) =>
+                    this.refuseOutsideThreadBinding(context, {
+                        objectType: 'scheduler',
+                        action: 'create',
+                        boundDashboardSlug: bound.slug,
+                        reason: 'Scheduled deliveries can only be created for that dashboard and the charts saved in it.',
+                    });
                 let scheduler;
                 let resourceUuid;
                 switch (args.resourceType) {
@@ -3563,6 +3889,12 @@ export class AiAgentToolsService extends BaseService {
                                 'content_outside_agent_scope',
                             );
                             throw new NotFoundError(notFoundMessage);
+                        }
+                        if (
+                            boundDashboard &&
+                            chart.dashboardUuid !== boundDashboard.uuid
+                        ) {
+                            await refuseOutsideBoundDashboard(boundDashboard);
                         }
                         resourceUuid = chart.uuid;
                         scheduler =
@@ -3593,6 +3925,12 @@ export class AiAgentToolsService extends BaseService {
                                 'content_outside_agent_scope',
                             );
                             throw new NotFoundError(notFoundMessage);
+                        }
+                        if (
+                            boundDashboard &&
+                            dashboard.uuid !== boundDashboard.uuid
+                        ) {
+                            await refuseOutsideBoundDashboard(boundDashboard);
                         }
                         resourceUuid = dashboard.uuid;
                         scheduler = await this.dashboardService.createScheduler(

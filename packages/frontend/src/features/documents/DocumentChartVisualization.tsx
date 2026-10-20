@@ -17,6 +17,8 @@ import LightdashVisualization from '../../components/LightdashVisualization';
 import VisualizationProvider from '../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../components/MetricQueryData/MetricQueryDataProvider';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
+import { computeChartSeries } from '../../hooks/cartesianChartConfig/computeChartSeries';
+import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { DocumentRenderTargetContext } from '../chartTypes/documentRenderTarget/context';
@@ -57,6 +59,26 @@ const DocumentChartVisualization = ({
         projectUuid,
         query.data?.queryUuid,
         chart.name,
+    );
+    const { validPivotDimensions } = usePivotDimensions(
+        chart.pivotConfig?.columns,
+        query.data?.metricQuery,
+    );
+    const computedSeries = useMemo(
+        () =>
+            computeChartSeries(
+                { chartConfig, metricQuery: chart.metricQuery },
+                validPivotDimensions,
+                results,
+                query.data?.fields ?? {},
+            ),
+        [
+            chartConfig,
+            chart.metricQuery,
+            validPivotDimensions,
+            results,
+            query.data?.fields,
+        ],
     );
     const [measureRef, { width, height }] = useResizeObserver<HTMLDivElement>();
     const error = query.error ?? results.error;
@@ -148,6 +170,7 @@ const DocumentChartVisualization = ({
                         chartConfig={chartConfig}
                         initialPivotDimensions={chart.pivotConfig?.columns}
                         initialPivotRows={chart.pivotConfig?.rows}
+                        computedSeries={computedSeries}
                         resultsData={{
                             ...results,
                             metricQuery: query.data?.metricQuery,

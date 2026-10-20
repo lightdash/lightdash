@@ -5,11 +5,13 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type DashboardStoreState } from '.';
+import { initialDashboardDateZoomState } from './dashboardDateZoomReducer';
 import { initialDashboardFiltersState } from './dashboardFiltersReducer';
 import {
     initialDashboardParametersState,
     type DashboardParametersState,
 } from './dashboardParametersReducer';
+import { initialDashboardTileStatusState } from './dashboardTileStatusReducer';
 import {
     combineDashboardFilters,
     getSafeTemporaryFilters,
@@ -25,6 +27,8 @@ const stateWith = (
 ): DashboardStoreState => ({
     filters: initialDashboardFiltersState,
     parameters: { ...initialDashboardParametersState, ...parameters },
+    dateZoom: initialDashboardDateZoomState,
+    tileStatus: initialDashboardTileStatusState,
 });
 
 const rule = (
