@@ -1,0 +1,863 @@
+[
+  {
+    "id": "q1_stacked",
+    "question": "Show monthly revenue broken down by order status, as a stacked bar chart.",
+    "expect": "stacked bar, x=month, y=total amount, groupBy=status (forces the pivot)",
+    "columns": [
+      "orders_status",
+      "orders_order_date_month",
+      "orders_total_order_amount"
+    ],
+    "rows": 39,
+    "trials": [
+      {
+        "schema": "A",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "monthly_revenue_by_status",
+              "chartType": "bar",
+              "x": "orders_order_date_month",
+              "y": [
+                "orders_total_order_amount"
+              ],
+              "groupBy": [
+                "orders_status"
+              ],
+              "stack": true,
+              "secondaryY": null,
+              "xAxisLabel": "Month",
+              "yAxisLabel": "Revenue",
+              "customChartTypeSlug": null,
+              "fieldMapping": null
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [
+            "orders_status"
+          ],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "cartesian",
+            "config": {
+              "layout": {
+                "xField": "orders_order_date_month",
+                "yField": [
+                  "orders_total_order_amount"
+                ],
+                "flipAxes": false,
+                "stack": true
+              },
+              "eChartsConfig": {
+                "legend": {
+                  "show": true,
+                  "type": "scroll"
+                },
+                "grid": {
+                  "containLabel": true
+                },
+                "xAxis": [
+                  {
+                    "name": "Month"
+                  }
+                ],
+                "yAxis": [
+                  {
+                    "name": "Revenue"
+                  },
+                  {}
+                ],
+                "series": [
+                  {
+                    "type": "bar",
+                    "yAxisIndex": 0,
+                    "stack": "stack",
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_total_order_amount"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "editable": {
+          "kind": "bar",
+          "x": "orders_order_date_month",
+          "y": [
+            "orders_total_order_amount"
+          ],
+          "groupBy": [
+            "orders_status"
+          ],
+          "stack": true
+        },
+        "rendered": {
+          "kind": "echarts",
+          "series": 5
+        },
+        "pivot": {
+          "unpivotedRender": {
+            "kind": "empty",
+            "reason": "needsPivotDetails"
+          },
+          "pivotColumns": [
+            "orders_order_date_month",
+            "orders_total_order_amount_any_placed",
+            "orders_total_order_amount_any_shipped",
+            "orders_total_order_amount_any_returned",
+            "orders_total_order_amount_any_completed",
+            "orders_total_order_amount_any_return_pending"
+          ],
+          "pivotRows": 26
+        },
+        "ms": 2433,
+        "tokens": 2231
+      },
+      {
+        "schema": "B",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "monthly_revenue_by_status",
+              "pivotColumns": [
+                "orders_status"
+              ],
+              "chartConfig": {
+                "type": "cartesian",
+                "config": {
+                  "layout": {
+                    "xField": "orders_order_date_month",
+                    "yField": [
+                      "orders_total_order_amount"
+                    ],
+                    "flipAxes": false
+                  },
+                  "eChartsConfig": {
+                    "series": [
+                      {
+                        "type": "bar",
+                        "encode": {
+                          "xRef": {
+                            "field": "orders_order_date_month"
+                          },
+                          "yRef": {
+                            "field": "orders_total_order_amount"
+                          }
+                        },
+                        "stack": "total",
+                        "yAxisIndex": null
+                      }
+                    ],
+                    "xAxis": [
+                      {
+                        "name": "Order month"
+                      }
+                    ],
+                    "yAxis": [
+                      {
+                        "name": "Total revenue"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [
+            "orders_status"
+          ],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "cartesian",
+            "config": {
+              "layout": {
+                "xField": "orders_order_date_month",
+                "yField": [
+                  "orders_total_order_amount"
+                ],
+                "flipAxes": false,
+                "stack": true
+              },
+              "eChartsConfig": {
+                "legend": {
+                  "show": true,
+                  "type": "scroll"
+                },
+                "grid": {
+                  "containLabel": true
+                },
+                "xAxis": [
+                  {
+                    "name": "Order month"
+                  }
+                ],
+                "yAxis": [
+                  {
+                    "name": "Total revenue"
+                  },
+                  {}
+                ],
+                "series": [
+                  {
+                    "type": "bar",
+                    "yAxisIndex": 0,
+                    "stack": "total",
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_total_order_amount"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "editable": {
+          "kind": "bar",
+          "x": "orders_order_date_month",
+          "y": [
+            "orders_total_order_amount"
+          ],
+          "groupBy": [
+            "orders_status"
+          ],
+          "stack": true
+        },
+        "rendered": {
+          "kind": "echarts",
+          "series": 5
+        },
+        "pivot": {
+          "unpivotedRender": {
+            "kind": "empty",
+            "reason": "needsPivotDetails"
+          },
+          "pivotColumns": [
+            "orders_order_date_month",
+            "orders_total_order_amount_any_placed",
+            "orders_total_order_amount_any_shipped",
+            "orders_total_order_amount_any_returned",
+            "orders_total_order_amount_any_completed",
+            "orders_total_order_amount_any_return_pending"
+          ],
+          "pivotRows": 26
+        },
+        "ms": 3859,
+        "tokens": 3332
+      }
+    ]
+  },
+  {
+    "id": "q2_bignumber",
+    "question": "What is our total revenue to date?",
+    "expect": "big number on the single numeric column",
+    "columns": [
+      "orders_total_order_amount"
+    ],
+    "rows": 1,
+    "trials": [
+      {
+        "schema": "A",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "total_revenue",
+              "chartType": "big_number",
+              "x": null,
+              "y": [
+                "orders_total_order_amount"
+              ],
+              "groupBy": null,
+              "stack": null,
+              "secondaryY": null,
+              "xAxisLabel": null,
+              "yAxisLabel": null,
+              "customChartTypeSlug": null,
+              "fieldMapping": null
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "big_number",
+            "config": {
+              "selectedField": "orders_total_order_amount"
+            }
+          }
+        },
+        "editable": {
+          "kind": "big_number",
+          "x": null,
+          "y": [
+            "orders_total_order_amount"
+          ],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "bigNumber",
+          "value": "$4,149.12"
+        },
+        "pivot": null,
+        "ms": 1956,
+        "tokens": 1910
+      },
+      {
+        "schema": "B",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "total_revenue",
+              "pivotColumns": null,
+              "chartConfig": {
+                "type": "big_number",
+                "config": {
+                  "selectedField": "orders_total_order_amount",
+                  "label": "Total Revenue"
+                }
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "big_number",
+            "config": {
+              "selectedField": "orders_total_order_amount",
+              "label": "Total Revenue"
+            }
+          }
+        },
+        "editable": {
+          "kind": "big_number",
+          "x": null,
+          "y": [
+            "orders_total_order_amount"
+          ],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "bigNumber",
+          "value": "$4,149.12"
+        },
+        "pivot": null,
+        "ms": 1207,
+        "tokens": 2699
+      }
+    ]
+  },
+  {
+    "id": "q3_pie_duckdb",
+    "question": "What share of revenue does each order status account for?",
+    "expect": "pie over renamed DuckDB columns (no provenance): x=status, y=revenue or share_pct",
+    "columns": [
+      "status",
+      "revenue",
+      "share_pct"
+    ],
+    "rows": 5,
+    "trials": [
+      {
+        "schema": "A",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "revenue_share",
+              "chartType": "pie",
+              "x": "status",
+              "y": [
+                "share_pct"
+              ],
+              "groupBy": null,
+              "stack": null,
+              "secondaryY": null,
+              "xAxisLabel": null,
+              "yAxisLabel": null,
+              "customChartTypeSlug": null,
+              "fieldMapping": null
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "pie",
+            "config": {
+              "groupFieldIds": [
+                "status"
+              ],
+              "metricId": "share_pct"
+            }
+          }
+        },
+        "editable": {
+          "kind": "pie",
+          "x": "status",
+          "y": [
+            "share_pct"
+          ],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "echarts",
+          "series": 1
+        },
+        "pivot": null,
+        "ms": 2132,
+        "tokens": 2113
+      },
+      {
+        "schema": "B",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "revenue_share",
+              "pivotColumns": null,
+              "chartConfig": {
+                "type": "pie",
+                "config": {
+                  "groupFieldIds": [
+                    "status"
+                  ],
+                  "metricId": "revenue"
+                }
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "pie",
+            "config": {
+              "groupFieldIds": [
+                "status"
+              ],
+              "metricId": "revenue"
+            }
+          }
+        },
+        "editable": {
+          "kind": "pie",
+          "x": "status",
+          "y": [
+            "revenue"
+          ],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "echarts",
+          "series": 1
+        },
+        "pivot": null,
+        "ms": 2414,
+        "tokens": 2926
+      }
+    ]
+  },
+  {
+    "id": "q4_dual_axis",
+    "question": "Plot the monthly trend of order count together with average order amount.",
+    "expect": "line, two y columns, ideally a secondary axis for the average",
+    "columns": [
+      "orders_order_date_month",
+      "orders_unique_order_count",
+      "orders_average_order_amount"
+    ],
+    "rows": 26,
+    "trials": [
+      {
+        "schema": "A",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "monthly_orders",
+              "chartType": "line",
+              "x": "orders_order_date_month",
+              "y": [
+                "orders_unique_order_count"
+              ],
+              "groupBy": null,
+              "stack": null,
+              "secondaryY": "orders_average_order_amount",
+              "xAxisLabel": "Order month",
+              "yAxisLabel": "Unique order count",
+              "customChartTypeSlug": null,
+              "fieldMapping": null
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "cartesian",
+            "config": {
+              "layout": {
+                "xField": "orders_order_date_month",
+                "yField": [
+                  "orders_unique_order_count",
+                  "orders_average_order_amount"
+                ],
+                "flipAxes": false,
+                "stack": false
+              },
+              "eChartsConfig": {
+                "legend": {
+                  "show": true,
+                  "type": "scroll"
+                },
+                "grid": {
+                  "containLabel": true
+                },
+                "xAxis": [
+                  {
+                    "name": "Order month"
+                  }
+                ],
+                "yAxis": [
+                  {
+                    "name": "Unique order count"
+                  },
+                  {}
+                ],
+                "series": [
+                  {
+                    "type": "line",
+                    "yAxisIndex": 0,
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_unique_order_count"
+                      }
+                    }
+                  },
+                  {
+                    "type": "line",
+                    "yAxisIndex": 1,
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_average_order_amount"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "editable": null,
+        "rendered": {
+          "kind": "echarts",
+          "series": 2
+        },
+        "pivot": null,
+        "ms": 2166,
+        "tokens": 2386
+      },
+      {
+        "schema": "B",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "monthly_orders",
+              "pivotColumns": null,
+              "chartConfig": {
+                "type": "cartesian",
+                "config": {
+                  "layout": {
+                    "xField": "orders_order_date_month",
+                    "yField": [
+                      "orders_unique_order_count",
+                      "orders_average_order_amount"
+                    ],
+                    "flipAxes": false
+                  },
+                  "eChartsConfig": {
+                    "series": [
+                      {
+                        "type": "bar",
+                        "encode": {
+                          "xRef": {
+                            "field": "orders_order_date_month"
+                          },
+                          "yRef": {
+                            "field": "orders_unique_order_count"
+                          }
+                        },
+                        "stack": null,
+                        "yAxisIndex": 0
+                      },
+                      {
+                        "type": "line",
+                        "encode": {
+                          "xRef": {
+                            "field": "orders_order_date_month"
+                          },
+                          "yRef": {
+                            "field": "orders_average_order_amount"
+                          }
+                        },
+                        "stack": null,
+                        "yAxisIndex": 1
+                      }
+                    ],
+                    "xAxis": [
+                      {
+                        "name": "Order date (month)"
+                      }
+                    ],
+                    "yAxis": [
+                      {
+                        "name": "Orders Unique order count"
+                      },
+                      {
+                        "name": "Orders Average order amount"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": null,
+          "chartConfig": {
+            "type": "cartesian",
+            "config": {
+              "layout": {
+                "xField": "orders_order_date_month",
+                "yField": [
+                  "orders_unique_order_count",
+                  "orders_average_order_amount"
+                ],
+                "flipAxes": false,
+                "stack": false
+              },
+              "eChartsConfig": {
+                "legend": {
+                  "show": true,
+                  "type": "scroll"
+                },
+                "grid": {
+                  "containLabel": true
+                },
+                "xAxis": [
+                  {
+                    "name": "Order date (month)"
+                  }
+                ],
+                "yAxis": [
+                  {
+                    "name": "Orders Unique order count"
+                  },
+                  {
+                    "name": "Orders Average order amount"
+                  }
+                ],
+                "series": [
+                  {
+                    "type": "bar",
+                    "yAxisIndex": 0,
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_unique_order_count"
+                      }
+                    }
+                  },
+                  {
+                    "type": "line",
+                    "yAxisIndex": 1,
+                    "encode": {
+                      "xRef": {
+                        "field": "orders_order_date_month"
+                      },
+                      "yRef": {
+                        "field": "orders_average_order_amount"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "editable": null,
+        "rendered": {
+          "kind": "echarts",
+          "series": 2
+        },
+        "pivot": null,
+        "ms": 2942,
+        "tokens": 3405
+      }
+    ]
+  },
+  {
+    "id": "q5_custom_heatmap",
+    "question": "Show a heatmap of revenue by month and order status using the installed heatmap chart type.",
+    "expect": "custom chart type heatmap: x=month, y=status, value=amount, slots bound to column references",
+    "columns": [
+      "orders_status",
+      "orders_order_date_month",
+      "orders_total_order_amount"
+    ],
+    "rows": 39,
+    "trials": [
+      {
+        "schema": "A",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "heat",
+              "chartType": "custom",
+              "x": null,
+              "y": null,
+              "groupBy": null,
+              "stack": null,
+              "secondaryY": null,
+              "xAxisLabel": null,
+              "yAxisLabel": null,
+              "customChartTypeSlug": "heatmap",
+              "fieldMapping": {
+                "x": "orders_order_date_month",
+                "y": "orders_status",
+                "value": "orders_total_order_amount"
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": "heatmap",
+          "chartConfig": {
+            "type": "data_app_viz",
+            "config": {
+              "dataAppVizUuid": "slug:heatmap",
+              "fieldMapping": {
+                "x": "orders_order_date_month",
+                "y": "orders_status",
+                "value": "orders_total_order_amount"
+              }
+            }
+          }
+        },
+        "editable": {
+          "kind": "custom",
+          "x": null,
+          "y": [],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "unsupported"
+        },
+        "pivot": null,
+        "ms": 2646,
+        "tokens": 2444
+      },
+      {
+        "schema": "B",
+        "attempts": [
+          {
+            "args": {
+              "nodeId": "heat",
+              "pivotColumns": null,
+              "chartConfig": {
+                "type": "data_app_viz",
+                "config": {
+                  "customChartTypeSlug": "heatmap",
+                  "fieldMapping": {
+                    "x": "orders_order_date_month",
+                    "y": "orders_status",
+                    "value": "orders_total_order_amount"
+                  }
+                }
+              }
+            },
+            "errors": [],
+            "zodError": null
+          }
+        ],
+        "resolved": {
+          "pivotColumns": [],
+          "customChartTypeSlug": "heatmap",
+          "chartConfig": {
+            "type": "data_app_viz",
+            "config": {
+              "dataAppVizUuid": "slug:heatmap",
+              "fieldMapping": {
+                "x": "orders_order_date_month",
+                "y": "orders_status",
+                "value": "orders_total_order_amount"
+              }
+            }
+          }
+        },
+        "editable": {
+          "kind": "custom",
+          "x": null,
+          "y": [],
+          "groupBy": [],
+          "stack": false
+        },
+        "rendered": {
+          "kind": "unsupported"
+        },
+        "pivot": null,
+        "ms": 1962,
+        "tokens": 3131
+      }
+    ]
+  }
+]
