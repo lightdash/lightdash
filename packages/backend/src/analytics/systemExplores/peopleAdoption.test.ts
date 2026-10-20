@@ -195,6 +195,101 @@ describe('People adoption', () => {
         expect(people).toHaveLength(4);
     });
 
+    it('counts query-only registered users in adoption while preserving the eligible denominator', async () => {
+        await member('registered');
+        await member('legacy');
+        await member('never');
+        await member('pending', {
+            is_setup_complete: false,
+            is_eligible: false,
+        });
+        for (const [user, actor] of [
+            ['registered', 'registered_user'],
+            ['legacy', 'user'],
+            ['pending', 'registered_user'],
+        ])
+            await insert('query_events', {
+                org_id: 'org',
+                user_id: user,
+                event_ts: '2026-10-01 12:00:00',
+                workload_origin: 'interactive',
+                initiating_actor_type: actor,
+            });
+        expect(
+            await rows(
+                compile(
+                    [],
+                    [
+                        'total_members',
+                        'eligible_people',
+                        'active_people_1d',
+                        'active_people_7d',
+                        'active_people_30d',
+                        'adoption_rate_30d',
+                        'people_without_observed_activity',
+                    ],
+                ),
+            ),
+        ).toEqual([
+            {
+                people_adoption_total_members: '4',
+                people_adoption_eligible_people: '3',
+                people_adoption_active_people_1d: '2',
+                people_adoption_active_people_7d: '2',
+                people_adoption_active_people_30d: '2',
+                people_adoption_adoption_rate_30d: 2 / 3,
+                people_adoption_people_without_observed_activity: '1',
+            },
+        ]);
+    });
+
+    it.each([
+        ['registered_user', 'interactive', null, 'human'],
+        ['user', 'interactive', null, 'human'],
+        ['registered_user', 'mcp', null, 'inferred'],
+        ['user', 'mcp', null, 'inferred'],
+        ['registered_user', 'app', null, 'inferred'],
+        ['user', 'app', null, 'inferred'],
+        ['registered_user', 'scheduled', null, 'system'],
+        ['registered_user', 'autorefresh', null, 'system'],
+        ['registered_user', 'interactive', 'scheduler', 'system'],
+        ['service_account', 'interactive', null, 'system'],
+        ['system', 'interactive', null, 'system'],
+        ['registered_user', null, null, 'unknown'],
+        ['anonymous', 'interactive', null, 'unknown'],
+        [null, 'interactive', null, 'unknown'],
+    ])(
+        'classifies query actor %s with origin %s and scheduler %s as %s',
+        async (actor, origin, scheduler, kind) => {
+            await member('query-only');
+            await insert('query_events', {
+                org_id: 'org',
+                user_id: 'query-only',
+                event_ts: '2026-10-01 12:00:00',
+                workload_origin: origin,
+                initiating_actor_type: actor,
+                scheduler_id: scheduler,
+            });
+            const [person] = await rows(`SELECT * FROM ${peopleAdoptionSql}`);
+            expect(person).toMatchObject({
+                active_1d: kind === 'human',
+                active_7d: kind === 'human',
+                active_30d: kind === 'human',
+                no_observed_activity: kind !== 'human',
+                active_days_30d: kind === 'human' ? '1' : '0',
+            });
+            for (const [classification, field] of [
+                ['human', 'last_observed_activity_at'],
+                ['inferred', 'last_inferred_activity_at'],
+                ['system', 'last_system_activity_at'],
+                ['unknown', 'last_unknown_activity_at'],
+            ])
+                expect(person[field]).toBe(
+                    classification === kind ? '2026-10-01 12:00:00' : null,
+                );
+        },
+    );
+
     it('classifies human, inferred, scheduled and unknown activity without treating a user ID as intent', async () => {
         for (const user of [
             'human',
