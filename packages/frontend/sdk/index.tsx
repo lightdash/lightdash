@@ -1083,8 +1083,12 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
         return null;
     }
 
+    const threadSetup = getEmbedAiAgentThreadSetup({ binding, threadContext });
+
     return (
         <iframe
+            // A hash-only src change doesn't reload the embed, so remount it
+            key={buildEmbedHash('', threadSetup)}
             title="AI agent"
             src={getAiAgentEmbedUrl({
                 agentUuid,
@@ -1092,10 +1096,7 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                 projectUuid: tokenContext.projectUuid,
                 targetOrigin,
                 theme,
-                threadSetup: getEmbedAiAgentThreadSetup({
-                    binding,
-                    threadContext,
-                }),
+                threadSetup,
                 threadUuid,
                 token: tokenContext.token,
             })}

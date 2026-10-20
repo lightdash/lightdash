@@ -1147,6 +1147,37 @@ describe('SDK AI agent', () => {
         });
     });
 
+    it('reloads the iframe when the host changes the thread setup', async () => {
+        const { container, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const firstIframe = container.querySelector('iframe');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadContext="Added later"
+            />,
+        );
+
+        const secondIframe = container.querySelector('iframe');
+        expect(secondIframe).not.toBe(firstIframe);
+        expect(
+            parseEmbedHash(new URL(secondIframe?.src ?? '').hash)
+                .aiAgentThreadSetup,
+        ).toEqual({ binding: null, threadContext: 'Added later' });
+    });
+
     it('names the iframe without Lightdash branding', async () => {
         const { container } = render(
             <AiAgent
