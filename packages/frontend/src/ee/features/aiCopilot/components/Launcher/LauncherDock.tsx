@@ -46,9 +46,10 @@ export const LauncherDock: FC<Props> = ({
         (state) => state.aiAgentLauncher.mode === 'panel-open',
     );
     const view = useAiAgentStoreSelector((state) => state.aiAgentLauncher.view);
+    // A registered adapter implies analysis is rolled out; when it is still
+    // unavailable (copilot/org setting off) the panel explains why.
     const analysisAdapter = useLauncherAnalysisAdapter(projectUuid);
-    const showAnalysisTab =
-        analysisAdapter?.availability.status === 'available';
+    const showAnalysisTab = analysisAdapter !== null;
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
     );

@@ -41,8 +41,6 @@ const setLauncherAnalysisAdapter = (
  * The page owning the current view publishes its adapter; at most one page
  * at a time renders this hook. Cleared on unmount.
  */
-// Registration lands with the page migration.
-// ts-unused-exports:disable-next-line
 export const useRegisterLauncherAnalysisAdapter = (
     adapter: LauncherAnalysisAdapter | null,
 ): void => {
