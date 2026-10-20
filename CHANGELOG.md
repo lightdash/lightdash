@@ -1,3 +1,10 @@
+## [2.631.2](https://github.com/lightdash/lightdash/compare/2.631.1...2.631.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **external-sources:** hide add-data entry points when the engine is not configured ([#31254](https://github.com/lightdash/lightdash/issues/31254)) ([4a46460](https://github.com/lightdash/lightdash/commit/4a46460405e59d7c51d2fc615523ba5f2df5867e))
+
 ## [2.631.1](https://github.com/lightdash/lightdash/compare/2.631.0...2.631.1) (2026-10-20)
 
 
