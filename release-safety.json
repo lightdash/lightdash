@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.13.0",
-  "previousVersion": "3.12.3",
-  "releaseDate": "2026-10-21T13:27:21.000Z",
+  "version": "3.13.1",
+  "previousVersion": "3.13.0",
+  "releaseDate": "2026-10-21T14:19:46.067Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,8 +11,8 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -25,9 +25,15 @@
     },
     "mcp": {
       "checked": true,
-      "breaking": false,
-      "changes": [],
-      "breakingCount": 0,
+      "breaking": true,
+      "changes": [
+        "MCP tool `clear_agent` removed",
+        "MCP tool `get_current_agent` removed",
+        "MCP tool `get_current_project` removed",
+        "MCP tool `set_agent` removed",
+        "MCP tool `set_project` removed"
+      ],
+      "breakingCount": 5,
       "advisories": [],
       "advisoryCount": 0
     }
@@ -41,6 +47,12 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [],
+  "declaredBreaks": [
+    {
+      "id": "mcp-deprecated-context-tools-removed",
+      "reason": "The deprecated MCP tools set_project, get_current_project, set_agent, clear_agent and get_current_agent are removed. MCP clients discover tools from tools/list, so agents pick up the change on their next session; only scripted callers that hard-code one of these names get an unknown-tool error. get_context reports the stored project and agent, route_agent selects an agent, and every project-scoped tool takes projectUuid (and optionally agentUuid) explicitly. Stored context written by older clients or route_agent is still honoured.",
+      "requiredStop": false
+    }
+  ],
   "declaredAdvisories": []
 }

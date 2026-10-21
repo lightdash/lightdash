@@ -1,3 +1,10 @@
+## [3.13.1](https://github.com/lightdash/lightdash/compare/3.13.0...3.13.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ai:** make seasonality assessment coverage explicit ([#31318](https://github.com/lightdash/lightdash/issues/31318)) ([3fe0fd7](https://github.com/lightdash/lightdash/commit/3fe0fd743363ff4e6d1f3bfd3c64d188fd03464a))
+
 # [3.13.0](https://github.com/lightdash/lightdash/compare/3.12.3...3.13.0) (2026-10-21)
 
 
