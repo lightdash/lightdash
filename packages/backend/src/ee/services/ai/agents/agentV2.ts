@@ -2205,7 +2205,7 @@ export const getAgentTools = (
                 maxQueryLimit: args.runSqlMaxLimit,
                 enableDataAccess: args.enableDataAccess,
                 canRunSql: args.canRunSql,
-                enablePythonNodes: args.enableComposerPythonNodes,
+                enablePythonNodes: args.enableComposerQueries,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
@@ -2615,7 +2615,7 @@ export const getAgentMessages = (
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
         slackLinksOnly: args.slackLinksOnly,
-        enableComposerPythonNodes: args.enableComposerPythonNodes,
+        enableComposerPythonNodes: args.enableComposerQueries,
         unauthenticatedMcpServerNames: getUnauthenticatedMcpServerNames(
             args,
             mcpToolSetup,
