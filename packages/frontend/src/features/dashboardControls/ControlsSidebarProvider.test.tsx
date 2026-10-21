@@ -1675,43 +1675,77 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
+        const leaveOutAndPutBack = (
+            onTile: DashboardFilterRule,
+            tile: DashboardTile,
+            act_: typeof act,
+            updateFilter: (next: DashboardFilterRule) => void,
+        ) => {
+            const fields = mockFieldsByTile.current as FieldsByTile;
+            const leftOut = setTileField(onTile, tile, null, fields);
+            act_(() => updateFilter(leftOut));
+            act_(() =>
+                updateFilter(
+                    setTileField(leftOut, tile, onTile.target, fields),
+                ),
+            );
+        };
+        const statusTarget = { fieldId: 'orders_status', tableName: 'orders' };
+
         it('leaves nothing changed after a tile is left out and put back', () => {
             const onTile = {
                 ...rule('status', ['x']),
-                target: { fieldId: 'orders_status', tableName: 'orders' },
-                tileTargets: {
-                    t1: { fieldId: 'orders_status', tableName: 'orders' },
-                },
+                target: statusTarget,
+                tileTargets: { t1: statusTarget, t2: statusTarget },
+            };
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [onTile],
+            });
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            mockFieldsByTile.current = {
+                t1: [statusField],
+                t2: [statusField],
+            };
+            const { result } = setup();
+            act(() => result.current.open('status'));
+            leaveOutAndPutBack(
+                onTile,
+                mockTiles.current[0] as DashboardTile,
+                act,
+                result.current.updateFilter,
+            );
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        // Tabs apply a rule with no tile targets everywhere, so losing the last
+        // entry is a change even when it only said the default
+        it('sees a tile put back that leaves the rule with no tile targets as a change', () => {
+            const onTile = {
+                ...rule('status', ['x']),
+                target: statusTarget,
+                tileTargets: { t1: statusTarget },
             };
             saved.filters = asSaved({
                 ...initialFilters,
                 dimensions: [onTile],
             });
             mockFieldsByTile.current = { t1: [statusField] };
-            const tile = mockTiles.current[0] as DashboardTile;
             const { result } = setup();
             act(() => result.current.open('status'));
-            const leftOut = setTileField(
+            leaveOutAndPutBack(
                 onTile,
-                tile,
-                null,
-                mockFieldsByTile.current as FieldsByTile,
+                mockTiles.current[0] as DashboardTile,
+                act,
+                result.current.updateFilter,
             );
-            act(() => result.current.updateFilter(leftOut));
-            act(() =>
-                result.current.updateFilter(
-                    setTileField(
-                        leftOut,
-                        tile,
-                        onTile.target,
-                        mockFieldsByTile.current as FieldsByTile,
-                    ),
-                ),
-            );
-            expect(result.current.isDirty).toBe(false);
+            expect(result.current.isDirty).toBe(true);
 
             act(() => result.current.close());
-            expect(latest.changed).toBe(false);
+            expect(latest.changed).toBe(true);
         });
 
         it('leaves nothing changed after a tab is unlocked and locked again', () => {

@@ -84,8 +84,9 @@ const rule = (
 });
 
 describe('peers', () => {
-    it('drops only the tile entries that say what the tile does by default', () => {
-        // a and d by default, b and c not; x is not a tile of this dashboard
+    it('drops only the field entries that say what the tile does by default', () => {
+        // a by default, b and c not; x is not a tile of this dashboard. An
+        // exclusion stays: tabs read it when a tile is added
         const r = rule({
             a: ORDERS,
             b: false,
@@ -95,10 +96,12 @@ describe('peers', () => {
         });
         expect(
             withoutDefaultTileTargets(r, tiles, fieldsByTile).tileTargets,
-        ).toEqual({ b: false, c: PAYMENTS, x: false });
+        ).toEqual({ b: false, c: PAYMENTS, d: false, x: false });
+        // Tile targets stay present: tabs apply a rule without them everywhere
         expect(
-            withoutDefaultTileTargets(rule({ a: ORDERS }), tiles, fieldsByTile),
-        ).not.toHaveProperty('tileTargets');
+            withoutDefaultTileTargets(rule({ a: ORDERS }), tiles, fieldsByTile)
+                .tileTargets,
+        ).toEqual({});
         // Unknown fields or tiles: nothing is known to be a default
         expect(withoutDefaultTileTargets(r, tiles, undefined)).toBe(r);
         expect(withoutDefaultTileTargets(r, undefined, fieldsByTile)).toBe(r);
@@ -346,7 +349,7 @@ describe('peers with SQL chart tiles', () => {
         expect(cleared.tileTargets).toBeUndefined();
     });
 
-    it('withoutDefaultTileTargets keeps a column and drops false, as setTileField writes them', () => {
+    it('withoutDefaultTileTargets keeps a column and an exclusion on a SQL tile', () => {
         const mapped = setTileField(
             rule(),
             sqlTile,
@@ -357,15 +360,10 @@ describe('peers with SQL chart tiles', () => {
         expect(
             withoutDefaultTileTargets(mapped, allTiles, fieldsByTile),
         ).toEqual(mapped);
+        const excluded = rule({ s: false });
         expect(
-            withoutDefaultTileTargets(
-                rule({ s: false }),
-                allTiles,
-                fieldsByTile,
-            ),
-        ).toEqual(
-            setTileField(rule(), sqlTile, null, fieldsByTile, sqlColumns),
-        );
+            withoutDefaultTileTargets(excluded, allTiles, fieldsByTile),
+        ).toEqual(excluded);
     });
 
     // The column row only exists on a SQL column filter
@@ -457,13 +455,17 @@ describe('peers with data app tiles', () => {
         expect(withoutDefaultTileTargets(off, allTiles, fieldsByTile)).toEqual(
             off,
         );
+        // setTileField drops the emptied key; the comparison keeps it
         expect(
             withoutDefaultTileTargets(
                 rule({ app: ORDERS }),
                 allTiles,
                 fieldsByTile,
             ),
-        ).toEqual(setTileField(off, appTile, ORDERS, fieldsByTile));
+        ).toEqual({
+            ...setTileField(off, appTile, ORDERS, fieldsByTile),
+            tileTargets: {},
+        });
     });
 
     it('counts in its tab while on, and never as a tile on a field', () => {

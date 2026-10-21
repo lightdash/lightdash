@@ -168,13 +168,17 @@ In `FilterConfiguration/`:
   label typed, then emptied) leaves it off, and a flag shipped code raised
   meanwhile (a temporary filter) is never lowered.
 - "Changed" always compares rules as they would save: keys holding
-  `undefined` (JSON has none) and tile entries that say what the tile does
-  by default (`withoutDefaultTileTargets`, what `setTileField` drops) leave no
-  trace. `required: false` reads as no `required`, and `lockedTabUuids` as a
-  set (re-locking a tab appends it). Empty `tileTargets` is not read as none:
-  the shipped tab gating applies a rule with no `tileTargets` on every tab.
-  So a lock switched on and off, a tab unlocked and locked again, "Required"
-  switched on and off, or a tile left out and put back, is no change.
+  `undefined` (JSON has none) and field entries that say what the tile does
+  by default (`withoutDefaultTileTargets`) leave no trace. `required: false`
+  reads as no `required`, and `lockedTabUuids` as a set (re-locking a tab
+  appends it). Two things are never normalised away, since shipped code reads
+  them: an exclusion (`false`), which decides whether a tile added to its tab
+  is left out, and whether `tileTargets` is there at all, since the tab
+  gating of required filters applies a rule without it on every tab. So a
+  lock switched on and off, a tab unlocked and locked again, "Required"
+  switched on and off, or a tile left out and put back, is no change, unless
+  putting it back removed the rule's last tile entry (`setTileField` then
+  drops the key).
   `isDirty`, which shows Discard, also counts the other rules the
   editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`).
 - `isSidebarOpen` is derived: a control is being edited and its rule is

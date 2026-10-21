@@ -269,8 +269,9 @@ const withTileTargets = (
         : rest;
 };
 
-// Drops the tile entries that say what the tile does by default, as
-// `setTileField` does, so two rules that filter the same tiles compare equal
+// Drops the field entries that say what the tile does by default, so two rules
+// that filter the same tiles compare equal. Exclusions and the key itself stay:
+// tabs read both (a new tile, and a rule with no tile targets on every tab)
 export const withoutDefaultTileTargets = (
     rule: DashboardFilterRule,
     tiles: DashboardTile[] | undefined,
@@ -280,16 +281,13 @@ export const withoutDefaultTileTargets = (
     const entries = Object.entries(rule.tileTargets ?? {});
     const kept = entries.filter(([tileUuid, target]) => {
         const tile = tiles.find(({ uuid }) => uuid === tileUuid);
-        if (tile === undefined) return true;
+        if (tile === undefined || target === false) return true;
         const fallback = getDefaultTileField(rule, tile, fieldsByTile);
-        return (
-            (target === false ? null : target.fieldId) !==
-            (fallback?.fieldId ?? null)
-        );
+        return target.fieldId !== (fallback?.fieldId ?? null);
     });
     return kept.length === entries.length
         ? rule
-        : withTileTargets(rule, Object.fromEntries(kept));
+        : { ...rule, tileTargets: Object.fromEntries(kept) };
 };
 
 export const setTileField = (
