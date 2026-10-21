@@ -899,7 +899,8 @@ export const assertDeepResearchPromptExecution = ({
 export type AiCreditCheck = { isEmbedViewer: boolean };
 
 type EmbedAiAgentRuntimeOptions = {
-    embedSpaceUuid: string;
+    // A thread belongs to every write space of the token that created it.
+    writeSpaceUuids: string[];
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
     spaceAccess: string[];
@@ -2993,18 +2994,16 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
     ): {
         user: SessionUser;
-        spaceUuid: string;
         tokenAgentUuid: string;
         runtimeOptions: EmbedAiAgentRuntimeOptions;
     } {
         const { writeActions, content } = account.authentication.data;
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
-        const spaceUuid = writeSpaceUuids[0];
         const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
 
         if (
             content.type !== 'aiAgent' ||
-            !spaceUuid ||
+            writeSpaceUuids.length === 0 ||
             !account.embedWriteUser ||
             account.embedWriteContext?.canUseAiAgent !== true ||
             account.embed.projectUuid !== projectUuid
@@ -3017,10 +3016,9 @@ export class AiAgentService extends BaseService {
 
         return {
             user: account.embedWriteUser,
-            spaceUuid,
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
-                embedSpaceUuid: spaceUuid,
+                writeSpaceUuids,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
                 spaceAccess: chartSpaceUuids,
@@ -3033,11 +3031,25 @@ export class AiAgentService extends BaseService {
         };
     }
 
-    private static assertAgentAvailableInEmbedSpace(
+    private static isAgentAvailableInEmbedSpaces(
         agent: AiAgent,
-        spaceUuid: string,
+        writeSpaceUuids: string[],
     ) {
-        if (!hasAiAgentAccessToSpace(agent, spaceUuid)) {
+        return writeSpaceUuids.some((spaceUuid) =>
+            hasAiAgentAccessToSpace(agent, spaceUuid),
+        );
+    }
+
+    private static assertAgentAvailableInEmbedSpaces(
+        agent: AiAgent,
+        writeSpaceUuids: string[],
+    ) {
+        if (
+            !AiAgentService.isAgentAvailableInEmbedSpaces(
+                agent,
+                writeSpaceUuids,
+            )
+        ) {
             throw new ForbiddenError(
                 'AI agent is not available in the embedded space',
             );
@@ -3049,7 +3061,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         agentUuid: string,
     ) {
-        const { user, spaceUuid, tokenAgentUuid, runtimeOptions } =
+        const { user, tokenAgentUuid, runtimeOptions } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
         if (tokenAgentUuid !== agentUuid) {
             throw new ForbiddenError(
@@ -3058,7 +3070,10 @@ export class AiAgentService extends BaseService {
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
-        AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
+        AiAgentService.assertAgentAvailableInEmbedSpaces(
+            agent,
+            runtimeOptions.writeSpaceUuids,
+        );
         return {
             user,
             agent,
@@ -3119,9 +3134,12 @@ export class AiAgentService extends BaseService {
     ) {
         if (!runtimeOptions) return;
 
-        const embedSpaceUuid =
-            await this.aiAgentModel.getWebAppThreadEmbedSpace(threadUuid);
-        if (embedSpaceUuid !== runtimeOptions.embedSpaceUuid) {
+        const isInEmbedSpaces =
+            await this.aiAgentModel.isWebAppThreadInEmbedSpaces(
+                threadUuid,
+                runtimeOptions.writeSpaceUuids,
+            );
+        if (!isInEmbedSpaces) {
             throw new ForbiddenError(
                 'AI agent thread is outside the embedded space',
             );
@@ -3162,14 +3180,17 @@ export class AiAgentService extends BaseService {
     }
 
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
-        const { user, spaceUuid, tokenAgentUuid } =
+        const { user, tokenAgentUuid, runtimeOptions } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
         const agents = await this.listAgents(user, projectUuid);
         return agents
             .filter(
                 (agent) =>
                     agent.uuid === tokenAgentUuid &&
-                    hasAiAgentAccessToSpace(agent, spaceUuid),
+                    AiAgentService.isAgentAvailableInEmbedSpaces(
+                        agent,
+                        runtimeOptions.writeSpaceUuids,
+                    ),
             )
             .map((agent) => this.forEmbedViewer(agent));
     }
@@ -5316,7 +5337,7 @@ export class AiAgentService extends BaseService {
             userUuid: user.userUuid,
             createdFrom,
             agentUuid,
-            embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
+            embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
             battleProfile: body.battleProfile ?? null,
             binding,
             threadContext,
@@ -9162,28 +9183,10 @@ export class AiAgentService extends BaseService {
             agentUuid,
             userUuid: user.userUuid,
             createdFrom: ['web_app'],
+            embedWriteSpaceUuids: runtimeOptions.writeSpaceUuids,
         });
 
-        const threadsWithEmbedSpace = await Promise.all(
-            threads.map(async (thread) => ({
-                thread,
-                embedSpaceUuid:
-                    await this.aiAgentModel.getWebAppThreadEmbedSpace(
-                        thread.uuid,
-                    ),
-            })),
-        );
-
-        return this.withVisibleThreadContext(
-            account,
-            agent,
-            threadsWithEmbedSpace
-                .filter(
-                    ({ embedSpaceUuid }) =>
-                        embedSpaceUuid === runtimeOptions.embedSpaceUuid,
-                )
-                .map(({ thread }) => thread),
-        );
+        return this.withVisibleThreadContext(account, agent, threads);
     }
 
     async createEmbedAgentThread(

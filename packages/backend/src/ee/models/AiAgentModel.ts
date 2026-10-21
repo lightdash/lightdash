@@ -3809,12 +3809,14 @@ export class AiAgentModel {
         threadUuid,
         userUuid,
         createdFrom,
+        embedWriteSpaceUuids,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
         createdFrom?: AiThreadCreatedFrom[];
+        embedWriteSpaceUuids?: string[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3840,6 +3842,12 @@ export class AiAgentModel {
 
         if (userUuid) {
             void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
+        }
+
+        if (embedWriteSpaceUuids) {
+            void query.andWhere(
+                this.embedThreadSpacesWithin(embedWriteSpaceUuids),
+            );
         }
 
         const rows = await query;
@@ -7169,7 +7177,10 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
-                embed_space_uuid: data.embedSpaceUuid ?? null,
+                embed_space_uuid: data.embedSpaceUuids?.[0] ?? null,
+                embed_space_uuids: data.embedSpaceUuids?.length
+                    ? data.embedSpaceUuids
+                    : null,
             });
 
             return row.ai_thread_uuid;
@@ -7269,13 +7280,26 @@ export class AiAgentModel {
         return { threadBinding, threadContext: row.thread_context };
     }
 
-    async getWebAppThreadEmbedSpace(threadUuid: string) {
+    // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
+    private embedThreadSpacesWithin(writeSpaceUuids: string[]) {
+        const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+        return this.database.raw(
+            `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
+            [writeSpaceUuids],
+        );
+    }
+
+    async isWebAppThreadInEmbedSpaces(
+        threadUuid: string,
+        writeSpaceUuids: string[],
+    ): Promise<boolean> {
         const row = await this.database(AiWebAppThreadTableName)
-            .select('embed_space_uuid')
+            .select('ai_thread_uuid')
             .where('ai_thread_uuid', threadUuid)
+            .andWhere(this.embedThreadSpacesWithin(writeSpaceUuids))
             .first();
 
-        return row?.embed_space_uuid ?? null;
+        return row !== undefined;
     }
 
     async createWebAppPrompt(
