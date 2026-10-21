@@ -40,6 +40,7 @@ import * as ipaddr from 'ipaddr.js';
 import { type ClientAuthMethod } from 'openid-client';
 import { z } from 'zod';
 import { type S3AuthMode } from '../clients/Aws/S3BaseClient';
+import { type NatsWorkerStream } from '../nats/natsConfig';
 import { type AllowedPrivateHostCidrs } from '../utils/secureFetch/secureFetch';
 import { VERSION } from '../version';
 import {
@@ -1792,6 +1793,9 @@ export type LightdashConfig = {
         enabled: boolean;
         url: string | undefined;
         workerConcurrency: number;
+        // Pull loops per stream on one worker process. Each stream falls
+        // back to workerConcurrency when its own variable is unset.
+        streamConcurrency: Record<NatsWorkerStream, number>;
         queueTimeoutMs: number;
     };
     slack?: SlackConfig;
@@ -3246,6 +3250,20 @@ export const parseConfig = (): LightdashConfig => {
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
+    const natsWorkerStreamConcurrency: Record<NatsWorkerStream, number> = {
+        warehouse:
+            getIntegerFromEnvironmentVariable(
+                'NATS_WORKER_CONCURRENCY_WAREHOUSE',
+            ) ?? natsWorkerConcurrency,
+        'pre-aggregate':
+            getIntegerFromEnvironmentVariable(
+                'NATS_WORKER_CONCURRENCY_PRE_AGGREGATE',
+            ) ?? natsWorkerConcurrency,
+        duckdb:
+            getIntegerFromEnvironmentVariable(
+                'NATS_WORKER_CONCURRENCY_DUCKDB',
+            ) ?? natsWorkerConcurrency,
+    };
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
     const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
@@ -3296,6 +3314,19 @@ export const parseConfig = (): LightdashConfig => {
     if (natsWorkerConcurrency <= 0) {
         throw new ParseError(
             'NATS_WORKER_CONCURRENCY must be greater than 0',
+            {},
+        );
+    }
+    // 0 would leave a stream unconsumed by this worker, which is what the
+    // retired --stream flag allowed; every worker takes every stream.
+    const zeroStreamConcurrency = Object.entries(
+        natsWorkerStreamConcurrency,
+    ).find(([, concurrency]) => concurrency <= 0);
+    if (zeroStreamConcurrency) {
+        throw new ParseError(
+            `NATS_WORKER_CONCURRENCY_${zeroStreamConcurrency[0]
+                .replace('-', '_')
+                .toUpperCase()} must be greater than 0`,
             {},
         );
     }
@@ -3840,6 +3871,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,
             workerConcurrency: natsWorkerConcurrency,
+            streamConcurrency: natsWorkerStreamConcurrency,
             queueTimeoutMs: natsWorkerQueueTimeoutMs,
         },
         slack: {

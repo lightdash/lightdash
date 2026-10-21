@@ -40,6 +40,34 @@ beforeEach(() => {
     };
 });
 
+describe('NATS worker concurrency', () => {
+    it('gives every stream the shared concurrency by default', () => {
+        process.env.NATS_WORKER_CONCURRENCY = '7';
+        expect(parseConfig().natsWorker.streamConcurrency).toEqual({
+            warehouse: 7,
+            'pre-aggregate': 7,
+            duckdb: 7,
+        });
+    });
+
+    it('lets one stream override the shared concurrency', () => {
+        process.env.NATS_WORKER_CONCURRENCY = '100';
+        process.env.NATS_WORKER_CONCURRENCY_PRE_AGGREGATE = '8';
+        expect(parseConfig().natsWorker.streamConcurrency).toEqual({
+            warehouse: 100,
+            'pre-aggregate': 8,
+            duckdb: 100,
+        });
+    });
+
+    it('refuses a stream concurrency that would leave it unconsumed', () => {
+        process.env.NATS_WORKER_CONCURRENCY_PRE_AGGREGATE = '0';
+        expect(() => parseConfig()).toThrowError(
+            'NATS_WORKER_CONCURRENCY_PRE_AGGREGATE must be greater than 0',
+        );
+    });
+});
+
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],

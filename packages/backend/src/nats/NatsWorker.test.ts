@@ -13,6 +13,101 @@ import { NatsWorker } from './NatsWorker';
 
 const codec = StringCodec();
 
+/** A consumer whose fetches hang until released, so pull loops can be counted. */
+const hangingConsumer = () => {
+    const pending: Array<() => void> = [];
+    return {
+        fetch: vi.fn(
+            () =>
+                new Promise<AsyncIterable<JsMsg>>((resolve) => {
+                    pending.push(() =>
+                        resolve(
+                            (async function* empty() {
+                                // yields nothing: the loop re-checks isRunning
+                            })(),
+                        ),
+                    );
+                }),
+        ),
+        release: () => pending.splice(0).forEach((resolve) => resolve()),
+    };
+};
+
+describe('NatsWorker stream loops', () => {
+    const asyncQueryService = {} as unknown as AsyncQueryService;
+    const queryHistoryModel = {} as unknown as QueryHistoryModel;
+
+    beforeEach(() => {
+        registerPreAggregateStream();
+    });
+
+    it('pulls from every registered stream with its own concurrency', async () => {
+        const consumers = {
+            WAREHOUSE_QUERY_JOBS: hangingConsumer(),
+            PRE_AGGREGATE_QUERY_JOBS: hangingConsumer(),
+            DUCKDB_QUERY_JOBS: hangingConsumer(),
+        };
+        const get = vi.fn(
+            async (streamName: keyof typeof consumers) => consumers[streamName],
+        );
+        const natsClient = {
+            jetstream: () => ({ consumers: { get } }),
+        } as unknown as NatsClient;
+
+        const worker = new NatsWorker({
+            natsClient,
+            asyncQueryService,
+            queryHistoryModel,
+            streams: ['warehouse', 'pre-aggregate', 'duckdb'],
+            streamConcurrency: { warehouse: 3, 'pre-aggregate': 2, duckdb: 1 },
+        });
+        await worker.run();
+
+        expect(get).toHaveBeenCalledWith(
+            'WAREHOUSE_QUERY_JOBS',
+            'worker-warehouse',
+        );
+        expect(get).toHaveBeenCalledWith(
+            'PRE_AGGREGATE_QUERY_JOBS',
+            'worker-pre-aggregate',
+        );
+        expect(get).toHaveBeenCalledWith('DUCKDB_QUERY_JOBS', 'worker-duckdb');
+        await vi.waitFor(() => {
+            expect(consumers.WAREHOUSE_QUERY_JOBS.fetch).toHaveBeenCalledTimes(
+                3,
+            );
+            expect(
+                consumers.PRE_AGGREGATE_QUERY_JOBS.fetch,
+            ).toHaveBeenCalledTimes(2);
+            expect(consumers.DUCKDB_QUERY_JOBS.fetch).toHaveBeenCalledTimes(1);
+        });
+
+        const stopped = worker.stop();
+        Object.values(consumers).forEach((consumer) => consumer.release());
+        await stopped;
+        expect(worker.isRunning).toBe(false);
+    });
+
+    it('skips a stream that is not registered', () => {
+        const worker = new NatsWorker({
+            natsClient: {} as NatsClient,
+            asyncQueryService,
+            queryHistoryModel,
+            streams: ['warehouse', 'duckdb'],
+            streamConcurrency: { warehouse: 4, 'pre-aggregate': 9, duckdb: 1 },
+        });
+
+        expect(
+            worker
+                .getActiveStreams()
+                .map(({ stream, concurrency }) => [stream, concurrency]),
+        ).toEqual([
+            ['warehouse', 4],
+            ['duckdb', 1],
+        ]);
+    });
+});
+
 const jobMessage = (subject: string): JsMsg =>
     ({
         subject,
@@ -48,7 +143,7 @@ describe('NatsWorker subject dispatch', () => {
             queryHistoryModel:
                 queryHistoryModel as unknown as QueryHistoryModel,
             streams: [],
-            workerConcurrency: 1,
+            streamConcurrency: { warehouse: 1, 'pre-aggregate': 1, duckdb: 1 },
         });
 
     beforeEach(() => {

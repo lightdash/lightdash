@@ -75,7 +75,7 @@ const natsWorkerFactory = (context: {
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
         queryHistoryModel: context.modelRepository.getQueryHistoryModel(),
         streams: context.streams,
-        workerConcurrency: context.lightdashConfig.natsWorker.workerConcurrency,
+        streamConcurrency: context.lightdashConfig.natsWorker.streamConcurrency,
         resolveOrganizationName: createOrganizationNameResolver(
             context.modelRepository.getOrganizationModel(),
         ),

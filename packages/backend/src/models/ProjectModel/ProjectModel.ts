@@ -8009,10 +8009,13 @@ export class ProjectModel {
         credentials: CreateWarehouseCredentials,
         options?: Parameters<typeof warehouseClientFromCredentials>[1],
     ) {
+        const { streamConcurrency } = this.lightdashConfig.natsWorker;
         return warehouseClientFromCredentials(credentials, {
-            // The client is shared by all concurrent async query jobs
+            // The client is shared by every job on this worker that reaches
+            // the warehouse: warehouse queries and materializations.
             maxOpenConnections:
-                this.lightdashConfig.natsWorker.workerConcurrency,
+                streamConcurrency.warehouse +
+                streamConcurrency['pre-aggregate'],
             ...options,
         });
     }

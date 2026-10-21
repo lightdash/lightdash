@@ -27152,7 +27152,11 @@ describe('fresh execution producer to result reader', () => {
                     asyncQueryService: f.service,
                     queryHistoryModel: f.service.queryHistoryModel,
                     streams: [],
-                    workerConcurrency: 1,
+                    streamConcurrency: {
+                        warehouse: 1,
+                        'pre-aggregate': 1,
+                        duckdb: 1,
+                    },
                 });
                 await agentExecutionContext.exit(() =>
                     worker.handleMessage(message, 'worker'),

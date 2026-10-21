@@ -205,6 +205,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         url: undefined,
         workerConcurrency: 1,
+        streamConcurrency: { warehouse: 1, 'pre-aggregate': 1, duckdb: 1 },
         queueTimeoutMs: 180000,
     },
     rudder: {

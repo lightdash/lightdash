@@ -57,8 +57,14 @@ type NatsWorkerArgs = {
     asyncQueryService: AsyncQueryService;
     queryHistoryModel: QueryHistoryModel;
     streams: NatsWorkerStream[];
-    workerConcurrency: number;
+    streamConcurrency: Record<NatsWorkerStream, number>;
     resolveOrganizationName?: OrganizationNameResolver;
+};
+
+type ActiveStream = {
+    stream: NatsWorkerStream;
+    config: StreamConfig;
+    concurrency: number;
 };
 
 const FETCH_EXPIRES_MS = 30 * 1000;
@@ -73,11 +79,9 @@ export class NatsWorker {
 
     private readonly codec = StringCodec();
 
-    private readonly activeConfigs: StreamConfig[];
+    private readonly activeStreams: ActiveStream[];
 
     private consumePromise: Promise<void> | undefined;
-
-    private readonly workerConcurrency: number;
 
     private readonly resolveOrganizationName: OrganizationNameResolver;
 
@@ -92,12 +96,20 @@ export class NatsWorker {
         this.natsClient = args.natsClient;
         this.asyncQueryService = args.asyncQueryService;
         this.queryHistoryModel = args.queryHistoryModel;
-        this.workerConcurrency = args.workerConcurrency;
         this.resolveOrganizationName =
             args.resolveOrganizationName ?? noopOrganizationNameResolver;
-        this.activeConfigs = args.streams
+        this.activeStreams = args.streams
             .filter((s) => STREAM_CONFIGS[s] !== undefined)
-            .map((s) => STREAM_CONFIGS[s]);
+            .map((s) => ({
+                stream: s,
+                config: STREAM_CONFIGS[s],
+                concurrency: args.streamConcurrency[s],
+            }));
+    }
+
+    /** Streams this worker pulls from, with the pull loops each one gets. */
+    public getActiveStreams(): ReadonlyArray<ActiveStream> {
+        return this.activeStreams;
     }
 
     public async run(): Promise<void> {
@@ -107,28 +119,30 @@ export class NatsWorker {
 
         const workerLoops = (
             await Promise.all(
-                this.activeConfigs.map(async (config) => {
+                this.activeStreams.map(async ({ config, concurrency }) => {
                     const consumer = await jetStream.consumers.get(
                         config.streamName,
                         config.durableName,
                     );
 
-                    return Array.from(
-                        { length: this.workerConcurrency },
-                        (_, i) =>
-                            this.spawnWorkerLoop(
-                                consumer,
-                                `${config.durableName}-${i + 1}`,
-                            ),
+                    return Array.from({ length: concurrency }, (_, i) =>
+                        this.spawnWorkerLoop(
+                            consumer,
+                            `${config.durableName}-${i + 1}`,
+                            concurrency,
+                        ),
                     );
                 }),
             )
         ).flat();
 
-        const streamNames = this.activeConfigs.map((c) => c.streamName);
-        Logger.info(
-            `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
-        );
+        const streamSummary = this.activeStreams
+            .map(
+                ({ config, concurrency }) =>
+                    `${config.streamName}(concurrency=${concurrency})`,
+            )
+            .join(',');
+        Logger.info(`NATS worker started. streams=${streamSummary}`);
 
         this.consumePromise = Promise.allSettled(workerLoops)
             .then(() => undefined)
@@ -321,9 +335,10 @@ export class NatsWorker {
     private async spawnWorkerLoop(
         consumer: Consumer,
         workerId: string,
+        concurrency: number,
     ): Promise<void> {
         Logger.info(
-            `Async query worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
+            `Async query worker ${workerId} spawned (concurrency=${concurrency})`,
         );
 
         while (this.isRunning) {
