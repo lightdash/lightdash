@@ -1,3 +1,10 @@
+## [3.18.3](https://github.com/lightdash/lightdash/compare/3.18.2...3.18.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** soften the filter editor's card shadows ([#31355](https://github.com/lightdash/lightdash/issues/31355)) ([e0d8d11](https://github.com/lightdash/lightdash/commit/e0d8d11d5d9a5f7f009b3d1a882d947f93c02fc1))
+
 ## [3.18.2](https://github.com/lightdash/lightdash/compare/3.18.1...3.18.2) (2026-10-21)
 
 
