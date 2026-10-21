@@ -120,8 +120,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
             role="region"
             tabIndex={-1}
             aria-label={`Tiles filtered by ${label}`}
-            shadow="xl"
-            withBorder={false}
+            shadow="lg"
             radius="md"
             className={classes.bar}
         >

@@ -704,8 +704,9 @@ const EditedTileOverlays: FC = () => {
                         missingFieldId !== null ||
                         options.length > 0 ||
                         candidates.length > 0);
-                // mapped: filtered. other: filtered, not by the active field
-                // (a data app tile that is on). available: could be filtered
+                // filtered: no field active. mapped: on the active field.
+                // other: filtered, not by the active field (a data app tile
+                // that is on). available: could be filtered
                 const isOnTheControl =
                     isReachable &&
                     tileFieldId !== null &&
@@ -720,9 +721,11 @@ const EditedTileOverlays: FC = () => {
                     ? null
                     : !isOnTheControl
                       ? 'available'
-                      : activeFieldId === null || isOnRow(activeFieldId)
-                        ? 'mapped'
-                        : 'other';
+                      : activeFieldId === null
+                        ? 'filtered'
+                        : isOnRow(activeFieldId)
+                          ? 'mapped'
+                          : 'other';
                 return createPortal(
                     <TileOverlay
                         tileUuid={tile.uuid}

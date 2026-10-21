@@ -1154,13 +1154,13 @@ describe('FieldTilesBar', () => {
         });
     });
 
-    it('has a named button for every action, with no menu and no border', () => {
+    it('has a named button for every action, with no menu, on a bordered surface', () => {
         setSidebar(rule('orders_status', { 'tile-1': false }));
         renderWithProviders(<Dashboard />);
 
         expect(queryButtonTexts()).not.toHaveLength(0);
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-        expect(bar()).not.toHaveAttribute('data-with-border');
+        expect(bar()).toHaveAttribute('data-with-border');
         within(bar())
             .getAllByRole('button')
             .forEach((button) => {

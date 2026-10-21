@@ -25,12 +25,12 @@
     inset: 0;
     border-radius: var(--mantine-radius-xs);
     box-shadow: inset 0 0 0 1px var(--mantine-color-body);
-    background-color: color-mix(in srgb, var(--ld-color-page) 82%, transparent);
+    background-color: color-mix(in srgb, var(--ld-color-page) 70%, transparent);
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
-/* Holds the two blue layers, which fade on their own. Blue on a tile always
-   means the control filters or sets it. Only opacity changes */
+/* Holds the two state layers, which fade on their own. Blue on a tile means
+   it is on the selected field. Only opacity changes */
 .ring {
     position: absolute;
     inset: 0;
@@ -48,12 +48,13 @@
     animation: ringEnter var(--controls-duration-state) var(--controls-ease);
 }
 
-/* Filtered or set, and on the active field when there is one: a filled slot.
-   A solid hairline in the edit border's blue over a faint blue wash */
+/* On the selected field: a solid hairline in the edit border's blue over a
+   faint neutral tint, mixed so the chart stays visible under it */
 .ring::before {
-    background-color: light-dark(
-        color-mix(in srgb, var(--mantine-color-blue-light) 35%, transparent),
-        color-mix(in srgb, var(--mantine-color-blue-light) 50%, transparent)
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-default-hover) 60%,
+        transparent
     );
     box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
 }
@@ -62,12 +63,13 @@
     opacity: 1;
 }
 
-/* Filtered or set, but not through the active field: the same blue, dashed,
-   with no fill */
+/* Filtered with no field selected, or by another field than the selected
+   one: a neutral solid hairline with no fill */
 .ring::after {
-    border: 1px dashed var(--mantine-color-blue-5);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-4);
 }
 
+.overlay[data-highlighted='filtered'] > .ring::after,
 .overlay[data-highlighted='other'] > .ring::after {
     opacity: 1;
 }
@@ -102,7 +104,12 @@
     display: none;
 }
 
-/* Above the wash, so the card keeps its own surface */
+/* Above the wash, so the card keeps its own surface. The stronger edge holds
+   it apart from the veiled chart, in dark mode too where shadows barely show */
+.overlay > .card {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
 .card {
     position: relative;
     z-index: 1;

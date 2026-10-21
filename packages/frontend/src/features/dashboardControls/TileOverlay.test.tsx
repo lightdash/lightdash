@@ -289,7 +289,7 @@ describe('TileOverlays', () => {
         },
     );
 
-    it('marks filtered tiles as mapped and the ones that could be as available while no field is active', () => {
+    it('marks filtered tiles as filtered and the ones that could be as available while no field is active', () => {
         setSidebar({
             editingRule: rule({ tileTargets: { [both.uuid]: false } }),
         });
@@ -297,7 +297,7 @@ describe('TileOverlays', () => {
 
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'data-highlighted',
-            'mapped',
+            'filtered',
         );
         // Filterable, but left out
         expect(overlay(both.uuid)).toHaveAttribute(
@@ -364,7 +364,10 @@ describe('TileOverlays', () => {
             }),
         });
         rerender(<TileOverlays />);
-        expect(overlay(sql.uuid)).toHaveAttribute('data-highlighted', 'mapped');
+        expect(overlay(sql.uuid)).toHaveAttribute(
+            'data-highlighted',
+            'filtered',
+        );
     });
 
     it('re-renders only the tiles whose highlight changes with the active field', () => {
@@ -373,21 +376,21 @@ describe('TileOverlays', () => {
                 [both.uuid]: { fieldId: 'orders_region', tableName: 'orders' },
             },
         });
-        // No active field: both are filtered, so both are mapped
+        // No active field: both are filtered
         setSidebar({ editingRule });
         const { rerender } = renderWithProviders(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
-            'mapped',
+            'filtered',
         );
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'data-highlighted',
-            'mapped',
+            'filtered',
         );
         expect(renders(both.uuid)).toBe(1);
         expect(renders(statusOnly.uuid)).toBe(1);
 
-        // The field "both" is on: it stays mapped, the other tile is on
+        // The field "both" is on: it is mapped, the other tile is on
         // another field
         setSidebar({ editingRule, activeFieldId: 'orders_region' });
         rerender(<TileOverlays />);
@@ -399,7 +402,7 @@ describe('TileOverlays', () => {
             'data-highlighted',
             'other',
         );
-        expect(renders(both.uuid)).toBe(1);
+        expect(renders(both.uuid)).toBe(2);
         expect(renders(statusOnly.uuid)).toBe(2);
 
         // A field neither tile is on: "both" changes, the other tile does not
@@ -410,19 +413,19 @@ describe('TileOverlays', () => {
             'data-highlighted',
             'other',
         );
-        expect(renders(both.uuid)).toBe(2);
+        expect(renders(both.uuid)).toBe(3);
         expect(renders(statusOnly.uuid)).toBe(2);
 
-        // No active field again: both go back to mapped, so both render
+        // No active field again: both go back to filtered, so both render
         setSidebar({ editingRule });
         rerender(<TileOverlays />);
-        expect(renders(both.uuid)).toBe(3);
+        expect(renders(both.uuid)).toBe(4);
         expect(renders(statusOnly.uuid)).toBe(3);
 
         // Nothing changed for either tile
         setSidebar({ editingRule, waitingFieldIds: [] });
         rerender(<TileOverlays />);
-        expect(renders(both.uuid)).toBe(3);
+        expect(renders(both.uuid)).toBe(4);
         expect(renders(statusOnly.uuid)).toBe(3);
     });
 
@@ -445,7 +448,7 @@ describe('TileOverlays', () => {
         expect(renders(both.uuid)).toBe(1);
         expect(renders(statusOnly.uuid)).toBe(3);
 
-        // At rest the filtered tile is mapped, as it just was
+        // At rest the filtered tile goes back to filtered
         setSidebar({ editingRule });
         rerender(<TileOverlays />);
         expect(overlay(both.uuid)).toHaveAttribute(
@@ -453,7 +456,7 @@ describe('TileOverlays', () => {
             'available',
         );
         expect(renders(both.uuid)).toBe(1);
-        expect(renders(statusOnly.uuid)).toBe(3);
+        expect(renders(statusOnly.uuid)).toBe(4);
     });
 
     it('re-renders only the tile whose mapping changes', async () => {
@@ -1669,7 +1672,7 @@ describe('TileOverlays', () => {
         );
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'data-highlighted',
-            'mapped',
+            'filtered',
         );
         expect(scrollIntoView).not.toHaveBeenCalled();
 
@@ -1683,7 +1686,7 @@ describe('TileOverlays', () => {
         const scrollIntoView = vi.fn();
         Element.prototype.scrollIntoView = scrollIntoView;
 
-        // At rest both are mapped; only "both" is on Region
+        // At rest both are filtered; only "both" is on Region
         const editingRule = rule({
             tileTargets: {
                 [both.uuid]: { fieldId: 'orders_region', tableName: 'orders' },
@@ -1777,7 +1780,7 @@ describe('TileOverlays', () => {
             ).not.toBeInTheDocument();
             expect(overlay(app.uuid)).toHaveAttribute(
                 'data-highlighted',
-                'mapped',
+                'filtered',
             );
             expect(overlay(app.uuid)).toHaveClass('non-draggable');
         });
@@ -2587,7 +2590,7 @@ describe('TileOverlays', () => {
             expect(select(sql.uuid)).toHaveTextContent('amount');
             expect(overlay(sql.uuid)).toHaveAttribute(
                 'data-highlighted',
-                'mapped',
+                'filtered',
             );
         });
     });
