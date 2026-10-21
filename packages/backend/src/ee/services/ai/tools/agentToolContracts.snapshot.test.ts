@@ -328,6 +328,7 @@ describe('AI agent tool contracts', () => {
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
+                    canRunQuery: !composer,
                     promptSections: new Set<PromptSection>([
                         ...(enableGenerateDataApp
                             ? ([

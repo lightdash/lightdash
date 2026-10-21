@@ -1,4 +1,4 @@
-import { ADD_ON_NAMES, ADD_ONS, hasDecisionsInStandardMode } from './addOns';
+import { ADD_ON_NAMES, ADD_ONS } from './addOns';
 import type {
     AgentToolName,
     BaseDefinition,
@@ -43,10 +43,8 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...CORE_TOOLS,
             'generateVisualization',
             'searchFieldValues',
-            ...onlyIf(hasDecisionsInStandardMode(input), [
-                'runQuery',
-                'exportChartAsCode',
-            ]),
+            'runQuery',
+            'exportChartAsCode',
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
         sections: [],

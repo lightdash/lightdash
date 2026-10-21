@@ -219,12 +219,9 @@ describe('flags-off agent turns', () => {
                 expect(options.experimental_repairToolCall).toBeUndefined();
                 expect(options.tools).toHaveProperty('generateVisualization');
                 expect(options.tools).toHaveProperty('loadProjectContext');
-                for (const tool of [
-                    'runQuery',
-                    'exportChartAsCode',
-                    'loadAgentTools',
-                ])
-                    expect(options.tools).not.toHaveProperty(tool);
+                expect(options.tools).toHaveProperty('runQuery');
+                expect(options.tools).toHaveProperty('exportChartAsCode');
+                expect(options.tools).not.toHaveProperty('loadAgentTools');
                 expect(JSON.stringify(options.messages)).toContain(
                     'Call the `loadProjectContext` tool BEFORE grepFields',
                 );
@@ -2208,29 +2205,20 @@ describe('getAgentTools workstream tool gate', () => {
     );
 
     it.each([false, true])(
-        'offers chart export only with fast decisions and data access (data=%s)',
+        'offers chart export only with data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({
                 enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess,
             });
-            expect(buildToolsForArgs(args)).not.toHaveProperty(
-                'exportChartAsCode',
+            expect('exportChartAsCode' in buildToolsForArgs(args)).toBe(
+                enableDataAccess,
             );
-            const enabled = buildToolsForArgs({
-                ...args,
-                decisions: new AiDecisionClient({
-                    apiKey: null,
-                    model: 'test',
-                    timeoutMs: 100,
-                }),
-            });
-            expect('exportChartAsCode' in enabled).toBe(enableDataAccess);
         },
     );
 
-    it('registers Slack chart images for delivery without a decision client', async () => {
+    it('registers Slack chart images for delivery', async () => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: false,

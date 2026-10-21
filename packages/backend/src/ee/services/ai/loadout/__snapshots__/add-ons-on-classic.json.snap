@@ -130,13 +130,11 @@
         "addsSections": []
     },
     "intentRouting": {
-        "description": "Start each turn with the tools its intent needs and the fast decision guidance",
+        "description": "Start each turn with the tools its intent needs",
         "addsTools": [
             "loadAgentTools"
         ],
-        "addsSections": [
-            "fastMetadata"
-        ]
+        "addsSections": []
     },
     "skills": {
         "description": "Load skills enabled on the agent",
