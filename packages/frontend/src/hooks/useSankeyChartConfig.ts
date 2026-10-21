@@ -159,22 +159,40 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         ],
     );
 
-    return {
-        validConfig,
-        sourceFieldId,
-        targetFieldId,
-        metricFieldId,
-        onSourceFieldChange: setSourceFieldId,
-        onTargetFieldChange: setTargetFieldId,
-        onMetricFieldChange: setMetricFieldId,
-        nodeAlign,
-        onNodeAlignChange: setNodeAlign,
-        orient,
-        onOrientChange: setOrient,
-        nodeLayout,
-        onNodeLayoutChange: setNodeLayout,
-        data,
-    };
+    return useMemo(
+        () => ({
+            validConfig,
+            sourceFieldId,
+            targetFieldId,
+            metricFieldId,
+            onSourceFieldChange: setSourceFieldId,
+            onTargetFieldChange: setTargetFieldId,
+            onMetricFieldChange: setMetricFieldId,
+            nodeAlign,
+            onNodeAlignChange: setNodeAlign,
+            orient,
+            onOrientChange: setOrient,
+            nodeLayout,
+            onNodeLayoutChange: setNodeLayout,
+            data,
+        }),
+        [
+            validConfig,
+            sourceFieldId,
+            targetFieldId,
+            metricFieldId,
+            setSourceFieldId,
+            setTargetFieldId,
+            setMetricFieldId,
+            nodeAlign,
+            setNodeAlign,
+            orient,
+            setOrient,
+            nodeLayout,
+            setNodeLayout,
+            data,
+        ],
+    );
 };
 
 export default useSankeyChartConfig;

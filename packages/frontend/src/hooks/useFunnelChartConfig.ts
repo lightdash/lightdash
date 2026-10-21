@@ -154,9 +154,9 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         [data, colorPalette],
     );
 
-    const onLabelsChange = (labelsProps: FunnelChart['labels']) => {
+    const onLabelsChange = useCallback((labelsProps: FunnelChart['labels']) => {
         setLabels((prevLabels) => ({ ...prevLabels, ...labelsProps }));
-    };
+    }, []);
 
     const onLabelOverridesChange = useCallback((key: string, value: string) => {
         setLabelOverrides(({ [key]: _, ...rest }) => {
@@ -174,6 +174,11 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         (position: FunnelChartLegendPosition) => {
             setLegendPosition(position);
         },
+        [],
+    );
+
+    const toggleShowLegend = useCallback(
+        () => setShowLegend((prev) => !prev),
         [],
     );
 
@@ -199,29 +204,53 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         ],
     );
 
-    return {
-        validConfig,
-        selectedField,
-        fieldId,
-        maxValue: maxValue,
-        onFieldChange: setFieldId,
-        dataInput,
-        setDataInput,
-        labels,
-        onLabelsChange,
-        labelOverrides,
-        onLabelOverridesChange,
-        colorDefaults,
-        colorOverrides,
-        onColorOverridesChange,
-        showLegend,
-        toggleShowLegend: () => setShowLegend((prev) => !prev),
-        legendPosition: legendPosition,
-        legendPositionChange: handleLegendPositionChange,
+    return useMemo(
+        () => ({
+            validConfig,
+            selectedField,
+            fieldId,
+            maxValue,
+            onFieldChange: setFieldId,
+            dataInput,
+            setDataInput,
+            labels,
+            onLabelsChange,
+            labelOverrides,
+            onLabelOverridesChange,
+            colorDefaults,
+            colorOverrides,
+            onColorOverridesChange,
+            showLegend,
+            toggleShowLegend,
+            legendPosition,
+            legendPositionChange: handleLegendPositionChange,
 
-        colorPalette,
-        data,
-    };
+            colorPalette,
+            data,
+        }),
+        [
+            validConfig,
+            selectedField,
+            fieldId,
+            maxValue,
+            setFieldId,
+            dataInput,
+            setDataInput,
+            labels,
+            onLabelsChange,
+            labelOverrides,
+            onLabelOverridesChange,
+            colorDefaults,
+            colorOverrides,
+            onColorOverridesChange,
+            showLegend,
+            toggleShowLegend,
+            legendPosition,
+            handleLegendPositionChange,
+            colorPalette,
+            data,
+        ],
+    );
 };
 
 export default useFunnelChartConfig;

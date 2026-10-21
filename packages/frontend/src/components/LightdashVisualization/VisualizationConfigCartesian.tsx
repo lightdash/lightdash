@@ -1,7 +1,10 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type VisualizationCartesianConfigProps } from './types';
+import {
+    type VisualizationCartesianConfigProps,
+    type VisualizationConfigCartesian,
+} from './types';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     itemsMap,
@@ -39,12 +42,15 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
         });
     }, [cartesianConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigCartesian = useMemo(
+        () => ({
             chartType: ChartType.CARTESIAN,
             chartConfig: cartesianConfig,
-        },
-    });
+        }),
+        [cartesianConfig],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationCartesianConfig;

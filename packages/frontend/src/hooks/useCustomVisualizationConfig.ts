@@ -50,13 +50,21 @@ const useCustomVisualizationConfig = (
         [rows],
     );
 
-    return {
-        validConfig: { spec: visSpecObject },
-        visSpec: visSpec,
-        setVisSpec,
-        series,
-        fields,
-    };
+    const validConfig = useMemo(
+        () => ({ spec: visSpecObject }),
+        [visSpecObject],
+    );
+
+    return useMemo(
+        () => ({
+            validConfig,
+            visSpec,
+            setVisSpec,
+            series,
+            fields,
+        }),
+        [validConfig, visSpec, setVisSpec, series, fields],
+    );
 };
 
 export default useCustomVisualizationConfig;
