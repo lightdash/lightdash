@@ -46,7 +46,7 @@ In `FilterConfiguration/`:
   passes `ControlSidebar` as the left sidebar and toggles only `isSidebarOpen`,
   so the dashboard grid never remounts.
 - The sidebar is pinned under whatever is fixed above it
-  (`usePinnedSidebarTop`, `getPinnedSidebarTop`): the navbar until it has
+  (`usePinnedSidebarTop`): the navbar until it has
   scrolled away, plus the banner, which never scrolls. Whether there is a
   banner is the navbar's own answer, read from `data-has-banner` on
   `#navbar-header` and watched, since it can arrive after the page.

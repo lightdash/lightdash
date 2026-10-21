@@ -68,14 +68,19 @@ vi.mock('./ViewerControls', () => ({
     ViewerControls: ({
         filterType,
         field,
+        onChangeOthers,
         onEditRules,
     }: {
         filterType: FilterType;
         field: DashboardFilterableField | null;
+        onChangeOthers: (rules: DashboardFilterRule[]) => void;
         onEditRules: (() => void) | null;
     }) => (
         <div data-testid="viewer-controls">
             {`${filterType} for ${field?.label ?? 'no field'}`}
+            <button type="button" onClick={() => onChangeOthers(otherRules)}>
+                change others
+            </button>
             {onEditRules !== null && (
                 <button type="button" onClick={onEditRules}>
                     edit rules
@@ -85,13 +90,17 @@ vi.mock('./ViewerControls', () => ({
     ),
 }));
 const close = vi.hoisted(() => vi.fn());
+const updateOtherFilters = vi.hoisted(() => vi.fn());
+const otherRules = vi.hoisted(
+    () => [{ id: 'filter-2' }] as DashboardFilterRule[],
+);
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (value: {
             close: () => void;
-            updateOtherFilters: () => void;
+            updateOtherFilters: (rules: DashboardFilterRule[]) => void;
         }) => unknown,
-    ) => selector({ close, updateOtherFilters: vi.fn() }),
+    ) => selector({ close, updateOtherFilters }),
 }));
 
 const amount: DashboardFilterableField = {
@@ -147,6 +156,7 @@ const RulesState = () => (
 describe('FilterSettings', () => {
     beforeEach(() => {
         close.mockClear();
+        updateOtherFilters.mockClear();
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -255,6 +265,17 @@ describe('FilterSettings', () => {
 
         expect(close).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId('rules-state')).toHaveTextContent('open');
+    });
+
+    it('writes the other filters the viewer controls change through the sidebar', () => {
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'change others' }));
+
+        expect(updateOtherFilters).toHaveBeenCalledWith(otherRules);
     });
 
     it('offers no way to the filter rules where the bar cannot be reached', () => {

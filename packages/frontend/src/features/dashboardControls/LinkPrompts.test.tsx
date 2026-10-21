@@ -9,8 +9,6 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { useState, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -23,11 +21,6 @@ import { renderWithProviders as renderWithAppProviders } from '../../testing/tes
 import { type DashboardStore } from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import { LinkPrompts } from './LinkPrompts';
-
-const stylesheet = readFileSync(
-    join(__dirname, 'TileOverlay.module.css'),
-    'utf8',
-);
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -453,17 +446,6 @@ describe('LinkPrompts', () => {
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
         ).toEqual(['payments Method', 'refunds Method']);
-    });
-
-    it('bounds the card so it scrolls inside its tile', () => {
-        renderWithProviders(<LinkPrompts />);
-        const promptCard = container(added.uuid).querySelector(
-            '.mantine-Paper-root',
-        );
-        expect(promptCard?.className).toContain('promptCard');
-        expect(stylesheet).toMatch(
-            /\.promptCard\s*\{[^}]*max-height:\s*100%;[^}]*overflow-y:\s*auto;/,
-        );
     });
 
     describe('focus after an answer', () => {

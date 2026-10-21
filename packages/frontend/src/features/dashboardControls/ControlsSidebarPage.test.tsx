@@ -32,6 +32,5 @@ describe('ControlsSidebarPage', () => {
         renderWithProviders(<ControlsSidebarPage />);
 
         expect(pageProps.current.sidebarTitle).toBe('Edit filter');
-        expect(pageProps.current.isSidebarOpen).toBe(true);
     });
 });

@@ -11,7 +11,7 @@ const BANNER_ATTRIBUTE = 'data-has-banner';
 
 // The banner is fixed at the top and the navbar scrolls away under it. The
 // editor only opens in edit mode, where the dashboard is never fullscreen
-export const getPinnedSidebarTop = ({
+const getPinnedSidebarTop = ({
     scrollY,
     hasBanner,
 }: {

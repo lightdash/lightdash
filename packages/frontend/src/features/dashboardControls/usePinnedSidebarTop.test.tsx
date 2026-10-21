@@ -4,10 +4,7 @@ import {
     BANNER_HEIGHT,
     NAVBAR_HEIGHT,
 } from '../../components/common/Page/constants';
-import {
-    getPinnedSidebarTop,
-    usePinnedSidebarTop,
-} from './usePinnedSidebarTop';
+import { usePinnedSidebarTop } from './usePinnedSidebarTop';
 
 const VAR = '--pinned-sidebar-top';
 const pinnedTop = () => document.documentElement.style.getPropertyValue(VAR);
@@ -21,52 +18,49 @@ const addNavbar = (hasBanner: boolean) => {
     return navbar;
 };
 
+const setScrollY = (scrollY: number) =>
+    Object.defineProperty(window, 'scrollY', {
+        value: scrollY,
+        configurable: true,
+    });
+const frames: FrameRequestCallback[] = [];
+const runFrames = () => frames.splice(0).forEach((frame) => frame(0));
+const scrollTo = (scrollY: number) =>
+    act(() => {
+        setScrollY(scrollY);
+        window.dispatchEvent(new Event('scroll'));
+        runFrames();
+    });
+
 describe('usePinnedSidebarTop', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
+        setScrollY(0);
+        frames.length = 0;
         vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
-            (callback) => {
-                callback(0);
-                return 0;
-            },
+            (callback) => frames.push(callback),
         );
     });
     afterEach(() => vi.restoreAllMocks());
 
     it('follows the navbar until it has scrolled away', () => {
-        expect(
-            getPinnedSidebarTop({
-                scrollY: 0,
-                hasBanner: false,
-            }),
-        ).toBe(NAVBAR_HEIGHT);
-        expect(
-            getPinnedSidebarTop({
-                scrollY: 20,
-                hasBanner: false,
-            }),
-        ).toBe(NAVBAR_HEIGHT - 20);
-        expect(
-            getPinnedSidebarTop({
-                scrollY: 5000,
-                hasBanner: false,
-            }),
-        ).toBe(0);
+        addNavbar(false);
+        renderHook(() => usePinnedSidebarTop());
+        expect(pinnedTop()).toBe(`${NAVBAR_HEIGHT}px`);
+
+        scrollTo(20);
+        expect(pinnedTop()).toBe(`${NAVBAR_HEIGHT - 20}px`);
+
+        scrollTo(5000);
+        expect(pinnedTop()).toBe('0px');
     });
 
     it('stays under the fixed banner, however far the page scrolls', () => {
-        expect(
-            getPinnedSidebarTop({
-                scrollY: 0,
-                hasBanner: true,
-            }),
-        ).toBe(BANNER_HEIGHT + NAVBAR_HEIGHT);
-        expect(
-            getPinnedSidebarTop({
-                scrollY: 5000,
-                hasBanner: true,
-            }),
-        ).toBe(BANNER_HEIGHT);
+        addNavbar(true);
+        renderHook(() => usePinnedSidebarTop());
+
+        scrollTo(5000);
+        expect(pinnedTop()).toBe(`${BANNER_HEIGHT}px`);
     });
 
     it('reads the banner from the navbar, and clears up after itself', () => {
@@ -86,6 +80,7 @@ describe('usePinnedSidebarTop', () => {
             navbar.setAttribute('data-has-banner', 'true');
             // Mutation records are delivered in a microtask
             await Promise.resolve();
+            runFrames();
         });
 
         expect(pinnedTop()).toBe(`${BANNER_HEIGHT + NAVBAR_HEIGHT}px`);
