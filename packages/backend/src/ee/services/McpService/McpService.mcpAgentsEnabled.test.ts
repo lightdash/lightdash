@@ -234,8 +234,6 @@ describe.each(['off', 'legacy', 'managed'] as const)(
         it.each([
             [McpToolName.LIST_AGENTS, { projectUuid }],
             [McpToolName.ROUTE_AGENT, { prompt: 'show revenue', projectUuid }],
-            [McpToolName.SET_AGENT, { agentUuid: 'agent-uuid', projectUuid }],
-            [McpToolName.GET_CURRENT_AGENT, { projectUuid }],
         ])('blocks %s', async (toolName, args) => {
             const { aiAgentService, aiRouterService, mcpContextModel } =
                 makeMcpService({ mcpAgentsEnabled: false });
@@ -247,31 +245,6 @@ describe.each(['off', 'legacy', 'managed'] as const)(
             expect(aiAgentService.listAgents).not.toHaveBeenCalled();
             expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
             expect(mcpContextModel.setContext).not.toHaveBeenCalled();
-        });
-
-        it('still allows clear_agent so users can un-stick their context', async () => {
-            const { mcpContextModel, storedContext } = makeMcpService({
-                mcpAgentsEnabled: false,
-            });
-            storedContext.agentUuid = 'agent-uuid';
-            storedContext.agentName = 'Finance';
-
-            const tool = mockRegisteredMcpTools.get(McpToolName.CLEAR_AGENT);
-            const result = (await tool!({ projectUuid }, extra)) as {
-                content: Array<{ text: string }>;
-            };
-
-            expect(result.content[0].text).toContain(
-                'Agent context cleared successfully',
-            );
-            expect(mcpContextModel.setContext).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    context: expect.objectContaining({
-                        agentUuid: null,
-                        agentName: null,
-                    }),
-                }),
-            );
         });
 
         it('rejects a data tool called with an explicit agentUuid', async () => {

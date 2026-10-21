@@ -2347,7 +2347,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     // Data apps enabled and the user may create them in the project. Without a
-    // project a coarse check keeps tools/list stable across set_project.
+    // project a coarse check keeps tools/list stable across stored context.
     async canGenerateDataApp(context: {
         user: SessionUser;
         projectUuid: string | undefined;
