@@ -1,3 +1,10 @@
+## [3.11.1](https://github.com/lightdash/lightdash/compare/3.11.0...3.11.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** settle more put-back filter edits and drop dead code ([#31304](https://github.com/lightdash/lightdash/issues/31304)) ([ee46a9f](https://github.com/lightdash/lightdash/commit/ee46a9fd3948d1db80d120676006c4e661c4df42))
+
 # [3.11.0](https://github.com/lightdash/lightdash/compare/3.10.0...3.11.0) (2026-10-21)
 
 
