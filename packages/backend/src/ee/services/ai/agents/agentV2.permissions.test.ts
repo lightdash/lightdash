@@ -13,7 +13,12 @@ import {
 } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
-import { getAgentTools, withAgentToolPermissions } from './agentV2';
+import {
+    getAgentTools,
+    resolveAgentLoadout,
+    withAgentToolPermissions,
+    type AgentMcpToolSetup,
+} from './agentV2';
 
 const setup = () => {
     const account = buildAccount();
@@ -106,23 +111,27 @@ const setup = () => {
         toolName: 'search',
         enabledToolNames: ['search'] as string[] | null,
     };
+    const mcpToolSetup: AgentMcpToolSetup = {
+        tools: {
+            connected_search: { execute: connectedExecute } as never,
+        },
+        mcpToolNameToServerUuid: { connected_search: 'server' },
+        connectedToolInventory: { connected_search: connectedTool },
+        unavailableMcpServers: [],
+        closeMcpClients: vi.fn(),
+    };
     const buildTools = () =>
         getAgentTools(
             args,
+            resolveAgentLoadout(args, mcpToolSetup, {
+                types: [],
+                totalCount: 0,
+            }),
             dependencies,
             [],
-            {
-                tools: {
-                    connected_search: { execute: connectedExecute } as never,
-                },
-                mcpToolNameToServerUuid: { connected_search: 'server' },
-                connectedToolInventory: { connected_search: connectedTool },
-                unavailableMcpServers: [],
-                closeMcpClients: vi.fn(),
-            },
+            mcpToolSetup,
             new Map(),
             {},
-            { types: [], totalCount: 0 },
             new AgentContext([]),
         );
     return {

@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
@@ -331,8 +332,15 @@ describe('AI agent tool contracts', () => {
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
-                    enableContentTools: enableGenerateDataApp,
-                    enableGenerateDataApp,
+                    promptSections: new Set<PromptSection>(
+                        enableGenerateDataApp
+                            ? [
+                                  'contentTools',
+                                  'schedulingTools',
+                                  'generateDataApp',
+                              ]
+                            : [],
+                    ),
                     enableComposerQueries,
                 }).content,
             ).toMatchSnapshot();
