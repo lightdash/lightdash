@@ -4,6 +4,10 @@ import {
     TableCalculationType,
     UnitOfTime,
 } from '@lightdash/common';
+import {
+    peopleNoActivityChartSpecs,
+    peopleNoActivitySections,
+} from './peopleNoActivityCharts';
 import type { UsageChartSpec, UsageDashboardSpec } from './usageDashboardTypes';
 
 const appViewingSurfaces: NonNullable<UsageChartSpec['filters']> = [
@@ -448,12 +452,14 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
         ].map((filter) => ({
             ...filter,
             tileTargets: Object.fromEntries(
-                adoptionChartSpecs.map(({ key, explore }) => [
-                    `${dashboardKey}-${key}`,
-                    explore === 'data_app_outcomes'
-                        ? filter.target
-                        : (false as const),
-                ]),
+                [...adoptionChartSpecs, ...peopleNoActivityChartSpecs].map(
+                    ({ key, explore }) => [
+                        `${dashboardKey}-${key}`,
+                        explore === 'data_app_outcomes'
+                            ? filter.target
+                            : (false as const),
+                    ],
+                ),
             ),
         })),
         metrics: [],
@@ -474,6 +480,7 @@ export const adoptionDashboardSpec: UsageDashboardSpec = {
                         'adoption-people-history',
                     ],
                 },
+                ...peopleNoActivitySections,
                 {
                     title: 'What are people using?',
                     description:

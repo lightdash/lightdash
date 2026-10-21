@@ -4,16 +4,63 @@ import {
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
+    TableCalculationType,
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import { peopleNoActivityChartSpecs } from './peopleNoActivityCharts';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
 import type {
     AnalyticsContentBundle,
     UsageChartSpec,
 } from './usageDashboardTypes';
+
+const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
+    const nameField = 'people_adoption_name';
+    const idField = 'people_adoption_user_id';
+    if (
+        chart.tableName !== 'people_adoption' ||
+        chart.chartConfig.type !== ChartType.TABLE ||
+        !chart.metricQuery.dimensions.includes(nameField) ||
+        !chart.metricQuery.dimensions.includes(idField)
+    )
+        return chart;
+    const displayField = 'person';
+    return {
+        ...chart,
+        metricQuery: {
+            ...chart.metricQuery,
+            tableCalculations: [
+                ...chart.metricQuery.tableCalculations,
+                {
+                    name: displayField,
+                    displayName: 'Person',
+                    type: TableCalculationType.STRING,
+                    sql: "COALESCE(NULLIF(TRIM(${people_adoption.name}), ''), 'User ' || ${people_adoption.user_id})",
+                },
+            ],
+        },
+        chartConfig: {
+            ...chart.chartConfig,
+            config: {
+                ...chart.chartConfig.config,
+                columns: {
+                    ...chart.chartConfig.config?.columns,
+                    [nameField]: { visible: false },
+                },
+            },
+        },
+        tableConfig: {
+            ...chart.tableConfig,
+            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap(
+                (field) =>
+                    field === nameField ? [displayField, field] : [field],
+            ),
+        },
+    };
+};
 
 const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     const [metric] = spec.metrics;
@@ -218,13 +265,12 @@ export const buildUsageDashboards = (
                     const definition = [
                         ...usageChartSpecs,
                         ...adoptionChartSpecs,
+                        ...peopleNoActivityChartSpecs,
                     ].find((item) => item.key === key);
                     if (!definition)
                         throw new Error(`Unknown built-in chart: ${key}`);
-                    const definitionChart = buildChart(
-                        definition,
-                        spec.key,
-                        spaceSlug,
+                    const definitionChart = withPeopleDisplayName(
+                        buildChart(definition, spec.key, spaceSlug),
                     );
                     if (
                         !charts.some(
