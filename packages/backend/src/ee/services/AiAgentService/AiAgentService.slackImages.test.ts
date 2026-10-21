@@ -207,13 +207,6 @@ describe('Slack image delivery scope', () => {
             await h.service['prepareSlackArtifactImageDelivery']('prompt');
         expect(runtime).not.toBeNull();
         expect(userLoad).toHaveBeenCalledExactlyOnceWith('user', 'org');
-        // Slack chart images are delivered on every instance, including those
-        // without a decisions provider.
-        expect(h.decisionFlag).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
-        );
     });
 
     const marker = {

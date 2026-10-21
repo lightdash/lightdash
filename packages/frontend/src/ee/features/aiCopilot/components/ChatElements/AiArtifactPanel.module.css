@@ -97,12 +97,6 @@
     z-index: 3;
 }
 
-.loading {
-    height: 100%;
-    display: grid;
-    place-items: center;
-}
-
 .previewEmpty {
     height: 100%;
     display: flex;

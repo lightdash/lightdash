@@ -431,55 +431,28 @@ describe('decision client rollout resolution', () => {
                 async () => new Response(null, { status: 503 }),
             );
         const sharedConfig = { ...decisionConfig };
-        const getFlag = vi.fn().mockResolvedValue({ enabled: true });
 
         for (let i = 0; i < 4; i += 1) {
             // Resolve as separate requests to exercise shared circuit state.
-            // eslint-disable-next-line no-await-in-loop
-            const client = await resolveAiDecisionClient(sharedConfig, getFlag);
+            const client = resolveAiDecisionClient(sharedConfig);
             // eslint-disable-next-line no-await-in-loop
             expect(await client?.evaluate(request)).toBeNull();
         }
         expect(fetcher).toHaveBeenCalledTimes(3);
-        expect(getFlag).toHaveBeenCalledTimes(4);
 
         fetcher.mockResolvedValueOnce(Response.json(result));
-        const independent = await resolveAiDecisionClient(
-            { ...sharedConfig },
-            getFlag,
-        );
+        const independent = resolveAiDecisionClient({ ...sharedConfig });
         expect(await independent?.evaluate(request)).not.toBeNull();
         expect(fetcher).toHaveBeenCalledTimes(4);
     });
 
-    it('keeps the legacy path without credentials or when resolution fails', async () => {
-        const getFlag = vi.fn().mockRejectedValue(new Error('unavailable'));
+    it('keeps the legacy path without credentials', () => {
+        expect(resolveAiDecisionClient(undefined)).toBeUndefined();
         expect(
-            await resolveAiDecisionClient(undefined, getFlag),
+            resolveAiDecisionClient({ ...decisionConfig, apiKey: null }),
         ).toBeUndefined();
-        expect(getFlag).not.toHaveBeenCalled();
-        expect(
-            await resolveAiDecisionClient(decisionConfig, getFlag),
-        ).toBeUndefined();
-    });
-    it('rechecks on every request and supports disable and re-enable without restart', async () => {
-        const getFlag = vi
-            .fn()
-            .mockResolvedValueOnce({ enabled: false })
-            .mockResolvedValueOnce({ enabled: true })
-            .mockResolvedValueOnce({ enabled: false })
-            .mockResolvedValueOnce({ enabled: true });
-        expect(
-            await resolveAiDecisionClient(decisionConfig, getFlag),
-        ).toBeUndefined();
-        const enabled = await resolveAiDecisionClient(decisionConfig, getFlag);
-        expect(enabled).toBeInstanceOf(AiDecisionClient);
-        expect(
-            await resolveAiDecisionClient(decisionConfig, getFlag),
-        ).toBeUndefined();
-        expect(await resolveAiDecisionClient(decisionConfig, getFlag)).toBe(
-            enabled,
+        expect(resolveAiDecisionClient(decisionConfig)).toBeInstanceOf(
+            AiDecisionClient,
         );
-        expect(getFlag).toHaveBeenCalledTimes(4);
     });
 });

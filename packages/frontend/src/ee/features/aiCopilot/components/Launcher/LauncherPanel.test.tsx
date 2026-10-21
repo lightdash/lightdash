@@ -37,6 +37,9 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: false } }),
 }));
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
 vi.mock('../../hooks/useAgentSuggestions', () => ({
     useAgentSuggestions: () => ({ data: undefined }),
 }));

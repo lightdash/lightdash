@@ -3428,14 +3428,7 @@ export class AiWritebackService extends BaseService {
                 projectUuid,
             ))
                 ? undefined
-                : await resolveAiDecisionClient(
-                      this.lightdashConfig.ai?.decisions,
-                      () =>
-                          this.featureFlagModel.get({
-                              user: { organizationUuid },
-                              featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                          }),
-                  );
+                : resolveAiDecisionClient(this.lightdashConfig.ai?.decisions);
         if (decisions) {
             const options = candidates.map(
                 AiWritebackService.toDbtSourceOption,

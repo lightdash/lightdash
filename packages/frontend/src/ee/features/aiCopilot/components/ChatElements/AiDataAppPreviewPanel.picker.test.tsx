@@ -94,6 +94,9 @@ vi.mock('../../hooks/useAiAgentSkills', () => ({
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
+}));
 
 vi.mock('../../../../../features/apps/components/AppActionsMenu', () => ({
     default: () => null,

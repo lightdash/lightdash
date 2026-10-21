@@ -442,9 +442,9 @@ export class AiDecisionClient {
 
 const clients = new WeakMap<DecisionConfig, AiDecisionClient>();
 
-// Client state is reusable; feature availability is resolved per request below.
-const getAiDecisionClient = (
-    config: DecisionConfig,
+// Configs are reused per deployment, so outage backoff is shared across requests.
+export const resolveAiDecisionClient = (
+    config: DecisionConfig | undefined,
 ): AiDecisionClient | undefined => {
     if (!config?.apiKey) return undefined;
     let client = clients.get(config);
@@ -453,22 +453,6 @@ const getAiDecisionClient = (
         clients.set(config, client);
     }
     return client;
-};
-
-/** Resolve per request so disabling the flag takes effect without a restart.
- * Decision availability is optional; resolver failures keep the legacy path. */
-export const resolveAiDecisionClient = async (
-    config: DecisionConfig | undefined,
-    getFlag: () => Promise<{ enabled: boolean }>,
-): Promise<AiDecisionClient | undefined> => {
-    if (!config?.apiKey) return undefined;
-    try {
-        return (await getFlag()).enabled
-            ? getAiDecisionClient(config)
-            : undefined;
-    } catch {
-        return undefined;
-    }
 };
 
 export const confidentChoice = (

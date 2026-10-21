@@ -146,9 +146,6 @@ const judgeOutput = (
 
 const makeService = () =>
     new AiAgentReviewClassifierService({
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: false }),
-        },
         aiAgentReviewClassifierModel: {} as never,
         aiAgentModel: {
             findProviderCredentialUuid: vi.fn(async () => null),

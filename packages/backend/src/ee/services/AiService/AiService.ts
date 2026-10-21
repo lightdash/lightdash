@@ -251,14 +251,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
                 projectUuid,
             ))
                 ? undefined
-                : await resolveAiDecisionClient(
-                      this.lightdashConfig.ai.decisions,
-                      () =>
-                          this.featureFlagService.get({
-                              user,
-                              featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                          }),
-                  );
+                : resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
         const key = createHash('sha256')
             .update(
                 JSON.stringify([
