@@ -1124,6 +1124,50 @@ test('Should use explicit apps S3 config when set', () => {
     });
 });
 
+test('Should have no uploads S3 config until a bucket is set', () => {
+    process.env.UPLOADS_S3_REGION = 'uploads_region';
+    expect(parseConfig().uploads.s3).toBeNull();
+});
+
+test('Should inherit base S3 settings for the uploads bucket', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    const config = parseConfig();
+    expect(config.uploads.s3).toEqual(
+        expect.objectContaining({
+            endpoint: 'mock_endpoint',
+            bucket: 'uploads_bucket',
+            region: 'mock_region',
+            accessKey: 'mock_access_key',
+            secretKey: 'mock_secret_key',
+            forcePathStyle: true,
+        }),
+    );
+    expect(config.s3?.bucket).toEqual('mock_bucket');
+});
+
+test('Should use explicit uploads S3 config when set', () => {
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    process.env.UPLOADS_S3_ENDPOINT = 'uploads_endpoint';
+    process.env.UPLOADS_S3_REGION = 'uploads_region';
+    process.env.UPLOADS_S3_ACCESS_KEY = 'uploads_access_key';
+    process.env.UPLOADS_S3_SECRET_KEY = 'uploads_secret_key';
+    process.env.UPLOADS_S3_FORCE_PATH_STYLE = 'false';
+    const config = parseConfig();
+    expect(config.uploads.s3).toEqual(
+        expect.objectContaining({
+            endpoint: 'uploads_endpoint',
+            bucket: 'uploads_bucket',
+            region: 'uploads_region',
+            accessKey: 'uploads_access_key',
+            secretKey: 'uploads_secret_key',
+            forcePathStyle: false,
+        }),
+    );
+});
+
 describe('S3_AUTH_MODE', () => {
     it('defaults to the existing SigV4 behaviour', () => {
         expect(parseConfig().s3?.authMode).toEqual('default');
