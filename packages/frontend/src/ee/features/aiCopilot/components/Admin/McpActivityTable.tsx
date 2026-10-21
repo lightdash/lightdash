@@ -366,6 +366,7 @@ const McpActivityTable = ({
                 if (row.original.type === 'session') return null;
                 return row.original.call.agent ? (
                     <AgentNamePill
+                        uuid={row.original.call.agent.uuid}
                         name={row.original.call.agent.name}
                         imageUrl={null}
                     />

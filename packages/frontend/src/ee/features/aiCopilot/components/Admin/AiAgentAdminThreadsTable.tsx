@@ -286,6 +286,7 @@ const AiAgentAdminThreadsTable = ({
                 const thread = row.original;
                 return (
                     <AgentNamePill
+                        uuid={thread.agent.uuid}
                         name={thread.agent.name}
                         imageUrl={thread.agent.imageUrl}
                     />

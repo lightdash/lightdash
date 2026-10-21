@@ -26,13 +26,13 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
-import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { useAiAccessGate } from '../../../features/aiAccess/useAiAccessGate';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { AgentAvatar } from '../../features/aiCopilot/components/AgentAvatar';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import {
     BattleModeSetup,
@@ -414,10 +414,11 @@ const AiAgentNewThreadPage: FC = () => {
                         data-tour-resultdocs="agents/use-ai-agents.mdx#core-capabilities:li1"
                     >
                         <Box className={styles.agentAvatarWrap}>
-                            <LightdashUserAvatar
+                            <AgentAvatar
+                                uuid={agent.uuid}
                                 size="lg"
                                 name={agent.name || 'AI'}
-                                src={agent.imageUrl}
+                                imageUrl={agent.imageUrl}
                             />
                             {!isEmbed && (
                                 <DefaultAgentButton

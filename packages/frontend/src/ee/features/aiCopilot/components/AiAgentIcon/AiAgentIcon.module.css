@@ -2,7 +2,16 @@
    shadows, so they stay here. */
 .wrap {
     --ai-agent-icon-size: 16px;
-    --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 26%, transparent);
+    --ai-agent-icon-base: #7a4cff;
+    --ai-agent-icon-light: #b18cff;
+    --ai-agent-icon-lighter: #c9b6ff;
+    --ai-agent-icon-deep: #5e4cff;
+    --ai-agent-icon-accent: #9836ff;
+    --ai-agent-icon-shadow: color-mix(
+        in oklch,
+        var(--ai-agent-icon-deep) 26%,
+        transparent
+    );
 
     position: relative;
     display: inline-block;
@@ -11,7 +20,7 @@
     flex-shrink: 0;
     border-radius: 50%;
     box-shadow:
-        0 1px 2px rgba(94, 76, 255, 0.16),
+        0 1px 2px color-mix(in srgb, var(--ai-agent-icon-deep) 16%, transparent),
         0 0 0 1px var(--ai-agent-icon-shadow);
     transition: box-shadow 220ms ease;
 }
@@ -34,22 +43,35 @@
             rgba(255, 255, 255, 0.6) 0%,
             transparent 40%
         ),
-        radial-gradient(115% 130% at 82% 24%, #c9b6ff 0%, transparent 52%),
-        radial-gradient(130% 120% at 84% 84%, #5e4cff 0%, transparent 56%),
-        radial-gradient(120% 130% at 16% 82%, #9836ff 0%, transparent 56%),
+        radial-gradient(
+            115% 130% at 82% 24%,
+            var(--ai-agent-icon-lighter) 0%,
+            transparent 52%
+        ),
+        radial-gradient(
+            130% 120% at 84% 84%,
+            var(--ai-agent-icon-deep) 0%,
+            transparent 56%
+        ),
+        radial-gradient(
+            120% 130% at 16% 82%,
+            var(--ai-agent-icon-accent) 0%,
+            transparent 56%
+        ),
         conic-gradient(
             from 210deg at 50% 50%,
-            #7a4cff,
-            #b18cff,
-            #5e4cff,
-            #9836ff,
-            #7a4cff
+            var(--ai-agent-icon-base),
+            var(--ai-agent-icon-light),
+            var(--ai-agent-icon-deep),
+            var(--ai-agent-icon-accent),
+            var(--ai-agent-icon-base)
         );
     background-size: 180% 180%;
     background-position: 50% 50%;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.5),
-        inset 0 -4px 9px rgba(94, 76, 255, 0.18);
+        inset 0 -4px 9px
+            color-mix(in srgb, var(--ai-agent-icon-deep) 18%, transparent);
     transform: translateZ(0);
     transition:
         background-position 500ms ease,
@@ -80,9 +102,21 @@
 .root::before {
     background:
         radial-gradient(46% 56% at 30% 28%, #ffffff 0%, transparent 60%),
-        radial-gradient(48% 60% at 66% 34%, #b18cff 0%, transparent 64%),
-        radial-gradient(46% 58% at 60% 70%, #9836ff 0%, transparent 64%),
-        radial-gradient(44% 56% at 24% 66%, #5e4cff 0%, transparent 62%);
+        radial-gradient(
+            48% 60% at 66% 34%,
+            var(--ai-agent-icon-light) 0%,
+            transparent 64%
+        ),
+        radial-gradient(
+            46% 58% at 60% 70%,
+            var(--ai-agent-icon-accent) 0%,
+            transparent 64%
+        ),
+        radial-gradient(
+            44% 56% at 24% 66%,
+            var(--ai-agent-icon-deep) 0%,
+            transparent 62%
+        );
     filter: blur(6px);
     mix-blend-mode: screen;
 }
@@ -92,10 +126,10 @@
         from 90deg,
         transparent,
         rgba(255, 255, 255, 0.7),
-        rgba(201, 182, 255, 0.5),
+        color-mix(in srgb, var(--ai-agent-icon-lighter) 50%, transparent),
         transparent,
-        rgba(152, 54, 255, 0.62),
-        rgba(94, 76, 255, 0.6),
+        color-mix(in srgb, var(--ai-agent-icon-accent) 62%, transparent),
+        color-mix(in srgb, var(--ai-agent-icon-deep) 60%, transparent),
         transparent
     );
     filter: blur(8px);
@@ -111,7 +145,8 @@
     filter: none;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.66),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.24);
+        inset 0 -4px 10px
+            color-mix(in srgb, var(--ai-agent-icon-deep) 24%, transparent);
     animation: ai-agent-icon-morph 6s ease infinite;
 }
 
@@ -122,8 +157,10 @@
 :global([role='menuitem']:hover) .wrap,
 :global([data-combobox-selected='true']) .wrap {
     box-shadow:
-        0 2px 6px rgba(152, 54, 255, 0.22),
-        0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
+        0 2px 6px
+            color-mix(in srgb, var(--ai-agent-icon-accent) 22%, transparent),
+        0 0 0 1px
+            color-mix(in oklch, var(--ai-agent-icon-accent) 36%, transparent);
 }
 
 .root:hover::before,
@@ -157,14 +194,17 @@
     filter: none;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.66),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.24);
+        inset 0 -4px 10px
+            color-mix(in srgb, var(--ai-agent-icon-deep) 24%, transparent);
     animation: ai-agent-icon-morph 6s ease infinite;
 }
 
 .wrap:has(.animated) {
     box-shadow:
-        0 2px 6px rgba(152, 54, 255, 0.22),
-        0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
+        0 2px 6px
+            color-mix(in srgb, var(--ai-agent-icon-accent) 22%, transparent),
+        0 0 0 1px
+            color-mix(in oklch, var(--ai-agent-icon-accent) 36%, transparent);
 }
 
 .animated::before,
@@ -184,13 +224,16 @@
     animation-duration: 8s;
     box-shadow:
         inset 0 0 0 1px rgba(255, 255, 255, 0.62),
-        inset 0 -4px 10px rgba(94, 76, 255, 0.2);
+        inset 0 -4px 10px
+            color-mix(in srgb, var(--ai-agent-icon-deep) 20%, transparent);
 }
 
 .wrap:has(.calm.animated) {
     box-shadow:
-        0 1px 4px rgba(152, 54, 255, 0.16),
-        0 0 0 1px color-mix(in oklch, #9836ff 30%, transparent);
+        0 1px 4px
+            color-mix(in srgb, var(--ai-agent-icon-accent) 16%, transparent),
+        0 0 0 1px
+            color-mix(in oklch, var(--ai-agent-icon-accent) 30%, transparent);
 }
 
 .calm.animated::before,

@@ -9,9 +9,9 @@ import {
     type ComboboxProps,
 } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import Logo from '../../../../../svgs/logo-icon-round.svg?react';
+import { AgentAvatar } from '../AgentAvatar';
 import {
     AI_ROUTING_AUTO_VALUE,
     getAgentOptions,
@@ -75,10 +75,11 @@ export const CompactAgentSelector = ({
                                     </Text>
                                 </Avatar>
                             ) : hasAgents ? (
-                                <LightdashUserAvatar
+                                <AgentAvatar
+                                    uuid={selectedAgent.uuid}
                                     size="md"
                                     name={selectedAgent.name}
-                                    src={selectedAgent.imageUrl}
+                                    imageUrl={selectedAgent.imageUrl}
                                 />
                             ) : (
                                 <Avatar radius="xl" size="md">

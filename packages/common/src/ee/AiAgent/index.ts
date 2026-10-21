@@ -44,6 +44,7 @@ import { ToolNameSchema } from './schemas/visualizations';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
+export * from './agentOrb';
 export * from './aiEvalAssessment';
 export * from './canonicalizeAiMerge';
 export * from './chartConfig/slack';

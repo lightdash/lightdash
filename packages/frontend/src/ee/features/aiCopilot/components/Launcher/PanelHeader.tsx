@@ -23,6 +23,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
+import { AgentAvatar } from '../AgentAvatar';
 import styles from './AiAgentsLauncher.module.css';
 import {
     getConcreteLauncherAgent,
@@ -113,11 +114,17 @@ export const PanelHeader: FC<Props> = ({
                                                 AI
                                             </Text>
                                         </Avatar>
+                                    ) : agent ? (
+                                        <AgentAvatar
+                                            uuid={agent.uuid}
+                                            size="sm"
+                                            name={agent.name}
+                                            imageUrl={agent.imageUrl}
+                                        />
                                     ) : (
                                         <LightdashUserAvatar
                                             size="sm"
-                                            name={agent?.name ?? 'AI'}
-                                            src={agent?.imageUrl}
+                                            name="AI"
                                         />
                                     )}
                                     <Text
@@ -169,10 +176,11 @@ export const PanelHeader: FC<Props> = ({
                                 <Menu.Item
                                     key={a.uuid}
                                     leftSection={
-                                        <LightdashUserAvatar
+                                        <AgentAvatar
+                                            uuid={a.uuid}
                                             size="xs"
                                             name={a.name}
-                                            src={a.imageUrl}
+                                            imageUrl={a.imageUrl}
                                         />
                                     }
                                     rightSection={
@@ -195,12 +203,15 @@ export const PanelHeader: FC<Props> = ({
                                     AI
                                 </Text>
                             </Avatar>
-                        ) : (
-                            <LightdashUserAvatar
+                        ) : agent ? (
+                            <AgentAvatar
+                                uuid={agent.uuid}
                                 size="sm"
-                                name={agent?.name ?? 'AI'}
-                                src={agent?.imageUrl}
+                                name={agent.name}
+                                imageUrl={agent.imageUrl}
                             />
+                        ) : (
+                            <LightdashUserAvatar size="sm" name="AI" />
                         )}
                         <Text
                             size="sm"
