@@ -875,7 +875,8 @@ export const AgentChatInput = ({
         app.health.data?.externalSources.engineAvailable &&
         multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
-        agent?.enableComposerQueries &&
+        // Hidden only when the agent is known to have composer queries off.
+        agent?.enableComposerQueries !== false &&
         !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
