@@ -283,6 +283,12 @@ export type BoundExplore = {
 export type MultiConnectionCarry =
     | { kind: 'connections'; warehouseConnectionUuids: string[] }
     | {
+          kind: 'otherDbtSourceSet';
+          dbtSourceUuids: string[];
+          packageSources: Record<string, string>;
+          sourceAliases: Record<string, string>;
+      }
+    | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
           warehouseConnectionUuid: string | null;
@@ -4015,16 +4021,39 @@ export class ProjectModel {
 
     async assertSourceDeployOwnership(
         projectUuid: string,
-        sourceUuid: string,
+        sourceUuid: string | null,
         saveUuid: string,
         trx: Transaction,
         allowUnstampedErrors = false,
+        previewMapping?: {
+            sourcesByPackage: ReadonlyMap<string, string>;
+            sourceAliases: ReadonlyMap<string, string>;
+        },
     ): Promise<void> {
-        const sourceIdentity = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
+        const ownerOf = (alias = '') => {
+            const prefix = alias ? `${alias}.` : '';
+            const stamped = `COALESCE(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtSourceUuid', ${prefix}explore->>'dbtSourceUuid')`;
+            return previewMapping
+                ? trx.raw(
+                      `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtPackageName'))`,
+                      [
+                          JSON.stringify(
+                              Object.fromEntries(previewMapping.sourceAliases),
+                          ),
+                          JSON.stringify(
+                              Object.fromEntries(
+                                  previewMapping.sourcesByPackage,
+                              ),
+                          ),
+                      ],
+                  )
+                : trx.raw(stamped);
+        };
+        const sourceIdentity = ownerOf();
         const conflicts = await trx(CachedExploreTableName)
             .select<{ name: string; source_uuid: string | null }[]>(
                 'name',
-                trx.raw(`${sourceIdentity} AS source_uuid`),
+                trx.raw('? AS source_uuid', [sourceIdentity]),
             )
             .where('project_uuid', projectUuid)
             .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
@@ -4033,7 +4062,7 @@ export class ProjectModel {
             .where((query) => {
                 void query
                     .where((unknown) => {
-                        void unknown.whereRaw(`${sourceIdentity} IS NULL`);
+                        void unknown.whereRaw('? IS NULL', [sourceIdentity]);
                         if (allowUnstampedErrors) {
                             void unknown.whereRaw(
                                 "NOT jsonb_exists(explore, 'errors')",
@@ -4041,8 +4070,28 @@ export class ProjectModel {
                         }
                     })
                     .orWhere((collision) => {
+                        if (sourceUuid === null) {
+                            void collision.whereExists(
+                                trx(
+                                    `${CachedExploreStagingTableName} AS incoming`,
+                                )
+                                    .select(trx.raw('1'))
+                                    .where({
+                                        'incoming.project_uuid': projectUuid,
+                                        'incoming.save_uuid': saveUuid,
+                                    })
+                                    .whereRaw(
+                                        'incoming.name = cached_explore.name',
+                                    )
+                                    .whereRaw('? IS DISTINCT FROM ?', [
+                                        ownerOf('incoming'),
+                                        ownerOf(CachedExploreTableName),
+                                    ]),
+                            );
+                            return;
+                        }
                         void collision
-                            .whereRaw(`${sourceIdentity} <> ?`, [sourceUuid])
+                            .whereRaw('? <> ?', [sourceIdentity, sourceUuid])
                             .whereIn(
                                 'name',
                                 trx(CachedExploreStagingTableName)
@@ -4051,7 +4100,8 @@ export class ProjectModel {
                                         project_uuid: projectUuid,
                                         save_uuid: saveUuid,
                                     })
-                                    .whereRaw(`${sourceIdentity} = ?`, [
+                                    .whereRaw('? = ?', [
+                                        sourceIdentity,
                                         sourceUuid,
                                     ]),
                             );
@@ -4358,6 +4408,36 @@ export class ProjectModel {
                     carry.warehouseConnectionUuids,
                 );
                 break;
+            case 'otherDbtSourceSet': {
+                const stamped = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
+                const owner = trx.raw(
+                    `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtPackageName'))`,
+                    [
+                        JSON.stringify(carry.sourceAliases),
+                        JSON.stringify(carry.packageSources),
+                    ],
+                );
+                void carriedQuery
+                    .clearSelect()
+                    .select(
+                        trx.raw('?', [saveUuid]),
+                        'project_uuid',
+                        'name',
+                        'table_names',
+                        trx.raw(
+                            `CASE WHEN ${stamped} IS DISTINCT FROM ? THEN
+                                CASE WHEN explore->'tables'->COALESCE(explore->>'baseTable', name) IS NULL
+                                    THEN jsonb_set(explore, '{dbtSourceUuid}', to_jsonb(?))
+                                    ELSE jsonb_set(explore, ARRAY['tables', COALESCE(explore->>'baseTable', name), 'dbtSourceUuid'], to_jsonb(?))
+                                END
+                            ELSE explore END`,
+                            [owner, owner, owner],
+                        ),
+                        'warehouse_connection_uuid',
+                    )
+                    .whereRaw('? <> ALL(?)', [owner, carry.dbtSourceUuids]);
+                break;
+            }
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
                     `CASE

@@ -554,3 +554,46 @@ test('keeps an unstamped legacy error when an explicit source is accepted', asyn
         }),
     ).resolves.toMatchObject({ explores: upload, droppedExploreCount: 0 });
 });
+
+test.each([null, 'primary'])(
+    'keeps installed-package models when the root package is mapped with source %s',
+    async (sourceUuid) => {
+        const { models, args } = setup();
+        const upload = [
+            ...args.explores,
+            explore('date_spine', undefined, 'dbt_utils'),
+        ];
+        await expect(
+            inferCliDeploySource(models, {
+                ...args,
+                explores: upload,
+                cliDeploy: { sourceUuid, target: null },
+            }),
+        ).resolves.toMatchObject({
+            sourceUuid: 'primary',
+            explores: upload,
+            droppedExploreCount: 0,
+        });
+    },
+);
+
+test.each([null, 'primary'])(
+    'asks for a refresh for legacy successful cached rows (explicit %s)',
+    async (sourceUuid) => {
+        const { models, args } = setup();
+        models.projectModel.getAllExploresFromCache.mockResolvedValue({
+            orders: explore('orders'),
+        });
+        await expect(
+            inferCliDeploySource(models, {
+                ...args,
+                cliDeploy: { sourceUuid, target: null },
+            }),
+        ).rejects.toMatchObject({
+            statusCode: 409,
+            message: expectedMessage(
+                'the saved explores do not identify their dbt source; refresh the project in Lightdash',
+            ),
+        });
+    },
+);

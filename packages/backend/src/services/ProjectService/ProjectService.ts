@@ -521,6 +521,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     auditAndFilterExplore,
@@ -4323,8 +4324,32 @@ export class ProjectService
             args.complete === true
                 ? await this.projectDbtSourcesModel.hasSources(args.projectUuid)
                 : null;
-        const sourceSelection =
+        const deployProject =
             hasAdditionalDbtSources === true
+                ? await this.projectModel.getSummary(args.projectUuid)
+                : null;
+        const previewResolution =
+            deployProject?.type === ProjectType.PREVIEW &&
+            args.dbtModelNames === undefined
+                ? await resolveCliPreviewDeploy(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          dbtSourceRefCatalogModel:
+                              this.dbtSourceRefCatalogModel,
+                      },
+                      {
+                          projectUuid: args.projectUuid,
+                          upstreamProjectUuid:
+                              deployProject.upstreamProjectUuid,
+                          explores: args.explores,
+                          sourceUuid: cliDeploy.sourceUuid,
+                      },
+                  )
+                : null;
+        const previewSources = previewResolution?.sourcesByPackage ?? null;
+        const sourceSelection =
+            hasAdditionalDbtSources === true && previewSources === null
                 ? await inferCliDeploySource(
                       {
                           projectModel: this.projectModel,
@@ -4354,25 +4379,76 @@ export class ProjectService
                 'A deploy to a project with multiple connections must send every explore of its dbt source',
             );
         }
-        const projectDbtSourceUuid = await resolveCliDeploySource(
-            {
-                projectModel: this.projectModel,
-                projectDbtSourcesModel: this.projectDbtSourcesModel,
-                warehouseConnectionModel: this.warehouseConnectionModel,
-            },
-            args.projectUuid,
-            sourceSelection
-                ? { ...cliDeploy, sourceUuid: sourceSelection.sourceUuid }
-                : cliDeploy,
-        );
+        const previewSourceUuids = previewResolution?.sourceUuids ?? [];
+        if (
+            previewSources &&
+            previewSourceUuids.length > 1 &&
+            cliDeploy.sourceUuid === null &&
+            cliDeploy.target !== null
+        ) {
+            const targets = await Promise.allSettled(
+                previewSourceUuids.map((sourceUuid) =>
+                    resolveCliDeploySource(
+                        {
+                            projectModel: this.projectModel,
+                            projectDbtSourcesModel: this.projectDbtSourcesModel,
+                            warehouseConnectionModel:
+                                this.warehouseConnectionModel,
+                        },
+                        args.projectUuid,
+                        { ...cliDeploy, sourceUuid },
+                    ),
+                ),
+            );
+            if (!targets.some((target) => target.status === 'fulfilled')) {
+                const failed = targets.find(
+                    (target) => target.status === 'rejected',
+                );
+                if (failed?.status === 'rejected') throw failed.reason;
+            }
+        }
+        let selection = cliDeploy;
+        if (sourceSelection)
+            selection = {
+                ...cliDeploy,
+                sourceUuid: sourceSelection.sourceUuid,
+            };
+        else if (
+            previewSources &&
+            cliDeploy.sourceUuid === null &&
+            previewSourceUuids.length === 1
+        ) {
+            selection = { ...cliDeploy, sourceUuid: previewSourceUuids[0] };
+        }
+        const projectDbtSourceUuid =
+            previewSources &&
+            previewSourceUuids.length > 1 &&
+            cliDeploy.sourceUuid === null
+                ? null
+                : await resolveCliDeploySource(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          warehouseConnectionModel:
+                              this.warehouseConnectionModel,
+                      },
+                      args.projectUuid,
+                      selection,
+                  );
         const { explores: uploadedExplores, ...metadata } = deploy;
         const explores = sourceSelection?.explores ?? uploadedExplores;
-        const sourceDeploy =
-            await this.multiConnectionCompiler.prepareSourceDeploy({
-                projectUuid: args.projectUuid,
-                projectDbtSourceUuid,
-                explores: explores.map(withoutClientBindings),
-            });
+        const sourceDeploy = previewSources
+            ? await this.multiConnectionCompiler.preparePreviewDeploy({
+                  projectUuid: args.projectUuid,
+                  explores: explores.map(withoutClientBindings),
+                  sourcesByPackage: previewSources,
+                  sourceAliases: previewResolution!.sourceAliases,
+              })
+            : await this.multiConnectionCompiler.prepareSourceDeploy({
+                  projectUuid: args.projectUuid,
+                  projectDbtSourceUuid,
+                  explores: explores.map(withoutClientBindings),
+              });
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
@@ -4381,17 +4457,19 @@ export class ProjectService
                 let writeChecks = this.getConnectionStagedWriteChecks(
                     args.projectUuid,
                 );
-                if (sourceSelection) {
+                if (sourceSelection || previewSources) {
                     const [checkWrite] = writeChecks;
                     writeChecks = [
                         async (trx, saveUuid) => {
                             await checkWrite?.(trx, saveUuid);
                             await this.projectModel.assertSourceDeployOwnership(
                                 args.projectUuid,
-                                sourceSelection.sourceUuid,
+                                sourceSelection?.sourceUuid ?? null,
                                 saveUuid,
                                 trx,
-                                cliDeploy.sourceUuid !== null,
+                                previewResolution === null &&
+                                    cliDeploy.sourceUuid !== null,
+                                previewResolution ?? undefined,
                             );
                         },
                     ];
@@ -4405,6 +4483,14 @@ export class ProjectService
                 return saved;
             },
         });
+        if (previewSources) {
+            this.logger.info('cli.deploy.preview_sources_inferred', {
+                projectUuid: args.projectUuid,
+                dbtSourceUuids: previewSourceUuids,
+                method: 'preview_package_match',
+                uploadedExploreCount: uploadedExplores.length,
+            });
+        }
         if (sourceSelection) {
             this.logger.info(
                 sourceSelection.method === 'explicit'

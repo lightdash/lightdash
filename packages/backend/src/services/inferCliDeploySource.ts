@@ -91,6 +91,19 @@ export const inferCliDeploySource = async (
     const cached = Object.values(
         await models.projectModel.getAllExploresFromCache(projectUuid),
     ).filter((explore) => !isUserManagedExplore(explore));
+    if (
+        explicitSourceUuid !== null &&
+        cached.some(
+            (explore) =>
+                !isExploreError(explore) &&
+                !sourceUuids.has(cachedSourceUuid(explore) ?? ''),
+        )
+    ) {
+        throw cliDeployConflictError(
+            'the saved explores do not identify their dbt source; refresh the project in Lightdash',
+            sourceNames,
+        );
+    }
     const packages = new Map<string, Set<string>>();
     const addPackage = (packageName: string, sourceUuid: string) => {
         if (!sourceUuids.has(sourceUuid)) return;
