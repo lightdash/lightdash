@@ -1,3 +1,10 @@
+# [3.6.0](https://github.com/lightdash/lightdash/compare/3.5.0...3.6.0) (2026-10-21)
+
+
+### Features
+
+* add chart and dashboard links to usage analytics ([#31270](https://github.com/lightdash/lightdash/issues/31270)) ([3f5dcba](https://github.com/lightdash/lightdash/commit/3f5dcbaa193d040970fb09a5d3b37156831275f0))
+
 # [3.5.0](https://github.com/lightdash/lightdash/compare/3.4.0...3.5.0) (2026-10-21)
 
 
