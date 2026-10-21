@@ -203,6 +203,7 @@ memory = "12gb"
 name = "api-routes"
 files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
 run = "pnpm -F backend generate-api"   # tsx watch restarts on the regenerated routes.ts
+env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default V8 heap (same as CI)
 
 [[tier]]
 name = "app"
