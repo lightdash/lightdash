@@ -1,3 +1,10 @@
+# [3.2.0](https://github.com/lightdash/lightdash/compare/3.1.0...3.2.0) (2026-10-21)
+
+
+### Features
+
+* **ai-agents:** let follow-ups update a published Deep Research report ([#31226](https://github.com/lightdash/lightdash/issues/31226)) ([7726da4](https://github.com/lightdash/lightdash/commit/7726da423a32f69b3dceb04944c7d7aa7ab7b2ff))
+
 # [3.1.0](https://github.com/lightdash/lightdash/compare/3.0.0...3.1.0) (2026-10-21)
 
 
