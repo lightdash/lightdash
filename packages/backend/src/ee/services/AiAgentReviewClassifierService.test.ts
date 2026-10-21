@@ -1,6 +1,5 @@
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
-    FeatureFlags,
     ForbiddenError,
     ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
@@ -286,14 +285,12 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const judgeTurn = vi.fn();
 
-    const featureFlagModel = { get: vi.fn() };
     const decisionConfig = {
         apiKey: null as string | null,
         model: 'test',
         timeoutMs: 100,
     };
     const service = new AiAgentReviewClassifierService({
-        featureFlagModel,
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
         aiAgentDocumentModel,
@@ -312,7 +309,6 @@ describe('AiAgentReviewClassifierService', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         decisionConfig.apiKey = null;
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
         orgAiCopilotConfigResolver.getReviewJudgeAvailability.mockResolvedValue(
             {
                 hasActiveByoKey: false,
@@ -406,7 +402,6 @@ describe('AiAgentReviewClassifierService', () => {
 
     it('does not rank evidence through the instance provider for an org on its own provider keys', async () => {
         decisionConfig.apiKey = 'test';
-        featureFlagModel.get.mockResolvedValue({ enabled: true });
         orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys.mockResolvedValue(
             true,
         );
@@ -438,7 +433,6 @@ describe('AiAgentReviewClassifierService', () => {
 
     it('loads a bounded larger evidence pool and preserves a successful writeback through semantic ranking', async () => {
         decisionConfig.apiKey = 'test';
-        featureFlagModel.get.mockResolvedValue({ enabled: true });
         const evidence = Array.from({ length: 8 }, (_, index) => ({
             ...makeWritebackEvidence('Some result'),
             toolCallId: `tool-${index}`,
@@ -460,10 +454,6 @@ describe('AiAgentReviewClassifierService', () => {
                 organizationUuid: ORGANIZATION_UUID,
                 promptUuid: PROMPT_UUID,
             });
-            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-                user: { organizationUuid: ORGANIZATION_UUID },
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            });
             expect(
                 model.listTurnReviewCandidates,
             ).toHaveBeenCalledExactlyOnceWith({
@@ -483,13 +473,10 @@ describe('AiAgentReviewClassifierService', () => {
         }
     });
 
-    it.each(['flag-off', 'reviews-off', 'provider-outage'] as const)(
+    it.each(['no-key', 'reviews-off', 'provider-outage'] as const)(
         'keeps review fallback and opt-in boundaries for %s',
         async (mode) => {
-            decisionConfig.apiKey = 'test';
-            featureFlagModel.get.mockResolvedValue({
-                enabled: mode !== 'flag-off',
-            });
+            decisionConfig.apiKey = mode === 'no-key' ? null : 'test';
             if (mode === 'reviews-off')
                 aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue(
                     { aiAgentReviewsEnabled: false } as never,

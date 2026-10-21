@@ -617,17 +617,15 @@ describe('ManagedAgentService discovery scope', () => {
     );
 
     it.each([true, false])(
-        'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
+        'reviews managed metric queries only with a decision key (enabled=%s)',
         async (enabled) => {
             const { service, dataRuntime } = buildService();
-            const getFlag = vi.fn().mockResolvedValue({ enabled });
             const internal = service as AnyType;
             internal.lightdashConfig.ai.decisions = {
-                apiKey: 'test',
+                apiKey: enabled ? 'test' : null,
                 model: 'test',
                 timeoutMs: 100,
             };
-            internal.featureFlagModel.get = getFlag;
             dataRuntime.listExplores.mockResolvedValue([
                 validExplore,
             ] as AnyType);
@@ -669,10 +667,6 @@ describe('ManagedAgentService discovery scope', () => {
                     },
                 );
                 expect(output.metadata.status).toBe('success');
-                expect(getFlag).toHaveBeenCalledWith({
-                    user: { organizationUuid: ORGANIZATION_UUID },
-                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                });
                 expect(evaluate).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(output.result.includes('Query/question review')).toBe(
                     enabled,

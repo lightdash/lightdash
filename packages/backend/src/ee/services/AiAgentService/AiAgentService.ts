@@ -2612,15 +2612,10 @@ export class AiAgentService extends BaseService {
         ) {
             return undefined;
         }
-        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
-        );
+        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
     }
 
-    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the decision client.
     private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         {
@@ -16039,7 +16034,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisions = decisionUsage
                     ? decisionClient?.withUsage(decisionUsage)
                     : undefined;
-                // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
+                // The decision client is the master gate; battle mode and Fast mode can only disable it.
                 const fastExperienceEnabled = decisions !== undefined;
                 let forceChartMutationRouting = false;
                 let chartMutationContext:
@@ -16857,7 +16852,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
                 const initialModelId = modelProperties.model.modelId;
 
-                // AiAgentFastDecisions is the single switch for bounded decisions,
+                // The decision client is the single switch for bounded decisions,
                 // query refinements, fast tool calls and adaptive model selection.
                 const canUseFastToolModel =
                     !!decisions &&

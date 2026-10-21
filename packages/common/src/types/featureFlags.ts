@@ -401,10 +401,7 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /**
-     * Organization-scoped master rollout switch for bounded semantic
-     * decisions, scoped tools, fast tool calls, reuse and direct chart paths.
-     */
+    /** @deprecated No longer read; the deployment decision key is the only switch. */
     AiAgentFastDecisions = 'ai-agent-fast-decisions',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on

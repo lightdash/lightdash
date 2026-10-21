@@ -8,13 +8,19 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
-const { useHasActiveDeepResearchRunMock, useServerFeatureFlagMock } =
-    vi.hoisted(() => ({
-        useHasActiveDeepResearchRunMock: vi.fn(() => false),
-        useServerFeatureFlagMock: vi.fn(() => ({
-            data: { enabled: false },
-        })),
-    }));
+const {
+    useHasActiveDeepResearchRunMock,
+    useServerFeatureFlagMock,
+    useHealthMock,
+} = vi.hoisted(() => ({
+    useHasActiveDeepResearchRunMock: vi.fn(() => false),
+    useServerFeatureFlagMock: vi.fn(() => ({
+        data: { enabled: false },
+    })),
+    useHealthMock: vi.fn(() => ({
+        data: { ai: { fastDecisionsEnabled: false } },
+    })),
+}));
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: useHasActiveDeepResearchRunMock,
@@ -22,6 +28,10 @@ vi.mock('../../hooks/useDeepResearch', () => ({
 
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: useServerFeatureFlagMock,
+}));
+
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: useHealthMock,
 }));
 
 const renderInput = ({
@@ -55,6 +65,9 @@ const renderInput = ({
         useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
             data: { enabled: flag !== FeatureFlags.AgentIdentity },
         }));
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: true } },
+        });
     }
 
     renderWithProviders(
@@ -111,6 +124,9 @@ describe('AgentChatInput Deep Research mode', () => {
         useHasActiveDeepResearchRunMock.mockReturnValue(false);
         useServerFeatureFlagMock.mockReturnValue({
             data: { enabled: false },
+        });
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: false } },
         });
     });
 

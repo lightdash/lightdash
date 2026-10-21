@@ -2083,12 +2083,6 @@ export class ManagedAgentService extends BaseService {
                             ? undefined
                             : resolveAiDecisionClient(
                                   this.lightdashConfig.ai.decisions,
-                                  () =>
-                                      this.featureFlagModel.get({
-                                          user: { organizationUuid },
-                                          featureFlagId:
-                                              FeatureFlags.AiAgentFastDecisions,
-                                      }),
                               ),
                     ),
             ]);
