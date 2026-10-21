@@ -9,11 +9,41 @@ import {
 } from '@lightdash/common';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
-import { load } from 'js-yaml';
+import { DEFAULT_SCHEMA, load } from 'js-yaml';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
 const MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_EXPANDED_YAML_NODES = 50_000;
+
+const readYaml = (source: string): unknown => {
+    // In js-yaml v4 this is the safe YAML schema: no JavaScript tags or
+    // custom constructors. Keep CLI-compatible merges and timestamps.
+    const parsed = load(source, { schema: DEFAULT_SCHEMA });
+    let nodes = 0;
+    let characters = 0;
+    // Aliases can expand a small file exponentially during normalization.
+    // Bound the expanded data before handing it to schema validators.
+    const normalized = JSON.stringify(parsed, (key, value: unknown) => {
+        nodes += 1;
+        characters +=
+            key.length + (typeof value === 'string' ? value.length : 0);
+        if (
+            nodes > MAX_EXPANDED_YAML_NODES ||
+            characters > MAX_IMPORT_FILE_SIZE
+        ) {
+            throw new Error(
+                'This YAML expands beyond the supported size. Simplify aliases or split the file.',
+            );
+        }
+        if (typeof value === 'number' && !Number.isFinite(value)) {
+            throw new Error('YAML numbers must be finite.');
+        }
+        return value;
+    });
+    // Empty/comment-only documents remain invalid instead of reaching validators.
+    return normalized === undefined ? undefined : JSON.parse(normalized);
+};
 
 export type ImportDocument =
     | { type: 'space'; content: SpaceAsCode }
@@ -106,22 +136,20 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
         warnings: [],
     };
     try {
-        if (!/\.(ya?ml|json)$/i.test(file.name)) {
-            throw new Error('Choose a .yml, .yaml, or .json file.');
+        if (!/\.ya?ml$/i.test(file.name)) {
+            throw new Error('Choose a .yml or .yaml file.');
         }
         if (file.size > MAX_IMPORT_FILE_SIZE) {
             throw new Error('This file exceeds the 5 MB limit.');
         }
         if (file.size === 0) throw new Error('This file is empty.');
-        const input: unknown = JSON.parse(
-            JSON.stringify(load(await file.text())),
-        );
+        const input = readYaml(await file.text());
         const envelope = z
             .object({ contentType: z.string().optional() })
             .passthrough()
             .safeParse(input);
         if (!envelope.success) {
-            throw new Error('Expected one YAML or JSON object per file.');
+            throw new Error('Expected one YAML object per file.');
         }
         const value = envelope.data;
         let type = value.contentType;

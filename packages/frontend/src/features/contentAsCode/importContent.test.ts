@@ -1,4 +1,5 @@
 import { ContentAsCodeType } from '@lightdash/common';
+import { dump } from 'js-yaml';
 import { describe, expect, it, vi } from 'vitest';
 import {
     getDuplicateImportIds,
@@ -44,6 +45,22 @@ describe('content import', () => {
         expect(result.status).toBe('ready');
     });
 
+    it('preserves ordinary aliases and CLI timestamp normalization', async () => {
+        const result = await read(
+            'contentType: dashboard\nversion: 1\nname: &name Sales\nslug: sales\nspaceSlug: sales\ndescription: *name\ntabs: []\ntiles: []\ndownloadedAt: 2026-10-21T10:00:00Z',
+            'sales.yaml',
+        );
+        expect(result).toMatchObject({
+            status: 'ready',
+            document: {
+                content: {
+                    description: 'Sales',
+                    downloadedAt: '2026-10-21T10:00:00.000Z',
+                },
+            },
+        });
+    });
+
     it('rejects unsupported types, empty files, invalid YAML, and multiple documents', async () => {
         for (const content of [
             '',
@@ -53,6 +70,90 @@ describe('content import', () => {
         ]) {
             expect((await read(content)).status).toBe('invalid');
         }
+    });
+
+    it.each(['.yml', '.yaml', '.YML'])(
+        'accepts YAML exports with %s extensions',
+        async (extension) => {
+            expect(
+                (
+                    await read(
+                        'contentType: space\nspaceName: Sales\nslug: sales',
+                        `sales${extension}`,
+                    )
+                ).status,
+            ).toBe('ready');
+        },
+    );
+
+    it('rejects JSON and other file extensions before reading their contents', async () => {
+        for (const name of ['space.json', 'space.txt', 'space.yml.json']) {
+            const file = new File(['contentType: space'], name);
+            const text = vi.fn();
+            Object.defineProperty(file, 'text', { value: text });
+            expect(await parseImportFile(file)).toMatchObject({
+                status: 'invalid',
+                message: 'Choose a .yml or .yaml file.',
+            });
+            expect(text).not.toHaveBeenCalled();
+        }
+    });
+
+    it.each([
+        '!!js/function "function () { return 1; }"',
+        '!!js/undefined ""',
+        '!!js/regexp /test/',
+        '!custom value',
+    ])('rejects executable or custom YAML tags: %s', async (tag) => {
+        const result = await read(
+            `contentType: space\nspaceName: ${tag}\nslug: sales`,
+        );
+        expect(result.status).toBe('invalid');
+        expect(result.document).toBeNull();
+        expect(result.message).toContain('unknown tag');
+    });
+
+    it('rejects recursive aliases and excessive alias expansion', async () => {
+        expect(
+            (
+                await read(
+                    'contentType: space\nspaceName: &loop [*loop]\nslug: sales',
+                )
+            ).status,
+        ).toBe('invalid');
+        let source = 'a: &a [x, x, x, x, x, x, x, x, x, x]';
+        for (const [previous, next] of [
+            ['a', 'b'],
+            ['b', 'c'],
+            ['c', 'd'],
+            ['d', 'e'],
+        ]) {
+            source += `\n${next}: &${next} [${Array(10).fill(`*${previous}`).join(', ')}]`;
+        }
+        expect(await read(source)).toMatchObject({
+            status: 'invalid',
+            document: null,
+            message: expect.stringContaining('expands beyond'),
+        });
+        const repeatedString = `a: &a ${'x'.repeat(1024 * 1024)}\nb: [*a, *a, *a, *a, *a]`;
+        expect(await read(repeatedString)).toMatchObject({
+            status: 'invalid',
+            message: expect.stringContaining('expands beyond'),
+        });
+    });
+
+    it('rejects duplicate YAML keys and non-finite numbers', async () => {
+        expect(
+            (await read('contentType: space\nslug: one\nslug: two')).status,
+        ).toBe('invalid');
+        expect(
+            await read(
+                'contentType: space\nspaceName: Sales\nslug: sales\nversion: .nan',
+            ),
+        ).toMatchObject({
+            status: 'invalid',
+            message: 'YAML numbers must be finite.',
+        });
     });
 
     it('validates the full dashboard schema rather than accepting an envelope alone', async () => {
@@ -65,7 +166,7 @@ describe('content import', () => {
 
     it('rejects duplicate access emails after normalization', async () => {
         const result = await read(
-            JSON.stringify({
+            dump({
                 contentType: 'space',
                 spaceName: 'Sales',
                 slug: 'sales',
@@ -87,7 +188,7 @@ describe('content import', () => {
 
     it('identifies duplicate content across different filenames', () => {
         const first = space('sales');
-        const second = { ...first, id: 'copy', fileName: 'copy.json' };
+        const second = { ...first, id: 'copy', fileName: 'copy.yaml' };
         expect([...getDuplicateImportIds([first, second])]).toEqual([
             'sales',
             'copy',
@@ -136,7 +237,7 @@ describe('content import', () => {
 
     it('blocks a dependent dashboard after a chart fails, then retries only unfinished content', async () => {
         const chart = await read(
-            JSON.stringify({
+            dump({
                 contentType: 'chart',
                 version: 1,
                 name: 'Revenue',
@@ -157,7 +258,7 @@ describe('content import', () => {
             'chart.yml',
         );
         const dashboard = await read(
-            JSON.stringify({
+            dump({
                 contentType: 'dashboard',
                 version: 1,
                 name: 'Overview',

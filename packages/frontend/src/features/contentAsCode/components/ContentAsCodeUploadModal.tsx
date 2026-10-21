@@ -232,8 +232,8 @@ const ContentAsCodeUploadModal: FC<Props> = ({
 
             {!uploading && !allSucceeded && (
                 <FileDropzone
-                    accept=".yml,.yaml,.json"
-                    description="YAML or JSON · Up to 5 MB per file · 100 files per upload"
+                    accept=".yml,.yaml"
+                    description="YAML · Up to 5 MB per file · 100 files per upload"
                     disabled={reading}
                     compact={entries.length > 0}
                     onFiles={(files) => void addFiles(files)}
