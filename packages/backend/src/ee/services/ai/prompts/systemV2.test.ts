@@ -417,6 +417,9 @@ describe('getSystemPromptV2 merge queries', () => {
                     'Markdown tables with a header, separator and data rows',
                 ),
             ).toBe(markdownTables);
+            expect(content.includes('code blocks, Markdown tables')).toBe(
+                !markdownTables,
+            );
         },
     );
 

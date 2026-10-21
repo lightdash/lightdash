@@ -329,7 +329,7 @@ export const getSystemPromptV2 = (
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? `No explores are available to this agent yet, but you have direct warehouse access, so there is data to answer from: discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
+            ? `No explores are available to this agent yet, but you have direct warehouse access: rather than telling the user there is no data, discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
                   composer ? 'runComposerQueries using a sql node' : 'runSql'
               }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
@@ -344,6 +344,8 @@ export const getSystemPromptV2 = (
     }
 
     const allowMarkdownTables = !slackChannelId && !slackLinksOnly;
+    // Without data access the agent never sees the rows it could tabulate.
+    const tabulateRows = allowMarkdownTables && enableDataAccess;
     const allowSlackTableSelection =
         !!slackChannelId && enableDataAccess && !slackLinksOnly;
     const chartOnlyWhenAsked =
@@ -352,9 +354,14 @@ export const getSystemPromptV2 = (
         'Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.';
     let answerToolGuidance: string;
     if (composer) {
-        answerToolGuidance = allowMarkdownTables
-            ? '- Present a small tabular answer as a Markdown table. When the user asks for an interactive or downloadable table, present the result itself.'
-            : '- When a user asks for a "table", present the result that answers it; it is shown as a table.';
+        if (!allowMarkdownTables) {
+            answerToolGuidance =
+                '- When a user asks for a "table", present the result that answers it; it is shown as a table.';
+        } else {
+            answerToolGuidance = tabulateRows
+                ? '- Present a small tabular answer as a Markdown table. When the user asks for an interactive or downloadable table, present the result itself.'
+                : '- When the user asks for a table, present the result itself.';
+        }
     } else if (!allowMarkdownTables) {
         const slackTableRule =
             'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\').';
@@ -362,9 +369,12 @@ export const getSystemPromptV2 = (
             ? `- Use runQuery for a data answer without a chart${allowSlackTableSelection ? ' and summarize from its rows' : ''}. ${slackTableRule} ${chartOnlyWhenAsked}`
             : `- Answer data questions with generateVisualization. ${slackTableRule}`;
     } else {
+        const markdownTableClause = tabulateRows
+            ? ' and present a small tabular answer as a Markdown table'
+            : '';
         answerToolGuidance = canRunQuery
-            ? `- Use runQuery for a data answer without a chart and present a small result as a Markdown table. ${tableVisualizationRule} ${chartOnlyWhenAsked}`
-            : `- Answer data questions with generateVisualization and present a small tabular answer as a Markdown table. ${tableVisualizationRule}`;
+            ? `- Use runQuery for a data answer without a chart${markdownTableClause}. ${tableVisualizationRule} ${chartOnlyWhenAsked}`
+            : `- Answer data questions with generateVisualization${markdownTableClause}. ${tableVisualizationRule}`;
     }
     const chartFollowupGuidance = composer
         ? ''
@@ -530,7 +540,7 @@ export const getSystemPromptV2 = (
             : '',
         deepResearchContent,
         'Once the selected fields and source are validated, build the query, reusing known definitions. After an execution error, change the query rather than repeating a nearly identical failed one; when the failure points to a source or scan problem, inspect the missing metadata or an alternative source. Keep the requested scope and report evidence gaps.',
-        'For a straightforward entity trend or breakdown, use the single matching count definition and its configured default time granularity when available; a nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask only when count definitions genuinely compete. Add a date restriction only when the request or a rule sets one, and state the measure, grain and scope used. When the current request or a discovery result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly; call getMetadata only for missing or truncated details, not again to confirm the same details.',
+        'For a straightforward entity trend or breakdown, use the single matching count definition and its configured default time granularity when available; a nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose between count definitions only when they genuinely compete. Add a date restriction only when the request or a rule sets one, and state the measure, grain and scope used. When the current request or a discovery result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly; call getMetadata only for missing or truncated details, not again to confirm the same details.',
         chartFollowupGuidance,
         'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
         'When applying or restating sourced business rules, keep the exact predicate, entity grain, exceptions and date boundaries. Keep numeric conditions rather than replacing them with broader labels: an amount equal to zero does not establish that the associated event is absent, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. When the sources specify no current-state, historical-snapshot or timezone convention, state the missing convention if it affects the answer instead of inventing one, and keep the supported rules intact.',
