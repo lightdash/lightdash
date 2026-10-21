@@ -4174,11 +4174,15 @@ export class ProjectService
             explores: (Explore | ExploreError)[];
         },
         checkRefresh: boolean,
+        hasAdditionalDbtSources: boolean | null = null,
     ) {
         const { explores, ...metadata } = args;
         const hasDbtSources =
             args.dbtModelNames !== undefined &&
-            (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
+            (hasAdditionalDbtSources ??
+                (await this.projectDbtSourcesModel.hasSources(
+                    args.projectUuid,
+                )));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
         if (
             checkRefresh &&
@@ -4308,10 +4312,16 @@ export class ProjectService
                 args.explores,
             );
         const { cliDeploy, ...deploy } = args;
+        const connectionRoute = await this.projectModel.getConnectionRoute(
+            args.projectUuid,
+            { kind: 'original' },
+        );
+        const hasAdditionalDbtSources =
+            args.complete === true && cliDeploy.sourceUuid === null
+                ? await this.projectDbtSourcesModel.hasSources(args.projectUuid)
+                : null;
         const inferred =
-            args.complete === true &&
-            cliDeploy.sourceUuid === null &&
-            (await this.projectDbtSourcesModel.hasSources(args.projectUuid))
+            hasAdditionalDbtSources === true
                 ? await inferCliDeploySource(
                       {
                           projectModel: this.projectModel,
@@ -4329,15 +4339,11 @@ export class ProjectService
                       },
                   )
                 : null;
-        if (
-            (await this.projectModel.getConnectionRoute(args.projectUuid, {
-                kind: 'original',
-            })) !== 'multi' &&
-            inferred === null
-        ) {
+        if (connectionRoute !== 'multi' && inferred === null) {
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
                 false,
+                hasAdditionalDbtSources,
             );
         }
         if (args.complete !== true) {
