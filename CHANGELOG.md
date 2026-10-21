@@ -1,3 +1,10 @@
+## [3.20.1](https://github.com/lightdash/lightdash/compare/3.20.0...3.20.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dbt:** accept empty model selections from dbt ls ([#31283](https://github.com/lightdash/lightdash/issues/31283)) ([fbc8294](https://github.com/lightdash/lightdash/commit/fbc8294e5d9adf3d5cec39a987d4c74cac77c707)), closes [#31113](https://github.com/lightdash/lightdash/issues/31113)
+
 # [3.20.0](https://github.com/lightdash/lightdash/compare/3.19.0...3.20.0) (2026-10-21)
 
 
