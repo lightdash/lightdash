@@ -58,6 +58,7 @@ import { AiRouterModel } from './models/AiRouterModel';
 import { AiThreadFileModel } from './models/AiThreadFileModel';
 import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
+import { AppStateModel } from './models/AppStateModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DataAppAnalysisModel } from './models/DataAppAnalysisModel';
@@ -106,6 +107,7 @@ import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
+import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
@@ -1042,6 +1044,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
                 }),
+            appStateService: ({ models, repository }) =>
+                new AppStateService({
+                    appStateModel: models.getAppStateModel<AppStateModel>(),
+                    appModel: models.getAppModel(),
+                    projectModel: models.getProjectModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                }),
             dataAppAnalysisService: ({
                 models,
                 repository,
@@ -1721,6 +1732,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new SchedulerAiAugmentationModel({ database }),
             dataAppAnalysisModel: ({ database }) =>
                 new DataAppAnalysisModel({ database }),
+            appStateModel: ({ database }) => new AppStateModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             mcpToolCallModel: ({ database }) =>
                 new McpToolCallModel({ database }),
