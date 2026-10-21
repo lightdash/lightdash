@@ -193,7 +193,7 @@ describe('FilterValueSettings', () => {
         });
 
         it('gives focus back to a select the refused edit came from', () => {
-            renderSettings(
+            const onChange = renderSettings(
                 makeRule({
                     values: ['done'],
                     required: true,
@@ -206,7 +206,12 @@ describe('FilterValueSettings', () => {
 
             chooseOperator('includes');
 
+            expect(onChange).not.toHaveBeenCalled();
+            expect(screen.getByRole('alert')).toHaveTextContent(
+                LOCKED_REQUIRED,
+            );
             expect(screen.getByRole('combobox')).toHaveFocus();
+            expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
         });
 
         it('still takes an edit that leaves it with a value', () => {

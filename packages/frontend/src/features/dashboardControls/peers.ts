@@ -269,8 +269,19 @@ const withTileTargets = (
         : rest;
 };
 
-// Drops the tile entries that say what the tile does by default, as
-// `setTileField` does, so two rules that filter the same tiles compare equal
+// Field and table both: a query reads the table of the entry it gets
+const isDefaultTileField = (
+    field: DashboardFieldTarget | null,
+    fallback: DashboardFieldTarget | null,
+): boolean =>
+    field === null || fallback === null
+        ? field === fallback
+        : !field.isSqlColumn &&
+          field.fieldId === fallback.fieldId &&
+          field.tableName === fallback.tableName;
+
+// Drops the field entries that equal the tile's default. Exclusions stay, and
+// so does the key: shipped tab code reads both
 export const withoutDefaultTileTargets = (
     rule: DashboardFilterRule,
     tiles: DashboardTile[] | undefined,
@@ -280,16 +291,15 @@ export const withoutDefaultTileTargets = (
     const entries = Object.entries(rule.tileTargets ?? {});
     const kept = entries.filter(([tileUuid, target]) => {
         const tile = tiles.find(({ uuid }) => uuid === tileUuid);
-        if (tile === undefined) return true;
-        const fallback = getDefaultTileField(rule, tile, fieldsByTile);
-        return (
-            (target === false ? null : target.fieldId) !==
-            (fallback?.fieldId ?? null)
+        if (tile === undefined || target === false) return true;
+        return !isDefaultTileField(
+            target,
+            getDefaultTileField(rule, tile, fieldsByTile),
         );
     });
     return kept.length === entries.length
         ? rule
-        : withTileTargets(rule, Object.fromEntries(kept));
+        : { ...rule, tileTargets: Object.fromEntries(kept) };
 };
 
 export const setTileField = (
@@ -310,7 +320,7 @@ export const setTileField = (
     // An entry is only dropped when the default is known to say the same
     if (
         isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile) &&
-        (field?.fieldId ?? null) === (fallback?.fieldId ?? null)
+        isDefaultTileField(field, fallback)
     ) {
         return withTileTargets(rule, others);
     }

@@ -2,6 +2,7 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    FilterType,
     MetricType,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -31,8 +32,15 @@ import {
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
+import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
-import { getFieldCount, getTileField, type FieldsByTile } from './peers';
+import {
+    getFieldCount,
+    getTileField,
+    setTileField,
+    type FieldsByTile,
+} from './peers';
+import { clearRuleRequired, setRuleRequired } from './requirements';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -173,50 +181,6 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
 const setup = () =>
     renderHook(() => useControlsSidebar(), { wrapper: Wrapper });
 
-type FiltersUpdate = (filters: DashboardFilters) => DashboardFilters;
-const lag: { pending: FiltersUpdate[]; show: (update: FiltersUpdate) => void } =
-    { pending: [], show: () => {} };
-
-// A dashboard context whose filters reach the provider a render late, as a
-// selector read can: writes wait in `lag.pending` until they are shown
-const LaggingState: FC<PropsWithChildren<{ store: DashboardStore }>> = ({
-    store,
-    children,
-}) => {
-    const setters = storeSetters(store);
-    lag.show = setters.setDashboardFilters;
-    mockDashboardContext.current = {
-        setDashboardFilters: (update: FiltersUpdate) => {
-            lag.pending.push(update);
-        },
-        setHaveFiltersChanged: setters.setHaveFiltersChanged,
-        filterableFieldsByTileUuid: mockFieldsByTile.current,
-        dashboard: { tiles: mockTiles.saved },
-    };
-    return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
-};
-const LaggingWrapper: FC<PropsWithChildren> = ({ children }) => {
-    const [store] = useState(() =>
-        seedDashboardEditState(
-            createDashboardTestStore({ dashboardFilters: initialFilters }),
-            { dashboardTiles: mockTiles.current } as DashboardEditTestValues,
-        ),
-    );
-    currentStore = store;
-    return (
-        <DashboardStoreTestProvider store={store}>
-            <LaggingState store={store}>{children}</LaggingState>
-        </DashboardStoreTestProvider>
-    );
-};
-const showPendingFilters = () =>
-    act(() => {
-        const updates = lag.pending.splice(0);
-        lag.show((filters) =>
-            updates.reduce((next, update) => update(next), filters),
-        );
-    });
-
 // A write the editor did not make: another tile, tab or pill action
 const writeOutsideTheEditor = (
     update: (filters: DashboardFilters) => DashboardFilters,
@@ -241,7 +205,6 @@ const excludeTileFromB = (filters: DashboardFilters): DashboardFilters => ({
 describe('ControlsSidebarProvider', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
-        lag.pending = [];
         latest.filters = initialFilters;
         latest.changed = false;
         mockParams.current = { mode: 'edit' };
@@ -817,48 +780,25 @@ describe('ControlsSidebarProvider', () => {
         });
     });
 
-    describe('the first field, while the dashboard filters do not show it yet', () => {
-        it('keeps the sidebar open on the rule it just wrote', () => {
-            const { result } = renderHook(() => useControlsSidebar(), {
-                wrapper: LaggingWrapper,
-            });
-            act(() => result.current.openNew());
-            const id = result.current.editing?.filterId;
+    it('the first field keeps the sidebar open on the rule it wrote, until something removes it', () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        const id = result.current.editing?.filterId;
 
-            act(() => result.current.addFirstField(statusField));
-            // The write has not come back: the placeholder is gone and the
-            // filters do not hold the rule
-            expect(lag.pending).toHaveLength(1);
-            expect(result.current.isPlaceholder).toBe(false);
-            expect(result.current.isSidebarOpen).toBe(true);
-            expect(result.current.editingRule).toMatchObject({
-                id,
-                target: { fieldId: 'orders_status' },
-            });
-
-            showPendingFilters();
-            expect(result.current.isSidebarOpen).toBe(true);
-            expect(result.current.editingRule?.id).toBe(id);
+        act(() => result.current.addFirstField(statusField));
+        expect(result.current.isPlaceholder).toBe(false);
+        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.editingRule).toMatchObject({
+            id,
+            target: { fieldId: 'orders_status' },
         });
 
-        it('still closes once the rule was there and something removed it', () => {
-            const { result } = renderHook(() => useControlsSidebar(), {
-                wrapper: LaggingWrapper,
-            });
-            act(() => result.current.openNew());
-            const id = result.current.editing?.filterId;
-            act(() => result.current.addFirstField(statusField));
-            showPendingFilters();
-
-            act(() =>
-                lag.show((filters) => ({
-                    ...filters,
-                    dimensions: filters.dimensions.filter((r) => r.id !== id),
-                })),
-            );
-            expect(result.current.editingRule).toBeNull();
-            expect(result.current.isSidebarOpen).toBe(false);
-        });
+        writeOutsideTheEditor((filters) => ({
+            ...filters,
+            dimensions: filters.dimensions.filter((r) => r.id !== id),
+        }));
+        expect(result.current.editingRule).toBeNull();
+        expect(result.current.isSidebarOpen).toBe(false);
     });
 
     describe("the editor's own writes to other filters", () => {
@@ -1735,13 +1675,57 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
+        const leaveOutAndPutBack = (
+            onTile: DashboardFilterRule,
+            tile: DashboardTile,
+            updateFilter: (next: DashboardFilterRule) => void,
+        ) => {
+            const fields = mockFieldsByTile.current as FieldsByTile;
+            const leftOut = setTileField(onTile, tile, null, fields);
+            act(() => updateFilter(leftOut));
+            act(() =>
+                updateFilter(
+                    setTileField(leftOut, tile, onTile.target, fields),
+                ),
+            );
+        };
+        const statusTarget = { fieldId: 'orders_status', tableName: 'orders' };
+
         it('leaves nothing changed after a tile is left out and put back', () => {
             const onTile = {
                 ...rule('status', ['x']),
-                target: { fieldId: 'orders_status', tableName: 'orders' },
-                tileTargets: {
-                    t1: { fieldId: 'orders_status', tableName: 'orders' },
-                },
+                target: statusTarget,
+                tileTargets: { t1: statusTarget, t2: statusTarget },
+            };
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [onTile],
+            });
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            mockFieldsByTile.current = {
+                t1: [statusField],
+                t2: [statusField],
+            };
+            const { result } = setup();
+            act(() => result.current.open('status'));
+            leaveOutAndPutBack(
+                onTile,
+                mockTiles.current[0] as DashboardTile,
+                result.current.updateFilter,
+            );
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        // Tabs apply a rule with no tile targets everywhere, so losing the last
+        // entry is a change even when it only said the default
+        it('sees a tile put back that leaves the rule with no tile targets as a change', () => {
+            const onTile = {
+                ...rule('status', ['x']),
+                target: statusTarget,
+                tileTargets: { t1: statusTarget },
             };
             saved.filters = asSaved({
                 ...initialFilters,
@@ -1750,19 +1734,133 @@ describe('ControlsSidebarProvider', () => {
             mockFieldsByTile.current = { t1: [statusField] };
             const { result } = setup();
             act(() => result.current.open('status'));
-            act(() =>
-                result.current.updateFilter({
-                    ...onTile,
-                    tileTargets: { t1: false },
-                }),
+            leaveOutAndPutBack(
+                onTile,
+                mockTiles.current[0] as DashboardTile,
+                result.current.updateFilter,
             );
-            // What setTileField writes for a tile back on its default
-            const { tileTargets: _, ...putBack } = onTile;
-            act(() => result.current.updateFilter(putBack));
+            expect(result.current.isDirty).toBe(true);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(true);
+        });
+
+        it('leaves nothing changed after a tab is unlocked and locked again', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [
+                    { ...rule('a', ['1']), lockedTabUuids: ['t1', 't2'] },
+                ],
+            });
+            const savedA = saved.filters.dimensions[0];
+            // What the pill and "Viewer access" write for tab t1
+            const toggleLockOnT1 = (
+                filterRule: DashboardFilterRule,
+                isLocked: boolean,
+            ) => {
+                const toggle = getFilterLockToggle(filterRule, {
+                    isLocked,
+                    hasTabs: true,
+                    activeTabUuid: 't1',
+                    dashboardUuid: 'dashboard',
+                });
+                if (toggle === null) throw new Error('No lock key');
+                return toggle.filterRule;
+            };
+            const unlocked = toggleLockOnT1(savedA, true);
+            const relocked = toggleLockOnT1(unlocked, false);
+            expect(relocked.lockedTabUuids).toEqual(['t2', 't1']);
+
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(unlocked));
+            act(() => result.current.updateFilter(relocked));
             expect(result.current.isDirty).toBe(false);
 
             act(() => result.current.close());
             expect(latest.changed).toBe(false);
+        });
+
+        it('leaves nothing changed after "Required" is switched on and off', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [{ ...rule('a', []), disabled: true }],
+            });
+            const savedA = saved.filters.dimensions[0];
+            const required = setRuleRequired(savedA, null);
+            const notRequired = clearRuleRequired(
+                required,
+                FilterType.STRING,
+                statusField,
+            );
+            expect(notRequired.required).toBe(false);
+
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(required));
+            act(() => result.current.updateFilter(notRequired));
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        // Tabs apply a rule with no tile targets everywhere, but one with empty
+        // tile targets only where a tile has its field
+        it('sees a rule saved with empty tile targets that loses them as a change', () => {
+            const onTile = {
+                ...rule('status', ['x']),
+                target: { fieldId: 'orders_status', tableName: 'orders' },
+                tileTargets: {},
+            };
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [onTile],
+            });
+            expect(saved.filters.dimensions[0].tileTargets).toEqual({});
+            mockFieldsByTile.current = { t1: [statusField] };
+            const tile = mockTiles.current[0] as DashboardTile;
+            const { result } = setup();
+            act(() => result.current.open('status'));
+            const leftOut = setTileField(
+                saved.filters.dimensions[0],
+                tile,
+                null,
+                mockFieldsByTile.current as FieldsByTile,
+            );
+            act(() => result.current.updateFilter(leftOut));
+            const putBack = setTileField(
+                leftOut,
+                tile,
+                onTile.target,
+                mockFieldsByTile.current as FieldsByTile,
+            );
+            expect(putBack).not.toHaveProperty('tileTargets');
+            act(() => result.current.updateFilter(putBack));
+            expect(result.current.isDirty).toBe(true);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(true);
+        });
+
+        it('still sees a lock moved to another tab as a change', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [{ ...rule('a', ['1']), lockedTabUuids: ['t1'] }],
+            });
+            const savedA = saved.filters.dimensions[0];
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...savedA,
+                    lockedTabUuids: ['t2'],
+                }),
+            );
+            expect(result.current.isDirty).toBe(true);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(true);
         });
     });
 

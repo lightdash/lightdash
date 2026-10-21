@@ -128,22 +128,16 @@ type Latest = {
     track: TrackingContextType['track'];
 };
 
-// `written` is the rule a first field just made: it stands in until the
-// dashboard filters hold it, so "not visible yet" never reads as "gone"
-const getEditingRule = (
-    {
-        state,
-        placeholder,
-        dashboardFilters,
-    }: Pick<Latest, 'state' | 'placeholder' | 'dashboardFilters'>,
-    written: DashboardFilterRule | null,
-): DashboardFilterRule | null => {
+const getEditingRule = ({
+    state,
+    placeholder,
+    dashboardFilters,
+}: Pick<
+    Latest,
+    'state' | 'placeholder' | 'dashboardFilters'
+>): DashboardFilterRule | null => {
     if (state === null) return null;
-    return (
-        placeholder ??
-        findFilterRule(dashboardFilters, state.filterId) ??
-        (written?.id === state.filterId ? written : null)
-    );
+    return placeholder ?? findFilterRule(dashboardFilters, state.filterId);
 };
 
 // Operator, values and tile targets come from the field or SQL column;
@@ -223,16 +217,6 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         filterId: string;
         fieldIds: string[];
     } | null>(null);
-    // The rule a first field wrote, until the dashboard filters hold it
-    const [writtenRule, setWrittenRule] = useState<DashboardFilterRule | null>(
-        null,
-    );
-    if (
-        writtenRule !== null &&
-        findFilterRule(dashboardFilters, writtenRule.id) !== null
-    ) {
-        setWrittenRule(null);
-    }
 
     const rendered: Latest = {
         state,
@@ -338,7 +322,6 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
-        setWrittenRule(null);
     }, [writeState, writePlaceholder]);
 
     // Unclicks the field and drops its hover, so the tiles go back at once
@@ -432,7 +415,6 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 ],
             }));
             writeFiltersChanged(true);
-            setWrittenRule(rule);
             writePlaceholder(null);
             if (editingState !== null && emptiedAt !== null) {
                 writeState({ ...editingState, emptiedAt: null });
@@ -714,12 +696,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     const editingRule = useMemo(
-        () =>
-            getEditingRule(
-                { state, placeholder, dashboardFilters },
-                writtenRule,
-            ),
-        [state, placeholder, dashboardFilters, writtenRule],
+        () => getEditingRule({ state, placeholder, dashboardFilters }),
+        [state, placeholder, dashboardFilters],
     );
 
     const waitingFieldIds = useMemo(() => {
@@ -738,7 +716,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         const current = latest.current;
         if (current.state === null) return;
         const { snapshot } = current.state;
-        const rule = getEditingRule(current, null);
+        const rule = getEditingRule(current);
         // Something outside took the rule away: that write is kept, and
         // nothing of this edit is put back
         if (rule === null) {
