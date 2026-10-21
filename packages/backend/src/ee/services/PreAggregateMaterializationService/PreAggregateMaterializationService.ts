@@ -217,6 +217,7 @@ export class PreAggregateMaterializationService extends BaseService {
                     preAggregateDefinitionUuid:
                         definition.preAggregateDefinitionUuid,
                     trigger: args.trigger,
+                    definitionFingerprint: definition.definitionFingerprint,
                 });
             materializationUuid = materializationRow.materializationUuid;
 

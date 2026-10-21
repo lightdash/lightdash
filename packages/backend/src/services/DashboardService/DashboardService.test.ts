@@ -666,6 +666,35 @@ describe('DashboardService', () => {
         },
     );
 
+    test('should schedule an embed PDF export when the token can export the dashboard as PDF', async () => {
+        const account = embedExportAccount();
+        (account.user as { ability: Ability<PossibleAbilities> }).ability =
+            new Ability<PossibleAbilities>([
+                {
+                    subject: 'Dashboard',
+                    action: 'export',
+                    conditions: {
+                        type: 'pdf',
+                        'metadata.dashboardUuid': dashboard.uuid,
+                    },
+                },
+            ]);
+
+        await service.scheduleExportContent(account, dashboard.uuid, {
+            format: SchedulerFormat.PDF,
+            selectedTabs: ['tab-uuid'],
+        });
+
+        expect(schedulerClient.scheduleTask).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.EXPORT_CONTENT,
+            expect.objectContaining({
+                format: SchedulerFormat.PDF,
+                encodedJwt: 'encoded-jwt',
+                selectedTabs: ['tab-uuid'],
+            }),
+        );
+    });
+
     test('throws when an embed write token saves a SQL chart from outside the write space', async () => {
         const embedWriteAccount = {
             isJwtUser: () => true,

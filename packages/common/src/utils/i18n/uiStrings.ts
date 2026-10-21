@@ -376,6 +376,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.summary.hide': 'Hide',
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
+    'dashboard.exportPdf': 'Export as PDF',
     'aiAgent.unavailable': "AI isn't available right now.",
     'aiAgent.modelSelector.retired': 'Retired',
     'aiAgent.modelSelector.agentDefault': 'Agent default',

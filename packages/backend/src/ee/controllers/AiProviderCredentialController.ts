@@ -83,11 +83,11 @@ export class AiProviderCredentialController extends BaseController {
     }
 
     /**
-     * @summary Convert a legacy Bedrock configuration into a managed credential
-     *
      * Lets an organization that configured Bedrock before named credentials
      * existed take ownership of that configuration so it can be edited or
      * removed, without having to add a second credential first.
+     *
+     * @summary Convert a legacy Bedrock configuration into a managed credential
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -136,11 +136,11 @@ export class AiProviderCredentialController extends BaseController {
     }
 
     /**
-     * @summary Replace an AI provider credential
-     *
      * Full replacement. Unlike PATCH this never reads the stored ciphertext, so
      * it is how an administrator repairs a credential that can no longer be
      * decrypted. Every field is required.
+     *
+     * @summary Replace an AI provider credential
      */
     @Middlewares([
         allowApiKeyAuthentication,

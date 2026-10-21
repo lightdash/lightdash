@@ -43,6 +43,7 @@ mailpit = true                     # catches the mail the backend sends
 # credentials), plus its non-secret dev settings.
 [env]
 PORT = "8080"
+HOME = "/root"                     # the service unit sets no HOME; DuckDB refuses to start without one
 NODE_ENV = "development"
 # PR mode is what the Okteto previews ran as: the preview flag set and its
 # management API, a fixed 000000 email passcode, the relaxed cross-origin
@@ -71,6 +72,12 @@ S3_ACCESS_KEY = "minioadmin"
 S3_SECRET_KEY = "minioadmin"
 S3_FORCE_PATH_STYLE = "true"
 APPS_S3_BUCKET = "lightdash-apps"
+# Pre-aggregates, materialized to the same MinIO. Licence comes from [secrets];
+# DuckDB fetches httpfs through the extensions.duckdb.org egress rule below.
+PRE_AGGREGATES_ENABLED = "true"
+PRE_AGGREGATES_PARQUET_ENABLED = "true"
+PRE_AGGREGATE_RESULTS_S3_BUCKET = "default"
+PRE_AGGREGATE_RESULTS_S3_REGION = "us-east-1"
 EMAIL_SMTP_HOST = "localhost"
 EMAIL_SMTP_PORT = "1025"
 EMAIL_SMTP_SECURE = "false"
@@ -195,6 +202,13 @@ watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers no
 [[egress.allow]]
 host = "api.keygen.sh"
 port = 443
+
+# DuckDB fetches its httpfs extension on first use (pre-aggregate
+# materializations and external sources both read and write S3 through it).
+# The extension host serves plain http.
+[[egress.allow]]
+host = "extensions.duckdb.org"
+port = 80
 
 # Each integration a preview can exercise, one flow per service. A key in
 # [secrets] does nothing on its own: the connect is refused unless the host

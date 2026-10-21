@@ -18938,6 +18938,9 @@
                     },
                     "refresh": {
                         "properties": {
+                            "onChange": {
+                                "type": "boolean"
+                            },
                             "cron": {
                                 "type": "string"
                             }
@@ -38167,6 +38170,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "materializeOnChange": {
+                        "type": "boolean"
+                    },
                     "refreshCron": {
                         "type": "string",
                         "nullable": true
@@ -38231,6 +38237,7 @@
                     "warnings",
                     "resolvedMaxRows",
                     "definitionError",
+                    "materializeOnChange",
                     "refreshCron",
                     "granularity",
                     "timeDimension",
@@ -73346,7 +73353,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.631.5",
+        "version": "3.1.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -89593,7 +89600,8 @@
                         }
                     }
                 },
-                "summary": "Convert a legacy Bedrock configuration into a managed credential\n\nLets an organization that configured Bedrock before named credentials\nexisted take ownership of that configuration so it can be edited or\nremoved, without having to add a second credential first.",
+                "description": "Lets an organization that configured Bedrock before named credentials\nexisted take ownership of that configuration so it can be edited or\nremoved, without having to add a second credential first.",
+                "summary": "Convert a legacy Bedrock configuration into a managed credential",
                 "security": [],
                 "parameters": []
             }
@@ -89669,7 +89677,8 @@
                         }
                     }
                 },
-                "summary": "Replace an AI provider credential\n\nFull replacement. Unlike PATCH this never reads the stored ciphertext, so\nit is how an administrator repairs a credential that can no longer be\ndecrypted. Every field is required.",
+                "description": "Full replacement. Unlike PATCH this never reads the stored ciphertext, so\nit is how an administrator repairs a credential that can no longer be\ndecrypted. Every field is required.",
+                "summary": "Replace an AI provider credential",
                 "security": [],
                 "parameters": [
                     {

@@ -1,0 +1,29 @@
+{
+    "base": "deep_research_worker",
+    "addOns": [],
+    "toolNames": [
+        "generateVisualization",
+        "getMetadata",
+        "grepFields",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer",
+        "submitWorkerFindings"
+    ],
+    "promptSections": [
+        "aiWriteback",
+        "availableCustomChartTypes",
+        "codingAgent",
+        "contentTools",
+        "documents",
+        "generateDataApp",
+        "mcpTools",
+        "memories",
+        "projectContext",
+        "repoFs",
+        "requestingUser",
+        "runSql",
+        "schedulingTools",
+        "skills"
+    ]
+}

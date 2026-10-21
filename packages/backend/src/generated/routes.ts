@@ -17978,7 +17978,10 @@ const models: TsoaRoute.Models = {
                 materializationRole: { ref: 'PreAggregateMaterializationRole' },
                 refresh: {
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { cron: { dataType: 'string' } },
+                    nestedProperties: {
+                        onChange: { dataType: 'boolean' },
+                        cron: { dataType: 'string' },
+                    },
                 },
                 maxRows: { dataType: 'double' },
                 granularity: { ref: 'TimeFrames' },
@@ -43067,6 +43070,7 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                materializeOnChange: { dataType: 'boolean', required: true },
                 refreshCron: {
                     dataType: 'union',
                     subSchemas: [

@@ -353,6 +353,7 @@
         "filters.summary.hide": "დამალვა",
         "dashboard.exportAllTiles": "ყველა ფილას ექსპორტი",
         "dashboard.printPage": "ამ გვერდის ამობეჭდვა",
+        "dashboard.exportPdf": "PDF-ად ექსპორტი",
         "explorer.back": "უკან",
         "explorer.backToDashboard": "დაფაზე დაბრუნება",
         "explorer.backToChart": "დიაგრამაზე დაბრუნება",
