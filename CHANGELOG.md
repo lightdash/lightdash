@@ -1,3 +1,12 @@
+# [3.13.0](https://github.com/lightdash/lightdash/compare/3.12.3...3.13.0) (2026-10-21)
+
+
+### Features
+
+* **ai-agents:** remove the Fast mode toggle ([#31314](https://github.com/lightdash/lightdash/issues/31314)) ([eb4a3d6](https://github.com/lightdash/lightdash/commit/eb4a3d61a1c5dc370b350630ab29f5cf004ef126))
+* **embed:** allow embed JWT write actions to target multiple spaces ([#31303](https://github.com/lightdash/lightdash/issues/31303)) ([a4f53e1](https://github.com/lightdash/lightdash/commit/a4f53e1376eaf3d94e147e93e30a837a8b99f2fe))
+* **explorer:** show table group description on hover in the sidebar ([#31317](https://github.com/lightdash/lightdash/issues/31317)) ([d588e75](https://github.com/lightdash/lightdash/commit/d588e75a13f8bde0508760bf24eb8037811831a6)), closes [#28614](https://github.com/lightdash/lightdash/issues/28614)
+
 ## [3.12.3](https://github.com/lightdash/lightdash/compare/3.12.2...3.12.3) (2026-10-21)
 
 

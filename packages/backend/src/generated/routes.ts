@@ -16097,7 +16097,11 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
-                spaceUuid: { dataType: 'string', required: true },
+                writeSpaceUuids: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                spaceUuid: { dataType: 'string' },
                 userUuid: { dataType: 'string' },
                 serviceAccountUserUuid: { dataType: 'string' },
             },
@@ -58616,6 +58620,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedWritableSpace: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SerializedAccount: {
         dataType: 'refAlias',
         type: {
@@ -58626,6 +58642,14 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         aiAgentErrorMessage: { dataType: 'string' },
                         canUseAiAgent: { dataType: 'boolean', required: true },
+                        writableSpaces: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'EmbedWritableSpace',
+                            },
+                            required: true,
+                        },
                         canCreateSavedChart: {
                             dataType: 'boolean',
                             required: true,
