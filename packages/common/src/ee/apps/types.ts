@@ -591,6 +591,11 @@ export type ApiGetAppResponse = ApiSuccess<{
     // Viewers must use this (not scan `versions`) to decide whether the app
     // can be previewed — the ready version may be older than the page window.
     latestReadyVersion: number | null;
+    // Whether the latest ready version's own code wires up the AI-analysis
+    // SDK surface (markers, summary, prompt hook). Null when there is no
+    // ready version or the source scan is unavailable — never offer an
+    // analysis upgrade on null.
+    latestReadyVersionUsesAiAnalysis: boolean | null;
     // The registry slug it was installed from, or null for a project-authored
     // (or forked) app. Registry-installed chart types are read-only.
     registrySlug: string | null;

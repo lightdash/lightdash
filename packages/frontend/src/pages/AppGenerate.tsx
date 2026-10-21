@@ -76,6 +76,7 @@ import ResizableSplitter from '../components/common/ResizableSplitter';
 import { getChartIcon } from '../components/common/ResourceIcon/utils';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { getAiAgentThreadPath } from '../ee/features/aiCopilot/hooks/aiAgentRouting';
+import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
@@ -100,6 +101,7 @@ import AppHeader from '../features/apps/components/AppHeader';
 import AppHeaderActions from '../features/apps/components/AppHeaderActions';
 import AppHistoryDrawer from '../features/apps/components/AppHistoryDrawer';
 import AppPreview from '../features/apps/components/AppPreview';
+import AppUpgradeModal from '../features/apps/components/AppUpgradeModal';
 import AppVersionNarration from '../features/apps/components/AppVersionNarration';
 import ClarificationQuestionList from '../features/apps/components/ClarificationQuestionList';
 import ClearAgentContextAction from '../features/apps/components/ClearAgentContextAction';
@@ -1356,6 +1358,50 @@ const AppGenerate: FC = () => {
     const isVizBuilder =
         appPersistedTemplate === DATA_APP_VIZ_TEMPLATE ||
         selectedTemplate === DATA_APP_VIZ_TEMPLATE;
+
+    // Offer to add AI analysis to an app whose latest ready version doesn't
+    // wire it up (per the server's source scan). Only when analysis is
+    // actually available to the org; the rendered bundle's own in-use signal
+    // overrides a stale scan, and an unclassified SDK waits — a legacy
+    // sandbox lacks the shipped insight components, so those apps route
+    // through the upgrade first.
+    const latestReadyUsesAnalysis =
+        appData?.pages[0]?.latestReadyVersionUsesAiAnalysis ?? null;
+    const [addAnalysisDismissals, setAddAnalysisDismissals] = useState(0);
+    const addAnalysisDismissedKey = activeAppUuid
+        ? `data-apps:add-analysis-dismissed:${activeAppUuid}`
+        : null;
+    const addAnalysisDismissed = useMemo(() => {
+        if (!addAnalysisDismissedKey) return false;
+        void addAnalysisDismissals;
+        try {
+            return localStorage.getItem(addAnalysisDismissedKey) === 'true';
+        } catch {
+            return false;
+        }
+    }, [addAnalysisDismissedKey, addAnalysisDismissals]);
+    const dismissAddAnalysis = useCallback(() => {
+        if (addAnalysisDismissedKey) {
+            try {
+                localStorage.setItem(addAnalysisDismissedKey, 'true');
+            } catch {
+                // Per-viewer convenience only; the offer just reappears.
+            }
+        }
+        setAddAnalysisDismissals((n) => n + 1);
+    }, [addAnalysisDismissedKey]);
+    const [isAnalysisUpgradeOpen, setIsAnalysisUpgradeOpen] = useState(false);
+    const showAddAnalysisOffer =
+        analysisAvailability.status === 'available' &&
+        !isVizBuilder &&
+        !isVerifiedLocked &&
+        !isAgentWorking &&
+        !addAnalysisDismissed &&
+        activeAppUuid !== undefined &&
+        latestReadyVersion !== null &&
+        latestReadyUsesAnalysis === false &&
+        sdkUpgradeOffer.status !== 'unknown' &&
+        (analysisInUseScope === null || analysisInUseScope !== previewScope);
     const showVizSampleConsent =
         sampleDataEnabled &&
         isVizBuilder &&
@@ -1870,6 +1916,50 @@ const AppGenerate: FC = () => {
                     designUuid: selectedThemeUuid,
                 });
             }
+        } finally {
+            submitState.end();
+        }
+    };
+
+    // One-click offers (add AI analysis): the optimistic bubble and lock
+    // discipline of handleSubmit without touching the composer draft or
+    // attachment state.
+    const submitCannedPrompt = (text: string) => {
+        if (
+            !activeAppUuid ||
+            !projectUuid ||
+            isLoading ||
+            submitState.isInFlight()
+        )
+            return;
+        submitState.begin({ fromLanding: false });
+        try {
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    ...emptyChatMessage(),
+                    role: 'user',
+                    content: text,
+                    timestamp: new Date(),
+                    userName:
+                        [user.data?.firstName, user.data?.lastName]
+                            .filter((s): s is string => !!s && s.length > 0)
+                            .join(' ') || null,
+                    submittedAtVersion: maxHistoryVersion,
+                },
+            ]);
+            resetGenerate();
+            resetIterate();
+            iterateMutate(
+                {
+                    projectUuid,
+                    appUuid: activeAppUuid,
+                    prompt: text,
+                    creationExperience: 'app_builder',
+                    ...modelRequest,
+                },
+                buildSubmitCallbacks(),
+            );
         } finally {
             submitState.end();
         }
@@ -2638,6 +2728,23 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
+                                {showAddAnalysisOffer && (
+                                    <AddAnalysisOffer
+                                        sdkNeedsUpgrade={
+                                            sdkUpgradeOffer.status !== 'current'
+                                        }
+                                        busy={isLoading}
+                                        onAddAnalysis={() =>
+                                            submitCannedPrompt(
+                                                'Add AI analysis to this app.',
+                                            )
+                                        }
+                                        onUpgradeApp={() =>
+                                            setIsAnalysisUpgradeOpen(true)
+                                        }
+                                        onDismiss={dismissAddAnalysis}
+                                    />
+                                )}
                                 {((!newAppLanding &&
                                     (displayTemplate || displayThemeName)) ||
                                     availableConnectionAliases.length > 0 ||
@@ -3359,6 +3466,20 @@ const AppGenerate: FC = () => {
                                     }
                                 />
                             )}
+                            {isAnalysisUpgradeOpen &&
+                                activeAppUuid &&
+                                projectUuid && (
+                                    <AppUpgradeModal
+                                        opened
+                                        onClose={() =>
+                                            setIsAnalysisUpgradeOpen(false)
+                                        }
+                                        projectUuid={projectUuid}
+                                        appUuid={activeAppUuid}
+                                        offer={sdkUpgradeOffer}
+                                        resource="dataApp"
+                                    />
+                                )}
 
                             <Box
                                 className={classes.previewContent}

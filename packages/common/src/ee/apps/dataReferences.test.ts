@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    detectAiAnalysisUsage,
     extractDataAppDataReferences,
     type DataAppSourceFile,
     type ExtractedExternalFetchReference,
@@ -836,5 +837,55 @@ describe('extractDataAppDataReferences', () => {
             expect(ref.dimensions).toEqual(['a_dim', 'b_dim']);
             expect(ref.metrics).toEqual(['a_metric', 'z_metric']);
         });
+    });
+});
+
+describe('detectAiAnalysisUsage', () => {
+    it('reports an app that subscribes to insights', () => {
+        const result = extractDataAppDataReferences(
+            app(`
+                import { useInsights } from '@lightdash/query-sdk';
+                export const Page = () => { const i = useInsights(); return null; };
+            `),
+        );
+        expect(result.usesAiAnalysis).toBe(true);
+    });
+
+    it.each(['useAiPrompt', 'InsightsSummary', 'insightCellProps'])(
+        'counts a reference to %s as usage',
+        (identifier) => {
+            expect(detectAiAnalysisUsage(app(`const x = ${identifier};`))).toBe(
+                true,
+            );
+        },
+    );
+
+    it('ignores the shipped component library itself', () => {
+        expect(
+            detectAiAnalysisUsage([
+                file(
+                    'src/components/insights/InsightsSummary.tsx',
+                    'export const InsightsSummary = () => null;',
+                ),
+                file('src/App.jsx', 'export default () => null;'),
+            ]),
+        ).toBe(false);
+    });
+
+    it('does not match longer identifiers or non-source files', () => {
+        expect(
+            detectAiAnalysisUsage([
+                file('src/App.jsx', 'const useInsightsPanel = 1;'),
+                file('README.md', 'mentions useInsights in prose'),
+            ]),
+        ).toBe(false);
+    });
+
+    it('counts usage in a file the parser would reject', () => {
+        expect(
+            detectAiAnalysisUsage(
+                app('const broken = useInsights( // unterminated'),
+            ),
+        ).toBe(true);
     });
 });

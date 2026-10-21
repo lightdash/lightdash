@@ -46,6 +46,7 @@ const app: ApiGetAppResponse['results'] = {
     versions: [],
     hasMore: false,
     latestReadyVersion: 3,
+    latestReadyVersionUsesAiAnalysis: null,
     icon: null,
     verification: null,
     autoAnalysis: 'inherit',

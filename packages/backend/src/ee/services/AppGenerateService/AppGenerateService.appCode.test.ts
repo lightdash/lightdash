@@ -555,6 +555,7 @@ describe('AppGenerateService.importAppCode', () => {
                     partiallyResolved: 0,
                     unresolved: 0,
                 },
+                usesAiAnalysis: false,
             },
         );
     });
@@ -1675,6 +1676,42 @@ describe('AppGenerateService.getVersionDataReferences', () => {
 
         expect(first).toEqual(second);
         expect(s3SendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        [
+            'detects AI-analysis usage in the refreshed source',
+            `
+                import { useInsights } from '@lightdash/query-sdk';
+                export const Page = () => { useInsights(); return null; };
+            `,
+            true,
+        ],
+        [
+            'reports no AI-analysis usage for a plain app',
+            `
+                import { query } from '@lightdash/query-sdk';
+                query('orders').dimensions(['order_date']);
+            `,
+            false,
+        ],
+    ])('%s', async (_name, source, expected) => {
+        const { service, appModel } = buildService();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: null,
+        });
+        const sourceTar = await makeSingleSourceTar(source);
+        s3SendSpy.mockResolvedValue({ Body: Readable.from([sourceTar]) });
+
+        const result = await service.getVersionDataReferences(NEW_APP_UUID, 2);
+
+        expect(result?.usesAiAnalysis).toBe(expected);
+        expect(appModel.updateVersionDataReferences).toHaveBeenCalledWith(
+            NEW_APP_UUID,
+            2,
+            expect.objectContaining({ usesAiAnalysis: expected }),
+        );
     });
 });
 
