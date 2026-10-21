@@ -28535,6 +28535,30 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiThreadBindingSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'AiThreadBinding' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        displayName: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentThreadSummary_AiAgentUser_: {
         dataType: 'refAlias',
         type: {
@@ -28551,7 +28575,7 @@ const models: TsoaRoute.Models = {
                 binding: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'AiThreadBinding' },
+                        { ref: 'AiThreadBindingSummary' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,
@@ -30025,7 +30049,7 @@ const models: TsoaRoute.Models = {
                 binding: {
                     dataType: 'union',
                     subSchemas: [
-                        { ref: 'AiThreadBinding' },
+                        { ref: 'AiThreadBindingSummary' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,

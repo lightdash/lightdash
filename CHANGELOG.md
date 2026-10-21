@@ -1,3 +1,10 @@
+# [3.10.0](https://github.com/lightdash/lightdash/compare/3.9.1...3.10.0) (2026-10-21)
+
+
+### Features
+
+* **ai-agents:** show a thread's bound dashboard and admin-only context ([#31291](https://github.com/lightdash/lightdash/issues/31291)) ([ba174c3](https://github.com/lightdash/lightdash/commit/ba174c38f36bd953af54fc40f02987f6e0b138a5))
+
 ## [3.9.1](https://github.com/lightdash/lightdash/compare/3.9.0...3.9.1) (2026-10-21)
 
 

@@ -30082,6 +30082,24 @@
                 "type": "object",
                 "description": "Resource a thread is bound to for its whole life. Same shape as the matching pinned context item."
             },
+            "AiThreadBindingSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiThreadBinding"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "required": ["displayName"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted."
+            },
             "AiAgentThreadSummary_AiAgentUser_": {
                 "properties": {
                     "threadContext": {
@@ -30092,7 +30110,7 @@
                     "binding": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/AiThreadBinding"
+                                "$ref": "#/components/schemas/AiThreadBindingSummary"
                             }
                         ],
                         "nullable": true
@@ -31502,7 +31520,7 @@
                     "binding": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/AiThreadBinding"
+                                "$ref": "#/components/schemas/AiThreadBindingSummary"
                             }
                         ],
                         "nullable": true
@@ -73566,7 +73584,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.9.1",
+        "version": "3.10.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
