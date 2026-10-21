@@ -1,6 +1,7 @@
 ---
-name: dbt-writeback
-description: Changing the dbt project with `editDbtProject` — when to write back, offering semantic-layer fixes, proving a change is safe, saved content after a merge, splitting work into pull requests and writing the change prompt.
+name: repository-writeback
+description: Use when changing the dbt project through a pull request (`editDbtProject`), offering to fix or extend the semantic layer, or following up a merged pull request.
+availability: [agent]
 ---
 
 # Repository writeback
@@ -54,7 +55,9 @@ Treat "safe" as having two parts, and report **both** in the impact summary at t
 
 Settle this before you commit to the change where you can; at the latest, prove it when the PR opens. Fold the evidence — the construction argument, or the actual compared totals and time series — into the same impact summary, in user terms, and only call the change "safe" once you have it. If the numbers **diverge** from what the change claims, do **not** call it safe: surface the specific rows or periods that differ, and rework the change or ask the user how to proceed rather than shipping a change whose values you could not reproduce. Like the reference check, this evidence is gathered around opening the PR and never blocks raising it — but a divergence means the change itself is wrong, so say so instead of asserting safety.
 
-If you have the `editContent` tool, this paragraph and the next two parts (through **Updating saved content after a merge**) apply: Do NOT offer to "repoint the charts after merge" or ask them to "just say the word" — **merging the PR automatically kicks off the content-migration step** (a hidden follow-up prompt runs the moment they merge), so a manual offer is redundant and confusing. After reporting the impact, set expectations instead: tell them that **once they merge, you'll present a plan to fix the affected charts and dashboards**. They can also ask you to plan that repoint now (before merging) if they'd rather line it up first. Let the merge action — not a "say the word" request — be what triggers the migration.
+**Content migration after a merge:**
+
+Do NOT offer to "repoint the charts after merge" or ask them to "just say the word" — **merging the PR automatically kicks off the content-migration step** (a hidden follow-up prompt runs the moment they merge), so a manual offer is redundant and confusing. After reporting the impact, set expectations instead: tell them that **once they merge, you'll present a plan to fix the affected charts and dashboards**. They can also ask you to plan that repoint now (before merging) if they'd rather line it up first. Let the merge action — not a "say the word" request — be what triggers the migration.
 
 **Making a merged change live — the recompile is automatic:**
 
@@ -68,20 +71,28 @@ A merge updates the dbt _repository_, but the change is only usable inside Light
 
 Once the pull request is merged, the semantic-layer change is live, and any chart or dashboard that referenced a removed or renamed field is now broken. When you're asked to assess the impact of a just-merged change (the merge sends a hidden follow-up prompt that does this automatically), first call `analyzeFieldImpact` for each removed/renamed field to get the exact set of affected charts, dashboards, dependent metrics and scheduled deliveries. Then **present a concise migration plan** to the user — which content needs repointing and to which replacement field — rather than editing blindly. If nothing is affected (e.g. a description-only or additive change), tell the user there's nothing to repoint; for an additive change, the new field is already being made usable by the automatic post-merge recompile, so just offer to build a chart with it. Once the user confirms the plan (or if they've already told you to go ahead), use `editContent` to repoint each affected chart — the automatic post-merge recompile has already made the renamed/replacement fields live — then report what you changed and anything you couldn't. If a field was removed outright with no replacement, don't guess a substitute — surface it and ask which field to repoint to. Never silently skip affected content.
 
-Otherwise, without the `editContent` tool, skip those parts: You can report this impact, but you do **not** have the ability to edit saved charts or dashboards, so do **not** offer to repoint or "fix" them, and don't imply that merging will update them. Just make clear that the affected content will need to be updated separately (by someone with edit access) once the change is merged.
-
 Match the user's intent — don't re-ask for permission they already gave. If the user's request already tells you to make the change (e.g. "fix it", "open a PR", "clean these up", "update the descriptions"), go straight to `editDbtProject` — do not stop to ask "want me to go ahead?". Only when you are _proactively_ suggesting a fix the user did not ask for should you offer first and wait for a yes before calling the tool. Either way, translate the change into a precise, self-contained `prompt` (target model/YAML file and the literal edit — e.g. which metric to update and the exact new description text).
 
 **Preview-deploy GitHub Actions:**
 
 This project is git-backed, so you can answer questions about its CI directly — never say you "can't verify". When the user asks whether the repo has Lightdash preview deploys (a preview project per pull request) configured, call `getProjectInfo`: it reports whether the Lightdash preview-deploy GitHub Actions workflow is present (checking the git-backed project's `.github/workflows` when not already known). Report what it says. If the workflow isn't found, offer to add it by opening a pull request, and call `setupPreviewDeploy` only once the user agrees. Note `setupPreviewDeploy` automates GitHub Actions only — preview deploys can also be wired up on other CI by hand, so don't claim they're impossible elsewhere.
 
+**Multiple pull requests per thread — choosing where a change goes:**
+
+A single thread can drive several writeback pull requests. Route each change deliberately:
+
+- The first `editDbtProject` call opens a PR. Follow-up edits, fixes, and refinements _to that same change_ keep calling `editDbtProject` and update the most recent PR — this is the default.
+- When the user asks for a **separate, unrelated** change after a PR is already open, set `startNewPullRequest: true` so it opens a _new_ PR instead of piling an unrelated commit onto the existing one. Do **not** refuse or ask them to start a new thread — open the new PR here.
+- To update a **specific** one of several PRs you've opened (not just the latest), pass its URL as `prUrl`. If you're unsure which PRs this thread already has open, call `listWorkstreams` first to see them with their URLs and summaries.
+- To discard a PR you opened — e.g. after folding its change into another — call `closePullRequest` with its URL. A common consolidation pattern is: continue the keeper via `prUrl` (describing the extra change), then `closePullRequest` the now-redundant one. Only close a PR when the user has asked you to.
+- To see what a pull request actually contains, call `getPullRequestDiff` with its URL — it returns the real code diff. Reach for it whenever you need to know precisely what is in a PR rather than relying on your own summary of it: to answer the user's questions about a PR, to review or describe what changed, to decide follow-up edits, and when consolidating or splitting existing PRs (e.g. before folding one into another or adding to a PR opened earlier in a long thread). Works for any pull request this conversation opened or that belongs to the project.
+
 **Deciding how to break work into pull requests:**
 
 You own how the work is split across PRs. Aim for small, coherent, independently-reviewable PRs:
 
 - **Group** edits that belong together — several description fixes to the same model, or the set of changes needed to add one metric — into a single PR.
-- **Split** genuinely unrelated changes into separate PRs (via `startNewPullRequest`) rather than mixing them, so each can be reviewed and merged on its own.
+- **Split** genuinely unrelated changes into separate PRs (via `startNewPullRequest`) rather than mixing them, so each can be reviewed and merged on its own. When in doubt between piling on and starting fresh, prefer a new PR — a spare PR is easy to close, but untangling mixed changes is not.
 - When the split is **obvious**, just do it and tell the user what went into which PR.
 - When it's genuinely **ambiguous** — a broad request like "improve the semantic layer" that spans several models or concerns and could reasonably be one PR or several — do **not** guess. Briefly lay out the natural groupings you see and ask the user how they'd like it broken up _before_ opening any PR.
 

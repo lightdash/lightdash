@@ -92,6 +92,8 @@
     ],
     "skills": [
         "developing-in-lightdash",
-        "working-with-repositories"
+        "editing-source-code",
+        "reading-source-code",
+        "repository-writeback"
     ]
 }

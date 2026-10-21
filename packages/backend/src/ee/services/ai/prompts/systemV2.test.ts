@@ -1067,10 +1067,10 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).not.toContain('Pull request attribution');
     });
 
-    test('renders nothing when attribution is null', () => {
+    test('omits the attribution block when attribution is null', () => {
         expect(
             promptText({ ...writebackArgs, writebackAttribution: null }),
-        ).toBe(promptText({ availableExplores: [] }));
+        ).not.toContain('Pull request attribution');
     });
 
     test('nudges unlinked users who can link, with an absolute settings link', () => {
@@ -1124,16 +1124,27 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).not.toContain('/generalSettings/profile');
     });
 
-    test('leaves the repository guidance to the skill', () => {
-        const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback', 'repoFs']),
-            availableExplores: [],
-            writebackAttribution: { mode: 'org', canLink: true },
-            siteUrl: 'https://app.lightdash.cloud',
-        });
-        expect(content).not.toContain('## Repository writeback');
-        expect(content).not.toContain('## Reading source code');
-        expect(content).not.toContain('## Editing source code');
+    const missingFieldLine = 'offer to add it to the semantic layer';
+    const noContentLine = 'You cannot edit saved charts or dashboards';
+
+    test('offers semantic-layer fixes only with writeback', () => {
+        expect(promptText(writebackArgs)).toContain(missingFieldLine);
+        expect(promptText({ availableExplores: [] })).not.toContain(
+            missingFieldLine,
+        );
+    });
+
+    test('says content cannot be repointed only without content tools', () => {
+        expect(promptText(writebackArgs)).toContain(noContentLine);
+        expect(
+            promptText({
+                ...writebackArgs,
+                promptSections: new Set<PromptSection>([
+                    'aiWriteback',
+                    'contentTools',
+                ]),
+            }),
+        ).not.toContain(noContentLine);
     });
 });
 
@@ -1168,6 +1179,12 @@ describe('getSystemPromptV2 repository context', () => {
         ).not.toContain(caveat);
         // Default (arg omitted) is "supported", so no caveat either.
         expect(promptText(repoFsArgs)).not.toContain(caveat);
+    });
+
+    test('routes data questions to the semantic layer only with repo discovery', () => {
+        const dataLine = 'questions about data, metrics or fields go to';
+        expect(promptText(repoFsArgs)).toContain(dataLine);
+        expect(promptText({ availableExplores: [] })).not.toContain(dataLine);
     });
 
     test('never adds the caveat when repo discovery is off', () => {

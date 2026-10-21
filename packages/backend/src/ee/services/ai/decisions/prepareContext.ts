@@ -27,7 +27,16 @@ export type PreparedContext = {
     toolIntents: TurnIntent[];
 };
 
-const DOCUMENT_AUTHORING_SKILL: BuiltInSkillName = 'developing-in-lightdash';
+// Turn types whose skills always load; each loads only when the loadout lists it.
+const INTENT_SKILLS: Partial<Record<TurnIntent, readonly BuiltInSkillName[]>> =
+    {
+        document_write: ['developing-in-lightdash'],
+        repository_change: [
+            'reading-source-code',
+            'repository-writeback',
+            'editing-source-code',
+        ],
+    };
 
 /** Run args plus the skills the turn's loadout lists. */
 export type PrepareContextArgs = AiAgentArgs & {
@@ -430,21 +439,25 @@ export const prepareRelevantContext = async (
         }
     }
     if (turnIntent) toolIntents = [turnIntent];
-    // Document write-ups always need the authoring skill; load it with its
-    // resource list so the model can fetch chart references in one step.
-    const preloadedSkill =
-        skillReference ??
-        (turnIntent === 'document_write'
-            ? availableSkills.find(
-                  ({ name }) => name === DOCUMENT_AUTHORING_SKILL,
-              )
-            : undefined);
-    const [skill, loadedDocuments] = await Promise.all([
-        preloadedSkill
-            ? dependencies
-                  .loadSkill(preloadedSkill.name, { arguments: null })
-                  .catch(() => null)
-            : null,
+    // Document write-ups and repository changes always need their skills; load
+    // them with their resource lists so the model can fetch references in one step.
+    const intentSkills = turnIntent ? (INTENT_SKILLS[turnIntent] ?? []) : [];
+    const preloadedSkills = [
+        ...(skillReference ? [skillReference] : []),
+        ...availableSkills.filter(
+            ({ name }) =>
+                name !== skillReference?.name &&
+                intentSkills.some((skill) => skill === name),
+        ),
+    ];
+    const [loadedSkills, loadedDocuments] = await Promise.all([
+        Promise.all(
+            preloadedSkills.map(({ name }) =>
+                dependencies
+                    .loadSkill(name, { arguments: null })
+                    .catch(() => null),
+            ),
+        ),
         Promise.all(
             documentReferences.map(async (reference) => {
                 const document = await dependencies
@@ -473,11 +486,13 @@ export const prepareRelevantContext = async (
             ? `MCP tool definition already loaded: ${preloadedMcpTool}. Its input schema is available; no loadMcpTools call is needed for it. Loading does not authorize or execute an action.`
             : null,
     );
-    include(
-        skill
-            ? `Skill already loaded; call loadSkill only for its resources.\n${formatSkillResult(skill)}`
-            : null,
-    );
+    loadedSkills.forEach((skill) => {
+        include(
+            skill
+                ? `Skill already loaded; call loadSkill only for its resources.\n${formatSkillResult(skill)}`
+                : null,
+        );
+    });
     loadedDocuments.forEach((document) => {
         include(
             document

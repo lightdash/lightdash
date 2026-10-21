@@ -142,12 +142,16 @@ section. Add-ons compose by union; no two add-ons contribute the same tool,
 and no add-on removes anything.
 _Avoid_: capability, feature, extension, module
 
-**Overlay**:
-A per-turn narrowing of a loadout: the intent gate that hides tools until the
-agent asks for more, or a thread's tool allowlist such as a data app
-investigation. An overlay only removes tools the loadout declared; it never
-adds one.
-_Avoid_: filter, gate (for the concept), allowlist (for the concept)
+**Intent gate**:
+With Jev on, the server picks a turn type at the start of each turn and
+withholds the tools and prompt sections that do not fit it; the agent gets
+them back with `loadAgentTools`. It never adds a tool.
+_Avoid_: overlay, filter
+
+**Tool allowlist**:
+A per-thread cap on the loadout, such as a data app investigation thread. It
+never adds a tool.
+_Avoid_: overlay, filter
 
 **SQL chart**:
 A chart saved from raw warehouse SQL rather than from an explore. Lives

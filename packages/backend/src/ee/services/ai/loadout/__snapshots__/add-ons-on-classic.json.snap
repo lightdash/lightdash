@@ -94,7 +94,7 @@
             "skills"
         ],
         "addsSkills": [
-            "working-with-repositories"
+            "repository-writeback"
         ]
     },
     "codingAgent": {
@@ -107,7 +107,7 @@
             "skills"
         ],
         "addsSkills": [
-            "working-with-repositories"
+            "editing-source-code"
         ]
     },
     "pullRequests": {
@@ -132,7 +132,7 @@
             "skills"
         ],
         "addsSkills": [
-            "working-with-repositories"
+            "reading-source-code"
         ]
     },
     "previewDeploySetup": {

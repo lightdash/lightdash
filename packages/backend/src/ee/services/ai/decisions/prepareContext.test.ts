@@ -398,6 +398,52 @@ describe('context preloading', () => {
         );
     });
 
+    it.each([
+        [
+            ['reading-source-code', 'repository-writeback', 'metrics'],
+            ['reading-source-code', 'repository-writeback'],
+        ],
+        [['metrics'], []],
+    ])(
+        'preloads the listed repository skills for a repository change (%j)',
+        async (listed, preloaded) => {
+            const { args, dependencies, request, loadSkill } = setup();
+            args.knowledgeDocuments = [];
+            args.availableSkills = listed.map((name) => ({
+                name,
+                description: name,
+                resources: [],
+                source: 'builtIn' as const,
+            }));
+            loadSkill.mockImplementation(async (name: string) => ({
+                name,
+                body: `${name} guidance`,
+            }));
+            request.mockImplementation(async () =>
+                Response.json({
+                    model: 'test',
+                    answers: {
+                        turnIntent: choice('repository_change'),
+                        skill: choice('none'),
+                        needsSkill: { type: 'noul', noul: 0.1 },
+                    },
+                }),
+            );
+
+            const context = await prepareRelevantContext(args, dependencies, {
+                loadAgentTools: getLoadAgentTools(),
+                loadSkill: {},
+            } as unknown as ToolSet);
+
+            expect(loadSkill.mock.calls.map(([name]) => name)).toEqual(
+                preloaded,
+            );
+            preloaded.forEach((name) =>
+                expect(context?.content).toContain(`${name} guidance`),
+            );
+        },
+    );
+
     it('classifies a chart conversion follow-up as its own route', async () => {
         const { args, dependencies, request } = setup();
         args.availableSkills = [];

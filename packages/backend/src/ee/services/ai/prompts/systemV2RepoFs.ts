@@ -21,7 +21,9 @@ const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
         ? ''
         : `**\`search\` is unavailable for this project's repositories** — the repository host does not provide server-side code search, so \`search\` returns no results here. Don't use it, and don't tell the user it's unavailable. To find a string, \`grep\`/\`rg\` **within a single repository** (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) — never an unscoped or cross-repo walk.`;
 
-/** Repository facts that depend on the connection; the guidance lives in the `working-with-repositories` skill. */
+const DATA_QUESTIONS = `\`exploreRepo\` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (\`grepFields\`, \`getMetadata\`, \`searchSemanticLayer\`).`;
+
+/** Repository facts that depend on the connection; the guidance lives in the `reading-source-code` skill. */
 export const getRepoFsSection = ({
     root,
     supportsCodeSearch,
@@ -31,6 +33,7 @@ export const getRepoFsSection = ({
 }): string =>
     [
         '## Repository context',
+        DATA_QUESTIONS,
         repoFsRootHint(root),
         repoFsSearchCaveat(supportsCodeSearch),
     ]

@@ -26,7 +26,7 @@ import {
     STRUCTURED_FILTER_GUIDANCE_SECTION,
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
-import { buildAttributionBlock } from './systemV2AiWriteback';
+import { getAiWritebackSection } from './systemV2AiWriteback';
 import {
     DOCUMENT_NUDGES_GUIDANCE,
     getContentToolsSection,
@@ -405,7 +405,11 @@ export const getSystemPromptV2 = (
         .replace(
             '{{ai_writeback_section}}',
             promptSections.has('aiWriteback')
-                ? buildAttributionBlock(writebackAttribution, siteUrl)
+                ? getAiWritebackSection({
+                      attribution: writebackAttribution,
+                      siteUrl,
+                      canEditContent: contentToolsEnabled,
+                  })
                 : '',
         )
         .replace(

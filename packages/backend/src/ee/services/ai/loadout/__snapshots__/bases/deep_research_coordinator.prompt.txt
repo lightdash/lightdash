@@ -308,11 +308,15 @@ NEVER guess column names across multiple `runSql` calls. Discovery is free; SQL 
 
 
 
+## Repository writeback
 
+When a data question needs a metric or dimension the explore lacks, offer to add it to the semantic layer with a pull request, using the `repository-writeback` skill.
 
 
 
 ## Repository context
+
+`exploreRepo` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (`grepFields`, `getMetadata`, `searchSemanticLayer`).
 
 The `/dbt` mount is this project's governed dbt repository. Its files are at the top of `/dbt` (e.g. `ls /dbt/models`, `cat /dbt/dbt_project.yml`).
 
@@ -421,4 +425,6 @@ You have optional built-in skills that load on demand.
 
 Available skills:
 - developing-in-lightdash: Guidance for charts and dashboards
-- working-with-repositories: Guidance for reading and changing repositories
+- reading-source-code: Guidance for reading-source-code
+- repository-writeback: Guidance for repository-writeback
+- editing-source-code: Guidance for editing-source-code
