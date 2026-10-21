@@ -175,9 +175,14 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
             }
             document = { type, content: result.data };
         } else if (type === 'chart' || type === 'dashboard') {
+            // API exports can contain null; the upload controllers treat it as omitted.
+            const content =
+                value.description === null
+                    ? { ...value, description: undefined }
+                    : value;
             const validate =
                 type === 'chart' ? validateChart : validateDashboard;
-            if (!validate(input)) {
+            if (!validate(content)) {
                 throw new Error(
                     (validate.errors ?? [])
                         .slice(0, 4)
@@ -189,9 +194,9 @@ export const parseImportFile = async (file: File): Promise<ImportEntry> => {
                 );
             }
             if (type === 'chart') {
-                document = { type, content: input as ChartAsCode };
+                document = { type, content: content as ChartAsCode };
             } else {
-                document = { type, content: input as DashboardAsCode };
+                document = { type, content: content as DashboardAsCode };
             }
         } else {
             throw new Error(
