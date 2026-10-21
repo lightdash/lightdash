@@ -83,7 +83,7 @@ export const allocateStagedExploreNames = async (
     });
     const cached = await trx(CachedExploreTableName)
         .where('project_uuid', projectUuid)
-        .select('name', 'explore');
+        .select('name', 'explore', 'warehouse_connection_uuid');
     const existing = await trx(ExploreNameAllocationsTableName)
         .where('project_uuid', projectUuid)
         .select('*');
@@ -398,6 +398,32 @@ export const allocateStagedExploreNames = async (
                 claim(identity, name);
         },
     );
+    const legacyPrimaryNames = cached
+        .filter(({ explore, warehouse_connection_uuid }) => {
+            if (isUserManagedExplore(explore) || isExploreError(explore))
+                return false;
+            const table = explore.tables[explore.baseTable];
+            return (
+                warehouse_connection_uuid === null &&
+                table !== undefined &&
+                table.dbtSourceUuid === undefined &&
+                sourceKey(identityOf(explore)) === 'primary'
+            );
+        })
+        .map(({ name }) => name);
+    if (legacyPrimaryNames.length > 0)
+        await trx(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('name', legacyPrimaryNames)
+            .update({
+                explore: trx.raw(
+                    `jsonb_set(
+                        jsonb_set(explore, ARRAY['tables', explore->>'baseTable', 'dbtSourceUuid'], to_jsonb(?::text)),
+                        ARRAY['tables', explore->>'baseTable', 'dbtSourceName'], to_jsonb(?::text)
+                    )`,
+                    [primaryUuid, sourceNames.get(primaryUuid)],
+                ),
+            });
     const refreshed = new Set(
         naming.refreshedSourceUuids.map((uuid) =>
             uuid === primaryUuid ? 'primary' : uuid,

@@ -1163,6 +1163,240 @@ describe('Multi-connection compile on the real schema', () => {
             expect(JSON.stringify(report)).not.toContain('__model_');
         });
 
+        test.each([
+            {
+                refreshBeforeDeploy: false,
+                collision: true,
+                qualifiedConflict: false,
+            },
+            {
+                refreshBeforeDeploy: true,
+                collision: true,
+                qualifiedConflict: false,
+            },
+            {
+                refreshBeforeDeploy: false,
+                collision: false,
+                qualifiedConflict: false,
+            },
+            {
+                refreshBeforeDeploy: true,
+                collision: false,
+                qualifiedConflict: false,
+            },
+            {
+                refreshBeforeDeploy: false,
+                collision: true,
+                qualifiedConflict: true,
+            },
+        ])(
+            'legacy primary cache survives a first source deploy (refresh $refreshBeforeDeploy, collision $collision, qualified conflict $qualifiedConflict)',
+            async ({ refreshBeforeDeploy, collision, qualifiedConflict }) => {
+                const fixture = await createProject(
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
+                    false,
+                );
+                await database('projects')
+                    .where('project_uuid', fixture.projectUuid)
+                    .update({ connection_mode: 'single' } as never);
+                await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        fixture.extraConnectionUuid,
+                    )
+                    .delete();
+                const models = [
+                    ...primaryModels,
+                    {
+                        name: 'ledger',
+                        database: ORIGINAL_DB,
+                        table: 'payments',
+                    },
+                    ...(qualifiedConflict
+                        ? [
+                              {
+                                  name: 'merchants__ledger',
+                                  database: ORIGINAL_DB,
+                                  table: 'customers',
+                              },
+                          ]
+                        : []),
+                ];
+                const { service } = compileService(fixture.projectUuid, {
+                    ...defaultCompileServiceOptions,
+                    primaryModels: models,
+                });
+                const user = await compilingUser(fixture.projectUuid);
+                const account = fromSession(user, 'session-cookie');
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                });
+                const refresh = async () => {
+                    const jobUuid = await createJob(
+                        fixture.projectUuid,
+                        user.userUuid,
+                    );
+                    await service.compileProject(
+                        user,
+                        fixture.projectUuid,
+                        RequestMethod.WEB_APP,
+                        jobUuid,
+                    );
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                };
+                await refresh();
+                const legacy = await projectModel.getExploreFromCache(
+                    fixture.projectUuid,
+                    'ledger',
+                );
+                expect(legacy.tables?.ledger.dbtSourceUuid).toBeUndefined();
+                expect(
+                    await database('explore_name_allocations').where(
+                        'project_uuid',
+                        fixture.projectUuid,
+                    ),
+                ).toEqual([]);
+                const source = await projectDbtSourcesModel.createSource(
+                    fixture.projectUuid,
+                    {
+                        name: 'merchants',
+                        isPrimary: false,
+                        precedence: 1,
+                        dbtConnection: githubDbtConnection('org/merchants'),
+                        warehouseLocation: { database: null, schema: null },
+                    },
+                );
+                const modelName = collision ? 'ledger' : 'merchant_ledger';
+                sourceManifests.merchants = dbtManifest('merchants', [
+                    {
+                        name: modelName,
+                        database: ORIGINAL_DB,
+                        table: 'invoices',
+                    },
+                ]);
+                if (refreshBeforeDeploy) await refresh();
+                const uploaded = explore(modelName, [modelName]);
+                uploaded.dbtModelIdentity = {
+                    sourceUuid: null,
+                    sourceName: null,
+                    packageName: 'merchants',
+                    uniqueId: `model.merchants.${modelName}`,
+                    modelName,
+                };
+                uploaded.tables[modelName].dbtPackageName = 'merchants';
+                uploaded.tables[modelName].dbtModelUniqueId =
+                    `model.merchants.${modelName}`;
+                const before = await dump(fixture.projectUuid);
+                const deploy = service.saveDeployExplores({
+                    userUuid: user.userUuid,
+                    projectUuid: fixture.projectUuid,
+                    explores: [uploaded],
+                    complete: true,
+                    compilationSource: 'cli_deploy',
+                    cliDeploy: {
+                        sourceUuid: source.projectDbtSourceUuid,
+                        target: null,
+                    },
+                });
+                if (qualifiedConflict) {
+                    await expect(deploy).rejects.toThrow(
+                        'cannot use explore name "merchants__ledger"',
+                    );
+                    expect(await dump(fixture.projectUuid)).toEqual(before);
+                    expect(
+                        await database('explore_name_allocations').where(
+                            'project_uuid',
+                            fixture.projectUuid,
+                        ),
+                    ).toEqual([]);
+                    await expect(
+                        service.getExplore(
+                            account,
+                            fixture.projectUuid,
+                            'ledger',
+                        ),
+                    ).resolves.toMatchObject({ name: 'ledger' });
+                    return;
+                }
+                await deploy;
+                const published = await bindings(fixture.projectUuid);
+                const allocations = await database('explore_name_allocations')
+                    .select(
+                        'name',
+                        'source_key',
+                        'model_unique_id',
+                        'is_reserved',
+                    )
+                    .where('project_uuid', fixture.projectUuid)
+                    .orderBy('name');
+                const assignedName = collision
+                    ? 'merchants__ledger'
+                    : modelName;
+                expect(published).toEqual({
+                    customers: null,
+                    ledger: null,
+                    orders: null,
+                    [assignedName]: null,
+                });
+                expect(allocations).toEqual(
+                    [
+                        ...models.map(({ name }) => ({
+                            name,
+                            source_key: 'primary',
+                            model_unique_id: `model.primary.${name}`,
+                            is_reserved: false,
+                        })),
+                        {
+                            name: assignedName,
+                            source_key: source.projectDbtSourceUuid,
+                            model_unique_id: `model.merchants.${modelName}`,
+                            is_reserved: false,
+                        },
+                    ].sort((left, right) =>
+                        left.name.localeCompare(right.name),
+                    ),
+                );
+                const { dbtSourceUuid, dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                await Promise.all(
+                    models.map(async ({ name }) => {
+                        const fetched = await service.getExplore(
+                            account,
+                            fixture.projectUuid,
+                            name,
+                        );
+                        expect(fetched.name).toBe(name);
+                        expect(fetched.tables[fetched.baseTable]).toMatchObject(
+                            {
+                                dbtSourceUuid,
+                                dbtSourceName,
+                            },
+                        );
+                    }),
+                );
+                await refresh();
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                    ledger: null,
+                    orders: null,
+                    [assignedName]: null,
+                });
+                expect(
+                    await projectModel.getExploreFromCache(
+                        fixture.projectUuid,
+                        'ledger',
+                    ),
+                ).toMatchObject({ name: 'ledger' });
+            },
+        );
+
         test('a primary qualified name survives removal of all other sources and connections', async () => {
             const fixture = await createProject();
             const user = await compilingUser(fixture.projectUuid);
