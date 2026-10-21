@@ -4317,10 +4317,10 @@ export class ProjectService
             { kind: 'original' },
         );
         const hasAdditionalDbtSources =
-            args.complete === true && cliDeploy.sourceUuid === null
+            args.complete === true
                 ? await this.projectDbtSourcesModel.hasSources(args.projectUuid)
                 : null;
-        const inferred =
+        const sourceSelection =
             hasAdditionalDbtSources === true
                 ? await inferCliDeploySource(
                       {
@@ -4339,7 +4339,7 @@ export class ProjectService
                       },
                   )
                 : null;
-        if (connectionRoute !== 'multi' && inferred === null) {
+        if (connectionRoute !== 'multi' && hasAdditionalDbtSources !== true) {
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
                 false,
@@ -4358,12 +4358,12 @@ export class ProjectService
                 warehouseConnectionModel: this.warehouseConnectionModel,
             },
             args.projectUuid,
-            inferred
-                ? { ...cliDeploy, sourceUuid: inferred.sourceUuid }
+            sourceSelection
+                ? { ...cliDeploy, sourceUuid: sourceSelection.sourceUuid }
                 : cliDeploy,
         );
         const { explores: uploadedExplores, ...metadata } = deploy;
-        const explores = inferred?.explores ?? uploadedExplores;
+        const explores = sourceSelection?.explores ?? uploadedExplores;
         const sourceDeploy =
             await this.multiConnectionCompiler.prepareSourceDeploy({
                 projectUuid: args.projectUuid,
@@ -4378,16 +4378,17 @@ export class ProjectService
                 let writeChecks = this.getConnectionStagedWriteChecks(
                     args.projectUuid,
                 );
-                if (inferred) {
+                if (sourceSelection) {
                     const [checkWrite] = writeChecks;
                     writeChecks = [
                         async (trx, saveUuid) => {
                             await checkWrite?.(trx, saveUuid);
                             await this.projectModel.assertSourceDeployOwnership(
                                 args.projectUuid,
-                                inferred.sourceUuid,
+                                sourceSelection.sourceUuid,
                                 saveUuid,
                                 trx,
+                                cliDeploy.sourceUuid !== null,
                             );
                         },
                     ];
@@ -4401,21 +4402,27 @@ export class ProjectService
                 return saved;
             },
         });
-        if (inferred) {
-            this.logger.info('cli.deploy.source_inferred', {
-                projectUuid: args.projectUuid,
-                dbtSourceUuid: inferred.sourceUuid,
-                method: inferred.method,
-                uploadedExploreCount: uploadedExplores.length,
-                droppedExploreCount: inferred.droppedExploreCount,
-            });
-            if (inferred.droppedExploreCount > 0) {
+        if (sourceSelection) {
+            this.logger.info(
+                sourceSelection.method === 'explicit'
+                    ? 'cli.deploy.source_selected'
+                    : 'cli.deploy.source_inferred',
+                {
+                    projectUuid: args.projectUuid,
+                    dbtSourceUuid: sourceSelection.sourceUuid,
+                    method: sourceSelection.method,
+                    uploadedExploreCount: uploadedExplores.length,
+                    droppedExploreCount: sourceSelection.droppedExploreCount,
+                },
+            );
+            if (sourceSelection.droppedExploreCount > 0) {
                 this.logger.warn(
                     'CLI deploy dropped explores from other dbt sources',
                     {
                         projectUuid: args.projectUuid,
-                        dbtSourceUuid: inferred.sourceUuid,
-                        droppedExploreCount: inferred.droppedExploreCount,
+                        dbtSourceUuid: sourceSelection.sourceUuid,
+                        droppedExploreCount:
+                            sourceSelection.droppedExploreCount,
                     },
                 );
             }

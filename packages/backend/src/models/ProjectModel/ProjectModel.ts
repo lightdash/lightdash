@@ -4015,6 +4015,7 @@ export class ProjectModel {
         sourceUuid: string,
         saveUuid: string,
         trx: Transaction,
+        allowUnstampedErrors = false,
     ): Promise<void> {
         const sourceIdentity = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
         const conflict = await trx(CachedExploreTableName)
@@ -4025,7 +4026,14 @@ export class ProjectModel {
             ])
             .where((query) => {
                 void query
-                    .whereRaw(`${sourceIdentity} IS NULL`)
+                    .where((unknown) => {
+                        void unknown.whereRaw(`${sourceIdentity} IS NULL`);
+                        if (allowUnstampedErrors) {
+                            void unknown.whereRaw(
+                                "NOT jsonb_exists(explore, 'errors')",
+                            );
+                        }
+                    })
                     .orWhere((collision) => {
                         void collision
                             .whereRaw(`${sourceIdentity} <> ?`, [sourceUuid])

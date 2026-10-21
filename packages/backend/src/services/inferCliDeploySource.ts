@@ -2,6 +2,7 @@ import {
     getWarehouseLocation,
     isExploreError,
     isUserManagedExplore,
+    ParameterError,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
@@ -30,9 +31,13 @@ type InferenceModels = {
     >;
 };
 
-export type InferredCliDeploySource = {
+export type ResolvedCliDeploySource = {
     sourceUuid: string;
-    method: 'package_match' | 'overlap_tiebreak' | 'database_tiebreak';
+    method:
+        | 'package_match'
+        | 'overlap_tiebreak'
+        | 'database_tiebreak'
+        | 'explicit';
     explores: (Explore | ExploreError)[];
     droppedExploreCount: number;
 };
@@ -54,7 +59,7 @@ export const inferCliDeploySource = async (
         dbtModelNames: string[] | undefined;
         cliDeploy: CliDeploySelection;
     },
-): Promise<InferredCliDeploySource> => {
+): Promise<ResolvedCliDeploySource> => {
     const { projectUuid, explores, dbtModelNames, cliDeploy } = args;
     const identity =
         await models.projectModel.getDbtSourceIdentity(projectUuid);
@@ -64,39 +69,25 @@ export const inferCliDeploySource = async (
         identity.dbtSourceName,
         ...sources.map((source) => source.name),
     ];
-    const cannotInfer = (reason: string): never => {
-        throw cliDeployConflictError(reason, sourceNames);
-    };
-    const successful = explores.filter((explore) => !isExploreError(explore));
-    if (explores.length === 0)
-        return cannotInfer(
-            'the upload contains no explores; compile the dbt project and deploy again',
-        );
-    if (successful.length === 0)
-        return cannotInfer(
-            'none of the uploaded explores compiled successfully; fix the compile errors and deploy again',
-        );
-    if (successful.some((explore) => !baseTable(explore)?.dbtPackageName)) {
-        return cannotInfer(
-            'the uploaded explores carry no dbt project name; update the Lightdash CLI',
-        );
-    }
     const sourceUuids = new Set([
         identity.dbtSourceUuid,
         ...sources.map((source) => source.projectDbtSourceUuid),
     ]);
+    const explicitSourceUuid = cliDeploy.sourceUuid;
+    if (explicitSourceUuid !== null && !sourceUuids.has(explicitSourceUuid)) {
+        throw new ParameterError(
+            'The selected dbt source does not belong to this project.',
+        );
+    }
+    const sourceName = (sourceUuid: string): string =>
+        sourceUuid === identity.dbtSourceUuid
+            ? identity.dbtSourceName
+            : sources.find(
+                  (source) => source.projectDbtSourceUuid === sourceUuid,
+              )!.name;
     const cached = Object.values(
         await models.projectModel.getAllExploresFromCache(projectUuid),
     ).filter((explore) => !isUserManagedExplore(explore));
-    if (
-        cached.some(
-            (explore) => !sourceUuids.has(cachedSourceUuid(explore) ?? ''),
-        )
-    ) {
-        return cannotInfer(
-            'the saved explores do not identify their dbt source; refresh the project in Lightdash',
-        );
-    }
     const packages = new Map<string, Set<string>>();
     const addPackage = (packageName: string, sourceUuid: string) => {
         if (!sourceUuids.has(sourceUuid)) return;
@@ -116,125 +107,181 @@ export const inferCliDeploySource = async (
     catalogNames.forEach((row) => {
         addPackage(row.project_name, row.dbt_source_uuid);
     });
-    const mapped = successful.filter((explore) =>
-        packages.has(baseTable(explore)!.dbtPackageName!),
-    );
-    if (mapped.length === 0) {
-        const uploadedPackages = [
-            ...new Set(
-                successful.map(
-                    (explore) => baseTable(explore)!.dbtPackageName!,
-                ),
-            ),
-        ];
-        return cannotInfer(
-            `no source in this project provides the dbt project ${uploadedPackages.join(', ')}`,
+    const infer = async (): Promise<
+        | {
+              sourceUuid: string;
+              method: Exclude<ResolvedCliDeploySource['method'], 'explicit'>;
+          }
+        | { reason: string }
+    > => {
+        const cannotInfer = (reason: string) => ({ reason });
+        const successful = explores.filter(
+            (explore) => !isExploreError(explore),
         );
-    }
-    const uploadedPackages = new Set(
-        mapped.map((explore) => baseTable(explore)!.dbtPackageName!),
-    );
-    if (
-        dbtModelNames !== undefined &&
-        [...uploadedPackages].some(
-            (packageName) =>
-                !dbtModelNames.some((name) =>
-                    name.startsWith(`${packageName}__`),
-                ),
-        )
-    ) {
-        return cannotInfer(
-            'the explores and the model list disagree; run the deploy again',
-        );
-    }
-    let candidates = [...sourceUuids].filter((sourceUuid) =>
-        [...uploadedPackages].every((packageName) =>
-            packages.get(packageName)!.has(sourceUuid),
-        ),
-    );
-    if (candidates.length === 0)
-        return cannotInfer(
-            `the upload contains models from several sources (${[...uploadedPackages].join(', ')})`,
-        );
-    let method: InferredCliDeploySource['method'] = 'package_match';
-    if (candidates.length > 1) {
-        const names = new Set(mapped.map((explore) => explore.name));
-        const overlap = candidates.filter((sourceUuid) => {
-            const cachedNames = new Set(
-                cached
-                    .filter(
-                        (explore) => cachedSourceUuid(explore) === sourceUuid,
-                    )
-                    .map((explore) => explore.name),
-            );
-            return (
-                [...names].filter((name) => cachedNames.has(name)).length /
-                    names.size >=
-                0.9
-            );
-        });
-        if (overlap.length > 0) candidates = overlap;
-        if (candidates.length === 1) method = 'overlap_tiebreak';
-    }
-    if (candidates.length > 1) {
-        const candidateNames = candidates.map((sourceUuid) =>
-            sourceUuid === identity.dbtSourceUuid
-                ? identity.dbtSourceName
-                : sources.find(
-                      (source) => source.projectDbtSourceUuid === sourceUuid,
-                  )!.name,
-        );
-        const providerNames =
-            candidateNames.length === 2
-                ? candidateNames.join(' and ')
-                : `${candidateNames.slice(0, -1).join(', ')} and ${candidateNames.at(-1)}`;
-        const ambiguousReason = `sources ${providerNames} ${candidateNames.length === 2 ? 'both' : 'all'} provide ${[...uploadedPackages].join(', ')}, and ${cliDeploy.target ? `the dbt target database ${cliDeploy.target.database} does not pick one` : 'the deploy did not send a dbt target database'}`;
-        const databases = new Set(
-            mapped
-                .map((explore) => baseTable(explore)?.database)
-                .filter(Boolean),
-        );
-        if (cliDeploy.target) databases.add(cliDeploy.target.database);
-        if (databases.size === 0) return cannotInfer(ambiguousReason);
-        if (databases.size > 1)
+        if (explores.length === 0)
             return cannotInfer(
-                cliDeploy.target
-                    ? 'the explores and the dbt target name different databases; run the deploy again'
-                    : 'the uploaded explores name several databases; run the deploy again',
+                'the upload contains no explores; compile the dbt project and deploy again',
             );
-        const [database] = databases;
-        const matching = await Promise.all(
-            candidates.map(async (sourceUuid) => {
-                const source = sources.find(
-                    (candidate) =>
-                        candidate.projectDbtSourceUuid === sourceUuid,
+        if (successful.length === 0)
+            return cannotInfer(
+                'none of the uploaded explores compiled successfully; fix the compile errors and deploy again',
+            );
+        if (successful.some((explore) => !baseTable(explore)?.dbtPackageName)) {
+            return cannotInfer(
+                'the uploaded explores carry no dbt project name; update the Lightdash CLI',
+            );
+        }
+        if (
+            explicitSourceUuid === null &&
+            cached.some(
+                (explore) => !sourceUuids.has(cachedSourceUuid(explore) ?? ''),
+            )
+        ) {
+            return cannotInfer(
+                'the saved explores do not identify their dbt source; refresh the project in Lightdash',
+            );
+        }
+        const mapped = successful.filter((explore) =>
+            packages.has(baseTable(explore)!.dbtPackageName!),
+        );
+        if (mapped.length === 0) {
+            const uploadedPackages = [
+                ...new Set(
+                    successful.map(
+                        (explore) => baseTable(explore)!.dbtPackageName!,
+                    ),
+                ),
+            ];
+            return cannotInfer(
+                `no source in this project provides the dbt project ${uploadedPackages.join(', ')}`,
+            );
+        }
+        const uploadedPackages = new Set(
+            mapped.map((explore) => baseTable(explore)!.dbtPackageName!),
+        );
+        if (
+            dbtModelNames !== undefined &&
+            [...uploadedPackages].some(
+                (packageName) =>
+                    !dbtModelNames.some((name) =>
+                        name.startsWith(`${packageName}__`),
+                    ),
+            )
+        ) {
+            return cannotInfer(
+                'the explores and the model list disagree; run the deploy again',
+            );
+        }
+        let candidates = [...sourceUuids].filter((sourceUuid) =>
+            [...uploadedPackages].every((packageName) =>
+                packages.get(packageName)!.has(sourceUuid),
+            ),
+        );
+        if (candidates.length === 0)
+            return cannotInfer(
+                `the upload contains models from several sources (${[...uploadedPackages].join(', ')})`,
+            );
+        let method: Exclude<ResolvedCliDeploySource['method'], 'explicit'> =
+            'package_match';
+        if (candidates.length > 1) {
+            const names = new Set(mapped.map((explore) => explore.name));
+            const overlap = candidates.filter((sourceUuid) => {
+                const cachedNames = new Set(
+                    cached
+                        .filter(
+                            (explore) =>
+                                cachedSourceUuid(explore) === sourceUuid,
+                        )
+                        .map((explore) => explore.name),
                 );
-                let sourceDatabase = source?.warehouseLocation.database;
-                if (!sourceDatabase) {
-                    const credentials = source?.warehouseConnectionUuid
-                        ? await models.warehouseConnectionModel.getCredentials(
-                              await models.warehouseConnectionModel.getProject(
+                return (
+                    [...names].filter((name) => cachedNames.has(name)).length /
+                        names.size >=
+                    0.9
+                );
+            });
+            if (overlap.length > 0) candidates = overlap;
+            if (candidates.length === 1) method = 'overlap_tiebreak';
+        }
+        if (candidates.length > 1) {
+            const candidateNames = candidates.map((sourceUuid) =>
+                sourceUuid === identity.dbtSourceUuid
+                    ? identity.dbtSourceName
+                    : sources.find(
+                          (source) =>
+                              source.projectDbtSourceUuid === sourceUuid,
+                      )!.name,
+            );
+            const providerNames =
+                candidateNames.length === 2
+                    ? candidateNames.join(' and ')
+                    : `${candidateNames.slice(0, -1).join(', ')} and ${candidateNames.at(-1)}`;
+            const ambiguousReason = `sources ${providerNames} ${candidateNames.length === 2 ? 'both' : 'all'} provide ${[...uploadedPackages].join(', ')}, and ${cliDeploy.target ? `the dbt target database ${cliDeploy.target.database} does not pick one` : 'the deploy did not send a dbt target database'}`;
+            const databases = new Set(
+                mapped
+                    .map((explore) => baseTable(explore)?.database)
+                    .filter(Boolean),
+            );
+            if (cliDeploy.target) databases.add(cliDeploy.target.database);
+            if (databases.size === 0) return cannotInfer(ambiguousReason);
+            if (databases.size > 1)
+                return cannotInfer(
+                    cliDeploy.target
+                        ? 'the explores and the dbt target name different databases; run the deploy again'
+                        : 'the uploaded explores name several databases; run the deploy again',
+                );
+            const [database] = databases;
+            const matching = await Promise.all(
+                candidates.map(async (sourceUuid) => {
+                    const source = sources.find(
+                        (candidate) =>
+                            candidate.projectDbtSourceUuid === sourceUuid,
+                    );
+                    let sourceDatabase = source?.warehouseLocation.database;
+                    if (!sourceDatabase) {
+                        const credentials = source?.warehouseConnectionUuid
+                            ? await models.warehouseConnectionModel.getCredentials(
+                                  await models.warehouseConnectionModel.getProject(
+                                      projectUuid,
+                                  ),
+                                  source.warehouseConnectionUuid,
+                              )
+                            : await models.projectModel.getWarehouseCredentialsForBinding(
                                   projectUuid,
-                              ),
-                              source.warehouseConnectionUuid,
-                          )
-                        : await models.projectModel.getWarehouseCredentialsForBinding(
-                              projectUuid,
-                              { kind: 'original' },
-                          );
-                    const location = getWarehouseLocation(credentials);
-                    sourceDatabase = location.database ?? location.schema;
-                }
-                return sourceDatabase === database ? sourceUuid : null;
-            }),
-        );
-        candidates = matching.filter(
-            (sourceUuid): sourceUuid is string => sourceUuid !== null,
-        );
-        method = 'database_tiebreak';
-        if (candidates.length !== 1) return cannotInfer(ambiguousReason);
+                                  { kind: 'original' },
+                              );
+                        const location = getWarehouseLocation(credentials);
+                        sourceDatabase = location.database ?? location.schema;
+                    }
+                    return sourceDatabase === database ? sourceUuid : null;
+                }),
+            );
+            candidates = matching.filter(
+                (sourceUuid): sourceUuid is string => sourceUuid !== null,
+            );
+            method = 'database_tiebreak';
+            if (candidates.length !== 1) return cannotInfer(ambiguousReason);
+        }
+        return { sourceUuid: candidates[0], method };
+    };
+    const inferred = await infer();
+    if ('reason' in inferred && explicitSourceUuid === null) {
+        throw cliDeployConflictError(inferred.reason, sourceNames);
     }
-    const [sourceUuid] = candidates;
+    if (
+        !('reason' in inferred) &&
+        explicitSourceUuid !== null &&
+        explicitSourceUuid !== inferred.sourceUuid
+    ) {
+        throw cliDeployConflictError(
+            `the deploy named source ${sourceName(explicitSourceUuid)}, but the uploaded explores belong to source ${sourceName(inferred.sourceUuid)}`,
+            sourceNames,
+        );
+    }
+    const { sourceUuid, method } =
+        'reason' in inferred
+            ? { sourceUuid: explicitSourceUuid!, method: 'explicit' as const }
+            : inferred;
     const cachedByName = new Map(
         cached.map((explore) => [explore.name, explore]),
     );
@@ -248,12 +295,19 @@ export const inferCliDeploySource = async (
         if (owners && !owners.has(sourceUuid)) return false;
         if (existingSource && existingSource !== sourceUuid) {
             if (isExploreError(explore)) return false;
-            return cannotInfer(
+            throw cliDeployConflictError(
                 'an uploaded explore name already belongs to another source',
+                sourceNames,
             );
         }
         return true;
     });
+    if (explores.length > 0 && kept.length === 0) {
+        throw cliDeployConflictError(
+            `the upload contains no models for source ${sourceName(sourceUuid)}`,
+            sourceNames,
+        );
+    }
     return {
         sourceUuid,
         method,

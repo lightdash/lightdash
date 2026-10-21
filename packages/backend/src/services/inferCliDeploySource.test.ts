@@ -63,6 +63,15 @@ const setup = () => {
     return { models, args };
 };
 
+const expectedMessage = (
+    reason: string,
+) => `This deploy was not saved and nothing in the project changed.
+The project has several dbt sources and Lightdash could not tell which one these explores belong to: ${reason}.
+
+To fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.
+
+Sources in this project: Core models, Replica models.`;
+
 test('reports the package match and accepts matching qualified model names', async () => {
     const { models, args } = setup();
     args.dbtModelNames = ['orders', 'analytics__orders'];
@@ -160,7 +169,9 @@ test('does not overwrite another source through an unmapped installed package', 
     args.explores.push(explore('shared_name', undefined, 'dbt_utils'));
     await expect(inferCliDeploySource(models, args)).rejects.toMatchObject({
         statusCode: 409,
-        message: expect.stringContaining('--source'),
+        message: expectedMessage(
+            'an uploaded explore name already belongs to another source',
+        ),
     });
 });
 
@@ -202,19 +213,6 @@ test('includes catalog project names even when only an installed package is cach
     });
 });
 
-const expectedMessage = (
-    reason: string,
-) => `This deploy was not saved and nothing in the project changed.
-The project has several dbt sources and Lightdash could not tell which one these explores belong to: ${reason}.
-
-To fix it, name the source for this deploy:
-  lightdash deploy --source <name>
-or store it once for this project:
-  lightdash config set-source <name>
-
-Sources in this project: Core models, Replica models.
-If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.`;
-
 test.each([
     {
         kind: 'missing-project-name',
@@ -249,7 +247,7 @@ test.each([
         reason: 'an uploaded explore name already belongs to another source',
     },
 ])(
-    'explains $kind and lists the names accepted by --source',
+    'explains $kind and lists the source names without source-flag hints',
     async ({ kind, reason }) => {
         const { models, args } = setup();
         if (kind === 'missing-project-name')
@@ -285,12 +283,15 @@ test.each([
                       ],
                   }
                 : args;
-        await expect(
-            inferCliDeploySource(models, upload),
-        ).rejects.toMatchObject({
+        const rejected = await inferCliDeploySource(models, upload).catch(
+            (error: Error) => error,
+        );
+        expect(rejected).toMatchObject({
             statusCode: 409,
             message: expectedMessage(reason),
         });
+        expect((rejected as Error).message).not.toContain('--source');
+        expect((rejected as Error).message).not.toContain('set-source');
     },
 );
 
@@ -359,3 +360,131 @@ test.each([false, true])(
         });
     },
 );
+
+test.each([false, true])(
+    'checks an explicit source against inference with legacy error %s',
+    async (legacyError) => {
+        const { models, args } = setup();
+        if (legacyError)
+            models.projectModel.getAllExploresFromCache.mockResolvedValue({
+                orders: explore('orders', 'primary'),
+                legacy: {
+                    name: 'legacy_error',
+                    label: 'Legacy error',
+                    errors: [],
+                },
+            });
+        const rejected = await inferCliDeploySource(models, {
+            ...args,
+            cliDeploy: { sourceUuid: 'extra', target: null },
+        }).catch((error: Error) => error);
+        expect(rejected).toMatchObject({
+            statusCode: 409,
+            message: expectedMessage(
+                'the deploy named source Replica models, but the uploaded explores belong to source Core models',
+            ),
+        });
+        expect((rejected as Error).message).not.toContain('--source');
+        expect((rejected as Error).message).not.toContain('set-source');
+    },
+);
+
+test('accepts an explicit source when it matches the inference', async () => {
+    const { models, args } = setup();
+    await expect(
+        inferCliDeploySource(models, {
+            ...args,
+            cliDeploy: { sourceUuid: 'primary', target: null },
+        }),
+    ).resolves.toMatchObject({
+        sourceUuid: 'primary',
+        method: 'package_match',
+    });
+});
+
+test.each(['missing-package', 'unmapped', 'mixed', 'model-list', 'ambiguous'])(
+    'uses the explicit source when inference is %s and drops foreign models',
+    async (kind) => {
+        const { models, args } = setup();
+        models.projectModel.getAllExploresFromCache.mockResolvedValue({
+            orders: explore('orders', 'primary'),
+            payments: explore(
+                'payments',
+                'extra',
+                kind === 'ambiguous' ? 'analytics' : 'finance',
+            ),
+        });
+        if (kind === 'ambiguous') {
+            models.projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue(
+                [
+                    {
+                        projectDbtSourceUuid: 'extra',
+                        name: 'Replica models',
+                        warehouseConnectionUuid: null,
+                        warehouseLocation: {
+                            database: 'warehouse',
+                            schema: null,
+                        },
+                    },
+                ],
+            );
+        }
+        const upload = explore(kind === 'ambiguous' ? 'new_model' : 'orders');
+        if (kind === 'missing-package')
+            delete upload.tables[upload.name].dbtPackageName;
+        if (kind === 'unmapped')
+            upload.tables[upload.name].dbtPackageName = 'unknown';
+        const result = await inferCliDeploySource(models, {
+            ...args,
+            explores: [
+                upload,
+                kind === 'mixed'
+                    ? explore('payments', undefined, 'finance')
+                    : {
+                          ...explore('payments', undefined, 'finance'),
+                          errors: [],
+                      },
+            ],
+            dbtModelNames:
+                kind === 'model-list' ? ['other__orders'] : undefined,
+            cliDeploy: { sourceUuid: 'primary', target: null },
+        });
+        expect(result).toMatchObject({
+            sourceUuid: 'primary',
+            method: 'explicit',
+            droppedExploreCount: 1,
+        });
+        expect(result.explores).toEqual([upload]);
+    },
+);
+
+test('rejects an invalid explicit source before trying inference', async () => {
+    const { models, args } = setup();
+    await expect(
+        inferCliDeploySource(models, {
+            ...args,
+            cliDeploy: { sourceUuid: 'unrelated', target: null },
+        }),
+    ).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'The selected dbt source does not belong to this project.',
+    });
+    expect(models.projectModel.getAllExploresFromCache).not.toHaveBeenCalled();
+});
+
+test('does not clear an explicit source when all uploaded models belong elsewhere', async () => {
+    const { models, args } = setup();
+    const rejected = await inferCliDeploySource(models, {
+        ...args,
+        dbtModelNames: ['other__orders'],
+        cliDeploy: { sourceUuid: 'extra', target: null },
+    }).catch((error: Error) => error);
+    expect(rejected).toMatchObject({
+        statusCode: 409,
+        message: expectedMessage(
+            'the upload contains no models for source Replica models',
+        ),
+    });
+    expect((rejected as Error).message).not.toContain('--source');
+    expect((rejected as Error).message).not.toContain('set-source');
+});
