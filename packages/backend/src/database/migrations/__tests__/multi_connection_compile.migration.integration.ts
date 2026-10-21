@@ -3341,6 +3341,273 @@ describe('Multi-connection compile on the real schema', () => {
             database('explore_name_allocations')
                 .where('project_uuid', fixture.projectUuid)
                 .orderBy('name');
+        const freshCompiler = () =>
+            new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
+                projectModel,
+                projectDbtSourcesModel,
+                warehouseConnectionCompileModel,
+                warehouseClientFactory:
+                    compileCredentials.warehouseClientFactory,
+            });
+        const expectReservedWarnings = (
+            warnings: string[] | undefined,
+            assignedNames: string[],
+            qualifiedNames: string[],
+        ) => {
+            expect(warnings).toHaveLength(assignedNames.length);
+            for (const name of assignedNames)
+                expect(warnings).toContainEqual(
+                    expect.stringContaining(
+                        `is assigned explore name "${name}"`,
+                    ),
+                );
+            for (const warning of warnings ?? []) {
+                expect(warning).toMatch(
+                    /plain name "orders" is reserved because of an unresolved collision/i,
+                );
+                expect(warning).toMatch(/qualified explore names:/i);
+                const qualifiedList = warning.slice(
+                    warning.toLowerCase().indexOf('qualified explore names:'),
+                );
+                let previousIndex = -1;
+                for (const name of [...qualifiedNames].sort()) {
+                    const index = qualifiedList.indexOf(`"${name}"`);
+                    expect(index).toBeGreaterThan(previousIndex);
+                    previousIndex = index;
+                }
+            }
+        };
+
+        test.each(['refresh', 'deploy'] as const)(
+            'keeps an unresolved plain-name reservation when a third source arrives through %s',
+            async (operation) => {
+                const fixture = await createProject();
+                sourceManifests.finance = dbtManifest('finance', [
+                    { name: 'orders', database: EXTRA_DB, table: 'payments' },
+                ]);
+                sourceManifests.marketing = dbtManifest('marketing', [
+                    { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+                ]);
+                const initialNames = ['finance__orders', 'marketing__orders'];
+                const initial = await compile(fixture, [primaryModels[1]]);
+                expectReservedWarnings(
+                    initial.warnings,
+                    initialNames,
+                    initialNames,
+                );
+                const before = await allocations(fixture);
+                const reservation = before.find(
+                    ({ name }) => name === 'orders',
+                );
+                expect(reservation).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
+                expect(before.filter(({ is_reserved }) => is_reserved)).toEqual(
+                    [reservation],
+                );
+                expect(
+                    before
+                        .filter(({ is_reserved }) => !is_reserved)
+                        .map(({ name, is_reserved }) => ({
+                            name,
+                            is_reserved,
+                        })),
+                ).toEqual([
+                    { name: 'customers', is_reserved: false },
+                    { name: 'finance__orders', is_reserved: false },
+                    { name: 'marketing__orders', is_reserved: false },
+                ]);
+                const beforeBindings = {
+                    customers: null,
+                    finance__orders: fixture.extraConnectionUuid,
+                    marketing__orders: null,
+                };
+                expect(await bindings(fixture.projectUuid)).toEqual(
+                    beforeBindings,
+                );
+                compiler = freshCompiler();
+                const repeated = await compile(fixture, [primaryModels[1]]);
+                expectReservedWarnings(
+                    repeated.warnings,
+                    initialNames,
+                    initialNames,
+                );
+                expect(await allocations(fixture)).toEqual(before);
+                expect(await bindings(fixture.projectUuid)).toEqual(
+                    beforeBindings,
+                );
+
+                const { dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const primaryName = `${dbtSourceName}__orders`;
+                const qualifiedNames = [...initialNames, primaryName].sort();
+                const warnings =
+                    operation === 'refresh'
+                        ? (await compile(fixture)).warnings
+                        : (
+                              await sourceDeploy(fixture, null, [
+                                  deployedModel('primary', 'orders'),
+                                  deployedModel('primary', 'customers'),
+                              ])
+                          ).naming?.warnings;
+                expectReservedWarnings(
+                    warnings,
+                    operation === 'refresh' ? qualifiedNames : [primaryName],
+                    qualifiedNames,
+                );
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    ...beforeBindings,
+                    [primaryName]: null,
+                });
+                const after = await allocations(fixture);
+                expect(after.find(({ name }) => name === 'orders')).toEqual(
+                    reservation,
+                );
+                expect(after.filter(({ is_reserved }) => is_reserved)).toEqual([
+                    reservation,
+                ]);
+                expect(
+                    after.filter(
+                        ({ model_name, is_reserved }) =>
+                            model_name === 'orders' && !is_reserved,
+                    ),
+                ).toHaveLength(3);
+                for (const owner of before.filter(
+                    ({ is_reserved }) => !is_reserved,
+                ))
+                    expect(
+                        after.find(({ name }) => name === owner.name),
+                    ).toEqual(owner);
+                expect(
+                    after.find(({ name }) => name === primaryName),
+                ).toMatchObject({
+                    source_key: 'primary',
+                    model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
+                });
+                compiler = freshCompiler();
+                if (operation === 'refresh') await compile(fixture);
+                else
+                    await sourceDeploy(fixture, null, [
+                        deployedModel('primary', 'orders'),
+                        deployedModel('primary', 'customers'),
+                    ]);
+                expect(await allocations(fixture)).toEqual(after);
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    ...beforeBindings,
+                    [primaryName]: null,
+                });
+            },
+        );
+
+        test('a third-source deploy seeds a reservation from cached qualified owners without renaming them', async () => {
+            const fixture = await createProject();
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+            ]);
+            await compile(fixture, [primaryModels[1]]);
+            await database('explore_name_allocations')
+                .where('project_uuid', fixture.projectUuid)
+                .delete();
+            expect(await allocations(fixture)).toEqual([]);
+            const before = await database('cached_explore')
+                .select(
+                    'cached_explore_uuid',
+                    'name',
+                    'explore',
+                    'warehouse_connection_uuid',
+                )
+                .where('project_uuid', fixture.projectUuid)
+                .whereIn('name', ['finance__orders', 'marketing__orders'])
+                .orderBy('name');
+            expect(before.map(({ name }) => name)).toEqual([
+                'finance__orders',
+                'marketing__orders',
+            ]);
+            compiler = freshCompiler();
+            const { dbtSourceName } = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+            const primaryName = `${dbtSourceName}__orders`;
+            const deployed = [
+                deployedModel('primary', 'orders'),
+                deployedModel('primary', 'customers'),
+            ];
+            const prepared = await sourceDeploy(fixture, null, deployed);
+            expect(deployed.map(({ name }) => name).sort()).toEqual(
+                ['customers', primaryName].sort(),
+            );
+            expectReservedWarnings(
+                prepared.naming?.warnings,
+                [primaryName],
+                ['finance__orders', 'marketing__orders', primaryName],
+            );
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                finance__orders: fixture.extraConnectionUuid,
+                marketing__orders: null,
+                [primaryName]: null,
+            });
+            expect(
+                await database('cached_explore')
+                    .select(
+                        'cached_explore_uuid',
+                        'name',
+                        'explore',
+                        'warehouse_connection_uuid',
+                    )
+                    .where('project_uuid', fixture.projectUuid)
+                    .whereIn('name', ['finance__orders', 'marketing__orders'])
+                    .orderBy('name'),
+            ).toEqual(before);
+            const seeded = await allocations(fixture);
+            const reservation = seeded.find(({ name }) => name === 'orders');
+            expect(reservation).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
+            expect(seeded.filter(({ is_reserved }) => is_reserved)).toEqual([
+                reservation,
+            ]);
+            expect(
+                seeded.filter(({ is_reserved }) => !is_reserved),
+            ).toMatchObject(
+                [
+                    { name: 'customers', is_reserved: false },
+                    {
+                        name: 'finance__orders',
+                        source_key: fixture.sourceUuids.finance,
+                        is_reserved: false,
+                    },
+                    {
+                        name: 'marketing__orders',
+                        source_key: fixture.sourceUuids.marketing,
+                        is_reserved: false,
+                    },
+                    {
+                        name: primaryName,
+                        source_key: 'primary',
+                        is_reserved: false,
+                    },
+                ].sort((left, right) => left.name.localeCompare(right.name)),
+            );
+            await sourceDeploy(fixture, null, [
+                deployedModel('primary', 'orders'),
+                deployedModel('primary', 'customers'),
+            ]);
+            expect(await allocations(fixture)).toEqual(seeded);
+        });
 
         test.each(['refresh', 'deploy'] as const)(
             'qualifies a newcomer through %s and keeps the saved owner',
@@ -3584,17 +3851,16 @@ describe('Multi-connection compile on the real schema', () => {
                     marketing__orders: null,
                     payments: null,
                 });
-                expect(compilation.warnings).toHaveLength(2);
+                expectReservedWarnings(
+                    compilation.warnings,
+                    ['finance__orders', 'marketing__orders'],
+                    ['finance__orders', 'marketing__orders'],
+                );
                 const publishedAllocations = await allocations(fixture);
                 const publishedExplores = await cachedExplores(
                     fixture.projectUuid,
                 );
                 for (const source of sourceOrder) {
-                    expect(compilation.warnings).toContainEqual(
-                        expect.stringContaining(
-                            `is assigned explore name "${source}__orders" because multiple new sources`,
-                        ),
-                    );
                     expect(
                         publishedAllocations.find(
                             ({ name }) => name === `${source}__orders`,
@@ -3603,6 +3869,7 @@ describe('Multi-connection compile on the real schema', () => {
                         source_key: fixture.sourceUuids[source],
                         model_unique_id: `model.${source}.orders`,
                         model_name: 'orders',
+                        is_reserved: false,
                     });
                     expect(
                         publishedExplores.find(
@@ -3615,11 +3882,19 @@ describe('Multi-connection compile on the real schema', () => {
                         warnings: [{ type: 'EXPLORE_NAME_COLLISION' }],
                     });
                 }
+                const reservation = publishedAllocations.find(
+                    ({ name }) => name === 'orders',
+                );
+                expect(reservation).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
                 expect(
-                    (await allocations(fixture)).some(
-                        ({ name }) => name === 'orders',
+                    publishedAllocations.filter(
+                        ({ is_reserved }) => is_reserved,
                     ),
-                ).toBe(false);
+                ).toEqual([reservation]);
                 const before = await allocations(fixture);
                 await compile(fixture, [primaryModels[1]]);
                 expect(await allocations(fixture)).toEqual(before);
@@ -3627,32 +3902,38 @@ describe('Multi-connection compile on the real schema', () => {
                     'orders',
                 );
 
-                sourceManifests.marketing = dbtManifest('marketing', [
+                const removedSource = reverseSources ? 'finance' : 'marketing';
+                const survivingSource = reverseSources
+                    ? 'marketing'
+                    : 'finance';
+                const remainingModel =
+                    removedSource === 'finance' ? 'payments' : 'campaigns';
+                sourceManifests[removedSource] = dbtManifest(removedSource, [
                     {
-                        name: 'campaigns',
+                        name: remainingModel,
                         database: ORIGINAL_DB,
-                        table: 'campaigns',
+                        table: remainingModel,
                     },
                 ]);
                 await compile(fixture, [primaryModels[1]]);
-                const financeOwner = before.find(
-                    ({ name }) => name === 'finance__orders',
+                const survivingOwner = before.find(
+                    ({ name }) => name === `${survivingSource}__orders`,
                 );
                 expect(
                     (await allocations(fixture)).filter(
                         ({ model_name }) => model_name === 'orders',
                     ),
-                ).toEqual([financeOwner]);
+                ).toEqual([survivingOwner, reservation]);
                 expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
                     'orders',
                 );
                 expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
-                    'marketing__orders',
+                    `${removedSource}__orders`,
                 );
                 await database('project_dbt_sources')
                     .where(
                         'project_dbt_source_uuid',
-                        fixture.sourceUuids.marketing,
+                        fixture.sourceUuids[removedSource],
                     )
                     .delete();
                 await compile(fixture, [primaryModels[1]]);
@@ -3660,31 +3941,87 @@ describe('Multi-connection compile on the real schema', () => {
                     (await allocations(fixture)).filter(
                         ({ model_name }) => model_name === 'orders',
                     ),
-                ).toEqual([financeOwner]);
+                ).toEqual([survivingOwner, reservation]);
                 expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
                     'orders',
                 );
                 expect(await bindings(fixture.projectUuid)).toHaveProperty(
-                    'finance__orders',
+                    `${survivingSource}__orders`,
                 );
 
                 await compile(fixture);
+                const { dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const primaryName = `${dbtSourceName}__orders`;
                 expect(
                     (await allocations(fixture)).find(
                         ({ name }) => name === 'orders',
                     ),
+                ).toEqual(reservation);
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === primaryName,
+                    ),
                 ).toMatchObject({
                     source_key: 'primary',
                     model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
                 });
                 expect(
                     (await allocations(fixture)).find(
-                        ({ name }) => name === 'finance__orders',
+                        ({ name }) => name === `${survivingSource}__orders`,
                     ),
-                ).toEqual(financeOwner);
+                ).toEqual(survivingOwner);
                 expect(await bindings(fixture.projectUuid)).toMatchObject({
-                    orders: null,
-                    finance__orders: null,
+                    [primaryName]: null,
+                    [`${survivingSource}__orders`]: null,
+                });
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    'orders',
+                );
+
+                await compile(fixture, [primaryModels[1]]);
+                await database('project_dbt_sources')
+                    .where(
+                        'project_dbt_source_uuid',
+                        fixture.sourceUuids[survivingSource],
+                    )
+                    .delete();
+                await compile(fixture, [primaryModels[1]]);
+                expect(
+                    (await allocations(fixture)).filter(
+                        ({ model_name }) => model_name === 'orders',
+                    ),
+                ).toEqual([reservation]);
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                });
+                compiler = freshCompiler();
+                const singleton = await compile(fixture);
+                expectReservedWarnings(
+                    singleton.warnings,
+                    ['primary__orders'],
+                    ['primary__orders'],
+                );
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                    primary__orders: null,
+                });
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'orders',
+                    ),
+                ).toEqual(reservation);
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'primary__orders',
+                    ),
+                ).toMatchObject({
+                    source_key: 'primary',
+                    model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
                 });
             },
         );
@@ -3956,8 +4293,14 @@ describe('Multi-connection compile on the real schema', () => {
                     (await allocations(fixture)).map((row) => row.name),
                 ).toContain('finance__orders');
                 expect(
-                    (await allocations(fixture)).map((row) => row.name),
-                ).not.toContain('orders');
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'orders',
+                    ),
+                ).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
             },
         );
 
@@ -4064,10 +4407,14 @@ describe('Multi-connection compile on the real schema', () => {
                 model_unique_id: 'model.marketing.finance__orders',
             });
             expect(
-                (await allocations(fixture)).some(
+                (await allocations(fixture)).find(
                     ({ name }) => name === 'orders',
                 ),
-            ).toBe(false);
+            ).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
         });
 
         test('returns one refresh error for a double collision and rejects deploy atomically with 409', async () => {
@@ -4119,12 +4466,20 @@ describe('Multi-connection compile on the real schema', () => {
             expect(await allocations(fixture)).toEqual(beforeAllocations);
         });
 
-        test('releases a deleted model and keeps the qualified newcomer qualified', async () => {
+        test('keeps a reservation when qualified models are removed and replaced', async () => {
             const fixture = await createProject();
             sourceManifests.finance = dbtManifest('finance', [
                 { name: 'orders', database: EXTRA_DB, table: 'payments' },
             ]);
             await compile(fixture);
+            const reservation = (await allocations(fixture)).find(
+                ({ name }) => name === 'orders',
+            );
+            expect(reservation).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
             await compile(fixture, [primaryModels[1]]);
             expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
                 'orders',
@@ -4140,12 +4495,26 @@ describe('Multi-connection compile on the real schema', () => {
                 (await allocations(fixture)).find(
                     (row) => row.name === 'orders',
                 ),
-            ).toMatchObject({ model_unique_id: 'model.marketing.orders' });
+            ).toEqual(reservation);
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'marketing__orders',
+                ),
+            ).toMatchObject({
+                model_unique_id: 'model.marketing.orders',
+                is_reserved: false,
+            });
+            expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                'marketing__orders',
+            );
             await sourceDeploy(fixture, 'marketing', [
                 deployedModel('marketing', 'campaigns'),
             ]);
             expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
                 'orders',
+            );
+            expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                'marketing__orders',
             );
             await sourceDeploy(fixture, 'finance', [
                 deployedModel('finance', 'orders'),
@@ -4153,6 +4522,11 @@ describe('Multi-connection compile on the real schema', () => {
             expect(await bindings(fixture.projectUuid)).toHaveProperty(
                 'finance__orders',
             );
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'orders',
+                ),
+            ).toEqual(reservation);
         });
 
         test('serializes concurrent source deploys under the publication lock', async () => {

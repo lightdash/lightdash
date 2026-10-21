@@ -12,13 +12,16 @@ import { type Knex } from 'knex';
 import { chunk } from 'lodash';
 import {
     ExploreNameAllocationsTableName,
+    isOwnedExploreNameAllocation,
     type DbExploreNameAllocation,
+    type DbOwnedExploreNameAllocation,
 } from '../../database/entities/exploreNameAllocations';
 import {
     CachedExploreStagingTableName,
     CachedExploreTableName,
 } from '../../database/entities/projects';
 import { rewriteAllocatedExplore } from './allocatedExploreReferences';
+import { planExploreNameClaims } from './exploreNameReservationPolicy';
 
 export type ExploreNaming = {
     mode: 'refresh' | 'deploy';
@@ -67,7 +70,7 @@ export const allocateStagedExploreNames = async (
             identity.modelName,
         ]);
     const allocationIdentity = (
-        allocation: DbExploreNameAllocation,
+        allocation: DbOwnedExploreNameAllocation,
     ): DbtExploreIdentity => ({
         sourceUuid:
             allocation.source_key === 'primary'
@@ -84,14 +87,17 @@ export const allocateStagedExploreNames = async (
     const existing = await trx(ExploreNameAllocationsTableName)
         .where('project_uuid', projectUuid)
         .select('*');
+    const existingOwners = existing.filter(isOwnedExploreNameAllocation);
     const modelsBySourceAndName = new Map<string, DbtExploreIdentity[]>();
-    [...naming.models, ...existing.map(allocationIdentity)].forEach((model) => {
-        const key = JSON.stringify([sourceKey(model), model.modelName]);
-        modelsBySourceAndName.set(key, [
-            ...(modelsBySourceAndName.get(key) ?? []),
-            model,
-        ]);
-    });
+    [...naming.models, ...existingOwners.map(allocationIdentity)].forEach(
+        (model) => {
+            const key = JSON.stringify([sourceKey(model), model.modelName]);
+            modelsBySourceAndName.set(key, [
+                ...(modelsBySourceAndName.get(key) ?? []),
+                model,
+            ]);
+        },
+    );
     const staged = await trx(CachedExploreStagingTableName)
         .where({ project_uuid: projectUuid, save_uuid: saveUuid })
         .select('*');
@@ -169,7 +175,7 @@ export const allocateStagedExploreNames = async (
         );
         providers.set(key, provider);
     };
-    existing.forEach((allocation) =>
+    existingOwners.forEach((allocation) =>
         addProvider(allocationIdentity(allocation), allocation.name),
     );
     cached.forEach(({ name, explore }) => {
@@ -215,7 +221,7 @@ export const allocateStagedExploreNames = async (
         };
         if (
             naming.mode !== 'deploy' ||
-            (sources.length === 0 && existing.length === 0)
+            (sources.length === 0 && existingOwners.length === 0)
         )
             return fallback;
         const reference = table.canonicalName ?? table.originalName ?? name;
@@ -341,7 +347,7 @@ export const allocateStagedExploreNames = async (
         existing.map((allocation) => [allocation.name, allocation]),
     );
     const byOwner = new Map(
-        existing.map((allocation) => [
+        existingOwners.map((allocation) => [
             ownerKey(allocationIdentity(allocation)),
             allocation,
         ]),
@@ -351,7 +357,10 @@ export const allocateStagedExploreNames = async (
         'explore_name_allocation_uuid'
     >[] = [];
     const claim = (identity: DbtExploreIdentity, name: string) => {
-        const allocation = {
+        const allocation: Omit<
+            DbOwnedExploreNameAllocation,
+            'explore_name_allocation_uuid'
+        > = {
             project_uuid: projectUuid,
             name,
             source_key: sourceKey(identity),
@@ -359,6 +368,7 @@ export const allocateStagedExploreNames = async (
             package_name: identity.packageName,
             model_unique_id: identity.uniqueId,
             model_name: identity.modelName,
+            is_reserved: false,
         };
         pending.push(allocation);
         const row = { ...allocation, explore_name_allocation_uuid: '' };
@@ -411,45 +421,80 @@ export const allocateStagedExploreNames = async (
                 stale.map(([, allocation]) => allocation.name),
             )
             .delete();
+    const savedModels = [...byOwner].map(([key, allocation]) => ({
+        ownerKey: key,
+        sourceKey: allocation.source_key,
+        modelName: allocation.model_name,
+    }));
     const blocked = new Map<string, string>();
     const warnings: string[] = [];
     const warningsByOwner = new Map<string, string>();
-    const unallocated = [...candidates].filter(([key]) => !byOwner.has(key));
-    const unallocatedByModel = new Map<string, Candidate[]>();
-    unallocated.forEach(([, candidate]) => {
-        const { modelName } = candidate.identity;
-        unallocatedByModel.set(modelName, [
-            ...(unallocatedByModel.get(modelName) ?? []),
-            candidate,
-        ]);
+    const plan = planExploreNameClaims({
+        candidates: [...candidates].map(([key, { identity }]) => ({
+            ownerKey: key,
+            sourceKey: sourceKey(identity),
+            modelName: identity.modelName,
+        })),
+        savedModels,
+        allocations: [...byName.values()].map((allocation) => ({
+            name: allocation.name,
+            ownerKey: isOwnedExploreNameAllocation(allocation)
+                ? ownerKey(allocationIdentity(allocation))
+                : null,
+        })),
     });
-    const sameRunCollisions = new Set<string>();
-    unallocatedByModel.forEach((models, modelName) => {
-        if (new Set(models.map(({ identity }) => sourceKey(identity))).size > 1)
-            sameRunCollisions.add(modelName);
-        else if (!byName.has(modelName)) claim(models[0].identity, modelName);
+    plan.reservations.forEach((name) => {
+        const reservation = {
+            project_uuid: projectUuid,
+            name,
+            source_key: '__reserved__',
+            source_name: null,
+            package_name: '__reserved__',
+            model_unique_id: '__reserved__',
+            model_name: name,
+            is_reserved: true,
+        };
+        pending.push(reservation);
+        byName.set(name, { ...reservation, explore_name_allocation_uuid: '' });
     });
-    const ownerDescription = (allocation: DbExploreNameAllocation) =>
+    plan.plainClaims.forEach(({ ownerKey: key, name }) => {
+        claim(candidates.get(key)!.identity, name);
+    });
+    const ownerDescription = (allocation: DbOwnedExploreNameAllocation) =>
         `model "${allocation.model_name}" from ${allocation.source_name === null ? 'package' : 'source'} "${allocation.source_name ?? allocation.package_name}" (${allocation.model_unique_id})`;
     for (const [key, { identity }] of candidates) {
-        const bareOwner = byName.get(identity.modelName);
-        let allocation = byOwner.get(key);
-        if (!allocation) {
+        if (!byOwner.has(key)) {
             const namespace = identity.sourceName ?? identity.packageName;
             const qualified = `${namespace}__${identity.modelName}`;
             const qualifiedOwner = byName.get(qualified);
             if (qualifiedOwner) {
-                const message = `Model "${identity.modelName}" (${identity.uniqueId}) cannot use explore name "${qualified}" because it is owned by ${ownerDescription(qualifiedOwner)}. Rename the source, package or model and deploy again.`;
+                const reason = isOwnedExploreNameAllocation(qualifiedOwner)
+                    ? `it is owned by ${ownerDescription(qualifiedOwner)}`
+                    : 'the plain name is reserved because of an unresolved collision';
+                const message = `Model "${identity.modelName}" (${identity.uniqueId}) cannot use explore name "${qualified}" because ${reason}. Rename the source, package or model and deploy again.`;
                 if (naming.mode === 'deploy') throw new ConflictError(message);
                 blocked.set(key, message);
             } else {
-                allocation = claim(identity, qualified);
+                claim(identity, qualified);
             }
         }
+    }
+    const qualifiedNamesByModel = new Map<string, Set<string>>();
+    byOwner.forEach((allocation) => {
+        const names =
+            qualifiedNamesByModel.get(allocation.model_name) ??
+            new Set<string>();
+        names.add(allocation.name);
+        qualifiedNamesByModel.set(allocation.model_name, names);
+    });
+    for (const [key, { identity }] of candidates) {
+        const bareOwner = byName.get(identity.modelName);
+        const allocation = byOwner.get(key);
         if (
             allocation &&
             allocation.name !== identity.modelName &&
             bareOwner &&
+            isOwnedExploreNameAllocation(bareOwner) &&
             ownerKey(allocationIdentity(bareOwner)) !== key
         ) {
             const warning = `Model "${identity.modelName}" (${identity.uniqueId}) is assigned explore name "${allocation.name}" because "${identity.modelName}" is owned by ${ownerDescription(bareOwner)}.`;
@@ -458,24 +503,30 @@ export const allocateStagedExploreNames = async (
         } else if (
             allocation &&
             allocation.name !== identity.modelName &&
-            sameRunCollisions.has(identity.modelName)
+            bareOwner?.is_reserved
         ) {
-            const warning = `Model "${identity.modelName}" (${identity.uniqueId}) is assigned explore name "${allocation.name}" because multiple new sources define "${identity.modelName}" in this publication.`;
+            const qualifiedNames = [
+                ...(qualifiedNamesByModel.get(identity.modelName) ?? []),
+            ].sort();
+            const warning = `Model "${identity.modelName}" (${identity.uniqueId}) is assigned explore name "${allocation.name}". The plain name "${identity.modelName}" is reserved because of an unresolved collision. Qualified explore names: ${qualifiedNames.map((name) => `"${name}"`).join(', ')}.`;
             warnings.push(warning);
             warningsByOwner.set(key, warning);
         }
     }
-    const rows = pending.filter(
-        (allocation) =>
+    const rows = pending.filter((allocation) => {
+        if (allocation.is_reserved) return true;
+        return (
             byOwner.get(
                 ownerKey(
                     allocationIdentity({
                         ...allocation,
+                        is_reserved: false,
                         explore_name_allocation_uuid: '',
                     }),
                 ),
-            )?.name === allocation.name,
-    );
+            )?.name === allocation.name
+        );
+    });
     await chunk(rows, 500).reduce(async (previous, batch) => {
         await previous;
         await trx(ExploreNameAllocationsTableName).insert(batch);
