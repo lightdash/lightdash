@@ -92,6 +92,7 @@ export const AGENT_TOOL_NAMES = [
 export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
 
 export type PromptSection =
+    | 'queryingComposer'
     | 'runSql'
     | 'contentTools'
     | 'schedulingTools'

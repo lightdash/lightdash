@@ -26,6 +26,62 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
         'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
 
+type SqlWords = {
+    intro: string;
+    preferSemanticLayer: string;
+    semanticQuery: string;
+    approvalCost: string;
+    skipSql: string;
+    useSql: string;
+    sqlUnit: string;
+    sqlUnits: string;
+    sqlCode: string;
+    sqlCodeUnits: string;
+    resultArtifactRule: string;
+    limitRule: string;
+};
+
+const getRunSqlWords = (
+    answerWithRunQuery: boolean,
+    runSqlMaxLimit: number,
+): SqlWords => ({
+    intro: `**Raw SQL (runSql tool):**
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`,
+    preferSemanticLayer: answerWithRunQuery
+        ? 'ALWAYS prefer the semantic layer when the question fits: runQuery for answers, generateVisualization for charts. Both are governed and reusable.'
+        : 'ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.',
+    semanticQuery: 'generateVisualization',
+    approvalCost: 'Every `runSql` call costs the user an approval click.',
+    skipSql: 'do not call `runSql`',
+    useSql: 'runSql',
+    sqlUnit: 'runSql call',
+    sqlUnits: 'runSql calls',
+    sqlCode: '`runSql`',
+    sqlCodeUnits: '`runSql` calls',
+    resultArtifactRule:
+        '- Every `runSql` result is already rendered as its own artifact with a "Continue exploring in SQL Runner" action scoped to that exact query — do not also add a standalone SQL Runner link in your text; it cannot be scoped to a specific query and will point at the wrong one if you make more than one `runSql` call in a turn.\n',
+    limitRule: `- Default row limit ${DEFAULT_RUN_SQL_LIMIT}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.\n`,
+});
+
+// Composer runs raw SQL as `sql` nodes; the node schema states their limits.
+const COMPOSER_SQL_WORDS: SqlWords = {
+    intro: `**Raw SQL (runComposerQueries \`sql\` nodes):**
+Raw SELECT queries against the warehouse run as \`sql\` nodes in runComposerQueries. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`,
+    preferSemanticLayer:
+        'ALWAYS prefer semanticLayer nodes when the question fits: they are governed and reusable.',
+    semanticQuery: 'a semanticLayer node',
+    approvalCost:
+        'Every submission with `sql` nodes costs the user an approval click.',
+    skipSql: 'leave it out',
+    useSql: '`sql` nodes',
+    sqlUnit: '`sql` node',
+    sqlUnits: '`sql` nodes',
+    sqlCode: '`sql` node',
+    sqlCodeUnits: '`sql` nodes',
+    resultArtifactRule: '',
+    limitRule: '',
+};
+
 export const getRunSqlSection = ({
     warehouseType,
     warehouseSchema,
@@ -33,8 +89,6 @@ export const getRunSqlSection = ({
     sqlScope,
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
-    // Composer queries replace the standalone runSql tool: raw SQL runs as
-    // `sql` nodes inside runComposerQueries, under all the same rules.
     viaComposerQueries = false,
     answerWithRunQuery = false,
 }: {
@@ -99,14 +153,12 @@ export const getRunSqlSection = ({
         ? `**Default schema for this project:** \`${warehouseSchema}\`. ALWAYS qualify your tables with this schema (e.g. \`${warehouseSchema}.fm_work_orders\`). Bare table names will fail.`
         : 'You do not know the warehouse schema. Use listWarehouseTables to discover the right schema before writing SQL.';
 
-    const intro = viaComposerQueries
-        ? `**Raw SQL (runComposerQueries \`sql\` nodes):**
-There is NO standalone runSql tool. Raw SELECT queries against the warehouse run as \`sql\` nodes inside runComposerQueries — a submission with a single \`sql\` node is the direct equivalent of a raw SQL call. Wherever the rules below say "runSql" or "runSql call", read that as a \`sql\` node in a runComposerQueries submission; each submission containing \`sql\` nodes costs one approval click. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`
-        : `**Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`;
+    const words = viaComposerQueries
+        ? COMPOSER_SQL_WORDS
+        : getRunSqlWords(answerWithRunQuery, runSqlMaxLimit);
 
     return `
-${intro}
+${words.intro}
 ${
     warehouseConnections.length > 1
         ? `
@@ -116,27 +168,22 @@ ${connectionLines}
         : ''
 }
 **When to use it:**
-- ${
-        answerWithRunQuery
-            ? 'ALWAYS prefer the semantic layer when the question fits: runQuery for answers, generateVisualization for charts. Both are governed and reusable.'
-            : 'ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.'
-    }
-- Use runSql ONLY when the semantic layer cannot answer the question:
+- ${words.preferSemanticLayer}
+- Use ${words.useSql} ONLY when the semantic layer cannot answer the question:
   - joins across tables not modelled in any explore
-  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that generateVisualization cannot produce
+  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that ${words.semanticQuery} cannot produce
   - lookups in raw tables that are not part of any explore
   - the user explicitly asks for raw SQL
 
 **ABSOLUTE RULES — these are not preferences, they are hard requirements.**
 
-Every \`runSql\` call costs the user an approval click. Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, do not call \`runSql\`.
+${words.approvalCost} Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, ${words.skipSql}.
 
-**Final SQL rule.** If you need multiple SQL calls to reach an answer, make the final runSql call the composed query:
+**Final SQL rule.** If you need multiple SQL calls to reach an answer, make the final ${words.sqlUnit} the composed query:
 
 - If earlier SQL steps informed the answer, fold the final logic into one SELECT/WITH statement using CTEs and joins.
 - Do not make the final answer depend on intermediate discovery queries unless the final result genuinely came from that intermediate table.
-- Every \`runSql\` result is already rendered as its own artifact with a "Continue exploring in SQL Runner" action scoped to that exact query — do not also add a standalone SQL Runner link in your text; it cannot be scoped to a specific query and will point at the wrong one if you make more than one \`runSql\` call in a turn.
-- Do not paste the full SQL into your final answer unless the user explicitly asks to see the SQL. If you do include SQL, use a fenced \`\`\`sql code block.
+${words.resultArtifactRule}- Do not paste the full SQL into your final answer unless the user explicitly asks to see the SQL. If you do include SQL, use a fenced \`\`\`sql code block.
 
 **One ask, not two.** If you're unsure whether to proceed (e.g. chart this SQL vs. rebuild it in the semantic layer), state the tradeoff once and end with a single closing question. Don't restate the same choice earlier in your analysis and then ask it again as a separate closing question — pick one spot.
 
@@ -157,12 +204,12 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
 - ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
-**3. Keep runSql calls intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn are acceptable only when you need real warehouse values to recover or validate.
+**3. Keep ${words.sqlUnits} intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple ${words.sqlUnits} in one turn are acceptable only when you need real warehouse values to recover or validate.
 
 - ✅ GOOD: one query with 3 CTEs that produces the final answer
 - ❌ BAD: query 1 to "check the schema", query 2 to "sample rows", query 3 to actually answer
 
-**4. Recover from schema errors via \`describeWarehouseTable\`, NOT another \`runSql\`.** If your \`runSql\` failed with "column does not exist" or "relation not found":
+**4. Recover from schema errors via \`describeWarehouseTable\`, NOT another ${words.sqlCode}.** If your ${words.sqlCode} failed with "column does not exist" or "relation not found":
 
 1. Call \`describeWarehouseTable({ table: '<offending_table>' })\` to get the real columns.
 2. Rewrite the SQL once with the correct columns and submit it.
@@ -170,7 +217,7 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 
    > "I expected \`X\` but \`raw_parts\` actually has columns \`[...]\` — there's no \`work_order_id\`. The relationship you're asking about isn't modelled here. Would you like \`<alternative>\` as a proxy, or can you point me to the right table?"
 
-NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQL costs an approval click.
+NEVER guess column names across multiple ${words.sqlCodeUnits}. Discovery is free; SQL costs an approval click.
 
 **5. Schema qualification on the first attempt.** ${
         scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine
@@ -181,7 +228,6 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
 - Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
-- Default row limit ${DEFAULT_RUN_SQL_LIMIT}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.
-- ${warehouseLine}
+${words.limitRule}- ${warehouseLine}
 `;
 };

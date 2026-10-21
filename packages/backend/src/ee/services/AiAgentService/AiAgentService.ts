@@ -16476,11 +16476,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         featureFlagId: FeatureFlags.PythonQueryRunner,
                     }),
                 ]);
+                const standardToolAllowlist =
+                    responseExecution.mode === 'standard'
+                        ? resolveStandardToolAllowlist(
+                              prompt.threadCreatedFrom,
+                              responseExecution.toolAllowlist,
+                          )
+                        : undefined;
+                // Allowlisted read-only threads (data-app investigations) keep the classic query tools.
                 const enableComposerQueries =
                     multiSourceQueryEnabled &&
                     composeSqlRunnerEnabled &&
                     agentSettings.enableDataAccess &&
-                    responseExecution.mode !== 'deep_research';
+                    responseExecution.mode !== 'deep_research' &&
+                    standardToolAllowlist === undefined;
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =
@@ -16932,10 +16941,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         maxSteps:
                             responseExecution.maxSteps ??
                             DEFAULT_AGENT_MAX_STEPS,
-                        toolAllowlist: resolveStandardToolAllowlist(
-                            prompt.threadCreatedFrom,
-                            responseExecution.toolAllowlist,
-                        ),
+                        toolAllowlist: standardToolAllowlist,
                     };
                 }
 

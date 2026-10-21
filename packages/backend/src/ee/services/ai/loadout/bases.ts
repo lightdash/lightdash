@@ -19,7 +19,6 @@ const CORE_TOOLS: readonly AgentToolName[] = [
     'getKnowledgeDocumentContent',
     'readPinnedThread',
     'resolveUrl',
-    'generateVisualization',
     'runSavedChart',
     'generateHashes',
     'generateUuids',
@@ -29,9 +28,6 @@ const onlyIf = (
     condition: boolean,
     tools: readonly AgentToolName[],
 ): readonly AgentToolName[] => (condition ? tools : []);
-
-const canRunRawSql = (input: LoadoutInput): boolean =>
-    input.canRunSql && !input.enableComposerQueries;
 
 // Deep research narrows tools only; its prompt still renders every applicable add-on section.
 const applicableAddOnSections = (
@@ -45,6 +41,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     classic: (input) => ({
         tools: [
             ...CORE_TOOLS,
+            'generateVisualization',
             'searchFieldValues',
             ...onlyIf(hasDecisionsInStandardMode(input), [
                 'runQuery',
@@ -55,24 +52,24 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
-    // runQuery and generateVisualization stay until the composer-only agent lands.
+    // exportChartAsCode cannot export composer artifacts.
     composer: (input) => ({
         tools: [
             ...CORE_TOOLS,
             'runComposerQueries',
             // The service enables composer only with data access; kept for exact parity.
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(
-                input.enableDataAccess && hasDecisionsInStandardMode(input),
-                ['runQuery', 'exportChartAsCode'],
-            ),
         ],
-        sections: [],
+        sections: ['queryingComposer'],
         accepts: ADD_ON_NAMES,
     }),
     // Today every add-on can apply without data access; narrowing it is a behaviour change.
     no_data_access: (input) => ({
-        tools: [...CORE_TOOLS, ...onlyIf(input.canRunSql, ['runSql'])],
+        tools: [
+            ...CORE_TOOLS,
+            'generateVisualization',
+            ...onlyIf(input.canRunSql, ['runSql']),
+        ],
         sections: [],
         accepts: ADD_ON_NAMES,
     }),
@@ -83,7 +80,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             'grepFields',
             'searchSemanticLayer',
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(canRunRawSql(input), ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql']),
             'submitWorkerFindings',
         ],
         sections: applicableAddOnSections(input),
@@ -94,8 +91,9 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...CORE_TOOLS.filter(
                 (tool) => tool !== 'generateHashes' && tool !== 'generateUuids',
             ),
+            'generateVisualization',
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
-            ...onlyIf(canRunRawSql(input), ['runSql']),
+            ...onlyIf(input.canRunSql, ['runSql']),
             'delegateResearchTask',
         ],
         sections: applicableAddOnSections(input),

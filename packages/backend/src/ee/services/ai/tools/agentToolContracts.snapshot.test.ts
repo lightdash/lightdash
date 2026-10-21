@@ -318,30 +318,26 @@ describe('AI agent tool contracts', () => {
             name: 'structured-filter-with-composer',
             enableFilterExpressions: false,
             enableGenerateDataApp: false,
-            enableComposerQueries: true,
+            composer: true,
         },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({
-            enableFilterExpressions,
-            enableGenerateDataApp,
-            enableComposerQueries,
-        }) => {
+        ({ enableFilterExpressions, enableGenerateDataApp, composer }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
-                    promptSections: new Set<PromptSection>(
-                        enableGenerateDataApp
-                            ? [
+                    promptSections: new Set<PromptSection>([
+                        ...(enableGenerateDataApp
+                            ? ([
                                   'contentTools',
                                   'schedulingTools',
                                   'generateDataApp',
-                              ]
-                            : [],
-                    ),
-                    enableComposerQueries,
+                              ] as const)
+                            : []),
+                        ...(composer ? (['queryingComposer'] as const) : []),
+                    ]),
                 }).content,
             ).toMatchSnapshot();
         },

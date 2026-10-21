@@ -166,17 +166,7 @@ const getFilterExpressionGuidanceSection = (
 export const MCP_FILTER_EXPRESSION_GUIDANCE_SECTION =
     getFilterExpressionGuidanceSection('mcp');
 
-// Shown to agents whose generateVisualization still takes structured rules:
-// composer nodes never do, so the grammar must travel with the prompt.
-export const COMPOSER_NODE_FILTER_EXPRESSION_GUIDANCE_SECTION = `## Composer node filters
-
-\`runComposerQueries\` semanticLayer nodes take filters as flat expression strings, never the structured rule objects described above: one \`dimensions\` string and one \`metrics\` string, null for an unfiltered kind; nodes have no table calculations, so there is no third kind. Each string is \`<field> <operator form>\` rules joined with AND or OR, in this grammar:
-
-${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}`;
-
-export const FILTER_EXPRESSION_GUIDANCE_SECTION = `${getFilterExpressionGuidanceSection('agent')}
-
-## Time-based filtering
+const EXPRESSION_TIME_FILTERING_GUIDANCE = `## Time-based filtering
 
 If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), every requested window MUST appear as an explicit date rule in the dimension expression. Describing the window, sorting, limiting, prose, or dates observed in result data is not a substitute.
 
@@ -186,3 +176,23 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 - For multiple granularity-aligned periods, use one multi-value \`equals\` rule when another dimension predicate must be combined with AND.
 - Arbitrary alternative ranges may use OR only when every dimension rule is truly an alternative. Never mix root AND and OR in one category.
 - Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window.`;
+
+export const FILTER_EXPRESSION_GUIDANCE_SECTION = `${getFilterExpressionGuidanceSection('agent')}
+
+${EXPRESSION_TIME_FILTERING_GUIDANCE}`;
+
+export const COMPOSER_FILTER_GUIDANCE_SECTION = `## Filters
+
+Filter a semanticLayer node with expression strings.
+
+- Choose the kind from discovered field metadata (its dimension/metric kind). A raw numeric dimension belongs in \`dimensions\`; only metrics belong in \`metrics\`.
+- A field used only to restrict rows stays in its filter expression. Add it to the node's \`dimensions\` only when the user asked to group by or display it: an extra dimension changes the grain.
+
+Raw placement examples:
+- dimensions: ${FILTER_EXPRESSION_PLACEMENT_EXPRESSIONS.dimensions}
+- dimensions (alternatives): ${FILTER_EXPRESSION_PLACEMENT_EXPRESSIONS.dimensionAlternatives}
+- metrics: ${FILTER_EXPRESSION_PLACEMENT_EXPRESSIONS.metrics}
+
+${FILTER_EXPRESSION_GRAMMAR_DESCRIPTION}
+
+${EXPRESSION_TIME_FILTERING_GUIDANCE}`;

@@ -9,6 +9,7 @@ import {
     buildLoadout,
     DEFERRED_SECTION_TOOLS,
     resolveLoadout,
+    type AgentToolName,
     type Loadout,
     type LoadoutBase,
     type LoadoutInput,
@@ -133,6 +134,13 @@ const inputs: Record<LoadoutBase, LoadoutInput> = {
 };
 const BASE_NAMES = Object.keys(BASES) as LoadoutBase[];
 
+const CLASSIC_QUERY_TOOLS = [
+    'runQuery',
+    'generateVisualization',
+    'runSql',
+    'exportChartAsCode',
+] as const;
+
 const contract = (loadout: Loadout) =>
     `${JSON.stringify(
         {
@@ -145,13 +153,13 @@ const contract = (loadout: Loadout) =>
         4,
     )}\n`;
 
-// Wording flags stay at their defaults; systemV2.test pins their variants.
+// Wording flags stay at their defaults; composer renders with the data access it requires.
 const renderPrompt = (loadout: Loadout) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
         promptSections: loadout.promptSections,
-        enableComposerQueries: loadout.base === 'composer',
+        enableDataAccess: loadout.base === 'composer',
     }).content;
 
 const fixture = (name: string) =>
@@ -286,12 +294,25 @@ describe('resolveLoadout', () => {
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
     });
 
-    test('composer drops runSql but keeps the classic query tools for now', () => {
+    test('composer queries only through runComposerQueries', () => {
         const { toolNames } = resolveLoadout(inputs.composer);
-        expect(toolNames.has('runSql')).toBe(false);
         expect(toolNames.has('runComposerQueries')).toBe(true);
-        expect(toolNames.has('runQuery')).toBe(true);
-        expect(toolNames.has('generateVisualization')).toBe(true);
+        expect(
+            CLASSIC_QUERY_TOOLS.filter((tool) => toolNames.has(tool)),
+        ).toEqual([]);
+    });
+
+    // The sqlCatalog section keeps its `runSql` id; its composer text names sql nodes.
+    test('composer tools and prompts name no classic query tool', () => {
+        const loadouts = [
+            buildLoadout('composer', inputs.composer, []),
+            buildLoadout('composer', inputs.composer, ADD_ON_NAMES),
+        ];
+        for (const loadout of loadouts) {
+            expect(
+                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout)}`,
+            ).not.toMatch(/runQuery|generateVisualization|runSql/);
+        }
     });
 
     test('deep research coordinator reads saved content but cannot change it', () => {
@@ -350,6 +371,22 @@ describe('loadout structure', () => {
                         !ownTools.includes(tool) && addOnTools.includes(tool),
                 ),
             ).toEqual([]);
+        },
+    );
+
+    test.each([
+        'data_answer',
+        'chart',
+        'chart_from_previous',
+        'document_write',
+    ] as const)(
+        'the %s intent keeps a query tool on the composer base',
+        (intent) => {
+            const { toolNames } = resolveLoadout(inputs.composer);
+            const gated = [...(toolsForIntent(intent) ?? [])].filter((tool) =>
+                toolNames.has(tool as AgentToolName),
+            );
+            expect(gated).toContain('runComposerQueries');
         },
     );
 
