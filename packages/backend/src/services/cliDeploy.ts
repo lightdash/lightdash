@@ -119,7 +119,7 @@ const assertTargetMatchesConnection = (
             : 'database';
     if (connectionDatabase !== target.database) {
         throw new ParameterError(
-            `The dbt target compiles against ${locationLabel} ${target.database}, but the deploy goes to the connection "${connection.name}", which points at ${connectionDatabase}. Choose the dbt source for this target with --source.`,
+            `The dbt target compiles against ${locationLabel} ${target.database}, but the deploy goes to the connection "${connection.name}", which points at ${connectionDatabase}. Check the dbt target and the source's warehouse connection in project settings.`,
         );
     }
     if (
@@ -128,7 +128,7 @@ const assertTargetMatchesConnection = (
         connection.credentials.region !== target.region
     ) {
         throw new ParameterError(
-            `The dbt target compiles against region ${target.region}, but the deploy goes to the connection "${connection.name}", which points at ${connection.credentials.region}. Choose the dbt source for this target with --source.`,
+            `The dbt target compiles against region ${target.region}, but the deploy goes to the connection "${connection.name}", which points at ${connection.credentials.region}. Check the dbt target and the source's warehouse connection in project settings.`,
         );
     }
 };

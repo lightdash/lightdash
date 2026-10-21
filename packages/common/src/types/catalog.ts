@@ -421,6 +421,7 @@ export type CatalogItemsWithIcons = CatalogItemSummary &
     Pick<CatalogItem, 'icon'>;
 
 export type SchedulerIndexCatalogJobPayload = TraceTaskBase & {
+    refreshMetadataBeforeIndex?: boolean;
     prevCatalogItemsWithTags: CatalogItemWithTagUuids[];
     prevCatalogItemsWithIcons: CatalogItemsWithIcons[];
     prevMetricTreeEdges: CatalogMetricsTreeEdge[];

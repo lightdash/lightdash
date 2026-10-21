@@ -730,6 +730,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                hasSources: vi.fn(async () => false),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -8811,6 +8812,36 @@ describe('ProjectService', () => {
             );
         });
 
+        test('queues catalog indexing after direct YAML tags are saved', async () => {
+            await service.replaceYamlTags(compileUser, projectUuid, [
+                {
+                    yamlReference: 'finance',
+                    name: 'Finance',
+                    color: 'blue',
+                },
+            ]);
+
+            expect(catalogModel.getCatalogItemsWithTags).toHaveBeenCalledWith(
+                projectUuid,
+                { onlyTagged: true, includeYamlTags: false },
+            );
+            expect(schedulerClient.indexCatalog).toHaveBeenLastCalledWith({
+                projectUuid,
+                userUuid: user.userUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                refreshMetadataBeforeIndex: true,
+                prevCatalogItemsWithTags: [],
+                prevCatalogItemsWithIcons: [],
+                prevMetricTreeEdges: [],
+                prevMetricsTreeNodes: [],
+            });
+            expect(
+                tagsModel.replaceYamlTags.mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(
+                schedulerClient.indexCatalog.mock.invocationCallOrder.at(-1)!,
+            );
+        });
+
         test('requires manage tag permissions for direct YAML tag sync', async () => {
             const noTagUser: SessionUser = {
                 ...user,
@@ -15761,6 +15792,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } as unknown as FeatureFlagModel;
         const projectDbtSourcesModel = {
             getSources: vi.fn(async () => [buildSource('source-b')]),
+            hasSources: vi.fn(async () => false),
         } as unknown as ProjectDbtSourcesModel;
 
         return getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {

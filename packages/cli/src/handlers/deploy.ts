@@ -493,61 +493,6 @@ export const deploy = async (
         options.projectUuid,
     );
 
-    // These two methods are not critical to the deployment process, so we can ignore errors and show warnings instead
-    try {
-        await replaceProjectYamlTags(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectParameters(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectDefaults(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
-            ),
-        );
-    }
-
-    try {
-        await replaceProjectTableGroups(
-            options.projectUuid,
-            lightdashProjectConfig,
-        );
-    } catch (e) {
-        console.error(
-            styles.warning(
-                `\nError replacing project table groups: ${getErrorMessage(
-                    e,
-                )}\n`,
-            ),
-        );
-    }
-
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
         !(await deployBatched(deployableExplores, options));
@@ -634,6 +579,60 @@ export const deploy = async (
             // Re-throw other errors to be handled by the caller
             throw error;
         }
+    }
+
+    try {
+        await replaceProjectYamlTags(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectParameters(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectDefaults(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project defaults: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectTableGroups(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project table groups: ${getErrorMessage(
+                    e,
+                )}\n`,
+            ),
+        );
     }
 };
 
