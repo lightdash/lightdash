@@ -1494,7 +1494,7 @@ describe('ControlsSidebarProvider', () => {
         },
     );
 
-    it('keeps a field listed as waiting when it loses its last tile', () => {
+    it('drops a field that loses its last tile', () => {
         const { result } = setup();
         const peer = { fieldId: 'orders_region', tableName: 'orders' };
         act(() => result.current.open('a'));
@@ -1507,7 +1507,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.waitingFieldIds).toEqual([]);
 
         act(() => result.current.updateFilter(rule('a', ['1'])));
-        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+        expect(result.current.waitingFieldIds).toEqual([]);
 
         // Back on a tile, it is a field of the filter again
         act(() =>
@@ -1517,6 +1517,87 @@ describe('ControlsSidebarProvider', () => {
             }),
         );
         expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    describe('a field that loses its last tile', () => {
+        const regionField: DashboardFilterableField = {
+            ...statusField,
+            name: 'region',
+            label: 'Region',
+        };
+        const status = { fieldId: 'orders_status', tableName: 'orders' };
+        const region = { fieldId: 'orders_region', tableName: 'orders' };
+        const onStatus = (
+            tileTargets: DashboardFilterRule['tileTargets'],
+        ): DashboardFilterRule => ({
+            ...rule('a', ['1']),
+            target: status,
+            tileTargets,
+        });
+
+        beforeEach(() => {
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            mockFieldsByTile.current = {
+                t1: [statusField, regionField],
+                t2: [statusField, regionField],
+            };
+        });
+
+        it('promotes the next field once no tile is on the first one', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(onStatus({ t1: region })));
+            act(() => result.current.setHighlightedFieldId('orders_status'));
+            act(() =>
+                result.current.updateFilter(
+                    onStatus({ t1: region, t2: region }),
+                ),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(region);
+            expect(result.current.highlightedFieldId).toBeNull();
+        });
+
+        it('leaves a first field that was already on no tile alone', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter(
+                    onStatus({ t1: false, t2: region }),
+                ),
+            );
+            act(() =>
+                result.current.updateFilter({
+                    ...onStatus({ t1: false, t2: region }),
+                    label: 'Renamed',
+                }),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(status);
+        });
+
+        it('keeps the first field when it is the only one', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter(onStatus({ t1: false, t2: false })),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(status);
+        });
+
+        it('does not bring back a waiting field once it was on a tile', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(onStatus(undefined)));
+            act(() => result.current.addWaitingField('orders_region'));
+            expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+
+            act(() => result.current.updateFilter(onStatus({ t1: region })));
+            act(() => result.current.updateFilter(onStatus(undefined)));
+
+            expect(result.current.waitingFieldIds).toEqual([]);
+        });
     });
 
     it('the hovered field wins over the highlighted one', () => {

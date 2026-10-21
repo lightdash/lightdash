@@ -406,16 +406,21 @@ export const removeField = (
     fieldsByTile: FieldsByTile,
 ): DashboardFilterRule => {
     if (fieldId !== rule.target.fieldId) {
+        const isOnField = (entry: unknown) =>
+            isDashboardFieldTarget(entry) &&
+            isTargetOnRow(rule, entry, fieldId);
         const kept = Object.fromEntries(
             Object.entries(rule.tileTargets ?? {}).filter(
-                ([, entry]) =>
-                    !(
-                        isDashboardFieldTarget(entry) &&
-                        isTargetOnRow(rule, entry, fieldId)
-                    ),
+                ([, entry]) => !isOnField(entry),
             ),
         );
-        return withTileTargets(rule, kept);
+        // Its tiles stop being filtered, as when the first field is removed
+        return tiles
+            .filter((tile) => isOnField(rule.tileTargets?.[tile.uuid]))
+            .reduce(
+                (next, tile) => setTileField(next, tile, null, fieldsByTile),
+                withTileTargets(rule, kept),
+            );
     }
 
     const promoted = getPeerTargets(rule, tiles).find(

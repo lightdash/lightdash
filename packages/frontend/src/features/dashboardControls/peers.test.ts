@@ -221,16 +221,28 @@ describe('peers', () => {
         ).not.toHaveProperty('tileTargets');
     });
 
-    it('removeField on a peer sends its charts back to the default', () => {
+    it('removeField on a peer leaves its charts unfiltered', () => {
         const r = removeField(
             rule({ a: false, b: PAYMENTS, c: PAYMENTS }),
             'payments_status',
             tiles,
             fieldsByTile,
         );
-        expect(r.tileTargets).toEqual({ a: false });
-        expect(getTileField(r, b, fieldsByTile)).toEqual(ORDERS);
+        // b offers the first field too, and still stops being filtered
+        expect(r.tileTargets).toEqual({ a: false, b: false });
+        expect(getTileField(r, b, fieldsByTile)).toBeNull();
         expect(getTileField(r, c, fieldsByTile)).toBeNull();
+        expect(getFilterFields(r, tiles)).toEqual(['orders_status']);
+    });
+
+    it('removeField on a peer leaves out its charts while the fields load', () => {
+        const r = removeField(
+            rule({ b: PAYMENTS, c: PAYMENTS }),
+            'payments_status',
+            tiles,
+            undefined,
+        );
+        expect(r.tileTargets).toEqual({ b: false, c: false });
     });
 
     it('removeField on the target promotes the next field and keeps other charts', () => {

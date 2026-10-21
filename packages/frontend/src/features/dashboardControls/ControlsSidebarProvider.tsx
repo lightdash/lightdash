@@ -39,8 +39,11 @@ import {
 } from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import {
+    getFieldCount,
     getFilterFields,
     getTileField,
+    isSqlColumnRow,
+    removeField,
     setTileField,
     withoutDefaultTileTargets,
 } from './peers';
@@ -500,30 +503,50 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 writePlaceholder(next);
                 return;
             }
-            // A field that just lost its last tile stays listed, waiting
-            const previous = findFilterRule(current.dashboardFilters, next.id);
             const tiles = current.dashboardTiles;
-            const kept = new Set(getFilterFields(next, tiles));
-            const dropped = (
-                previous === null ? [] : getFilterFields(previous, tiles)
-            ).filter((fieldId) => !kept.has(fieldId));
-            if (dropped.length > 0) {
-                setWaiting((waitingNow) => ({
-                    filterId: next.id,
-                    fieldIds: [
-                        ...new Set([
-                            ...(waitingNow?.filterId === next.id
-                                ? waitingNow.fieldIds
-                                : []),
-                            ...dropped,
-                        ]),
-                    ],
-                }));
-            }
-            writeFilters((filters) => replaceFilterRule(filters, next));
+            const fieldsByTile = current.filterableFieldsByTileUuid;
+            const firstFieldId = next.target.fieldId;
+            const previous = findFilterRule(current.dashboardFilters, next.id);
+            // The first field leaves when this write takes its last tile,
+            // unless it is the filter's only field
+            const isFirstFieldGone =
+                tiles !== undefined &&
+                fieldsByTile !== undefined &&
+                previous !== null &&
+                previous.target.fieldId === firstFieldId &&
+                !isSqlColumnRow(next, firstFieldId) &&
+                getFilterFields(next, tiles).length > 1 &&
+                getFieldCount(previous, firstFieldId, tiles, fieldsByTile)
+                    .applied > 0 &&
+                getFieldCount(next, firstFieldId, tiles, fieldsByTile)
+                    .applied === 0;
+            const rule = isFirstFieldGone
+                ? removeField(next, firstFieldId, tiles, fieldsByTile)
+                : next;
+            if (isFirstFieldGone && current.highlightedFieldId === firstFieldId)
+                clearHighlightedField();
+            // A field on a tile no longer waits, so losing that tile drops it
+            const fields = new Set(getFilterFields(rule, tiles));
+            setWaiting((waitingNow) =>
+                waitingNow?.filterId === rule.id &&
+                waitingNow.fieldIds.some((fieldId) => fields.has(fieldId))
+                    ? {
+                          ...waitingNow,
+                          fieldIds: waitingNow.fieldIds.filter(
+                              (fieldId) => !fields.has(fieldId),
+                          ),
+                      }
+                    : waitingNow,
+            );
+            writeFilters((filters) => replaceFilterRule(filters, rule));
             writeFiltersChanged(true);
         },
-        [writeFilters, writeFiltersChanged, writePlaceholder],
+        [
+            writeFilters,
+            writeFiltersChanged,
+            writePlaceholder,
+            clearHighlightedField,
+        ],
     );
 
     // The control stays open and empty, as a new one starts: same id, label
