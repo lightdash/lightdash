@@ -343,6 +343,10 @@ import type { QuerySourceService } from '../QuerySourceService/QuerySourceServic
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
+import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
@@ -2026,10 +2030,12 @@ export class AsyncQueryService extends ProjectService {
                             ]);
                             if (isExploreError(explore))
                                 throw new ForbiddenError();
-                            return getFilteredExplore(
+                            return auditAndFilterExplore({
+                                account: fresh,
+                                projectUuid,
                                 explore,
-                                controls.userAttributes,
-                            );
+                                userAttributes: controls.userAttributes,
+                            });
                         })();
                         explorePromises.set(name, explorePromise);
                     }
@@ -6141,6 +6147,15 @@ export class AsyncQueryService extends ProjectService {
                 ? { ...baseUserAttributes, ...userAttributeOverrides }
                 : baseUserAttributes;
 
+        if (materializationRole === undefined) {
+            auditMetricQueryAttributeAccess({
+                account,
+                projectUuid,
+                explore,
+                metricQuery,
+            });
+        }
+
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -8181,6 +8196,7 @@ export class AsyncQueryService extends ProjectService {
             labelFieldId,
             staticResults,
         } = await getFieldValuesMetricQuery({
+            account,
             projectUuid,
             table,
             initialFieldId,
