@@ -114,28 +114,24 @@ const captureModelRequest = async (
     const fetchSpy = vi.fn(async () => new Response('{}', { status: 500 }));
     vi.stubGlobal('fetch', fetchSpy);
     try {
-        try {
-            await model.doGenerate({
-                prompt: [
-                    { role: 'user', content: [{ type: 'text', text: 'hi' }] },
-                ],
-                providerOptions,
-                tools,
-            });
-        } catch {
-            // The stubbed upstream always fails; only the request matters.
-        }
-        const [url, init] = fetchSpy.mock.calls[0] as unknown as [
-            string | URL,
-            RequestInit,
-        ];
-        return {
-            url: url.toString(),
-            body: JSON.parse(String(init.body)) as Record<string, unknown>,
-        };
+        await model.doGenerate({
+            prompt: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+            providerOptions,
+            tools,
+        });
+    } catch {
+        // The stubbed upstream always fails; only the request matters.
     } finally {
         vi.unstubAllGlobals();
     }
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [
+        string | URL,
+        RequestInit,
+    ];
+    return {
+        url: url.toString(),
+        body: JSON.parse(String(init.body)) as Record<string, unknown>,
+    };
 };
 
 const copilotConfigWithZeroDataRetention = () => {
@@ -268,16 +264,14 @@ describe('getModel', () => {
         expect(providerOptions.openai.reasoningSummary).toBe('auto');
     });
 
-    it('keeps a preset-pinned reasoning effort on Chat Completions', () => {
-        const { providerOptions } = getModel(
+    it('keeps a preset-pinned reasoning effort on Chat Completions', async () => {
+        const { model, providerOptions } = getModel(
             copilotConfigWithChatCompletions(),
             { enableReasoning: true, modelName: 'gpt-5-mini' },
         );
 
-        if (!providerOptions || !('openai' in providerOptions)) {
-            throw new Error('expected openai provider options');
-        }
-        expect(providerOptions.openai.reasoningEffort).toBe('minimal');
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning_effort).toBe('minimal');
     });
 
     it('keeps preset-specific reasoning effort when enabled', () => {
@@ -306,7 +300,9 @@ describe('getModel', () => {
             effort: 'medium',
             summary: 'auto',
         });
+        expect(body.store).toBe(false);
         expect(body.include).toEqual(['reasoning.encrypted_content']);
+        expect(body.parallel_tool_calls).toBe(false);
     });
 
     it('sends OpenAI requests to Chat Completions when useChatCompletions is on', async () => {
@@ -315,20 +311,13 @@ describe('getModel', () => {
             { enableReasoning: true, modelName: 'gpt-5.5' },
         );
 
-        if (!providerOptions || !('openai' in providerOptions)) {
-            throw new Error('expected openai provider options');
-        }
-        expect(providerOptions.openai.reasoningSummary).toBeUndefined();
-        expect(providerOptions.openai.include).toBeUndefined();
-        expect(providerOptions.openai.store).toBeUndefined();
-        expect(providerOptions.openai.parallelToolCalls).toBe(false);
-        expect(providerOptions.openai.reasoningEffort).toBe('none');
-
         const { url, body } = await captureModelRequest(model, providerOptions);
         expect(url).toBe('https://api.openai.com/v1/chat/completions');
         expect(body.messages).toBeDefined();
         expect(body.input).toBeUndefined();
         expect(body.reasoning_effort).toBe('none');
+        expect(body.reasoning).toBeUndefined();
+        expect(body.store).toBeUndefined();
         expect(body.include).toBeUndefined();
     });
 
@@ -354,20 +343,24 @@ describe('getModel', () => {
     });
 
     it('sends Azure requests to the Responses API by default', async () => {
+        // The Responses model only forwards reasoning for ids it recognises
+        // as reasoning models, so a custom deployment name would hide it.
         const { model, providerOptions } = getModel(
-            azureCopilotConfig({ deploymentSupportsReasoning: true }),
+            azureCopilotConfig({
+                deploymentName: 'gpt-5.5',
+                deploymentSupportsReasoning: true,
+            }),
         );
-
-        if (!providerOptions || !('openai' in providerOptions)) {
-            throw new Error('expected openai provider options');
-        }
-        expect(providerOptions.openai.reasoningSummary).toBe('auto');
 
         const { url, body } = await captureModelRequest(model, providerOptions);
         expect(url).toBe(
-            'https://example.openai.azure.com/deployments/current-deployment/responses?api-version=2025-01-01',
+            'https://example.openai.azure.com/deployments/gpt-5.5/responses?api-version=2025-01-01',
         );
         expect(body.input).toBeDefined();
+        expect(body.reasoning).toEqual({
+            effort: 'medium',
+            summary: 'auto',
+        });
     });
 
     it('sends Azure requests to Chat Completions when useChatCompletions is on', async () => {
@@ -378,12 +371,6 @@ describe('getModel', () => {
             }),
         );
 
-        if (!providerOptions || !('openai' in providerOptions)) {
-            throw new Error('expected openai provider options');
-        }
-        expect(providerOptions.openai.reasoningSummary).toBeUndefined();
-        expect(providerOptions.openai.reasoningEffort).toBe('none');
-
         const { url, body } = await captureModelRequest(model, providerOptions);
         expect(url).toBe(
             'https://example.openai.azure.com/deployments/current-deployment/chat/completions?api-version=2025-01-01',
@@ -391,6 +378,7 @@ describe('getModel', () => {
         expect(body.messages).toBeDefined();
         expect(body.input).toBeUndefined();
         expect(body.reasoning_effort).toBe('none');
+        expect(body.reasoning).toBeUndefined();
     });
 
     it('does not wrap the model when the provider supports streaming', () => {

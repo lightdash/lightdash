@@ -1,7 +1,9 @@
 import { AzureOpenAIProvider, createAzure } from '@ai-sdk/azure';
-import { wrapLanguageModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
-import { dropParallelToolCallsWithoutTools } from './chatCompletionsMiddleware';
+import {
+    getReasoningProviderOptions,
+    withChatCompletionsDefaults,
+} from './chatCompletions';
 import { AiModel } from './types';
 
 const PROVIDER = 'azure';
@@ -23,16 +25,10 @@ export const getAzureGpt41Model = (
     const azure = getAzureProvider(config);
 
     const model = config.useChatCompletions
-        ? wrapLanguageModel({
-              model: azure.chat(config.deploymentName),
-              middleware: dropParallelToolCallsWithoutTools,
-          })
+        ? withChatCompletionsDefaults(azure.chat(config.deploymentName))
         : azure(config.deploymentName);
 
     const reasoningEnabled = config.deploymentSupportsReasoning;
-    // Chat Completions rejects function tools on reasoning deployments unless
-    // reasoning is explicitly disabled.
-    const reasoningEffort = config.useChatCompletions ? 'none' : 'medium';
 
     return {
         model,
@@ -45,12 +41,12 @@ export const getAzureGpt41Model = (
             // @ts-expect-error - provider should be set to openai for azure
             openai: {
                 // strictJsonSchema: provider default is true
-                ...(reasoningEnabled && {
-                    reasoningEffort,
-                    ...(!config.useChatCompletions && {
-                        reasoningSummary: 'auto',
-                    }),
-                }),
+                ...(reasoningEnabled &&
+                    getReasoningProviderOptions({
+                        useChatCompletions: config.useChatCompletions,
+                        responsesEffort: 'medium',
+                        includeSummary: true,
+                    })),
             },
         },
     };

@@ -1,8 +1,10 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { wrapLanguageModel } from 'ai';
 import { DEFAULT_OPENAI_BASE_URL } from '../../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../../config/parseConfig';
-import { dropParallelToolCallsWithoutTools } from './chatCompletionsMiddleware';
+import {
+    getReasoningProviderOptions,
+    withChatCompletionsDefaults,
+} from './chatCompletions';
 import { ModelPreset } from './presets';
 import { AiModel, ProviderOptionsMap } from './types';
 
@@ -23,31 +25,23 @@ export const getOpenaiGptmodel = (
     const { supportsReasoning, modelId } = preset;
 
     const model = config.useChatCompletions
-        ? wrapLanguageModel({
-              model: openai.chat(modelId),
-              middleware: dropParallelToolCallsWithoutTools,
-          })
+        ? withChatCompletionsDefaults(openai.chat(modelId))
         : openai(modelId);
     const extendedReasoningEnabled =
         options?.enableReasoning === true && supportsReasoning;
     const { reasoningEffort: presetReasoningEffort, ...presetProviderOptions } =
         preset.providerOptions ?? {};
-    const responsesReasoningEffort = extendedReasoningEnabled
-        ? 'medium'
-        : 'low';
-    // Chat Completions rejects function tools on reasoning models unless
-    // reasoning is explicitly disabled; it also has no reasoning summaries.
     const reasoningProviderOptions = supportsReasoning
         ? ({
-              reasoningEffort:
-                  presetReasoningEffort ??
-                  (config.useChatCompletions
-                      ? 'none'
-                      : responsesReasoningEffort),
-              ...(extendedReasoningEnabled &&
-                  !config.useChatCompletions && {
-                      reasoningSummary: 'auto',
-                  }),
+              ...getReasoningProviderOptions({
+                  useChatCompletions: config.useChatCompletions,
+                  responsesEffort: extendedReasoningEnabled ? 'medium' : 'low',
+                  includeSummary: extendedReasoningEnabled,
+              }),
+              // Presets pin the effort their model accepts (gpt-5-mini rejects 'none').
+              ...(presetReasoningEffort && {
+                  reasoningEffort: presetReasoningEffort,
+              }),
           } satisfies ProviderOptionsMap[typeof PROVIDER])
         : undefined;
 
