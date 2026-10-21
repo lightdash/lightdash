@@ -1,3 +1,4 @@
+import { type DashboardTile } from '@lightdash/common';
 import { shallowEqual } from '@mantine/hooks';
 
 // filtered: on the control, no field active.
@@ -22,3 +23,10 @@ export const areTilePropsEqual = <Props extends object>(
                 shallowEqual(before, after))
         );
     });
+
+export const getTileTitle = (tile: DashboardTile): string => {
+    if (tile.properties.title) return tile.properties.title;
+    if ('chartName' in tile.properties && tile.properties.chartName)
+        return tile.properties.chartName;
+    return 'this tile';
+};

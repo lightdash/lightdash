@@ -671,20 +671,26 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   the rule the tile dropdown uses; a date filter is not offered a timestamp).
   A tile with the target field links on its own, SQL chart tiles never
   prompt, and neither does a SQL column filter.
-- A row's choice follows its candidates: a choice that is no longer offered
-  is dropped, and a single candidate is the choice. It is derived on render,
+- One card per tile, summary first. A row with a single candidate links
+  without a pick: those rows fold into one "N filters link automatically"
+  block (`Filter → Field`), and "Review" expands them into rows. The other
+  rows sit under "Needs a field", each a clearable select ("Not filtered").
+- The card keeps the user's picks per rule: a rule present with `null` was
+  cleared and is not linked, absent means the default (the single candidate).
+  A pick that is no longer offered is dropped. Choices are derived on render,
   never synced in an effect. Candidates that read the same carry their table
   label (`getCandidateOptions`).
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
   and scrolls.
-- "Apply" and "Skip" are named with the filter ("Apply Status"). Once the
-  answered row has left, focus goes to the prompt that took its place, else
-  to the one before it, else to the tile itself (`tabindex="-1"`).
+- One "Apply" answers the whole card ("Apply all N", "Apply X, skip Y";
+  disabled when no row has a field): rows with a field are linked, the rest
+  skipped. "Skip all" ("Skip" for one row) skips every row. Both are named
+  with the tile title, and focus goes to the tile (`tabindex="-1"`).
 - "New" is derived: `newTileUuids` is the dashboard's tiles that are not in the
   saved dashboard. There is no snapshot state.
-- Link writes `tileTargets[tileUuid]` on the rule (`setTileField`), which ends
-  the prompt. Skip is `dismissLink`; skips live in the provider until edit mode
-  ends.
+- Linking writes `tileTargets[tileUuid]` on the rule (`setTileField`), which
+  ends the row. Skipping is `dismissLink`; skips live in the provider until
+  edit mode ends.
 - Rendered only in edit mode while the sidebar is closed, so it never stacks
   on `TileOverlays`.
 
