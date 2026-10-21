@@ -1,0 +1,155 @@
+{
+  "timings": [
+    {
+      "source": "payments",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 6157,
+      "exit_code": 0
+    },
+    {
+      "source": "merchants",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 1618,
+      "exit_code": 0
+    },
+    {
+      "source": "finance",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 1551,
+      "exit_code": 0
+    },
+    {
+      "source": "risk",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 1553,
+      "exit_code": 0
+    },
+    {
+      "source": "growth",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 5862,
+      "exit_code": 0
+    },
+    {
+      "source": "marketing",
+      "stage": "bootstrap_parse",
+      "elapsed_ms": 1549,
+      "exit_code": 0
+    },
+    {
+      "source": "payments",
+      "stage": "seed",
+      "elapsed_ms": 1944,
+      "exit_code": 0
+    },
+    {
+      "source": "merchants",
+      "stage": "seed",
+      "elapsed_ms": 1826,
+      "exit_code": 0
+    },
+    {
+      "source": "finance",
+      "stage": "seed",
+      "elapsed_ms": 2007,
+      "exit_code": 0
+    },
+    {
+      "source": "risk",
+      "stage": "seed",
+      "elapsed_ms": 1715,
+      "exit_code": 0
+    },
+    {
+      "source": "growth",
+      "stage": "seed",
+      "elapsed_ms": 1673,
+      "exit_code": 0
+    },
+    {
+      "source": "marketing",
+      "stage": "seed",
+      "elapsed_ms": 1882,
+      "exit_code": 0
+    },
+    {
+      "source": "payments",
+      "stage": "bases",
+      "elapsed_ms": 1756,
+      "exit_code": 0
+    },
+    {
+      "source": "merchants",
+      "stage": "bases",
+      "elapsed_ms": 1852,
+      "exit_code": 0
+    },
+    {
+      "source": "finance",
+      "stage": "bases",
+      "elapsed_ms": 1693,
+      "exit_code": 0
+    },
+    {
+      "source": "risk",
+      "stage": "bases",
+      "elapsed_ms": 1763,
+      "exit_code": 0
+    },
+    {
+      "source": "growth",
+      "stage": "bases",
+      "elapsed_ms": 1518,
+      "exit_code": 0
+    },
+    {
+      "source": "marketing",
+      "stage": "bases",
+      "elapsed_ms": 1735,
+      "exit_code": 0
+    },
+    {
+      "source": "payments",
+      "stage": "run",
+      "elapsed_ms": 1815,
+      "exit_code": 0
+    },
+    {
+      "source": "merchants",
+      "stage": "run",
+      "elapsed_ms": 1832,
+      "exit_code": 0
+    },
+    {
+      "source": "finance",
+      "stage": "run",
+      "elapsed_ms": 1806,
+      "exit_code": 0
+    },
+    {
+      "source": "risk",
+      "stage": "run",
+      "elapsed_ms": 1700,
+      "exit_code": 0
+    },
+    {
+      "source": "growth",
+      "stage": "run",
+      "elapsed_ms": 1480,
+      "exit_code": 0
+    },
+    {
+      "source": "marketing",
+      "stage": "run",
+      "elapsed_ms": 1688,
+      "exit_code": 0
+    }
+  ],
+  "errors": [],
+  "elapsed_ms": 50148,
+  "exit_code": 0,
+  "full": false,
+  "notes": [],
+  "projects_total": 6,
+  "projects_built": 6
+}
