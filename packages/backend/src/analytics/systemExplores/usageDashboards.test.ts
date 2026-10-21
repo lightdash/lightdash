@@ -46,7 +46,9 @@ const compile = (chart: ChartAsCode) =>
 describe('built-in usage dashboards', () => {
     it('uses display-only user labels without changing the selected identities', () => {
         const userCharts = charts.filter((chart) =>
-            chart.metricQuery.dimensions.includes(`${chart.tableName}_user_name`),
+            chart.metricQuery.dimensions.includes(
+                `${chart.tableName}_user_name`,
+            ),
         );
         expect(userCharts.length).toBeGreaterThan(0);
         for (const chart of userCharts) {

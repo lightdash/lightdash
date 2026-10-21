@@ -34,7 +34,6 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const displayField = 'user_display_name';
     const originName = 'activity_origin';
     const originField = `${chart.tableName}_${originName}`;
-    const originSql = usageActivityOriginSql(chart.tableName);
     return {
         ...chart,
         description: `${chart.description} User <ID> means no display name is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
@@ -48,7 +47,7 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
                     name: originName,
                     label: 'Activity source',
                     type: MetricType.STRING,
-                    sql: `STRING_AGG(DISTINCT (${originSql}), ', ' ORDER BY (${originSql}))`,
+                    sql: usageActivityOriginSql(chart.tableName),
                 },
             ],
             tableCalculations: [
@@ -77,8 +76,11 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
         },
         tableConfig: {
             ...chart.tableConfig,
-            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap((field) =>
-                field === nameField ? [displayField, originField, field] : [field],
+            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap(
+                (field) =>
+                    field === nameField
+                        ? [displayField, originField, field]
+                        : [field],
             ),
         },
     };
