@@ -233,8 +233,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [thread?.messages],
     );
 
-    // Expand the thread's pinned dashboard into tiles, mentionable by tile name.
+    const boundDashboardUuid = thread?.binding?.dashboardUuid ?? null;
+    // Expand the thread's bound or pinned dashboard into tiles, mentionable by tile name.
     const pinnedDashboardUuid = useMemo(() => {
+        if (boundDashboardUuid) return boundDashboardUuid;
         for (const message of thread?.messages ?? []) {
             if (message.role !== 'user') continue;
             for (const item of message.context ?? []) {
@@ -242,13 +244,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             }
         }
         return null;
-    }, [thread?.messages]);
+    }, [boundDashboardUuid, thread?.messages]);
 
     const { contentMentionItems: pinnedDashboardTileItems } = usePinnedContext({
         projectUuid,
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
-    const dashboardUuid = searchParams.get('dashboardUuid');
+    const pageDashboardUuid = searchParams.get('dashboardUuid');
+    // A bound thread never pins a different dashboard from the page.
+    const dashboardUuid =
+        boundDashboardUuid && pageDashboardUuid !== boundDashboardUuid
+            ? null
+            : pageDashboardUuid;
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
     const {

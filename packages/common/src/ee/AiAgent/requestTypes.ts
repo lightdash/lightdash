@@ -373,6 +373,11 @@ export type AiThreadBinding = {
     dashboardUuid: string;
 };
 
+/** A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted. */
+export type AiThreadBindingSummary = AiThreadBinding & {
+    displayName: string | null;
+};
+
 // The concrete change a writeback applies — one card concept, two payloads.
 export type AiPromptProposedChangePayload =
     | { changeKind: 'project_context'; entry: AiAgentJudgeProjectContextEntry }

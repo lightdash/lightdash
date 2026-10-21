@@ -1629,6 +1629,15 @@ const scopes: Scope[] = [
         ],
     },
     {
+        name: 'view:AiAgentThreadContext',
+        description:
+            'View the context a conversation thread was created with, which may hold internal notes',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'create:AiAgentThread',
         description: 'Start new AI agent conversations',
         isEnterprise: true,

@@ -55,6 +55,7 @@ import {
     AiResultType,
     AiThread,
     AiThreadBinding,
+    AiThreadBindingSummary,
     AiThreadCompaction,
     AiThreadCreatedFrom,
     AiWebAppPrompt,
@@ -503,6 +504,7 @@ type AiThreadSummaryRow = Pick<
         user_name: string | null;
         agent_name: string | null;
         agent_image_url: string | null;
+        bound_dashboard_name: string | null;
     };
 
 type AiAgentThreadLiveStateRow = {
@@ -3392,6 +3394,19 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiAgentTableName}.ai_agent_uuid`,
             )
+            .leftJoin(DashboardsTableName, function joinBoundDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'dashboard',
+                    )
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .where((builder) => {
                 void builder
                     .whereNotNull('first_prompt.ai_prompt_uuid')
@@ -3423,6 +3438,7 @@ export class AiAgentModel {
                 `${AiSlackThreadTableName}.slack_user_id`,
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
+                `${DashboardsTableName}.name as bound_dashboard_name`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
     }
@@ -3446,6 +3462,22 @@ export class AiAgentModel {
                 return { type, dashboardUuid: entityUuid };
             default:
                 return assertUnreachable(type, 'Unknown binding type');
+        }
+    }
+
+    private static toThreadBindingSummary(
+        row: AiThreadSummaryRow,
+    ): AiThreadBindingSummary | null {
+        const binding = AiAgentModel.toThreadBinding(
+            row.bound_entity_type,
+            row.bound_entity_uuid,
+        );
+        if (binding === null) return null;
+        switch (binding.type) {
+            case 'dashboard':
+                return { ...binding, displayName: row.bound_dashboard_name };
+            default:
+                return assertUnreachable(binding.type, 'Unknown binding type');
         }
     }
 
@@ -3475,10 +3507,7 @@ export class AiAgentModel {
                 slackUserId: row.slack_user_id,
             },
             liveStatus: null,
-            binding: AiAgentModel.toThreadBinding(
-                row.bound_entity_type,
-                row.bound_entity_uuid,
-            ),
+            binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
         };
     }

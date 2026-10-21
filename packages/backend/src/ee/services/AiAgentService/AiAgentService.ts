@@ -3009,6 +3009,35 @@ export class AiAgentService extends BaseService {
         return { user, agent, runtimeOptions };
     }
 
+    private canViewThreadContext(
+        actor: Account | SessionUser,
+        resource: { organizationUuid: string; projectUuid: string },
+    ): boolean {
+        return this.createAuditedAbility(actor).can(
+            'view',
+            subject('AiAgentThreadContext', {
+                organizationUuid: resource.organizationUuid,
+                projectUuid: resource.projectUuid,
+            }),
+        );
+    }
+
+    private withVisibleThreadContext<
+        T extends Pick<AiAgentThreadSummary, 'threadContext'>,
+    >(
+        actor: Account | SessionUser,
+        resource: { organizationUuid: string; projectUuid: string },
+        threads: T[],
+    ): T[] {
+        if (
+            threads.every((thread) => thread.threadContext === null) ||
+            this.canViewThreadContext(actor, resource)
+        ) {
+            return threads;
+        }
+        return threads.map((thread) => ({ ...thread, threadContext: null }));
+    }
+
     private canViewEmbedAiAgentDebug(
         account: AnonymousAccount,
         agent: AiAgent,
@@ -4402,8 +4431,13 @@ export class AiAgentService extends BaseService {
                 this.slackClient.getUserInfo(organizationUuid, userId!),
             ),
         );
+        const visibleThreads = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            threads,
+        );
 
-        return threads.map((thread) => {
+        return visibleThreads.map((thread) => {
             const threadWithLiveStatus = {
                 ...thread,
                 liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
@@ -4531,8 +4565,13 @@ export class AiAgentService extends BaseService {
                 }),
             )
         ).filter((slackUser) => slackUser !== null);
+        const visibleThreads = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid },
+            threads,
+        );
 
-        const data = threads.map((thread) => {
+        const data = visibleThreads.map((thread) => {
             const threadWithLiveStatus = {
                 ...thread,
                 liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
@@ -4666,10 +4705,15 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             threadUuid,
         });
+        const [visibleThread] = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            [thread],
+        );
 
         if (thread.createdFrom !== 'slack') {
             return {
-                ...thread,
+                ...visibleThread,
                 messages,
                 compactions,
             };
@@ -4689,7 +4733,7 @@ export class AiAgentService extends BaseService {
         );
 
         return {
-            ...thread,
+            ...visibleThread,
             compactions,
             messages: messages.map((message) => {
                 if (message.role !== 'user') {
@@ -5273,11 +5317,18 @@ export class AiAgentService extends BaseService {
             });
         }
 
-        return this.aiAgentModel.getThread({
+        const thread = await this.aiAgentModel.getThread({
             organizationUuid,
             agentUuid,
             threadUuid,
         });
+        if (!thread) return thread;
+        const [visibleThread] = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            [thread],
+        );
+        return visibleThread;
     }
 
     /**
@@ -9026,9 +9077,12 @@ export class AiAgentService extends BaseService {
         );
         await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         const thread = await this.getAgentThread(user, agentUuid, threadUuid);
+        const [visibleThread] = this.withVisibleThreadContext(account, agent, [
+            thread,
+        ]);
         return this.canViewEmbedAiAgentDebug(account, agent)
-            ? thread
-            : redactThreadToolResults(thread);
+            ? visibleThread
+            : redactThreadToolResults(visibleThread);
     }
 
     async listEmbedAgentThreads(
@@ -9036,7 +9090,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         agentUuid: string,
     ): Promise<AiAgentThreadSummary[]> {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
@@ -9063,12 +9117,16 @@ export class AiAgentService extends BaseService {
             })),
         );
 
-        return threadsWithEmbedSpace
-            .filter(
-                ({ embedSpaceUuid }) =>
-                    embedSpaceUuid === runtimeOptions.embedSpaceUuid,
-            )
-            .map(({ thread }) => thread);
+        return this.withVisibleThreadContext(
+            account,
+            agent,
+            threadsWithEmbedSpace
+                .filter(
+                    ({ embedSpaceUuid }) =>
+                        embedSpaceUuid === runtimeOptions.embedSpaceUuid,
+                )
+                .map(({ thread }) => thread),
+        );
     }
 
     async createEmbedAgentThread(
@@ -9077,18 +9135,23 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
     ) {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
-        return this.createAgentThread(
+        const thread = await this.createAgentThread(
             user,
             agentUuid,
             body,
             'web_app',
             runtimeOptions,
         );
+        if (!thread) return thread;
+        const [visibleThread] = this.withVisibleThreadContext(account, agent, [
+            thread,
+        ]);
+        return visibleThread;
     }
 
     async createEmbedAgentThreadMessage(
