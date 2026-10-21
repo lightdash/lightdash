@@ -89,6 +89,10 @@ import {
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
+    auditExploreAttributeAccess,
+    getFilteredExploreForAccount,
+} from '../UserAttributesService/userAttributeAudit';
+import {
     checkUserAttributesAccess,
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
@@ -854,11 +858,12 @@ export class CatalogService<
             });
 
         if (
-            !doesExploreMatchRequiredAttributes(
-                explore.tables[explore.baseTable].requiredAttributes,
-                explore.tables[explore.baseTable].anyAttributes,
+            !auditExploreAttributeAccess({
+                account: user,
+                projectUuid,
+                explore,
                 userAttributes,
-            )
+            })
         ) {
             throw new ForbiddenError(
                 `You don't have access to the explore ${explore.name}`,
@@ -1282,10 +1287,12 @@ export class CatalogService<
                     return [tableName, undefined];
                 }
 
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = getFilteredExploreForAccount({
+                    account: user,
+                    projectUuid,
                     explore,
-                    userAttributesForOrgMember,
-                );
+                    userAttributes: userAttributesForOrgMember,
+                });
                 return [tableName, filteredExplore];
             }),
         );

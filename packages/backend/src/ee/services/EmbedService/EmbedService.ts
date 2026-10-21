@@ -113,7 +113,10 @@ import {
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
-import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import {
+    auditMetricQueryAttributeAccess,
+    getFilteredExploreForAccount,
+} from '../../../services/UserAttributesService/userAttributeAudit';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
@@ -1179,10 +1182,18 @@ export class EmbedService extends BaseService {
                     this.getAccessControls(account);
 
                 // Filter the explore access and fields based on the user attributes
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = getFilteredExploreForAccount({
+                    account,
+                    projectUuid,
                     explore,
                     userAttributes,
-                );
+                });
+                auditMetricQueryAttributeAccess({
+                    account,
+                    projectUuid,
+                    explore: filteredExplore,
+                    metricQuery,
+                });
 
                 const availableParameterDefinitions =
                     await this.getAvailableParameters(
@@ -2323,7 +2334,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = getFilteredExploreForAccount({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
@@ -2481,7 +2497,12 @@ export class EmbedService extends BaseService {
             projectUuid,
             organizationUuid: organizationUuid || '',
             metricQuery,
-            explore: getFilteredExplore(explore, userAttributes),
+            explore: getFilteredExploreForAccount({
+                account,
+                projectUuid,
+                explore,
+                userAttributes,
+            }),
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 embed: 'true',
@@ -2567,7 +2588,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = getFilteredExploreForAccount({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         // Handle parameter interactivity - only accept user parameters if enabled
         const acceptedUserParameters =
@@ -2801,6 +2827,7 @@ export class EmbedService extends BaseService {
         const { userAttributes } = this.getAccessControls(account);
         const { metricQuery, explore, field, staticResults } =
             await this.projectService._getFieldValuesMetricQuery({
+                account,
                 projectUuid,
                 table: resolvedTableName,
                 initialFieldId: resolvedFieldId,

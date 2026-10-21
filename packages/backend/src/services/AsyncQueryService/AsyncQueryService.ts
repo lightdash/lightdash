@@ -342,9 +342,10 @@ import type { QuerySourceService } from '../QuerySourceService/QuerySourceServic
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
-    exploreHasFilteredAttribute,
-    getFilteredExplore,
-} from '../UserAttributesService/UserAttributeUtils';
+    auditMetricQueryAttributeAccess,
+    getFilteredExploreForAccount,
+} from '../UserAttributesService/userAttributeAudit';
+import { exploreHasFilteredAttribute } from '../UserAttributesService/UserAttributeUtils';
 import { trustedAgentQueryTags } from '../WarehouseClientFactory/agentQueryTags';
 import {
     connectionContextFromAccount,
@@ -1346,7 +1347,12 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const executionExplore = exploreHasFilteredAttribute(explore)
-            ? getFilteredExplore(explore, materializationRole.userAttributes)
+            ? getFilteredExploreForAccount({
+                  account,
+                  projectUuid,
+                  explore,
+                  userAttributes: materializationRole.userAttributes,
+              })
             : explore;
         this.unfilteredExploreSnapshots.set(executionExplore, explore);
 
@@ -2025,10 +2031,12 @@ export class AsyncQueryService extends ProjectService {
                             ]);
                             if (isExploreError(explore))
                                 throw new ForbiddenError();
-                            return getFilteredExplore(
+                            return getFilteredExploreForAccount({
+                                account: fresh,
+                                projectUuid,
                                 explore,
-                                controls.userAttributes,
-                            );
+                                userAttributes: controls.userAttributes,
+                            });
                         })();
                         explorePromises.set(name, explorePromise);
                     }
@@ -6140,6 +6148,13 @@ export class AsyncQueryService extends ProjectService {
                 ? { ...baseUserAttributes, ...userAttributeOverrides }
                 : baseUserAttributes;
 
+        auditMetricQueryAttributeAccess({
+            account,
+            projectUuid,
+            explore,
+            metricQuery,
+        });
+
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -8180,6 +8195,7 @@ export class AsyncQueryService extends ProjectService {
             labelFieldId,
             staticResults,
         } = await getFieldValuesMetricQuery({
+            account,
             projectUuid,
             table,
             initialFieldId,
