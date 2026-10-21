@@ -613,7 +613,7 @@ describe('account', () => {
             ).toEqual({
                 user: mockSessionUser,
                 embedWriteActions: {
-                    spaceUuid: 'write-space-uuid',
+                    writeSpaceUuids: ['write-space-uuid'],
                 },
             });
         });

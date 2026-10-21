@@ -7,6 +7,7 @@ import './styles/sdk.css';
 import {
     assertUnreachable,
     FilterOperator,
+    getEmbedDefaultWriteSpaceUuid,
     getErrorMessage,
     type AiThreadBinding,
     type EmbedDashboard as EmbedDashboardType,
@@ -667,6 +668,7 @@ const DashboardBuilderContent: FC<{
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 }> = ({ containerStyles, isEditMode, onEditModeChange, onDashboardReady }) => {
     const { content, embedToken, projectUuid, writeActions } = useEmbed();
+    const defaultWriteSpaceUuid = getEmbedDefaultWriteSpaceUuid(writeActions);
     const [dashboard, setDashboard] = useState<EmbedDashboardType>();
     const [createDashboardError, setCreateDashboardError] = useState<
         string | null
@@ -684,14 +686,14 @@ const DashboardBuilderContent: FC<{
             dashboard ||
             !embedToken ||
             !projectUuid ||
-            !writeActions?.spaceUuid
+            !defaultWriteSpaceUuid
         )
             return;
 
         hasCreatedDashboard.current = true;
         setCreateDashboardError(null);
 
-        const createKey = `${projectUuid}:${writeActions.spaceUuid}:${
+        const createKey = `${projectUuid}:${defaultWriteSpaceUuid}:${
             content?.type === 'dashboard' && 'dashboardUuid' in content
                 ? content.dashboardUuid
                 : ''
@@ -701,7 +703,7 @@ const DashboardBuilderContent: FC<{
             createDashboard({
                 name: 'Untitled dashboard',
                 description: '',
-                spaceUuid: writeActions.spaceUuid,
+                spaceUuid: defaultWriteSpaceUuid,
                 tiles: [],
                 tabs: [],
             }).then(
@@ -726,7 +728,7 @@ const DashboardBuilderContent: FC<{
         dashboard,
         embedToken,
         projectUuid,
-        writeActions?.spaceUuid,
+        defaultWriteSpaceUuid,
     ]);
 
     useEffect(() => {

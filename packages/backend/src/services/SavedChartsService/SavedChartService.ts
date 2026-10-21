@@ -1033,7 +1033,7 @@ export class SavedChartService
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        // Embed writes run as the write actor and only inside the write space
+        // Embed writes run as the write actor and only inside the write spaces
         const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
         const existingChart = await this.savedChartModel.get(savedChartUuid);
@@ -1050,9 +1050,12 @@ export class SavedChartService
             },
         } = existingChart;
 
-        if (embedWriteActions && spaceUuid !== embedWriteActions.spaceUuid) {
+        if (
+            embedWriteActions &&
+            !embedWriteActions.writeSpaceUuids.includes(spaceUuid)
+        ) {
             throw new ForbiddenError(
-                'Embed token does not allow updating charts outside the write space',
+                'Embed token does not allow updating charts outside the write spaces',
             );
         }
 
@@ -2251,12 +2254,18 @@ export class SavedChartService
             return { user, savedChart };
         }
 
+        const { writeSpaceUuids } = embedWriteActions;
+        const requestedSpaceUuid = savedChart.spaceUuid ?? undefined;
         return {
             user,
             savedChart: {
                 ...savedChart,
                 dashboardUuid: undefined,
-                spaceUuid: embedWriteActions.spaceUuid,
+                spaceUuid:
+                    requestedSpaceUuid !== undefined &&
+                    writeSpaceUuids.includes(requestedSpaceUuid)
+                        ? requestedSpaceUuid
+                        : writeSpaceUuids[0],
             },
         };
     }

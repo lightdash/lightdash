@@ -20202,6 +20202,7 @@ describe('ProjectService.compileQueryForResponse', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });

@@ -14,6 +14,7 @@ import {
     type EmbedDashboard as EmbedDashboardType,
     type ParametersValuesMap,
     type SavedChart,
+    getEmbedWriteSpaceUuids,
 } from '@lightdash/common';
 import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { useSessionStorage } from '@mantine/hooks';
@@ -664,9 +665,13 @@ const EmbedDashboard: FC<{
         [filteredTiles, gridProps.cols, isEditMode],
     );
 
+    const writeSpaceUuids = useMemo(
+        () => getEmbedWriteSpaceUuids(writeActions),
+        [writeActions],
+    );
     const canWriteDashboard =
-        !!writeActions &&
-        dashboard?.spaceUuid === writeActions.spaceUuid &&
+        !!dashboard &&
+        writeSpaceUuids.includes(dashboard.spaceUuid) &&
         embedWriteContext?.canUpdateDashboard === true;
     const canUseChartBuilder = canUseEmbeddedChartBuilder({
         canWriteDashboard,
@@ -677,16 +682,18 @@ const EmbedDashboard: FC<{
         () =>
             writeActions
                 ? [
-                      writeActions.spaceUuid,
-                      ...(writeActions.sourceSpaceUuids ?? []),
+                      ...new Set([
+                          ...writeSpaceUuids,
+                          ...(writeActions.sourceSpaceUuids ?? []),
+                      ]),
                   ]
                 : undefined,
-        [writeActions],
+        [writeActions, writeSpaceUuids],
     );
     // Charts referenced from source spaces are read-only here.
     const canEditChart = useCallback(
-        (chart: SavedChart) => chart.spaceUuid === writeActions?.spaceUuid,
-        [writeActions?.spaceUuid],
+        (chart: SavedChart) => writeSpaceUuids.includes(chart.spaceUuid),
+        [writeSpaceUuids],
     );
     const [isNewChartOpen, setIsNewChartOpen] = useState(false);
     const [chartToEdit, setChartToEdit] = useState<SavedChart>();

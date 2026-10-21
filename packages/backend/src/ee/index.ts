@@ -667,6 +667,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
                     savedSqlModel: models.getSavedSqlModel(),
+                    spaceModel: models.getSpaceModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),

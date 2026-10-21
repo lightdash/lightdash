@@ -11,6 +11,7 @@ import {
     type DashboardChartTile,
     type DashboardTile,
     type DashboardVersionedFields,
+    type EmbedWritableSpace,
     type SavedChart,
 } from '@lightdash/common';
 import {
@@ -18,6 +19,7 @@ import {
     Group,
     LoadingOverlay,
     Radio,
+    Select,
     Stack,
     Text,
     Textarea,
@@ -99,7 +101,8 @@ type Props = {
         dashboardName: string;
     } | null;
     defaultSpaceUuid?: string | undefined;
-    forcedSpaceUuid?: string | undefined;
+    /** Restricts saving to these spaces (embed write spaces); hides dashboard destinations. */
+    restrictedSpaces?: EmbedWritableSpace[];
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
@@ -116,11 +119,12 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     onClose,
     dashboardInfoFromSavedData = { dashboardUuid: null, dashboardName: null },
     originatingDashboard = null,
-    forcedSpaceUuid,
+    restrictedSpaces,
     chartMetadata = DEFAULT_CHART_METADATA,
     redirectOnSuccess = true,
     showViewChartAction = true,
 }) => {
+    const isRestrictedToSpaces = restrictedSpaces !== undefined;
     const lightdashApi = useLightdashApi();
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
@@ -191,10 +195,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     } = useDashboards(
         projectUuid,
         {
-            enabled: !forcedSpaceUuid,
+            enabled: !isRestrictedToSpaces,
             staleTime: 0,
         },
-        !forcedSpaceUuid,
+        !isRestrictedToSpaces,
     );
 
     const {
@@ -213,7 +217,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     }),
                 ),
             ),
-        enabled: !forcedSpaceUuid,
+        enabled: !isRestrictedToSpaces,
         staleTime: 0,
     });
 
@@ -222,7 +226,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     useEffect(
         function initializeForm() {
             if (
-                !forcedSpaceUuid &&
+                !isRestrictedToSpaces &&
                 (!isSpacesSuccess || !isDashboardsSuccess)
             ) {
                 return;
@@ -233,7 +237,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 ...chartMetadata,
                 newSpaceName: null,
                 dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
-                spaceUuid: forcedSpaceUuid ?? null,
+                spaceUuid: restrictedSpaces?.[0]?.uuid ?? null,
                 newDashboardName: null,
                 newDashboardDescription: null,
             };
@@ -247,7 +251,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             isDashboardsSuccess,
             isSpacesSuccess,
             chartMetadata,
-            forcedSpaceUuid,
+            isRestrictedToSpaces,
+            restrictedSpaces,
         ],
     );
 
@@ -315,8 +320,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const isFormReadyToSave = useMemo(() => {
         // OriginatingDashboard skips step 2 — it submits straight from
         // InitialInfo as soon as the chart has a name.
-        if (forcedSpaceUuid) {
-            return !!form.values.name;
+        if (isRestrictedToSpaces) {
+            return !!form.values.name && !!form.values.spaceUuid;
         }
         if (saveDestination === SaveDestination.OriginatingDashboard) {
             return !!form.values.name && !!originatingDashboard;
@@ -357,7 +362,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         originatingDashboard,
         isCreatingNewDashboard,
         isCreatingNewSpaceForDashboard,
-        forcedSpaceUuid,
+        isRestrictedToSpaces,
     ]);
 
     const handleOnSubmit = useCallback(
@@ -367,13 +372,13 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
 
             let savedQuery: SavedChart | undefined;
-            if (forcedSpaceUuid) {
+            if (isRestrictedToSpaces && values.spaceUuid) {
                 savedQuery = await createChart({
                     ...savedData,
                     name: values.name,
                     description: values.description ?? undefined,
                     colorPaletteUuid,
-                    spaceUuid: forcedSpaceUuid,
+                    spaceUuid: values.spaceUuid,
                     dashboardUuid: undefined,
                 });
             }
@@ -587,14 +592,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             isCreatingNewSpaceForDashboard,
             createDashboard,
             createSpace,
-            forcedSpaceUuid,
+            isRestrictedToSpaces,
             lightdashApi,
         ],
     );
 
     const isLoading =
         !form.initialized ||
-        (!forcedSpaceUuid && (isLoadingDashboards || isLoadingSpaces)) ||
+        (!isRestrictedToSpaces && (isLoadingDashboards || isLoadingSpaces)) ||
         isSavingChart ||
         spaceManagement.createSpaceMutation.isLoading ||
         isCreatingDashboard ||
@@ -612,7 +617,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     };
 
     const skipDestinationStep =
-        !!forcedSpaceUuid ||
+        isRestrictedToSpaces ||
         saveDestination === SaveDestination.OriginatingDashboard;
 
     // Determine if we should show the "New Space" button
@@ -662,7 +667,20 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             value={form.values.description ?? ''}
                         />
 
-                        {!forcedSpaceUuid && (
+                        {restrictedSpaces && restrictedSpaces.length > 1 && (
+                            <Select
+                                label="Space"
+                                required
+                                allowDeselect={false}
+                                data={restrictedSpaces.map((space) => ({
+                                    value: space.uuid,
+                                    label: space.name,
+                                }))}
+                                {...form.getInputProps('spaceUuid')}
+                            />
+                        )}
+
+                        {!isRestrictedToSpaces && (
                             <Stack gap="sm" mt="sm">
                                 <Text fw={500}>Save to</Text>
 

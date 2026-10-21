@@ -1,7 +1,10 @@
 import {
     canAddDashboardFiltersInEmbed,
+    EMBED_MAX_WRITE_SPACE_UUIDS,
     EmbedJwtSchema,
     FilterInteractivityValues,
+    getEmbedDefaultWriteSpaceUuid,
+    getEmbedWriteSpaceUuids,
     type DashboardFilterInteractivityOptions,
 } from './index';
 
@@ -39,6 +42,59 @@ describe('embed permissions mode', () => {
             ).toBe(false);
         },
     );
+});
+
+describe('embed write spaces', () => {
+    const actor = { userUuid: '00000000-0000-4000-8000-000000000001' };
+    const spaceA = '00000000-0000-4000-8000-00000000000a';
+    const spaceB = '00000000-0000-4000-8000-00000000000b';
+    const parse = (writeActions: Record<string, unknown>) =>
+        EmbedJwtSchema.safeParse({ ...baseJwt, writeActions });
+
+    it('accepts the deprecated spaceUuid', () => {
+        expect(parse({ ...actor, spaceUuid: spaceA }).success).toBe(true);
+    });
+
+    it('accepts writeSpaceUuids', () => {
+        expect(
+            parse({ ...actor, writeSpaceUuids: [spaceA, spaceB] }).success,
+        ).toBe(true);
+    });
+
+    it.each([
+        ['both fields', { spaceUuid: spaceA, writeSpaceUuids: [spaceB] }],
+        ['an empty list', { writeSpaceUuids: [] }],
+        ['duplicates', { writeSpaceUuids: [spaceA, spaceA] }],
+        ['a non-uuid', { writeSpaceUuids: ['not-a-uuid'] }],
+        [
+            'too many spaces',
+            {
+                writeSpaceUuids: Array.from(
+                    { length: EMBED_MAX_WRITE_SPACE_UUIDS + 1 },
+                    (_, i) =>
+                        `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+                ),
+            },
+        ],
+    ])('rejects %s', (_label, spaces) => {
+        expect(parse({ ...actor, ...spaces }).success).toBe(false);
+    });
+
+    it('resolves write spaces in token order with the first as default', () => {
+        expect(
+            getEmbedWriteSpaceUuids({ writeSpaceUuids: [spaceB, spaceA] }),
+        ).toEqual([spaceB, spaceA]);
+        expect(
+            getEmbedDefaultWriteSpaceUuid({
+                writeSpaceUuids: [spaceB, spaceA],
+            }),
+        ).toBe(spaceB);
+        expect(getEmbedWriteSpaceUuids({ spaceUuid: spaceA })).toEqual([
+            spaceA,
+        ]);
+        expect(getEmbedWriteSpaceUuids({})).toEqual([]);
+        expect(getEmbedWriteSpaceUuids(undefined)).toEqual([]);
+    });
 });
 
 describe('EmbedJwtSchema canAddFilters', () => {

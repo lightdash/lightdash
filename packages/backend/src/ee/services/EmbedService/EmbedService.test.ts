@@ -885,20 +885,29 @@ describe('EmbedService', () => {
         const getContext = async ({
             canUpdate,
             savedChartSpaceUuid = chartSpaceUuid,
+            writeActions = token.writeActions,
+            spaceContexts = {},
+            createRules = [],
         }: {
             canUpdate: boolean;
             savedChartSpaceUuid?: string;
+            writeActions?: CreateEmbedJwt['writeActions'];
+            spaceContexts?: Record<string, Partial<typeof spaceAccessContext>>;
+            createRules?: ConstructorParameters<
+                typeof Ability<PossibleAbilities>
+            >[0];
         }) => {
             const embedWriteUser = {
                 ...mockAccountWithPermission.user,
                 organizationUuid: mockOrganizationUuid,
                 organizationName: 'Test Org',
                 organizationCreatedAt: new Date(),
-                ability: new Ability<PossibleAbilities>(
-                    canUpdate
-                        ? [{ action: 'update', subject: 'SavedChart' }]
-                        : [],
-                ),
+                ability: new Ability<PossibleAbilities>([
+                    ...(canUpdate
+                        ? [{ action: 'update', subject: 'SavedChart' } as const]
+                        : []),
+                    ...(createRules ?? []),
+                ]),
             } as unknown as SessionUser;
             const scopedService = new EmbedService({
                 ...EmbedServiceArgumentsMock,
@@ -914,9 +923,19 @@ describe('EmbedService', () => {
                     }),
                 },
                 spacePermissionService: {
-                    resolveAccess: vi
-                        .fn()
-                        .mockResolvedValue(spaceAccessContext),
+                    resolveAccessBatch: vi.fn(
+                        async (
+                            _userUuid: string,
+                            targets: Array<{ spaceUuid: string }>,
+                        ) =>
+                            targets.map((target) => ({
+                                target,
+                                context: {
+                                    ...spaceAccessContext,
+                                    ...spaceContexts[target.spaceUuid],
+                                },
+                            })),
+                    ),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const getEmbedWriteContext = (
@@ -931,12 +950,78 @@ describe('EmbedService', () => {
             ).getEmbedWriteContext.bind(scopedService);
 
             return getEmbedWriteContext(
-                token,
+                { ...token, writeActions },
                 embedWriteUser,
                 mockProjectUuid,
                 content,
             );
         };
+
+        const multiSpaceWriteActions = {
+            userUuid: mockUserUuid,
+            writeSpaceUuids: [chartSpaceUuid, 'second-space-uuid'],
+        };
+
+        test('allows editing a chart in any write space', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    savedChartSpaceUuid: 'second-space-uuid',
+                    writeActions: multiSpaceWriteActions,
+                }),
+            ).resolves.toMatchObject({ canUpdateSavedChart: true });
+        });
+
+        test('lists only the write spaces the actor can create charts in, in token order', async () => {
+            await expect(
+                getContext({
+                    canUpdate: false,
+                    writeActions: {
+                        userUuid: mockUserUuid,
+                        writeSpaceUuids: [
+                            'second-space-uuid',
+                            'read-only-space-uuid',
+                            chartSpaceUuid,
+                        ],
+                    },
+                    spaceContexts: {
+                        'read-only-space-uuid': {
+                            inheritsFromOrgOrProject: false,
+                        },
+                    },
+                    createRules: [
+                        {
+                            action: 'create',
+                            subject: 'SavedChart',
+                            conditions: { inheritsFromOrgOrProject: true },
+                        },
+                    ],
+                }),
+            ).resolves.toMatchObject({
+                canCreateSavedChart: true,
+                writableSpaces: [
+                    { uuid: 'second-space-uuid', name: 'second-space-uuid' },
+                    { uuid: chartSpaceUuid, name: chartSpaceUuid },
+                ],
+            });
+        });
+
+        test('disables writes when any write space is in another project', async () => {
+            await expect(
+                getContext({
+                    canUpdate: true,
+                    writeActions: multiSpaceWriteActions,
+                    spaceContexts: {
+                        'second-space-uuid': { projectUuid: 'other-project' },
+                    },
+                    createRules: [{ action: 'create', subject: 'SavedChart' }],
+                }),
+            ).resolves.toMatchObject({
+                canUpdateSavedChart: false,
+                canCreateSavedChart: false,
+                writableSpaces: [],
+            });
+        });
 
         test('allows editing when the write actor can update the chart in the write space', async () => {
             await expect(
@@ -1086,13 +1171,20 @@ describe('EmbedService', () => {
                     getSummary: vi.fn().mockResolvedValue(target),
                 },
                 spacePermissionService: {
-                    resolveAccess: vi.fn().mockResolvedValue({
-                        ...target,
-                        projectUuid:
-                            scenario.spaceProjectUuid ?? mockProjectUuid,
-                        inheritsFromOrgOrProject: true,
-                        access: [],
-                    }),
+                    resolveAccessBatch: vi.fn(
+                        async (_userUuid: string, targets: unknown[]) =>
+                            targets.map((spaceTarget) => ({
+                                target: spaceTarget,
+                                context: {
+                                    ...target,
+                                    projectUuid:
+                                        scenario.spaceProjectUuid ??
+                                        mockProjectUuid,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                },
+                            })),
+                    ),
                 },
             } as unknown as ConstructorParameters<typeof EmbedService>[0]);
             const getContext = (
