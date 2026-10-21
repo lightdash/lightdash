@@ -689,7 +689,8 @@ describe('FieldsAndTiles', () => {
         fireEvent.click(removeButtonOf('Region'));
         const next = getUpdatedRule();
         expect(next.target.fieldId).toBe('orders_status');
-        expect(next.tileTargets).toBeUndefined();
+        // Its tile is left unfiltered, not moved to the first field
+        expect(next.tileTargets).toEqual({ 'tile-1': false });
         expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
     });
 

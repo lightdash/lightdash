@@ -371,6 +371,9 @@ const EditedTileOverlays: FC = () => {
         (c) => c.highlightedFieldId,
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const clearHighlightedField = useControlsSidebarSelector(
+        (c) => c.clearHighlightedField,
+    );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const addFirstFieldOnTile = useControlsSidebarSelector(
         (c) => c.addFirstFieldOnTile,
@@ -460,6 +463,24 @@ const EditedTileOverlays: FC = () => {
                           kind: value === null ? 'clear' : 'filter',
                       },
             );
+            // A field cleared from its last tile leaves the filter, unless it
+            // is the filter's only field
+            if (
+                value === null &&
+                previousFieldId !== null &&
+                !isSqlTile &&
+                !isDashboardDataAppTileType(tile) &&
+                fieldTileActions !== null &&
+                getFilterFields(editingRule, dashboardTiles).length > 1
+            ) {
+                const fieldTiles = fieldTileActions.forField(previousFieldId);
+                if (fieldTiles.everyTabScope.applied === 1) {
+                    if (highlightedFieldId === previousFieldId)
+                        clearHighlightedField();
+                    fieldTiles.remove();
+                    return;
+                }
+            }
             // A data app tile switched on follows the rule, as it does by
             // default
             const field =

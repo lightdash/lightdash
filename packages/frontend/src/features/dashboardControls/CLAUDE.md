@@ -384,12 +384,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile with columns are always known, and so is a SQL column row.
 - A field on no tile cannot be saved, so it *waits*: `waitingFieldIds` in the
   provider lists fields added with "Add another field" when every tile they fit
-  already had one, and fields that lost their last tile. They show at
+  already had one. Nothing else waits: a field that loses its last tile, by
+  any write, is no longer a field of the filter. `updateFilter` promotes the
+  next field when the write takes the first field's last tile (unless it is the only
+  field), and takes a waiting field off the list once it lands on a tile, so
+  losing that tile later drops it too. They show at
   "0 of N tiles", every tile card that could take them offers them, and they
   are gone when the sidebar closes. "Add another field" offers any field of the
   filter's kind that some tile offers, and clicks the new field only when it
   landed on a tile.
-- "Remove field" is never refused. On a filter's only field it calls
+- "Remove field" is never refused. The tiles that were on the field are left
+  unfiltered, first field or not (`removeField`). On a filter's only field it calls
   `removeLastField(fieldLabel)`: the control stays open on "pick a field" with its
   label, the fields that were waiting go too, and it leaves the bar until a
   field is picked. Closing it there drops it; "Discard changes" brings it

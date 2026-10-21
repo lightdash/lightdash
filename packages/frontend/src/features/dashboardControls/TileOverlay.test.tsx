@@ -554,6 +554,102 @@ describe('TileOverlays', () => {
         );
     });
 
+    describe('clearing the last tile of a field', () => {
+        const removeWaitingField = vi.fn();
+        const removeLastField = vi.fn();
+        const clearHighlightedField = vi.fn();
+        const REGION = { fieldId: 'orders_region', tableName: 'orders' };
+
+        beforeEach(() => {
+            removeWaitingField.mockClear();
+            removeLastField.mockClear();
+            clearHighlightedField.mockClear();
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [both, statusOnly],
+            };
+        });
+
+        it('removes a secondary field instead of leaving it waiting', async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
+                highlightedFieldId: 'orders_region',
+                removeWaitingField,
+                removeLastField,
+                clearHighlightedField,
+            });
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(clearButton(both.uuid)!);
+
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            const next = updateFilter.mock.calls[0][0];
+            expect(next.target).toEqual(rule().target);
+            // Left unfiltered, not moved to the first field
+            expect(next.tileTargets).toEqual({ [both.uuid]: false });
+            expect(removeWaitingField).toHaveBeenCalledWith('orders_region');
+            expect(clearHighlightedField).toHaveBeenCalledTimes(1);
+            expect(removeLastField).not.toHaveBeenCalled();
+        });
+
+        it('removes the first field and promotes the next one', async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
+                removeWaitingField,
+                removeLastField,
+                clearHighlightedField,
+            });
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(clearButton(statusOnly.uuid)!);
+
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(updateFilter.mock.calls[0][0].target).toEqual(REGION);
+            expect(removeWaitingField).toHaveBeenCalledWith('orders_status');
+            expect(clearHighlightedField).not.toHaveBeenCalled();
+        });
+
+        it("keeps the filter's only field, leaving the tile out", async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [both.uuid]: false } }),
+                removeWaitingField,
+                removeLastField,
+            });
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(clearButton(statusOnly.uuid)!);
+
+            expect(updateFilter).toHaveBeenCalledTimes(1);
+            expect(updateFilter.mock.calls[0][0].tileTargets).toEqual({
+                [both.uuid]: false,
+                [statusOnly.uuid]: false,
+            });
+            expect(removeLastField).not.toHaveBeenCalled();
+            expect(removeWaitingField).not.toHaveBeenCalled();
+        });
+
+        it('only leaves the tile out while the field has other tiles', async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [both.uuid]: REGION } }),
+                removeWaitingField,
+                removeLastField,
+            });
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [both, statusOnly, otherTab],
+            };
+            renderWithProviders(<TileOverlays />);
+
+            await userEvent.click(clearButton(statusOnly.uuid)!);
+
+            expect(updateFilter.mock.calls[0][0].target).toEqual(rule().target);
+            expect(
+                updateFilter.mock.calls[0][0].tileTargets[statusOnly.uuid],
+            ).toBe(false);
+            expect(removeWaitingField).not.toHaveBeenCalled();
+        });
+    });
+
     it('clears from the keyboard and keeps focus on the select', async () => {
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
