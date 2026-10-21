@@ -2659,7 +2659,7 @@ export default class SchedulerTask {
                     ? 'data alert'
                     : 'scheduled delivery';
             const schedulerFooter = includeLinks
-                ? `<a href="${url}">${schedulerType}</a>`
+                ? `[${schedulerType}](${url})`
                 : schedulerType;
 
             const defaultSchedulerTimezone =
