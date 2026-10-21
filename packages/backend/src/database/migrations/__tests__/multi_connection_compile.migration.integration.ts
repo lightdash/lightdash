@@ -1695,6 +1695,109 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
+            test.each(['missing', 'foreign', 'persisted'] as const)(
+                'a batched single-connection deploy with %s ownership survives a source clone failure',
+                async (ownership) => {
+                    const fixture = await createProject();
+                    await bind(fixture, 'finance', null);
+                    await routeSingle(fixture.projectUuid);
+                    await database('warehouse_connections')
+                        .where(
+                            'warehouse_connection_uuid',
+                            fixture.extraConnectionUuid,
+                        )
+                        .delete();
+                    await compile(
+                        fixture,
+                        primaryModels,
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: [],
+                            phase: 'prepare',
+                            crossSourceRefs: true,
+                        },
+                    );
+                    const deployed = (
+                        await cachedExplores(fixture.projectUuid)
+                    ).find((row) => row.name === 'campaigns')!
+                        .explore as Explore;
+                    for (const table of Object.values(deployed.tables)) {
+                        if (ownership === 'missing') delete table.dbtSourceUuid;
+                        if (ownership === 'foreign')
+                            table.dbtSourceUuid = randomUUID();
+                    }
+                    const user = await compilingUser(fixture.projectUuid);
+                    const service = deployService(fixture.projectUuid);
+                    const { deploySessionUuid } =
+                        await service.startDeploySession(
+                            fromSession(user, 'session-cookie'),
+                            fixture.projectUuid,
+                        );
+                    await service.addDeployBatch(
+                        user,
+                        fixture.projectUuid,
+                        deploySessionUuid,
+                        [deployed],
+                        0,
+                        true,
+                    );
+                    await service.finalizeDeploy(
+                        user,
+                        fixture.projectUuid,
+                        deploySessionUuid,
+                        'cli-1',
+                        undefined,
+                        {
+                            sourceUuid: fixture.sourceUuids.marketing,
+                            target: { database: ORIGINAL_DB },
+                        },
+                    );
+                    const before = await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first();
+                    expect(before).toBeDefined();
+                    const result = await compile(
+                        fixture,
+                        primaryModels.map((model) => ({
+                            ...model,
+                            label: 'Refreshed',
+                        })),
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: ['marketing'],
+                            phase: 'prepare',
+                            crossSourceRefs: true,
+                        },
+                    );
+                    expect(
+                        await database('cached_explore')
+                            .where({
+                                project_uuid: fixture.projectUuid,
+                                name: 'campaigns',
+                            })
+                            .first(),
+                    ).toEqual(before);
+                    expect(result.warnings).toContainEqual(
+                        expect.stringContaining('kept its 1 explores'),
+                    );
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).map(
+                            (row) => row.name,
+                        ),
+                    ).toEqual(['campaigns', 'customers', 'orders', 'payments']);
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).find(
+                            (row) => row.name === 'orders',
+                        )?.explore.label,
+                    ).toBe('Refreshed');
+                },
+            );
+
             test('a batched CLI deploy with a mismatched target fails the session and saves nothing (D3)', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
@@ -2608,6 +2711,93 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             );
 
+            test.each([
+                'unique',
+                'ambiguous',
+                'other-source',
+                'joined-only',
+                'no-catalog',
+            ] as const)(
+                'legacy cached ownership uses only an unambiguous base-table package (%s)',
+                async (ownership) => {
+                    const fixture = await createProject();
+                    await compile(
+                        fixture,
+                        primaryModels,
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: [],
+                            phase: 'prepare',
+                            crossSourceRefs: true,
+                        },
+                    );
+                    const rows = await cachedExplores(fixture.projectUuid);
+                    const campaigns = rows.find(
+                        (row) => row.name === 'campaigns',
+                    )!.explore as Explore;
+                    const table = campaigns.tables[campaigns.baseTable];
+                    delete table.dbtSourceUuid;
+                    if (ownership === 'other-source')
+                        table.dbtSourceUuid = fixture.sourceUuids.finance;
+                    if (ownership === 'joined-only') {
+                        campaigns.tables.joined = { ...table, name: 'joined' };
+                        table.dbtPackageName = 'unmapped';
+                    }
+                    if (ownership === 'ambiguous') {
+                        await database('dbt_source_ref_catalogs')
+                            .where({
+                                project_uuid: fixture.projectUuid,
+                                dbt_source_uuid: fixture.sourceUuids.finance,
+                            })
+                            .update({
+                                project_name: 'marketing',
+                                status: 'provisional',
+                            });
+                    }
+                    if (ownership === 'no-catalog') {
+                        await database('dbt_source_ref_catalogs')
+                            .where('project_uuid', fixture.projectUuid)
+                            .delete();
+                    }
+                    await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .update({ explore: JSON.stringify(campaigns) });
+                    const expected = ownership === 'unique' ? 1 : 0;
+                    expect(
+                        await projectModel.countCachedExploresForDbtSource(
+                            fixture.projectUuid,
+                            fixture.sourceUuids.marketing,
+                        ),
+                    ).toBe(expected);
+                    const before = await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first();
+                    await projectModel.saveExploreStreamToCache(
+                        fixture.projectUuid,
+                        (async function* fresh() {
+                            yield rows.find((row) => row.name === 'orders')!
+                                .explore;
+                        })(),
+                        undefined,
+                        [fixture.sourceUuids.marketing],
+                    );
+                    const after = await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first();
+                    expect(after).toEqual(expected === 1 ? before : undefined);
+                },
+            );
+
             test('all non-primary failures still save the primary and carry both sources', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
@@ -2758,31 +2948,55 @@ describe('Multi-connection compile on the real schema', () => {
                 );
             });
 
-            test('a fresh model cannot replace a carried source model with the same name', async () => {
-                const fixture = await createProject();
-                await compile(fixture);
-                const before = await cachedExplores(fixture.projectUuid);
-                const fresh = {
-                    ...before.find((row) => row.name === 'orders')!.explore,
-                    name: 'campaigns',
-                };
-                const stream = (async function* conflicting() {
-                    yield fresh;
-                })();
-                await expect(
-                    projectModel.saveExploreStreamToCache(
-                        fixture.projectUuid,
-                        stream,
-                        undefined,
-                        [fixture.sourceUuids.marketing],
-                    ),
-                ).rejects.toThrow(
-                    'conflicts with an explore kept from a failed dbt source',
-                );
-                expect(await cachedExplores(fixture.projectUuid)).toEqual(
-                    before,
-                );
-            });
+            test.each(['stamped', 'legacy'] as const)(
+                'a fresh model cannot replace a carried %s source model with the same name',
+                async (ownership) => {
+                    const fixture = await createProject();
+                    await compile(
+                        fixture,
+                        primaryModels,
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: [],
+                            phase: 'prepare',
+                            crossSourceRefs: true,
+                        },
+                    );
+                    if (ownership === 'legacy')
+                        await database('cached_explore')
+                            .where({
+                                project_uuid: fixture.projectUuid,
+                                name: 'campaigns',
+                            })
+                            .update({
+                                explore: database.raw(
+                                    "explore #- '{tables,campaigns,dbtSourceUuid}'",
+                                ),
+                            });
+                    const before = await cachedExplores(fixture.projectUuid);
+                    const fresh = {
+                        ...before.find((row) => row.name === 'orders')!.explore,
+                        name: 'campaigns',
+                    };
+                    const stream = (async function* conflicting() {
+                        yield fresh;
+                    })();
+                    await expect(
+                        projectModel.saveExploreStreamToCache(
+                            fixture.projectUuid,
+                            stream,
+                            undefined,
+                            [fixture.sourceUuids.marketing],
+                        ),
+                    ).rejects.toThrow(
+                        'conflicts with an explore kept from a failed dbt source',
+                    );
+                    expect(await cachedExplores(fixture.projectUuid)).toEqual(
+                        before,
+                    );
+                },
+            );
 
             test('warnings stay visible on a completed job step and in the compile report', async () => {
                 const fixture = await createProject();

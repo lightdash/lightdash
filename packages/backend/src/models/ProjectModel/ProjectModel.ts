@@ -121,6 +121,7 @@ import {
     DbDashboardTabs,
 } from '../../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
+import { DbtSourceRefCatalogsTableName } from '../../database/entities/dbtSourceRefCatalogs';
 import {
     ExternalSourcesTableName,
     ExternalSourceTablesTableName,
@@ -139,6 +140,7 @@ import {
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../../database/entities/pinnedList';
+import { ProjectDbtSourcesTableName } from '../../database/entities/projectDbtSources';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
@@ -256,6 +258,11 @@ import {
     type CredentialReadTarget,
     type ResolvedCredentialRead,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
+import {
+    cachedExploreNamesForSources,
+    type CachedExploreSource,
+    type CachedSourcePackage,
+} from './cachedExploreSource';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -3752,22 +3759,64 @@ export class ProjectModel {
         );
     }
 
+    private static async cachedExploreNamesForDbtSources(
+        database: Knex,
+        projectUuid: string,
+        dbtSourceUuids: string[],
+    ): Promise<string[]> {
+        const [project, sources, packages, explores] = await Promise.all([
+            database(ProjectTableName)
+                .select('dbt_source_uuid')
+                .where('project_uuid', projectUuid)
+                .first(),
+            database(ProjectDbtSourcesTableName)
+                .select('project_dbt_source_uuid')
+                .where('project_uuid', projectUuid),
+            database(DbtSourceRefCatalogsTableName)
+                .select<CachedSourcePackage[]>({
+                    sourceUuid: 'dbt_source_uuid',
+                    packageName: 'project_name',
+                })
+                .where('project_uuid', projectUuid),
+            database(CachedExploreTableName)
+                .select<CachedExploreSource[]>(
+                    'name',
+                    database.raw(
+                        "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') AS ??",
+                        ['sourceUuid'],
+                    ),
+                    database.raw(
+                        "explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtPackageName' AS ??",
+                        ['packageName'],
+                    ),
+                )
+                .where('project_uuid', projectUuid)
+                .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                    [...USER_MANAGED_EXPLORE_TYPES],
+                ]),
+        ]);
+        return cachedExploreNamesForSources(
+            explores,
+            packages,
+            [
+                project?.dbt_source_uuid ?? projectUuid,
+                ...sources.map((source) => source.project_dbt_source_uuid),
+            ],
+            dbtSourceUuids,
+        );
+    }
+
     async countCachedExploresForDbtSource(
         projectUuid: string,
         dbtSourceUuid: string,
     ): Promise<number> {
-        const row = await this.database(CachedExploreTableName)
-            .where('project_uuid', projectUuid)
-            .whereRaw(
-                "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ?",
+        return (
+            await ProjectModel.cachedExploreNamesForDbtSources(
+                this.database,
+                projectUuid,
                 [dbtSourceUuid],
             )
-            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
-                [...USER_MANAGED_EXPLORE_TYPES],
-            ])
-            .count<{ count: string }>('name as count')
-            .first();
-        return Number(row?.count ?? 0);
+        ).length;
     }
 
     async saveExploreStreamToCache(
@@ -4280,6 +4329,14 @@ export class ProjectModel {
         saveUuid: string,
         carry: MultiConnectionCarry,
     ): Promise<string[]> {
+        const failedSourceNames =
+            carry.kind !== 'otherDbtSources' && carry.dbtSourceUuids?.length
+                ? await ProjectModel.cachedExploreNamesForDbtSources(
+                      trx,
+                      projectUuid,
+                      carry.dbtSourceUuids,
+                  )
+                : [];
         const carriedQuery = trx(CachedExploreTableName)
             .select(
                 trx.raw('?', [saveUuid]),
@@ -4306,18 +4363,12 @@ export class ProjectModel {
                         carry.warehouseConnectionUuids,
                     );
                     if (carry.dbtSourceUuids?.length)
-                        query.orWhereRaw(
-                            "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
-                            [carry.dbtSourceUuids],
-                        );
+                        query.orWhereIn('name', failedSourceNames);
                 });
                 break;
             case 'dbtSources':
                 if (carry.dbtSourceUuids.length === 0) return [];
-                void carriedQuery.whereRaw(
-                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
-                    [carry.dbtSourceUuids],
-                );
+                void carriedQuery.whereIn('name', failedSourceNames);
                 break;
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
@@ -4340,10 +4391,7 @@ export class ProjectModel {
                 .clone()
                 .clearSelect()
                 .select('name')
-                .whereRaw(
-                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
-                    [carry.dbtSourceUuids ?? []],
-                )
+                .whereIn('name', failedSourceNames)
                 .whereExists(
                     trx(CachedExploreStagingTableName)
                         .select(trx.raw('1'))
