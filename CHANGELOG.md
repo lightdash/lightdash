@@ -1,3 +1,10 @@
+# [3.21.0](https://github.com/lightdash/lightdash/compare/3.20.3...3.21.0) (2026-10-21)
+
+
+### Features
+
+* **dbt:** keep explore names stable when dbt sources collide ([#31362](https://github.com/lightdash/lightdash/issues/31362)) ([49fbedb](https://github.com/lightdash/lightdash/commit/49fbedb026f30eb120af53f0f872daee57b7b228))
+
 ## [3.20.3](https://github.com/lightdash/lightdash/compare/3.20.2...3.20.3) (2026-10-21)
 
 
