@@ -21633,6 +21633,219 @@
             "ApiDataAppAnalysisResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DataAppAnalysisRecord_"
             },
+            "AppStateUserEntry": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "value": {}
+                },
+                "required": ["updatedAt", "value"],
+                "type": "object"
+            },
+            "Record_string.AppStateUserEntry_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/AppStateUserEntry"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AppStateAuthor": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "userUuid"],
+                "type": "object"
+            },
+            "AppStateSharedEntry": {
+                "properties": {
+                    "updatedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppStateAuthor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "value": {}
+                },
+                "required": ["updatedBy", "updatedAt", "version", "value"],
+                "type": "object"
+            },
+            "Record_string.AppStateSharedEntry_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/AppStateSharedEntry"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AppStateSnapshot": {
+                "properties": {
+                    "shared": {
+                        "$ref": "#/components/schemas/Record_string.AppStateSharedEntry_"
+                    },
+                    "user": {
+                        "$ref": "#/components/schemas/Record_string.AppStateUserEntry_"
+                    }
+                },
+                "required": ["shared", "user"],
+                "type": "object",
+                "description": "Everything the viewer can read for one app, fetched once on app load."
+            },
+            "ApiAppStateSnapshotResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AppStateSnapshot"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAppUserStateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AppStateUserEntry"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SetAppUserStateRequest": {
+                "properties": {
+                    "value": {}
+                },
+                "required": ["value"],
+                "type": "object"
+            },
+            "ApiAppSharedStateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AppStateSharedEntry"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SetAppSharedStateRequest": {
+                "properties": {
+                    "expectedVersion": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Version the writer last read; `null` means \"create, fail if it exists\"."
+                    },
+                    "value": {}
+                },
+                "required": ["expectedVersion", "value"],
+                "type": "object"
+            },
+            "AppStateHistoryAuthor": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "userUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["user"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "userUuid", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AppStateHistoryEntry": {
+                "properties": {
+                    "author": {
+                        "$ref": "#/components/schemas/AppStateHistoryAuthor"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "value": {},
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["author", "createdAt", "value", "version"],
+                "type": "object"
+            },
+            "AppStateHistory": {
+                "properties": {
+                    "versions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppStateHistoryEntry"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["versions"],
+                "type": "object"
+            },
+            "ApiAppStateHistoryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AppStateHistory"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess__appUuid-string--version-number__": {
                 "properties": {
                     "results": {
@@ -73353,7 +73566,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.3.0",
+        "version": "3.6.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

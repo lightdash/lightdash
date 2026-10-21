@@ -43,6 +43,7 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
     },
 });
@@ -65,6 +66,7 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
     },

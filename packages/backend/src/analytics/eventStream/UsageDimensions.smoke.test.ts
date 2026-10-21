@@ -64,6 +64,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const user = randomUUID();
             const otherUser = randomUUID();
             const chart = randomUUID();
+            const sqlChart = randomUUID();
             const dashboard = randomUUID();
             const project = randomUUID();
             const agent = randomUUID();
@@ -164,7 +165,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     [project, rows],
                 );
                 await fixture('saved_sql').insert({
-                    saved_sql_uuid: randomUUID(),
+                    saved_sql_uuid: sqlChart,
                     project_uuid: project,
                     dashboard_uuid: dashboard,
                     name: 'SQL chart',
@@ -277,7 +278,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         },
                         s3Config: storage,
                         prometheusMetrics: null,
-                        usageDimensionsModel: new UsageDimensionsModel(db),
+                        usageDimensionsModel: new UsageDimensionsModel(
+                            db,
+                            'https://lightdash.example.com/base/?query=value#hash',
+                        ),
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
@@ -489,10 +493,52 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 expect(
                     (
                         await reader.runQuery(
-                            "SELECT name, space_name FROM lightdash_charts WHERE name = 'SQL chart'",
+                            "SELECT name, space_name, url FROM lightdash_charts WHERE name = 'SQL chart'",
                         )
                     ).rows,
-                ).toEqual([{ name: 'SQL chart', space_name: 'Shared space' }]);
+                ).toEqual([
+                    {
+                        name: 'SQL chart',
+                        space_name: 'Shared space',
+                        url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                    },
+                ]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            sql([
+                                'query_events_chart_url',
+                                'query_events_dashboard_url',
+                            ]),
+                        )
+                    ).rows,
+                ).toContainEqual({
+                    query_events_chart_url: `https://lightdash.example.com/projects/${project}/saved/${chart}/view`,
+                    query_events_dashboard_url: `https://lightdash.example.com/projects/${project}/dashboards/${dashboard}/view`,
+                    query_events_total_queries: '1',
+                });
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT content_type, content_url FROM lightdash_content WHERE content_id IN ('${chart}', '${sqlChart}', '${dashboard}')`,
+                        )
+                    ).rows,
+                ).toEqual(
+                    expect.arrayContaining([
+                        {
+                            content_type: 'saved_chart',
+                            content_url: `https://lightdash.example.com/projects/${project}/saved/${chart}/view`,
+                        },
+                        {
+                            content_type: 'sql_chart',
+                            content_url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                        },
+                        {
+                            content_type: 'dashboard',
+                            content_url: `https://lightdash.example.com/projects/${project}/dashboards/${dashboard}/view`,
+                        },
+                    ]),
+                );
                 const originalSnapshot = await s3.headObject({
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'charts'),
@@ -509,7 +555,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'content'),
                 });
-                const failingModel = new UsageDimensionsModel(db);
+                const failingModel = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base/?query=value#hash',
+                );
                 const read = failingModel.getJsonLines.bind(failingModel);
                 vi.spyOn(failingModel, 'getJsonLines').mockImplementation(
                     async function* interruptedExport(organization, dimension) {
@@ -688,6 +737,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 const exported = [];
                 for await (const line of new UsageDimensionsModel(
                     db,
+                    'https://lightdash.example.com/',
                 ).getJsonLines(
                     { organization_id: 1, organization_uuid: org },
                     'people',

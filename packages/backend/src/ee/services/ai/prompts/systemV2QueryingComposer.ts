@@ -40,11 +40,12 @@ export const getQueryingComposerSection = ({
                 ? 'the table you can share'
                 : 'the result you present'
         }.`,
-        '- For a follow-up that changes an earlier result, change only what the user asked for; for a presentation-only change, such as a different chart type, resubmit the earlier node unchanged. Claim a change only after the call succeeds.',
+        '- For a follow-up that changes an earlier result, change only what the user asked for. Claim a change only after the call succeeds.',
         ...(slackChannelId
             ? []
             : [
-                  '- Present the result your answer rests on, using the marker its tool result gives you; it is shown as the table or chart that fits the question. Present a second result only when it adds a distinct view.',
+                  '- Present the result your answer rests on, using the marker its tool result gives you; it is shown as a table. Present a second result only when it adds a distinct view.',
+                  '- To show an earlier result again, write its marker; do not rerun it.',
               ]),
         '',
         '## Field usage',

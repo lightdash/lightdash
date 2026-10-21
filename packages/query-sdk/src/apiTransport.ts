@@ -8,9 +8,15 @@
  *    → returns results when status is 'ready'
  */
 
+import { AppStateError } from './appState';
 import type {
     AiPromptRequest,
     AiPromptResult,
+    AppStateHistoryEntry,
+    AppStateSharedEntry,
+    AppStateSnapshot,
+    AppStateTransport,
+    AppStateUserEntry,
     Column,
     DownloadResultsFileType,
     DownloadResultsLimit,
@@ -315,11 +321,109 @@ function buildUnderlyingDataFilters(
 export class LightdashApiError extends Error {
     readonly status: number;
 
-    constructor(status: number, message: string) {
+    /** The API error's `data` field, when the response carried one. */
+    readonly data: unknown;
+
+    constructor(status: number, message: string, data?: unknown) {
         super(`Lightdash API error (${status}): ${message}`);
         this.name = 'LightdashApiError';
         this.status = status;
+        this.data = data;
     }
+}
+
+const toAppStateErrorFromApi = (error: unknown): AppStateError => {
+    if (error instanceof AppStateError) return error;
+    if (error instanceof LightdashApiError) {
+        const data =
+            typeof error.data === 'object' && error.data !== null
+                ? (error.data as Record<string, unknown>)
+                : {};
+        if (error.status === 409) {
+            return new AppStateError(
+                'conflict',
+                error.message,
+                (data.current as AppStateSharedEntry | null | undefined) ??
+                    null,
+            );
+        }
+        if (error.status === 403) {
+            return new AppStateError(
+                data.code === 'feature_not_enabled'
+                    ? 'feature_disabled'
+                    : 'forbidden',
+                error.message,
+            );
+        }
+        if (error.status === 400 || error.status === 422) {
+            return new AppStateError('invalid', error.message);
+        }
+        return new AppStateError('unknown', error.message);
+    }
+    return new AppStateError(
+        'unavailable',
+        error instanceof Error ? error.message : String(error),
+    );
+};
+
+/** App state over the REST endpoints, for local development with a PAT. */
+function createApiAppState(
+    projectUuid: string,
+    appUuid: string,
+    fetchFn: FetchAdapter,
+): AppStateTransport {
+    const base = `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`;
+    const keyPath = (scope: 'user' | 'shared', key: string) =>
+        `${base}/${scope}/${encodeURIComponent(key)}`;
+    const call = async <T>(run: () => Promise<T>): Promise<T> => {
+        try {
+            return await run();
+        } catch (error) {
+            throw toAppStateErrorFromApi(error);
+        }
+    };
+    return {
+        getSnapshot: () => call(() => fetchFn<AppStateSnapshot>('GET', base)),
+        setUser: (key, value) =>
+            call(() =>
+                fetchFn<AppStateUserEntry>('PUT', keyPath('user', key), {
+                    value,
+                }),
+            ),
+        deleteUser: (key) =>
+            call(async () => {
+                await fetchFn<undefined>('DELETE', keyPath('user', key));
+            }),
+        setShared: (key, value, expectedVersion) =>
+            call(() =>
+                fetchFn<AppStateSharedEntry>('PUT', keyPath('shared', key), {
+                    value,
+                    expectedVersion,
+                }),
+            ),
+        deleteShared: (key) =>
+            call(async () => {
+                await fetchFn<undefined>('DELETE', keyPath('shared', key));
+            }),
+        getSharedHistory: (key, options) =>
+            call(async () => {
+                const params = new URLSearchParams();
+                if (options.limit !== undefined) {
+                    params.set('limit', String(options.limit));
+                }
+                if (options.beforeVersion !== undefined) {
+                    params.set('beforeVersion', String(options.beforeVersion));
+                }
+                const query = params.toString();
+                const { versions } = await fetchFn<{
+                    versions: AppStateHistoryEntry[];
+                }>(
+                    'GET',
+                    `${keyPath('shared', key)}/history${query ? `?${query}` : ''}`,
+                );
+                return versions;
+            }),
+    };
 }
 
 function createDefaultFetchAdapter(
@@ -345,13 +449,15 @@ function createDefaultFetchAdapter(
         if (!res.ok) {
             const text = await res.text();
             let message: string;
+            let data: unknown;
             try {
                 const parsed = JSON.parse(text);
                 message = parsed.error?.message ?? parsed.message ?? text;
+                data = parsed.error?.data;
             } catch {
                 message = text;
             }
-            throw new LightdashApiError(res.status, message);
+            throw new LightdashApiError(res.status, message, data);
         }
 
         const json = (await res.json()) as ApiResponse<T>;
@@ -1309,6 +1415,13 @@ export function createApiTransport(
             );
             return { text };
         },
+
+        // Needs an app to attribute state to; the dev transport only has one
+        // when VITE_LIGHTDASH_APP_UUID is set. Without it the hooks stay in
+        // memory for the session.
+        appState: config.appUuid
+            ? createApiAppState(config.projectUuid, config.appUuid, fetchFn)
+            : undefined,
 
         async externalFetch(
             _alias: string,

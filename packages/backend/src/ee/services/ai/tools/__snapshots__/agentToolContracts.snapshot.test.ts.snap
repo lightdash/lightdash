@@ -1067,8 +1067,9 @@ Answer data questions with runComposerQueries.
 - A duckdb node computes over the rows its source nodes returned. Before aggregating or ranking over a source, give that semanticLayer node a limit that holds its whole population, or aggregate in the semanticLayer node itself; a result that reached its row limit is an incomplete input and must not feed a total, an average or a rank.
 - Combine explores that are not joined in the semantic layer with one semanticLayer node per explore plus a duckdb node that joins their results.
 - Build an answer that takes several queries or a computation over their results as one pipeline in one call: source nodes fetch, duckdb nodes join and reshape, and the terminal node is the result you present.
-- For a follow-up that changes an earlier result, change only what the user asked for; for a presentation-only change, such as a different chart type, resubmit the earlier node unchanged. Claim a change only after the call succeeds.
-- Present the result your answer rests on, using the marker its tool result gives you; it is shown as the table or chart that fits the question. Present a second result only when it adds a distinct view.
+- For a follow-up that changes an earlier result, change only what the user asked for. Claim a change only after the call succeeds.
+- Present the result your answer rests on, using the marker its tool result gives you; it is shown as a table. Present a second result only when it adds a distinct view.
+- To show an earlier result again, write its marker; do not rerun it.
 
 ## Field usage
 

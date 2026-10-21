@@ -264,20 +264,14 @@ export type DbAiPromptTurnDecision = DbAiPromptDecisionFields & {
     outcome: DbAiPromptTurnDecisionOutcome;
 };
 
-export type DbAiPromptComposerVizDecision = DbAiPromptDecisionFields & {
-    operation: 'composer-viz';
-    outcome: 'planned' | 'unresolved' | 'unavailable';
-};
-
-export type DbAiPromptDecision =
-    | DbAiPromptTurnDecision
-    | DbAiPromptComposerVizDecision;
+export type DbAiPromptDecision = DbAiPromptTurnDecision;
 
 type DbAiPromptDecisionGenerated = 'ai_prompt_decision_uuid' | 'created_at';
 
-export type DbAiPromptDecisionInsert =
-    | Omit<DbAiPromptTurnDecision, DbAiPromptDecisionGenerated>
-    | Omit<DbAiPromptComposerVizDecision, DbAiPromptDecisionGenerated>;
+export type DbAiPromptDecisionInsert = Omit<
+    DbAiPromptTurnDecision,
+    DbAiPromptDecisionGenerated
+>;
 
 export type AiPromptDecisionTable = Knex.CompositeTableType<
     DbAiPromptDecision,

@@ -20,8 +20,10 @@ describe('createAnalyticsExplores', () => {
         expect(exports.tables.export_events.dimensions).toMatchObject({
             chart_name: { label: 'Chart name', hidden: false },
             chart_slug: { label: 'Chart slug', hidden: false },
+            chart_url: { label: 'Chart url', hidden: false },
             dashboard_name: { label: 'Dashboard name', hidden: false },
             dashboard_slug: { label: 'Dashboard slug', hidden: false },
+            dashboard_url: { label: 'Dashboard url', hidden: false },
             chart_id: { hidden: false },
             dashboard_id: { hidden: false },
             explore_name: { hidden: false },

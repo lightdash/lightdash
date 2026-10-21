@@ -151,7 +151,9 @@ const CompactAnomalyCard: FC<{
                     <Stack gap="xs">
                         <Box
                             className={
-                                expanded ? undefined : styles.clampedMarkdown
+                                expanded
+                                    ? styles.investigationMarkdown
+                                    : `${styles.investigationMarkdown} ${styles.clampedMarkdown}`
                             }
                         >
                             <MDEditor.Markdown

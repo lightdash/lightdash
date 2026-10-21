@@ -1,25 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.3.0",
-  "previousVersion": "3.2.0",
-  "releaseDate": "2026-10-21T09:29:22.193Z",
+  "version": "3.6.0",
+  "previousVersion": "3.5.0",
+  "releaseDate": "2026-10-21T10:09:11.721Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261021100000_default_materialize_on_change_to_true.ts",
-        "edition": "core",
-        "tables": [],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -14,10 +14,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
         const organization = { organization_id: 1, organization_uuid: org };
         const read = async () => {
             const rows = [];
-            for await (const line of new UsageDimensionsModel(db).getJsonLines(
-                organization,
-                'content',
-            )) {
+            for await (const line of new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com/base/?query=value#hash',
+            ).getJsonLines(organization, 'content')) {
                 rows.push(JSON.parse(line));
             }
             return rows;
@@ -118,17 +118,20 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const item = (name: string) =>
                 rows.find((r) => r.content_name === name);
             expect(item('Chart 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/saved/${item('Chart 1').content_id}/view`,
                 dashboard_references: 2,
                 enabled_schedules: 2,
                 is_verified: true,
                 owner_status: 'Not recorded',
             });
             expect(item('SQL 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/sql-runner/${item('SQL 1').content_id}`,
                 enabled_schedules: 1,
                 dashboard_references: 2,
                 is_verified: null,
             });
             expect(item('App 1')).toMatchObject({
+                content_url: null,
                 enabled_schedules: 1,
                 dashboard_references: 2,
                 is_verified: null,
@@ -138,6 +141,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 enabled_schedules: 0,
             });
             expect(item('Dashboard 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/dashboards/${item('Dashboard 1').content_id}/view`,
                 enabled_schedules: 1,
                 dashboard_references: 0,
                 owner_name: 'An Owner',
@@ -237,10 +241,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
 
         it('allows a content page longer than five seconds to complete', async () => {
             await delayContentPage(6);
-            const iterator = new UsageDimensionsModel(db).getJsonLines(
-                organization,
-                'content',
-            );
+            const iterator = new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com/base/?query=value#hash',
+            ).getJsonLines(organization, 'content');
             try {
                 expect((await iterator.next()).done).toBe(false);
             } finally {
@@ -273,10 +277,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             `);
                 }
                 // The view deliberately holds a read lock while executing pg_sleep.
-                const iterator = new UsageDimensionsModel(db).getJsonLines(
-                    organization,
-                    dimension,
-                );
+                const iterator = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base/?query=value#hash',
+                ).getJsonLines(organization, dimension);
                 const pending = iterator
                     .next()
                     .catch((error: unknown) => error);
