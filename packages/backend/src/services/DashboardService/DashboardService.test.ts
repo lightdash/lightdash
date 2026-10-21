@@ -106,6 +106,9 @@ const dashboardModel = {
 const spaceModel = {
     getSpaceSummary: vi.fn(async () => publicSpace),
     get: vi.fn(async () => publicSpace),
+    find: vi.fn(async ({ spaceUuids }: { spaceUuids: string[] }) =>
+        spaceUuids.map((uuid) => ({ ...publicSpace, uuid })),
+    ),
 };
 const analyticsModel = {
     addDashboardViewEvent: vi.fn(async () => null),
@@ -749,6 +752,86 @@ describe('DashboardService', () => {
         ).rejects.toThrowError(ForbiddenError);
 
         expect(dashboardModel.update).not.toHaveBeenCalled();
+    });
+
+    describe('embed multiple write spaces', () => {
+        const secondWriteSpaceUuid = 'second-write-space-uuid';
+        const multiSpaceAccount = {
+            isJwtUser: () => true,
+            embedWriteUser: user,
+            authentication: {
+                type: 'jwt',
+                data: {
+                    content: { type: 'dashboard' },
+                    writeActions: {
+                        writeSpaceUuids: [
+                            dashboard.spaceUuid,
+                            secondWriteSpaceUuid,
+                        ],
+                    },
+                },
+            },
+        } as unknown as Account;
+
+        test('allows updating a dashboard in a non-default write space', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                spaceUuid: secondWriteSpaceUuid,
+            });
+
+            await service.updateFromAccount(
+                multiSpaceAccount,
+                dashboard.uuid,
+                { name: 'Renamed' },
+                { projectUuid: dashboard.projectUuid },
+            );
+
+            expect(dashboardModel.update).toHaveBeenCalled();
+        });
+
+        test('rejects updating a dashboard outside the write spaces', async () => {
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                spaceUuid: 'other-space-uuid',
+            });
+
+            await expect(
+                service.updateFromAccount(
+                    multiSpaceAccount,
+                    dashboard.uuid,
+                    { name: 'Renamed' },
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.update).not.toHaveBeenCalled();
+        });
+
+        test('rejects moving a dashboard outside the write spaces', async () => {
+            await expect(
+                service.updateFromAccount(
+                    multiSpaceAccount,
+                    dashboard.uuid,
+                    { name: dashboard.name, spaceUuid: 'other-space-uuid' },
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+            expect(dashboardModel.update).not.toHaveBeenCalled();
+        });
+
+        test('rejects tokens whose write spaces are not all in the project', async () => {
+            spaceModel.find.mockResolvedValueOnce([
+                { ...publicSpace, uuid: dashboard.spaceUuid },
+            ]);
+
+            await expect(
+                service.updateFromAccount(
+                    multiSpaceAccount,
+                    dashboard.uuid,
+                    { name: 'Renamed' },
+                    { projectUuid: dashboard.projectUuid },
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+        });
     });
 
     describe('embed source spaces', () => {

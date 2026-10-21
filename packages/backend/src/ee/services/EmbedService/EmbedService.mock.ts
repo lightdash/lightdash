@@ -13,6 +13,7 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
@@ -118,6 +119,10 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     dashboardModel: {} as DashboardModel,
     savedChartModel: {} as SavedChartModel,
     savedSqlModel: {} as SavedSqlModel,
+    spaceModel: {
+        getSpaceNames: async (spaceUuids: string[]) =>
+            spaceUuids.map((uuid) => ({ uuid, name: uuid })),
+    } as unknown as SpaceModel,
     projectModel: projectModelMock,
     userAttributesModel: {} as UserAttributesModel,
     userModel: {} as UserModel,

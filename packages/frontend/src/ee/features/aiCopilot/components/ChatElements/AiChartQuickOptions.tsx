@@ -113,7 +113,7 @@ export const AiChartQuickOptions = ({
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
-    const { content, writeActions, embedToken } = useEmbed();
+    const { content, embedWriteContext, embedToken } = useEmbed();
     const isEmbed = useIsEmbedded();
     const getBackUrl = useChatBackUrl();
     const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
@@ -725,8 +725,10 @@ export const AiChartQuickOptions = ({
                             name: saveChartOptions.name ?? '',
                             description: saveChartOptions.description ?? '',
                         }}
-                        forcedSpaceUuid={
-                            isEmbed ? writeActions?.spaceUuid : undefined
+                        restrictedSpaces={
+                            isEmbed
+                                ? embedWriteContext?.writableSpaces
+                                : undefined
                         }
                         redirectOnSuccess={false}
                     />

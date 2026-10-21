@@ -123,10 +123,23 @@ export const EmbedSourceSpaceUuidsSchema = z
     .array(z.string().uuid())
     .max(EMBED_MAX_SOURCE_SPACE_UUIDS);
 
+export const EMBED_MAX_WRITE_SPACE_UUIDS = 100;
+
+export const EmbedWriteSpaceUuidsSchema = z
+    .array(z.string().uuid())
+    .min(1)
+    .max(EMBED_MAX_WRITE_SPACE_UUIDS)
+    .refine((uuids) => new Set(uuids).size === uuids.length, {
+        message: 'writeSpaceUuids must not contain duplicates',
+    });
+
 export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
-    spaceUuid: string;
+    /** @deprecated Use writeSpaceUuids. */
+    spaceUuid?: string;
+    /** Spaces the write actor may write to; the first is the default save target. */
+    writeSpaceUuids?: string[];
     /** Extra spaces whose charts dashboards may reference; the write actor still needs view access. */
     sourceSpaceUuids?: string[];
     /** Use scopes instead of dashboard flags; AI additionally requires EmbedAiAgent. */
@@ -137,7 +150,8 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
     .object({
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
-        spaceUuid: z.string().uuid(),
+        spaceUuid: z.string().uuid().optional(),
+        writeSpaceUuids: EmbedWriteSpaceUuidsSchema.optional(),
         sourceSpaceUuids: EmbedSourceSpaceUuidsSchema.optional(),
         permissionsMode: z.enum(['default', 'roles']).optional(),
     })
@@ -148,7 +162,35 @@ export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
             message:
                 'Either serviceAccountUserUuid or userUuid is required for write actions',
         },
+    )
+    .refine(
+        ({ spaceUuid, writeSpaceUuids }) =>
+            spaceUuid === undefined || writeSpaceUuids === undefined,
+        {
+            message:
+                'Use either writeSpaceUuids or the deprecated spaceUuid, not both',
+        },
     );
+
+/** Write spaces in token order; the first is the default save target. */
+export const getEmbedWriteSpaceUuids = (
+    writeActions:
+        | Pick<EmbedWriteActions, 'spaceUuid' | 'writeSpaceUuids'>
+        | undefined,
+): string[] => {
+    if (writeActions?.writeSpaceUuids !== undefined) {
+        return writeActions.writeSpaceUuids;
+    }
+    return writeActions?.spaceUuid !== undefined
+        ? [writeActions.spaceUuid]
+        : [];
+};
+
+export const getEmbedDefaultWriteSpaceUuid = (
+    writeActions:
+        | Pick<EmbedWriteActions, 'spaceUuid' | 'writeSpaceUuids'>
+        | undefined,
+): string | undefined => getEmbedWriteSpaceUuids(writeActions)[0];
 
 export const EmbedJwtSchema = z
     .object({

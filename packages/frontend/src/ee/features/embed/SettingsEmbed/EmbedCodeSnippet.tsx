@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     FilterInteractivityValues,
+    getEmbedWriteSpaceUuids,
     getFilterInteractivityValue,
     isAiAgentContent,
     isChartContent,
@@ -160,11 +161,11 @@ const goWriteActions = (
     return `&struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`${withSourceSpaces ? GO_SOURCE_SPACES_FIELD : ''}
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`${withSourceSpaces ? GO_SOURCE_SPACES_FIELD : ''}
         }{
             ServiceAccountUserUuid: "${writeActions.serviceAccountUserUuid ?? ''}",
             UserUuid:               "${writeActions.userUuid ?? ''}",
-            SpaceUuid:              "${writeActions.spaceUuid}",${sourceSpacesValue}
+            WriteSpaceUuids:        []string{"${getEmbedWriteSpaceUuids(writeActions).join('", "')}"},${sourceSpacesValue}
         }`;
 };
 
@@ -249,7 +250,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
@@ -514,7 +515,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
@@ -648,7 +649,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
@@ -821,7 +822,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
             SourceSpaceUuids       []string \`json:"sourceSpaceUuids,omitempty"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
@@ -994,7 +995,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
@@ -1166,7 +1167,7 @@ func main() {
         WriteActions *struct {
             ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
             UserUuid               string \`json:"userUuid,omitempty"\`
-            SpaceUuid              string \`json:"spaceUuid"\`
+            WriteSpaceUuids        []string \`json:"writeSpaceUuids"\`
             SourceSpaceUuids       []string \`json:"sourceSpaceUuids,omitempty"\`
         } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims

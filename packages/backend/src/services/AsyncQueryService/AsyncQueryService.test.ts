@@ -7599,6 +7599,7 @@ describe('AsyncQueryService', () => {
                 },
                 embedWriteContext: {
                     canCreateSavedChart: true,
+                    writableSpaces: [],
                     canUseAiAgent: true,
                 },
                 embedWriteUser: {
@@ -18791,6 +18792,7 @@ describe('embedded AI agent result downloads', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });

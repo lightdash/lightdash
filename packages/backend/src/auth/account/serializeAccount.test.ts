@@ -12,6 +12,7 @@ describe('serializeAccount', () => {
                 canUpdateDashboard: true,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: false,
             },
         });
@@ -24,6 +25,7 @@ describe('serializeAccount', () => {
                 canUpdateDashboard: true,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: false,
             },
         });

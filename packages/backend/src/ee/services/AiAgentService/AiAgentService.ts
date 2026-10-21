@@ -112,6 +112,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
+    getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
     getGenerateDataAppBuildOutcome,
@@ -2959,7 +2960,8 @@ export class AiAgentService extends BaseService {
         runtimeOptions: EmbedAiAgentRuntimeOptions;
     } {
         const { writeActions, content } = account.authentication.data;
-        const spaceUuid = writeActions?.spaceUuid;
+        const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        const spaceUuid = writeSpaceUuids[0];
 
         if (
             content.type !== 'aiAgent' ||
@@ -2982,7 +2984,7 @@ export class AiAgentService extends BaseService {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
-                spaceAccess: [spaceUuid],
+                spaceAccess: writeSpaceUuids,
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
