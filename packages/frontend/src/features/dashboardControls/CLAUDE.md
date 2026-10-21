@@ -423,7 +423,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A data app tile takes the filter as a whole, as in the shipped popover: on
   with no entry, off with `false`, never a field. Its card has the line
   "This tile is filtered" / "This tile is not filtered" and a `Switch` in place of the select. While it
-  is on it is `mapped`, and `other` once any field is active, since it is on
+  is on it is `filtered`, and `other` once any field is active, since it is on
   no particular field. It counts as filtered in the tab and sidebar counts and
   never in a field's count; clearing or removing a field leaves it as it is.
 - A tile mapped to a field or column it no longer offers
@@ -496,8 +496,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - A pressed button leaves once its action is done, so focus moves to the
     region itself (`tabIndex={-1}`), from a layout effect and only when
     focus would otherwise be on `<body>`.
-  - Surface: a `Paper` with no border (`withBorder={false}` over the theme
-    default), the `xl` shadow and the body background.
+  - Surface: the tile cards' own: a `Paper` with the theme border in
+    `ldGray-4`, the `lg` shadow and the body background.
   - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
     `.react-grid-layout` with `usePortalTargets`, inserts an element of its
     own right after that grid and portals into it, so it moves no tile. The
@@ -514,25 +514,30 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   dashboard, not only the filterable ones.
 - A tile's look answers two questions only: is it filtered by this control, and, if a field is active, is it on that field. Whether the tile
   could take the active field never changes the look. `data-highlighted` is:
-  - `mapped`: on the control, and either no field is active or the tile is on
-    the active one. A solid hairline in `--mantine-color-blue-5` over a faint
-    blue wash.
+  - `filtered`: on the control, and no field is active. A solid neutral
+    hairline in `ldGray-4` with no fill.
+  - `mapped`: on the active field. A solid hairline in
+    `--mantine-color-blue-5` over a faint neutral tint
+    (`--mantine-color-default-hover` at 60%; the token alone is opaque and
+    would hide the chart).
   - `other`: on the control, but through another field than the active one.
-    A dashed `blue-5` border with no fill.
+    The same neutral hairline as `filtered`.
   - `available`: reachable, but not on the control. A neutral dashed outline
     in `ldGray-4` with no fill.
   - no attribute: the control cannot reach the tile. No line.
 
-  Blue on a tile always means the control filters it. "On the control" is a
+  Blue on a tile means it is on the active field, so the dashboard stays
+  neutral until a field is hovered or clicked. "On the control" is a
   field or SQL column of the filter on the tile (`tileFieldId !== null`); a
   SQL chart tile on a column, or a data app tile that is on, is `other` while any field is active.
-  A tile whose mapped field is missing is not on the control. The two blue
+  A tile whose mapped field is missing is not on the control. The two state
   layers are the
-  `::before` (solid and wash) and `::after` (dashed) of the `.ring` child, and
+  `::before` (blue solid and tint) and `::after` (neutral solid) of the `.ring` child, and
   the grey outline is `.overlay::after`; all three only change `opacity`. The
   veil (`.overlay::before`) paints out the tile's own dashed edit border on
   every veiled tile, so the only line on a tile is one of these three. The
-  highlighted sidebar row and the pill being edited use the same blue. No
+  highlighted sidebar row (blue border over `default-hover`)
+  and the pill being edited use the same blue. No
   ink: `--mantine-primary-color-filled` reads too heavy here.
 - Tiles are marked at rest too, so the marks alone never scroll, and neither
   does hover. Only a click on a row scrolls. The list passes `scrollFieldId`
