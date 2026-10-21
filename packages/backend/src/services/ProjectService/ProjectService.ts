@@ -522,8 +522,8 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
-    auditMetricQueryAttributeAccess,
     auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
 } from '../UserAttributesService/userAttributeAudit';
 import {
     doesExploreMatchRequiredAttributes,

@@ -90,8 +90,8 @@ import {
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
-    auditExploreAttributeAccess,
     auditAndFilterExplore,
+    auditExploreAttributeAccess,
 } from '../UserAttributesService/userAttributeAudit';
 import {
     checkUserAttributesAccess,

@@ -114,8 +114,8 @@ import {
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
-    auditMetricQueryAttributeAccess,
     auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
 } from '../../../services/UserAttributesService/userAttributeAudit';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';

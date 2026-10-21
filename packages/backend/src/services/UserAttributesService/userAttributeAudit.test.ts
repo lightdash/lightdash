@@ -7,9 +7,9 @@ import {
 } from '@lightdash/common';
 import { type AuditLogEvent } from '../../logging/auditLog';
 import {
+    auditAndFilterExplore,
     auditFieldAttributeAccess,
     auditMetricQueryAttributeAccess,
-    auditAndFilterExplore,
     getMetricQueryFieldIds,
 } from './userAttributeAudit';
 import {

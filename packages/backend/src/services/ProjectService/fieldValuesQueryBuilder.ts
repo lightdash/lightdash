@@ -25,8 +25,8 @@ import {
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import {
-    auditFieldAttributeAccess,
     auditAndFilterExplore,
+    auditFieldAttributeAccess,
 } from '../UserAttributesService/userAttributeAudit';
 
 const FIELD_VALUES_FORBIDDEN_MESSAGE =

@@ -342,8 +342,8 @@ import type { QuerySourceService } from '../QuerySourceService/QuerySourceServic
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
-    auditMetricQueryAttributeAccess,
     auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
 } from '../UserAttributesService/userAttributeAudit';
 import {
     exploreHasFilteredAttribute,
