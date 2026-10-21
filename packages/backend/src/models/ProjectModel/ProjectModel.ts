@@ -224,6 +224,10 @@ import {
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
 import {
+    cliDeployCollisionReason,
+    cliDeployConflictError,
+} from '../../utils/cliDeployError';
+import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
@@ -289,6 +293,12 @@ export type MultiConnectionCarry =
           dbtSourceUuids?: string[];
       }
     | { kind: 'dbtSources'; dbtSourceUuids: string[] }
+    | {
+          kind: 'otherDbtSourceSet';
+          dbtSourceUuids: string[];
+          packageSources: Record<string, string>;
+          sourceAliases: Record<string, string>;
+      }
     | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
@@ -4099,6 +4109,138 @@ export class ProjectModel {
         );
     }
 
+    async assertSourceDeployOwnership(
+        projectUuid: string,
+        sourceUuid: string | null,
+        saveUuid: string,
+        trx: Transaction,
+        allowUnstampedErrors = false,
+        previewMapping?: {
+            sourcesByPackage: ReadonlyMap<string, string>;
+            sourceAliases: ReadonlyMap<string, string>;
+        },
+    ): Promise<void> {
+        const ownerOf = (alias = '') => {
+            const prefix = alias ? `${alias}.` : '';
+            const stamped = `COALESCE(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtSourceUuid', ${prefix}explore->>'dbtSourceUuid')`;
+            return previewMapping
+                ? trx.raw(
+                      `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(${prefix}explore->'tables'->COALESCE(${prefix}explore->>'baseTable', ${prefix}name)->>'dbtPackageName'))`,
+                      [
+                          JSON.stringify(
+                              Object.fromEntries(previewMapping.sourceAliases),
+                          ),
+                          JSON.stringify(
+                              Object.fromEntries(
+                                  previewMapping.sourcesByPackage,
+                              ),
+                          ),
+                      ],
+                  )
+                : trx.raw(stamped);
+        };
+        const sourceIdentity = ownerOf();
+        const conflicts = await trx(CachedExploreTableName)
+            .select<{ name: string; source_uuid: string | null }[]>(
+                'name',
+                trx.raw('? AS source_uuid', [sourceIdentity]),
+            )
+            .where('project_uuid', projectUuid)
+            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                [...USER_MANAGED_EXPLORE_TYPES],
+            ])
+            .where((query) => {
+                void query
+                    .where((unknown) => {
+                        void unknown.whereRaw('? IS NULL', [sourceIdentity]);
+                        if (allowUnstampedErrors) {
+                            void unknown.whereRaw(
+                                "NOT jsonb_exists(explore, 'errors')",
+                            );
+                        }
+                    })
+                    .orWhere((collision) => {
+                        if (sourceUuid === null) {
+                            void collision.whereExists(
+                                trx(
+                                    `${CachedExploreStagingTableName} AS incoming`,
+                                )
+                                    .select(trx.raw('1'))
+                                    .where({
+                                        'incoming.project_uuid': projectUuid,
+                                        'incoming.save_uuid': saveUuid,
+                                    })
+                                    .whereRaw(
+                                        'incoming.name = cached_explore.name',
+                                    )
+                                    .whereRaw('? IS DISTINCT FROM ?', [
+                                        ownerOf('incoming'),
+                                        ownerOf(CachedExploreTableName),
+                                    ]),
+                            );
+                            return;
+                        }
+                        void collision
+                            .whereRaw('? <> ?', [sourceIdentity, sourceUuid])
+                            .whereIn(
+                                'name',
+                                trx(CachedExploreStagingTableName)
+                                    .select('name')
+                                    .where({
+                                        project_uuid: projectUuid,
+                                        save_uuid: saveUuid,
+                                    })
+                                    .whereRaw('? = ?', [
+                                        sourceIdentity,
+                                        sourceUuid,
+                                    ]),
+                            );
+                    });
+            });
+        if (conflicts.length > 0) {
+            const [primary] = await trx(ProjectTableName)
+                .select('dbt_source_name', 'dbt_source_uuid')
+                .where('project_uuid', projectUuid);
+            const extraSources = await trx(ProjectDbtSourcesTableName)
+                .select('name', 'project_dbt_source_uuid')
+                .where('project_uuid', projectUuid)
+                .orderBy('precedence', 'asc')
+                .orderBy('name', 'asc');
+            const sourceNames = new Map([
+                [
+                    primary.dbt_source_uuid ?? projectUuid,
+                    primary.dbt_source_name,
+                ],
+                ...extraSources.map(
+                    (source) =>
+                        [source.project_dbt_source_uuid, source.name] as const,
+                ),
+            ]);
+            const collisions = conflicts
+                .filter(
+                    (
+                        conflict,
+                    ): conflict is { name: string; source_uuid: string } =>
+                        conflict.source_uuid !== null,
+                )
+                .map((conflict) => ({
+                    exploreName: conflict.name,
+                    sourceName:
+                        sourceNames.get(conflict.source_uuid) ??
+                        'unknown source',
+                }));
+            throw cliDeployConflictError(
+                collisions.length > 0
+                    ? `another deploy or refresh changed the project while this deploy ran; ${cliDeployCollisionReason(collisions)}; deploy again`
+                    : 'another deploy or refresh changed the project while this deploy ran; deploy again',
+                [
+                    primary.dbt_source_name,
+                    ...extraSources.map((source) => source.name),
+                ],
+            );
+        }
+    }
+
     async saveMultiConnectionExplores(
         projectUuid: string,
         explores: AsyncIterable<BoundExplore>,
@@ -4336,7 +4478,8 @@ export class ProjectModel {
         carry: MultiConnectionCarry,
     ): Promise<string[]> {
         const failedSourceNames =
-            carry.kind !== 'otherDbtSources' && carry.dbtSourceUuids?.length
+            (carry.kind === 'dbtSources' || carry.kind === 'connections') &&
+            carry.dbtSourceUuids?.length
                 ? await ProjectModel.cachedExploreNamesForDbtSources(
                       trx,
                       projectUuid,
@@ -4376,6 +4519,36 @@ export class ProjectModel {
                 if (carry.dbtSourceUuids.length === 0) return [];
                 void carriedQuery.whereIn('name', failedSourceNames);
                 break;
+            case 'otherDbtSourceSet': {
+                const stamped = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
+                const owner = trx.raw(
+                    `COALESCE(?::jsonb->>(${stamped}), ${stamped}, ?::jsonb->>(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtPackageName'))`,
+                    [
+                        JSON.stringify(carry.sourceAliases),
+                        JSON.stringify(carry.packageSources),
+                    ],
+                );
+                void carriedQuery
+                    .clearSelect()
+                    .select(
+                        trx.raw('?', [saveUuid]),
+                        'project_uuid',
+                        'name',
+                        'table_names',
+                        trx.raw(
+                            `CASE WHEN ${stamped} IS DISTINCT FROM ? THEN
+                                CASE WHEN explore->'tables'->COALESCE(explore->>'baseTable', name) IS NULL
+                                    THEN jsonb_set(explore, '{dbtSourceUuid}', to_jsonb(?))
+                                    ELSE jsonb_set(explore, ARRAY['tables', COALESCE(explore->>'baseTable', name), 'dbtSourceUuid'], to_jsonb(?))
+                                END
+                            ELSE explore END`,
+                            [owner, owner, owner],
+                        ),
+                        'warehouse_connection_uuid',
+                    )
+                    .whereRaw('? <> ALL(?)', [owner, carry.dbtSourceUuids]);
+                break;
+            }
             case 'otherDbtSources':
                 void carriedQuery.whereRaw(
                     `CASE

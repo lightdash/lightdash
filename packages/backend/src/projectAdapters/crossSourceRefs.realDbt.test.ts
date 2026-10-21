@@ -1,12 +1,20 @@
 import {
     combineManifestSources,
+    convertExplores,
     DbtError,
+    DEFAULT_SPOTLIGHT_CONFIG,
+    getCompiledModels,
+    getDbtManifestVersion,
     getExternalModelNodesFromManifest,
+    getModelsFromManifest,
     isExternalDbtNode,
     ParameterError,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     type DbtRawModelNode,
 } from '@lightdash/common';
+import { ManifestValidator } from '@lightdash/common/dbt/validation';
+import { warehouseClientMock } from '@lightdash/common/src/compiler/exploreCompiler.mock';
 import execa from 'execa';
 import * as fs from 'fs/promises';
 import os from 'os';
@@ -15,6 +23,7 @@ import { DbtCliClient } from '../dbt/dbtCliClient';
 import { scanDbtProject } from '../dbt/dbtProjectScan';
 import {
     resolveCrossSourceManifests,
+    type CrossSourceCatalog,
     type CrossSourceFetchTask,
     type CrossSourceResolution,
 } from './crossSourceRefs';
@@ -743,6 +752,137 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 },
                 120_000,
             );
+
+            it('compiles colliding versioned models after two one-pass refreshes', async () => {
+                const peer = await task('shared_dimensions');
+                const peerDirectory =
+                    clients[clients.length - 1].dbtProjectDirectory;
+                await fs.writeFile(
+                    path.join(peerDirectory, 'models', 'dim_product_v1.sql'),
+                    'select 1 as product_id',
+                );
+                await fs.writeFile(
+                    path.join(peerDirectory, 'models', 'dim_product_v2.sql'),
+                    'select 2 as product_id',
+                );
+                await fs.writeFile(
+                    path.join(peerDirectory, 'models', 'versions.yml'),
+                    'version: 2\nmodels:\n  - name: dim_product\n    access: public\n    latest_version: 2\n    versions:\n      - v: 1\n      - v: 2\n    columns:\n      - name: product_id\n        meta:\n          dimension:\n            type: number\n',
+                );
+                const provider = await task('access_upstream');
+                const consumer = await task('access_downstream');
+                const consumerDirectory =
+                    clients[clients.length - 1].dbtProjectDirectory;
+                const refs = [
+                    {
+                        name: 'uses_versioned_v1',
+                        argument: ', v=1',
+                        version: 1,
+                    },
+                    {
+                        name: 'uses_versioned',
+                        argument: ', version=2',
+                        version: 2,
+                    },
+                    { name: 'uses_versioned_latest', argument: '', version: 2 },
+                ];
+                await Promise.all(
+                    refs.map((ref) =>
+                        fs.writeFile(
+                            path.join(
+                                consumerDirectory,
+                                'models',
+                                `${ref.name}.sql`,
+                            ),
+                            `select a.* from {{ ref('dim_product'${ref.argument}) }} a join {{ ref('access_upstream', 'dim_product'${ref.argument}) }} b on a.product_id = b.product_id`,
+                        ),
+                    ),
+                );
+                const tasks = [peer, provider, consumer];
+                const refresh = async (
+                    cache: CrossSourceCatalog[],
+                ): Promise<CrossSourceCatalog[]> => {
+                    const resolution = await resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 1,
+                        cache,
+                    });
+                    expect(resolution.passes).toBe(1);
+                    expect(resolution.contradictions).toBe(0);
+                    const consumerManifest = resolution.results.find(
+                        ({ task: source }) => source.key === consumer.key,
+                    )!.result.manifest;
+                    for (const ref of refs) {
+                        expect(
+                            (
+                                consumerManifest.nodes[
+                                    `model.access_downstream.${ref.name}`
+                                ] as DbtRawModelNode
+                            ).depends_on?.nodes,
+                        ).toEqual([
+                            `model.access_upstream.dim_product.v${ref.version}`,
+                        ]);
+                    }
+                    const { manifest, collisions } = combineManifestSources(
+                        resolution.results.map(
+                            ({ task: source, result }, precedence) => ({
+                                name: source.key,
+                                manifest: result.manifest,
+                                precedence,
+                            }),
+                        ),
+                    );
+                    expect(collisions).toEqual([]);
+                    const models = getCompiledModels(
+                        getModelsFromManifest(manifest),
+                    );
+                    const validator = new ManifestValidator(
+                        getDbtManifestVersion(manifest),
+                    );
+                    for (const model of models) {
+                        expect(validator.isModelValid(model)).toEqual([
+                            true,
+                            undefined,
+                        ]);
+                    }
+                    const explores = await convertExplores(
+                        models,
+                        false,
+                        SupportedDbtAdapter.POSTGRES,
+                        warehouseClientMock,
+                        { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                    );
+                    expect(
+                        explores.every((explore) => !('errors' in explore)),
+                    ).toBe(true);
+                    expect(
+                        explores
+                            .filter(({ name }) =>
+                                name.endsWith('__dim_product'),
+                            )
+                            .map(({ name }) => name)
+                            .sort(),
+                    ).toEqual([
+                        'access_upstream__dim_product',
+                        'access_upstream__dim_product',
+                        'shared_dimensions__dim_product',
+                        'shared_dimensions__dim_product',
+                    ]);
+                    return resolution.results.map(
+                        ({ task: source, result }) => ({
+                            key: source.key,
+                            referencedProjects: [],
+                            projectName: result.manifest.metadata.project_name!,
+                            nodes: getExternalModelNodesFromManifest(
+                                result.manifest,
+                            ),
+                        }),
+                    );
+                };
+                const cache = await refresh([]);
+                await refresh(cache);
+            }, 120_000);
 
             it.each([false, true])(
                 'resolves a versioned project cycle with cached=%s',

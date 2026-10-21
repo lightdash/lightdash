@@ -1,3 +1,10 @@
+## [3.20.2](https://github.com/lightdash/lightdash/compare/3.20.1...3.20.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dbt:** don't treat versions of one model as an explore name collision ([#31367](https://github.com/lightdash/lightdash/issues/31367)) ([ba2c8a7](https://github.com/lightdash/lightdash/commit/ba2c8a7c9e91be3de54fcaa5a66e179140e072c8))
+
 ## [3.20.1](https://github.com/lightdash/lightdash/compare/3.20.0...3.20.1) (2026-10-21)
 
 

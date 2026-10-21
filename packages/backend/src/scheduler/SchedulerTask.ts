@@ -6116,6 +6116,11 @@ export default class SchedulerTask {
                 },
             },
             async () => {
+                const metadata = payload.refreshMetadataBeforeIndex
+                    ? await this.catalogService.getIndexCatalogMetadata(
+                          payload.projectUuid,
+                      )
+                    : payload;
                 const { catalogFieldMap } =
                     await this.catalogService.indexCatalog(
                         payload.projectUuid,
@@ -6124,22 +6129,22 @@ export default class SchedulerTask {
 
                 await this.catalogService.migrateCatalogItemTags(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithTags,
+                    metadata.prevCatalogItemsWithTags,
                 );
 
                 await this.catalogService.migrateCatalogItemIcons(
                     payload.projectUuid,
-                    payload.prevCatalogItemsWithIcons,
+                    metadata.prevCatalogItemsWithIcons,
                 );
 
                 await this.catalogService.migrateMetricsTreeEdges(
                     payload.projectUuid,
-                    payload.prevMetricTreeEdges,
+                    metadata.prevMetricTreeEdges,
                 );
 
                 await this.catalogService.migrateMetricsTreeNodes(
                     payload.projectUuid,
-                    payload.prevMetricsTreeNodes,
+                    metadata.prevMetricsTreeNodes,
                 );
 
                 await this.catalogService.setChartUsages(
