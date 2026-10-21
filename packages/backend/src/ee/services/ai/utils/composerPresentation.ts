@@ -5,14 +5,9 @@ import {
     runComposerQueriesToolDefinition,
     toComposerArtifactVersion,
     type AiComposerArtifactVersion,
-    type AllVizChartConfig,
-    type AnyType,
-    type ResultColumns,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
-import Logger from '../../../../logging/logger';
-import { type PlanComposerViz } from '../decisions/vizPlanner';
 import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
@@ -109,88 +104,30 @@ export const resolveComposerPresentations = ({
     }
 };
 
-export type ComposerExecutionResult = {
-    columns: ResultColumns;
-    rows: Record<string, AnyType>[];
-    rowCount: number;
-};
-
-/** One artifact version per presented node: its closure over the thread's
- * nodes, plus a viz config when a planner is given (web only). */
-export const buildComposerPresentations = async ({
+/** One table artifact version per presented node: its closure over the
+ * thread's nodes. */
+export const buildComposerPresentations = ({
     presented,
     threadNodes,
-    planViz: planner,
-    getExecutionResult,
-    previousVizConfig,
-    enableDataAccess,
 }: {
     presented: ToolComposerQueriesSuccessMetadata[];
     threadNodes: ThreadComposerQueryNode[];
-    planViz: PlanComposerViz | null;
-    getExecutionResult: (queryUuid: string) => Promise<ComposerExecutionResult>;
-    previousVizConfig: AllVizChartConfig | null;
-    enableDataAccess: boolean;
-}): Promise<AiComposerArtifactVersion[]> => {
-    const planViz = async (
-        metadata: ToolComposerQueriesSuccessMetadata,
-        node: ThreadComposerQueryNode,
-        previous: AllVizChartConfig | null,
-    ): Promise<AllVizChartConfig | null> => {
-        if (!planner) return null;
-        try {
-            return await planner({
+}): AiComposerArtifactVersion[] =>
+    presented.flatMap((metadata) => {
+        const node = threadNodes.find(
+            ({ nodeId }) => nodeId === metadata.terminalNodeId,
+        );
+        if (!node) return [];
+        return [
+            toComposerArtifactVersion({
                 title: metadata.title,
                 description: metadata.description,
-                terminalNode: {
-                    title: node.title ?? null,
-                    description: node.description ?? null,
-                },
-                ...(await getExecutionResult(metadata.queryUuid)),
-                enableDataAccess,
-                previousVizConfig: previous,
-            });
-        } catch (error) {
-            // The version is still saved; it opens as a table.
-            Logger.error(
-                `Composer presentation could not plan a viz for node ${metadata.terminalNodeId} (query ${metadata.queryUuid}): ${String(error)}`,
-                error,
-            );
-            return null;
-        }
-    };
-    // Sequential so each plan starts from the one before it.
-    const { presentations } = await presented.reduce<
-        Promise<{
-            presentations: AiComposerArtifactVersion[];
-            previous: AllVizChartConfig | null;
-        }>
-    >(
-        (accumulator, metadata) =>
-            accumulator.then(async (acc) => {
-                const node = threadNodes.find(
-                    ({ nodeId }) => nodeId === metadata.terminalNodeId,
-                );
-                if (!node) return acc;
-                const vizConfig = await planViz(metadata, node, acc.previous);
-                return {
-                    presentations: [
-                        ...acc.presentations,
-                        toComposerArtifactVersion({
-                            title: metadata.title,
-                            description: metadata.description,
-                            queries: buildComposerArtifactPipeline({
-                                queries: [node],
-                                threadNodes,
-                            }),
-                            terminalNodeId: metadata.terminalNodeId,
-                            vizConfig,
-                        }),
-                    ],
-                    previous: vizConfig ?? acc.previous,
-                };
+                queries: buildComposerArtifactPipeline({
+                    queries: [node],
+                    threadNodes,
+                }),
+                terminalNodeId: metadata.terminalNodeId,
+                vizConfig: null,
             }),
-        Promise.resolve({ presentations: [], previous: previousVizConfig }),
-    );
-    return presentations;
-};
+        ];
+    });

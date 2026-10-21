@@ -1,17 +1,11 @@
 import {
-    ChartKind,
-    DimensionType,
     QuerySourceType,
-    VizIndexType,
-    type AllVizChartConfig,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
-import type { PlanComposerViz } from '../decisions/vizPlanner';
 import {
     buildComposerPresentations,
     resolveComposerPresentations,
-    type ComposerExecutionResult,
     type TurnToolResult,
 } from './composerPresentation';
 
@@ -172,25 +166,6 @@ describe('resolveComposerPresentations', () => {
     });
 });
 
-const lineViz: AllVizChartConfig = {
-    type: ChartKind.LINE,
-    metadata: { version: 1 },
-    fieldConfig: {
-        x: { reference: 'month', type: VizIndexType.CATEGORY },
-        y: [],
-        groupBy: [],
-    },
-    display: undefined,
-};
-
-const executionResult = (queryUuid: string): ComposerExecutionResult => ({
-    columns: {
-        month: { reference: 'month', type: DimensionType.STRING },
-    },
-    rows: [{ month: queryUuid }],
-    rowCount: 1,
-});
-
 describe('buildComposerPresentations', () => {
     // Thread: orders <- enriched <- revenue; unrelated is never read.
     const threadNodes = [
@@ -200,25 +175,13 @@ describe('buildComposerPresentations', () => {
         node('revenue', ['enriched']),
     ];
 
-    const build = (
-        presented: ToolComposerQueriesSuccessMetadata[],
-        planViz: PlanComposerViz | null,
-        previousVizConfig: AllVizChartConfig | null = null,
-    ) =>
-        buildComposerPresentations({
-            presented,
-            threadNodes,
-            planViz,
-            getExecutionResult: async (queryUuid) => executionResult(queryUuid),
-            previousVizConfig,
-            enableDataAccess: true,
-        });
+    const build = (presented: ToolComposerQueriesSuccessMetadata[]) =>
+        buildComposerPresentations({ presented, threadNodes });
 
-    it('snapshots the presented node and everything it reads from the thread', async () => {
-        const [presentation] = await build(
-            [success('revenue', { description: 'Monthly revenue' })],
-            null,
-        );
+    it('snapshots the presented node and everything it reads from the thread, as a table', () => {
+        const [presentation] = build([
+            success('revenue', { description: 'Monthly revenue' }),
+        ]);
         expect(presentation).toEqual({
             artifactType: 'chart',
             title: 'Title revenue',
@@ -237,83 +200,16 @@ describe('buildComposerPresentations', () => {
         });
     });
 
-    it('plans the viz from the presented execution result', async () => {
-        const planned: Parameters<PlanComposerViz>[0][] = [];
-        const planViz: PlanComposerViz = async (args) => {
-            planned.push(args);
-            return lineViz;
-        };
-
-        const [presentation] = await build([success('revenue')], planViz);
-
-        expect(planned).toEqual([
-            expect.objectContaining({
-                ...executionResult('query-revenue'),
-                terminalNode: { title: 'revenue', description: null },
-                previousVizConfig: null,
-            }),
-        ]);
-        expect(presentation.vizConfig.vizConfig).toEqual(lineViz);
-    });
-
-    it('plans each presentation from the one before it', async () => {
-        const previousVizConfigs: (AllVizChartConfig | null)[] = [];
-        const planViz: PlanComposerViz = async (args) => {
-            previousVizConfigs.push(args.previousVizConfig);
-            return args.previousVizConfig ? null : lineViz;
-        };
-
-        const presentations = await build(
-            [success('enriched'), success('revenue')],
-            planViz,
-        );
-
-        expect(previousVizConfigs).toEqual([null, lineViz]);
+    it('presents several nodes in order', () => {
         expect(
-            presentations.map(
-                (presentation) => presentation.vizConfig.vizConfig,
+            build([success('enriched'), success('revenue')]).map(
+                (presentation) => presentation.vizConfig.terminalNodeId,
             ),
-        ).toEqual([lineViz, null]);
+        ).toEqual(['enriched', 'revenue']);
     });
 
-    it('starts from the thread viz config', async () => {
-        const previousVizConfigs: (AllVizChartConfig | null)[] = [];
-        await build(
-            [success('revenue')],
-            async (args) => {
-                previousVizConfigs.push(args.previousVizConfig);
-                return null;
-            },
-            lineViz,
-        );
-        expect(previousVizConfigs).toEqual([lineViz]);
-    });
-
-    it('saves without a viz when there is no planner (Slack)', async () => {
-        const [presentation] = await build([success('revenue')], null);
-        expect(presentation.vizConfig.vizConfig).toBeNull();
-    });
-
-    it('still presents when the execution result is unavailable', async () => {
-        const presentations = await buildComposerPresentations({
-            presented: [success('revenue')],
-            threadNodes,
-            planViz: async () => lineViz,
-            getExecutionResult: async () => {
-                throw new Error('Results expired');
-            },
-            previousVizConfig: null,
-            enableDataAccess: true,
-        });
-        expect(
-            presentations.map(
-                (presentation) => presentation.vizConfig.vizConfig,
-            ),
-        ).toEqual([null]);
-    });
-
-    it('skips a node missing from the thread', async () => {
-        expect(await build([success('missing')], null)).toEqual([]);
+    it('skips a node missing from the thread', () => {
+        expect(build([success('missing')])).toEqual([]);
     });
 });
 
