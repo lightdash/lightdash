@@ -179,7 +179,11 @@ const buildNote = (
     const parts: string[] = [
         hasMarkers
             ? `Seasonality: the "${SEASONALITY_COLUMN_HEADER}" column holds deterministically pre-computed deviations from each row's own weekday baseline (median of the same weekday).`
-            : 'Seasonality: weekday baselines were computed deterministically.',
+            : `Seasonality: weekday baselines ${
+                  coverage.assessed === 0
+                      ? 'could not be computed for this section'
+                      : 'were computed deterministically'
+              }.`,
     ];
     const skips = describeSkips(coverage, false);
     const fullyCovered = coverage.assessed === coverage.total;
@@ -369,17 +373,9 @@ export const seasonalityPrePass = (
     coverage.flagged = flags.length;
     coverage.omittedByMarkerCap = Math.max(0, flags.length - MAX_MARKERS);
 
-    if (coverage.assessed === 0) {
-        // Nothing was scored, so the section carries no seasonality note:
-        // the model judges weekly patterns itself under the generic rules.
-        return {
-            annotations: null,
-            note: null,
-            limitation: buildLimitation(coverage),
-            coverage,
-        };
-    }
-
+    // Even at zero coverage the section keeps its note: the pre-pass owns
+    // daily-row judgement wherever it applies, so the model never falls back
+    // to flagging unassessed rows itself (the conservative skip).
     const kept = [...flags]
         .sort((a, b) => b.score - a.score)
         .slice(0, MAX_MARKERS);

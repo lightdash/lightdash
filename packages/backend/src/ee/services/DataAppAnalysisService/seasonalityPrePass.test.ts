@@ -80,8 +80,11 @@ describe('seasonalityPrePass', () => {
             rows[0][METRIC_FIELD] = value;
             const result = seasonalityPrePass(rows, fields, TODAY);
             expect(result.annotations).toBeNull();
-            // Nothing was scored, so no seasonality claim reaches the model.
-            expect(result.note).toBeNull();
+            // Zero coverage still carries a note so the model does not fall
+            // back to judging daily rows itself.
+            expect(result.note).toContain('could not be computed');
+            expect(result.note).toContain('0 of 35 measurements');
+            expect(result.note).toContain('unverified');
             expect(result.limitation).toContain('not assessed');
             expect(result.limitation).toContain('zero median and zero MAD');
             expect(result.coverage).toMatchObject({
@@ -221,7 +224,8 @@ describe('seasonalityPrePass', () => {
             TODAY,
         );
         expect(result.annotations).toBeNull();
-        expect(result.note).toBeNull();
+        expect(result.note).toContain('could not be computed');
+        expect(result.note).toContain('unverified');
         expect(result.limitation).toContain('not assessed');
         expect(result.limitation).toContain('fewer than 3 same-weekday');
         expect(result.coverage).toMatchObject({
@@ -295,7 +299,8 @@ describe('seasonalityPrePass', () => {
         rows[7][METRIC_FIELD] = 160;
         const result = seasonalityPrePass(rows, fields, '2025-01-20');
         expect(result.annotations).toBeNull();
-        expect(result.note).toBeNull();
+        expect(result.note).toContain('could not be computed');
+        expect(result.note).toContain("today's incomplete day");
         expect(result.limitation).toContain('fewer than 3 same-weekday');
         expect(result.coverage).toMatchObject({
             assessed: 0,
