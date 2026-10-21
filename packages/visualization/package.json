@@ -62,7 +62,7 @@
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
         "build": "tsc --build ./tsconfig.build.json",
-        "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
+        "typecheck": "tsrs --project tsconfig.json --noEmit --composite false",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",

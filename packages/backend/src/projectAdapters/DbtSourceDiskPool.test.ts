@@ -45,7 +45,7 @@ describe('DbtSourceDiskPool', () => {
                     key: 'leaf_a',
                     context: null,
                     fetch,
-                    prepare: ({ signal } = {}) =>
+                    prepare: ({ signal }: { signal?: AbortSignal } = {}) =>
                         pool.run(
                             'leaf_a',
                             () =>

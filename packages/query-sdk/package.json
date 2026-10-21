@@ -28,7 +28,7 @@
     "scripts": {
         "prebuild": "node ./scripts/generateSdkVersion.mjs",
         "build": "tsc --project tsconfig.build.json",
-        "typecheck": "tsc --noEmit",
+        "typecheck": "tsrs --noEmit",
         "lint": "eslint src/",
         "pretest": "node ./scripts/generateSdkVersion.mjs",
         "test": "vitest run",

@@ -3,7 +3,7 @@
     "version": "3.13.1",
     "private": true,
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json --noEmit",
+        "typecheck": "tsrs --project tsconfig.json --noEmit",
         "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
         "build": "vite build",
