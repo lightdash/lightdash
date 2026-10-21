@@ -1,3 +1,10 @@
+# [3.1.0](https://github.com/lightdash/lightdash/compare/3.0.0...3.1.0) (2026-10-21)
+
+
+### Features
+
+* **embed:** export embedded dashboards as server-rendered PDFs ([#31240](https://github.com/lightdash/lightdash/issues/31240)) ([a73ebed](https://github.com/lightdash/lightdash/commit/a73ebed0a7c41637456b4360e6c0fd931b6af2e1))
+
 # [3.0.0](https://github.com/lightdash/lightdash/compare/2.631.7...3.0.0) (2026-10-21)
 
 
