@@ -1331,6 +1331,11 @@ describe('AiAgentToolsService', () => {
                     uuid: 'published-run',
                     name: 'Revenue fell in spring',
                     mimeType: 'text/markdown',
+                    summary: expect.objectContaining({
+                        description: expect.stringContaining(
+                            'slug "revenue-fell-in-spring"',
+                        ),
+                    }),
                 }),
             ]);
         });

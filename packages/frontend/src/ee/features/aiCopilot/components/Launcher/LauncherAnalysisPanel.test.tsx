@@ -1,11 +1,18 @@
 import { type LightdashUserWithAbilityRules } from '@lightdash/common';
 import { act, screen } from '@testing-library/react';
+import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../../testing/testUtils';
-import DataAppAnalysisPanel from './DataAppAnalysisPanel';
-import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
-import { type DataAppAnalysisController } from './useDataAppAnalysisController';
+import {
+    type DataAppAnalysisAvailability,
+    type DataAppAnalysisUnavailableReason,
+} from '../../../../../features/apps/analysis/useDataAppAnalysisAvailability';
+import { type DataAppAnalysisController } from '../../../../../features/apps/analysis/useDataAppAnalysisController';
+import { renderWithProviders } from '../../../../../testing/testUtils';
+import { store } from '../../store';
+import { type LauncherAnalysisAdapter } from './launcherAnalysisAdapter';
+import { LauncherAnalysisPanel } from './LauncherAnalysisPanel';
+import { LauncherPanelSizeContext } from './LauncherPanelSizeContext';
 
 vi.mock('@uiw/react-md-editor', () => ({
     default: { Markdown: () => null },
@@ -41,6 +48,10 @@ const available: DataAppAnalysisAvailability = {
     autoAnalyseDefault: false,
 };
 
+const unavailable = (
+    reason: DataAppAnalysisUnavailableReason,
+): DataAppAnalysisAvailability => ({ status: 'unavailable', reason });
+
 const buildController = (
     overrides: Partial<DataAppAnalysisController> = {},
 ): DataAppAnalysisController =>
@@ -67,6 +78,25 @@ const buildController = (
         ...overrides,
     }) as unknown as DataAppAnalysisController;
 
+const buildAdapter = (
+    availability: DataAppAnalysisAvailability,
+    controller: DataAppAnalysisController,
+): LauncherAnalysisAdapter => ({
+    projectUuid: 'project-1',
+    targetName: 'My app',
+    availability,
+    controller,
+    highlightAvailable: false,
+    onHoverQuery: vi.fn(),
+});
+
+const sizeContext = {
+    previewSize: vi.fn(),
+    commitSize: vi.fn(),
+    resizeHintSeen: true,
+    markResizeHintSeen: vi.fn(),
+};
+
 // The mocked user query resolves a tick after first render.
 const userLoaded = () =>
     act(async () => {
@@ -82,26 +112,22 @@ const renderPanel = (
 ) =>
     renderWithProviders(
         <MemoryRouter>
-            <DataAppAnalysisPanel
-                opened
-                onClose={vi.fn()}
-                appUuid="app-1"
-                availability={availability}
-                controller={controller}
-                lineageAvailable={false}
-                onHoverQuery={vi.fn()}
-            />
+            <Provider store={store}>
+                <LauncherPanelSizeContext.Provider value={sizeContext}>
+                    <LauncherAnalysisPanel
+                        adapter={buildAdapter(availability, controller)}
+                    />
+                </LauncherPanelSizeContext.Provider>
+            </Provider>
         </MemoryRouter>,
         { user: { abilityRules } },
     );
 
-describe('DataAppAnalysisPanel unavailable states', () => {
+describe('LauncherAnalysisPanel unavailable states', () => {
     it('links an org admin to the toggle when the org setting is off', async () => {
-        renderPanel(
-            { status: 'unavailable', reason: 'org_setting_off' },
-            buildController(),
-            [{ action: 'manage', subject: 'Organization' }],
-        );
+        renderPanel(unavailable('org_setting_off'), buildController(), [
+            { action: 'manage', subject: 'Organization' },
+        ]);
         const link = await screen.findByRole('link', {
             name: 'Turn it on in settings',
         });
@@ -113,10 +139,7 @@ describe('DataAppAnalysisPanel unavailable states', () => {
     });
 
     it('tells a viewer to ask an admin instead of linking the toggle', async () => {
-        renderPanel(
-            { status: 'unavailable', reason: 'org_setting_off' },
-            buildController(),
-        );
+        renderPanel(unavailable('org_setting_off'), buildController());
         expect(
             await screen.findByText('Ask an organization admin to turn it on.'),
         ).toBeInTheDocument();
@@ -125,11 +148,9 @@ describe('DataAppAnalysisPanel unavailable states', () => {
     });
 
     it('offers nothing to fix when the org is not rolled out', async () => {
-        renderPanel(
-            { status: 'unavailable', reason: 'not_rolled_out' },
-            buildController(),
-            [{ action: 'manage', subject: 'Organization' }],
-        );
+        renderPanel(unavailable('not_rolled_out'), buildController(), [
+            { action: 'manage', subject: 'Organization' },
+        ]);
         expect(
             await screen.findByText(
                 'AI analysis is not available for this organization yet.',
@@ -140,7 +161,7 @@ describe('DataAppAnalysisPanel unavailable states', () => {
     });
 });
 
-describe('DataAppAnalysisPanel without agent access', () => {
+describe('LauncherAnalysisPanel without agent access', () => {
     it('lists anomalies but hides the agent picker and Investigate', async () => {
         renderPanel(
             available,

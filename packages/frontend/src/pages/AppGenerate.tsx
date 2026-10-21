@@ -1181,7 +1181,8 @@ const AppGenerate: FC = () => {
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
-        // No agent picker in the builder yet; the first accessible agent is used.
+        // No agent picker in the builder yet; the viewer's default agent
+        // (falling back to the first accessible one) is used.
         onNeedsAgent: () => {},
         onSourcesExpired: reloadPreviewForExpiredSources,
         openThread: openAnalysisThread,
