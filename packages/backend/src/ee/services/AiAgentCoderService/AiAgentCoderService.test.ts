@@ -513,6 +513,7 @@ describe('AiAgentCoderService', () => {
             agent: {
                 ...agentAsCode,
                 enableDataAccess: false,
+                enableContentTools: false,
                 enableComposerQueries: true,
             },
             error: 'must enable data access before enabling composer queries',
