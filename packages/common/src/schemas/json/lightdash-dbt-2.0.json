@@ -964,7 +964,13 @@
                                 "type": "object",
                                 "properties": {
                                     "cron": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Cron expression for scheduled materialization"
+                                    },
+                                    "on_change": {
+                                        "type": "boolean",
+                                        "description": "Set to true to rebuild the pre-aggregate on the project compile that changes its definition or the fields it reads. Defaults to false: a changed pre-aggregate stops serving its old materialization and is rebuilt by its cron schedule or a manual refresh.",
+                                        "default": false
                                     }
                                 }
                             },

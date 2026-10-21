@@ -722,7 +722,8 @@ test('forced replay after a validation child is added duplicates unkeyed childre
         .where('project_uuid', f.projectUuid)
         .select('cached_explore_uuid');
     expect(replayExplores).toHaveLength(1);
-    expect(replayExplores[0].cached_explore_uuid).not.toBe(
+    // The replayed compile upserts the surviving explore, so it keeps its uuid
+    expect(replayExplores[0].cached_explore_uuid).toBe(
         firstExplores[0].cached_explore_uuid,
     );
     const validations = children.filter(

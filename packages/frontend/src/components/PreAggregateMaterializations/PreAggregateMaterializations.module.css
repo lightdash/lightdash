@@ -27,3 +27,16 @@
 .clickableRow {
     cursor: pointer;
 }
+
+.triggerChipDisabled {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
+.helpCursor {
+    cursor: help;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
