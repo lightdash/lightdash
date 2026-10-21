@@ -1,3 +1,10 @@
+## [3.12.3](https://github.com/lightdash/lightdash/compare/3.12.2...3.12.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ai:** keep BYOK organizations off the external decisions provider ([#31315](https://github.com/lightdash/lightdash/issues/31315)) ([c9b7354](https://github.com/lightdash/lightdash/commit/c9b7354daf0b2aeb667c004d7c28385cfc253b49))
+
 ## [3.12.2](https://github.com/lightdash/lightdash/compare/3.12.1...3.12.2) (2026-10-21)
 
 
