@@ -79,28 +79,34 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
         [lightdashApi, projectUuid, queryClient],
     );
 
-    const getContentUrl = (document: ImportDocument): string | null => {
-        const projectPath = `/projects/${encodeURIComponent(projectUrlIdentifier)}`;
-        switch (document.type) {
-            case 'chart':
-                return `${projectPath}/saved/${encodeURIComponent(document.content.slug)}`;
-            case 'dashboard':
-                return `${projectPath}/dashboards/${encodeURIComponent(document.content.slug)}/view`;
-            case 'space': {
-                const space = spaces?.find(
-                    (item) =>
-                        (item.path
-                            ? getContentAsCodePathFromLtreePath(item.path)
-                            : item.slug) === document.content.slug,
-                );
-                return space ? `${projectPath}/spaces/${space.uuid}` : null;
+    const getContentUrl = useCallback(
+        (document: ImportDocument): string | null => {
+            const projectPath = `/projects/${encodeURIComponent(projectUrlIdentifier)}`;
+            switch (document.type) {
+                case 'chart':
+                    return `${projectPath}/saved/${encodeURIComponent(document.content.slug)}`;
+                case 'dashboard':
+                    return `${projectPath}/dashboards/${encodeURIComponent(document.content.slug)}/view`;
+                case 'space': {
+                    const space = spaces?.find(
+                        (item) =>
+                            (item.path
+                                ? getContentAsCodePathFromLtreePath(item.path)
+                                : item.slug) === document.content.slug,
+                    );
+                    return space ? `${projectPath}/spaces/${space.uuid}` : null;
+                }
+                default:
+                    return assertUnreachable(
+                        document,
+                        'Unsupported content type',
+                    );
             }
-            default:
-                return assertUnreachable(document, 'Unsupported content type');
-        }
-    };
+        },
+        [projectUrlIdentifier, spaces],
+    );
 
-    const refreshQueries = () => {
+    const refreshQueries = useCallback(() => {
         void invalidateContent(queryClient, projectUuid);
         for (const key of [
             'saved_query',
@@ -114,9 +120,9 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
         ]) {
             void queryClient.invalidateQueries([key]);
         }
-    };
+    }, [queryClient, projectUuid]);
 
-    const close = () => {
+    const close = useCallback(() => {
         onClose();
         if (!attemptedUpload.current) return;
         // Refresh local dashboard tiles/tabs before invalidating the saved version.
@@ -125,7 +131,7 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
             refreshQueries,
             refreshQueries,
         );
-    };
+    }, [onClose, refreshDashboardVersion, refreshQueries]);
 
     return (
         <Suspense fallback={null}>
