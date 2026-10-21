@@ -433,8 +433,8 @@ const MaterializationDetailDrawer: FC<Props> = ({
                             )}
                             <Text fz="xs" c="ldGray.6">
                                 {summary.materializeOnChange
-                                    ? 'Rebuilt on the project compile that changes its definition or the fields it reads (refresh.on_change: true in YAML).'
-                                    : 'When a compile changes its definition or the fields it reads, the old materialization stops serving and the rebuild waits for the next scheduled or manual refresh. Set refresh.on_change: true in YAML to rebuild on that compile.'}{' '}
+                                    ? 'Rebuilt on the project compile that changes its definition or the fields it reads. Compiles that leave it unchanged never rebuild it.'
+                                    : 'Opted out with refresh.on_change: false in YAML. When a compile changes its definition or the fields it reads, the old materialization stops serving and the rebuild waits for the next scheduled or manual refresh.'}{' '}
                                 Built once on compile when it has never been
                                 materialized.
                             </Text>

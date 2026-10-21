@@ -262,6 +262,7 @@ export type ModelManifest = {
     externalConnectionModel: unknown;
     schedulerAiAugmentationModel: unknown;
     dataAppAnalysisModel: unknown;
+    appStateModel: unknown;
     learnWorkspaceModel: LearnWorkspaceModel;
 };
 
@@ -1310,6 +1311,10 @@ export class ModelRepository
 
     public getDataAppAnalysisModel<ModelImplT>(): ModelImplT {
         return this.getModel('dataAppAnalysisModel');
+    }
+
+    public getAppStateModel<ModelImplT>(): ModelImplT {
+        return this.getModel('appStateModel');
     }
 
     public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {

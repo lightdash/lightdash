@@ -11114,7 +11114,7 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('a compile rebuilds a changed definition only when refresh.on_change is true', async () => {
+        test('a compile rebuilds a changed definition unless refresh.on_change is false', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11167,7 +11167,7 @@ describe('ProjectService', () => {
             expect(
                 preAggregateModel.upsertPreAggregateDefinitions,
             ).toHaveBeenCalledWith([
-                expect.objectContaining({ materialize_on_change: false }),
+                expect.objectContaining({ materialize_on_change: true }),
             ]);
             expect(
                 schedulerClient.materializePreAggregate,
@@ -11244,7 +11244,7 @@ describe('ProjectService', () => {
             );
         });
 
-        test('stores materialize_on_change=true from refresh.on_change', async () => {
+        test('stores materialize_on_change=false from refresh.on_change: false', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11259,7 +11259,7 @@ describe('ProjectService', () => {
                         name: 'rollup',
                         dimensions: ['dim1'],
                         metrics: ['met1'],
-                        refresh: { cron: '0 3 * * *', onChange: true },
+                        refresh: { cron: '0 3 * * *', onChange: false },
                     },
                 ],
             } as Explore;
@@ -11284,7 +11284,7 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith([
                 expect.objectContaining({
                     refresh_cron: '0 3 * * *',
-                    materialize_on_change: true,
+                    materialize_on_change: false,
                 }),
             ]);
         });

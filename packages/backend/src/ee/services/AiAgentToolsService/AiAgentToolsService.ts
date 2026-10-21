@@ -5198,8 +5198,7 @@ export class AiAgentToolsService extends BaseService {
                         ),
                         alwaysIncludeInContext: false,
                         summary: {
-                            description:
-                                'Deep Research report from this conversation, published as a Document.',
+                            description: `Deep Research report from this conversation, published as the Document with slug "${document.slug}".`,
                             definedTerms: [],
                             relatedExploreNames: [],
                             useWhen: `Answering follow-up questions about: ${run.prompt}`,

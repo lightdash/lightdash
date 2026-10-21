@@ -969,8 +969,8 @@
                                     },
                                     "on_change": {
                                         "type": "boolean",
-                                        "description": "Set to true to rebuild the pre-aggregate on the project compile that changes its definition or the fields it reads. Defaults to false: a changed pre-aggregate stops serving its old materialization and is rebuilt by its cron schedule or a manual refresh.",
-                                        "default": false
+                                        "description": "Whether the project compile that changes this pre-aggregate's definition, or the fields it reads, rebuilds it. Defaults to true. Set to false to leave the rebuild to the cron schedule or a manual refresh; the old materialization stops serving either way. Compiles that leave the definition unchanged never rebuild it.",
+                                        "default": true
                                     }
                                 }
                             },
