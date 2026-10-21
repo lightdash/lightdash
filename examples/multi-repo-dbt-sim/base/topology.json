@@ -1,0 +1,40 @@
+{
+    "sources": [
+        {
+            "name": "payments",
+            "projectName": "payments",
+            "dbtVersion": "1.12",
+            "upstreams": ["merchants"]
+        },
+        {
+            "name": "merchants",
+            "projectName": "merchants",
+            "dbtVersion": "1.12",
+            "upstreams": []
+        },
+        {
+            "name": "finance",
+            "projectName": "finance",
+            "dbtVersion": "1.12",
+            "upstreams": ["merchants", "risk"]
+        },
+        {
+            "name": "risk",
+            "projectName": "risk",
+            "dbtVersion": "1.12",
+            "upstreams": ["finance", "merchants"]
+        },
+        {
+            "name": "growth",
+            "projectName": "growth",
+            "dbtVersion": "1.9",
+            "upstreams": ["payments", "merchants"]
+        },
+        {
+            "name": "marketing",
+            "projectName": "marketing",
+            "dbtVersion": "1.12",
+            "upstreams": ["merchants"]
+        }
+    ]
+}

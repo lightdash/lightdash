@@ -1,0 +1,5 @@
+manifests:
+    - name: merchants
+      type: file
+      config:
+          path: ../../published/merchants/manifest.json

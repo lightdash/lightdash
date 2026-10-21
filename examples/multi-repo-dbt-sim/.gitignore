@@ -1,0 +1,5 @@
+.work/
+__pycache__/
+*.pyc
+tests/fixture-test-*/
+tests/dbt-test-*/

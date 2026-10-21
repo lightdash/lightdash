@@ -1,0 +1,77 @@
+version: 2
+models:
+    - name: finance_base
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: &typed_columns
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+          - name: label
+            data_type: text
+            meta:
+                dimension:
+                    type: string
+          - name: amount
+            data_type: numeric
+            meta:
+                dimension:
+                    type: number
+          - name: active
+            data_type: boolean
+            meta:
+                dimension:
+                    type: boolean
+          - name: event_date
+            data_type: date
+            meta:
+                dimension:
+                    type: date
+    - name: finance_report
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+    - name: settlement_report
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+    - name: merchant_settlement_report
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+seeds:
+    - name: finance_seed
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
