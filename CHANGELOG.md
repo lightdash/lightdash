@@ -1,3 +1,10 @@
+# [3.18.0](https://github.com/lightdash/lightdash/compare/3.17.1...3.18.0) (2026-10-21)
+
+
+### Features
+
+* **ai-agents:** remove fast-decisions flag, Jev key and BYOK are the only switches ([#31325](https://github.com/lightdash/lightdash/issues/31325)) ([b5e9389](https://github.com/lightdash/lightdash/commit/b5e9389eae743affe7b16260e2e8cd691fcf55b1))
+
 ## [3.17.1](https://github.com/lightdash/lightdash/compare/3.17.0...3.17.1) (2026-10-21)
 
 
