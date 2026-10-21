@@ -187,3 +187,41 @@ describe('BuiltInSkills', () => {
         ).toBeUndefined();
     });
 });
+
+describe('working-with-repositories skill', () => {
+    const name = 'working-with-repositories';
+
+    it('is available to agents only', async () => {
+        expect(
+            (await BuiltInSkills.getAiAgentSkills()).map((skill) => skill.name),
+        ).toContain(name);
+        expect(
+            (await BuiltInSkills.listSkillToolReferences()).map(
+                (skill) => skill.name,
+            ),
+        ).not.toContain(name);
+    });
+
+    it('lists its resources and stops when a needed tool is off', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(name);
+        expect(skill?.resources?.map((resource) => resource.name)).toEqual([
+            'dbt-writeback',
+            'editing-other-repositories',
+            'reading-source-code',
+        ]);
+        expect(skill?.body).toContain('feature is off for this agent');
+    });
+
+    it.each([
+        'exploreRepo',
+        'discoverRepos',
+        'editDbtProject',
+        'editRepo',
+        'listWorkstreams',
+        'closePullRequest',
+        'getPullRequestDiff',
+    ])('names %s', async (tool) => {
+        const skill = await BuiltInSkills.getAiAgentSkill(name);
+        expect(skill?.body).toContain(`\`${tool}\``);
+    });
+});

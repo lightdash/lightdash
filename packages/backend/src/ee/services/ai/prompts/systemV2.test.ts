@@ -1051,57 +1051,32 @@ describe('getSystemPromptV2 MCP connections', () => {
     });
 });
 
-describe('getSystemPromptV2 coding agent section', () => {
-    test('omits the coding-agent section when the coding agent is disabled', () => {
-        const content = promptText({
-            availableExplores: [],
-        });
-        expect(content).not.toContain(
-            'Editing source code in connected repositories',
-        );
-        expect(content).not.toContain('`editRepo`');
-    });
-
-    test('includes the coding-agent section when enabled', () => {
-        const content = promptText({
-            promptSections: new Set<PromptSection>(['codingAgent']),
-            availableExplores: [],
-        });
-        expect(content).toContain(
-            'Editing source code in connected repositories',
-        );
-        expect(content).toContain('`editRepo`');
-    });
-});
-
 describe('getSystemPromptV2 writeback attribution', () => {
-    test('omits the writeback section entirely when writeback is disabled', () => {
+    const writebackArgs = {
+        promptSections: new Set<PromptSection>(['aiWriteback']),
+        availableExplores: [],
+        siteUrl: 'https://app.lightdash.cloud',
+    };
+
+    test('omits the attribution block when writeback is disabled', () => {
         const content = promptText({
             availableExplores: [],
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud',
         });
-        expect(content).not.toContain('## Repository writeback');
         expect(content).not.toContain('Pull request attribution');
     });
 
-    test('includes the base section but no attribution block when attribution is null', () => {
-        const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
-            writebackAttribution: null,
-            siteUrl: 'https://app.lightdash.cloud',
-        });
-        expect(content).toContain('## Repository writeback');
-        expect(content).not.toContain('Pull request attribution');
+    test('renders nothing when attribution is null', () => {
+        expect(
+            promptText({ ...writebackArgs, writebackAttribution: null }),
+        ).toBe(promptText({ availableExplores: [] }));
     });
 
     test('nudges unlinked users who can link, with an absolute settings link', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: true },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('not** linked a personal GitHub account');
@@ -1116,8 +1091,7 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not duplicate slashes in the settings link when siteUrl has a trailing slash', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud/',
         });
@@ -1129,10 +1103,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not nudge or deep-link when the user cannot link', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: false },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('shared organization-level Lightdash GitHub');
@@ -1141,113 +1113,70 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('states personal attribution without nudging when the user has linked', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: {
                 mode: 'personal',
                 githubLogin: 'octocat',
             },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('@octocat');
         expect(content).not.toContain('/generalSettings/profile');
     });
-});
 
-describe('getSystemPromptV2 change-validation policy', () => {
-    const writebackArgs = {
-        promptSections: new Set<PromptSection>(['aiWriteback']),
-        availableExplores: [],
-        writebackAttribution: null,
-        siteUrl: 'https://app.lightdash.cloud',
-    };
-
-    test('requires validating a value-affecting change before calling it safe', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
-        );
-    });
-
-    test('frames the policy beyond consolidation (split / replace / refactor)', () => {
-        const content = promptText(writebackArgs);
-        // the trigger is any value claim, not just merging duplicates
-        expect(content).toContain('splitting');
-        expect(content).toContain('refactoring');
-    });
-
-    test('spells out both halves of "safe": reference impact AND value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('Reference impact');
-        expect(content).toContain('Value correctness');
-        // both proof methods the policy offers
-        expect(content).toContain('By construction');
-        expect(content).toContain('By data');
-    });
-
-    test('names the real tools the agent uses to prove value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('runQuery');
-        expect(content).toContain('generateVisualization');
-        expect(content).toContain('total grain');
-        expect(content).toContain('time dimension');
-    });
-
-    test('requires surfacing divergence rather than asserting safety', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('diverge');
-        expect(content).toContain('do **not** call it safe');
-    });
-
-    test('omits the change-validation policy when writeback is disabled', () => {
+    test('leaves the repository guidance to the skill', () => {
         const content = promptText({
-            ...writebackArgs,
-            promptSections: new Set<PromptSection>(),
+            promptSections: new Set<PromptSection>(['aiWriteback', 'repoFs']),
+            availableExplores: [],
+            writebackAttribution: { mode: 'org', canLink: true },
+            siteUrl: 'https://app.lightdash.cloud',
         });
-        expect(content).not.toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
-        );
+        expect(content).not.toContain('## Repository writeback');
+        expect(content).not.toContain('## Reading source code');
+        expect(content).not.toContain('## Editing source code');
     });
 });
 
-describe('getSystemPromptV2 repo-fs code search caveat', () => {
+describe('getSystemPromptV2 repository context', () => {
     const repoFsArgs = {
         promptSections: new Set<PromptSection>(['repoFs']),
         availableExplores: [],
         repoFsRoot: '.',
     };
+    const caveat = "`search` is unavailable for this project's repositories";
+
+    test('names the dbt sub-path behind the /dbt mount', () => {
+        expect(
+            promptText({ ...repoFsArgs, repoFsRoot: 'transform/dbt' }),
+        ).toContain(
+            'the `transform/dbt/` subdirectory of the underlying repository',
+        );
+        expect(promptText(repoFsArgs)).toContain(
+            "The `/dbt` mount is this project's governed dbt repository.",
+        );
+    });
 
     test('appends the no-search caveat when code search is unsupported (GitLab)', () => {
-        const content = promptText({
-            ...repoFsArgs,
-            repoFsSupportsCodeSearch: false,
-        });
-        expect(content).toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(
+            promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: false }),
+        ).toContain(caveat);
     });
 
     test('omits the caveat when code search is supported (GitHub / default)', () => {
         expect(
             promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: true }),
-        ).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        ).not.toContain(caveat);
         // Default (arg omitted) is "supported", so no caveat either.
-        expect(promptText(repoFsArgs)).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(promptText(repoFsArgs)).not.toContain(caveat);
     });
 
     test('never adds the caveat when repo discovery is off', () => {
-        const content = promptText({
-            availableExplores: [],
-            repoFsSupportsCodeSearch: false,
-        });
-        expect(content).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(
+            promptText({
+                availableExplores: [],
+                repoFsSupportsCodeSearch: false,
+            }),
+        ).not.toContain(caveat);
     });
 });
 

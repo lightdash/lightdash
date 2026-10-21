@@ -23,6 +23,8 @@ A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_on
 2. Declare it in `skills` on the add-on that owns the tools it explains; that add-on then brings `loadSkill` through the `skills` add-on. Agent runs list and load only `loadout.skills` plus the agent's custom skills.
 3. Run `pnpm -F backend test src/ee/services/ai/loadout` and commit the updated snapshots.
 
+Example: `working-with-repositories` holds the repository guidance that used to be always-on sections; `repoDiscovery`, `writeback` and `codingAgent` declare it, and only connection-specific lines (the `/dbt` root hint, the code search caveat, pull request attribution) stay inline in their sections.
+
 ## Flags
 
 A flag joins the loadout only when it changes which tools exist or which sections render. A flag that changes wording or a schema branch stays a plain boolean on `AiAgentArgs`, read where it is used.

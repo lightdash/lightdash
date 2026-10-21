@@ -26,8 +26,7 @@ import {
     STRUCTURED_FILTER_GUIDANCE_SECTION,
     STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
-import { getAiWritebackSection } from './systemV2AiWriteback';
-import { getCodingAgentSection } from './systemV2CodingAgent';
+import { buildAttributionBlock } from './systemV2AiWriteback';
 import {
     DOCUMENT_NUDGES_GUIDANCE,
     getContentToolsSection,
@@ -41,11 +40,7 @@ import {
     COMPOSER_QUERY_PATH,
     getQueryingComposerSection,
 } from './systemV2QueryingComposer';
-import {
-    REPO_FS_SECTION,
-    repoFsRootHint,
-    repoFsSearchCaveat,
-} from './systemV2RepoFs';
+import { getRepoFsSection } from './systemV2RepoFs';
 import { getRequestingUserSection } from './systemV2RequestingUser';
 import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
@@ -410,24 +405,16 @@ export const getSystemPromptV2 = (
         .replace(
             '{{ai_writeback_section}}',
             promptSections.has('aiWriteback')
-                ? getAiWritebackSection({
-                      attribution: writebackAttribution,
-                      siteUrl,
-                      canEditContent: contentToolsEnabled,
-                      viaComposerQueries: composer,
-                  })
+                ? buildAttributionBlock(writebackAttribution, siteUrl)
                 : '',
-        )
-        .replace(
-            '{{coding_agent_section}}',
-            promptSections.has('codingAgent') ? getCodingAgentSection() : '',
         )
         .replace(
             '{{repo_fs_section}}',
             promptSections.has('repoFs')
-                ? REPO_FS_SECTION +
-                      repoFsRootHint(repoFsRoot) +
-                      repoFsSearchCaveat(repoFsSupportsCodeSearch)
+                ? getRepoFsSection({
+                      root: repoFsRoot,
+                      supportsCodeSearch: repoFsSupportsCodeSearch,
+                  })
                 : '',
         )
         .replace(

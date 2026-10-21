@@ -1,27 +1,3 @@
-export const REPO_FS_SECTION = `## Reading source code (\`exploreRepo\` and \`discoverRepos\`)
-
-This project's semantic layer is defined in a dbt repository. You have **read-only** access to its source through the \`exploreRepo\` tool — a real bash shell restricted to a read-only command set: file reading (\`ls\`, \`cat\`, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` incl. \`-r\`/\`-l\`/\`-n\`/\`-i\`/\`-E\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`, …). Full bash syntax works — pipes, \`&&\`/\`||\`, quoting, globs and \`2>/dev/null\` (e.g. \`grep -rln "orders" models | head\`, \`find . -name "*.yml" | xargs grep -l orders\`, or \`find models -name "*.sql" | xargs wc -l | sort -rn | head\` to rank files by size). It is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error.
-
-**For any "which files / which repositories mention X" question, you MUST use \`search\`, and you must NEVER answer it by grepping.** \`grep -r\` downloads every file it walks, so grepping across more than one repository — or across a single large repository — reads **thousands** of files and exhausts GitHub's rate limit in seconds, breaking the rest of the conversation. Hard rules: **never run \`grep\`/\`rg\`/\`find\`/\`tree\` across more than one repository, never run an unscoped recursive grep, and never grep repo-by-repo in a loop to cover many repositories.** Use \`grep\`/\`rg\` ONLY after you have already narrowed to a single known file or directory — or when you need a regex or a non-default branch — and even then keep it pointed at one repository. \`search <term> [path]\` runs GitHub's server-side code search and returns matching file paths. \`path\` sets the scope: a repository (\`search OrderStatus /acme/analytics\`) searches that one authorized repo, an **owner** (\`search OrderStatus /acme\`) searches the authorized repositories for that owner in bounded batches, and a sub-directory (\`search customer_id /dbt/models\`) narrows within a repo. This avoids downloading every file the way \`grep -r\` does, so it is safer and cheaper for broad searches, but owner searches still cost one scoped request per authorized repository — prefer a repository path whenever possible. Use it to locate candidate files, then \`cat\` exactly those. Its limits make it a *locator*, not a \`grep\` replacement: it matches **terms, not regular expressions**, and it indexes only each repository's **default branch** and files under a size cap. So reach for \`grep\`/\`rg\` when you need a regex, a non-default branch, or to read matching lines in context within a known file or directory; reach for \`search\` to answer "which files or repositories contain X" without a crawl.
-
-**Report findings, not mechanism.** When you answer the user, describe what you found in plain language — never tell them which command or tool produced it (\`search\`, \`grep\`, \`exploreRepo\`), and never explain code-search indexing, default branches, term-vs-regex matching, or how the search works. Those are internal tooling details, not the answer. ✅ "Nothing in that repo mentions \`jquery\`." / "Three files reference \`OrderStatus\`: …". ❌ "The server-side code search found no matches — it only indexes the default branch and isn't a regex." If a search comes back empty and it matters, just say so (and quietly try another approach like \`grep\` if a regex or non-default branch might be why), rather than narrating the limitation.
-
-**\`exploreRepo\` is not the tool for data or metric questions — the semantic-layer tools are.** For "what can I analyse / what tables, metrics, or dimensions exist", "what does this metric or dimension mean", "find or compare metrics/fields", or "are there duplicate or confusing metrics", use \`findExplores\`, \`findFields\`, and \`searchSemanticLayer\` FIRST. Those reflect the governed semantic layer the user actually queries and already carry each field's label, description, type, and SQL — grepping raw YAML/SQL instead bypasses that layer, is slower, and can surface models that aren't even exposed in Lightdash. Do not enumerate, define, or compare metrics by reading the repo.
-
-**Use \`exploreRepo\` for the dbt implementation and for writeback planning** — not for the catalogue of what's queryable. Reach for it when the question is genuinely about the underlying code (how a model's SQL is built, file/project structure, dbt refs and lineage, \`dbt_project.yml\` config, CI workflows), when the semantic-layer tools genuinely cannot answer, or to read the exact files before a change. You don't need the user to mention files or commands; the dbt project may live under a subdirectory, so explore to find the right files, then read them.
-
-**One filesystem, authorized repositories.** \`exploreRepo\` exposes a single read-only virtual filesystem containing this project's configured repository plus repositories the current user can access through their linked provider account. The dbt project is mounted at \`/dbt\` (its files at the top of that directory, e.g. \`/dbt/dbt_project.yml\`, \`/dbt/models\`). Other authorized repositories are mounted **whole** on their default branch at \`/<owner>/<repo>\` (e.g. \`/acme/analytics-service/src\`). The \`target\` argument just sets your starting directory: an \`"owner/repo"\` target starts you in \`/owner/repo\`, and no target starts you in \`/dbt\` — but you can always reach any authorized mount with an absolute path, so a single command can read **specific named files** across repositories (e.g. \`diff /dbt/models/orders.sql /acme/analytics-fork/models/orders.sql\`). But **never \`grep\`/\`rg\`/\`find\`/\`tree\` across more than one repository, and never run an unscoped recursive walk** (\`grep -r /\`, \`find /\`, \`grep -rl x /owner\`, or the same grep repeated over a list of repos): each one downloads every file in every repo it touches and will exhaust the provider's rate limit in seconds. To look for a string across authorized repositories, use \`search\`; prefer a specific repository path because owner searches make one scoped request per repository. Run \`ls /\` to see what's mounted, or call \`discoverRepos\` to list the authorized repositories with their default branch. Tree listings are fetched lazily per repository as you descend.
-
-**Don't scan every repository — ask which ones first.** When a request would mean searching across many or all authorized repositories (e.g. "which repos mention X", "find every place we do Y") and the user hasn't named a repository, do **not** fan out across all of them. Each repository is searched separately, so scanning the whole authorized set is slow and usually wasteful. Instead, tell the user how many repositories are available (from \`discoverRepos\`) and **ask which repository or small subset to focus on**, offering the obvious candidates by name. Only search broadly once the user has confirmed they want every repository covered. The dbt project (\`/dbt\`) and any repository the user explicitly names need no such confirmation — search those directly.
-
-**Handle tool errors yourself — don't narrate them to the user.** The shell commands you run, their raw output, and their errors (e.g. "No such file or directory", a read-only/\`EROFS\` failure, or a "too many repositories opened in one command" limit) are internal tooling details, not something the user asked about. When a command fails, **fix it and retry** rather than reporting it: if a repo-spanning search hit the per-command repository limit, narrow it to a specific repository or path and run it again (or, if you can't tell which repository they mean, ask the user which one to focus on); if a path was wrong, correct it; if you read too much at once, read less. Only mention a limitation when it genuinely blocks the request, and then in plain language about what you can do — e.g. "I can only search a few repositories at once, so which one should I focus on?" — never by pasting the command, its output, or the raw error. (The exception is when the user is explicitly asking you to run a command and show its raw output.)
-
-**Work in as few commands as possible.** Locate files with one scoped command (e.g. \`find . -name "*.yml" | xargs grep -l <token>\`) and trust its result instead of re-listing the tree; then read every file you need in a single \`cat fileA fileB fileC\` rather than one \`cat\` per file. Each round-trip is slow, so batch.
-
-**Look before you conclude.** When you do read code, do not guess at a model's contents or the cause of a compile/build error you have not read. Ground every claim in something you actually read ("\`dbt/models/orders.sql\` joins \`stg_orders\` and \`stg_payments\` via \`ref()\`"), and if what you read contradicts your assumption, revise it.
-
-**Plan writebacks by reading first.** Before calling \`editDbtProject\`, use \`exploreRepo\` to read the files you intend to change. This lets you (1) confirm a change is actually needed — if the code already does what's asked, say so instead of opening a no-op pull request; (2) name the exact target file and write a precise, self-contained edit for \`editDbtProject\` rather than a vague one; and (3) match the surrounding conventions. \`exploreRepo\` is read-only — it never edits files or opens pull requests; do the actual change with \`editDbtProject\`.`;
-
 /**
  * A sentence reminding the agent that the `/dbt` mount is the governed dbt
  * project, and (when the connection has a sub-path) which subdirectory of the
@@ -31,21 +7,32 @@ This project's semantic layer is defined in a dbt repository. You have **read-on
  * The mount always presents the dbt project's files at the top of `/dbt`, so the
  * hint just saves the agent a discovery round-trip.
  */
-export const repoFsRootHint = (root: string | null): string => {
+const repoFsRootHint = (root: string | null): string => {
     const provenance =
         root && root !== '.'
             ? ` (it is the \`${root}/\` subdirectory of the underlying repository, re-rooted at \`/dbt\`)`
             : '';
-    return `\n\nThe \`/dbt\` mount is this project's governed dbt repository${provenance}. Its files are at the top of \`/dbt\` (e.g. \`ls /dbt/models\`, \`cat /dbt/dbt_project.yml\`).`;
+    return `The \`/dbt\` mount is this project's governed dbt repository${provenance}. Its files are at the top of \`/dbt\` (e.g. \`ls /dbt/models\`, \`cat /dbt/dbt_project.yml\`).`;
 };
 
-/**
- * Caveat appended when the repository host has no server-side code search
- * (GitLab). The base section tells the agent to reach for `search` to look
- * across repositories; that returns nothing here, so steer it to a scoped
- * single-repo `grep` instead. Empty string when search is available (GitHub).
- */
-export const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
+/** GitLab has no server-side code search, so steer the agent to a scoped single-repo `grep`. */
+const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
     supportsCodeSearch
         ? ''
-        : `\n\n**\`search\` is unavailable for this project's repositories** — the repository host does not provide server-side code search, so \`search\` returns no results here. Don't use it, and don't tell the user it's unavailable. To find a string, \`grep\`/\`rg\` **within a single repository** (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) — never an unscoped or cross-repo walk.`;
+        : `**\`search\` is unavailable for this project's repositories** — the repository host does not provide server-side code search, so \`search\` returns no results here. Don't use it, and don't tell the user it's unavailable. To find a string, \`grep\`/\`rg\` **within a single repository** (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) — never an unscoped or cross-repo walk.`;
+
+/** Repository facts that depend on the connection; the guidance lives in the `working-with-repositories` skill. */
+export const getRepoFsSection = ({
+    root,
+    supportsCodeSearch,
+}: {
+    root: string | null;
+    supportsCodeSearch: boolean;
+}): string =>
+    [
+        '## Repository context',
+        repoFsRootHint(root),
+        repoFsSearchCaveat(supportsCodeSearch),
+    ]
+        .filter(Boolean)
+        .join('\n\n');
