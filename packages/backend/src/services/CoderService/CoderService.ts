@@ -69,6 +69,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    MAX_CONTENT_SLUG_LENGTH,
     normalizeContentAsCodePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
@@ -4581,14 +4582,16 @@ export class CoderService extends BaseService {
         request: ContentSlugRenameRequest,
     ): Promise<void> {
         const { resourceType, from, to } = request;
-        if (!from || from.length > 255) {
-            throw new ParameterError(
-                'The source slug must contain between 1 and 255 characters',
-            );
+        if (!from) {
+            throw new ParameterError('The source slug must not be empty');
         }
-        if (!to || to.length > 255 || generateSlug(to) !== to) {
+        if (
+            !to ||
+            to.length > MAX_CONTENT_SLUG_LENGTH ||
+            generateSlug(to) !== to
+        ) {
             throw new ParameterError(
-                'The target slug must contain between 1 and 255 lowercase letters, numbers, or hyphen-separated words',
+                `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
             );
         }
 

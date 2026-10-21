@@ -406,6 +406,29 @@ describe('local chart slug updates', () => {
         expect(await fs.readFile(chartFile, 'utf8')).toBe(source);
     });
 
+    test('plans a rename for a chart whose slug was too long to download', async () => {
+        const root = await createTemporaryContent();
+        const from = `${'orders-by-'.repeat(28)}customer`;
+
+        const plan = await planLocalSlugUpdate(
+            root,
+            from,
+            'orders-by-customer',
+        );
+
+        expect(from.length).toBeGreaterThan(255);
+        expect(plan.fileMoves).toEqual([]);
+        expect(plan.fileUpdates).toEqual([]);
+    });
+
+    test('rejects target slugs that would not fit in a file name', async () => {
+        const root = await createTemporaryContent();
+
+        await expect(
+            planLocalSlugUpdate(root, 'copy-of-orders', 'a'.repeat(201)),
+        ).rejects.toThrow('target slug must contain between 1 and 200');
+    });
+
     test('does not change local files when the server rejects the rename', async () => {
         const root = await createTemporaryContent();
         const chartFile = path.join(root, 'charts', 'copy-of-orders.yml');

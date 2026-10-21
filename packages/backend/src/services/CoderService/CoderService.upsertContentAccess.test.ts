@@ -251,7 +251,36 @@ const registerContentAccessTests = (
             });
         });
 
-        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(256)])(
+        it('renames a dashboard whose current slug is longer than any file name allows', async () => {
+            const service = buildService();
+            const from = `${'quarterly-revenue-'.repeat(15)}by-region`;
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: from,
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            await service.renameContentSlug(
+                makeUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                    {
+                        subject: 'Dashboard',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]),
+                PROJECT_UUID,
+                { ...request, from },
+            );
+            expect(from.length).toBeGreaterThan(255);
+            expect(service.dashboardModel.renameSlug).toHaveBeenCalledWith({
+                projectUuid: PROJECT_UUID,
+                dashboardUuid: 'dashboard-uuid',
+                from,
+                to: request.to,
+            });
+        });
+
+        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(201)])(
             'rejects malformed target %s before looking up a dashboard',
             async (to) => {
                 const service = buildService();
