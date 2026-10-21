@@ -294,18 +294,37 @@ describe('LinkPrompts', () => {
             card(added.uuid).getByText('Status → Method · Second → Method'),
         ).toBeVisible();
         expect(applyButton(added.uuid)).toHaveTextContent('Apply all 2');
-        const review = card(added.uuid).getByRole('button', {
-            name: 'Review',
-        });
-        expect(review).toHaveAttribute('aria-expanded', 'false');
-
-        await userEvent.click(review);
+        await userEvent.click(
+            card(added.uuid).getByRole('button', { name: 'Review' }),
+        );
 
         expect(
             card(added.uuid).queryByText('2 filters link automatically'),
         ).toBeNull();
         expect(select(added.uuid, 'Status')).toHaveValue('Method');
         expect(select(added.uuid, 'Second')).toHaveValue('Method');
+        // The Review button has left: focus goes to the first row it opened
+        expect(select(added.uuid, 'Status')).toHaveFocus();
+    });
+
+    it('links every filter with "Apply all"', async () => {
+        setDashboard([paymentsMethod], twoFilters);
+        renderWithProviders(<LinkPrompts />);
+
+        await userEvent.click(applyButton(added.uuid));
+
+        expect(updateFilter).toHaveBeenCalledTimes(2);
+        expect(updateFilter.mock.calls.map(([next]) => next.id)).toEqual([
+            'rule-1',
+            'rule-2',
+        ]);
+        updateFilter.mock.calls.forEach(([next]) =>
+            expect(next.tileTargets[added.uuid]).toEqual({
+                fieldId: 'payments_method',
+                tableName: 'payments',
+            }),
+        );
+        expect(dismissLink).not.toHaveBeenCalled();
     });
 
     it('leaves out a cleared filter: Apply links the others and skips it', async () => {
@@ -490,11 +509,36 @@ describe('LinkPrompts', () => {
             );
             rerender(<LinkPrompts />);
 
-            expect(card(added.uuid).getByText('Status → Method')).toBeVisible();
+            // A row the user touched stays a row, now on the only candidate
+            expect(select(added.uuid)).toHaveValue('Method');
             await userEvent.click(applyButton(added.uuid));
             expect(
                 updateFilter.mock.calls[0][0].tileTargets[added.uuid],
             ).toEqual({ fieldId: 'payments_method', tableName: 'payments' });
+        });
+
+        it('keeps a cleared filter cleared when it is left with one candidate', async () => {
+            setDashboard([paymentsMethod, paymentsState]);
+            const { rerender } = renderWithProviders(<LinkPrompts />);
+            await pick(added.uuid, 'Status', 'State');
+            // Picking the chosen option again clears it
+            await pick(added.uuid, 'Status', 'State');
+            expect(select(added.uuid)).toHaveValue('');
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    [added.uuid]: [paymentsMethod],
+                    [saved.uuid]: [paymentsMethod],
+                },
+            };
+            rerender(<LinkPrompts />);
+
+            expect(
+                card(added.uuid).queryByText('1 filter links automatically'),
+            ).toBeNull();
+            expect(select(added.uuid)).toHaveValue('');
+            expect(applyButton(added.uuid)).toBeDisabled();
         });
 
         it('keeps Apply off when the choice left and several are still offered', async () => {

@@ -673,8 +673,10 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   prompt, and neither does a SQL column filter.
 - One card per tile, summary first. A row with a single candidate links
   without a pick: those rows fold into one "N filters link automatically"
-  block (`Filter → Field`), and "Review" expands them into rows. The other
-  rows sit under "Needs a field", each a clearable select ("Not filtered").
+  block (`Filter → Field`), and "Review" expands them into rows and focuses
+  the first of them (its button leaves). A row the user has picked or cleared
+  is never folded, so a cleared one stays visible. The other rows sit under
+  "Needs a field", each a clearable select ("Not filtered").
 - The card keeps the user's picks per rule: a rule present with `null` was
   cleared and is not linked, absent means the default (the single candidate).
   A pick that is no longer offered is dropped. Choices are derived on render,

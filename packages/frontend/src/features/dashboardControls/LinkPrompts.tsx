@@ -81,15 +81,17 @@ const LinkCard: FC<CardProps> = ({
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [firstObviousId, setFirstObviousId] = useState<string | null>(null);
     const tileTitle = getTileTitle(tile);
     const getFilterLabel = (rule: DashboardFilterRule) =>
         rule.label ?? getLabel(rule.target.fieldId);
 
-    const obvious = rows.filter((row) => getDefaultChoice(row) !== null);
+    // A row the user has touched is never summarised, so a cleared one stays visible
+    const isObvious = (row: Prompt) =>
+        getDefaultChoice(row) !== null && !(row.rule.id in picks);
+    const obvious = rows.filter(isObvious);
     const isSummarised = obvious.length > 0 && !isReviewOpen;
-    const shown = isSummarised
-        ? rows.filter((row) => getDefaultChoice(row) === null)
-        : rows;
+    const shown = isSummarised ? rows.filter((row) => !isObvious(row)) : rows;
     const linkCount = rows.filter(
         (row) => getChoice(row, picks) !== null,
     ).length;
@@ -158,8 +160,10 @@ const LinkCard: FC<CardProps> = ({
                         <Button
                             size="compact-xs"
                             variant="subtle"
-                            aria-expanded={false}
-                            onClick={() => setIsReviewOpen(true)}
+                            onClick={() => {
+                                setFirstObviousId(obvious[0].rule.id);
+                                setIsReviewOpen(true);
+                            }}
                         >
                             Review
                         </Button>
@@ -197,6 +201,10 @@ const LinkCard: FC<CardProps> = ({
                             aria-label={`Field for ${filterLabel} on this tile`}
                             placeholder="Not filtered"
                             clearable
+                            // Review unmounts its button: focus goes to the first row it opened
+                            autoFocus={
+                                isReviewOpen && row.rule.id === firstObviousId
+                            }
                             comboboxProps={{ withinPortal: true }}
                             value={getChoice(row, picks)}
                             onChange={(value) =>
