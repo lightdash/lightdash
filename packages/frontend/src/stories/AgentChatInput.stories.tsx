@@ -134,7 +134,6 @@ const storyQueryClient = createQueryClient({
     FeatureFlags.MultiSourceQuery,
     FeatureFlags.ComposeSqlRunner,
     FeatureFlags.AiThreadRetention,
-    FeatureFlags.AiAgentFastDecisions,
 ].forEach((flag) => {
     storyQueryClient.setQueryData(['feature-flag', flag], enabledFlag(flag));
 });
