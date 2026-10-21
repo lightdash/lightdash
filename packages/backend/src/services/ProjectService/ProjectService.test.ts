@@ -3754,6 +3754,43 @@ describe('ProjectService', () => {
             ).resolves.toBe(2);
             expect(projectModel.delete).toHaveBeenCalledTimes(2);
         });
+
+        test('waits for a preview deletion before starting the next one', async () => {
+            const firstStarted = Promise.withResolvers<void>();
+            const releaseFirst = Promise.withResolvers<void>();
+            projectModel.delete.mockImplementationOnce(async () => {
+                firstStarted.resolve();
+                await releaseFirst.promise;
+            });
+            const cleanup = sweepService().deleteExpiredPreviewProjects();
+            try {
+                await firstStarted.promise;
+                expect(projectModel.delete).toHaveBeenCalledTimes(1);
+                expect(deleteProjectAppFiles).toHaveBeenCalledTimes(1);
+            } finally {
+                releaseFirst.resolve();
+            }
+            await expect(cleanup).resolves.toBe(2);
+            expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
+        });
+
+        test('continues after a failed project and counts only successful deletions', async () => {
+            getExpiredPreviewProjects.mockResolvedValue([
+                { projectUuid: 'copy-1', organizationUuid: 'org' },
+                { projectUuid: 'copy-2', organizationUuid: 'org' },
+                { projectUuid: 'copy-3', organizationUuid: 'org' },
+            ]);
+            projectModel.delete.mockRejectedValueOnce(
+                new Error('delete failed'),
+            );
+            await expect(
+                sweepService().deleteExpiredPreviewProjects(),
+            ).resolves.toBe(2);
+            expect(projectModel.delete).toHaveBeenCalledTimes(3);
+            expect(projectModel.delete).toHaveBeenNthCalledWith(1, 'copy-1');
+            expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
+            expect(projectModel.delete).toHaveBeenNthCalledWith(3, 'copy-3');
+        });
     });
 
     describe('training copy reuse', () => {

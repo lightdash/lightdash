@@ -9,6 +9,10 @@ class TestableSchedulerWorker extends SchedulerWorker {
     public exposeFullTaskList() {
         return this.getFullTaskList();
     }
+
+    public cronItems() {
+        return this.getCronItems();
+    }
 }
 
 const emptyPayload = {
@@ -53,6 +57,27 @@ const makeWorkerArgs = (
     }) as unknown as SchedulerWorkerArguments;
 
 describe('SchedulerWorker — CLEAN_EXPIRED_PREVIEWS learn sandbox sweep', () => {
+    it('runs preview cleanup on a dedicated named queue', () => {
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(vi.fn(), vi.fn()),
+        );
+        expect(
+            worker
+                .cronItems()
+                .find(
+                    ({ task }) =>
+                        task === SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
+                ),
+        ).toEqual({
+            task: SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
+            pattern: '0 * * * *',
+            options: {
+                queueName: 'clean-expired-previews',
+                backfillPeriod: 2 * 3600 * 1000,
+                maxAttempts: 3,
+            },
+        });
+    });
     it('still deletes expired previews and does not rethrow when the sandbox sweep fails', async () => {
         const deleteExpiredPreviewProjects = vi.fn(async () => 2);
         const sweep = vi.fn(async () => {

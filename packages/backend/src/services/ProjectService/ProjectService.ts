@@ -7678,29 +7678,29 @@ export class ProjectService
         const expiredProjects =
             await this.projectModel.getExpiredPreviewProjects();
 
-        const results = await Promise.allSettled(
-            expiredProjects.map(({ projectUuid }) =>
+        let deletedCount = 0;
+        // Each preview deletion cascades through shared content tables. Keep
+        // only one in flight so an expiry sweep cannot multiply that work.
+        for (const { projectUuid } of expiredProjects) {
+            try {
                 // A preview can carry copied data apps (every training copy
                 // does); deleting the rows alone leaves their bundles in the
                 // bucket for good.
-                this.deletePreviewAndAppFiles(projectUuid).then(() => {
-                    this.logger.info(
-                        `Deleted expired preview project: ${projectUuid}`,
-                    );
-                }),
-            ),
-        );
-
-        results.forEach((r, i) => {
-            if (r.status === 'rejected') {
+                // eslint-disable-next-line no-await-in-loop -- Each preview must finish before the next cascade starts.
+                await this.deletePreviewAndAppFiles(projectUuid);
+                deletedCount += 1;
+                this.logger.info(
+                    `Deleted expired preview project: ${projectUuid}`,
+                );
+            } catch (error) {
                 this.logger.error(
-                    `Failed to delete expired preview project ${expiredProjects[i].projectUuid}`,
-                    { error: r.reason },
+                    `Failed to delete expired preview project ${projectUuid}`,
+                    { error },
                 );
             }
-        });
+        }
 
-        return results.filter((r) => r.status === 'fulfilled').length;
+        return deletedCount;
     }
 
     private async prepareCompileAdapter(

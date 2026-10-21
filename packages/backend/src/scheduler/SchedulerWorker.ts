@@ -897,6 +897,7 @@ export class SchedulerWorker extends SchedulerTask {
                 task: SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
                 pattern: '0 * * * *', // Every hour
                 options: {
+                    queueName: 'clean-expired-previews',
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
                     maxAttempts: 3,
                 },
