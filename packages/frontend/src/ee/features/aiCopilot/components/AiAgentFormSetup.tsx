@@ -1014,9 +1014,9 @@ export const AiAgentFormSetup = ({
                                     variant="subtle"
                                     label={
                                         <SwitchLabel
-                                            text="Composer queries (beta)"
+                                            text="Composer queries"
                                             help="Requires reading rows to be enabled."
-                                            badge={null}
+                                            badge={<BetaBadge />}
                                         />
                                     }
                                     description="Queries run through the composer pipeline instead of the classic query tools."
