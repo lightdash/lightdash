@@ -6,6 +6,12 @@ const optedIn = {
     agent: { enableDataAccess: true, enableComposerQueries: true },
     isDeepResearch: false,
     hasStandardToolAllowlist: false,
+    battleProfile: null,
+};
+
+const settingOff = {
+    ...optedIn,
+    agent: { enableDataAccess: true, enableComposerQueries: false },
 };
 
 describe('isComposerQueriesEnabled', () => {
@@ -14,12 +20,7 @@ describe('isComposerQueriesEnabled', () => {
     });
 
     it('keeps classic tools when the agent has not opted in, even with flags on', () => {
-        expect(
-            isComposerQueriesEnabled({
-                ...optedIn,
-                agent: { enableDataAccess: true, enableComposerQueries: false },
-            }),
-        ).toBe(false);
+        expect(isComposerQueriesEnabled(settingOff)).toBe(false);
     });
 
     it.each([
@@ -36,6 +37,62 @@ describe('isComposerQueriesEnabled', () => {
     ])('is off with %s', (_, override) => {
         expect(isComposerQueriesEnabled({ ...optedIn, ...override })).toBe(
             false,
+        );
+    });
+
+    describe('battle profiles', () => {
+        it('composer profile ignores the agent setting', () => {
+            expect(
+                isComposerQueriesEnabled({
+                    ...settingOff,
+                    battleProfile: 'composer',
+                }),
+            ).toBe(true);
+        });
+
+        it('classic profile keeps classic tools when the agent setting is on', () => {
+            expect(
+                isComposerQueriesEnabled({
+                    ...optedIn,
+                    battleProfile: 'classic',
+                }),
+            ).toBe(false);
+        });
+
+        it.each([
+            ['multi-source-query flag off', { multiSourceQueryEnabled: false }],
+            ['compose-sql-runner flag off', { composeSqlRunnerEnabled: false }],
+            [
+                'data access off',
+                {
+                    agent: {
+                        enableDataAccess: false,
+                        enableComposerQueries: false,
+                    },
+                },
+            ],
+            ['deep research', { isDeepResearch: true }],
+            ['standard tool allowlist', { hasStandardToolAllowlist: true }],
+        ])('composer profile is off with %s', (_, override) => {
+            expect(
+                isComposerQueriesEnabled({
+                    ...settingOff,
+                    battleProfile: 'composer',
+                    ...override,
+                }),
+            ).toBe(false);
+        });
+
+        it.each(['fast', 'baseline', 'luna'] as const)(
+            '%s profile follows the agent setting',
+            (battleProfile) => {
+                expect(
+                    isComposerQueriesEnabled({ ...optedIn, battleProfile }),
+                ).toBe(true);
+                expect(
+                    isComposerQueriesEnabled({ ...settingOff, battleProfile }),
+                ).toBe(false);
+            },
         );
     });
 });

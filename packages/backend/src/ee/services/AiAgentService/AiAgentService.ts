@@ -2668,13 +2668,80 @@ export class AiAgentService extends BaseService {
         // Before the Luna branch too: every battle profile resolves an
         // external decisions provider, which a pinned agent never gets.
         if (agentCredentialUuid) return undefined;
-        if (battleProfile === 'luna')
-            return this.getDecisionClient(user, 'luna');
-        const enabled =
-            battleProfile === null
-                ? enableFastDecisions
-                : battleProfile === 'fast';
-        return enabled ? this.getDecisionClient(user) : undefined;
+        switch (battleProfile) {
+            case 'luna':
+                return this.getDecisionClient(user, 'luna');
+            case 'fast':
+                return this.getDecisionClient(user);
+            case 'baseline':
+                return undefined;
+            case null:
+            case 'classic':
+            case 'composer':
+                return enableFastDecisions
+                    ? this.getDecisionClient(user)
+                    : undefined;
+            default:
+                return assertUnreachable(
+                    battleProfile,
+                    'Unknown battle profile',
+                );
+        }
+    }
+
+    private async assertBattleProfileAvailable(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableDataAccess'>,
+        battleProfile: AiAgentBattleProfile,
+    ): Promise<void> {
+        switch (battleProfile) {
+            case 'fast':
+            case 'baseline':
+            case 'luna':
+                if (!(await this.getDecisionClient(user))) {
+                    throw new ForbiddenError(
+                        'AI agent fast decisions must be enabled to compare profiles',
+                    );
+                }
+                if (
+                    battleProfile === 'luna' &&
+                    !(await this.getDecisionClient(user, 'luna'))
+                ) {
+                    throw new ForbiddenError(
+                        'Luna decisions must be configured to compare providers',
+                    );
+                }
+                return;
+            case 'classic':
+            case 'composer': {
+                const [multiSourceQuery, composeSqlRunner] = await Promise.all([
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.MultiSourceQuery,
+                    }),
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.ComposeSqlRunner,
+                    }),
+                ]);
+                if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+                    throw new ForbiddenError(
+                        'Composer queries must be enabled to compare query paths',
+                    );
+                }
+                if (!agent.enableDataAccess) {
+                    throw new ForbiddenError(
+                        'The agent needs data access to compare query paths',
+                    );
+                }
+                return;
+            }
+            default:
+                return assertUnreachable(
+                    battleProfile,
+                    'Unknown battle profile',
+                );
+        }
     }
 
     private async getPromptErrorMessage(
@@ -5212,19 +5279,11 @@ export class AiAgentService extends BaseService {
                     'AI agent battle mode is not available in embedded threads',
                 );
             }
-            if (!(await this.getDecisionClient(user))) {
-                throw new ForbiddenError(
-                    'AI agent fast decisions must be enabled to compare profiles',
-                );
-            }
-            if (
-                body.battleProfile === 'luna' &&
-                !(await this.getDecisionClient(user, 'luna'))
-            ) {
-                throw new ForbiddenError(
-                    'Luna decisions must be configured to compare providers',
-                );
-            }
+            await this.assertBattleProfileAvailable(
+                user,
+                agent,
+                body.battleProfile,
+            );
         }
 
         const threadUuid = await this.aiAgentModel.createWebAppThread({
@@ -16498,6 +16557,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     isDeepResearch: responseExecution.mode === 'deep_research',
                     hasStandardToolAllowlist:
                         standardToolAllowlist !== undefined,
+                    battleProfile,
                 });
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;

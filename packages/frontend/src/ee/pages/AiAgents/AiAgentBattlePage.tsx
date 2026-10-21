@@ -20,6 +20,8 @@ const battleLabels: Record<AiAgentBattleProfile | 'A' | 'B', string> = {
     fast: 'JEV on',
     luna: 'Luna',
     baseline: 'Baseline',
+    classic: 'Classic',
+    composer: 'Composer',
     A: 'A',
     B: 'B',
 };

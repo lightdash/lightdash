@@ -40,11 +40,16 @@ const battleColors: Record<AiAgentBattleProfile, string> = {
     fast: 'violet',
     luna: 'teal',
     baseline: 'gray',
+    classic: 'gray',
+    composer: 'indigo',
 };
+// Query path sides still make fast decisions with JEV when Fast mode is on.
 const battleDecisionNames: Record<AiAgentBattleProfile, string> = {
     fast: 'JEV',
     luna: 'Luna',
     baseline: 'JEV',
+    classic: 'JEV',
+    composer: 'JEV',
 };
 const NO_WINNERS: ReadonlySet<string> = new Set();
 
