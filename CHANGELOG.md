@@ -1,3 +1,10 @@
+## [3.18.2](https://github.com/lightdash/lightdash/compare/3.18.1...3.18.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** keep a filter's default when Required goes off ([#31350](https://github.com/lightdash/lightdash/issues/31350)) ([3ae9815](https://github.com/lightdash/lightdash/commit/3ae9815b020fc75a6f66a4f8e7ba2a7d0848899f))
+
 ## [3.18.1](https://github.com/lightdash/lightdash/compare/3.18.0...3.18.1) (2026-10-21)
 
 
