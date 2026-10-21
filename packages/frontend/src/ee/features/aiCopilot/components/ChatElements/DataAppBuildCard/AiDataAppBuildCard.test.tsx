@@ -119,6 +119,7 @@ const app = (
     hasMore: false,
     latestReadyVersion:
         versions.find((v) => v.status === 'ready')?.version ?? null,
+    latestReadyVersionUsesAiAnalysis: null,
     icon: null,
     verification: null,
     autoAnalysis: 'inherit',

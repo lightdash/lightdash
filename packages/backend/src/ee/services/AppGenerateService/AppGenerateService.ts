@@ -10203,6 +10203,7 @@ export class AppGenerateService extends BaseService {
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        latestReadyVersionUsesAiAnalysis: boolean | null;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
@@ -10254,6 +10255,21 @@ export class AppGenerateService extends BaseService {
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        // Whether that version wires up AI analysis, from the same cached
+        // source scan as data references (lazily re-extracted on extractor
+        // bumps). Null when there is no ready version or the scan failed —
+        // a scan failure must never fail the app read itself.
+        const latestReadyDataReferences = latestReady
+            ? await this.getVersionDataReferences(
+                  appUuid,
+                  latestReady.version,
+              ).catch((error) => {
+                  this.logger.warn(
+                      `App ${appUuid}: failed to read data references for version ${latestReady.version}: ${getErrorMessage(error)}`,
+                  );
+                  return null;
+              })
+            : null;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -10340,6 +10356,8 @@ export class AppGenerateService extends BaseService {
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            latestReadyVersionUsesAiAnalysis:
+                latestReadyDataReferences?.usesAiAnalysis ?? null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
@@ -13139,6 +13157,7 @@ export class AppGenerateService extends BaseService {
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
+            usesAiAnalysis: extracted.usesAiAnalysis,
         };
     }
 
