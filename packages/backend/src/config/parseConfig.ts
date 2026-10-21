@@ -1408,6 +1408,8 @@ export const getAiConfig = () => ({
                   deploymentSupportsReasoning:
                       process.env.AZURE_AI_DEPLOYMENT_SUPPORTS_REASONING ===
                       'true',
+                  reasoningEffort:
+                      process.env.AZURE_AI_REASONING_EFFORT || null,
                   embeddingDeploymentName:
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:

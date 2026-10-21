@@ -41,12 +41,18 @@ export const getAzureGpt41Model = (
             // @ts-expect-error - provider should be set to openai for azure
             openai: {
                 // strictJsonSchema: provider default is true
-                ...(reasoningEnabled &&
-                    getReasoningProviderOptions({
+                ...(reasoningEnabled && {
+                    ...getReasoningProviderOptions({
                         useChatCompletions: config.useChatCompletions,
                         responsesEffort: 'medium',
                         includeSummary: true,
-                    })),
+                    }),
+                    // Deployment names don't reveal the model, so operators pin
+                    // the effort their model accepts (gpt-5-mini rejects 'none').
+                    ...(config.reasoningEffort && {
+                        reasoningEffort: config.reasoningEffort,
+                    }),
+                }),
             },
         },
     };

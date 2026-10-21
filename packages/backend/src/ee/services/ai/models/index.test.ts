@@ -85,6 +85,7 @@ const azureCopilotConfig = (
             apiVersion: '2025-01-01',
             deploymentName: 'current-deployment',
             deploymentSupportsReasoning: false,
+            reasoningEffort: null,
             embeddingDeploymentName: 'embedding',
             useDeploymentBasedUrls: true,
             useChatCompletions: false,
@@ -381,6 +382,32 @@ describe('getModel', () => {
         expect(body.reasoning).toBeUndefined();
     });
 
+    it('sends a configured Azure reasoning effort instead of the Chat Completions default', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentSupportsReasoning: true,
+                useChatCompletions: true,
+                reasoningEffort: 'minimal',
+            }),
+        );
+
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning_effort).toBe('minimal');
+    });
+
+    it('sends a configured Azure reasoning effort on the Responses API', async () => {
+        const { model, providerOptions } = getModel(
+            azureCopilotConfig({
+                deploymentName: 'gpt-5.5',
+                deploymentSupportsReasoning: true,
+                reasoningEffort: 'low',
+            }),
+        );
+
+        const { body } = await captureModelRequest(model, providerOptions);
+        expect(body.reasoning).toEqual({ effort: 'low', summary: 'auto' });
+    });
+
     it('does not wrap the model when the provider supports streaming', () => {
         getModel(copilotConfigWithStreaming(true));
 
@@ -424,6 +451,7 @@ describe('getModel', () => {
                         apiVersion: '2025-01-01',
                         deploymentName: 'current-deployment',
                         deploymentSupportsReasoning: false,
+                        reasoningEffort: null,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
                         useChatCompletions: false,
@@ -511,6 +539,7 @@ describe('getModel', () => {
                         apiVersion: '2025-01-01',
                         deploymentName: 'configured-deployment',
                         deploymentSupportsReasoning: false,
+                        reasoningEffort: null,
                         embeddingDeploymentName: 'embedding',
                         useDeploymentBasedUrls: true,
                         useChatCompletions: false,
