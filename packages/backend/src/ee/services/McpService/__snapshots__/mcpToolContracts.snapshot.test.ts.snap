@@ -353,15 +353,23 @@ Usage Tips:
       "description": "Tool: grep_fields
 
 Purpose:
-Find which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore.
+Find which explores and fields can answer a data question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). grep_fields tells you which fields exist; get_metadata gives the detail needed to query them.
 
-Use this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this for questions about existing dashboards/charts (use find_content).
+When to use:
+- Use this as the first step of a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use find_content instead.
 
-Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+Inputs:
+- Each pattern is a case-insensitive keyword pattern, not a full regex: use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status").
+- Pass 1–5 patterns in a SINGLE call, covering every angle of the question at once (e.g. ["revenue|sales", "country|region", "segment|tier"]). They run together, so you see all results in one step instead of grepping one pattern at a time.
+- Use short, meaningful keywords; long natural-language phrases do not match.
 
-A description or hint ending in "...(truncated)" is incomplete — call get_metadata to read the full text before using that field.
+Returns:
+Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+- A description or hint ending in "...(truncated)" is incomplete; read the full text with get_metadata before using that field.
+- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters: what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Read the parameter definitions with get_metadata on its explore before querying such a field.
 
-A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call get_metadata on its explore to see the parameter definitions before querying such a field.
+Recovery:
+When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -822,13 +830,21 @@ A field annotated with \`⚠params: <names>\` depends on those Lightdash paramet
       "description": "Tool: get_metadata
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+Get the full metadata for explores and fields whose IDs you already know, typically from grep_fields. grep_fields tells you which fields exist; get_metadata gives the detail you need to build a correct query: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
-Call this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+When to use:
+Call this once you have narrowed down to the explore(s) and field(s) you intend to use, before building the query. Batch every explore and field you need into a SINGLE call instead of one request per item. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
+Inputs:
 Each entry in \`requests\` is one of:
 - \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
 - \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+
+Applying the result:
+- Table filters marked \`required\` apply to every query on the explore, but their operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST use a compatible filter on the same field or a derived time dimension of it, replacing the default: if \`created_at inThePast [4 weeks]\` is required and the user asks for ten months, use \`created_at inThePast [10 months]\`. A required default is not a modelling limitation or a reason to switch to saved chart results.
+- Table filters marked \`suggested\` are soft defaults: apply them unless the user asks for a different range or scope.
+- Use a metric's default time dimension unless the user asks for a different one.
+- A field with required parameters returns different results depending on the parameter values the query runs with; unset parameters resolve to their default.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7566,6 +7582,10 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
 - When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
+
+Reading the result:
+- The values describe observed data, not the permitted filter literals. When the user explicitly names a value to exclude, keep that exclusion in the executed query even when this search finds no matching rows, and say it currently removes no rows; do not drop it or substitute a different category.
+- When the intended category needs interpretation rather than a literal match, clarify it with the user before filtering.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13773,6 +13793,10 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
 - Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. Before writing filter expressions, read the \`filter-expressions\` skill.
+
+Reading the result:
+- The values describe observed data, not the permitted filter literals. When the user explicitly names a value to exclude, keep that exclusion in the executed query even when this search finds no matching rows, and say it currently removes no rows; do not drop it or substitute a different category.
+- When the intended category needs interpretation rather than a literal match, clarify it with the user before filtering.
 ",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",

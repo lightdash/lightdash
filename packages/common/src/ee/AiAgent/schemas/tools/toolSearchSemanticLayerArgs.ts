@@ -14,7 +14,7 @@ Search or list metrics and dimensions across the ENTIRE semantic layer (every ex
 - "audit / inventory the semantic layer"
 - "which explores define a 'revenue' metric?"
 
-Unlike findFields (which requires a specific explore) and findExplores (a keyword search over explores), this tool returns a flat, paginated inventory of fields drawn from all explores, so you can compare definitions across the whole project without enumerating explores one by one.
+Unlike grepFields (a keyword grep that returns the matching fields grouped by explore), this tool returns a flat, paginated inventory of fields drawn from all explores, so you can compare definitions across the whole project without enumerating explores one by one.
 
 Parameters:
 - searchQuery: Optional keyword to full-text search field names, labels and descriptions. Leave null/empty to list the full inventory.

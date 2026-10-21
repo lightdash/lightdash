@@ -13,8 +13,15 @@ export const getExportChartAsCode = (
     artifacts?: ArtifactChartExportAccess,
 ) =>
     tool({
-        description:
-            'Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Always call this tool for chart YAML; never reconstruct YAML yourself. For charts generated in this turn pass queryUuid from generateVisualization and null artifact identifiers. For an existing chart in this conversation, use its exact artifactUuid and versionUuid with null queryUuid. If these identifiers are unknown, pass null for all three source identifiers to list available artifacts first; never regenerate the chart just to export it. Never invent or use placeholder UUIDs. Supports built-in semantic, merged and pinned custom charts; use content tools for other sources. Pass null for an unspecified destination slug or spaceSlug: the tool will report exactly what is missing so you can ask the user. Never search content to infer a destination.',
+        description: `Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content.
+
+When to use: whenever the user wants chart YAML. You MUST call this tool for chart YAML; never write or reconstruct YAML yourself. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
+
+Inputs:
+- Source: for a chart generated in this turn, pass its queryUuid from generateVisualization and null artifactUuid and versionUuid. For a chart from an earlier turn, pass its exact artifactUuid and versionUuid with null queryUuid. When those identifiers are unknown, pass null for all three to list the conversation's artifacts first. Never invent or use placeholder UUIDs.
+- Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
+
+Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it reports exactly which one, so you can ask the user. Never search content to infer a destination, and never regenerate the chart or rerun its query just to export it.`,
         inputSchema: z.object({
             queryUuid: z.string().uuid().nullable().optional(),
             artifactUuid: z.string().uuid().nullable().optional(),

@@ -1,6 +1,7 @@
 import {
     buildAgentRunSqlDescription,
     createToolRunSqlArgsSchema,
+    getRunSqlDefaultLimit,
     isSlackPrompt,
     RUN_SQL_PREVIEW_ROW_LIMIT,
     runSqlToolDefinition,
@@ -188,7 +189,10 @@ export const getRunSql = ({
     );
 
     return tool({
-        description: buildAgentRunSqlDescription(500, maxQueryLimit),
+        description: buildAgentRunSqlDescription(
+            getRunSqlDefaultLimit(maxQueryLimit),
+            maxQueryLimit,
+        ),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,

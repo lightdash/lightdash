@@ -9,12 +9,6 @@ import {
     type AiFilterExample,
 } from '@lightdash/common';
 
-export const STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'Set `filters` to null when no additional scope is needed. If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
-
-export const EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'Omit `filters` when the search is unscoped. When present, `filters` scopes the candidate-value search and is one raw, flat, dimension-only AND expression.';
-
 export const STRUCTURED_FILTER_GUIDANCE_SECTION = `## Time-based filtering
 
 If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), you MUST add an explicit filter on a date dimension in \`filters.dimensions\`. Describing the window in the response or sorting + limiting is not a substitute — sparse data will produce wrong results.

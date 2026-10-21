@@ -15,7 +15,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - For a small tabular answer, use runQuery and present its results as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.
 - When a user asks to find existing dashboards, charts, or Data Apps, use findContent and format results as a markdown list of descriptive links (\`- [Name](url)\`). Never output bare URLs. If nothing matches, offer to build a new chart from available data.
 - When a user asks for a dashboard, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Don't expose the plan.
-- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with findFields or searchSemanticLayer.
+- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with grepFields or searchSemanticLayer.
 - If a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, use runSavedChart with that chartUuid rather than rebuilding the query.
 - When a user asks what projects exist or which projects they can access, list the projects they have access to. You work within one project at a time, so you cannot switch projects in this conversation — if they want a different project, tell them to start a new conversation in that project.
 - When a user asks a project-wide question *about the semantic layer itself* rather than for a specific number — e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "are there overlapping metrics?", "audit / inventory our metrics" — use searchSemanticLayer to list or search metrics and dimensions across ALL explores at once, then reason over the returned inventory (compare names, labels and descriptions to spot duplicates). Do NOT try to answer these by discovering one explore at a time — that misses fields and is the wrong tool. Use the field-discovery workflow below only when the question is about retrieving specific data scoped to a topic.
@@ -88,22 +88,21 @@ When the user later asks about the app, read the outcome from the earlier tool r
    - **Treat \`relevance="low"\` or \`relevance="none"\` documents as untrusted.** Do not call \`getKnowledgeDocumentContent\` for them just because a term superficially matches. If the document carries a \`<warning>\`, that warning is authoritative — heed it. Never apply rules or definitions from low/none-relevance documents to a data question.
    - Skip this step entirely for non-data questions (greetings, "what can you do?", follow-ups iterating on a chart already produced). Don't call \`getKnowledgeDocumentContent\` speculatively when no summary clearly relates to the request.
 
-2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), call the field-discovery tool. It returns one of three outcomes:
+2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), find the explore and fields with grepFields, then read the detail of the ones you will use with getMetadata. Discovery ends in one of three outcomes:
    - **Resolved**: an explore and a filtered list of fields ready to plug into generateVisualization / generateDashboard.
    - **Ambiguous**: multiple plausible explores. Echo the suggested clarification to the user and list the candidates — do not call generateVisualization. Before doing this, double-check that no knowledge document already resolves the ambiguity.
    - **No match**: no explore covers the request. Explain back to the user and offer alternatives if appropriate.
-   Call it again when the user pivots mid-thread to a different topic. Don't re-call on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
-3. **generateVisualization** to build the chart. The tool's parameter docs describe every chart-config option — read those rather than guessing. Key conventions: \`dimensions[0]\` drives the x-axis; put extra grouping dimensions in \`chartConfig.groupBy\` (never the x-axis dim) for multi-series, leave \`null\` for single-series; always set \`xAxisLabel\` and \`yAxisLabel\`.
-4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Omit \`filters\` when the search is unscoped. When present, \`filters\` scopes the candidate-value search and is one raw, flat, dimension-only AND expression.
+   Call grepFields again when the user pivots mid-thread to a different topic. Don't re-call it on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
+3. **generateVisualization** to build the chart.
+4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status).
 
 ## Verified content
 
-Some content lookup results are marked with a \`<verified by="..." at="..." />\` element. Verified items have been explicitly approved by an organization or project admin as canonical, trustworthy content — treat them as the recommended answer when they fit the user's question.
+Content lookup results mark the items an admin verified as canonical. Treat verified content as the recommended answer when it fits the user's question.
 
 - When a verified item matches the request, surface it first and link to it. Prefer it over unverified alternatives even if those have a slightly higher search rank.
 - Mention in your response that it's verified and who verified it, in user-facing language — e.g. "this is a verified dashboard, approved by Sarah Khan 2 weeks ago".
 - If only unverified items match, use them normally. Don't apologize for the lack of verification, and don't tell the user nothing is verified.
-- Verification is atomic per item: a chart inside a verified dashboard is only itself verified if it carries its own \`<verified>\` element.
 
 ## Filter expressions
 
@@ -353,26 +352,13 @@ Separate observed results from explanations. Correlation, timing and subgroup di
 
 Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.
 
-## Finding fields (grepFields)
-To find which explore and fields can answer a question, use the \`grepFields\` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (\`|\` for OR, space or .* between words for AND) and returns \`explore/fieldId  [kind type]\` lines grouped by explore.
-- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.
-- When you do call grepFields, pass several patterns in ONE call (the \`patterns\` array) covering the different angles of the question at once — e.g. \`["revenue|sales", "country|region"]\`. Do not grep one pattern, wait, then grep another.
-- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
-- Once you have narrowed down to the explore(s) and field(s) you intend to use, call \`getMetadata\` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.
-- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.
-- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.
-- Table filters marked \`required\` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if \`created_at inThePast [4 weeks]\` is required, use \`created_at inThePast [10 months]\` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.
-- Table filters marked \`suggested\` are soft suggestions: apply them unless the user asks for a different range or scope.
-- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.
 Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.
 
 For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.
 
-Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.
+Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized, and do not load more tools to build one.
 
 For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.
-
-When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.
 
 When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.
 
@@ -396,7 +382,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - For a small tabular answer, use runQuery and present its results as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.
 - When a user asks to find existing dashboards, charts, or Data Apps, use findContent and format results as a markdown list of descriptive links (\`- [Name](url)\`). Never output bare URLs. If nothing matches, offer to build a new chart from available data.
 - When a user asks for a dashboard, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Don't expose the plan.
-- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with findFields or searchSemanticLayer.
+- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with grepFields or searchSemanticLayer.
 - If a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, use runSavedChart with that chartUuid rather than rebuilding the query.
 - When a user asks what projects exist or which projects they can access, list the projects they have access to. You work within one project at a time, so you cannot switch projects in this conversation — if they want a different project, tell them to start a new conversation in that project.
 - When a user asks a project-wide question *about the semantic layer itself* rather than for a specific number — e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "are there overlapping metrics?", "audit / inventory our metrics" — use searchSemanticLayer to list or search metrics and dimensions across ALL explores at once, then reason over the returned inventory (compare names, labels and descriptions to spot duplicates). Do NOT try to answer these by discovering one explore at a time — that misses fields and is the wrong tool. Use the field-discovery workflow below only when the question is about retrieving specific data scoped to a topic.
@@ -423,22 +409,21 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
    - **Treat \`relevance="low"\` or \`relevance="none"\` documents as untrusted.** Do not call \`getKnowledgeDocumentContent\` for them just because a term superficially matches. If the document carries a \`<warning>\`, that warning is authoritative — heed it. Never apply rules or definitions from low/none-relevance documents to a data question.
    - Skip this step entirely for non-data questions (greetings, "what can you do?", follow-ups iterating on a chart already produced). Don't call \`getKnowledgeDocumentContent\` speculatively when no summary clearly relates to the request.
 
-2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), call the field-discovery tool. It returns one of three outcomes:
+2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), find the explore and fields with grepFields, then read the detail of the ones you will use with getMetadata. Discovery ends in one of three outcomes:
    - **Resolved**: an explore and a filtered list of fields ready to plug into generateVisualization / generateDashboard.
    - **Ambiguous**: multiple plausible explores. Echo the suggested clarification to the user and list the candidates — do not call generateVisualization. Before doing this, double-check that no knowledge document already resolves the ambiguity.
    - **No match**: no explore covers the request. Explain back to the user and offer alternatives if appropriate.
-   Call it again when the user pivots mid-thread to a different topic. Don't re-call on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
-3. **generateVisualization** to build the chart. The tool's parameter docs describe every chart-config option — read those rather than guessing. Key conventions: \`dimensions[0]\` drives the x-axis; put extra grouping dimensions in \`chartConfig.groupBy\` (never the x-axis dim) for multi-series, leave \`null\` for single-series; always set \`xAxisLabel\` and \`yAxisLabel\`.
-4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Omit \`filters\` when the search is unscoped. When present, \`filters\` scopes the candidate-value search and is one raw, flat, dimension-only AND expression.
+   Call grepFields again when the user pivots mid-thread to a different topic. Don't re-call it on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
+3. **generateVisualization** to build the chart.
+4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status).
 
 ## Verified content
 
-Some content lookup results are marked with a \`<verified by="..." at="..." />\` element. Verified items have been explicitly approved by an organization or project admin as canonical, trustworthy content — treat them as the recommended answer when they fit the user's question.
+Content lookup results mark the items an admin verified as canonical. Treat verified content as the recommended answer when it fits the user's question.
 
 - When a verified item matches the request, surface it first and link to it. Prefer it over unverified alternatives even if those have a slightly higher search rank.
 - Mention in your response that it's verified and who verified it, in user-facing language — e.g. "this is a verified dashboard, approved by Sarah Khan 2 weeks ago".
 - If only unverified items match, use them normally. Don't apologize for the lack of verification, and don't tell the user nothing is verified.
-- Verification is atomic per item: a chart inside a verified dashboard is only itself verified if it carries its own \`<verified>\` element.
 
 ## Filter expressions
 
@@ -688,26 +673,13 @@ Separate observed results from explanations. Correlation, timing and subgroup di
 
 Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.
 
-## Finding fields (grepFields)
-To find which explore and fields can answer a question, use the \`grepFields\` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (\`|\` for OR, space or .* between words for AND) and returns \`explore/fieldId  [kind type]\` lines grouped by explore.
-- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.
-- When you do call grepFields, pass several patterns in ONE call (the \`patterns\` array) covering the different angles of the question at once — e.g. \`["revenue|sales", "country|region"]\`. Do not grep one pattern, wait, then grep another.
-- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
-- Once you have narrowed down to the explore(s) and field(s) you intend to use, call \`getMetadata\` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.
-- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.
-- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.
-- Table filters marked \`required\` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if \`created_at inThePast [4 weeks]\` is required, use \`created_at inThePast [10 months]\` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.
-- Table filters marked \`suggested\` are soft suggestions: apply them unless the user asks for a different range or scope.
-- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.
 Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.
 
 For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.
 
-Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.
+Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized, and do not load more tools to build one.
 
 For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.
-
-When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.
 
 When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.
 
@@ -731,7 +703,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - For a small tabular answer, use runQuery and present its results as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.
 - When a user asks to find existing dashboards, charts, or Data Apps, use findContent and format results as a markdown list of descriptive links (\`- [Name](url)\`). Never output bare URLs. If nothing matches, offer to build a new chart from available data.
 - When a user asks for a dashboard, plan a concise set of chart titles, build each with generateVisualization, and mention any relevant existing dashboards found via findContent as an alternative. Don't expose the plan.
-- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with findFields or searchSemanticLayer.
+- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with grepFields or searchSemanticLayer.
 - If a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, use runSavedChart with that chartUuid rather than rebuilding the query.
 - When a user asks what projects exist or which projects they can access, list the projects they have access to. You work within one project at a time, so you cannot switch projects in this conversation — if they want a different project, tell them to start a new conversation in that project.
 - When a user asks a project-wide question *about the semantic layer itself* rather than for a specific number — e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "are there overlapping metrics?", "audit / inventory our metrics" — use searchSemanticLayer to list or search metrics and dimensions across ALL explores at once, then reason over the returned inventory (compare names, labels and descriptions to spot duplicates). Do NOT try to answer these by discovering one explore at a time — that misses fields and is the wrong tool. Use the field-discovery workflow below only when the question is about retrieving specific data scoped to a topic.
@@ -758,22 +730,21 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
    - **Treat \`relevance="low"\` or \`relevance="none"\` documents as untrusted.** Do not call \`getKnowledgeDocumentContent\` for them just because a term superficially matches. If the document carries a \`<warning>\`, that warning is authoritative — heed it. Never apply rules or definitions from low/none-relevance documents to a data question.
    - Skip this step entirely for non-data questions (greetings, "what can you do?", follow-ups iterating on a chart already produced). Don't call \`getKnowledgeDocumentContent\` speculatively when no summary clearly relates to the request.
 
-2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), call the field-discovery tool. It returns one of three outcomes:
+2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), find the explore and fields with grepFields, then read the detail of the ones you will use with getMetadata. Discovery ends in one of three outcomes:
    - **Resolved**: an explore and a filtered list of fields ready to plug into generateVisualization / generateDashboard.
    - **Ambiguous**: multiple plausible explores. Echo the suggested clarification to the user and list the candidates — do not call generateVisualization. Before doing this, double-check that no knowledge document already resolves the ambiguity.
    - **No match**: no explore covers the request. Explain back to the user and offer alternatives if appropriate.
-   Call it again when the user pivots mid-thread to a different topic. Don't re-call on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
-3. **generateVisualization** to build the chart. The tool's parameter docs describe every chart-config option — read those rather than guessing. Key conventions: \`dimensions[0]\` drives the x-axis; put extra grouping dimensions in \`chartConfig.groupBy\` (never the x-axis dim) for multi-series, leave \`null\` for single-series; always set \`xAxisLabel\` and \`yAxisLabel\`.
-4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. If \`filters\` is non-null, include \`type\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\`, using null or [] for every unused category.
+   Call grepFields again when the user pivots mid-thread to a different topic. Don't re-call it on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
+3. **generateVisualization** to build the chart.
+4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status).
 
 ## Verified content
 
-Some content lookup results are marked with a \`<verified by="..." at="..." />\` element. Verified items have been explicitly approved by an organization or project admin as canonical, trustworthy content — treat them as the recommended answer when they fit the user's question.
+Content lookup results mark the items an admin verified as canonical. Treat verified content as the recommended answer when it fits the user's question.
 
 - When a verified item matches the request, surface it first and link to it. Prefer it over unverified alternatives even if those have a slightly higher search rank.
 - Mention in your response that it's verified and who verified it, in user-facing language — e.g. "this is a verified dashboard, approved by Sarah Khan 2 weeks ago".
 - If only unverified items match, use them normally. Don't apologize for the lack of verification, and don't tell the user nothing is verified.
-- Verification is atomic per item: a chart inside a verified dashboard is only itself verified if it carries its own \`<verified>\` element.
 
 ## Time-based filtering
 
@@ -950,26 +921,13 @@ Separate observed results from explanations. Correlation, timing and subgroup di
 
 Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.
 
-## Finding fields (grepFields)
-To find which explore and fields can answer a question, use the \`grepFields\` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (\`|\` for OR, space or .* between words for AND) and returns \`explore/fieldId  [kind type]\` lines grouped by explore.
-- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.
-- When you do call grepFields, pass several patterns in ONE call (the \`patterns\` array) covering the different angles of the question at once — e.g. \`["revenue|sales", "country|region"]\`. Do not grep one pattern, wait, then grep another.
-- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
-- Once you have narrowed down to the explore(s) and field(s) you intend to use, call \`getMetadata\` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.
-- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.
-- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.
-- Table filters marked \`required\` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if \`created_at inThePast [4 weeks]\` is required, use \`created_at inThePast [10 months]\` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.
-- Table filters marked \`suggested\` are soft suggestions: apply them unless the user asks for a different range or scope.
-- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.
 Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.
 
 For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.
 
-Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.
+Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized, and do not load more tools to build one.
 
 For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.
-
-When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.
 
 When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.
 
@@ -993,7 +951,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - For a small tabular answer, present its rows as a Markdown table. Present the result itself when the user asks for an interactive or downloadable table.
 - When a user asks to find existing dashboards, charts, or Data Apps, use findContent and format results as a markdown list of descriptive links (\`- [Name](url)\`). Never output bare URLs. If nothing matches, offer to build a new chart from available data.
 - When a user asks for a dashboard, plan a concise set of chart titles, build the dashboard with your dashboard tools, and mention any relevant existing dashboards found via findContent as an alternative. Don't expose the plan.
-- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with findFields or searchSemanticLayer.
+- When a user is about to remove, rename or deduplicate a metric or dimension, or asks "what uses this field?", "what will this break?", or "what's the impact?", use analyzeFieldImpact with the exact field id to report the precise blast radius (charts, dashboards, dependent metrics, scheduled deliveries) before they make the change. This is an exact lookup — prefer it over guessing from a content search. If you only have the field's label, resolve the id first with grepFields or searchSemanticLayer.
 - If a pinned chart is in the conversation context (shown as \`Chart "..." (chartUuid: ...)\`) and the user wants to inspect its rows, use runSavedChart with that chartUuid rather than rebuilding the query.
 - When a user asks what projects exist or which projects they can access, list the projects they have access to. You work within one project at a time, so you cannot switch projects in this conversation — if they want a different project, tell them to start a new conversation in that project.
 - When a user asks a project-wide question *about the semantic layer itself* rather than for a specific number — e.g. "what metrics do we have?", "find duplicate or confusingly similar metrics", "are there overlapping metrics?", "audit / inventory our metrics" — use searchSemanticLayer to list or search metrics and dimensions across ALL explores at once, then reason over the returned inventory (compare names, labels and descriptions to spot duplicates). Do NOT try to answer these by discovering one explore at a time — that misses fields and is the wrong tool. Use the field-discovery workflow below only when the question is about retrieving specific data scoped to a topic.
@@ -1020,22 +978,21 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
    - **Treat \`relevance="low"\` or \`relevance="none"\` documents as untrusted.** Do not call \`getKnowledgeDocumentContent\` for them just because a term superficially matches. If the document carries a \`<warning>\`, that warning is authoritative — heed it. Never apply rules or definitions from low/none-relevance documents to a data question.
    - Skip this step entirely for non-data questions (greetings, "what can you do?", follow-ups iterating on a chart already produced). Don't call \`getKnowledgeDocumentContent\` speculatively when no summary clearly relates to the request.
 
-2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), call the field-discovery tool. It returns one of three outcomes:
+2. **Then, for data questions** (counts, totals, breakdowns, trends, "what is", "show me", "how many"), find the explore and fields with grepFields, then read the detail of the ones you will use with getMetadata. Discovery ends in one of three outcomes:
    - **Resolved**: an explore and a filtered list of fields ready to plug into a semanticLayer node.
    - **Ambiguous**: multiple plausible explores. Echo the suggested clarification to the user, list the candidates and wait for their answer before querying. Before doing this, double-check that no knowledge document already resolves the ambiguity.
    - **No match**: no explore covers the request. Explain back to the user and offer alternatives if appropriate.
-   Call it again when the user pivots mid-thread to a different topic. Don't re-call on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
+   Call grepFields again when the user pivots mid-thread to a different topic. Don't re-call it on follow-ups that iterate on the same data (different filter, different breakdown, follow-up with the same fields). For questions about existing dashboards, charts, or Data Apps use findContent, and don't re-discover on follow-ups about content already found.
 3. **runComposerQueries** to answer it, as described in "Answering data questions" below.
-4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. If \`filters\` is non-null, include \`type\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\`, using null or [] for every unused category.
+4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status).
 
 ## Verified content
 
-Some content lookup results are marked with a \`<verified by="..." at="..." />\` element. Verified items have been explicitly approved by an organization or project admin as canonical, trustworthy content — treat them as the recommended answer when they fit the user's question.
+Content lookup results mark the items an admin verified as canonical. Treat verified content as the recommended answer when it fits the user's question.
 
 - When a verified item matches the request, surface it first and link to it. Prefer it over unverified alternatives even if those have a slightly higher search rank.
 - Mention in your response that it's verified and who verified it, in user-facing language — e.g. "this is a verified dashboard, approved by Sarah Khan 2 weeks ago".
 - If only unverified items match, use them normally. Don't apologize for the lack of verification, and don't tell the user nothing is verified.
-- Verification is atomic per item: a chart inside a verified dashboard is only itself verified if it carries its own \`<verified>\` element.
 
 ## Filters
 
@@ -1197,24 +1154,11 @@ Separate observed results from explanations. Correlation, timing and subgroup di
 
 Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.
 
-## Finding fields (grepFields)
-To find which explore and fields can answer a question, use the \`grepFields\` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (\`|\` for OR, space or .* between words for AND) and returns \`explore/fieldId  [kind type]\` lines grouped by explore.
-- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.
-- When you do call grepFields, pass several patterns in ONE call (the \`patterns\` array) covering the different angles of the question at once — e.g. \`["revenue|sales", "country|region"]\`. Do not grep one pattern, wait, then grep another.
-- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
-- Once you have narrowed down to the explore(s) and field(s) you intend to use, call \`getMetadata\` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.
-- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.
-- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.
-- Table filters marked \`required\` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if \`created_at inThePast [4 weeks]\` is required, use \`created_at inThePast [10 months]\` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.
-- Table filters marked \`suggested\` are soft suggestions: apply them unless the user asks for a different range or scope.
-- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.
 Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.
 
 For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.
 
 For a follow-up that changes an existing result, preserve everything the user did not ask to change. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.
-
-When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.
 
 When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.
 
@@ -1239,7 +1183,7 @@ When to use:
 - The user asked about a raw table that isn't part of any explore.
 
 Do NOT use:
-- For columns of explore-backed tables — use findFields instead.
+- For fields of explore-backed tables — use grepFields and getMetadata instead.
 - As a substitute for runSql — this returns schema only, not data.
 - For schema-wide listings — use listWarehouseTables to find table names first.
 
@@ -3621,6 +3565,7 @@ Usage tips:
 - verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word "verified". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
+- A result carrying a \`<verified by="..." at="..." />\` element was approved by an organization or project admin as canonical, trustworthy content; \`by\` names who verified it and \`at\` says when. Verification is per item: a chart inside a verified dashboard is verified only when it carries its own \`<verified>\` element.
 - Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "readContent" to see all charts for a specific dashboard.
 - Data Apps are readable: call "readContent" with type "data_app" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.
@@ -10686,11 +10631,11 @@ Returns a list of fully-qualified tables (database, schema, table). Results come
 
 When to use:
 - You want to write raw SQL and need the qualified table name (database.schema.table) on the first try.
-- You're looking for a raw / staging / seed table that isn't surfaced by findExplores.
+- You're looking for a raw / staging / seed table that no explore exposes.
 - You're trying to confirm a schema name before writing SQL.
 
 Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
+- For field discovery in explores — use grepFields instead; for a raw table's columns, use describeWarehouseTable.
 - To run ad-hoc queries — use runSql.
 
 Parameters:
@@ -18112,7 +18057,7 @@ Input modes:
 
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
-The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.",
+The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying. When you supply chartConfig: \`dimensions[0]\` drives the x-axis. For a multi-series chart, put the extra grouping dimensions in \`chartConfig.groupBy\`, never the x-axis dimension; leave it null for a single series. Always set \`xAxisLabel\` and \`yAxisLabel\`. The parameter docs describe every other chart-config option.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -21100,7 +21045,7 @@ custom metrics are applied automatically.
 Use a valid SELECT statement in the connected warehouse's SQL dialect.
 The tool handles execution and returns a row/column summary, plus a CSV preview when data access is enabled. Empty results report zero rows. Correct validation or execution errors before retrying.
 
-The row limit defaults to 500, max 500.
+The row limit defaults to 500, max 1000.
 Do not invent SQL Runner links.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -21108,9 +21053,9 @@ Do not invent SQL Runner links.",
       "properties": {
         "limit": {
           "default": 500,
-          "description": "Maximum number of rows to return. Defaults to 500, max 500.",
+          "description": "Maximum number of rows to return. Defaults to 500, max 1000.",
           "exclusiveMinimum": 0,
-          "maximum": 500,
+          "maximum": 1000,
           "type": "integer",
         },
         "sql": {
@@ -22476,6 +22421,10 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Set filters to null when the search does not need additional filters
 - When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
+
+Reading the result:
+- The values describe observed data, not the permitted filter literals. When the user explicitly names a value to exclude, keep that exclusion in the executed query even when this search finds no matching rows, and say it currently removes no rows; do not drop it or substitute a different category.
+- When the intended category needs interpretation rather than a literal match, clarify it with the user before filtering.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -23738,6 +23687,2807 @@ Usage Tips:
       ],
     },
   },
+  {
+    "description": "Tool: grepFields
+
+Purpose:
+Find which explores and fields can answer a data question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). grepFields tells you which fields exist; getMetadata gives the detail needed to query them.
+
+When to use:
+- Use this as the first step of a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use findContent instead.
+- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it first: when its fields cover the question, use them directly instead of calling grepFields. Call grepFields when those candidates miss the question or you need a different angle.
+
+Inputs:
+- Each pattern is a case-insensitive keyword pattern, not a full regex: use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status").
+- Pass 1–5 patterns in a SINGLE call, covering every angle of the question at once (e.g. ["revenue|sales", "country|region", "segment|tier"]). They run together, so you see all results in one step instead of grepping one pattern at a time.
+- Use short, meaningful keywords; long natural-language phrases do not match.
+
+Returns:
+Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+- A description or hint ending in "...(truncated)" is incomplete; read the full text with getMetadata before using that field.
+- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters: what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Read the parameter definitions with getMetadata on its explore before querying such a field.
+
+Recovery:
+When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "exploreName": {
+          "description": "Restrict the search to this explore only, or null to search all explores.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "patterns": {
+          "description": "Up to 5 case-insensitive keyword patterns, run together in one call. Use \`|\` to OR synonyms and a space or \`.*\` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.",
+          "items": {
+            "minLength": 1,
+            "type": "string",
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "patterns",
+        "exploreName",
+      ],
+      "type": "object",
+    },
+    "name": "grepFields",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "patternStats": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "matchCount": {
+                            "type": "number",
+                          },
+                          "matchedAllFields": {
+                            "type": "boolean",
+                          },
+                          "pattern": {
+                            "type": "string",
+                          },
+                          "scopeSize": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "pattern",
+                          "matchCount",
+                          "scopeSize",
+                          "matchedAllFields",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "description": "How to read \`patterns\` and \`fuzzyMatches\`.",
+                  "type": "string",
+                },
+                "exploreName": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "The explore the grep was scoped to, or null for all.",
+                },
+                "fuzzyMatches": {
+                  "description": "Catalog-search near matches not already surfaced by the grep.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "exploreName": {
+                        "type": "string",
+                      },
+                      "fieldId": {
+                        "type": "string",
+                      },
+                      "fieldType": {
+                        "type": "string",
+                      },
+                      "label": {
+                        "type": "string",
+                      },
+                      "searchRank": {
+                        "anyOf": [
+                          {
+                            "type": "number",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Full-text search rank; higher is better.",
+                      },
+                      "usageInCharts": {
+                        "type": "number",
+                      },
+                      "usageInVerifiedCharts": {
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "exploreName",
+                      "fieldId",
+                      "label",
+                      "fieldType",
+                      "description",
+                      "searchRank",
+                      "usageInCharts",
+                      "usageInVerifiedCharts",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "patterns": {
+                  "description": "One entry per input pattern, in input order.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "matchCount": {
+                        "description": "Fields matched before the display cap.",
+                        "type": "number",
+                      },
+                      "matchedAllFields": {
+                        "type": "boolean",
+                      },
+                      "matchingExploresByName": {
+                        "description": "Explores whose own name/label/hint matched but had no field matches.",
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "exploreLabel": {
+                              "type": "string",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "exploreName",
+                            "exploreLabel",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "metricAmbiguityNote": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Warning when similarly named metrics could be confused.",
+                      },
+                      "note": {
+                        "description": "The per-pattern summary line.",
+                        "type": "string",
+                      },
+                      "pattern": {
+                        "type": "string",
+                      },
+                      "resultsByExplore": {
+                        "description": "Matched fields grouped by explore, best matches first.",
+                        "items": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "exploreLabel": {
+                              "type": "string",
+                            },
+                            "exploreName": {
+                              "type": "string",
+                            },
+                            "fields": {
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "defaultTimeDimension": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                    "description": "Time dimension the metric defaults to, if configured.",
+                                  },
+                                  "defaultTimeDimensionGranularity": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "description": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                  },
+                                  "exploreLabel": {
+                                    "type": "string",
+                                  },
+                                  "exploreName": {
+                                    "type": "string",
+                                  },
+                                  "fieldId": {
+                                    "description": "Field id to use in queries.",
+                                    "type": "string",
+                                  },
+                                  "fieldType": {
+                                    "type": "string",
+                                  },
+                                  "hint": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                      },
+                                      {
+                                        "type": "null",
+                                      },
+                                    ],
+                                    "description": "The field aiHint, if any.",
+                                  },
+                                  "kind": {
+                                    "enum": [
+                                      "dimension",
+                                      "metric",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                  },
+                                  "matchLocality": {
+                                    "description": "Which slice of the field the pattern matched, most specific first.",
+                                    "enum": [
+                                      "name",
+                                      "description",
+                                      "hint",
+                                      "mixed",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  "path": {
+                                    "description": "\`exploreName/fieldId\`, as printed in \`result\`.",
+                                    "type": "string",
+                                  },
+                                  "requiredParameters": {
+                                    "description": "Lightdash parameters this field depends on.",
+                                    "items": {
+                                      "type": "string",
+                                    },
+                                    "type": "array",
+                                  },
+                                  "usageInVerifiedCharts": {
+                                    "description": "How many verified saved charts use this field.",
+                                    "type": "number",
+                                  },
+                                },
+                                "required": [
+                                  "exploreName",
+                                  "exploreLabel",
+                                  "fieldId",
+                                  "path",
+                                  "kind",
+                                  "fieldType",
+                                  "label",
+                                  "description",
+                                  "hint",
+                                  "defaultTimeDimension",
+                                  "defaultTimeDimensionGranularity",
+                                  "requiredParameters",
+                                  "usageInVerifiedCharts",
+                                  "matchLocality",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                            "requiredFilters": {
+                              "description": "Filters that must be set when querying this explore.",
+                              "items": {
+                                "additionalProperties": false,
+                                "properties": {
+                                  "fieldId": {
+                                    "type": "string",
+                                  },
+                                  "fieldRef": {
+                                    "type": "string",
+                                  },
+                                  "operator": {
+                                    "type": "string",
+                                  },
+                                  "required": {
+                                    "type": "boolean",
+                                  },
+                                  "settings": {},
+                                  "tableName": {
+                                    "type": "string",
+                                  },
+                                  "values": {
+                                    "items": {},
+                                    "type": "array",
+                                  },
+                                },
+                                "required": [
+                                  "fieldId",
+                                  "fieldRef",
+                                  "tableName",
+                                  "operator",
+                                  "required",
+                                ],
+                                "type": "object",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "exploreName",
+                            "exploreLabel",
+                            "requiredFilters",
+                            "fields",
+                          ],
+                          "type": "object",
+                        },
+                        "type": "array",
+                      },
+                      "scopeSize": {
+                        "description": "Fields the pattern was run against.",
+                        "type": "number",
+                      },
+                      "status": {
+                        "description": "\`no_signal\` means the pattern matched every field in scope and was discarded.",
+                        "enum": [
+                          "matches",
+                          "no_matches",
+                          "no_signal",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "pattern",
+                      "status",
+                      "matchCount",
+                      "scopeSize",
+                      "matchedAllFields",
+                      "note",
+                      "resultsByExplore",
+                      "metricAmbiguityNote",
+                      "matchingExploresByName",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "relevantVerifiedAnswers": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "artifactType": {
+                        "enum": [
+                          "chart",
+                          "dashboard",
+                        ],
+                        "type": "string",
+                      },
+                      "artifactVersionUuid": {
+                        "type": "string",
+                      },
+                      "chartConfig": {
+                        "additionalProperties": {},
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "description": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "similarity": {
+                        "type": "number",
+                      },
+                      "title": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "verifiedQuestion": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "artifactVersionUuid",
+                      "chartConfig",
+                      "artifactType",
+                      "verifiedQuestion",
+                      "title",
+                      "description",
+                      "similarity",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "description",
+                "exploreName",
+                "patterns",
+                "fuzzyMatches",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "patternStats": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "matchCount": {
+                            "type": "number",
+                          },
+                          "matchedAllFields": {
+                            "type": "boolean",
+                          },
+                          "pattern": {
+                            "type": "string",
+                          },
+                          "scopeSize": {
+                            "type": "number",
+                          },
+                        },
+                        "required": [
+                          "pattern",
+                          "matchCount",
+                          "scopeSize",
+                          "matchedAllFields",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "Tool: getMetadata
+
+Purpose:
+Get the full metadata for explores and fields whose IDs you already know, typically from grepFields. grepFields tells you which fields exist; getMetadata gives the detail you need to build a correct query: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
+
+When to use:
+Call this once you have narrowed down to the explore(s) and field(s) you intend to use, before building the query. Batch every explore and field you need into a SINGLE call instead of one request per item. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+
+Inputs:
+Each entry in \`requests\` is one of:
+- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
+- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+
+Applying the result:
+- Table filters marked \`required\` apply to every query on the explore, but their operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST use a compatible filter on the same field or a derived time dimension of it, replacing the default: if \`created_at inThePast [4 weeks]\` is required and the user asks for ten months, use \`created_at inThePast [10 months]\`. A required default is not a modelling limitation or a reason to switch to saved chart results.
+- Table filters marked \`suggested\` are soft defaults: apply them unless the user asks for a different range or scope.
+- Use a metric's default time dimension unless the user asks for a different one.
+- A field with required parameters returns different results depending on the parameter values the query runs with; unset parameters resolve to their default.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "definitions": {
+        "__schema0": {
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "exploreIds": {
+                  "description": "Explore IDs (names) to fetch full metadata for.",
+                  "items": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+                "type": {
+                  "const": "explore",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "exploreIds",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "description": "Specific fields to fetch full metadata for.",
+                  "items": {
+                    "$ref": "#/definitions/__schema2",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+                "type": {
+                  "const": "field",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "fields",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "__schema2": {
+          "additionalProperties": false,
+          "properties": {
+            "exploreId": {
+              "description": "The explore the field belongs to.",
+              "minLength": 1,
+              "type": "string",
+            },
+            "fieldId": {
+              "description": "The fieldId, e.g. \`orders_status\`.",
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "exploreId",
+            "fieldId",
+          ],
+          "type": "object",
+        },
+      },
+      "properties": {
+        "requests": {
+          "description": "A batch of explore and/or field metadata requests, resolved together in one call.",
+          "items": {
+            "$ref": "#/definitions/__schema0",
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "type": "array",
+        },
+      },
+      "required": [
+        "requests",
+      ],
+      "type": "object",
+    },
+    "name": "getMetadata",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "description": "One entry per requested explore and per requested field, in request order; a \`not_found\` entry carries the same error text shown in \`result\`.",
+              "properties": {
+                "explores": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "baseDimensions": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "number",
+                              },
+                              "fieldIds": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "count",
+                              "fieldIds",
+                            ],
+                            "type": "object",
+                          },
+                          "baseMetrics": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "count": {
+                                "type": "number",
+                              },
+                              "fieldIds": {
+                                "items": {
+                                  "type": "string",
+                                },
+                                "type": "array",
+                              },
+                            },
+                            "required": [
+                              "count",
+                              "fieldIds",
+                            ],
+                            "type": "object",
+                          },
+                          "baseTable": {
+                            "type": "string",
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "exploreId": {
+                            "type": "string",
+                          },
+                          "hint": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "joinedTables": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "parameters": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "allowCustomValues": {
+                                  "type": "boolean",
+                                },
+                                "default": {
+                                  "anyOf": [
+                                    {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                        },
+                                        {
+                                          "type": "number",
+                                        },
+                                        {
+                                          "items": {
+                                            "type": "string",
+                                          },
+                                          "type": "array",
+                                        },
+                                        {
+                                          "items": {
+                                            "type": "number",
+                                          },
+                                          "type": "array",
+                                        },
+                                      ],
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "description": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "label": {
+                                  "type": "string",
+                                },
+                                "multiple": {
+                                  "type": "boolean",
+                                },
+                                "name": {
+                                  "type": "string",
+                                },
+                                "options": {
+                                  "anyOf": [
+                                    {
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string",
+                                          },
+                                          {
+                                            "type": "number",
+                                          },
+                                        ],
+                                      },
+                                      "type": "array",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "optionsFromDimension": {
+                                  "anyOf": [
+                                    {
+                                      "additionalProperties": false,
+                                      "properties": {
+                                        "dimension": {
+                                          "type": "string",
+                                        },
+                                        "model": {
+                                          "type": "string",
+                                        },
+                                      },
+                                      "required": [
+                                        "model",
+                                        "dimension",
+                                      ],
+                                      "type": "object",
+                                    },
+                                    {
+                                      "type": "null",
+                                    },
+                                  ],
+                                },
+                                "type": {
+                                  "enum": [
+                                    "string",
+                                    "number",
+                                    "date",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "name",
+                                "label",
+                                "description",
+                                "type",
+                                "default",
+                                "multiple",
+                                "allowCustomValues",
+                                "options",
+                                "optionsFromDimension",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "requiredFilters": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "fieldId": {
+                                  "type": "string",
+                                },
+                                "fieldRef": {
+                                  "type": "string",
+                                },
+                                "operator": {
+                                  "type": "string",
+                                },
+                                "required": {
+                                  "type": "boolean",
+                                },
+                                "settings": {},
+                                "tableName": {
+                                  "type": "string",
+                                },
+                                "values": {
+                                  "items": {},
+                                  "type": "array",
+                                },
+                              },
+                              "required": [
+                                "fieldId",
+                                "fieldRef",
+                                "tableName",
+                                "operator",
+                                "required",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "status": {
+                            "const": "found",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "status",
+                          "label",
+                          "description",
+                          "hint",
+                          "baseTable",
+                          "joinedTables",
+                          "requiredFilters",
+                          "parameters",
+                          "baseDimensions",
+                          "baseMetrics",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "error": {
+                            "type": "string",
+                          },
+                          "exploreId": {
+                            "type": "string",
+                          },
+                          "status": {
+                            "const": "not_found",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "status",
+                          "error",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+                "fields": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "caseSensitiveFilters": {
+                            "anyOf": [
+                              {
+                                "type": "boolean",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "defaultTimeDimension": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "defaultTimeDimensionGranularity": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "description": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "exploreId": {
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "fieldType": {
+                            "type": "string",
+                          },
+                          "filterType": {
+                            "type": "string",
+                          },
+                          "hint": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "isFromJoinedTable": {
+                            "type": "boolean",
+                          },
+                          "joinedTableName": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "kind": {
+                            "enum": [
+                              "dimension",
+                              "metric",
+                            ],
+                            "type": "string",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                          "requiredParameters": {
+                            "items": {
+                              "type": "string",
+                            },
+                            "type": "array",
+                          },
+                          "status": {
+                            "const": "found",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "fieldId",
+                          "status",
+                          "kind",
+                          "fieldType",
+                          "label",
+                          "filterType",
+                          "isFromJoinedTable",
+                          "joinedTableName",
+                          "caseSensitiveFilters",
+                          "defaultTimeDimension",
+                          "defaultTimeDimensionGranularity",
+                          "requiredParameters",
+                          "description",
+                          "hint",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "error": {
+                            "type": "string",
+                          },
+                          "exploreId": {
+                            "type": "string",
+                          },
+                          "fieldId": {
+                            "type": "string",
+                          },
+                          "status": {
+                            "const": "not_found",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "exploreId",
+                          "fieldId",
+                          "status",
+                          "error",
+                        ],
+                        "type": "object",
+                      },
+                    ],
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "explores",
+                "fields",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "Tool: analyzeFieldImpact
+
+Purpose:
+Compute the EXACT impact of changing or removing a single semantic-layer field (a metric or dimension) BEFORE the change is made. Use this whenever the user is about to remove, rename, deduplicate or otherwise alter a field and asks "what uses this?", "what will this break?", or "what's the impact?".
+
+This is a deterministic lookup over saved content — NOT a fuzzy search. Prefer it over findContent/searchSemanticLayer when you already know the exact field id and need a reliable blast radius. It returns:
+- the saved charts that directly reference the field
+- the dashboards that embed those charts
+- dashboards whose filters target the field
+- other metrics built on this metric (metric-on-metric dependencies that break with no chart between them)
+- scheduled deliveries / alerts on the affected charts or dashboards
+- a severity: "breaking" if anything references the field, otherwise "safe"
+
+Parameters:
+- fieldId: The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human label. Use grepFields / searchSemanticLayer first if you only have a label and need the id.
+
+Output:
+- A structured impact report with counts plus the named charts, dashboards, dependent metrics and scheduled deliveries.
+
+Important:
+This tool reports field REFERENCES, not field VALUES. It cannot detect silent value-drift — a field whose id stays the same but whose underlying SQL/aggregation changes (so numbers move without breaking anything), nor whether a value-affecting change preserves the numbers it claims to (merging onto another field, splitting a metric into parts, replacing or refactoring a definition). A "safe" reference result does NOT prove a change is value-correct. When a change rests on a value claim — fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged — prove it separately before calling the change safe: by construction (the same aggregation/column/model, a uniqueness guarantee such as a row_number() = 1 dedup or a primary key, or a true partition) or by data (run the relevant fields at a total grain and across a time dimension and confirm the expected relationship). Surface any divergence instead of asserting safety.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "fieldId": {
+          "description": "The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human-readable label.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "fieldId",
+      ],
+      "type": "object",
+    },
+    "name": "analyzeFieldImpact",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "charts": {
+                  "description": "Saved charts that directly reference the field.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "dashboardName": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Set when the chart lives inside a dashboard rather than a space.",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "spaceName": {
+                        "type": "string",
+                      },
+                      "uuid": {
+                        "type": "string",
+                      },
+                      "viewsCount": {
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                      "spaceName",
+                      "dashboardName",
+                      "viewsCount",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "dashboardFilterTargets": {
+                  "description": "Dashboards whose filters target the field.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "uuid": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "dashboards": {
+                  "description": "Dashboards that embed an impacted chart.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                      },
+                      "uuid": {
+                        "type": "string",
+                      },
+                      "viaChartName": {
+                        "description": "Name of an impacted chart that places this dashboard in the blast radius.",
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "uuid",
+                      "name",
+                      "viaChartName",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "fieldId": {
+                  "description": "The analyzed field id ("<table>_<fieldName>").",
+                  "type": "string",
+                },
+                "fieldType": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "dimension",
+                        "metric",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Inferred from the content referencing the field; null when nothing references it.",
+                },
+                "metricTreeDependents": {
+                  "description": "Metrics built on this metric; they break with no chart between them.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "fieldId": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "fieldId",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "scheduledDeliveries": {
+                  "description": "Scheduled deliveries and alerts on the affected charts or dashboards.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "dashboardUuid": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "savedChartUuid": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "savedChartUuid",
+                      "dashboardUuid",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "severity": {
+                  "description": ""breaking" when at least one chart, dependent metric or dashboard filter references the field; otherwise "safe". Does not detect silent value-drift.",
+                  "enum": [
+                    "breaking",
+                    "safe",
+                  ],
+                  "type": "string",
+                },
+                "summary": {
+                  "additionalProperties": false,
+                  "description": "Count of each referencing item type.",
+                  "properties": {
+                    "charts": {
+                      "type": "number",
+                    },
+                    "dashboardFilterTargets": {
+                      "type": "number",
+                    },
+                    "dashboards": {
+                      "type": "number",
+                    },
+                    "metricTreeDependents": {
+                      "type": "number",
+                    },
+                    "scheduledDeliveries": {
+                      "type": "number",
+                    },
+                  },
+                  "required": [
+                    "charts",
+                    "dashboards",
+                    "dashboardFilterTargets",
+                    "metricTreeDependents",
+                    "scheduledDeliveries",
+                  ],
+                  "type": "object",
+                },
+              },
+              "required": [
+                "fieldId",
+                "fieldType",
+                "severity",
+                "summary",
+                "charts",
+                "dashboards",
+                "dashboardFilterTargets",
+                "metricTreeDependents",
+                "scheduledDeliveries",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "Tool: searchSemanticLayer
+
+Purpose:
+Search or list metrics and dimensions across the ENTIRE semantic layer (every explore at once). Use this for project-wide questions that are NOT scoped to a single explore, for example:
+- "what metrics do we have?"
+- "find duplicate or confusingly similar metrics"
+- "audit / inventory the semantic layer"
+- "which explores define a 'revenue' metric?"
+
+Unlike grepFields (a keyword grep that returns the matching fields grouped by explore), this tool returns a flat, paginated inventory of fields drawn from all explores, so you can compare definitions across the whole project without enumerating explores one by one.
+
+Parameters:
+- searchQuery: Optional keyword to full-text search field names, labels and descriptions. Leave null/empty to list the full inventory.
+- type: Optional filter — "metric" or "dimension". Leave null to return both.
+- page: Page number for pagination (starts at 1). The result reports total counts so you know how many pages remain. For a high-level overview ("tell me about our semantic layer"), the first page plus those totals is usually enough — do NOT page through the entire inventory. Only fetch every page when the task genuinely needs all fields at once, such as a project-wide duplicate/inconsistency audit.
+- pageSize: Optional number of fields per page (default 200, max 500). Choose it to fit the task: pass a LARGE pageSize to pull the whole inventory in one or two calls for an audit, or a small one for a quick look. Leave null for the default.
+
+Output:
+- A paginated list of fields, each with: explore (exploreName), name, label, fieldType (metric/dimension), description and chart usage count.
+",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "description": "Paginate results starting at 1. Pass a positive number (e.g. 1), never NaN or the string "null".",
+          "exclusiveMinimum": 0,
+          "type": [
+            "number",
+            "null",
+          ],
+        },
+        "pageSize": {
+          "description": "Optional number of fields per page (default 200, max 500). Use a large value to read the whole inventory in one or two calls for an audit, or a small one for a quick overview. Leave null for the default.",
+          "exclusiveMinimum": 0,
+          "type": [
+            "number",
+            "null",
+          ],
+        },
+        "searchQuery": {
+          "description": "Optional keyword to search field names, labels and descriptions across all explores. Leave null or empty to return the full inventory of fields.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "type": {
+          "description": "Optional filter to return only metrics or only dimensions. Leave null to return both.",
+          "enum": [
+            "metric",
+            "dimension",
+            null,
+          ],
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "searchQuery",
+        "type",
+        "pageSize",
+        "page",
+      ],
+      "type": "object",
+    },
+    "name": "searchSemanticLayer",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ranking": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fields": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "chartUsage": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
+                              "fieldType": {
+                                "type": "string",
+                              },
+                              "label": {
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "searchRank": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
+                              "tableName": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "label",
+                              "tableName",
+                              "fieldType",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "searchQuery": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "type": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "metric",
+                                "dimension",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "searchQuery",
+                        "type",
+                        "fields",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "fields": {
+                  "description": "The fields on this page; empty when nothing matched.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                          },
+                          {
+                            "type": "null",
+                          },
+                        ],
+                        "description": "Field description, possibly truncated; null when the field has none.",
+                      },
+                      "exploreName": {
+                        "description": "Explore (table) the field is defined in.",
+                        "type": "string",
+                      },
+                      "fieldType": {
+                        "description": ""metric" or "dimension".",
+                        "type": "string",
+                      },
+                      "label": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "usageInCharts": {
+                        "description": "Number of saved charts using this field.",
+                        "type": "number",
+                      },
+                    },
+                    "required": [
+                      "name",
+                      "label",
+                      "exploreName",
+                      "fieldType",
+                      "usageInCharts",
+                      "description",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "pagination": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "page": {
+                          "type": "number",
+                        },
+                        "pageSize": {
+                          "type": "number",
+                        },
+                        "totalPageCount": {
+                          "type": "number",
+                        },
+                        "totalResults": {
+                          "description": "Matching fields across all pages, not just this one.",
+                          "type": "number",
+                        },
+                      },
+                      "required": [
+                        "page",
+                        "pageSize",
+                        "totalPageCount",
+                        "totalResults",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Null when the search backend reported no page information.",
+                },
+              },
+              "required": [
+                "pagination",
+                "fields",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "ranking": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "fields": {
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "chartUsage": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
+                              "fieldType": {
+                                "type": "string",
+                              },
+                              "label": {
+                                "type": "string",
+                              },
+                              "name": {
+                                "type": "string",
+                              },
+                              "searchRank": {
+                                "anyOf": [
+                                  {
+                                    "type": "number",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                              },
+                              "tableName": {
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "label",
+                              "tableName",
+                              "fieldType",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        "searchQuery": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "type": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "metric",
+                                "dimension",
+                              ],
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "searchQuery",
+                        "type",
+                        "fields",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "success",
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
 ]
 `;
 
@@ -23755,6 +26505,10 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
 - Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint; for supported operators, quoting, and examples, follow the Lightdash Agent system prompt.
+
+Reading the result:
+- The values describe observed data, not the permitted filter literals. When the user explicitly names a value to exclude, keep that exclusion in the executed query even when this search finds no matching rows, and say it currently removes no rows; do not drop it or substitute a different category.
+- When the intended category needs interpretation rather than a literal match, clarify it with the user before filtering.
 ",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24141,7 +26895,7 @@ exports[`AI agent tool contracts > matches the filter-expression visualization c
 If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
 
 The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.
-Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow the Lightdash Agent system prompt.",
+Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability; for supported operators, quoting, arity, connectors, and examples, follow the Lightdash Agent system prompt. When you supply chartConfig: \`dimensions[0]\` drives the x-axis. For a multi-series chart, put the extra grouping dimensions in \`chartConfig.groupBy\`, never the x-axis dimension; leave it null for a single series. Always set \`xAxisLabel\` and \`yAxisLabel\`. The parameter docs describe every other chart-config option.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
@@ -25627,7 +28381,7 @@ Use them whenever the question needs math the metric query alone can't express: 
 
 exports[`AI agent tool contracts > matches the opt-in agent toolbox loader contract 1`] = `
 {
-  "description": "Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. If runQuery is already available and the user did not ask for a visualization, use runQuery; do not load tools merely to create an unsolicited chart. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.",
+  "description": "Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,
@@ -25640,7 +28394,15 @@ exports[`AI agent tool contracts > matches the opt-in agent toolbox loader contr
 
 exports[`AI agent tool contracts > matches the opt-in chart-as-code export contract 1`] = `
 {
-  "description": "Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Always call this tool for chart YAML; never reconstruct YAML yourself. For charts generated in this turn pass queryUuid from generateVisualization and null artifact identifiers. For an existing chart in this conversation, use its exact artifactUuid and versionUuid with null queryUuid. If these identifiers are unknown, pass null for all three source identifiers to list available artifacts first; never regenerate the chart just to export it. Never invent or use placeholder UUIDs. Supports built-in semantic, merged and pinned custom charts; use content tools for other sources. Pass null for an unspecified destination slug or spaceSlug: the tool will report exactly what is missing so you can ask the user. Never search content to infer a destination.",
+  "description": "Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content.
+
+When to use: whenever the user wants chart YAML. You MUST call this tool for chart YAML; never write or reconstruct YAML yourself. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
+
+Inputs:
+- Source: for a chart generated in this turn, pass its queryUuid from generateVisualization and null artifactUuid and versionUuid. For a chart from an earlier turn, pass its exact artifactUuid and versionUuid with null queryUuid. When those identifiers are unknown, pass null for all three to list the conversation's artifacts first. Never invent or use placeholder UUIDs.
+- Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
+
+Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it reports exactly which one, so you can ask the user. Never search content to infer a destination, and never regenerate the chart or rerun its query just to export it.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,

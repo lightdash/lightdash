@@ -17,17 +17,24 @@ export const GET_METADATA_DESCRIPTION = ({
 }: ToolDescriptionContext): string => {
     const getMetadata = toolNameFor('getMetadata', runtime);
     const grepFields = toolNameFor('grepFields', runtime);
-    const visualization = toolNameFor('generateVisualization', runtime);
     return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table. A field marked with required parameters returns different results depending on the parameter values the query runs with — unset parameters resolve to their default.
+Get the full metadata for explores and fields whose IDs you already know, typically from ${grepFields}. ${grepFields} tells you which fields exist; ${getMetadata} gives the detail you need to build a correct query: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
-Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+When to use:
+Call this once you have narrowed down to the explore(s) and field(s) you intend to use, before building the query. Batch every explore and field you need into a SINGLE call instead of one request per item. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
+Inputs:
 Each entry in \`requests\` is one of:
 - \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
 - \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+
+Applying the result:
+- Table filters marked \`required\` apply to every query on the explore, but their operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST use a compatible filter on the same field or a derived time dimension of it, replacing the default: if \`created_at inThePast [4 weeks]\` is required and the user asks for ten months, use \`created_at inThePast [10 months]\`. A required default is not a modelling limitation or a reason to switch to saved chart results.
+- Table filters marked \`suggested\` are soft defaults: apply them unless the user asks for a different range or scope.
+- Use a metric's default time dimension unless the user asks for a different one.
+- A field with required parameters returns different results depending on the parameter values the query runs with; unset parameters resolve to their default.
 `;
 };
 

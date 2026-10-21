@@ -8,7 +8,7 @@ export const getLoadAgentTools = (
 ) =>
     tool({
         description:
-            'Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. If runQuery is already available and the user did not ask for a visualization, use runQuery; do not load tools merely to create an unsolicited chart. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.',
+            'Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.',
         inputSchema: z.object({}),
         execute: async () => {
             onLoad();

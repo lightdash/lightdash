@@ -1,6 +1,6 @@
 import {
-    DEFAULT_RUN_SQL_LIMIT,
     DEFAULT_RUN_SQL_MAX_LIMIT,
+    getRunSqlDefaultLimit,
     WarehouseTypes,
     type AgentSqlScope,
 } from '@lightdash/common';
@@ -60,7 +60,7 @@ You have access to a runSql tool that executes raw SELECT queries directly again
     sqlCodeUnits: '`runSql` calls',
     resultArtifactRule:
         '- Every `runSql` result is already rendered as its own artifact with a "Continue exploring in SQL Runner" action scoped to that exact query — do not also add a standalone SQL Runner link in your text; it cannot be scoped to a specific query and will point at the wrong one if you make more than one `runSql` call in a turn.\n',
-    limitRule: `- Default row limit ${DEFAULT_RUN_SQL_LIMIT}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.\n`,
+    limitRule: `- Default row limit ${getRunSqlDefaultLimit(runSqlMaxLimit)}, max ${runSqlMaxLimit}. Include LIMIT explicitly or rely on the default. These two numbers apply to \`runSql\` ONLY — never reuse them as the limit for another tool, each one has its own.\n`,
 });
 
 // Composer runs raw SQL as `sql` nodes; the node schema states their limits.
@@ -187,10 +187,9 @@ ${words.resultArtifactRule}- Do not paste the full SQL into your final answer un
 
 **One ask, not two.** If you're unsure whether to proceed (e.g. chart this SQL vs. rebuild it in the semantic layer), state the tradeoff once and end with a single closing question. Don't restate the same choice earlier in your analysis and then ask it again as a separate closing question — pick one spot.
 
-**1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
+**1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have three discovery tools that cover every legitimate use case:
 
-- \`findExplores\` — list explores in the project
-- \`findFields\` — columns + types for an **explore-backed** table
+- \`grepFields\` — explores and their fields + types, for **explore-backed** tables
 - \`listWarehouseTables\` — names of raw / staging / seed tables
 - \`describeWarehouseTable\` — columns + types for a **raw** warehouse table
 
@@ -198,11 +197,11 @@ ${words.resultArtifactRule}- Do not paste the full SQL into your final answer un
 - ❌ NEVER: \`SELECT table_name FROM information_schema.tables\` — use \`listWarehouseTables\` instead
 - ✅ INSTEAD: pick the right discovery tool above. If none of them returns what you need, **ASK THE USER**.
 
-**2. ZERO \`SELECT *\` sampling.** \`findFields\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
+**2. ZERO \`SELECT *\` sampling.** \`grepFields\` and \`describeWarehouseTable\` already tell you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
 
 - ❌ NEVER: \`SELECT * FROM jaffle.fm_work_orders LIMIT 3\` to understand structure
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
-- ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
+- ✅ INSTEAD: build the real query from their output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
 **3. Keep ${words.sqlUnits} intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple ${words.sqlUnits} in one turn are acceptable only when you need real warehouse values to recover or validate.
 

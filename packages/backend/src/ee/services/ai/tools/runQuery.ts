@@ -176,8 +176,13 @@ const getDocumentReference = (
         : ` To place this chart in a Document, use <artifact-chart version="${artifact.versionUuid}">.`;
 };
 
+const CHART_CONFIG_CONVENTIONS =
+    'When you supply chartConfig: `dimensions[0]` drives the x-axis. For a multi-series chart, put the extra grouping dimensions in `chartConfig.groupBy`, never the x-axis dimension; leave it null for a single series. Always set `xAxisLabel` and `yAxisLabel`. The parameter docs describe every other chart-config option.';
+
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
+    // The answer goes to a Slack thread, which also shows a result card.
+    inSlack?: boolean;
     documentsEnabled?: boolean;
     enableFastResponse?: boolean;
     decisions?: AiDecisionClient;
@@ -565,6 +570,7 @@ const getFastAnswerText = (
 
 export const getRunQuery = ({
     purpose = 'visualization',
+    inSlack = false,
     documentsEnabled = false,
     enableFastResponse = false,
     updateProgress,
@@ -596,11 +602,15 @@ export const getRunQuery = ({
     const { inputSchema: rawInputSchema, description: baseDescription } =
         toolView;
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
-    let description = baseDescription;
+    let description: string;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it; Slack also receives an explorable result card.`;
+        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it${
+            inSlack ? '; Slack also receives an explorable result card' : ''
+        }.`;
     } else if (decisions && enableDataAccess) {
-        description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
+        description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility. ${CHART_CONFIG_CONVENTIONS}`;
+    } else {
+        description = `${baseDescription} ${CHART_CONFIG_CONVENTIONS}`;
     }
 
     return tool({

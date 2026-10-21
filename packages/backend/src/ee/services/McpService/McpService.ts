@@ -50,6 +50,7 @@ import {
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
     getRunQueryChartConfig,
+    getRunSqlDefaultLimit,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -4597,7 +4598,9 @@ export class McpService extends BaseService {
                     title: mcpRunSqlTool.title,
                     description:
                         buildRunSqlDescription(
-                            500,
+                            getRunSqlDefaultLimit(
+                                this.lightdashConfig.mcp.runSqlMaxLimit,
+                            ),
                             this.lightdashConfig.mcp.runSqlMaxLimit,
                         ) +
                         (options.agentIdentityEnabled

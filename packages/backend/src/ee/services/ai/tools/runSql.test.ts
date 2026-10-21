@@ -3,6 +3,7 @@ import {
     type AiWebAppPrompt,
     type SlackPrompt,
 } from '@lightdash/common';
+import { asSchema } from 'ai';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import { getRunSql } from './runSql';
@@ -126,6 +127,27 @@ const makeTool = ({
 };
 
 describe('getRunSql', () => {
+    it.each([
+        { maxQueryLimit: 5000, defaultLimit: 500 },
+        { maxQueryLimit: 100, defaultLimit: 100 },
+    ])(
+        'describes the row limits it enforces: max $maxQueryLimit',
+        ({ maxQueryLimit, defaultLimit }) => {
+            const { tool } = makeTool({ maxQueryLimit });
+            const { properties } = asSchema(tool.inputSchema).jsonSchema as {
+                properties: { limit: { default: number; maximum: number } };
+            };
+
+            expect(properties.limit).toMatchObject({
+                default: defaultLimit,
+                maximum: maxQueryLimit,
+            });
+            expect(tool.description).toContain(
+                `The row limit defaults to ${defaultLimit}, max ${maxQueryLimit}.`,
+            );
+        },
+    );
+
     it('auto-approves SQL without waiting for human approval', async () => {
         const { tool, dependencies } = makeTool({
             autoApproveSql: true,

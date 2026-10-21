@@ -659,7 +659,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'required filters',
                         'filter type, case-sensitivity',
-                        'batch everything you need at once',
+                        'Batch every explore and field you need into a SINGLE call',
                     ],
                 },
                 {

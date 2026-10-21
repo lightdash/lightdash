@@ -17,11 +17,11 @@ Returns a list of fully-qualified tables (database, schema, table). Results come
 
 When to use:
 - You want to write raw SQL and need the qualified table name (database.schema.table) on the first try.
-- You're looking for a raw / staging / seed table that isn't surfaced by findExplores.
+- You're looking for a raw / staging / seed table that no explore exposes.
 - You're trying to confirm a schema name before writing SQL.
 
 Do NOT use:
-- For column/field discovery — use findFields on the relevant explore instead.
+- For field discovery in explores — use grepFields instead; for a raw table's columns, use describeWarehouseTable.
 - To run ad-hoc queries — use runSql.
 
 Parameters:
