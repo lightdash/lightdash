@@ -863,7 +863,7 @@ describe('getSystemPromptV2 Deep Research context', () => {
     test('lets content tools update a published report in place', () => {
         const content = promptText({
             availableExplores: [],
-            enableContentTools: true,
+            promptSections: new Set<PromptSection>(['contentTools']),
             deepResearchRuns: [
                 {
                     uuid: 'run-1',
