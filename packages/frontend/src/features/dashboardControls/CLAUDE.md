@@ -333,8 +333,10 @@ In `FilterConfiguration/`:
   rule saved in that state can still be edited out of it.
 - A refused edit remounts the shipped form (`key`), since its inputs keep
   their own text and would stay out of step with the rule. The input that was
-  being typed in gets focus back with its text selected, and the message
-  under the form turns red with `role="alert"` until the next accepted edit.
+  in use gets focus back (a typed one with its text selected; a select has
+  a read-only input and takes focus only), and the message under the form
+  turns red with `role="alert"` until the next accepted edit. Each refusal
+  renders it as a new node (`key`), so a screen reader announces every one.
 - Nothing blocks closing. While `isDefaultValueIncomplete(rule)` a hint says
   the default is left off, and `close()` writes `disabled: true`. Incomplete
   is the shipped reading, never our own: enabled and `!hasFilterValueSet(rule)`,

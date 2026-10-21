@@ -58,14 +58,14 @@ export const FilterValueSettings: FC<Props> = ({
         onChange(written);
     };
 
-    // Focus is a DOM matter: the remount took it from the input being typed
-    // in. Its text is selected, so typing replaces the kept value
+    // Focus is a DOM matter: the remount took it from the input in use. A
+    // typed one has its text selected, so typing replaces the kept value
     useEffect(() => {
         const input = getInputs(root.current)[refocusIndex.current];
         refocusIndex.current = -1;
-        if (input === undefined || input.readOnly) return;
+        if (input === undefined) return;
         input.focus();
-        input.select();
+        if (!input.readOnly) input.select();
     }, [refusals]);
 
     return (
@@ -82,7 +82,9 @@ export const FilterValueSettings: FC<Props> = ({
                 onChangeFilterRule={handleChange}
             />
             {isLockedAndRequired && (
+                // A new node per refusal, so each one is announced
                 <Text
+                    key={wasRefused ? refusals : 'at-rest'}
                     size="xs"
                     c={wasRefused ? 'red' : 'dimmed'}
                     fw={wasRefused ? 500 : undefined}

@@ -172,6 +172,43 @@ describe('FilterValueSettings', () => {
             expect(onChange).not.toHaveBeenCalled();
         });
 
+        it('says why on every refused edit, not only the first', () => {
+            renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            emptyTheValue();
+            const first = screen.getByRole('alert');
+            expect(first).toHaveTextContent(LOCKED_REQUIRED);
+
+            emptyTheValue();
+
+            // A new alert node is what a screen reader announces again
+            const second = screen.getByRole('alert');
+            expect(second).toHaveTextContent(LOCKED_REQUIRED);
+            expect(second).not.toBe(first);
+        });
+
+        it('gives focus back to a select the refused edit came from', () => {
+            renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            const operator = screen.getByRole('combobox');
+            expect(operator).toHaveAttribute('readonly');
+            operator.focus();
+
+            chooseOperator('includes');
+
+            expect(screen.getByRole('combobox')).toHaveFocus();
+        });
+
         it('still takes an edit that leaves it with a value', () => {
             const onChange = renderSettings(
                 makeRule({
