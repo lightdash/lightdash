@@ -100,8 +100,6 @@ export const BattleModeSetup: FC<Props> = ({
                         color="gray"
                         size="xs"
                     />
-                    {battleType === 'queryPath' &&
-                        'Same prompt and model. A answers with the classic query tools; B answers with composer queries. Replies continue both threads side by side.'}
                     {battleType === 'models' && (
                         <>
                             <Text size="xs" c="dimmed">

@@ -170,7 +170,8 @@ const AiAgentNewThreadPage: FC = () => {
     const [battleMode, setBattleMode] = useState(false);
     const speedBattleAvailable = useAiAgentSpeedBattleAvailable();
     const [battleTypeChoice, setBattleType] = useState<BattleType>('speed');
-    const queryPathBattleAvailable = useAiAgentQueryPathBattleAvailable();
+    const queryPathBattleAvailable =
+        useAiAgentQueryPathBattleAvailable() && agent.enableDataAccess;
     const battleType = resolveBattleType(battleTypeChoice, {
         speedBattleAvailable,
         queryPathBattleAvailable,
