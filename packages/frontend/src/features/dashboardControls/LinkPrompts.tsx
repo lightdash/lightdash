@@ -243,7 +243,7 @@ export const LinkPrompts: FC = () => {
                         data-wave={index % WAVE_BUCKETS}
                     >
                         <Paper
-                            shadow="lg"
+                            shadow="md"
                             p="sm"
                             radius="md"
                             className={`${classes.card} ${classes.promptCard}`}
