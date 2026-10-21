@@ -15,7 +15,15 @@ import { act, cleanup, waitFor } from '@testing-library/react';
 import EChartsReactClass from 'echarts-for-react';
 import { StrictMode, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 import SimpleChart from '.';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
@@ -314,6 +322,13 @@ const clickSeries = (instance: LiveInstance, dataIndex = 0) =>
     });
 // 300 rows x 2 series crosses the 500 point canvas threshold
 const MANY_STATUSES = Array.from({ length: 300 }, (_, i) => `status-${i}`);
+
+// The first mount pays one-off costs (native canvas text measurement, cold
+// render paths) that can exceed a test's timeout on a loaded CI runner
+beforeAll(() => {
+    renderWithProviders(wrap(<Chart results={makeResults(1)} />, false));
+    cleanup();
+}, 30_000);
 
 describe('ECharts lifecycle characterization (cartesian)', () => {
     beforeEach(() => {
