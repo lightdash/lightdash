@@ -2,10 +2,17 @@ import { DbtError, type DbtManifest } from '@lightdash/common';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import {
+    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES,
+    resolveDbtSourceFetchConcurrency,
+} from '../config/dbtSourceFetchConcurrency';
 import { type DbtManifestFetchOptions, type ProjectAdapter } from '../types';
 import { CROSS_SOURCE_SETTLE_GRACE_MS } from './crossSourceCancellation';
 import { resolveCrossSourceManifests } from './crossSourceRefs';
-import { DbtSourceDiskPool } from './DbtSourceDiskPool';
+import {
+    DbtSourceDiskPool,
+    measureDbtSourceDiskBytes,
+} from './DbtSourceDiskPool';
 
 const result = (key: string) => ({
     manifest: {
@@ -28,7 +35,204 @@ const result = (key: string) => ({
     timings: { gitRefreshMs: null, depsMs: null, manifestMs: 1 },
 });
 
+describe('measureDbtSourceDiskBytes', () => {
+    it('stops walking when the compile is cancelled', async () => {
+        const root = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'synthetic-cancel-disk-'),
+        );
+        const controller = new AbortController();
+        const lstat = fs.lstat.bind(fs);
+        const stat = vi
+            .spyOn(fs, 'lstat')
+            .mockImplementationOnce(async (...args) => {
+                const stats = await lstat(...args);
+                controller.abort();
+                return stats;
+            });
+        try {
+            await fs.writeFile(path.join(root, 'model.sql'), 'select 1');
+            expect(
+                await measureDbtSourceDiskBytes(root, controller.signal),
+            ).toBeNull();
+            expect(stat).toHaveBeenCalledOnce();
+        } finally {
+            stat.mockRestore();
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('counts allocated bytes without walking a symlink target', async () => {
+        const root = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'synthetic-disk-bytes-'),
+        );
+        try {
+            const directory = path.join(root, 'checkout_a');
+            const outside = path.join(root, 'target_a');
+            const file = path.join(directory, 'model.sql');
+            const link = path.join(directory, 'linked_target');
+            await fs.mkdir(directory);
+            await fs.mkdir(outside);
+            await fs.writeFile(file, 'select 1');
+            await fs.writeFile(
+                path.join(outside, 'manifest.json'),
+                'synthetic target',
+            );
+            await fs.symlink(outside, link);
+            const expected =
+                ((await fs.lstat(directory)).blocks +
+                    (await fs.lstat(file)).blocks +
+                    (await fs.lstat(link)).blocks) *
+                512;
+            expect(await measureDbtSourceDiskBytes(directory)).toBe(expected);
+            expect(await measureDbtSourceDiskBytes(link)).toBe(
+                (await fs.lstat(link)).blocks * 512,
+            );
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('reports unknown bytes for absent or unreadable directories', async () => {
+        expect(await measureDbtSourceDiskBytes(undefined)).toBeNull();
+        const root = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'synthetic-missing-disk-'),
+        );
+        try {
+            expect(
+                await measureDbtSourceDiskBytes(path.join(root, 'absent_a')),
+            ).toBeNull();
+        } finally {
+            await fs.rm(root, { recursive: true, force: true });
+        }
+    });
+});
+
 describe('DbtSourceDiskPool', () => {
+    it.each([1, 2, 4])(
+        'fetches resident scans before recreating evicted sources at concurrency %s',
+        async (concurrency) => {
+            const sourceCount = 6;
+            const capacity = 4;
+            const pool = new DbtSourceDiskPool(capacity);
+            const fetchOrder: string[] = [];
+            let initialScanEvictions = 0;
+            const sources = Array.from({ length: sourceCount }, (_, index) => {
+                const key = `leaf_${index}`;
+                let checkoutExists = false;
+                const clone = vi.fn(() => {
+                    checkoutExists = true;
+                });
+                const scan = {
+                    projectName: key,
+                    declaredUpstreams: [],
+                    installedPackages: [],
+                    referencedProjects: [],
+                    refs: [],
+                    localModels: [],
+                    installedPackageModels: [],
+                };
+                const prepare = async () => {
+                    if (!checkoutExists) clone();
+                    return scan;
+                };
+                const adapter = {
+                    releaseDisk: async () => {
+                        checkoutExists = false;
+                    },
+                } as unknown as ProjectAdapter;
+                return {
+                    clone,
+                    task: {
+                        key,
+                        context: null,
+                        isDiskResident: () => pool.isResident(key),
+                        withDisk: <R>(operation: () => Promise<R>) =>
+                            pool.run(key, async () => adapter, operation),
+                        prepare: () =>
+                            pool.run(key, async () => adapter, prepare),
+                        prepareFetch: async () => {
+                            initialScanEvictions ||= pool.stats.diskEvictions;
+                            return prepare();
+                        },
+                        fetch: async () => {
+                            expect(checkoutExists).toBe(true);
+                            fetchOrder.push(key);
+                            return result(key);
+                        },
+                    },
+                };
+            });
+            const resolved = await resolveCrossSourceManifests({
+                enabled: true,
+                concurrency,
+                tasks: sources.map(({ task }) => task),
+                onSourceFinal: (task) => pool.release(task.key),
+            });
+            expect(resolved.results).toHaveLength(sourceCount);
+            expect(initialScanEvictions).toBe(sourceCount - capacity);
+            expect(new Set(fetchOrder.slice(0, capacity))).toEqual(
+                new Set(['leaf_2', 'leaf_3', 'leaf_4', 'leaf_5']),
+            );
+            sources
+                .slice(-capacity)
+                .forEach(({ clone }) => expect(clone).toHaveBeenCalledOnce());
+            expect(
+                sources.reduce(
+                    (sum, { clone }) => sum + clone.mock.calls.length,
+                    0,
+                ),
+            ).toBeLessThanOrEqual(sourceCount + initialScanEvictions);
+            expect(pool.stats.diskRecreations).toBe(initialScanEvictions);
+            expect(pool.isResident('leaf_5')).toBe(false);
+            expect(pool.isResident('absent')).toBe(false);
+        },
+    );
+
+    it('reuses all scanned checkouts when the disk budget exceeds concurrency', async () => {
+        const decision = resolveDbtSourceFetchConcurrency(
+            1,
+            {
+                availableParallelism: () => 1,
+                constrainedMemory: () => undefined,
+                baselineSize: () => 0,
+            },
+            {
+                sourceFetchDiskBudgetBytes:
+                    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES + 4 * 1024,
+                sourceFetchDiskPerSourceBytes: 1024,
+            },
+        );
+        const pool = new DbtSourceDiskPool(decision.diskCapacity);
+        const releases = Array.from({ length: 4 }, () =>
+            vi.fn(async () => undefined),
+        );
+        const adapters = releases.map(
+            (releaseDisk) => ({ releaseDisk }) as unknown as ProjectAdapter,
+        );
+        await adapters.reduce(async (previous, adapter, index) => {
+            await previous;
+            await pool.run(
+                `leaf_${index}`,
+                async () => adapter,
+                async () => {},
+            );
+        }, Promise.resolve());
+        await adapters.reduce(async (previous, expected, index) => {
+            await previous;
+            await pool.run(
+                `leaf_${index}`,
+                async () => expected,
+                async (adapter) => {
+                    expect(adapter).toBe(expected);
+                    expect(releases[index]).not.toHaveBeenCalled();
+                },
+            );
+            await pool.release(`leaf_${index}`);
+        }, Promise.resolve());
+        expect(pool.stats).toEqual({ diskEvictions: 0, diskRecreations: 0 });
+        releases.forEach((release) => expect(release).toHaveBeenCalledOnce());
+    });
+
     it('returns a compile timeout before creation settles and cleans up later', async () => {
         vi.useFakeTimers();
         const pool = new DbtSourceDiskPool(1);

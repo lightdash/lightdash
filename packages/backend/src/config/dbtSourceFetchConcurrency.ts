@@ -14,6 +14,7 @@ export const DBT_SOURCE_FETCH_MIN_MEMORY_CONCURRENCY = 2;
 
 export const DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = 256 * 1024 ** 2;
 export const DBT_SOURCE_FETCH_DISK_RESERVE_BYTES = 256 * 1024 ** 2;
+export const DBT_SOURCE_FETCH_DEFAULT_DISK_CAPACITY = 8;
 
 export type DbtSourceFetchDiskConfig = {
     sourceFetchDiskBudgetBytes?: number;
@@ -28,6 +29,7 @@ export type DbtSourceFetchConcurrencyInputs = {
     diskAvailableBytes: number | null;
     diskBudgetSource: 'env' | 'statfs' | 'unknown';
     diskDerivedLimit: number | null;
+    diskCapacity: number;
     chosen: number;
 };
 
@@ -108,6 +110,8 @@ export const resolveDbtSourceFetchConcurrency = (
         diskAvailableBytes,
         diskBudgetSource,
         diskDerivedLimit,
+        diskCapacity:
+            diskDerivedLimit ?? DBT_SOURCE_FETCH_DEFAULT_DISK_CAPACITY,
     };
 
     if (override !== undefined) {

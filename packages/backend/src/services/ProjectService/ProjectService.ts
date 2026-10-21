@@ -350,6 +350,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
+import { DbtCliClient } from '../../dbt/dbtCliClient';
 import {
     getMissingDbtNodeReferences,
     withCrossSourceRefsHint,
@@ -436,7 +437,11 @@ import {
 } from '../../projectAdapters/crossSourceCatalogCache';
 import { resolveCrossSourceManifests } from '../../projectAdapters/crossSourceRefs';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
-import { DbtSourceDiskPool } from '../../projectAdapters/DbtSourceDiskPool';
+import { DbtGitProjectAdapter } from '../../projectAdapters/dbtGitProjectAdapter';
+import {
+    DbtSourceDiskPool,
+    measureDbtSourceDiskBytes,
+} from '../../projectAdapters/DbtSourceDiskPool';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { compileMetricQuery } from '../../queryCompiler';
@@ -8399,6 +8404,53 @@ export class ProjectService
         return projectDir === null ? null : scanDbtProject(projectDir);
     }
 
+    private async logDbtSourceDiskUsage(
+        projectUuid: string,
+        sourceUuid: string | null,
+        adapter: ProjectAdapter,
+        signal?: AbortSignal,
+    ): Promise<void> {
+        try {
+            const checkoutDirectory =
+                adapter instanceof DbtGitProjectAdapter
+                    ? adapter.localRepositoryDir
+                    : adapter.dbtProjectDir;
+            const targetDirectory =
+                adapter instanceof DbtBaseProjectAdapter &&
+                adapter.dbtClient instanceof DbtCliClient
+                    ? adapter.dbtClient.targetDirectory
+                    : undefined;
+            const checkoutBytes =
+                checkoutDirectory === undefined
+                    ? 0
+                    : await measureDbtSourceDiskBytes(
+                          checkoutDirectory,
+                          signal,
+                      );
+            const targetBytes =
+                targetDirectory === undefined
+                    ? 0
+                    : await measureDbtSourceDiskBytes(targetDirectory, signal);
+            const diskBytes =
+                checkoutBytes === null || targetBytes === null
+                    ? null
+                    : checkoutBytes + targetBytes;
+            this.logger.info(
+                `dbt.compile.sourceDiskUsage projectUuid=${projectUuid} sourceUuid=${sourceUuid ?? 'primary'} checkoutBytes=${checkoutBytes ?? 'unknown'} targetBytes=${targetBytes ?? 'unknown'} diskBytes=${diskBytes ?? 'unknown'}`,
+                {
+                    event: 'dbt.compile.sourceDiskUsage',
+                    projectUuid,
+                    sourceUuid,
+                    checkoutBytes,
+                    targetBytes,
+                    diskBytes,
+                },
+            );
+        } catch {
+            return;
+        }
+    }
+
     /**
      * Merge the primary source's manifest with every additional source's manifest
      * into one combined manifest, then return a MANIFEST adapter over it so a single
@@ -8481,7 +8533,9 @@ export class ProjectService
             undefined,
             this.lightdashConfig.dbt,
         );
-        const diskPool = new DbtSourceDiskPool(concurrencyDecision.chosen);
+        const diskPool = new DbtSourceDiskPool(
+            concurrencyDecision.diskCapacity,
+        );
         // The default log format renders the message and drops metadata, so the decisive
         // values ride in both. Typed fields stay for instances on the json format.
         this.logger.info(
@@ -8491,7 +8545,7 @@ export class ProjectService
                 concurrencyDecision.availableParallelism
             } memoryDerivedLimit=${
                 concurrencyDecision.memoryDerivedLimit ?? 'none'
-            } envOverride=${concurrencyDecision.override ?? 'none'} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskEvictions=0 diskRecreations=0`,
+            } envOverride=${concurrencyDecision.override ?? 'none'} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskCapacity=${concurrencyDecision.diskCapacity} diskEvictions=0 diskRecreations=0`,
             {
                 event: 'dbt.compile.sourceFetchStart',
                 projectUuid,
@@ -8506,6 +8560,7 @@ export class ProjectService
                 diskAvailableBytes: concurrencyDecision.diskAvailableBytes,
                 diskBudgetSource: concurrencyDecision.diskBudgetSource,
                 diskDerivedLimit: concurrencyDecision.diskDerivedLimit,
+                diskCapacity: concurrencyDecision.diskCapacity,
                 ...diskPool.stats,
                 nodeHeapLimitBytes: v8.getHeapStatistics().heap_size_limit,
             },
@@ -8625,6 +8680,12 @@ export class ProjectService
                                         await primary.adapter.getDbtManifest(
                                             options,
                                         );
+                                    await this.logDbtSourceDiskUsage(
+                                        projectUuid,
+                                        identity.dbtSourceUuid,
+                                        primary.adapter,
+                                        options.signal,
+                                    );
                                     if (!crossSourceRefsEnabled)
                                         await primary.adapter.releaseDisk({
                                             keepProject: true,
@@ -8691,6 +8752,8 @@ export class ProjectService
                         );
                     return {
                         withDisk,
+                        isDiskResident: () =>
+                            diskPool.isResident(source.projectDbtSourceUuid),
                         prepareFetch: async (options: {
                             signal: AbortSignal;
                         }) =>
@@ -8732,6 +8795,12 @@ export class ProjectService
                                             await sourceAdapter.getDbtManifest(
                                                 options,
                                             );
+                                        await this.logDbtSourceDiskUsage(
+                                            projectUuid,
+                                            source.projectDbtSourceUuid,
+                                            sourceAdapter,
+                                            options.signal,
+                                        );
                                         if (!crossSourceRefsEnabled)
                                             await sourceAdapter.releaseDisk();
                                         return result;
@@ -9099,13 +9168,16 @@ export class ProjectService
             undefined,
             this.lightdashConfig.dbt,
         );
-        const diskPool = new DbtSourceDiskPool(concurrencyDecision.chosen);
+        const diskPool = new DbtSourceDiskPool(
+            concurrencyDecision.diskCapacity,
+        );
         this.logger.info(
-            `dbt.compile.sourceFetchStart projectUuid=${projectUuid} concurrency=${concurrencyDecision.chosen} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskEvictions=0 diskRecreations=0`,
+            `dbt.compile.sourceFetchStart projectUuid=${projectUuid} concurrency=${concurrencyDecision.chosen} diskAvailableBytes=${concurrencyDecision.diskAvailableBytes ?? 'unknown'} diskBudgetSource=${concurrencyDecision.diskBudgetSource} diskDerivedLimit=${concurrencyDecision.diskDerivedLimit ?? 'none'} diskCapacity=${concurrencyDecision.diskCapacity} diskEvictions=0 diskRecreations=0`,
             {
                 event: 'dbt.compile.sourceFetchStart',
                 projectUuid,
                 ...concurrencyDecision,
+                concurrency: concurrencyDecision.chosen,
                 ...diskPool.stats,
             },
         );
@@ -9116,6 +9188,8 @@ export class ProjectService
             projectUuid,
             concurrency: concurrencyDecision.chosen,
             diskStats: diskPool.stats,
+            isSourceDiskResident: (source) =>
+                diskPool.isResident(source.projectDbtSourceUuid),
             releaseAllSourceDisk: async () => {
                 const cleanup = (async () => {
                     await Promise.allSettled([...sourceAdapterBuilds]);
@@ -9163,8 +9237,18 @@ export class ProjectService
                     primary.adapter.releaseDisk({ keepProject: true }),
                 prepare: (options) =>
                     ProjectService.scanAdapter(primary.adapter, options),
-                fetchManifest: async (options) =>
-                    primaryManifest ?? primary.adapter.getDbtManifest(options),
+                fetchManifest: async (options) => {
+                    const result =
+                        primaryManifest ??
+                        (await primary.adapter.getDbtManifest(options));
+                    await this.logDbtSourceDiskUsage(
+                        projectUuid,
+                        null,
+                        primary.adapter,
+                        options.signal,
+                    );
+                    return result;
+                },
                 connection: primary.connection,
                 dbtProjectDir: primary.adapter.dbtProjectDir,
                 warehouseCredentials: primary.warehouseCredentials,
@@ -9208,10 +9292,21 @@ export class ProjectService
                 credentials,
                 connection,
                 options,
-            ) =>
-                (
-                    await getSourceAdapter(source, credentials, connection)
-                ).getDbtManifest(options),
+            ) => {
+                const adapter = await getSourceAdapter(
+                    source,
+                    credentials,
+                    connection,
+                );
+                const result = await adapter.getDbtManifest(options);
+                await this.logDbtSourceDiskUsage(
+                    projectUuid,
+                    source.projectDbtSourceUuid,
+                    adapter,
+                    options.signal,
+                );
+                return result;
+            },
             ...(agentExecutionContext.getStore()?.agentConnectionExecution
                 ? {
                       beforeLoadExtraCredentials: async () => {

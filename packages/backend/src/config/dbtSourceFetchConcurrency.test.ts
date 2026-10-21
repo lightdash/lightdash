@@ -107,12 +107,43 @@ describe('resolveDbtSourceFetchConcurrency', () => {
             diskAvailableBytes: null,
             diskBudgetSource: 'unknown',
             diskDerivedLimit: null,
+            diskCapacity: 8,
             chosen: 5,
         });
     });
 });
 
 describe('disk concurrency bound', () => {
+    it('retains scanned sources beyond the CPU and memory concurrency', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(undefined, runtime(2, 4 * GIB), {
+                sourceFetchDiskBudgetBytes:
+                    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES + 16 * GIB,
+                sourceFetchDiskPerSourceBytes: GIB,
+            }),
+        ).toMatchObject({ chosen: 2, diskDerivedLimit: 16, diskCapacity: 16 });
+    });
+
+    it('keeps the disk capacity when concurrency is overridden', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(14, runtime(2, 4 * GIB), {
+                sourceFetchDiskBudgetBytes:
+                    DBT_SOURCE_FETCH_DISK_RESERVE_BYTES + 3 * GIB,
+                sourceFetchDiskPerSourceBytes: GIB,
+            }),
+        ).toMatchObject({ chosen: 14, diskDerivedLimit: 3, diskCapacity: 3 });
+    });
+
+    it('bounds residency independently when disk space is unknown', () => {
+        expect(
+            resolveDbtSourceFetchConcurrency(14, runtime(1, 4 * GIB)),
+        ).toMatchObject({
+            chosen: 14,
+            diskDerivedLimit: null,
+            diskCapacity: 8,
+        });
+    });
+
     it('allows three sources with a 1 GiB budget and an empty cache', () => {
         expect(
             resolveDbtSourceFetchConcurrency(undefined, runtime(8, undefined), {
