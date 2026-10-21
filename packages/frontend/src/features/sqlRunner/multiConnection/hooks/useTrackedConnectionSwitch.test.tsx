@@ -35,12 +35,14 @@ const primary: SqlRunnerWarehouseConnection = {
     warehouseConnectionUuid: 'primary-uuid',
     name: 'Warehouse',
     isOriginal: true,
+    canRunSql: true,
     warehouseType: WarehouseTypes.POSTGRES,
 };
 const finance: SqlRunnerWarehouseConnection = {
     warehouseConnectionUuid: 'finance-uuid',
     name: 'Finance',
     isOriginal: false,
+    canRunSql: true,
     warehouseType: WarehouseTypes.SNOWFLAKE,
 };
 

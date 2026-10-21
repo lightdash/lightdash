@@ -43,6 +43,7 @@ import { OrganizationWarehouseCredentialsModel } from '../../../models/Organizat
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -914,6 +915,7 @@ describe('Multi-connection compile on the real schema', () => {
                     replace: async () => {},
                     find: async () => [],
                 },
+                spaceModel: new SpaceModel({ database }),
             } as never);
             const internals = service as unknown as CompileInternals;
             vi.spyOn(internals, 'withCompileAdapter').mockImplementation(

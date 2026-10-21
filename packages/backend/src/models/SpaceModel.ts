@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     generateSlug,
     getLtreePathFromSlug,
+    hasCustomSql,
     NotFoundError,
     ParameterError,
     Space,
@@ -17,6 +18,7 @@ import {
     SpaceQuery,
     UpdateSpace,
     type DataAppContent,
+    type MetricQuery,
     type PersonalSpaceSummary,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -1232,6 +1234,7 @@ export class SpaceModel {
                             .whereNull(`${AppsTableName}.deleted_at`),
                         documentCount: trx.raw('0::integer'),
                         slug: `${SpaceTableName}.slug`,
+                        warehouseConnectionUuid: `${SpaceTableName}.warehouse_connection_uuid`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
                         inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
@@ -1362,6 +1365,7 @@ export class SpaceModel {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >
     > {
         const [row] = await this.database(SpaceTableName)
@@ -1420,6 +1424,7 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (row.project_member_access_role as SpaceMemberRole) ?? null,
             colorPaletteUuid: row.color_palette_uuid,
+            warehouseConnectionUuid: row.warehouse_connection_uuid,
         };
     }
 
@@ -1965,6 +1970,222 @@ export class SpaceModel {
         }));
     }
 
+    async getEffectiveWarehouseConnectionUuid(args: {
+        projectUuid: string;
+        spaceUuid: string;
+    }): Promise<string | null> {
+        return (
+            (await this.getEffectiveWarehouseConnectionBinding(args))
+                ?.warehouseConnectionUuid ?? null
+        );
+    }
+
+    async getEffectiveWarehouseConnectionBinding({
+        projectUuid,
+        spaceUuid,
+        includeDeleted = false,
+    }: {
+        projectUuid: string;
+        spaceUuid: string;
+        includeDeleted?: boolean;
+    }): Promise<{
+        warehouseConnectionUuid: string;
+        spaceUuid: string;
+        spaceName: string;
+        isOriginal?: boolean;
+    } | null> {
+        const result = await this.database.raw<{
+            rows: {
+                warehouse_connection_uuid: string;
+                space_uuid: string;
+                name: string;
+                is_original: boolean;
+            }[];
+        }>(
+            `WITH RECURSIVE ancestors AS (
+                SELECT s.space_uuid, s.name, s.parent_space_uuid,
+                    s.warehouse_connection_uuid, s.project_id, 0 AS depth,
+                    ARRAY[s.space_uuid] AS visited
+                FROM spaces s
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE s.space_uuid = ? AND p.project_uuid = ?
+                    AND (? OR s.deleted_at IS NULL)
+                UNION ALL
+                SELECT s.space_uuid, s.name, s.parent_space_uuid,
+                    s.warehouse_connection_uuid, s.project_id, a.depth + 1,
+                    a.visited || s.space_uuid
+                FROM spaces s
+                JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
+                    AND s.project_id = a.project_id
+                WHERE (? OR s.deleted_at IS NULL) AND a.warehouse_connection_uuid IS NULL
+                    AND NOT s.space_uuid = ANY(a.visited)
+            )
+            SELECT a.warehouse_connection_uuid, a.space_uuid, a.name, w.is_original FROM ancestors a
+            JOIN warehouse_connections w ON w.warehouse_connection_uuid = a.warehouse_connection_uuid
+                AND w.project_uuid = ?
+            WHERE a.warehouse_connection_uuid IS NOT NULL
+            ORDER BY depth LIMIT 1`,
+            [
+                spaceUuid,
+                projectUuid,
+                includeDeleted,
+                includeDeleted,
+                projectUuid,
+            ],
+        );
+        const binding = result.rows[0];
+        return binding
+            ? {
+                  warehouseConnectionUuid: binding.warehouse_connection_uuid,
+                  spaceUuid: binding.space_uuid,
+                  spaceName: binding.name,
+                  ...(includeDeleted
+                      ? { isOriginal: binding.is_original }
+                      : {}),
+              }
+            : null;
+    }
+
+    async getSqlChartSpaceUuid(
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<string> {
+        const chart = await this.database(SavedSqlTableName)
+            .leftJoin(
+                'dashboards',
+                'dashboards.dashboard_uuid',
+                'saved_sql.dashboard_uuid',
+            )
+            .leftJoin('spaces', 'spaces.space_id', 'dashboards.space_id')
+            .where('saved_sql.project_uuid', projectUuid)
+            .where('saved_sql.saved_sql_uuid', savedSqlUuid)
+            .select(
+                this.database.raw(
+                    'COALESCE(saved_sql.space_uuid, spaces.space_uuid) AS space_uuid',
+                ),
+            )
+            .first();
+        if (!chart?.space_uuid)
+            throw new NotFoundError('SQL chart space not found');
+        return chart.space_uuid;
+    }
+
+    async getSqlChartsForSpaceRestore(spaceUuid: string): Promise<
+        {
+            spaceUuid: string;
+            warehouseConnectionUuid: string | null;
+        }[]
+    > {
+        const { rows } = await this.database.raw<{
+            rows: {
+                spaceUuid: string;
+                warehouseConnectionUuid: string | null;
+                metricQuery: Pick<
+                    MetricQuery,
+                    | 'tableCalculations'
+                    | 'customDimensions'
+                    | 'additionalMetrics'
+                > | null;
+            }[];
+        }>(
+            `WITH RECURSIVE restoring_spaces AS (
+                SELECT space_uuid, space_id, deleted_by_user_uuid FROM spaces
+                WHERE space_uuid = ?
+                UNION ALL
+                SELECT s.space_uuid, s.space_id, s.deleted_by_user_uuid
+                FROM spaces s
+                JOIN restoring_spaces p ON s.parent_space_uuid = p.space_uuid
+                WHERE s.deleted_at IS NOT NULL
+                    AND s.deleted_by_user_uuid = p.deleted_by_user_uuid
+            )
+            SELECT DISTINCT s.space_uuid AS "spaceUuid",
+                v.warehouse_connection_uuid AS "warehouseConnectionUuid",
+                NULL::jsonb AS "metricQuery"
+            FROM saved_sql c
+            LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
+            JOIN restoring_spaces s ON c.space_uuid = s.space_uuid OR d.space_id = s.space_id
+            JOIN saved_sql_versions v ON v.saved_sql_uuid = c.saved_sql_uuid
+            WHERE c.deleted_at IS NULL
+                AND (c.dashboard_uuid IS NULL OR d.deleted_at IS NULL
+                    OR d.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND v.saved_sql_version_uuid = (
+                SELECT saved_sql_version_uuid FROM saved_sql_versions
+                WHERE saved_sql_uuid = c.saved_sql_uuid
+                ORDER BY created_at DESC, saved_sql_version_uuid DESC LIMIT 1
+            )
+            UNION ALL
+            SELECT s.space_uuid AS "spaceUuid", NULL::uuid AS "warehouseConnectionUuid",
+                jsonb_build_object(
+                    'tableCalculations', (
+                        SELECT jsonb_agg(jsonb_build_object('sql', calculation_raw_sql))
+                        FROM saved_queries_version_table_calculations
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    ),
+                    'customDimensions', (
+                        SELECT jsonb_agg(jsonb_build_object('type', 'sql'))
+                        FROM saved_queries_version_custom_sql_dimensions
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    ),
+                    'additionalMetrics', (
+                        SELECT jsonb_agg(jsonb_build_object(
+                            'sql', sql, 'table', "table", 'name', name, 'type', type,
+                            'baseDimensionName', base_dimension_name,
+                            'baseMetricName', base_metric_name,
+                            'generationType', generation_type,
+                            'baseMetricId', base_metric_id,
+                            'timeDimensionId', time_dimension_id,
+                            'granularity', granularity, 'periodOffset', period_offset
+                        ))
+                        FROM saved_queries_version_additional_metrics
+                        WHERE saved_queries_version_id = v.saved_queries_version_id
+                    )
+                ) AS "metricQuery"
+            FROM saved_queries c
+            LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
+            JOIN restoring_spaces s ON c.space_id = s.space_id OR d.space_id = s.space_id
+            JOIN saved_queries_versions v ON v.saved_query_id = c.saved_query_id
+            WHERE (c.deleted_at IS NULL OR c.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND (c.dashboard_uuid IS NULL OR d.deleted_at IS NULL
+                    OR d.deleted_by_user_uuid = s.deleted_by_user_uuid)
+                AND v.saved_queries_version_id = (
+                    SELECT saved_queries_version_id FROM saved_queries_versions
+                    WHERE saved_query_id = c.saved_query_id
+                    ORDER BY created_at DESC, saved_queries_version_id DESC LIMIT 1
+                )`,
+            [spaceUuid],
+        );
+        return rows
+            .filter(
+                ({ metricQuery }) =>
+                    metricQuery === null || hasCustomSql(metricQuery),
+            )
+            .map(({ spaceUuid: chartSpaceUuid, warehouseConnectionUuid }) => ({
+                spaceUuid: chartSpaceUuid,
+                warehouseConnectionUuid,
+            }));
+    }
+
+    async getConnectionBoundSpaces({
+        projectUuid,
+    }: {
+        projectUuid: string;
+    }): Promise<{ spaceUuid: string; warehouseConnectionUuid: string }[]> {
+        const result = await this.database.raw<{
+            rows: { spaceUuid: string; warehouseConnectionUuid: string }[];
+        }>(
+            `SELECT s.space_uuid AS "spaceUuid",
+                s.warehouse_connection_uuid AS "warehouseConnectionUuid"
+            FROM spaces s
+            JOIN projects p ON p.project_id = s.project_id
+            JOIN warehouse_connections w
+                ON w.warehouse_connection_uuid = s.warehouse_connection_uuid
+            WHERE p.project_uuid = ? AND s.deleted_at IS NULL
+                AND w.project_uuid = ? AND NOT w.is_original`,
+            [projectUuid, projectUuid],
+        );
+        return result.rows;
+    }
+
     async getSpaceSummary(
         spaceUuid: string,
         options?: { deleted?: boolean; projectUuid?: string },
@@ -2135,6 +2356,7 @@ export class SpaceModel {
             projectMemberAccessRole:
                 (space.project_member_access_role as SpaceMemberRole) ?? null,
             colorPaletteUuid: space.color_palette_uuid,
+            warehouseConnectionUuid: space.warehouse_connection_uuid,
         };
     }
 
@@ -2164,6 +2386,7 @@ export class SpaceModel {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >
     > {
         if (trx === undefined) {
@@ -2539,6 +2762,10 @@ export class SpaceModel {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
             }
+            if (space.warehouseConnectionUuid !== undefined) {
+                updateData.warehouse_connection_uuid =
+                    space.warehouseConnectionUuid;
+            }
             if (space.colorPaletteUuid !== undefined) {
                 updateData.color_palette_uuid = space.colorPaletteUuid;
             }
@@ -2594,6 +2821,10 @@ export class SpaceModel {
             if (space.projectMemberAccessRole !== undefined) {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
+            }
+            if (space.warehouseConnectionUuid !== undefined) {
+                updateData.warehouse_connection_uuid =
+                    space.warehouseConnectionUuid;
             }
             if (space.colorPaletteUuid !== undefined) {
                 updateData.color_palette_uuid = space.colorPaletteUuid;

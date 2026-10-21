@@ -4,6 +4,7 @@ import {
     AgentActorSurface,
     AnyType,
     ContentAsCodeType,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
@@ -126,6 +127,7 @@ const buildService = ({
     },
     groups = [],
     canManage = true,
+    reservationEnabled = false,
     canResults,
     hasProjectMembership = false,
     resolvedUserAccess,
@@ -136,6 +138,7 @@ const buildService = ({
     rawAccess?: Record<string, AnyType>;
     groups?: AnyType[];
     canManage?: boolean;
+    reservationEnabled?: boolean;
     canResults?: boolean[];
     hasProjectMembership?: boolean;
     resolvedUserAccess?: Array<{
@@ -152,6 +155,10 @@ const buildService = ({
         hasProjectMembership: vi.fn(async () => hasProjectMembership),
     };
     const spaceModel = {
+        getEffectiveWarehouseConnectionUuid: vi.fn(async () => 'reserved'),
+        getConnectionBoundSpaces: vi.fn(async () => [
+            { spaceUuid: SPACE_UUID, warehouseConnectionUuid: 'reserved' },
+        ]),
         getSpacesByProjectUuid: vi.fn(async () => mutableSpaces),
         findByProjectAndPath: vi.fn(
             async (_projectUuid: string, path: string) =>
@@ -188,6 +195,7 @@ const buildService = ({
         }),
     };
     const spacePermissionService = {
+        resolveAccessBatch: vi.fn(async () => []),
         getAccessibleSpaceUuids: vi.fn(async () => accessibleSpaceUuids),
         getRawDirectAccess: vi.fn(async () => rawAccess),
         can: vi.fn(async () => canResults?.shift() ?? canManage),
@@ -203,6 +211,12 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: reservationEnabled,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
@@ -689,6 +703,36 @@ describe('CoderService spaces as code', () => {
         );
         expect(spaceModel.applySpaceAsCode).not.toHaveBeenCalled();
     });
+
+    test.each([false, true])(
+        'requires connection access before a space upload with reservation flag %s',
+        async (reservationEnabled) => {
+            const { service, spaceModel } = buildService({
+                reservationEnabled,
+            });
+            const upload = service.upsertSpace(makeUser(), PROJECT_UUID, {
+                contentType: ContentAsCodeType.SPACE,
+                spaceName: 'Reports',
+                slug: 'finance/reports',
+            });
+            if (reservationEnabled) {
+                await expect(upload).rejects.toThrow(
+                    'You need edit access on a space that uses this connection',
+                );
+                expect(spaceModel.applySpaceAsCode).not.toHaveBeenCalled();
+            } else {
+                await expect(upload).resolves.toEqual({
+                    action: SpaceAsCodeAction.CREATE,
+                });
+                expect(
+                    spaceModel.getEffectiveWarehouseConnectionUuid,
+                ).not.toHaveBeenCalled();
+                expect(
+                    spaceModel.getConnectionBoundSpaces,
+                ).not.toHaveBeenCalled();
+            }
+        },
+    );
 
     test('recursively creates missing ancestors for a legacy metadata-only leaf', async () => {
         const { service, spaceModel } = buildService({ spaces: [] });

@@ -53,6 +53,7 @@ export const user: SessionUser = {
 };
 
 export const space: SpaceTable['base'] = {
+    warehouse_connection_uuid: null,
     space_id: 0,
     space_uuid: '123',
     name: 'space name',
@@ -72,6 +73,8 @@ export const space: SpaceTable['base'] = {
 };
 
 export const publicSpace: Space = {
+    warehouseConnectionUuid: null,
+    effectiveWarehouseConnection: null,
     inheritsFromOrgOrProject: true,
     inheritParentPermissions: true,
     projectMemberAccessRole: null,

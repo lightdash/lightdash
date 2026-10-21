@@ -36,6 +36,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
+import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     assertHumanManagedMutation,
     getManagedAgentPolicy,
@@ -47,10 +48,12 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
+import { SpaceConnectionReservation } from './SpaceConnectionReservation';
 import { SpacePermissionService } from './SpacePermissionService';
 
 type SpaceServiceArguments = {
     featureFlagModel: FeatureFlagModel;
+    warehouseConnectionModel: WarehouseConnectionModel;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
@@ -99,6 +102,8 @@ export class SpaceService
 {
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly warehouseConnectionModel: WarehouseConnectionModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -123,9 +128,13 @@ export class SpaceService
 
     private readonly serviceAccountModel: ServiceAccountModel | undefined;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: SpaceServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.featureFlagModel = args.featureFlagModel;
+        this.warehouseConnectionModel = args.warehouseConnectionModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
@@ -211,8 +220,52 @@ export class SpaceService
             this.spaceModel.find({ parentSpaceUuid: spaceUuid }),
         ]);
 
+        let effectiveWarehouseConnection: Space['effectiveWarehouseConnection'] =
+            null;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: space.organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (enabled) {
+            const binding =
+                await this.spaceModel.getEffectiveWarehouseConnectionBinding({
+                    projectUuid: space.projectUuid,
+                    spaceUuid,
+                });
+            if (binding !== null) {
+                const project = await this.warehouseConnectionModel.getProject(
+                    space.projectUuid,
+                );
+                if (project.connectionMode === 'multi') {
+                    const connections =
+                        await this.warehouseConnectionModel.list(project);
+                    const connection = connections.find(
+                        ({ warehouseConnectionUuid }) =>
+                            warehouseConnectionUuid ===
+                            binding.warehouseConnectionUuid,
+                    );
+                    if (connection) {
+                        effectiveWarehouseConnection = {
+                            warehouseConnectionUuid:
+                                connection.warehouseConnectionUuid,
+                            name: connection.name,
+                            warehouseType: connection.warehouseType,
+                            inheritedFromSpace:
+                                binding.spaceUuid === spaceUuid
+                                    ? null
+                                    : {
+                                          uuid: binding.spaceUuid,
+                                          name: binding.spaceName,
+                                      },
+                        };
+                    }
+                }
+            }
+        }
+
         return {
             ...space,
+            effectiveWarehouseConnection,
             inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
             queries,
             dashboards,
@@ -376,6 +429,13 @@ export class SpaceService
             if (parentSpace.projectUuid !== projectUuid) {
                 throw new NotFoundError('Parent space not found');
             }
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                spaceUuid: space.parentSpaceUuid,
+            });
         }
 
         if (space.access && space.access.length > 0) {
@@ -451,6 +511,52 @@ export class SpaceService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+
+        if (updateSpace.warehouseConnectionUuid !== undefined) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid: space.organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+            const ability = this.createAuditedAbility(user);
+            if (
+                !enabled ||
+                ability.cannot(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You cannot change this space connection',
+                );
+            }
+            if (updateSpace.warehouseConnectionUuid !== null) {
+                const project = await this.warehouseConnectionModel.getProject(
+                    space.projectUuid,
+                );
+                try {
+                    const connection = await this.warehouseConnectionModel.get(
+                        project,
+                        updateSpace.warehouseConnectionUuid,
+                    );
+                    if (
+                        connection.warehouseType !==
+                        project.originalWarehouseType
+                    ) {
+                        throw new ParameterError(
+                            'A space can only use a connection of the same warehouse type as the project connection',
+                        );
+                    }
+                } catch (error) {
+                    if (!(error instanceof NotFoundError)) throw error;
+                    throw new ParameterError(
+                        'Connection does not belong to this project',
+                    );
+                }
+            }
+        }
 
         if (updateSpace.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(
@@ -667,6 +773,16 @@ export class SpaceService
                     targetSpaceUuid: targetSpaceUuid ?? undefined,
                 },
             );
+        }
+
+        if (targetSpaceUuid) {
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid: space.organizationUuid,
+                projectUuid,
+                spaceUuid: targetSpaceUuid,
+            });
         }
 
         if (space.inheritParentPermissions) {
@@ -969,6 +1085,29 @@ export class SpaceService
                     );
                 }
             }
+        }
+
+        const { enabled: spaceConnectionsEnabled } =
+            await this.featureFlagModel.get({
+                user: { organizationUuid: space.organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+        if (spaceConnectionsEnabled) {
+            const sqlCharts =
+                await this.spaceModel.getSqlChartsForSpaceRestore(spaceUuid);
+            await Promise.all(
+                sqlCharts.map((chart) =>
+                    this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                        userUuid: user.userUuid,
+                        ability: this.createAuditedAbility(user),
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                        spaceUuid: chart.spaceUuid,
+                        warehouseConnectionUuid: chart.warehouseConnectionUuid,
+                        includeDeletedSpaces: true,
+                    }),
+                ),
+            );
         }
 
         const restoredDocuments = await this.spaceModel.restore(spaceUuid);

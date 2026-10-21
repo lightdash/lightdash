@@ -9,6 +9,7 @@ import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { validate as isUuid } from 'uuid';
 import Logger from '../../logging/logger';
+import { SpaceModel } from '../SpaceModel';
 import { WarehouseConnectionIdentityModel } from '../WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 
 export type ConnectionBinding =
@@ -16,6 +17,7 @@ export type ConnectionBinding =
     | { kind: 'sqlChart'; savedSqlUuid: string }
     | { kind: 'query'; queryUuid: string }
     | { kind: 'connection'; warehouseConnectionUuid: string | null }
+    | { kind: 'space'; spaceUuid: string; fallback: ConnectionBinding }
     | { kind: 'original' };
 
 export type CredentialReadTarget =
@@ -48,9 +50,21 @@ export class WarehouseConnectionRouter {
 
     private readonly identityModel: WarehouseConnectionIdentityModel;
 
+    private readonly spaceModel: Pick<
+        SpaceModel,
+        'getEffectiveWarehouseConnectionUuid'
+    >;
+
     private hasWarnedMissingColumn = false;
 
-    constructor({ database }: { database: Knex }) {
+    constructor({
+        database,
+        spaceModel = new SpaceModel({ database }),
+    }: {
+        database: Knex;
+        spaceModel?: Pick<SpaceModel, 'getEffectiveWarehouseConnectionUuid'>;
+    }) {
+        this.spaceModel = spaceModel;
         this.database = database;
         this.identityModel = new WarehouseConnectionIdentityModel({
             database,
@@ -186,8 +200,56 @@ export class WarehouseConnectionRouter {
                 originalWarehouseConnectionUuid,
             };
         }
+        const target = await this.resolveMultiBinding(projectUuid, binding);
+        return { route, target, originalWarehouseConnectionUuid };
+    }
+
+    private async resolveMultiBinding(
+        projectUuid: string,
+        binding: ConnectionBinding,
+    ): Promise<CredentialReadTarget> {
         let target: CredentialReadTarget;
         switch (binding.kind) {
+            case 'space': {
+                const warehouseConnectionUuid =
+                    await this.spaceModel.getEffectiveWarehouseConnectionUuid({
+                        projectUuid,
+                        spaceUuid: binding.spaceUuid,
+                    });
+                const fallbackTarget = await this.resolveMultiBinding(
+                    projectUuid,
+                    binding.fallback,
+                );
+                if (warehouseConnectionUuid === null) {
+                    return fallbackTarget;
+                }
+                const spaceTarget = await this.resolveConnectionBinding(
+                    projectUuid,
+                    warehouseConnectionUuid,
+                );
+                const spaceConnectionUuid =
+                    spaceTarget.kind === 'original'
+                        ? null
+                        : spaceTarget.warehouseConnectionUuid;
+                const fallbackConnectionUuid =
+                    fallbackTarget.kind === 'original'
+                        ? null
+                        : fallbackTarget.warehouseConnectionUuid;
+                const warehouseTypes =
+                    await this.identityModel.getConnectionWarehouseTypes(
+                        projectUuid,
+                        [spaceConnectionUuid, fallbackConnectionUuid],
+                    );
+                const spaceWarehouseType =
+                    warehouseTypes.get(spaceConnectionUuid);
+                target =
+                    spaceWarehouseType !== undefined &&
+                    spaceWarehouseType ===
+                        warehouseTypes.get(fallbackConnectionUuid)
+                        ? spaceTarget
+                        : fallbackTarget;
+                break;
+            }
             case 'original':
                 target = ORIGINAL_CONNECTION;
                 break;
@@ -224,7 +286,7 @@ export class WarehouseConnectionRouter {
             default:
                 return assertUnreachable(binding, 'Unknown connection binding');
         }
-        return { route, target, originalWarehouseConnectionUuid };
+        return target;
     }
 
     private async resolveExploreBinding(

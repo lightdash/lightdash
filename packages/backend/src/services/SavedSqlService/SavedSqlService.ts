@@ -46,6 +46,7 @@ import {
     type SqlChartVersionBinding,
 } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { WarehouseConnectionIdentityModel } from '../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
@@ -53,6 +54,7 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import {
     SpacePermissionService,
     type AccessTarget,
@@ -65,6 +67,7 @@ type SavedSqlServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     savedSqlModel: SavedSqlModel;
+    spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     schedulerModel: SchedulerModel;
     analyticsModel: AnalyticsModel;
@@ -98,8 +101,11 @@ export class SavedSqlService
 
     private readonly warehouseConnectionIdentityModel: WarehouseConnectionIdentityModel;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.featureFlagModel = args.featureFlagModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -566,6 +572,15 @@ export class SavedSqlService
             },
         );
 
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            spaceUuid: sqlChart.spaceUuid,
+            warehouseConnectionUuid: sqlChart.warehouseConnectionUuid,
+        });
+
         const createdChart = await this.savedSqlModel.create(
             user.userUuid,
             projectUuid,
@@ -641,6 +656,28 @@ export class SavedSqlService
                         : undefined,
             },
         );
+
+        const requestedConnectionUuid =
+            sqlChart.versionedData?.warehouseConnectionUuid;
+        const resultingConnectionUuid =
+            requestedConnectionUuid === undefined
+                ? savedChart.warehouseConnectionUuid
+                : requestedConnectionUuid;
+        const destinationSpaceUuid =
+            sqlChart.unversionedData?.spaceUuid ?? savedChart.space.uuid;
+        if (
+            sqlChart.versionedData ||
+            destinationSpaceUuid !== savedChart.space.uuid
+        ) {
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                spaceUuid: destinationSpaceUuid,
+                warehouseConnectionUuid: resultingConnectionUuid,
+            });
+        }
 
         const updatedChart = await this.savedSqlModel.update(
             {
@@ -800,6 +837,15 @@ export class SavedSqlService
                 );
             }
         }
+
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: this.createAuditedAbility(user),
+            organizationUuid,
+            projectUuid,
+            spaceUuid: savedChart.space.uuid,
+            warehouseConnectionUuid: savedChart.warehouseConnectionUuid,
+        });
 
         await this.savedSqlModel.restore(savedSqlUuid);
 
@@ -1061,6 +1107,27 @@ export class SavedSqlService
                 type: 'SavedChart',
                 metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        }
+
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: user.organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (enabled) {
+            const savedChart = await this.savedSqlModel.getByUuid(
+                savedSqlUuid,
+                {
+                    projectUuid,
+                },
+            );
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid: savedChart.organization.organizationUuid,
+                projectUuid,
+                spaceUuid: targetSpaceUuid,
+                warehouseConnectionUuid: savedChart.warehouseConnectionUuid,
             });
         }
 

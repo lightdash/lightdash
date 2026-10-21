@@ -40,9 +40,16 @@ export const useWarehouseTree = ({
 }): WarehouseTree => {
     const {
         projectUuid,
-        connections: projectConnections,
+        connections: allConnections,
         activeConnectionUuid,
     } = useActiveConnection();
+    const projectConnections = useMemo(
+        () =>
+            allConnections.filter(
+                (connection) => connection.canRunSql !== false,
+            ),
+        [allConnections],
+    );
 
     const connectionIds = useMemo(
         () =>
@@ -59,8 +66,9 @@ export const useWarehouseTree = ({
     const enabledConnectionIds = useMemo(() => {
         const enabled = new Set(expandedConnectionIds);
         if (activeConnectionUuid) enabled.add(activeConnectionUuid);
+        if (connectionIds.length === 1) enabled.add(connectionIds[0]);
         return enabled;
-    }, [expandedConnectionIds, activeConnectionUuid]);
+    }, [expandedConnectionIds, activeConnectionUuid, connectionIds]);
 
     const {
         listings,

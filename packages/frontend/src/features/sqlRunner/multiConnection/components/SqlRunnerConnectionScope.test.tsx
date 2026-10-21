@@ -90,12 +90,14 @@ const connections: SqlRunnerWarehouseConnection[] = [
         warehouseConnectionUuid: 'original-uuid',
         name: 'Warehouse',
         isOriginal: true,
+        canRunSql: true,
         warehouseType: WarehouseTypes.POSTGRES,
     },
     {
         warehouseConnectionUuid: 'finance-uuid',
         name: 'Finance',
         isOriginal: false,
+        canRunSql: true,
         warehouseType: WarehouseTypes.BIGQUERY,
     },
 ];

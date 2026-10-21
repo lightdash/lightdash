@@ -103,6 +103,8 @@ const space: Space = {
     inheritParentPermissions: false,
     projectMemberAccessRole: null,
     colorPaletteUuid: null,
+    warehouseConnectionUuid: null,
+    effectiveWarehouseConnection: null,
     path: 'restricted_space',
 };
 

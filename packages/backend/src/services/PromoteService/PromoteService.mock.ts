@@ -61,6 +61,7 @@ const promotedProjectUuid = 'promoted-project-uuid';
 const upstreamProjectUuid = 'upstream-project-uuid';
 
 export const promotedSpace: PromotedChart['space'] = {
+    warehouseConnectionUuid: null,
     organizationUuid,
     projectUuid: promotedProjectUuid,
     uuid: 'promoted-space-uuid',
@@ -80,6 +81,7 @@ export const promotedSpace: PromotedChart['space'] = {
 };
 
 export const upstreamSpace: UpstreamChart['space'] = {
+    warehouseConnectionUuid: null,
     organizationUuid,
     projectUuid: upstreamProjectUuid,
     uuid: 'upstream-space-uuid',
@@ -100,6 +102,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
 
 export const upstreamFullSpace: Space = {
     ...upstreamSpace,
+    effectiveWarehouseConnection: null,
     inheritsFromOrgOrProject: true,
     childSpaces: [],
     path: 'jaffle_shop',

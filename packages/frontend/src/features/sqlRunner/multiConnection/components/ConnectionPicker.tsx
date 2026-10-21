@@ -1,4 +1,4 @@
-import { Select } from '@mantine/core';
+import { Select, Stack, Text } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -15,6 +15,7 @@ export const ConnectionPicker: FC = () => {
             connections.map((connection) => ({
                 value: connection.warehouseConnectionUuid,
                 label: connection.name,
+                disabled: connection.canRunSql === false,
             })),
         [connections],
     );
@@ -25,6 +26,16 @@ export const ConnectionPicker: FC = () => {
         <Select
             size="sm"
             data={data}
+            renderOption={({ option }) => (
+                <Stack gap={0}>
+                    <Text size="sm">{option.label}</Text>
+                    {option.disabled && (
+                        <Text size="xs" c="dimmed">
+                            Reserved for a space you cannot edit
+                        </Text>
+                    )}
+                </Stack>
+            )}
             value={activeConnectionUuid ?? null}
             placeholder="Choose a connection"
             allowDeselect={false}

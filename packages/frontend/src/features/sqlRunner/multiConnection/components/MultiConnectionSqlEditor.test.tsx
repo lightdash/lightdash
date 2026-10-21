@@ -48,6 +48,7 @@ const activeConnection: ActiveConnection = {
             warehouseConnectionUuid: connectionUuid,
             name: 'Athena',
             isOriginal: true,
+            canRunSql: true,
             warehouseType: WarehouseTypes.ATHENA,
         },
     ],

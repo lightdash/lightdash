@@ -5,6 +5,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
+    isSqlTableCalculation,
     type CompactOrAlias,
     type CompiledCustomDimension,
     type CompiledDimension,
@@ -257,6 +258,16 @@ export type MetricQueryResponse = {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
     };
 };
+
+export const hasCustomSql = (
+    metricQuery: Pick<
+        MetricQuery,
+        'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+    >,
+): boolean =>
+    (metricQuery.tableCalculations ?? []).some(isSqlTableCalculation) ||
+    (metricQuery.customDimensions ?? []).some(isCustomSqlDimension) ||
+    (metricQuery.additionalMetrics ?? []).length > 0;
 
 export const countCustomDimensionsInMetricQuery = (
     metricQuery: MetricQuery,

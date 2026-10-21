@@ -33,6 +33,7 @@ import {
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
+    hasCustomSql,
     isChartCreateScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
@@ -124,6 +125,7 @@ import type {
     SoftDeletableService,
     SoftDeleteOptions,
 } from '../SoftDeletableService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import {
@@ -232,8 +234,11 @@ export class SavedChartService
 
     private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: SavedChartServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.featureFlagModel = args.featureFlagModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
@@ -258,6 +263,38 @@ export class SavedChartService
             args.contentAsCodeProjectSettingsModel;
         this.contentAsCodeSnapshotModel = args.contentAsCodeSnapshotModel;
         this.contentDraftModel = args.contentDraftModel;
+    }
+
+    private async assertCanAuthorChartInSpace(
+        user: SessionUser,
+        chart: Pick<
+            SavedChart,
+            'metricQuery' | 'organizationUuid' | 'projectUuid' | 'spaceUuid'
+        >,
+    ): Promise<void> {
+        if (!hasCustomSql(chart.metricQuery)) return;
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: this.createAuditedAbility(user),
+            organizationUuid: chart.organizationUuid,
+            projectUuid: chart.projectUuid,
+            spaceUuid: chart.spaceUuid,
+        });
+    }
+
+    private async assertCanMoveChartSql(
+        user: SessionUser,
+        chartUuid: string,
+        spaceUuid: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return;
+        const chart = await this.savedChartModel.get(chartUuid);
+        await this.assertCanAuthorChartInSpace(user, { ...chart, spaceUuid });
     }
 
     private async checkUpdateAccess(
@@ -1093,6 +1130,13 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        await this.assertCanAuthorChartInSpace(user, {
+            organizationUuid,
+            projectUuid,
+            spaceUuid,
+            metricQuery: chartVersion.metricQuery,
+        });
+
         await this.assertCanMutateVerifiedChart({
             user,
             chartUuid: savedChartUuid,
@@ -1386,6 +1430,15 @@ export class SavedChartService
             }
         }
 
+        if (chartUpdate.spaceUuid) {
+            await this.assertCanMoveChartSql(
+                user,
+                savedChartUuid,
+                chartUpdate.spaceUuid,
+                organizationUuid,
+            );
+        }
+
         await this.assertCanMutateVerifiedChart({
             user,
             chartUuid: savedChartUuid,
@@ -1663,6 +1716,17 @@ export class SavedChartService
         if (hasAllAccess.includes(false)) {
             throw new ForbiddenError();
         }
+
+        await Promise.all(
+            chartSpaceContexts.map(({ chart, existingChart }) =>
+                this.assertCanMoveChartSql(
+                    user,
+                    chart.uuid,
+                    chart.spaceUuid,
+                    existingChart.organizationUuid,
+                ),
+            ),
+        );
 
         await Promise.all(
             chartSpaceContexts.map(async ({ existingChart }) => {
@@ -2291,6 +2355,7 @@ export class SavedChartService
                   projectUuid,
               )));
 
+        let destinationSpaceUuid = resolvedSpaceUuid;
         let inheritsFromOrgOrProject = true;
         let access: SpaceAccess[] = [];
         let createGrantOnly = false;
@@ -2307,6 +2372,7 @@ export class SavedChartService
             const dashboard = await this.dashboardModel.getByIdOrSlug(
                 chartToSave.dashboardUuid,
             );
+            destinationSpaceUuid = dashboard.spaceUuid;
             // Creating inside the dashboard stays in bounds, so grants count;
             // embed write actors stay space-only (see createVersion).
             const { embedWriteActions } = getAccountWriteContext(account);
@@ -2387,6 +2453,15 @@ export class SavedChartService
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
+        }
+
+        if (destinationSpaceUuid) {
+            await this.assertCanAuthorChartInSpace(user, {
+                organizationUuid,
+                projectUuid,
+                spaceUuid: destinationSpaceUuid,
+                metricQuery: chartToSave.metricQuery,
+            });
         }
 
         await this.validateMetricReferences(
@@ -3056,6 +3131,10 @@ export class SavedChartService
             chartUuid,
             versionUuid,
         );
+        await this.assertCanAuthorChartInSpace(user, {
+            ...chartVersion,
+            spaceUuid: savedChart.spaceUuid,
+        });
         const newChartVersion = await this.savedChartModel.createVersion(
             chartUuid,
             chartVersion,
@@ -3276,6 +3355,15 @@ export class SavedChartService
             });
         }
 
+        if (user.organizationUuid) {
+            await this.assertCanMoveChartSql(
+                user,
+                savedChartUuid,
+                targetSpaceUuid,
+                user.organizationUuid,
+            );
+        }
+
         await this.savedChartModel.moveToSpace(
             { projectUuid, itemUuid: savedChartUuid, targetSpaceUuid },
             { tx },
@@ -3399,6 +3487,17 @@ export class SavedChartService
                     'You can only restore content you deleted',
                 );
             }
+        }
+
+        if (hasCustomSql(deletedChart.metricQuery)) {
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: this.createAuditedAbility(user),
+                organizationUuid,
+                projectUuid,
+                spaceUuid: deletedChart.spaceUuid,
+                includeDeletedSpaces: true,
+            });
         }
 
         await this.savedChartModel.restore(chartUuid);

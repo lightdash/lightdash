@@ -898,7 +898,10 @@ export class SpacePermissionModel {
      */
     async getInheritanceChains(
         spaceUuids: string[],
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            includeDeleted = false,
+        }: { trx?: Knex; includeDeleted?: boolean } = {},
     ): Promise<Record<string, SpaceInheritanceChain>> {
         return wrapSentryTransaction(
             'SpacePermissionModel.getInheritanceChains',
@@ -926,7 +929,7 @@ export class SpacePermissionModel {
                                1 AS depth
                         FROM ${SpaceTableName}
                         WHERE space_uuid = ANY(?)
-                          AND deleted_at IS NULL
+                          AND (? OR deleted_at IS NULL)
 
                         UNION ALL
 
@@ -935,13 +938,13 @@ export class SpacePermissionModel {
                                c.depth + 1
                         FROM ${SpaceTableName} s
                         JOIN chain c ON s.space_uuid = c.parent_space_uuid
-                        WHERE s.deleted_at IS NULL
+                        WHERE (? OR s.deleted_at IS NULL)
                     )
                     SELECT requested_space_uuid, space_uuid, name, inherit_parent_permissions, parent_space_uuid
                     FROM chain
                     ORDER BY requested_space_uuid, depth ASC
                     `,
-                        [spaceUuids],
+                        [spaceUuids, includeDeleted, includeDeleted],
                     )
                     .then((res: { rows: typeof ancestorRows }) => res.rows);
 

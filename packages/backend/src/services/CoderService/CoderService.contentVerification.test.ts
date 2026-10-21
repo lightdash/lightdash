@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ContentType,
     ContentVerificationInfo,
+    FeatureFlags,
     OrganizationMemberRole,
     PossibleAbilities,
 } from '@lightdash/common';
@@ -83,6 +84,12 @@ vi.spyOn(analyticsMock, 'track');
 const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
 const buildService = () =>
     new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel,
         directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,

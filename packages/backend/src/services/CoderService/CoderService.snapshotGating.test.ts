@@ -1,4 +1,4 @@
-import { AnyType, ChartType } from '@lightdash/common';
+import { AnyType, ChartType, FeatureFlags } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
@@ -51,6 +51,12 @@ const buildService = () => {
     const dashboardGet = vi.fn(async () => dashboardDao);
     const savedSqlFind = vi.fn(async () => []);
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,

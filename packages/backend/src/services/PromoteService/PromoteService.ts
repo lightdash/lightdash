@@ -10,6 +10,7 @@ import {
     getDeepestPaths,
     getDocumentSavedChartLinks,
     getErrorMessage,
+    hasCustomSql,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
     isSubPath,
@@ -49,6 +50,7 @@ import Logger from '../../logging/logger';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import {
@@ -65,6 +67,7 @@ import {
     type ContentConnectionModels,
 } from '../CoderService/handlers/contentConnections';
 import type { DocumentService } from '../DocumentService/DocumentService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import type {
     SpaceAccessContextForCasl,
     SpacePermissionService,
@@ -131,6 +134,7 @@ type PromotedSqlChartChange = {
 };
 
 type PromoteServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -238,8 +242,11 @@ export class PromoteService extends BaseService {
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor(args: PromoteServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation(args);
         this.agentActionLogModel = args.agentActionLogModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -995,6 +1002,35 @@ export class PromoteService extends BaseService {
         });
         const { charts } = promotionChanges;
 
+        await Promise.all(
+            charts
+                .filter(
+                    ({ action, data }) =>
+                        (action === PromotionAction.CREATE ||
+                            action === PromotionAction.UPDATE) &&
+                        hasCustomSql(data.metricQuery),
+                )
+                .map(async ({ data }) => {
+                    await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: this.createAuditedAbility(user),
+                            organizationUuid: data.organizationUuid,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: async () =>
+                                promotedDashboardUuid &&
+                                isChartWithinDashboard(data)
+                                    ? (
+                                          await this.dashboardModel.getByIdOrSlug(
+                                              promotedDashboardUuid,
+                                          )
+                                      ).spaceUuid
+                                    : data.spaceUuid,
+                        },
+                    );
+                }),
+        );
+
         const existingCharts = charts.filter(
             (change) => change.action === PromotionAction.NO_CHANGES,
         );
@@ -1234,6 +1270,32 @@ export class PromoteService extends BaseService {
                     },
                 };
             },
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        await Promise.all(
+            sqlChangesWithResolvedSpaces
+                .filter(
+                    ({ action }) =>
+                        action === PromotionAction.CREATE ||
+                        action === PromotionAction.UPDATE,
+                )
+                .map(async ({ data }) => {
+                    const binding = bindings.get(data.oldUuid);
+                    await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: auditedAbility,
+                            organizationUuid: user.organizationUuid!,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: data.unversionedData.spaceUuid,
+                            warehouseConnectionUuid:
+                                binding === undefined
+                                    ? data.versionedData.warehouseConnectionUuid
+                                    : binding.warehouseConnectionUuid,
+                        },
+                    );
+                }),
         );
 
         await Promise.all(
@@ -2186,6 +2248,7 @@ export class PromoteService extends BaseService {
                 | 'groupsAccess'
                 | 'childSpaces'
                 | 'inheritsFromOrgOrProject'
+                | 'effectiveWarehouseConnection'
             >
         >();
 
@@ -2242,6 +2305,18 @@ export class PromoteService extends BaseService {
                 }
 
                 const { data } = spaceChange;
+
+                if (parentSpaceUuid) {
+                    await this.spaceConnectionReservation.assertCanCreateInSpace(
+                        {
+                            userUuid: user.userUuid,
+                            ability: this.createAuditedAbility(user),
+                            organizationUuid: user.organizationUuid!,
+                            projectUuid: data.projectUuid,
+                            spaceUuid: parentSpaceUuid,
+                        },
+                    );
+                }
 
                 const space = await this.spaceModel.createSpace(
                     {

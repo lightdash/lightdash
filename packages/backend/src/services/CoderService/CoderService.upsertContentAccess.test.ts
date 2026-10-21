@@ -12,6 +12,7 @@ import {
     DashboardDAO,
     DashboardTileTypes,
     DimensionType,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
     MergeJoinType,
@@ -90,6 +91,12 @@ const dashboardAsCode = {
 
 const buildService = () =>
     new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,

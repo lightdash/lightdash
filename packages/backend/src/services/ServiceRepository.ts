@@ -1612,6 +1612,8 @@ export class ServiceRepository
             'spaceService',
             () =>
                 new SpaceService({
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
@@ -1792,6 +1794,7 @@ export class ServiceRepository
             'coderService',
             () =>
                 new CoderService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1862,6 +1865,7 @@ export class ServiceRepository
             'promoteService',
             () =>
                 new PromoteService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1910,6 +1914,7 @@ export class ServiceRepository
             'savedSqlService',
             () =>
                 new SavedSqlService({
+                    spaceModel: this.models.getSpaceModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,

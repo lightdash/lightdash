@@ -62,12 +62,14 @@ const connections: SqlRunnerWarehouseConnection[] = [
         warehouseConnectionUuid: 'original-uuid',
         name: 'Warehouse',
         isOriginal: true,
+        canRunSql: true,
         warehouseType: WarehouseTypes.POSTGRES,
     },
     {
         warehouseConnectionUuid: 'finance-uuid',
         name: 'Finance',
         isOriginal: false,
+        canRunSql: true,
         warehouseType: WarehouseTypes.POSTGRES,
     },
 ];
@@ -202,6 +204,72 @@ describe('SqlRunnerSidebar', () => {
             );
             expect(await screen.findByText('finance')).toBeInTheDocument();
         });
+    });
+
+    it('leaves a connection reserved for a space out of the tree', async () => {
+        serveApi('multi');
+        const serve = mockApi.getMockImplementation()!;
+        mockApi.mockImplementation(async (args: { url: string }) =>
+            args.url === connectionsUrl
+                ? [
+                      ...connections,
+                      {
+                          warehouseConnectionUuid: 'hr-uuid',
+                          name: 'HR',
+                          isOriginal: false,
+                          canRunSql: false,
+                          warehouseType: WarehouseTypes.POSTGRES,
+                      },
+                  ]
+                : serve(args),
+        );
+        renderSidebar();
+
+        expect(
+            await screen.findByRole('button', { name: 'Finance' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'HR' })).toBeNull();
+        expect(requestedUrls()).not.toContain(
+            `${connectionsUrl}/hr-uuid/databases`,
+        );
+    });
+
+    it('loads the only usable connection when a shared link names a reserved one', async () => {
+        serveApi('multi');
+        const serve = mockApi.getMockImplementation()!;
+        mockApi.mockImplementation(async (args: { url: string }) =>
+            args.url === connectionsUrl
+                ? [
+                      connections[0],
+                      {
+                          warehouseConnectionUuid: 'hr-uuid',
+                          name: 'HR',
+                          isOriginal: false,
+                          canRunSql: false,
+                          warehouseType: WarehouseTypes.POSTGRES,
+                      },
+                  ]
+                : serve(args),
+        );
+        renderWithProviders(
+            <Provider store={store}>
+                <SqlRunnerConnectionScope
+                    isEditingSavedChart={false}
+                    isSharedLink
+                    sharedConnectionUuid="hr-uuid"
+                >
+                    <SqlRunnerSidebar />
+                </SqlRunnerConnectionScope>
+            </Provider>,
+        );
+
+        expect(await screen.findByText('warehouse')).toBeInTheDocument();
+        expect(requestedUrls()).toContain(
+            `${connectionsUrl}/original-uuid/databases`,
+        );
+        expect(requestedUrls()).not.toContain(
+            `${connectionsUrl}/hr-uuid/databases`,
+        );
     });
 
     it('loads the tree and the fields of a clicked table on the picked connection', async () => {

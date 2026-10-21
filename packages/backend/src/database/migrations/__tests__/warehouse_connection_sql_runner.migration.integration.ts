@@ -455,12 +455,14 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 name: 'Original',
                 isOriginal: true,
                 warehouseType: WarehouseTypes.POSTGRES,
+                canRunSql: true,
             },
             {
                 warehouseConnectionUuid: fixture.extraUuid,
                 name: 'Finance',
                 isOriginal: false,
                 warehouseType: WarehouseTypes.POSTGRES,
+                canRunSql: true,
             },
         ]);
     });

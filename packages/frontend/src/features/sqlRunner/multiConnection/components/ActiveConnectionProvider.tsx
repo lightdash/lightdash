@@ -40,11 +40,16 @@ export const ActiveConnectionProvider: FC<
     children,
 }) => {
     const { showToastInfo } = useToaster();
+    const availableConnections = useMemo(
+        () =>
+            connections.filter((connection) => connection.canRunSql !== false),
+        [connections],
+    );
     const [selectedConnectionUuid, setSelectedConnectionUuid] = useState<
         string | undefined
     >(() => {
         if (isSharedLink) {
-            return connections.find((connection) =>
+            return availableConnections.find((connection) =>
                 sharedConnectionUuid === null
                     ? connection.isOriginal
                     : connection.warehouseConnectionUuid ===
@@ -54,10 +59,11 @@ export const ActiveConnectionProvider: FC<
         if (connectionHint !== undefined) {
             const hintedUuid =
                 connectionHint === null
-                    ? connections.find((connection) => connection.isOriginal)
-                          ?.warehouseConnectionUuid
+                    ? availableConnections.find(
+                          (connection) => connection.isOriginal,
+                      )?.warehouseConnectionUuid
                     : connectionHint;
-            return connections.some(
+            return availableConnections.some(
                 (connection) =>
                     connection.warehouseConnectionUuid === hintedUuid,
             )
@@ -65,7 +71,7 @@ export const ActiveConnectionProvider: FC<
                 : undefined;
         }
         return resolveActiveConnection({
-            connections,
+            connections: availableConnections,
             lastUsedConnectionUuid: readLastUsedConnection(projectUuid),
         });
     });
@@ -76,14 +82,19 @@ export const ActiveConnectionProvider: FC<
         if (!isSharedLink || appliedSharedHint === sharedConnectionUuid) return;
         setAppliedSharedHint(sharedConnectionUuid);
         setSelectedConnectionUuid(
-            connections.find((connection) =>
+            availableConnections.find((connection) =>
                 sharedConnectionUuid === null
                     ? connection.isOriginal
                     : connection.warehouseConnectionUuid ===
                       sharedConnectionUuid,
             )?.warehouseConnectionUuid,
         );
-    }, [appliedSharedHint, connections, isSharedLink, sharedConnectionUuid]);
+    }, [
+        appliedSharedHint,
+        availableConnections,
+        isSharedLink,
+        sharedConnectionUuid,
+    ]);
     const [selectedTable, setActiveTable] = useState<TableIdentity | undefined>(
         undefined,
     );
@@ -98,32 +109,38 @@ export const ActiveConnectionProvider: FC<
         }
         const hintedUuid =
             connectionHint === null
-                ? connections.find((connection) => connection.isOriginal)
-                      ?.warehouseConnectionUuid
+                ? availableConnections.find(
+                      (connection) => connection.isOriginal,
+                  )?.warehouseConnectionUuid
                 : connectionHint;
         if (
             hintedUuid !== undefined &&
             hintedUuid !== selectedConnectionUuid &&
-            connections.some(
+            availableConnections.some(
                 (connection) =>
                     connection.warehouseConnectionUuid === hintedUuid,
             )
         ) {
             setSelectedConnectionUuid(hintedUuid);
         }
-    }, [connectionHint, connections, isSharedLink, selectedConnectionUuid]);
+    }, [
+        connectionHint,
+        availableConnections,
+        isSharedLink,
+        selectedConnectionUuid,
+    ]);
 
     const activeConnection = useMemo(
         () =>
             isSharedLink && appliedSharedHint !== sharedConnectionUuid
                 ? undefined
-                : connections.find(
+                : availableConnections.find(
                       (connection) =>
                           connection.warehouseConnectionUuid ===
                           selectedConnectionUuid,
                   ),
         [
-            connections,
+            availableConnections,
             appliedSharedHint,
             isSharedLink,
             selectedConnectionUuid,
@@ -134,14 +151,14 @@ export const ActiveConnectionProvider: FC<
     const activeTable = useMemo(
         () =>
             selectedTable &&
-            connections.some(
+            availableConnections.some(
                 (connection) =>
                     connection.warehouseConnectionUuid ===
                     selectedTable.connectionId,
             )
                 ? selectedTable
                 : undefined,
-        [connections, selectedTable],
+        [availableConnections, selectedTable],
     );
 
     const activeNameRef = useRef<string | undefined>(undefined);
@@ -187,11 +204,19 @@ export const ActiveConnectionProvider: FC<
 
     const switchConnection = useCallback(
         (warehouseConnectionUuid: string) => {
+            if (
+                !availableConnections.some(
+                    (connection) =>
+                        connection.warehouseConnectionUuid ===
+                        warehouseConnectionUuid,
+                )
+            )
+                return;
             userHasPickedConnection.current = true;
             setSelectedConnectionUuid(warehouseConnectionUuid);
             writeLastUsedConnection(projectUuid, warehouseConnectionUuid);
         },
-        [projectUuid],
+        [projectUuid, availableConnections],
     );
 
     const value = useMemo<ActiveConnection>(
@@ -199,11 +224,7 @@ export const ActiveConnectionProvider: FC<
             projectUuid,
             connections,
             hasSeveralConnections: connections.length > 1,
-            isConnectionSettled:
-                activeConnectionUuid !== undefined ||
-                (connectionHint === undefined &&
-                    !isSharedLink &&
-                    connections.length === 1),
+            isConnectionSettled: activeConnectionUuid !== undefined,
             activeConnectionUuid,
             activeConnection,
             connectionNameFor,
@@ -216,8 +237,6 @@ export const ActiveConnectionProvider: FC<
             connections,
             activeConnectionUuid,
             activeConnection,
-            connectionHint,
-            isSharedLink,
             connectionNameFor,
             switchConnection,
             activeTable,

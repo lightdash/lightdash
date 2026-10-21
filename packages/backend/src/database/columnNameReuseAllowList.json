@@ -38,5 +38,9 @@
     {
         "column": "document_versions.agent_identity",
         "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "spaces.warehouse_connection_uuid",
+        "reason": "Existing space and content queries qualify connection columns when joining cached explores, SQL chart versions or query history. Single-table connection reads do not join spaces, so the added column does not make those reads ambiguous."
     }
 ]

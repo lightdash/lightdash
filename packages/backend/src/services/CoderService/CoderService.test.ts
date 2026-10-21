@@ -9,6 +9,7 @@ import {
     DashboardTileTypes,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
+    FeatureFlags,
     PromotionAction,
     SpaceMemberRole,
 } from '@lightdash/common';
@@ -297,6 +298,12 @@ describe('CoderService', () => {
             updatedAt: new Date('2026-08-27T00:00:00Z'),
         };
         const service = new CoderService({
+            featureFlagModel: {
+                get: vi.fn(async () => ({
+                    id: FeatureFlags.SpaceWarehouseConnections,
+                    enabled: false,
+                })),
+            },
             agentActionLogModel: {
                 insert: vi.fn().mockResolvedValue(undefined),
             },
@@ -1136,6 +1143,12 @@ describe('CoderService', () => {
     describe('convertTileWithSlugsToUuids', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1230,6 +1243,12 @@ describe('CoderService', () => {
 
         it('warns when a chart tile slug does not resolve in the project', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1303,6 +1322,12 @@ describe('CoderService', () => {
 
         it('resolves portable tab slugs and still accepts legacy tab UUIDs', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1371,6 +1396,12 @@ describe('CoderService', () => {
         const buildServiceWithApps = (apps: AppRow[]) => {
             appModelMock = buildAppModelMock(apps);
             return new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1499,6 +1530,12 @@ describe('CoderService', () => {
 
         it('resolves a chart tile and a data app tile together (main return path)', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1577,6 +1614,12 @@ describe('CoderService', () => {
 
         it('resolves a historical chart slug to the existing chart UUID', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -1898,6 +1941,12 @@ describe('CoderService', () => {
 
         it('ignores the read-only chart query when tiles are written back', async () => {
             const service = new CoderService({
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.SpaceWarehouseConnections,
+                        enabled: false,
+                    })),
+                },
                 agentActionLogModel: {
                     insert: vi.fn().mockResolvedValue(undefined),
                 },
@@ -2494,7 +2543,10 @@ describe('CoderService.upsertChart custom chart type pins', () => {
         config: { dataAppVizUuid: vizUuid, dataAppVizVersion: 2 },
     };
 
-    const upload = async (requestedVersion?: number) => {
+    const upload = async (requestedVersion?: number, customSql = false) => {
+        const assertCanAuthorSqlInSpace = vi.fn(
+            async (_args: { spaceUuid: () => Promise<string> }) => undefined,
+        );
         const currentChart = {
             uuid: chartUuid,
             slug: 'orders',
@@ -2520,6 +2572,7 @@ describe('CoderService.upsertChart custom chart type pins', () => {
             async (_user: AnyType, changes: AnyType) => changes,
         );
         const service = Object.assign(Object.create(CoderService.prototype), {
+            spaceConnectionReservation: { assertCanAuthorSqlInSpace },
             resolveSyncEnabled: vi.fn(async () => false),
             projectModel: {
                 get: vi.fn(async () => ({
@@ -2597,12 +2650,42 @@ describe('CoderService.upsertChart custom chart type pins', () => {
                             : { dataAppVizVersion: requestedVersion }),
                     },
                 },
-                metricQuery: { exploreName: 'orders', filters: {} },
+                metricQuery: {
+                    exploreName: 'orders',
+                    filters: {},
+                    ...(customSql
+                        ? {
+                              tableCalculations: [
+                                  {
+                                      name: 'custom',
+                                      sql: 'SELECT secret FROM private_table',
+                                  },
+                              ],
+                          }
+                        : {}),
+                },
             } as AnyType,
         );
 
-        return { getChartChanges, upsertCharts };
+        return { getChartChanges, upsertCharts, assertCanAuthorSqlInSpace };
     };
+
+    it('checks custom SQL against the destination space before the upload', async () => {
+        const { assertCanAuthorSqlInSpace } = await upload(undefined, true);
+        expect(assertCanAuthorSqlInSpace).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-uuid',
+                organizationUuid: 'organization-uuid',
+            }),
+        );
+        const { spaceUuid } = assertCanAuthorSqlInSpace.mock.calls[0][0];
+        expect(await spaceUuid()).toBe('space-uuid');
+    });
+
+    it('does no reservation checks for an upload without custom SQL', async () => {
+        const { assertCanAuthorSqlInSpace } = await upload();
+        expect(assertCanAuthorSqlInSpace).not.toHaveBeenCalled();
+    });
 
     it('updates an existing chart when an omitted legacy pin resolves to a newer ready version', async () => {
         const { upsertCharts } = await upload();
@@ -2644,6 +2727,12 @@ describe('content-as-code access split', () => {
     } as AnyType;
 
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         projectModel: {
@@ -2730,6 +2819,12 @@ describe.each(agentActionTestCases)(
                 );
                 const insert = vi.fn().mockResolvedValue(undefined);
                 const service = new CoderService({
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({
+                            id: FeatureFlags.SpaceWarehouseConnections,
+                            enabled: false,
+                        })),
+                    },
                     agentActionLogModel: { insert },
                     directAccessService: { replacePolicy },
                 } as AnyType);

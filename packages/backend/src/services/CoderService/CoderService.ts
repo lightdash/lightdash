@@ -58,6 +58,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     hasChartsInDashboard,
+    hasCustomSql,
     isChartScheduler,
     isDashboardChartTileType,
     isDashboardScheduler,
@@ -165,6 +166,7 @@ import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import {
     spaceContextsByUuid,
     type SpacePermissionService,
@@ -220,6 +222,7 @@ type ContentAsCodeSpaceContentMetadata = {
 
 type CoderServiceArguments = {
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -322,6 +325,8 @@ export class CoderService extends BaseService {
         'getProject' | 'list'
     >;
 
+    private readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     private readonly virtualViewCoder: VirtualViewCoder;
 
     private readonly scheduledContentCoder: ScheduledContentCoder;
@@ -338,6 +343,7 @@ export class CoderService extends BaseService {
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
     constructor({
+        featureFlagModel,
         agentActionLogModel,
         lightdashConfig,
         analytics,
@@ -365,6 +371,11 @@ export class CoderService extends BaseService {
         warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
+        this.spaceConnectionReservation = new SpaceConnectionReservation({
+            featureFlagModel,
+            spaceModel,
+            spacePermissionService,
+        });
         this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -1658,6 +1669,16 @@ export class CoderService extends BaseService {
                     parentPath!,
                 )}"`,
             );
+        }
+
+        if (!existingSpace && parentSpaceUuid !== null) {
+            await this.spaceConnectionReservation.assertCanCreateInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                spaceUuid: parentSpaceUuid,
+            });
         }
 
         const rawAccess = existingSpace
@@ -4334,6 +4355,24 @@ export class CoderService extends BaseService {
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid ?? null,
             });
+            if (hasCustomSql(metricQuery)) {
+                await this.spaceConnectionReservation.assertCanAuthorSqlInSpace(
+                    {
+                        userUuid: user.userUuid,
+                        ability: auditedAbility,
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        spaceUuid: async () =>
+                            createChart.dashboardUuid
+                                ? (
+                                      await this.dashboardModel.getByIdOrSlug(
+                                          createChart.dashboardUuid,
+                                      )
+                                  ).spaceUuid
+                                : space.uuid,
+                    },
+                );
+            }
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
@@ -4486,6 +4525,23 @@ export class CoderService extends BaseService {
                 spaceUuids: [space.uuid],
                 metadata: { savedChartUuid: chart.uuid },
                 errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
+
+        if (hasCustomSql(metricQuery)) {
+            await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+                userUuid: user.userUuid,
+                ability: auditedAbility,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                spaceUuid: async () =>
+                    chart.dashboardUuid
+                        ? (
+                              await this.dashboardModel.getByIdOrSlug(
+                                  chart.dashboardUuid,
+                              )
+                          ).spaceUuid
+                        : space.uuid,
             });
         }
 
@@ -4850,6 +4906,15 @@ export class CoderService extends BaseService {
             spaceNames,
             allowSpaceCreate,
         );
+
+        await this.spaceConnectionReservation.assertCanAuthorSqlInSpace({
+            userUuid: user.userUuid,
+            ability: auditedAbility,
+            organizationUuid: project.organizationUuid,
+            projectUuid,
+            spaceUuid: space.uuid,
+            warehouseConnectionUuid,
+        });
 
         const savedChartAction = isUpdate ? 'update' : 'create';
         await this.assertSpaceContentAccess({
@@ -5372,6 +5437,7 @@ export class CoderService extends BaseService {
             | 'groupsAccess'
             | 'childSpaces'
             | 'inheritsFromOrgOrProject'
+            | 'effectiveWarehouseConnection'
         >[] = [];
 
         for await (const currentPath of remainingPath) {
@@ -5386,6 +5452,16 @@ export class CoderService extends BaseService {
             const spaceName =
                 spaceNames?.[getContentAsCodePathFromLtreePath(parentPath)] ??
                 friendlyName(currentPath);
+
+            if (parentSpaceUuid) {
+                await this.spaceConnectionReservation.assertCanCreateInSpace({
+                    userUuid: user.userUuid,
+                    ability: this.createAuditedAbility(user),
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                    spaceUuid: parentSpaceUuid,
+                });
+            }
 
             const newSpace = await this.spaceModel.createSpace(
                 {

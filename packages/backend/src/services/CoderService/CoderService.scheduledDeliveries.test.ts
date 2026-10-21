@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     ContentAsCodeType,
+    FeatureFlags,
     FilterOperator,
     NotificationFrequency,
     OrganizationMemberRole,
@@ -282,6 +283,12 @@ const buildService = ({
     };
 
     const service = new CoderService({
+        featureFlagModel: {
+            get: vi.fn(async () => ({
+                id: FeatureFlags.SpaceWarehouseConnections,
+                enabled: false,
+            })),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,

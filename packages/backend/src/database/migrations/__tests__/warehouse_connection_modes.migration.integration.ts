@@ -23,6 +23,7 @@ const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261011000001_add_agent_policy_allowed_users',
     '20261011000004_add_agent_policy_allowed_groups',
     '20261011000005_add_agent_policy_allowed_capabilities',
+    '20261016120000_add_space_warehouse_connection',
 ] as const;
 
 const LATER_TABLES = [
@@ -40,6 +41,7 @@ const LATER_COLUMNS = [
     'organization_warehouse_credentials.organization_credential_generation',
     'agent_action_log.capability',
     'agent_action_log.policy_version',
+    'spaces.warehouse_connection_uuid',
 ];
 
 const NEW_TABLES = [

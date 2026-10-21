@@ -20,6 +20,7 @@ const connection = (
     warehouseConnectionUuid,
     name,
     isOriginal: false,
+    canRunSql: true,
     warehouseType: WarehouseTypes.POSTGRES,
 });
 
@@ -58,6 +59,43 @@ describe('resolveActiveConnection', () => {
             resolveActiveConnection({
                 connections: [connections[0]],
                 lastUsedConnectionUuid: undefined,
+            }),
+        ).toBe('connection-1');
+    });
+
+    it('does not select a reserved sole connection', () => {
+        expect(
+            resolveActiveConnection({
+                connections: [{ ...connections[0], canRunSql: false }],
+                lastUsedConnectionUuid: 'connection-1',
+            }),
+        ).toBeUndefined();
+    });
+
+    it('ignores a reserved persisted connection', () => {
+        expect(
+            resolveActiveConnection({
+                connections: [
+                    ...connections,
+                    {
+                        ...connections[0],
+                        warehouseConnectionUuid: 'reserved',
+                        canRunSql: false,
+                    },
+                ],
+                lastUsedConnectionUuid: 'reserved',
+            }),
+        ).toBeUndefined();
+    });
+
+    it('selects the only available connection', () => {
+        expect(
+            resolveActiveConnection({
+                connections: [
+                    connections[0],
+                    { ...connections[1], canRunSql: false },
+                ],
+                lastUsedConnectionUuid: 'connection-2',
             }),
         ).toBe('connection-1');
     });

@@ -236,7 +236,10 @@ import {
     QueryHistoryModel,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
-import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import type {
+    ConnectionBinding,
+    ConnectionRouteWithOriginal,
+} from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import {
     compileMetricQuery,
@@ -7460,6 +7463,15 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
+        const preserveSourceConnection = sourceQueryHistory
+            ? (
+                  await this.featureFlagModel.get({
+                      user: { organizationUuid },
+                      featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+                  })
+              ).enabled
+            : false;
+
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             { explore, userAccessControls: preloadedUserAccessControls },
@@ -7487,10 +7499,16 @@ export class AsyncQueryService extends ProjectService {
                 querySurface,
                 context,
                 projectUuid,
-                binding: {
-                    kind: 'explore',
-                    exploreName: inputMetricQuery.exploreName,
-                },
+                binding:
+                    preserveSourceConnection && sourceQueryHistory
+                        ? {
+                              kind: 'query',
+                              queryUuid: sourceQueryHistory.queryUuid,
+                          }
+                        : {
+                              kind: 'explore',
+                              exploreName: inputMetricQuery.exploreName,
+                          },
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -7618,6 +7636,23 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         };
 
+        const exploreTarget = preserveSourceConnection
+            ? await this.projectModel.resolveWarehouseCredentialRead(
+                  projectUuid,
+                  {
+                      kind: 'explore',
+                      exploreName: inputMetricQuery.exploreName,
+                  },
+              )
+            : null;
+        const exploreConnectionUuid =
+            exploreTarget?.kind === 'extra'
+                ? exploreTarget.warehouseConnectionUuid
+                : null;
+        const sourceConnectionOverridesExplore =
+            preserveSourceConnection &&
+            warehouseConnectionUuid !== exploreConnectionUuid;
+
         const identityEnabled = await this.isResultIdentityEnabled(account);
         const routingDecision = await this.getPreAggregationRoutingDecision({
             identityEnabled,
@@ -7627,7 +7662,9 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: effectiveMetricQuery,
             explore,
             context,
-            forceWarehouse: usePreAggregateCache === false,
+            forceWarehouse:
+                usePreAggregateCache === false ||
+                sourceConnectionOverridesExplore,
         });
 
         this.logger.info(
@@ -8484,6 +8521,33 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private async withSpaceBinding({
+        projectUuid,
+        organizationUuid,
+        spaceUuid,
+        binding,
+    }: {
+        projectUuid: string;
+        organizationUuid: string;
+        spaceUuid: string | null;
+        binding: ConnectionBinding;
+    }): Promise<ConnectionBinding> {
+        if (spaceUuid === null) return binding;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return binding;
+        const connectionUuid =
+            await this.spaceModel.getEffectiveWarehouseConnectionUuid({
+                projectUuid,
+                spaceUuid,
+            });
+        return connectionUuid !== null
+            ? { kind: 'space', spaceUuid, fallback: binding }
+            : binding;
+    }
+
     async executeAsyncSavedChartQuery({
         account,
         projectUuid,
@@ -8731,6 +8795,13 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        const connectionBinding = await this.withSpaceBinding({
+            projectUuid,
+            organizationUuid: savedChartOrganizationUuid,
+            spaceUuid: savedChartSpaceUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
+        });
+
         const {
             warehouseCredentials,
             warehouseConnectionUuid,
@@ -8740,7 +8811,7 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             context,
             projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
+            binding: connectionBinding,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -8801,8 +8872,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
-            // TODO: allow per-chart preference to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -9528,6 +9598,13 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone =
             queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
+        const connectionBinding = await this.withSpaceBinding({
+            projectUuid,
+            organizationUuid,
+            spaceUuid: savedChart.spaceUuid,
+            binding: { kind: 'explore', exploreName: explore.name },
+        });
+
         // Run independent data loads in parallel to minimize Postgres round-trips
         const [
             {
@@ -9543,7 +9620,7 @@ export class AsyncQueryService extends ProjectService {
                 querySurface,
                 context,
                 projectUuid,
-                binding: { kind: 'explore', exploreName: explore.name },
+                binding: connectionBinding,
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
@@ -9636,8 +9713,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
-            // TODO: allow dashboard-level option to bypass pre-aggregate cache
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -10131,6 +10207,19 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        if (
+            requestedConnectionUuid !== undefined &&
+            requestedConnectionUuid !== null
+        ) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: this.createAuditedAbility(account),
+                projectUuid,
+                organizationUuid,
+                warehouseConnectionUuid: requestedConnectionUuid,
+            });
+        }
+
         // Combine default parameter values with request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
@@ -10419,6 +10508,29 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError(
                 'SQL Runner is unavailable for managed analytics projects',
             );
+        }
+
+        if (
+            requestedConnectionUuid !== undefined &&
+            requestedConnectionUuid !== null
+        ) {
+            if (
+                (await this.projectModel.getConnectionRoute(projectUuid, {
+                    kind: 'connection',
+                    warehouseConnectionUuid: requestedConnectionUuid,
+                })) !== 'multi'
+            ) {
+                throw new ParameterError(
+                    'A SQL query can name a connection only in a project with multiple connections',
+                );
+            }
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: this.createAuditedAbility(account),
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: requestedConnectionUuid,
+            });
         }
 
         const {
@@ -13751,6 +13863,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         userAttributeOverrides,
         requestedConnectionUuid = null,
+        binding,
     }: {
         account: Account;
         projectUuid: string;
@@ -13769,6 +13882,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid?: string;
         userAttributeOverrides?: UserAttributeValueMap;
         requestedConnectionUuid?: string | null;
+        binding?: ConnectionBinding;
     }) {
         const startTime = performance.now();
 
@@ -13781,12 +13895,15 @@ export class AsyncQueryService extends ProjectService {
                 {
                     kind: 'binding',
                     projectUuid,
-                    binding: chartUuid
-                        ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
-                        : {
-                              kind: 'connection',
-                              warehouseConnectionUuid: requestedConnectionUuid,
-                          },
+                    binding:
+                        binding ??
+                        (chartUuid
+                            ? { kind: 'sqlChart', savedSqlUuid: chartUuid }
+                            : {
+                                  kind: 'connection',
+                                  warehouseConnectionUuid:
+                                      requestedConnectionUuid,
+                              }),
                 },
                 connectionContextFromAccount(account, {
                     organizationUuid,
@@ -14094,6 +14211,15 @@ export class AsyncQueryService extends ProjectService {
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
             parameters: combinedParameters,
+            binding: await this.withSpaceBinding({
+                organizationUuid: sqlChart.organization.organizationUuid,
+                projectUuid,
+                spaceUuid: sqlChart.space.uuid,
+                binding: {
+                    kind: 'sqlChart',
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                },
+            }),
             chartUuid: sqlChart.savedSqlUuid,
         });
 
@@ -14266,6 +14392,15 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts,
             limit: limit ?? savedChart.limit,
             parameters: combinedParameters,
+            binding: await this.withSpaceBinding({
+                organizationUuid: savedChart.organization.organizationUuid,
+                projectUuid,
+                spaceUuid: savedChart.space.uuid,
+                binding: {
+                    kind: 'sqlChart',
+                    savedSqlUuid: savedChart.savedSqlUuid,
+                },
+            }),
             chartUuid: savedChart.savedSqlUuid,
             dashboardUuid,
         });
@@ -14779,6 +14914,27 @@ export class AsyncQueryService extends ProjectService {
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }> {
+        let connectionBinding: ConnectionBinding = {
+            kind: 'explore',
+            exploreName: explore.name,
+        };
+        if (queryTags.chart_uuid) {
+            const { enabled } = await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+            });
+            if (enabled) {
+                const chart = await this.savedChartModel.getSummary(
+                    queryTags.chart_uuid,
+                );
+                connectionBinding = await this.withSpaceBinding({
+                    projectUuid,
+                    organizationUuid,
+                    spaceUuid: chart.spaceUuid,
+                    binding: connectionBinding,
+                });
+            }
+        }
         const {
             warehouseCredentials,
             warehouseConnectionUuid,
@@ -14786,7 +14942,7 @@ export class AsyncQueryService extends ProjectService {
             aiPlan,
         } = await this.getWarehouseCredentialsWithConnection({
             projectUuid,
-            binding: { kind: 'explore', exploreName: explore.name },
+            binding: connectionBinding,
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
@@ -14822,7 +14978,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             explore,
             context,
-            forceWarehouse: false,
+            forceWarehouse: connectionBinding.kind === 'space',
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -15356,6 +15512,7 @@ export class AsyncQueryService extends ProjectService {
                     organization_uuid: savedChart.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: explore.name,
+                    chart_uuid: chartUuid,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 parameters: combinedParameters,

@@ -460,6 +460,8 @@ export const spacesWithSavedCharts: Space[] = [
         access: [],
         groupsAccess: [],
         colorPaletteUuid: null,
+        warehouseConnectionUuid: null,
+        effectiveWarehouseConnection: null,
     },
 ];
 
@@ -483,6 +485,8 @@ export const spacesWithNoSavedCharts: Space[] = [
         groupsAccess: [],
         childSpaces: [],
         colorPaletteUuid: null,
+        warehouseConnectionUuid: null,
+        effectiveWarehouseConnection: null,
     },
 ];
 

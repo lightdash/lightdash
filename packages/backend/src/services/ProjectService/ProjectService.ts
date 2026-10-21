@@ -128,6 +128,7 @@ import {
     getUnaccountedDimensions,
     GroupType,
     hasConnectionChanges,
+    hasCustomSql,
     hasIntersection,
     hasWarehouseCredentials,
     isAdditionalMetric,
@@ -520,6 +521,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { SpaceConnectionReservation } from '../SpaceService/SpaceConnectionReservation';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     auditAndFilterExplore,
@@ -981,6 +983,8 @@ export class ProjectService
 
     private readonly getAgentConnectionGrantService: ProjectServiceArguments['getAgentConnectionGrantService'];
 
+    protected readonly spaceConnectionReservation: SpaceConnectionReservation;
+
     constructor({
         getAgentConnectionGrantService,
         refreshTokenRotation,
@@ -1153,6 +1157,11 @@ export class ProjectService
         this.adminNotificationService = adminNotificationService;
         this.permissionsService = permissionsService;
         this.spacePermissionService = spacePermissionService;
+        this.spaceConnectionReservation = new SpaceConnectionReservation({
+            featureFlagModel,
+            spaceModel,
+            spacePermissionService,
+        });
         this.directAccessService = directAccessService;
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
@@ -9478,13 +9487,8 @@ export class ProjectService
             isCustomSqlDimension,
         );
         const additionalMetrics = metricQuery.additionalMetrics ?? [];
-        if (
-            sqlTableCalculations.length === 0 &&
-            sqlCustomDimensions.length === 0 &&
-            additionalMetrics.length === 0
-        ) {
+        if (!hasCustomSql(metricQuery) && additionalMetrics.length === 0)
             return;
-        }
 
         const unmodelledAdditionalMetrics =
             await this.assertAgentCustomSqlAuthorizedForQuery({
@@ -12287,6 +12291,37 @@ export class ProjectService
         );
     }
 
+    private async withSqlChartSpaceBinding({
+        projectUuid,
+        organizationUuid,
+        sqlChartUuid,
+        binding,
+    }: {
+        projectUuid: string;
+        organizationUuid: string;
+        sqlChartUuid?: string;
+        binding: ConnectionBinding;
+    }): Promise<ConnectionBinding> {
+        if (!sqlChartUuid) return binding;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.SpaceWarehouseConnections,
+        });
+        if (!enabled) return binding;
+        const spaceUuid = await this.spaceModel.getSqlChartSpaceUuid(
+            projectUuid,
+            sqlChartUuid,
+        );
+        const connectionUuid =
+            await this.spaceModel.getEffectiveWarehouseConnectionUuid({
+                projectUuid,
+                spaceUuid,
+            });
+        return connectionUuid !== null
+            ? { kind: 'space', spaceUuid, fallback: binding }
+            : binding;
+    }
+
     // TODO: consider removing this method in milestone #212
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. We know that the warehouse client method shouldn't be in a model, but instead it should be its own client.
     async streamSqlQueryIntoFile({
@@ -12305,12 +12340,20 @@ export class ProjectService
             await this.projectModel.getSummary(projectUuid);
 
         const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
+        const binding = await this.withSqlChartSpaceBinding({
+            projectUuid,
+            organizationUuid,
+            sqlChartUuid,
+            binding: sqlChartUuid
+                ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                : { kind: 'connection', warehouseConnectionUuid: null },
+        });
 
         return this.warehouseClientFactory.withWarehouseClient(
             {
                 kind: 'binding',
                 projectUuid,
-                binding: { kind: 'connection', warehouseConnectionUuid: null },
+                binding,
             },
             connectionContextFromUser(
                 { userUuid, isRegisteredUser: true },
@@ -12455,9 +12498,14 @@ export class ProjectService
             {
                 kind: 'binding',
                 projectUuid,
-                binding: sqlChartUuid
-                    ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
-                    : { kind: 'connection', warehouseConnectionUuid: null },
+                binding: await this.withSqlChartSpaceBinding({
+                    projectUuid,
+                    organizationUuid,
+                    sqlChartUuid,
+                    binding: sqlChartUuid
+                        ? { kind: 'sqlChart', savedSqlUuid: sqlChartUuid }
+                        : { kind: 'connection', warehouseConnectionUuid: null },
+                }),
             },
             connectionContextFromUser(
                 { userUuid, isRegisteredUser: true },
@@ -15034,6 +15082,13 @@ export class ProjectService
         ) {
             throw new SingleConnectionProjectError();
         }
+        await this.spaceConnectionReservation.assertCanUseConnection({
+            userUuid: account.user.id,
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            warehouseConnectionUuid,
+        });
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const connection = await this.warehouseConnectionModel.get(
@@ -15137,12 +15192,20 @@ export class ProjectService
         const project =
             await this.warehouseConnectionModel.getProject(projectUuid);
         const connections = await this.warehouseConnectionModel.list(project);
+        const reserved =
+            await this.spaceConnectionReservation.getReservedConnectionUuids({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+            });
         return connections.map(
             ({ warehouseConnectionUuid, name, isOriginal, warehouseType }) => ({
                 warehouseConnectionUuid,
                 name,
                 isOriginal,
                 warehouseType,
+                canRunSql: !reserved.has(warehouseConnectionUuid),
             }),
         );
     }
@@ -17761,6 +17824,15 @@ export class ProjectService
             projectUuid,
             payload.warehouseConnectionUuid ?? null,
         );
+        if (boundConnectionUuid !== null) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: boundConnectionUuid,
+            });
+        }
         const settings = await this.getWarehouseSqlBuilderSettings(
             projectUuid,
             {
@@ -17852,6 +17924,15 @@ export class ProjectService
                 projectUuid,
                 exploreName,
             );
+        if (boundConnectionUuid !== null) {
+            await this.spaceConnectionReservation.assertCanUseConnection({
+                userUuid: account.user.id,
+                ability: auditedAbility,
+                organizationUuid,
+                projectUuid,
+                warehouseConnectionUuid: boundConnectionUuid,
+            });
+        }
         const settings = await this.getWarehouseSqlBuilderSettings(
             projectUuid,
             {

@@ -335,11 +335,15 @@ export class SpacePermissionService extends BaseService {
     async resolveAccessBatch<T extends AccessTarget>(
         userUuid: string,
         targets: T[],
-        { trx }: { trx?: Knex } = {},
+        {
+            trx,
+            includeDeletedSpaces = false,
+        }: { trx?: Knex; includeDeletedSpaces?: boolean } = {},
     ): Promise<AccessResult<T>[]> {
         return this.resolveAccessTargets(userUuid, targets, {
             onMismatch: 'fallback',
             trx,
+            includeDeletedSpaces,
         });
     }
 
@@ -462,10 +466,12 @@ export class SpacePermissionService extends BaseService {
             onMismatch,
             trx,
             includeDeleted = false,
+            includeDeletedSpaces = false,
         }: {
             onMismatch: 'throw' | 'fallback';
             trx?: Knex;
             includeDeleted?: boolean;
+            includeDeletedSpaces?: boolean;
         },
     ): Promise<AccessResult<T>[]> {
         if (targets.length === 0) {
@@ -482,7 +488,7 @@ export class SpacePermissionService extends BaseService {
         const spaceContexts = await this.getSpacesCaslContext(
             uniqueSpaceUuids,
             { userUuid },
-            { trx },
+            { trx, ...(includeDeletedSpaces ? { includeDeleted: true } : {}) },
         );
         const baselineOnly = (target: T): AccessContextForCasl | undefined => {
             if (target.spaceUuid === null) {
@@ -906,14 +912,17 @@ export class SpacePermissionService extends BaseService {
     private async getSpacesCaslContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string; userUuids?: string[] },
-        { trx }: { trx?: Knex } = {},
+        {
+            trx,
+            includeDeleted = false,
+        }: { trx?: Knex; includeDeleted?: boolean } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
         // Get inheritance chains for all spaces in a single batched query
         const chainMap = await this.spacePermissionModel.getInheritanceChains(
             uniqueSpaceUuids,
-            { trx },
+            { trx, ...(includeDeleted ? { includeDeleted: true } : {}) },
         );
         const chains = uniqueSpaceUuids
             .filter((uuid) => chainMap[uuid] !== undefined)

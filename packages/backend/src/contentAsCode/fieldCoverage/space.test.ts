@@ -9,6 +9,7 @@ describeContentAsCodeSchemaContract({
         'childSpaces',
         'colorPaletteUuid',
         'dashboards',
+        'effectiveWarehouseConnection',
         'groupsAccess',
         'inheritParentPermissions',
         'inheritsFromOrgOrProject',
@@ -22,6 +23,7 @@ describeContentAsCodeSchemaContract({
         'projectUuid',
         'queries',
         'uuid',
+        'warehouseConnectionUuid',
     ],
     documentOnlyFields: ['contentType', 'spaceName', 'version'],
 });

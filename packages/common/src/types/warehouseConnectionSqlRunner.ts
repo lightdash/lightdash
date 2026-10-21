@@ -5,6 +5,7 @@ export type SqlRunnerWarehouseConnection = {
     name: string;
     isOriginal: boolean;
     warehouseType: WarehouseTypes;
+    canRunSql: boolean;
 };
 
 export type ApiSqlRunnerWarehouseConnectionsResponse = {

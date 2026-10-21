@@ -5,6 +5,7 @@ import { type KnexPaginatedData } from './knex-paginate';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 import { type ProjectMemberRole } from './projectMemberRole';
 // eslint-disable-next-line import/no-cycle
+import { type WarehouseTypes } from './projects';
 import { type SpaceQuery } from './savedCharts';
 import { type UserAvatarColorValue } from './userAvatars';
 
@@ -52,6 +53,13 @@ export type SpaceAccessWithInheritanceInput = {
     organizationAccess: OrganizationSpaceAccess[];
 };
 
+export type SpaceWarehouseConnection = {
+    warehouseConnectionUuid: string;
+    name: string;
+    warehouseType: WarehouseTypes;
+    inheritedFromSpace: { uuid: string; name: string } | null;
+};
+
 export type Space = {
     organizationUuid: string;
     uuid: string;
@@ -75,6 +83,8 @@ export type Space = {
     inheritParentPermissions: boolean;
     projectMemberAccessRole: SpaceMemberRole | null;
     colorPaletteUuid: string | null;
+    warehouseConnectionUuid: string | null;
+    effectiveWarehouseConnection: SpaceWarehouseConnection | null;
     // ltree path serialized as string
     path: string;
     breadcrumbs?: {
@@ -97,6 +107,7 @@ export type SpaceSummaryBase = Pick<
     | 'pinnedListUuid'
     | 'pinnedListOrder'
     | 'slug'
+    | 'warehouseConnectionUuid'
     | 'parentSpaceUuid'
     | 'path'
 > & {
@@ -132,6 +143,7 @@ export type UpdateSpace = {
     /** When set, all project members get this role on the space */
     projectMemberAccessRole?: SpaceMemberRole | null;
     colorPaletteUuid?: string | null;
+    warehouseConnectionUuid?: string | null;
 };
 
 export type SpaceAccessUserMetadata = {

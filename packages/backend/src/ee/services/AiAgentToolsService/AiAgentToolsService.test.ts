@@ -2718,6 +2718,7 @@ describe('AiAgentToolsService', () => {
                 space: { uuid: sqlChartSpaceUuid },
             };
             return new SavedSqlService({
+                spaceModel: {} as never,
                 savedSqlModel: {
                     getBySlug: vi.fn().mockResolvedValue(sqlChartRow),
                     getByUuid: vi.fn().mockResolvedValue(sqlChartRow),
@@ -6407,6 +6408,9 @@ describe.each(agentActionTestCases)(
                     ],
                 };
                 const promoteService = new PromoteService({
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({ enabled: false })),
+                    },
                     savedChartModel: model,
                     dashboardModel: model,
                     agentActionLogModel: { insert },
@@ -6431,6 +6435,9 @@ describe.each(agentActionTestCases)(
                     ),
                 });
                 const coderService = new CoderService({
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({ enabled: false })),
+                    },
                     savedChartModel: model,
                     dashboardModel: model,
                     promoteService,
