@@ -65,6 +65,32 @@ const traceProperties: TraceTaskBase = {
 // A fixed start-of-day so getDailyDatesFromCron deterministically yields jobs.
 const startingDateTime = new Date(2023, 0, 1);
 
+test('serializes catalog indexing per project so an earlier deploy cannot overwrite a later tag update', async () => {
+    graphileAddJob.mockClear();
+    const client = makeClient(false, vi.fn());
+    const payload = {
+        organizationUuid: ORG_UUID,
+        userUuid: 'user-1',
+        projectUuid: 'project-1',
+        prevCatalogItemsWithTags: [],
+        prevCatalogItemsWithIcons: [],
+        prevMetricTreeEdges: [],
+        prevMetricsTreeNodes: [],
+    };
+
+    await client.indexCatalog(payload);
+    await client.indexCatalog(payload);
+    await client.indexCatalog({ ...payload, projectUuid: 'project-2' });
+
+    expect(
+        graphileAddJob.mock.calls.map(([, , options]) => options.queueName),
+    ).toEqual([
+        'index-catalog-project-1',
+        'index-catalog-project-1',
+        'index-catalog-project-2',
+    ]);
+});
+
 describe('initial usage processing', () => {
     it('deduplicates by organization and shares the serial nightly queue without retries', async () => {
         const client = makeClient(true, vi.fn());

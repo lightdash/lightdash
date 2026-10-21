@@ -8812,6 +8812,35 @@ describe('ProjectService', () => {
             );
         });
 
+        test('queues catalog indexing after direct YAML tags are saved', async () => {
+            await service.replaceYamlTags(compileUser, projectUuid, [
+                {
+                    yamlReference: 'finance',
+                    name: 'Finance',
+                    color: 'blue',
+                },
+            ]);
+
+            expect(catalogModel.getCatalogItemsWithTags).toHaveBeenCalledWith(
+                projectUuid,
+                { onlyTagged: true, includeYamlTags: false },
+            );
+            expect(schedulerClient.indexCatalog).toHaveBeenLastCalledWith({
+                projectUuid,
+                userUuid: user.userUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                prevCatalogItemsWithTags: [],
+                prevCatalogItemsWithIcons: [],
+                prevMetricTreeEdges: [],
+                prevMetricsTreeNodes: [],
+            });
+            expect(
+                tagsModel.replaceYamlTags.mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(
+                schedulerClient.indexCatalog.mock.invocationCallOrder.at(-1)!,
+            );
+        });
+
         test('requires manage tag permissions for direct YAML tag sync', async () => {
             const noTagUser: SessionUser = {
                 ...user,

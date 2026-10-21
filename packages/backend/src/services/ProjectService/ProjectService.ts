@@ -18448,12 +18448,33 @@ export class ProjectService
             );
         }
 
+        const prevCatalogItemsWithTags =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true,
+                includeYamlTags: false,
+            });
+        const prevCatalogItemsWithIcons =
+            await this.catalogModel.getCatalogItemsWithIcons(projectUuid);
+        const prevMetricTreeEdges =
+            await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
+        const prevMetricsTreeNodes =
+            await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
+
         await this.replaceYamlTagsWithoutPermissionCheck(
             user,
             organizationUuid,
             projectUuid,
             yamlTags,
         );
+        await this.schedulerClient.indexCatalog({
+            projectUuid,
+            userUuid: user.userUuid,
+            organizationUuid,
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        });
     }
 
     private async replaceYamlTagsWithoutPermissionCheck(

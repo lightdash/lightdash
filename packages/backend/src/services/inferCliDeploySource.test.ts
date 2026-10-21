@@ -82,6 +82,26 @@ test('reports the package match and accepts matching qualified model names', asy
     });
 });
 
+test('rejects a fresh multi-source project without trusting a source label as a dbt project name', async () => {
+    const { models, args } = setup();
+    models.projectModel.getAllExploresFromCache.mockResolvedValue({});
+    models.projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([
+        {
+            projectDbtSourceUuid: 'extra',
+            name: 'analytics',
+            warehouseConnectionUuid: null,
+            warehouseLocation: { database: 'other', schema: null },
+        },
+    ]);
+
+    await expect(inferCliDeploySource(models, args)).rejects.toMatchObject({
+        statusCode: 409,
+        message: expectedMessage(
+            'no source in this project provides the dbt project analytics',
+        ).replace('Replica models', 'analytics'),
+    });
+});
+
 test.each([8, 9])(
     'requires at least nine of ten names for overlap (%s matches)',
     async (matches) => {

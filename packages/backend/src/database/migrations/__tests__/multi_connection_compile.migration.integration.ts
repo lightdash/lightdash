@@ -1566,8 +1566,24 @@ Sources in this project: Core models, marketing, finance.`;
                 'errors-only',
                 'contradictory-model-names',
                 'multiple-root-packages',
-            ])('rejects %s without changing cached explores', async (kind) => {
+            ])('rejects %s without project changes', async (kind) => {
                 const { fixture, deploy } = await setup();
+                await database('project_parameters').insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'minimum_amount',
+                    config: {
+                        label: 'Minimum amount',
+                        type: 'number',
+                        default: 5,
+                    },
+                });
+                await database('tags').insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'Payments',
+                    color: 'blue',
+                    yaml_reference: 'payments',
+                    created_by_user_uuid: null,
+                });
                 if (
                     [
                         'ambiguous',
@@ -1587,7 +1603,16 @@ Sources in this project: Core models, marketing, finance.`;
                         ],
                     );
                 }
-                const before = await dump(fixture.projectUuid);
+                const projectState = async () => ({
+                    explores: await dump(fixture.projectUuid),
+                    parameters: await database('project_parameters')
+                        .where('project_uuid', fixture.projectUuid)
+                        .orderBy('name'),
+                    tags: await database('tags')
+                        .where('project_uuid', fixture.projectUuid)
+                        .orderBy('name'),
+                });
+                const before = await projectState();
                 let explores: (Explore | ExploreError)[] = [
                     packagedExplore(
                         [
@@ -1669,7 +1694,7 @@ Sources in this project: Core models, marketing, finance.`;
                     statusCode: 409,
                     message: expectedRejection(reasons[kind]),
                 });
-                expect(await dump(fixture.projectUuid)).toEqual(before);
+                expect(await projectState()).toEqual(before);
             });
 
             test.each([false, true])(
@@ -1796,6 +1821,28 @@ Sources in this project: Core models, marketing, finance.`;
                     .delete();
                 const upload = packagedExplore('orders', 'unknown');
                 await deploy({ explores: [upload] });
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.explore,
+                    ),
+                ).toEqual([upload]);
+            });
+
+            test('accepts a fresh single-source project without any saved source mapping', async () => {
+                const { fixture, deploy } = await setup();
+                await database('project_dbt_sources')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
+                await database('cached_explore')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
+                await database('dbt_source_ref_catalogs')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
+                const upload = packagedExplore('orders', 'unknown');
+
+                await deploy({ explores: [upload] });
+
                 expect(
                     (await cachedExplores(fixture.projectUuid)).map(
                         (row) => row.explore,
