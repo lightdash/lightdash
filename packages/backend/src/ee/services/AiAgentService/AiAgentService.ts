@@ -1896,9 +1896,29 @@ export class AiAgentService extends BaseService {
                 }
                 return { type: 'dashboard', dashboardUuid: dashboard.uuid };
             }
+            case 'chart': {
+                const chart = await this.savedChartService.get(
+                    binding.chartUuid,
+                    fromSession(user),
+                    { projectUuid: agent.projectUuid },
+                );
+                if (chart.projectUuid !== agent.projectUuid) {
+                    throw new NotFoundError('Chart not found');
+                }
+                if (
+                    allowedSpaceUuids &&
+                    allowedSpaceUuids.length > 0 &&
+                    !allowedSpaceUuids.includes(chart.spaceUuid)
+                ) {
+                    throw new ForbiddenError(
+                        'Chart is outside the embedded space',
+                    );
+                }
+                return { type: 'chart', chartUuid: chart.uuid };
+            }
             default:
                 return assertUnreachable(
-                    binding.type,
+                    binding,
                     'Unknown thread binding type',
                 );
         }

@@ -1197,6 +1197,15 @@ const NativeAiAgentLayout: FC<{
     );
 };
 
+const toStableThreadBinding = (
+    dashboardUuid: string | undefined,
+    chartUuid: string | undefined,
+): AiThreadBinding | undefined => {
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
+};
+
 const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     binding,
@@ -1216,16 +1225,19 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     );
     const boundDashboardUuid =
         binding?.type === 'dashboard' ? binding.dashboardUuid : undefined;
+    const boundChartUuid =
+        binding?.type === 'chart' ? binding.chartUuid : undefined;
     // Hosts often pass a new binding object each render
     const threadSetup = useMemo(
         () =>
             getEmbedAiAgentThreadSetup({
-                binding: boundDashboardUuid
-                    ? { type: 'dashboard', dashboardUuid: boundDashboardUuid }
-                    : undefined,
+                binding: toStableThreadBinding(
+                    boundDashboardUuid,
+                    boundChartUuid,
+                ),
                 threadContext,
             }),
-        [boundDashboardUuid, threadContext],
+        [boundDashboardUuid, boundChartUuid, threadContext],
     );
     const { ref: containerRef, width: containerWidth } = useElementSize();
 

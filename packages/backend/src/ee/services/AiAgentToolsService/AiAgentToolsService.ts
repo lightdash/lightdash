@@ -255,6 +255,12 @@ export const SQL_CHART_SAVE_PERMISSION_MESSAGE =
 
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
+type BoundResource = {
+    type: AiThreadBinding['type'];
+    uuid: string;
+    slug: string;
+};
+
 export type AiAgentToolsRuntimeContext = {
     user: SessionUser;
     account: Account;
@@ -2274,32 +2280,50 @@ export class AiAgentToolsService extends BaseService {
     }
 
     // Resolved per write so a slug renamed earlier in the thread still matches.
-    private async getBoundDashboard(
+    private async getBoundResource(
         context: AiAgentToolsRuntimeContext,
-    ): Promise<{ uuid: string; slug: string } | null> {
+    ): Promise<BoundResource | null> {
         const { threadBinding } = context;
         if (threadBinding === null) return null;
-        switch (threadBinding.type) {
-            case 'dashboard':
-                try {
+        try {
+            switch (threadBinding.type) {
+                case 'dashboard': {
                     const dashboard = await this.dashboardModel.getByIdOrSlug(
                         threadBinding.dashboardUuid,
                         { projectUuid: context.projectUuid },
                     );
-                    return { uuid: dashboard.uuid, slug: dashboard.slug };
-                } catch (error) {
-                    if (error instanceof NotFoundError) {
-                        throw new ParameterError(
-                            'This conversation is bound to a dashboard that no longer exists, so content cannot be created or changed here.',
-                        );
-                    }
-                    throw error;
+                    return {
+                        type: 'dashboard',
+                        uuid: dashboard.uuid,
+                        slug: dashboard.slug,
+                    };
                 }
-            default:
-                return assertUnreachable(
-                    threadBinding.type,
-                    'Unknown thread binding type',
+                case 'chart': {
+                    const chart = await this.savedChartModel.getSummary(
+                        threadBinding.chartUuid,
+                    );
+                    if (chart.projectUuid !== context.projectUuid) {
+                        throw new NotFoundError('Chart not found');
+                    }
+                    return {
+                        type: 'chart',
+                        uuid: chart.uuid,
+                        slug: chart.slug,
+                    };
+                }
+                default:
+                    return assertUnreachable(
+                        threadBinding,
+                        'Unknown thread binding type',
+                    );
+            }
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw new ParameterError(
+                    `This conversation is bound to a ${threadBinding.type} that no longer exists, so content cannot be created or changed here.`,
                 );
+            }
+            throw error;
         }
     }
 
@@ -2308,12 +2332,12 @@ export class AiAgentToolsService extends BaseService {
         {
             objectType,
             action,
-            boundDashboardSlug,
+            bound,
             reason,
         }: {
             objectType: string;
             action: 'create' | 'update';
-            boundDashboardSlug: string;
+            bound: BoundResource;
             reason: string;
         },
     ): Promise<never> {
@@ -2325,7 +2349,7 @@ export class AiAgentToolsService extends BaseService {
             'content_outside_thread_binding',
         );
         throw new ParameterError(
-            `This conversation is bound to the dashboard "${boundDashboardSlug}". ${reason}`,
+            `This conversation is bound to the ${bound.type} "${bound.slug}". ${reason}`,
         );
     }
 
@@ -2335,12 +2359,12 @@ export class AiAgentToolsService extends BaseService {
         action: 'create' | 'update',
         reason: string,
     ) {
-        const boundDashboard = await this.getBoundDashboard(context);
-        if (boundDashboard) {
+        const bound = await this.getBoundResource(context);
+        if (bound) {
             await this.refuseOutsideThreadBinding(context, {
                 objectType,
                 action,
-                boundDashboardSlug: boundDashboard.slug,
+                bound,
                 reason,
             });
         }
@@ -3411,12 +3435,14 @@ export class AiAgentToolsService extends BaseService {
                 }
                 this.aiAgentContentValidation.validatePatch(type, patch);
 
-                const boundDashboard = await this.getBoundDashboard(context);
+                const bound = await this.getBoundResource(context);
+                const boundDashboard =
+                    bound?.type === 'dashboard' ? bound : null;
                 if (boundDashboard && type === 'sql_chart') {
                     await this.refuseOutsideThreadBinding(context, {
                         objectType: 'sql_chart',
                         action: 'update',
-                        boundDashboardSlug: boundDashboard.slug,
+                        bound: boundDashboard,
                         reason: 'SQL charts cannot be saved in a dashboard, so they cannot be edited here.',
                     });
                 }
@@ -3428,8 +3454,19 @@ export class AiAgentToolsService extends BaseService {
                     await this.refuseOutsideThreadBinding(context, {
                         objectType: 'dashboard',
                         action: 'update',
-                        boundDashboardSlug: boundDashboard.slug,
+                        bound: boundDashboard,
                         reason: 'Only that dashboard can be edited.',
+                    });
+                }
+                if (
+                    bound?.type === 'chart' &&
+                    (type !== 'chart' || slug !== bound.slug)
+                ) {
+                    await this.refuseOutsideThreadBinding(context, {
+                        objectType: type,
+                        action: 'update',
+                        bound,
+                        reason: 'Only that chart can be edited.',
                     });
                 }
 
@@ -3513,7 +3550,7 @@ export class AiAgentToolsService extends BaseService {
                             await this.refuseOutsideThreadBinding(context, {
                                 objectType: 'chart',
                                 action: 'update',
-                                boundDashboardSlug: boundDashboard.slug,
+                                bound: boundDashboard,
                                 reason: 'Only charts saved in that dashboard can be edited, and they must stay in it. To change another chart, create a new chart saved in the dashboard instead.',
                             });
                         }
@@ -3616,27 +3653,35 @@ export class AiAgentToolsService extends BaseService {
                 if (context.source === 'ai_agent' && type === 'chart') {
                     assertAgentKeepsChartMerge(content, undefined);
                 }
-                const boundDashboard = await this.getBoundDashboard(context);
-                if (boundDashboard) {
+                const bound = await this.getBoundResource(context);
+                if (bound?.type === 'chart') {
+                    await this.refuseOutsideThreadBinding(context, {
+                        objectType: type,
+                        action: 'create',
+                        bound,
+                        reason: 'New content cannot be created here. Edit that chart instead.',
+                    });
+                }
+                if (bound?.type === 'dashboard') {
                     switch (type) {
                         case 'dashboard':
                             await this.refuseOutsideThreadBinding(context, {
                                 objectType: 'dashboard',
                                 action: 'create',
-                                boundDashboardSlug: boundDashboard.slug,
+                                bound,
                                 reason: 'New dashboards cannot be created here. Edit that dashboard instead.',
                             });
                             break;
                         case 'chart':
                             if (
                                 (content as ChartAsCode).dashboardSlug !==
-                                boundDashboard.slug
+                                bound.slug
                             ) {
                                 await this.refuseOutsideThreadBinding(context, {
                                     objectType: 'chart',
                                     action: 'create',
-                                    boundDashboardSlug: boundDashboard.slug,
-                                    reason: `New charts must be saved in it. Set dashboardSlug to "${boundDashboard.slug}".`,
+                                    bound,
+                                    reason: `New charts must be saved in it. Set dashboardSlug to "${bound.slug}".`,
                                 });
                             }
                             break;
@@ -3644,7 +3689,7 @@ export class AiAgentToolsService extends BaseService {
                             await this.refuseOutsideThreadBinding(context, {
                                 objectType: 'sql_chart',
                                 action: 'create',
-                                boundDashboardSlug: boundDashboard.slug,
+                                bound,
                                 reason: 'SQL charts cannot be saved in a dashboard, so they cannot be created here.',
                             });
                             break;
@@ -3858,13 +3903,16 @@ export class AiAgentToolsService extends BaseService {
                 } "${args.resourceUuidOrSlug}" was not found`;
                 // Model-level lookups: the service getters record a view event
                 // per call. User authz is enforced by createScheduler.
-                const boundDashboard = await this.getBoundDashboard(context);
-                const refuseOutsideBoundDashboard = (bound: { slug: string }) =>
+                const bound = await this.getBoundResource(context);
+                const refuseOutsideBinding = (resource: BoundResource) =>
                     this.refuseOutsideThreadBinding(context, {
                         objectType: 'scheduler',
                         action: 'create',
-                        boundDashboardSlug: bound.slug,
-                        reason: 'Scheduled deliveries can only be created for that dashboard and the charts saved in it.',
+                        bound: resource,
+                        reason:
+                            resource.type === 'chart'
+                                ? 'Scheduled deliveries can only be created for that chart.'
+                                : 'Scheduled deliveries can only be created for that dashboard and the charts saved in it.',
                     });
                 let scheduler;
                 let resourceUuid;
@@ -3891,10 +3939,12 @@ export class AiAgentToolsService extends BaseService {
                             throw new NotFoundError(notFoundMessage);
                         }
                         if (
-                            boundDashboard &&
-                            chart.dashboardUuid !== boundDashboard.uuid
+                            (bound?.type === 'dashboard' &&
+                                chart.dashboardUuid !== bound.uuid) ||
+                            (bound?.type === 'chart' &&
+                                chart.uuid !== bound.uuid)
                         ) {
-                            await refuseOutsideBoundDashboard(boundDashboard);
+                            await refuseOutsideBinding(bound);
                         }
                         resourceUuid = chart.uuid;
                         scheduler =
@@ -3927,10 +3977,11 @@ export class AiAgentToolsService extends BaseService {
                             throw new NotFoundError(notFoundMessage);
                         }
                         if (
-                            boundDashboard &&
-                            dashboard.uuid !== boundDashboard.uuid
+                            bound &&
+                            (bound.type === 'chart' ||
+                                dashboard.uuid !== bound.uuid)
                         ) {
-                            await refuseOutsideBoundDashboard(boundDashboard);
+                            await refuseOutsideBinding(bound);
                         }
                         resourceUuid = dashboard.uuid;
                         scheduler = await this.dashboardService.createScheduler(

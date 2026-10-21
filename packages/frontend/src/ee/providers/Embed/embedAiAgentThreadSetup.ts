@@ -11,6 +11,7 @@ export type EmbedAiAgentThreadSetup = {
 };
 
 const BOUND_DASHBOARD_UUID_PARAM = 'boundDashboardUuid';
+const BOUND_CHART_UUID_PARAM = 'boundChartUuid';
 const THREAD_CONTEXT_PARAM = 'threadContext';
 
 export const getEmbedAiAgentThreadSetup = ({
@@ -36,9 +37,12 @@ export const buildEmbedHash = (
             case 'dashboard':
                 params.set(BOUND_DASHBOARD_UUID_PARAM, binding.dashboardUuid);
                 break;
+            case 'chart':
+                params.set(BOUND_CHART_UUID_PARAM, binding.chartUuid);
+                break;
             default:
                 return assertUnreachable(
-                    binding.type,
+                    binding,
                     'Unknown thread binding type',
                 );
         }
@@ -48,6 +52,14 @@ export const buildEmbedHash = (
     }
     const query = params.toString();
     return query ? `${token}&${query}` : token;
+};
+
+const parseBinding = (params: URLSearchParams): AiThreadBinding | undefined => {
+    const dashboardUuid = params.get(BOUND_DASHBOARD_UUID_PARAM);
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    const chartUuid = params.get(BOUND_CHART_UUID_PARAM);
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
 };
 
 export const parseEmbedHash = (
@@ -60,13 +72,10 @@ export const parseEmbedHash = (
     }
 
     const params = new URLSearchParams(fragment.slice(separatorIndex + 1));
-    const dashboardUuid = params.get(BOUND_DASHBOARD_UUID_PARAM);
     return {
         token: fragment.slice(0, separatorIndex),
         aiAgentThreadSetup: getEmbedAiAgentThreadSetup({
-            binding: dashboardUuid
-                ? { type: 'dashboard', dashboardUuid }
-                : undefined,
+            binding: parseBinding(params),
             threadContext: params.get(THREAD_CONTEXT_PARAM) ?? undefined,
         }),
     };

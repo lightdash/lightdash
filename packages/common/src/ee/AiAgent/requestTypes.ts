@@ -388,10 +388,15 @@ export type AiPromptContextItemInput =
 export type AiPromptContextInput = AiPromptContextItemInput[];
 
 /** Resource a thread is bound to for its whole life. Same shape as the matching pinned context item. */
-export type AiThreadBinding = {
-    type: 'dashboard';
-    dashboardUuid: string;
-};
+export type AiThreadBinding =
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+      }
+    | {
+          type: 'chart';
+          chartUuid: string;
+      };
 
 /** A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted. */
 export type AiThreadBindingSummary = AiThreadBinding & {
