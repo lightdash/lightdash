@@ -6,20 +6,22 @@ General development guidance for this repository lives in `CLAUDE.md` (architect
 
 Lightdash is a pnpm/Turbo monorepo (backend API, Vite frontend, `common`/`visualization`/`warehouses`/`formula` build-dep packages) that runs on Postgres + MinIO + a headless browser, all started via Docker.
 
-The VM startup update script only refreshes Node deps and the dbt venv. Docker, its daemon, and the app processes are NOT started automatically — bring them up yourself as below.
+Cloud Agent `start` runs `/home/ubuntu/.lightdash/cloud-agent-start.sh` on boot. That script starts `dockerd` (no systemd in this VM) and then `./scripts/dev-fast-start.sh`. `install` refreshes Node dependencies, the package builds, and the dbt virtualenvs. Read `/tmp/cursor/start-user/start-user.log` for the boot log; a missing `/tmp/cursor/start-user/` directory means `start` did not run.
 
 ### Bringing the stack up (do this at the start of a session)
 
-1. Start the Docker daemon (it does not auto-start; there is no systemd here):
+If `GET /api/v1/health` is not already 200, run the same boot path by hand. It is safe to repeat.
+
+1. Start the Docker daemon when `docker info` fails:
    ```bash
-   sudo dockerd > /tmp/dockerd.log 2>&1 &
+   sudo nohup dockerd > /tmp/dockerd.log 2>&1 &
    ```
-   Wait a few seconds, then confirm with `docker info`. `docker` works without `sudo` (the `ubuntu` user is in the `docker` group). Docker is configured with the `fuse-overlayfs` storage driver and `containerd-snapshotter` disabled (`/etc/docker/daemon.json`) — required for Docker 29 in this nested-container VM.
+   Wait until `docker info` succeeds. `docker` works without `sudo` once `/var/run/docker.sock` is group-accessible (`sudo chmod 666 /var/run/docker.sock` if the current shell is not in the `docker` group). Docker is configured with the `fuse-overlayfs` storage driver and `containerd-snapshotter` disabled (`/etc/docker/daemon.json`) — required for Docker 29 in this nested-container VM.
 2. Run the canonical, idempotent bootstrap:
    ```bash
-   ./scripts/dev-fast-start.sh
+   bash /home/ubuntu/.lightdash/cloud-agent-start.sh
    ```
-   It claims a port slot, starts the shared + instance Docker services (Postgres, MinIO, headless-browser, mailpit, nats), reconciles `.env.development.local`, runs migrations, seeds Lightdash + the jaffle-shop dbt demo, starts PM2, and blocks until `GET /api/v1/health` returns 200. On a snapshotted VM the DB bootstraps from a base volume, so it finishes in a few minutes. It ends with a `READY:` line listing the URLs.
+   That claims a port slot, starts the shared + instance Docker services (Postgres, MinIO, headless-browser, mailpit, nats), reconciles `.env.development.local`, runs migrations, seeds Lightdash + the jaffle-shop dbt demo, starts PM2, and blocks until `GET /api/v1/health` returns 200. On a snapshotted VM the DB bootstraps from a base volume, so it finishes in a few minutes. It ends with a `READY:` line listing the URLs. If the first seed fails because `organization_homepage_settings` is missing (that table is created by an enterprise migration), the start script creates the table and retries once.
 
 Default instance URLs: frontend http://localhost:3000, API http://localhost:8080. Test login: `demo@lightdash.com` / `demo_password!` (seeded "Jaffle shop" project). Mailpit UI: http://localhost:8025.
 
@@ -35,6 +37,7 @@ Processes: `<instance>-api`, `-api-routes-watch`, `-scheduler`, `-frontend`, `-c
 
 ### Non-obvious caveats
 
-- Node: use Node 24.18 (pinned by `.nvmrc`). The VM's default `node` on `PATH` is a v22 tool-runtime at `/exec-daemon/node`; the nvm 24.18 build is prepended for interactive shells via `~/.bashrc`, and the update script sources nvm explicitly. Run dev commands from a login shell so 24.18 is active — native modules are built against it.
-- dbt venv must be Python 3.11: `dbt-core==1.7.0` imports `distutils`, which was removed in Python 3.12 (the VM's default `python3`). The venv at `./venv` is built with `python3.11`. If it must be recreated, use `python3.11 -m venv venv`, NOT `python3`. Note `scripts/dev-fast-start.sh` recreates the venv with `python3` only when it is missing — the snapshot ships a working `python3.11` venv so that path is normally skipped; if you delete the venv, rebuild it with `python3.11` before re-running the script.
+- Node: use Node 24.18.1 (pinned by `.nvmrc`). `/exec-daemon/node` is Node 22 and comes before `/usr/local/bin`. Install puts Node 24.18.1 symlinks in `/usr/local/cargo/bin`, which precedes `/exec-daemon`, and `install`/`start` also prepend `$HOME/.nvm/versions/node/v24.18.1/bin`. `node -v` must print `v24.18.1` before `pnpm install` — native modules are built against it.
+- dbt 1.7 must use Python 3.11 (`distutils`). The shared venv is `$HOME/.lightdash/dev-venv`, created with `python3.11`, and `./venv` is a symlink to it. dbt 1.12 lives in `$HOME/.lightdash/dev-venv-1.12` (Python 3.12) and is shimmed as `venv/bin/dbt1.12`. `scripts/dev-fast-start.sh` recreates a missing `./venv` with `python3` only when the shared cache is absent — do not delete `$HOME/.lightdash/dev-venv`. Python 3.11 comes from the deadsnakes PPA because Ubuntu 24.04's default is 3.12.
+- Custom data-app chart types need local sandbox images. `dev-fast-start.sh` builds those only when `SANDBOX_PROVIDER=docker`. Standard charts and SQL queries work without them.
 - Backend lint runs out of heap with the default Node memory limit and aborts (exit 134). Run it with a larger heap: `NODE_OPTIONS="--max-old-space-size=8192" pnpm -F backend lint`.
