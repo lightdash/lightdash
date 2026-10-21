@@ -67,6 +67,8 @@ export type TableBase = {
     warnings?: InlineError[];
     dbtPackageName?: string;
     dbtSourceUuid?: string;
+    dbtSourceName?: string;
+    dbtModelUniqueId?: string;
     ymlPath?: string;
     sqlPath?: string;
 };

@@ -188,15 +188,17 @@ test('does not infer dbt project names from source labels', async () => {
     );
 });
 
-test('rejects a cached name that belongs to a different source', async () => {
+test('passes a cached cross-source name to the locked allocator', async () => {
     const { models, args } = setup();
     models.projectModel.getAllExploresFromCache.mockResolvedValue({
         orders: explore('orders', 'analytics', 'primary'),
     });
     args.explores = [explore('orders', 'finance')];
-    await rejected(
-        'orders (source Core models)',
-        resolvePackages(models, args),
+    expect(await resolvePackages(models, args)).toEqual(
+        new Map([
+            ['analytics', 'primary'],
+            ['finance', 'extra'],
+        ]),
     );
 });
 

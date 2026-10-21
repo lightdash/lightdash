@@ -263,10 +263,15 @@ import {
     type ResolvedCredentialRead,
 } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
 import {
-    cachedExploreNamesForSources,
+    cachedExploreSourcesForSources,
     type CachedExploreSource,
     type CachedSourceCatalog,
 } from './cachedExploreSource';
+import {
+    allocateStagedExploreNames,
+    getLegacyPrimaryExploreNames,
+    type ExploreNaming,
+} from './exploreNameAllocation';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -818,6 +823,15 @@ export class ProjectModel {
             );
         }
         return projects[0].project_uuid;
+    }
+
+    async hasExploreNameAllocations(projectUuid: string): Promise<boolean> {
+        return (
+            (await this.database('explore_name_allocations')
+                .where('project_uuid', projectUuid)
+                .select('name')
+                .first()) !== undefined
+        );
     }
 
     async getDbtSourceIdentity(projectUuid: string): Promise<{
@@ -3769,11 +3783,11 @@ export class ProjectModel {
         );
     }
 
-    private static async cachedExploreNamesForDbtSources(
+    private static async cachedExploreSourcesForDbtSources(
         database: Knex,
         projectUuid: string,
         dbtSourceUuids: string[],
-    ): Promise<string[]> {
+    ): Promise<Map<string, string>> {
         const [project, sources, packages, explores] = await Promise.all([
             database(ProjectTableName)
                 .select('dbt_source_uuid')
@@ -3811,7 +3825,7 @@ export class ProjectModel {
                     [...USER_MANAGED_EXPLORE_TYPES],
                 ]),
         ]);
-        return cachedExploreNamesForSources(
+        return cachedExploreSourcesForSources(
             explores,
             packages,
             [
@@ -3820,6 +3834,22 @@ export class ProjectModel {
             ],
             dbtSourceUuids,
         );
+    }
+
+    private static async cachedExploreNamesForDbtSources(
+        database: Knex,
+        projectUuid: string,
+        dbtSourceUuids: string[],
+    ): Promise<string[]> {
+        return [
+            ...(
+                await ProjectModel.cachedExploreSourcesForDbtSources(
+                    database,
+                    projectUuid,
+                    dbtSourceUuids,
+                )
+            ).keys(),
+        ];
     }
 
     async countCachedExploresForDbtSource(
@@ -4109,6 +4139,10 @@ export class ProjectModel {
         );
     }
 
+    async getLegacyPrimaryExploreNames(projectUuid: string): Promise<string[]> {
+        return getLegacyPrimaryExploreNames(this.database, projectUuid);
+    }
+
     async assertSourceDeployOwnership(
         projectUuid: string,
         sourceUuid: string | null,
@@ -4247,6 +4281,7 @@ export class ProjectModel {
         carry: MultiConnectionCarry,
         // Use only statements on the given transaction; no other I/O or connection.
         beforeWrite?: StagedExploreWriteCheck,
+        naming?: ExploreNaming,
     ): Promise<{ cachedExploreUuids: string[] }> {
         return wrapSentryTransaction(
             'ProjectModel.saveMultiConnectionExplores',
@@ -4311,24 +4346,77 @@ export class ProjectModel {
                             .merge(['table_names', 'explore']);
                     }
 
-                    const { promotedRows, managedNames, carriedNames } =
-                        await this.database.transaction(async (trx) => {
-                            await lockCompilePublication(trx);
-                            await ProjectModel.lockAndEnsureCachedExplores(
+                    const {
+                        promotedRows,
+                        managedNames,
+                        carriedNames,
+                        namedExplores,
+                        namingWarnings,
+                    } = await this.database.transaction(async (trx) => {
+                        await lockCompilePublication(trx);
+                        await ProjectModel.lockAndEnsureCachedExplores(
+                            trx,
+                            projectUuid,
+                        );
+                        const failedSourceUuids =
+                            carry.kind === 'dbtSources' ||
+                            carry.kind === 'connections'
+                                ? (carry.dbtSourceUuids ?? [])
+                                : [];
+                        const carriedSources =
+                            failedSourceUuids.length > 0
+                                ? await ProjectModel.cachedExploreSourcesForDbtSources(
+                                      trx,
+                                      projectUuid,
+                                      failedSourceUuids,
+                                  )
+                                : new Map<string, string>();
+                        const named = naming
+                            ? await allocateStagedExploreNames(
+                                  trx,
+                                  projectUuid,
+                                  saveUuid,
+                                  {
+                                      ...naming,
+                                      cachedExploreSources: carriedSources,
+                                  },
+                              )
+                            : null;
+                        if (named) {
+                            stagedNameOrder.splice(
+                                0,
+                                stagedNameOrder.length,
+                                ...named.names,
+                            );
+                            const bindings = await trx(
+                                CachedExploreStagingTableName,
+                            )
+                                .select('name', 'warehouse_connection_uuid')
+                                .where({
+                                    save_uuid: saveUuid,
+                                    project_uuid: projectUuid,
+                                });
+                            stagedBindings.clear();
+                            bindings.forEach((row) =>
+                                stagedBindings.set(
+                                    row.name,
+                                    row.warehouse_connection_uuid,
+                                ),
+                            );
+                        }
+                        const carriedResult =
+                            await ProjectModel.stageCarriedExplores(
                                 trx,
                                 projectUuid,
+                                saveUuid,
+                                carry,
+                                named?.activeSourceUuids,
+                                [...carriedSources.keys()],
                             );
-                            const carriedResult =
-                                await ProjectModel.stageCarriedExplores(
-                                    trx,
-                                    projectUuid,
-                                    saveUuid,
-                                    carry,
-                                );
-                            const managedResult = await trx.raw<{
-                                rows: { name: string }[];
-                            }>(
-                                `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                        const managedResult = await trx.raw<{
+                            rows: { name: string }[];
+                        }>(
+                            `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
                                  SELECT ?, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM ??
                                  WHERE project_uuid = ?
@@ -4338,72 +4426,69 @@ export class ProjectModel {
                                      explore = EXCLUDED.explore,
                                      warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name`,
-                                [
-                                    CachedExploreStagingTableName,
-                                    saveUuid,
-                                    CachedExploreTableName,
-                                    projectUuid,
-                                    [...USER_MANAGED_EXPLORE_TYPES],
-                                ],
-                            );
-                            if (beforeWrite) await beforeWrite(trx, saveUuid);
-                            const expectedNames = new Set(
-                                stagedBindings.keys(),
-                            );
-                            carriedResult.forEach((name) =>
-                                expectedNames.add(name),
-                            );
-                            managedResult.rows.forEach(({ name }) =>
-                                expectedNames.add(name),
-                            );
-                            if (expectedNames.size === 0) {
-                                throw new ParameterError('No explores to save');
-                            }
-                            const lockedStagedRows = await trx(
+                            [
                                 CachedExploreStagingTableName,
+                                saveUuid,
+                                CachedExploreTableName,
+                                projectUuid,
+                                [...USER_MANAGED_EXPLORE_TYPES],
+                            ],
+                        );
+                        if (beforeWrite) await beforeWrite(trx, saveUuid);
+                        const expectedNames = new Set(stagedBindings.keys());
+                        carriedResult.forEach((name) =>
+                            expectedNames.add(name),
+                        );
+                        managedResult.rows.forEach(({ name }) =>
+                            expectedNames.add(name),
+                        );
+                        if (expectedNames.size === 0) {
+                            throw new ParameterError('No explores to save');
+                        }
+                        const lockedStagedRows = await trx(
+                            CachedExploreStagingTableName,
+                        )
+                            .select<{ name: string }[]>('name')
+                            .where({
+                                save_uuid: saveUuid,
+                                project_uuid: projectUuid,
+                            })
+                            .forUpdate();
+                        if (
+                            lockedStagedRows.length !== expectedNames.size ||
+                            lockedStagedRows.some(
+                                ({ name }) => !expectedNames.has(name),
                             )
-                                .select<{ name: string }[]>('name')
-                                .where({
-                                    save_uuid: saveUuid,
-                                    project_uuid: projectUuid,
-                                })
-                                .forUpdate();
-                            if (
-                                lockedStagedRows.length !==
-                                    expectedNames.size ||
-                                lockedStagedRows.some(
-                                    ({ name }) => !expectedNames.has(name),
-                                )
-                            ) {
-                                throw new UnexpectedServerError(
-                                    'Cached explore staging name set mismatch',
-                                );
-                            }
-                            // Explores that survive a compile keep their uuid so rows
-                            // that reference them (pre-aggregate registry and
-                            // materializations, changes) are not cascade-deleted.
-                            await trx(CachedExploreTableName)
-                                .where('project_uuid', projectUuid)
-                                .whereNotExists(
-                                    trx(CachedExploreStagingTableName)
-                                        .select(trx.raw('1'))
-                                        .where({
-                                            save_uuid: saveUuid,
-                                            project_uuid: projectUuid,
-                                        })
-                                        .whereRaw('??.name = ??.name', [
-                                            CachedExploreStagingTableName,
-                                            CachedExploreTableName,
-                                        ]),
-                                )
-                                .delete();
-                            const promotedResult = await trx.raw<{
-                                rows: {
-                                    name: string;
-                                    cached_explore_uuid: string;
-                                }[];
-                            }>(
-                                `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
+                        ) {
+                            throw new UnexpectedServerError(
+                                'Cached explore staging name set mismatch',
+                            );
+                        }
+                        // Explores that survive a compile keep their uuid so rows
+                        // that reference them (pre-aggregate registry and
+                        // materializations, changes) are not cascade-deleted.
+                        await trx(CachedExploreTableName)
+                            .where('project_uuid', projectUuid)
+                            .whereNotExists(
+                                trx(CachedExploreStagingTableName)
+                                    .select(trx.raw('1'))
+                                    .where({
+                                        save_uuid: saveUuid,
+                                        project_uuid: projectUuid,
+                                    })
+                                    .whereRaw('??.name = ??.name', [
+                                        CachedExploreStagingTableName,
+                                        CachedExploreTableName,
+                                    ]),
+                            )
+                            .delete();
+                        const promotedResult = await trx.raw<{
+                            rows: {
+                                name: string;
+                                cached_explore_uuid: string;
+                            }[];
+                        }>(
+                            `INSERT INTO ?? (cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
                                  SELECT cached_explore_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid
                                  FROM ??
                                  WHERE save_uuid = ? AND project_uuid = ?
@@ -4412,21 +4497,27 @@ export class ProjectModel {
                                      explore = EXCLUDED.explore,
                                      warehouse_connection_uuid = EXCLUDED.warehouse_connection_uuid
                                  RETURNING name, cached_explore_uuid`,
-                                [
-                                    CachedExploreTableName,
-                                    CachedExploreStagingTableName,
-                                    saveUuid,
-                                    projectUuid,
-                                ],
-                            );
-                            return {
-                                promotedRows: promotedResult.rows,
-                                managedNames: managedResult.rows.map(
-                                    ({ name }) => name,
-                                ),
-                                carriedNames: carriedResult,
-                            };
-                        });
+                            [
+                                CachedExploreTableName,
+                                CachedExploreStagingTableName,
+                                saveUuid,
+                                projectUuid,
+                            ],
+                        );
+                        return {
+                            promotedRows: promotedResult.rows,
+                            managedNames: managedResult.rows.map(
+                                ({ name }) => name,
+                            ),
+                            carriedNames: carriedResult,
+                            namedExplores: named?.explores ?? [],
+                            namingWarnings: named?.warnings ?? [],
+                        };
+                    });
+                    if (naming) {
+                        naming.warnings.push(...namingWarnings);
+                        naming.onPublished?.(namedExplores);
+                    }
                     markCompilePublished();
                     const cachedExploreUuidsByName = new Map(
                         promotedRows.map(
@@ -4476,16 +4567,9 @@ export class ProjectModel {
         projectUuid: string,
         saveUuid: string,
         carry: MultiConnectionCarry,
+        activeSourceUuids?: string[],
+        failedSourceNames: string[] = [],
     ): Promise<string[]> {
-        const failedSourceNames =
-            (carry.kind === 'dbtSources' || carry.kind === 'connections') &&
-            carry.dbtSourceUuids?.length
-                ? await ProjectModel.cachedExploreNamesForDbtSources(
-                      trx,
-                      projectUuid,
-                      carry.dbtSourceUuids,
-                  )
-                : [];
         const carriedQuery = trx(CachedExploreTableName)
             .select(
                 trx.raw('?', [saveUuid]),
@@ -4499,6 +4583,16 @@ export class ProjectModel {
             .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
                 [...USER_MANAGED_EXPLORE_TYPES],
             ]);
+        if (activeSourceUuids) {
+            void carriedQuery.where((query) => {
+                query.whereRaw(
+                    "(COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') IS NULL OR COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?))",
+                    [activeSourceUuids],
+                );
+                if (failedSourceNames.length > 0)
+                    query.orWhereIn('name', failedSourceNames);
+            });
+        }
         switch (carry.kind) {
             case 'connections':
                 if (

@@ -14,6 +14,7 @@ import {
     friendlyName,
     getCompiledModels,
     getDbtManifestVersion,
+    getDeferredExploreName,
     getMissingCatalogEntries,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
@@ -279,11 +280,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
+        deferExploreNaming: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         const stream = await this.prepareExploreStream(
             trackingParams,
             loadSources,
             allowPartialCompilation,
+            deferExploreNaming,
         );
         const explores: (Explore | ExploreError)[] = [];
         for await (const explore of stream) explores.push(explore);
@@ -294,6 +297,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
         allowPartialCompilation: boolean = true,
+        deferExploreNaming: boolean = false,
     ): Promise<AsyncIterable<Explore | ExploreError>> {
         await this.prepareDbtSource();
         Logger.debug('Get dbt manifest');
@@ -353,6 +357,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 adapterType,
                 models,
                 manifestVersion,
+                deferExploreNaming,
             );
 
         // Translate MetricFlow definitions (semantic_models + metrics) into
@@ -361,6 +366,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         const metricFlowTranslation = applyMetricFlowMetricsToModels(
             validatedModels,
             manifest,
+            deferExploreNaming
+                ? new Map(
+                      validatedModels.map((model) => [
+                          model.unique_id,
+                          getDeferredExploreName(model),
+                      ]),
+                  )
+                : undefined,
         );
         if (metricFlowTranslation.error !== null) {
             Logger.warn(
@@ -404,11 +417,22 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 disableTimestampConversion,
                 allowPartialCompilation,
                 postProcessors,
+                deferExploreNaming,
             },
+        );
+        const modelsByUniqueId = new Map(
+            models.map((model) => [model.unique_id, model]),
         );
         return (async function* compiledExplores() {
             yield* explores;
-            yield* failedExplores;
+            yield* failedExplores.map((explore) => {
+                const model = explore.dbtModelIdentity
+                    ? modelsByUniqueId.get(explore.dbtModelIdentity.uniqueId)
+                    : undefined;
+                return deferExploreNaming && model
+                    ? { ...explore, name: getDeferredExploreName(model) }
+                    : explore;
+            });
             Logger.info('Finished compiling explores');
         })();
     }
@@ -626,6 +650,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         adapterType: SupportedDbtAdapter,
         models: DbtRawModelNode[],
         manifestVersion: DbtManifestVersion,
+        includeModelIdentity: boolean = false,
     ): [DbtModelNode[], ExploreError[]] {
         const validator = new ManifestValidator(manifestVersion);
         return models.reduce(
@@ -655,6 +680,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     }
                     const metaGroups: string[] | undefined = model.meta.groups;
                     const exploreError: ExploreError = {
+                        ...(includeModelIdentity
+                            ? {
+                                  dbtModelIdentity: {
+                                      sourceUuid:
+                                          model.lightdash_source_uuid ?? null,
+                                      sourceName:
+                                          model.lightdash_source_name ?? null,
+                                      packageName: model.package_name,
+                                      uniqueId: model.unique_id,
+                                      modelName: model.name,
+                                  },
+                              }
+                            : {}),
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
                         groupLabel: model.meta.group_label,

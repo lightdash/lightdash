@@ -763,6 +763,7 @@ export const compileProject = async (
                 disableTimestampConversion: options.disableTimestampConversion,
                 allowPartialCompilation,
                 postProcessors: [preAggregatePostProcessor],
+                includeModelIdentity: true,
             },
         );
         const validatedExplores =

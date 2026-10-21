@@ -1431,6 +1431,31 @@ describe('applyMetricFlowMetricsToModels', () => {
         });
     });
 
+    it('uses the supplied model names while keeping metric qualification independent', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        models.push({
+            ...models[0],
+            name: 'finance__orders',
+            unique_id: 'model.analytics.finance__orders',
+        });
+        const result = applyMetricFlowMetricsToModels(
+            models,
+            { semantic_models: semanticModels, metrics: {} },
+            new Map([
+                [models[0].unique_id, 'orders'],
+                [models[1].unique_id, 'billing__orders'],
+                [models[2].unique_id, 'finance__orders'],
+            ]),
+        );
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toMatchObject({
+            analytics__revenue: { sql: '${TABLE}.analytics_amount' },
+        });
+        expect(result.models[1].meta.metrics).toMatchObject({
+            finance__revenue: { sql: '${TABLE}.finance_amount' },
+        });
+    });
+
     it('translates metrics attached to a qualified versioned model', () => {
         const { models, semanticModels } = buildMeshMetricFixture(true);
         const versionedModels = models.flatMap((model) =>

@@ -1,4 +1,7 @@
-import { cachedExploreNamesForSources } from './cachedExploreSource';
+import {
+    cachedExploreNamesForSources,
+    cachedExploreSourcesForSources,
+} from './cachedExploreSource';
 
 const current = ['primary', 'marketing', 'finance'];
 const catalog = (
@@ -153,6 +156,35 @@ describe('cachedExploreNamesForSources', () => {
                 ['marketing'],
             ),
         ).toEqual([]);
+    });
+
+    test('returns each recovered owner for name allocation and keeps current stamps authoritative', () => {
+        expect(
+            cachedExploreSourcesForSources(
+                [
+                    row(null),
+                    {
+                        ...row('cli-local-source', 'synthetic_vendor'),
+                        name: 'vendor_receipt',
+                    },
+                    { ...row('finance', 'synthetic_vendor'), name: 'ledger' },
+                ],
+                [
+                    ...packages,
+                    catalog('marketing', 'campaigns_project', [
+                        'synthetic_vendor',
+                    ]),
+                ],
+                current,
+                ['marketing', 'finance'],
+            ),
+        ).toEqual(
+            new Map([
+                ['campaigns', 'marketing'],
+                ['vendor_receipt', 'marketing'],
+                ['ledger', 'finance'],
+            ]),
+        );
     });
 
     test('keeps stamped errors even without package metadata', () => {

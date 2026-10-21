@@ -28,6 +28,7 @@ const setup = () => {
                 dbtSourceUuid: 'primary',
                 dbtSourceName: 'Core models',
             }),
+            getLegacyPrimaryExploreNames: vi.fn(async () => [] as string[]),
             getAllExploresFromCache: vi
                 .fn()
                 .mockResolvedValue({ orders: explore('orders', 'primary') }),
@@ -180,18 +181,16 @@ test('does not use joined table packages as source evidence', async () => {
     });
 });
 
-test('does not overwrite another source through an unmapped installed package', async () => {
+test('passes an installed-package collision to the locked name allocator', async () => {
     const { models, args } = setup();
     models.projectModel.getAllExploresFromCache.mockResolvedValue({
         primary: explore('orders', 'primary'),
         extra: explore('shared_name', 'extra', 'finance'),
     });
     args.explores.push(explore('shared_name', undefined, 'dbt_utils'));
-    await expect(inferCliDeploySource(models, args)).rejects.toMatchObject({
-        statusCode: 409,
-        message: expectedMessage(
-            'the upload would replace explores owned by another source: shared_name (source Replica models)',
-        ),
+    await expect(inferCliDeploySource(models, args)).resolves.toMatchObject({
+        sourceUuid: 'primary',
+        explores: args.explores,
     });
 });
 
@@ -262,10 +261,6 @@ test.each([
         kind: 'errors-only',
         reason: 'none of the uploaded explores compiled successfully; fix the compile errors and deploy again',
     },
-    {
-        kind: 'name-collision',
-        reason: 'the upload would replace explores owned by another source: payments (source Replica models)',
-    },
 ])(
     'explains $kind and lists the source names without source-flag hints',
     async ({ kind, reason }) => {
@@ -274,18 +269,12 @@ test.each([
             delete args.explores[0].tables.orders.dbtPackageName;
         if (kind === 'unmapped')
             args.explores[0].tables.orders.dbtPackageName = 'unknown';
-        if (kind === 'mixed' || kind === 'name-collision') {
+        if (kind === 'mixed') {
             models.projectModel.getAllExploresFromCache.mockResolvedValue({
                 orders: explore('orders', 'primary'),
                 extra: explore('payments', 'extra', 'finance'),
             });
-            args.explores.push(
-                explore(
-                    'payments',
-                    undefined,
-                    kind === 'mixed' ? 'finance' : 'dbt_utils',
-                ),
-            );
+            args.explores.push(explore('payments', undefined, 'finance'));
         }
         if (kind === 'contradictory-model-list')
             args.dbtModelNames = ['other__orders'];
@@ -510,7 +499,7 @@ test('does not clear an explicit source when all uploaded models belong elsewher
 });
 
 test.each([null, 'primary'])(
-    'lists every cross-source name collision with explicit source %s',
+    'passes cross-source names to the locked allocator with explicit source %s',
     async (sourceUuid) => {
         const { models, args } = setup();
         models.projectModel.getAllExploresFromCache.mockResolvedValue({
@@ -528,9 +517,10 @@ test.each([null, 'primary'])(
                     explore('payments', undefined, 'dbt_utils'),
                 ],
             }),
-        ).rejects.toThrow(
-            'the upload would replace explores owned by another source: payments (source Replica models), refunds (source Replica models)',
-        );
+        ).resolves.toMatchObject({
+            sourceUuid: 'primary',
+            droppedExploreCount: 0,
+        });
     },
 );
 
@@ -597,3 +587,17 @@ test.each([null, 'primary'])(
         });
     },
 );
+
+test('uses server-verified legacy primary names as source evidence', async () => {
+    const { models, args } = setup();
+    models.projectModel.getAllExploresFromCache.mockResolvedValue({
+        orders: explore('orders'),
+    });
+    models.projectModel.getLegacyPrimaryExploreNames.mockResolvedValue([
+        'orders',
+    ]);
+    await expect(inferCliDeploySource(models, args)).resolves.toMatchObject({
+        sourceUuid: 'primary',
+        method: 'package_match',
+    });
+});

@@ -1,6 +1,7 @@
 import merge from 'lodash/merge';
 import partition from 'lodash/partition';
 import {
+    getDeferredExploreName,
     getManifestNamespaceKey,
     qualifyManifestNames,
 } from '../dbt/qualifiedName';
@@ -1505,6 +1506,8 @@ export type ConvertExploresOptions = {
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
+    deferExploreNaming?: boolean;
+    includeModelIdentity?: boolean;
 };
 
 const RESERVED_MODEL_META_KEY_SET = new Set<string>(RESERVED_MODEL_META_KEYS);
@@ -1534,17 +1537,26 @@ export async function* iterateExplores(
         disableTimestampConversion,
         allowPartialCompilation,
         postProcessors,
+        deferExploreNaming,
+        includeModelIdentity = deferExploreNaming,
     } = options ?? {};
-    const resolvedNamesByUniqueId = qualifyManifestNames(
-        models.map((model) => ({
-            uniqueId: model.unique_id,
-            name: model.name,
-            version: model.version,
-            lightdash_source_name: model.lightdash_source_name,
-            package_name: model.package_name,
-        })),
-        'model',
-    );
+    const resolvedNamesByUniqueId = deferExploreNaming
+        ? new Map(
+              models.map((model) => [
+                  model.unique_id,
+                  getDeferredExploreName(model),
+              ]),
+          )
+        : qualifyManifestNames(
+              models.map((model) => ({
+                  uniqueId: model.unique_id,
+                  name: model.name,
+                  version: model.version,
+                  lightdash_source_name: model.lightdash_source_name,
+                  package_name: model.package_name,
+              })),
+              'model',
+          );
     const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
     models.forEach((model) => {
         const namespaceKey = getManifestNamespaceKey(model, model.name);
@@ -1552,6 +1564,12 @@ export async function* iterateExplores(
             modelsByNamespaceAndName.set(namespaceKey, model);
         }
     });
+    const modelsByQualifiedName = new Map(
+        models.map((model) => [
+            `${model.lightdash_source_name ?? model.package_name}__${model.name}`,
+            model,
+        ]),
+    );
     const resolveJoins = (
         model: DbtModelNode,
         joins: DbtModelNode['meta']['joins'],
@@ -1561,7 +1579,9 @@ export async function* iterateExplores(
             if (namespaceKey === undefined) {
                 return join;
             }
-            const joinedModel = modelsByNamespaceAndName.get(namespaceKey);
+            const joinedModel =
+                modelsByNamespaceAndName.get(namespaceKey) ??
+                modelsByQualifiedName.get(join.join);
             const resolvedJoinName = joinedModel
                 ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
                 : undefined;
@@ -1579,13 +1599,20 @@ export async function* iterateExplores(
             resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
         const metaJoins = resolveJoins(model, model.meta.joins);
         const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
+        let meta =
+            metaJoins === model.meta.joins
+                ? model.meta
+                : { ...model.meta, joins: metaJoins };
+        if (deferExploreNaming)
+            meta = {
+                ...model.meta,
+                label: model.meta.label ?? friendlyName(model.name),
+                joins: metaJoins,
+            };
         return {
             ...model,
             name: resolvedName,
-            meta:
-                metaJoins === model.meta.joins
-                    ? model.meta
-                    : { ...model.meta, joins: metaJoins },
+            meta,
             config:
                 configMetaJoins === model.config?.meta?.joins
                     ? model.config
@@ -1598,6 +1625,9 @@ export async function* iterateExplores(
                       },
         };
     });
+    const originalModelsByUniqueId = new Map(
+        models.map((model) => [model.unique_id, model]),
+    );
     const originalNamesByUniqueId = new Map(
         models.map((model) => [model.unique_id, model.name]),
     );
@@ -1647,6 +1677,14 @@ export async function* iterateExplores(
             // add lineage
             const tableWithLineage: Table = {
                 ...table,
+                ...(includeModelIdentity
+                    ? {
+                          dbtModelUniqueId: model.unique_id,
+                          ...(model.lightdash_source_name !== undefined
+                              ? { dbtSourceName: model.lightdash_source_name }
+                              : {}),
+                      }
+                    : {}),
                 ...(originalNamesByUniqueId.get(model.unique_id) !== model.name
                     ? {
                           originalName: originalNamesByUniqueId.get(
@@ -2061,8 +2099,32 @@ export async function* iterateExplores(
             return [...errors, ...processor(successes, postProcessorContext)];
         }, successfulExplores);
 
-        yield* compileErrors;
-        yield* postProcessedExplores;
+        const originalModel = originalModelsByUniqueId.get(model.unique_id)!;
+        for (const explore of [...compileErrors, ...postProcessedExplores]) {
+            yield {
+                ...explore,
+                ...(includeModelIdentity
+                    ? {
+                          dbtModelIdentity: {
+                              sourceUuid: model.lightdash_source_uuid ?? null,
+                              sourceName: model.lightdash_source_name ?? null,
+                              packageName: model.package_name,
+                              uniqueId: model.unique_id,
+                              ...(model.version != null
+                                  ? {
+                                        version: model.version,
+                                        latestVersion: model.latest_version,
+                                    }
+                                  : {}),
+                              modelName:
+                                  explore.name === model.name
+                                      ? originalModel.name
+                                      : explore.name,
+                          },
+                      }
+                    : {}),
+            };
+        }
 
         if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
             // eslint-disable-next-line no-await-in-loop
@@ -2070,7 +2132,33 @@ export async function* iterateExplores(
         }
     }
 
-    yield* exploreErrors;
+    const originalModelsByResolvedName = new Map(
+        models.map((model) => [
+            resolvedNamesByUniqueId.get(model.unique_id) ?? model.name,
+            model,
+        ]),
+    );
+    for (const explore of exploreErrors) {
+        const model = originalModelsByResolvedName.get(explore.name);
+        yield includeModelIdentity && model
+            ? {
+                  ...explore,
+                  dbtModelIdentity: {
+                      sourceUuid: model.lightdash_source_uuid ?? null,
+                      sourceName: model.lightdash_source_name ?? null,
+                      packageName: model.package_name,
+                      uniqueId: model.unique_id,
+                      ...(model.version != null
+                          ? {
+                                version: model.version,
+                                latestVersion: model.latest_version,
+                            }
+                          : {}),
+                      modelName: model.name,
+                  },
+              }
+            : explore;
+    }
 }
 
 export const convertExplores = async (

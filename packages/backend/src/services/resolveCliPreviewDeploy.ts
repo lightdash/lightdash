@@ -201,22 +201,6 @@ export const resolveCliPreviewDeploy = async (
             `the deploy named source ${sourceNames.get(args.sourceUuid)}, but the uploaded explores belong to source ${sourceNames.get([...deployedSources][0])}`,
         );
     }
-    const cachedByName = new Map(
-        cached.map((explore) => [explore.name, explore]),
-    );
-    const collisions = args.explores.flatMap((explore) => {
-        const existing = cachedByName.get(explore.name);
-        const owner = existing ? cachedOwner(existing) : undefined;
-        return owner && owner !== ownersByExplore.get(explore.name)
-            ? [
-                  {
-                      exploreName: explore.name,
-                      sourceName: sourceNames.get(owner)!,
-                  },
-              ]
-            : [];
-    });
-    if (collisions.length > 0) refuse(cliDeployCollisionReason(collisions));
     return {
         sourcesByPackage: new Map(
             [...packages].flatMap(([packageName, owners]) =>
