@@ -554,6 +554,133 @@ export const resolveCrossSourceManifests = async <T>({
             await onSourceFinal?.(task);
             finalized.add(task);
         };
+        const referenceTargetsPackage = (
+            ref: NonNullable<DbtRawModelNode['refs']>[number],
+            model: DbtRawModelNode,
+            manifest: CrossSourceFetchResult['manifest'],
+            packageName: string,
+        ) => {
+            if (ref.package != null) return ref.package === packageName;
+            const candidates = (model.depends_on?.nodes ?? [])
+                .map((id) => manifest.nodes[id] as DbtRawModelNode | undefined)
+                .filter(
+                    (node): node is DbtRawModelNode =>
+                        node !== undefined &&
+                        node.name === ref.name &&
+                        (ref.version == null ||
+                            String(node.version) === String(ref.version)),
+                );
+            const preferred =
+                [
+                    candidates.filter(
+                        (node) => node.package_name === model.package_name,
+                    ),
+                    candidates.filter(
+                        (node) =>
+                            node.package_name ===
+                            manifest.metadata.project_name,
+                    ),
+                ].find((group) => group.length > 0) ?? candidates;
+            return (
+                preferred.length > 0 &&
+                preferred.every((node) => node.package_name === packageName)
+            );
+        };
+        const validateModelCycles = () => {
+            const realNodes = new Map<string, DbtRawModelNode>();
+            const staleEdges = new Map<string, Set<string>>();
+            resolved.forEach(({ result }, task) => {
+                const changedTargets = (
+                    contradictedRefs.get(task) ?? []
+                ).flatMap(({ provider, ref }) => {
+                    if (ref.version !== null) return [];
+                    const target = (nodes: DbtExternalModelNode[]) =>
+                        nodes.find(
+                            (node) =>
+                                matchesRef(node, ref) &&
+                                (node.version === null ||
+                                    String(node.version) ===
+                                        String(node.latest_version)),
+                        );
+                    const previous = target(
+                        supplied.get(task)?.get(provider) ?? [],
+                    );
+                    const current = target(fresh.get(provider) ?? []);
+                    return previous &&
+                        current &&
+                        nodeId(previous) !== nodeId(current)
+                        ? [previous]
+                        : [];
+                });
+                const staleBindings = new Map(
+                    changedTargets.map((node) => [nodeId(node), node]),
+                );
+                Object.values(result.manifest.nodes).forEach((raw) => {
+                    const node = raw as DbtRawModelNode;
+                    if (
+                        ['model', 'seed', 'snapshot'].includes(
+                            node.resource_type,
+                        ) &&
+                        !isExternalDbtNode(node)
+                    ) {
+                        realNodes.set(node.unique_id, node);
+                        staleEdges.set(
+                            node.unique_id,
+                            new Set(
+                                (node.depends_on?.nodes ?? []).filter((id) => {
+                                    const binding = staleBindings.get(id);
+                                    return (
+                                        binding !== undefined &&
+                                        !(node.refs ?? []).some(
+                                            (ref) =>
+                                                ref.name === binding.name &&
+                                                referenceTargetsPackage(
+                                                    ref,
+                                                    node,
+                                                    result.manifest,
+                                                    binding.package_name,
+                                                ) &&
+                                                ref.version != null &&
+                                                String(ref.version) ===
+                                                    String(binding.version),
+                                        )
+                                    );
+                                }),
+                            ),
+                        );
+                    }
+                });
+            });
+            const realIds = new Map(
+                [...realNodes.values()]
+                    .filter((node) => node.resource_type === 'model')
+                    .map((node) => [
+                        nodeId({
+                            package_name: node.package_name,
+                            name: node.name,
+                            version: node.version ?? null,
+                        }),
+                        node.unique_id,
+                    ]),
+            );
+            const cycle = findDbtNodeCycle(
+                [...realNodes.values()].map((node) => ({
+                    unique_id: node.unique_id,
+                    depends_on: {
+                        nodes: (node.depends_on?.nodes ?? [])
+                            .filter(
+                                (id) =>
+                                    !staleEdges.get(node.unique_id)?.has(id),
+                            )
+                            .map((id) => realIds.get(id) ?? id),
+                    },
+                })),
+            );
+            if (cycle)
+                throw new ParameterError(
+                    `dbt models form a cycle across dbt sources: ${cycle.join(' -> ')}. Break the cycle in one of these models.`,
+                );
+        };
         let contradictions = 0;
         let firstAttemptInjected = 0;
         const runPass = async (
@@ -819,8 +946,12 @@ export const resolveCrossSourceManifests = async <T>({
                         const requested = (model.refs ?? []).filter(
                             (reference) =>
                                 reference.name === stub.name &&
-                                (reference.package == null ||
-                                    reference.package === stub.package_name),
+                                referenceTargetsPackage(
+                                    reference,
+                                    model,
+                                    entry.result.manifest,
+                                    stub.package_name,
+                                ),
                         );
                         const requestedVersion =
                             requested.length > 0 &&
@@ -986,6 +1117,7 @@ export const resolveCrossSourceManifests = async <T>({
                     contradictions += 1;
                 }
             }
+            validateModelCycles();
             const unsettled = new Set(
                 tasks.filter((task) => queued.has(task) || !resolved.has(task)),
             );
@@ -1045,45 +1177,6 @@ export const resolveCrossSourceManifests = async <T>({
             throw unresolvedError(new Set(tasks));
         const passes = tasks.length === 0 ? 0 : await runPass(tasks, 1);
         cancellation.controller.signal.throwIfAborted();
-        const realNodes = new Map<string, DbtRawModelNode>();
-        resolved.forEach(({ result }) =>
-            Object.values(result.manifest.nodes).forEach((raw) => {
-                const node = raw as DbtRawModelNode;
-                if (
-                    ['model', 'seed', 'snapshot'].includes(
-                        node.resource_type,
-                    ) &&
-                    !isExternalDbtNode(node)
-                )
-                    realNodes.set(node.unique_id, node);
-            }),
-        );
-        const realIds = new Map(
-            [...realNodes.values()]
-                .filter((node) => node.resource_type === 'model')
-                .map((node) => [
-                    nodeId({
-                        package_name: node.package_name,
-                        name: node.name,
-                        version: node.version ?? null,
-                    }),
-                    node.unique_id,
-                ]),
-        );
-        const cycle = findDbtNodeCycle(
-            [...realNodes.values()].map((node) => ({
-                unique_id: node.unique_id,
-                depends_on: {
-                    nodes: (node.depends_on?.nodes ?? []).map(
-                        (id) => realIds.get(id) ?? id,
-                    ),
-                },
-            })),
-        );
-        if (cycle)
-            throw new ParameterError(
-                `dbt models form a cycle across dbt sources: ${cycle.join(' -> ')}. Break the cycle in one of these models.`,
-            );
         await Promise.all([...resolved.keys()].map(finalizeSource));
         const sources = [...stats.values()];
         return {

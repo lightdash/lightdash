@@ -650,6 +650,168 @@ it('reruns only the consumer when cached latest_version changes', async () => {
     ).toEqual(['model.a.orders.v2']);
 });
 
+it.each([false, true])(
+    'keeps an explicit-version cycle when cached latest changes (implicit sibling: %s)',
+    async (implicitSibling) => {
+        const provider = withRefs('acme_core', [
+            ref('orbit_finance', 'stable'),
+        ]);
+        const provided = result('acme_core');
+        provided.manifest.nodes = Object.fromEntries(
+            [1, 2].map((version) => {
+                const node = {
+                    ...model('acme_core'),
+                    unique_id: `model.acme_core.orders.v${version}`,
+                    version,
+                    latest_version: 2,
+                    refs:
+                        version === 1
+                            ? [{ package: 'orbit_finance', name: 'stable' }]
+                            : [],
+                    depends_on: {
+                        nodes:
+                            version === 1 ? ['model.orbit_finance.stable'] : [],
+                    },
+                };
+                return [node.unique_id, node];
+            }),
+        );
+        provider.fetch.mockResolvedValue(provided);
+        const refs = [
+            ref('acme_core', 'orders', '1'),
+            ...(implicitSibling ? [ref('acme_core')] : []),
+        ];
+        const consumer = withRefs('orbit_finance', refs, ['stable', 'orders']);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) => {
+            const fetched = boundResult('orbit_finance', externalNodes, [
+                ref('acme_core', 'orders', '1'),
+            ]);
+            const own = fetched.manifest.nodes['model.orbit_finance.orders'];
+            fetched.manifest.nodes['model.orbit_finance.stable'] = {
+                ...own,
+                name: 'stable',
+                unique_id: 'model.orbit_finance.stable',
+            } as DbtRawModelNode & DbtManifest['nodes'][string];
+            delete fetched.manifest.nodes['model.orbit_finance.orders'];
+            if (implicitSibling) {
+                const implicit = boundResult('orbit_finance', externalNodes, [
+                    ref('acme_core'),
+                ]);
+                fetched.manifest.nodes['model.orbit_finance.orders'] =
+                    implicit.manifest.nodes['model.orbit_finance.orders'];
+            }
+            return fetched;
+        });
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [consumer, provider],
+                enabled: true,
+                concurrency: 2,
+                maxPasses: 1,
+                cache: [
+                    {
+                        key: provider.key,
+                        projectName: provider.key,
+                        referencedProjects: [],
+                        nodes: [1, 2].map((version) =>
+                            placeholderExternalNode({
+                                packageName: provider.key,
+                                name: 'orders',
+                                version: String(version),
+                                latestVersion: '1',
+                            }),
+                        ),
+                    },
+                ],
+            }),
+        ).rejects.toThrow(
+            'model.orbit_finance.stable -> model.acme_core.orders.v1 -> model.orbit_finance.stable',
+        );
+        expect(consumer.fetch).toHaveBeenCalledOnce();
+        expect(provider.fetch).toHaveBeenCalledOnce();
+    },
+);
+
+it.each([false, true])(
+    'rechecks stale bindings with a local pinned ref: %s',
+    async (localPinned) => {
+        const provider = withRefs('acme_core', [
+            ref('orbit_finance', 'reporting'),
+        ]);
+        const provided = result('acme_core');
+        provided.manifest.nodes = Object.fromEntries(
+            [1, 2].map((version) => {
+                const node = {
+                    ...model('acme_core'),
+                    unique_id: `model.acme_core.orders.v${version}`,
+                    version,
+                    latest_version: 2,
+                    depends_on: {
+                        nodes:
+                            version === 1
+                                ? ['model.orbit_finance.reporting']
+                                : [],
+                    },
+                };
+                return [node.unique_id, node];
+            }),
+        );
+        provider.fetch.mockResolvedValue(provided);
+        const consumer = withRefs(
+            'orbit_finance',
+            [ref('acme_core')],
+            ['reporting', 'orders'],
+        );
+        consumer.fetch.mockImplementation(async ({ externalNodes }) => {
+            const fetched = boundResult('orbit_finance', externalNodes, [
+                ref('acme_core'),
+            ]);
+            const own = fetched.manifest.nodes[
+                'model.orbit_finance.orders'
+            ] as DbtRawModelNode & DbtManifest['nodes'][string];
+            delete fetched.manifest.nodes['model.orbit_finance.orders'];
+            fetched.manifest.nodes['model.orbit_finance.reporting'] =
+                Object.assign(own, {
+                    name: 'reporting',
+                    unique_id: 'model.orbit_finance.reporting',
+                });
+            if (localPinned) {
+                const local = Object.assign(model('orbit_finance'), {
+                    unique_id: 'model.orbit_finance.orders.v1',
+                    version: 1,
+                    latest_version: 1,
+                });
+                fetched.manifest.nodes[local.unique_id] = local;
+                own.refs!.push({ package: null, name: 'orders', version: 1 });
+                own.depends_on!.nodes!.push(local.unique_id);
+            }
+            return fetched;
+        });
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: provider.key,
+                    projectName: provider.key,
+                    referencedProjects: [],
+                    nodes: [1, 2].map((version) =>
+                        placeholderExternalNode({
+                            packageName: provider.key,
+                            name: 'orders',
+                            version: String(version),
+                            latestVersion: '1',
+                        }),
+                    ),
+                },
+            ],
+        });
+        expect(resolution.passes).toBe(2);
+        expect(consumer.fetch).toHaveBeenCalledTimes(2);
+    },
+);
+
 it.each(['deleted', 'private'])(
     'rejects a %s fresh model with consumer, model, ref and provider before another fetch',
     async (condition) => {
@@ -947,6 +1109,44 @@ it('reports a node-level cycle in node order', async () => {
         'model.a.orders -> model.b.orders -> model.c.orders -> model.a.orders',
     );
 });
+
+it.each([1, 2])(
+    'rejects a model cycle in pass %s before retrying contradicted stubs',
+    async (cyclePass) => {
+        const projects = ['acme_core', 'orbit_finance', 'nova_ledger'];
+        const tasks = projects.map((key, index) => {
+            const upstream = projects[(index + 1) % projects.length];
+            const refs = [ref(upstream)];
+            const source = withRefs(key, refs);
+            source.fetch.mockImplementation(async ({ externalNodes }) =>
+                boundResult(key, externalNodes, refs),
+            );
+            if (cyclePass === 2)
+                source.fetch.mockRejectedValueOnce(missing(upstream));
+            return source;
+        });
+        const dynamic = task('lunar_audit');
+        dynamic.fetch
+            .mockRejectedValueOnce(missing('acme_core'))
+            .mockRejectedValueOnce(missing('nova_ledger'));
+        const onSourceFinal = vi.fn();
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [...tasks, dynamic],
+                enabled: true,
+                concurrency: 2,
+                onSourceFinal,
+            }),
+        ).rejects.toThrow(
+            'dbt models form a cycle across dbt sources: model.acme_core.orders -> model.orbit_finance.orders -> model.nova_ledger.orders -> model.acme_core.orders. Break the cycle in one of these models.',
+        );
+        tasks.forEach((source) =>
+            expect(source.fetch).toHaveBeenCalledTimes(cyclePass),
+        );
+        expect(dynamic.fetch).toHaveBeenCalledTimes(cyclePass);
+        expect(onSourceFinal).not.toHaveBeenCalled();
+    },
+);
 
 it('reports the failed provider and its root cause to a dependent source', async () => {
     const consumer = withRefs('b', [ref('a')]);
