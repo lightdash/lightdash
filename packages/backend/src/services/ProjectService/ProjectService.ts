@@ -512,6 +512,7 @@ import {
 } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import { inferCliDeploySource } from '../inferCliDeploySource';
 import {
     MultiConnectionCompiler,
     withConnectionWarnings,
@@ -4307,10 +4308,32 @@ export class ProjectService
                 args.explores,
             );
         const { cliDeploy, ...deploy } = args;
+        const inferred =
+            args.complete === true &&
+            cliDeploy.sourceUuid === null &&
+            (await this.projectDbtSourcesModel.hasSources(args.projectUuid))
+                ? await inferCliDeploySource(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          dbtSourceRefCatalogModel:
+                              this.dbtSourceRefCatalogModel,
+                          warehouseConnectionModel:
+                              this.warehouseConnectionModel,
+                      },
+                      {
+                          projectUuid: args.projectUuid,
+                          explores: args.explores,
+                          dbtModelNames: args.dbtModelNames,
+                          cliDeploy,
+                      },
+                  )
+                : null;
         if (
             (await this.projectModel.getConnectionRoute(args.projectUuid, {
                 kind: 'original',
-            })) !== 'multi'
+            })) !== 'multi' &&
+            inferred === null
         ) {
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
@@ -4329,9 +4352,12 @@ export class ProjectService
                 warehouseConnectionModel: this.warehouseConnectionModel,
             },
             args.projectUuid,
-            cliDeploy,
+            inferred
+                ? { ...cliDeploy, sourceUuid: inferred.sourceUuid }
+                : cliDeploy,
         );
-        const { explores, ...metadata } = deploy;
+        const { explores: uploadedExplores, ...metadata } = deploy;
+        const explores = inferred?.explores ?? uploadedExplores;
         const sourceDeploy =
             await this.multiConnectionCompiler.prepareSourceDeploy({
                 projectUuid: args.projectUuid,
@@ -4341,16 +4367,53 @@ export class ProjectService
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: [],
+            readSavedExploreNames: true,
             saveExplores: async (summary) => {
+                let writeChecks = this.getConnectionStagedWriteChecks(
+                    args.projectUuid,
+                );
+                if (inferred) {
+                    const [checkWrite] = writeChecks;
+                    writeChecks = [
+                        async (trx, saveUuid) => {
+                            await checkWrite?.(trx, saveUuid);
+                            await this.projectModel.assertSourceDeployOwnership(
+                                args.projectUuid,
+                                inferred.sourceUuid,
+                                saveUuid,
+                                trx,
+                            );
+                        },
+                    ];
+                }
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
                     sourceDeploy,
-                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
+                    ...writeChecks,
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
             },
         });
+        if (inferred) {
+            this.logger.info('cli.deploy.source_inferred', {
+                projectUuid: args.projectUuid,
+                dbtSourceUuid: inferred.sourceUuid,
+                method: inferred.method,
+                uploadedExploreCount: uploadedExplores.length,
+                droppedExploreCount: inferred.droppedExploreCount,
+            });
+            if (inferred.droppedExploreCount > 0) {
+                this.logger.warn(
+                    'CLI deploy dropped explores from other dbt sources',
+                    {
+                        projectUuid: args.projectUuid,
+                        dbtSourceUuid: inferred.sourceUuid,
+                        droppedExploreCount: inferred.droppedExploreCount,
+                    },
+                );
+            }
+        }
         return result.indexCatalogJobUuid;
     }
 
@@ -4475,6 +4538,7 @@ export class ProjectService
                 summary: ExploreCompilationSummary,
             ) => Promise<{ cachedExploreUuids: string[] }>;
             connectionWarnings: string[];
+            readSavedExploreNames?: boolean;
         },
     ) {
         const {
@@ -4488,6 +4552,7 @@ export class ProjectService
             projectConfigDefaults,
             cliVersion,
             complete,
+            readSavedExploreNames = false,
         } = args;
         const summary = new ExploreCompilationSummary();
         const prevCatalogItemsWithTags =
@@ -4558,7 +4623,7 @@ export class ProjectService
             const NAME_SAMPLE_CAP = 50;
             const reconciled = complete || args.dbtModelNames !== undefined;
             const newNames =
-                args.dbtModelNames !== undefined
+                args.dbtModelNames !== undefined || readSavedExploreNames
                     ? await this.projectModel.getCachedExploreNames(projectUuid)
                     : summary.names;
             const previousNameSet = new Set(previousExploreNames ?? []);

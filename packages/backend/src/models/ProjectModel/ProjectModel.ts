@@ -4008,6 +4008,47 @@ export class ProjectModel {
         );
     }
 
+    async assertSourceDeployOwnership(
+        projectUuid: string,
+        sourceUuid: string,
+        saveUuid: string,
+        trx: Transaction,
+    ): Promise<void> {
+        const sourceIdentity = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
+        const conflict = await trx(CachedExploreTableName)
+            .select('name')
+            .where('project_uuid', projectUuid)
+            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                [...USER_MANAGED_EXPLORE_TYPES],
+            ])
+            .where((query) => {
+                void query
+                    .whereRaw(`${sourceIdentity} IS NULL`)
+                    .orWhere((collision) => {
+                        void collision
+                            .whereRaw(`${sourceIdentity} <> ?`, [sourceUuid])
+                            .whereIn(
+                                'name',
+                                trx(CachedExploreStagingTableName)
+                                    .select('name')
+                                    .where({
+                                        project_uuid: projectUuid,
+                                        save_uuid: saveUuid,
+                                    })
+                                    .whereRaw(`${sourceIdentity} = ?`, [
+                                        sourceUuid,
+                                    ]),
+                            );
+                    });
+            })
+            .first();
+        if (conflict) {
+            throw new ConflictError(
+                'Cached source ownership changed during this deploy. Refresh the project and deploy again with --source or lightdash config set-source.',
+            );
+        }
+    }
+
     async saveMultiConnectionExplores(
         projectUuid: string,
         explores: AsyncIterable<BoundExplore>,

@@ -730,6 +730,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                hasSources: vi.fn(async () => false),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         onboardingModel: onboardingModel as unknown as OnboardingModel,
@@ -15761,6 +15762,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } as unknown as FeatureFlagModel;
         const projectDbtSourcesModel = {
             getSources: vi.fn(async () => [buildSource('source-b')]),
+            hasSources: vi.fn(async () => false),
         } as unknown as ProjectDbtSourcesModel;
 
         return getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {

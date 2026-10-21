@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
+    ConflictError,
     DimensionType,
     ExploreType,
     getCatalogMissingEntries,
@@ -539,6 +540,7 @@ describe('Multi-connection compile on the real schema', () => {
                         dimensions: {},
                         metrics: {},
                         lineageGraph: {},
+                        dbtPackageName: 'primary',
                     },
                 ]),
             ),
@@ -873,6 +875,9 @@ describe('Multi-connection compile on the real schema', () => {
                 analytics,
                 projectModel,
                 projectDbtSourcesModel,
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
                 warehouseConnectionModel,
                 warehouseConnectionCompileModel,
                 userWarehouseCredentialsModel:
@@ -1224,8 +1229,16 @@ describe('Multi-connection compile on the real schema', () => {
         ])(
             'setExplores on a single project writes the rows of the main deploy save (complete $complete)',
             async ({ complete, dbtModelNames }) => {
-                const deployed = await createProject();
-                const baseline = await createProject();
+                const deployed = await createProject(
+                    undefined,
+                    undefined,
+                    false,
+                );
+                const baseline = await createProject(
+                    undefined,
+                    undefined,
+                    false,
+                );
                 await Promise.all(
                     [deployed, baseline].map(async ({ projectUuid }) => {
                         await routeSingle(projectUuid);
@@ -1267,7 +1280,428 @@ describe('Multi-connection compile on the real schema', () => {
             },
         );
 
-        test('saveDeployExplores on a multi project replaces the deployed source and keeps the other sources with their bindings', async () => {
+        describe('sourceless complete source inference', () => {
+            const packagedExplore = (
+                name: string,
+                packageName: string,
+                sourceUuid?: string,
+            ): Explore => {
+                const compiled = explore(name, [name]);
+                compiled.tables[name] = {
+                    ...compiled.tables[name],
+                    dbtPackageName: packageName,
+                    ...(sourceUuid ? { dbtSourceUuid: sourceUuid } : {}),
+                };
+                return compiled;
+            };
+
+            const setup = async () => {
+                const fixture = await createProject();
+                await bind(fixture, 'finance', null);
+                await routeSingle(fixture.projectUuid);
+                const primary = await projectModel.getDbtSourceIdentity(
+                    fixture.projectUuid,
+                );
+                await projectModel.saveExploresToCache(
+                    fixture.projectUuid,
+                    [
+                        packagedExplore(
+                            'orders',
+                            'analytics',
+                            primary.dbtSourceUuid,
+                        ),
+                        packagedExplore(
+                            'retired',
+                            'analytics',
+                            primary.dbtSourceUuid,
+                        ),
+                        packagedExplore(
+                            'campaigns',
+                            'marketing',
+                            fixture.sourceUuids.marketing,
+                        ),
+                        packagedExplore(
+                            'payments',
+                            'finance',
+                            fixture.sourceUuids.finance,
+                        ),
+                    ],
+                    true,
+                );
+                const user = await compilingUser(fixture.projectUuid);
+                const { service } = compileService(fixture.projectUuid);
+                const deploy = (
+                    overrides: Partial<
+                        Parameters<typeof service.saveDeployExplores>[0]
+                    > = {},
+                ) =>
+                    service.saveDeployExplores({
+                        projectUuid: fixture.projectUuid,
+                        userUuid: user.userUuid,
+                        compilationSource: 'cli_deploy',
+                        explores: [packagedExplore('orders', 'analytics')],
+                        complete: true,
+                        cliDeploy: { sourceUuid: null, target: null },
+                        ...overrides,
+                    });
+                return { fixture, primary, deploy, service };
+            };
+
+            test('replaces only the matched source and preserves other cached explores', async () => {
+                const { fixture, primary, deploy } = await setup();
+                await deploy();
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    campaigns: null,
+                    orders: null,
+                    payments: null,
+                });
+                const rows = await cachedExplores(fixture.projectUuid);
+                expect(
+                    rows.find((row) => row.name === 'orders')?.explore.tables
+                        ?.orders.dbtSourceUuid,
+                ).toBe(primary.dbtSourceUuid);
+            });
+
+            test('logs the inference method and the actual project explore diff', async () => {
+                const { deploy, service } = await setup();
+                const info = vi.spyOn(
+                    (service as unknown as { logger: typeof Logger }).logger,
+                    'info',
+                );
+                try {
+                    await deploy();
+                    expect(info).toHaveBeenCalledWith(
+                        'cli.deploy.source_inferred',
+                        expect.objectContaining({
+                            method: 'package_match',
+                            uploadedExploreCount: 1,
+                            droppedExploreCount: 0,
+                        }),
+                    );
+                    expect(info).toHaveBeenCalledWith(
+                        'compile.completed',
+                        expect.objectContaining({
+                            newExploreCount: 3,
+                            removedExploreCount: 1,
+                            removedExploreNames: ['retired'],
+                        }),
+                    );
+                } finally {
+                    info.mockRestore();
+                }
+            });
+
+            test.each(['single', 'multi'] as const)(
+                'infers an extra source on a %s connection project',
+                async (route) => {
+                    const { fixture, deploy } = await setup();
+                    if (route === 'multi') {
+                        await database('projects')
+                            .where('project_uuid', fixture.projectUuid)
+                            .update({ connection_mode: 'multi' } as never);
+                        await bind(
+                            fixture,
+                            'finance',
+                            fixture.extraConnectionUuid,
+                        );
+                    }
+                    await deploy({
+                        explores: [packagedExplore('payments', 'finance')],
+                    });
+                    expect(await bindings(fixture.projectUuid)).toEqual({
+                        campaigns: null,
+                        orders: null,
+                        payments:
+                            route === 'multi'
+                                ? fixture.extraConnectionUuid
+                                : null,
+                        retired: null,
+                    });
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).find(
+                            (row) => row.name === 'payments',
+                        )?.explore.tables?.payments.dbtSourceUuid,
+                    ).toBe(fixture.sourceUuids.finance);
+                },
+            );
+
+            test('rejects missing cached source stamps before any deletion', async () => {
+                const { fixture, deploy } = await setup();
+                await database('cached_explore')
+                    .where('project_uuid', fixture.projectUuid)
+                    .where('name', 'campaigns')
+                    .update({
+                        explore: JSON.stringify(
+                            packagedExplore('campaigns', 'marketing'),
+                        ),
+                    });
+                const before = await dump(fixture.projectUuid);
+                await expect(deploy()).rejects.toBeInstanceOf(ConflictError);
+                expect(await dump(fixture.projectUuid)).toEqual(before);
+            });
+
+            test.each(['unstamped', 'name-collision'])(
+                'rejects ownership changes before publication (%s)',
+                async (change) => {
+                    const { fixture, deploy } = await setup();
+                    const save =
+                        projectModel.saveMultiConnectionExplores.bind(
+                            projectModel,
+                        );
+                    const changed =
+                        change === 'unstamped'
+                            ? packagedExplore('new_upstream', 'marketing')
+                            : packagedExplore(
+                                  'orders',
+                                  'marketing',
+                                  fixture.sourceUuids.marketing,
+                              );
+                    let before: Awaited<ReturnType<typeof dump>> = [];
+                    const intercepted = vi
+                        .spyOn(projectModel, 'saveMultiConnectionExplores')
+                        .mockImplementationOnce(async (...args) => {
+                            await projectModel.saveExploresToCache(
+                                fixture.projectUuid,
+                                [changed],
+                            );
+                            before = await dump(fixture.projectUuid);
+                            return save(...args);
+                        });
+                    try {
+                        await expect(deploy()).rejects.toBeInstanceOf(
+                            ConflictError,
+                        );
+                        expect(await dump(fixture.projectUuid)).toEqual(before);
+                    } finally {
+                        intercepted.mockRestore();
+                    }
+                },
+            );
+
+            test('ignores an installed package when choosing the source', async () => {
+                const { fixture, deploy } = await setup();
+                await deploy({
+                    explores: [
+                        packagedExplore('orders', 'analytics'),
+                        packagedExplore('date_spine', 'dbt_utils'),
+                    ],
+                });
+                expect(
+                    Object.keys(await bindings(fixture.projectUuid)),
+                ).toEqual(['campaigns', 'date_spine', 'orders', 'payments']);
+            });
+
+            test('resolves duplicate package names by uploaded name overlap', async () => {
+                const { fixture, deploy } = await setup();
+                await projectModel.saveExploresToCache(fixture.projectUuid, [
+                    packagedExplore(
+                        'campaigns',
+                        'analytics',
+                        fixture.sourceUuids.marketing,
+                    ),
+                ]);
+                await deploy();
+                expect(
+                    Object.keys(await bindings(fixture.projectUuid)),
+                ).toEqual(['campaigns', 'orders', 'payments']);
+            });
+
+            test.each([
+                'ambiguous',
+                'unmapped',
+                'empty',
+                'errors-only',
+                'contradictory-model-names',
+                'multiple-root-packages',
+            ])('rejects %s without changing cached explores', async (kind) => {
+                const { fixture, deploy } = await setup();
+                if (kind === 'ambiguous') {
+                    await projectModel.saveExploresToCache(
+                        fixture.projectUuid,
+                        [
+                            packagedExplore(
+                                'campaigns',
+                                'analytics',
+                                fixture.sourceUuids.marketing,
+                            ),
+                        ],
+                    );
+                }
+                const before = await dump(fixture.projectUuid);
+                let explores: (Explore | ExploreError)[] = [
+                    packagedExplore(
+                        kind === 'ambiguous' ? 'new_model' : 'orders',
+                        kind === 'unmapped' ? 'unknown' : 'analytics',
+                    ),
+                ];
+                if (kind === 'empty') explores = [];
+                else if (kind === 'errors-only') explores = [exploreError];
+                else if (kind === 'multiple-root-packages')
+                    explores = [
+                        packagedExplore('orders', 'analytics'),
+                        packagedExplore('campaigns', 'marketing'),
+                    ];
+                await expect(
+                    deploy({
+                        explores,
+                        ...(kind === 'contradictory-model-names'
+                            ? { dbtModelNames: ['other__orders'] }
+                            : {}),
+                    }),
+                ).rejects.toBeInstanceOf(ConflictError);
+                expect(await dump(fixture.projectUuid)).toEqual(before);
+            });
+
+            test.each([false, true])(
+                'resolves a duplicate package by database with target %s',
+                async (withTarget) => {
+                    const { fixture, deploy } = await setup();
+                    await projectModel.saveExploresToCache(
+                        fixture.projectUuid,
+                        [
+                            packagedExplore(
+                                'campaigns',
+                                'analytics',
+                                fixture.sourceUuids.marketing,
+                            ),
+                        ],
+                    );
+                    await projectDbtSourcesModel.updateSource(
+                        fixture.sourceUuids.marketing,
+                        {
+                            warehouseLocation: {
+                                database: 'marketing_database',
+                                schema: null,
+                            },
+                        },
+                    );
+                    const upload = packagedExplore('new_model', 'analytics');
+                    upload.tables.new_model.database = ORIGINAL_DB;
+                    await deploy({
+                        explores: [upload],
+                        cliDeploy: {
+                            sourceUuid: null,
+                            target: withTarget
+                                ? { database: ORIGINAL_DB }
+                                : null,
+                        },
+                    });
+                    expect(
+                        Object.keys(await bindings(fixture.projectUuid)),
+                    ).toEqual(['campaigns', 'new_model', 'payments']);
+                },
+            );
+
+            test('falls back to catalog project names when cached packages are absent', async () => {
+                const { fixture, primary, deploy } = await setup();
+                await database('cached_explore')
+                    .where('project_uuid', fixture.projectUuid)
+                    .whereIn('name', ['orders', 'retired'])
+                    .update({
+                        explore: database.raw(
+                            "explore #- '{tables,orders,dbtPackageName}' #- '{tables,retired,dbtPackageName}'",
+                        ),
+                    });
+                await new DbtSourceRefCatalogModel({
+                    database,
+                }).upsertProvisional({
+                    projectUuid: fixture.projectUuid,
+                    dbtSourceUuid: primary.dbtSourceUuid,
+                    connectionGroup: 'original',
+                    projectName: 'analytics',
+                    dbtVersion: '1.7.0',
+                    nodes: [],
+                    referencedProjects: [],
+                    compileJobUuid: null,
+                });
+                await deploy();
+                expect(
+                    Object.keys(await bindings(fixture.projectUuid)),
+                ).toEqual(['campaigns', 'orders', 'payments']);
+            });
+
+            test('drops upstream error stubs using the base table package only', async () => {
+                const { fixture, deploy } = await setup();
+                const upload = packagedExplore('orders', 'analytics');
+                upload.tables.payments = packagedExplore(
+                    'payments',
+                    'finance',
+                ).tables.payments;
+                const stub = {
+                    ...packagedExplore('payments', 'finance'),
+                    errors: exploreError.errors,
+                };
+                await deploy({ explores: [upload, stub] });
+                const rows = await cachedExplores(fixture.projectUuid);
+                expect(rows.map((row) => row.name)).toEqual([
+                    'campaigns',
+                    'orders',
+                    'payments',
+                ]);
+                expect(
+                    rows.find((row) => row.name === 'payments')?.explore,
+                ).toEqual(
+                    packagedExplore(
+                        'payments',
+                        'finance',
+                        fixture.sourceUuids.finance,
+                    ),
+                );
+            });
+
+            test.each([false, undefined])(
+                'keeps merge behaviour with complete %s',
+                async (complete) => {
+                    const { fixture, deploy } = await setup();
+                    await deploy({
+                        complete,
+                        explores: [packagedExplore('new_model', 'unknown')],
+                    });
+                    expect(
+                        Object.keys(await bindings(fixture.projectUuid)),
+                    ).toEqual([
+                        'campaigns',
+                        'new_model',
+                        'orders',
+                        'payments',
+                        'retired',
+                    ]);
+                },
+            );
+
+            test('keeps single-source complete replacement unchanged', async () => {
+                const { fixture, deploy } = await setup();
+                await database('project_dbt_sources')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
+                const upload = packagedExplore('orders', 'unknown');
+                await deploy({ explores: [upload] });
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.explore,
+                    ),
+                ).toEqual([upload]);
+            });
+
+            test('keeps explicit source behaviour on the single connection route', async () => {
+                const { fixture, deploy } = await setup();
+                const upload = packagedExplore('orders', 'unknown');
+                await deploy({
+                    explores: [upload],
+                    cliDeploy: {
+                        sourceUuid: fixture.sourceUuids.marketing,
+                        target: null,
+                    },
+                });
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.explore,
+                    ),
+                ).toEqual([upload]);
+            });
+        });
+
+        test('saveDeployExplores with an explicit source on a multi project replaces the deployed source and keeps the other sources with their bindings', async () => {
             const fixture = await createProject();
             await compile(fixture);
             const user = await compilingUser(fixture.projectUuid);
@@ -1282,7 +1716,14 @@ describe('Multi-connection compile on the real schema', () => {
                 jobUuid: null,
                 requestMethod: 'cli',
                 complete: true,
-                cliDeploy: { sourceUuid: null, target: null },
+                cliDeploy: {
+                    sourceUuid: (
+                        await projectModel.getDbtSourceIdentity(
+                            fixture.projectUuid,
+                        )
+                    ).dbtSourceUuid,
+                    target: null,
+                },
             });
 
             expect(await bindings(fixture.projectUuid)).toEqual({
@@ -1484,7 +1925,7 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
-            test('setExplores on a multi project with no source binds to the original when the target matches it (D3)', async () => {
+            test('setExplores infers the primary source from its package and checks its target', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
                 const user = await compilingUser(fixture.projectUuid);
@@ -1516,7 +1957,7 @@ describe('Multi-connection compile on the real schema', () => {
                     compileService(fixture.projectUuid).service.setExplores(
                         user,
                         fixture.projectUuid,
-                        [explore('payments', ['payments'])],
+                        [explore('orders', ['orders'])],
                         'cli-1',
                         true,
                         undefined,
@@ -1667,6 +2108,48 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
+            test.each(['single', 'multi'] as const)(
+                'a sourceless batched deploy preserves other sources on a %s connection project',
+                async (route) => {
+                    const fixture = await createProject();
+                    if (route === 'single')
+                        await bind(fixture, 'finance', null);
+                    await compile(fixture);
+                    if (route === 'single')
+                        await routeSingle(fixture.projectUuid);
+                    const user = await compilingUser(fixture.projectUuid);
+                    const service = deployService(fixture.projectUuid);
+                    const { deploySessionUuid } =
+                        await service.startDeploySession(
+                            fromSession(user, 'session-cookie'),
+                            fixture.projectUuid,
+                        );
+                    await service.addDeployBatch(
+                        user,
+                        fixture.projectUuid,
+                        deploySessionUuid,
+                        [explore('orders', ['orders'])],
+                        0,
+                        true,
+                    );
+                    await service.finalizeDeploy(
+                        user,
+                        fixture.projectUuid,
+                        deploySessionUuid,
+                        'cli-1',
+                        ['orders', 'primary__orders'],
+                    );
+                    expect(await bindings(fixture.projectUuid)).toEqual({
+                        campaigns: null,
+                        orders: null,
+                        payments:
+                            route === 'multi'
+                                ? fixture.extraConnectionUuid
+                                : null,
+                    });
+                },
+            );
+
             test('a batched CLI deploy with a mismatched target fails the session and saves nothing (D3)', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
@@ -1681,7 +2164,7 @@ describe('Multi-connection compile on the real schema', () => {
                     user,
                     fixture.projectUuid,
                     deploySessionUuid,
-                    [explore('payments', ['payments'])],
+                    [explore('orders', ['orders'])],
                     0,
                     true,
                 );
@@ -1743,7 +2226,7 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
-            test('a deploy of the primary keeps an extra connection error explore that has no source stamp', async () => {
+            test('an explicit deploy of the primary keeps an extra connection error explore that has no source stamp', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
                 await database('cached_explore').insert({
@@ -1762,7 +2245,14 @@ describe('Multi-connection compile on the real schema', () => {
                     'cli-1',
                     true,
                     undefined,
-                    NO_SOURCE,
+                    {
+                        sourceUuid: (
+                            await projectModel.getDbtSourceIdentity(
+                                fixture.projectUuid,
+                            )
+                        ).dbtSourceUuid,
+                        target: null,
+                    },
                 );
 
                 expect(await bindings(fixture.projectUuid)).toEqual({
@@ -1853,7 +2343,11 @@ describe('Multi-connection compile on the real schema', () => {
                         true,
                         undefined,
                         {
-                            sourceUuid: null,
+                            sourceUuid: (
+                                await projectModel.getDbtSourceIdentity(
+                                    fixture.projectUuid,
+                                )
+                            ).dbtSourceUuid,
                             target: { database: 'AwsDataCatalog', region },
                         },
                     );
@@ -1959,7 +2453,7 @@ describe('Multi-connection compile on the real schema', () => {
                 });
             });
 
-            test('a deploy replaces an error explore with no source stamp on its own connection', async () => {
+            test('an explicit deploy replaces an error explore with no source stamp on its own connection', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
                 await database('cached_explore').insert({
@@ -1978,7 +2472,14 @@ describe('Multi-connection compile on the real schema', () => {
                     'cli-1',
                     true,
                     undefined,
-                    NO_SOURCE,
+                    {
+                        sourceUuid: (
+                            await projectModel.getDbtSourceIdentity(
+                                fixture.projectUuid,
+                            )
+                        ).dbtSourceUuid,
+                        target: null,
+                    },
                 );
 
                 expect(await bindings(fixture.projectUuid)).toEqual({
