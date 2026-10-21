@@ -334,7 +334,7 @@ describe('FieldTilesBar', () => {
             expect(countOf()).toHaveTextContent('on 1 of 3 tiles');
             expect(buttonTexts()).toEqual([
                 'Filter 1 unfiltered tile',
-                'Replace Region on 1 tile',
+                'Switch 1 tile to this field',
                 'Clear',
             ]);
 
@@ -349,14 +349,14 @@ describe('FieldTilesBar', () => {
             updateFilter.mockClear();
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Replace Region on 1 tile with Status',
+                    name: 'Switch 1 tile to this field (Status)',
                 }),
             );
             // tile-2 stays unfiltered
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-2': false });
         });
 
-        it('names every field a switch replaces', () => {
+        it('counts every tile a switch takes off another field', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 filterableFieldsByTileUuid: {
@@ -369,18 +369,16 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(buttonTexts()).toEqual([
-                'Replace Region and City on 2 tiles',
-            ]);
+            expect(buttonTexts()).toEqual(['Switch 2 tiles to this field']);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Replace Region and City on 2 tiles with Status',
+                    name: 'Switch 2 tiles to this field (Status)',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
-        it('counts the unfiltered tiles in words beside a replace', () => {
+        it('counts the unfiltered tiles in words beside a switch', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 filterableFieldsByTileUuid: {
@@ -399,7 +397,10 @@ describe('FieldTilesBar', () => {
                 within(bar('Region'))
                     .getAllByRole('button')
                     .map((button) => button.textContent),
-            ).toEqual(['Filter 1 unfiltered tile', 'Replace Status on 1 tile']);
+            ).toEqual([
+                'Filter 1 unfiltered tile',
+                'Switch 1 tile to this field',
+            ]);
         });
 
         it('clears the field from its tiles', () => {
@@ -425,7 +426,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('Region')).toHaveTextContent('on 0 of 1 tile');
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Replace Status on 1 tile with Region',
+                    name: 'Switch 1 tile to this field (Region)',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
@@ -656,9 +657,9 @@ describe('FieldTilesBar', () => {
             ).toHaveTextContent(/^Filter 1 unfiltered tile$/);
             expect(
                 screen.getByRole('button', {
-                    name: 'Replace Region on 1 tile with Status on this tab',
+                    name: 'Switch 1 tile to this field (Status) on this tab',
                 }),
-            ).toHaveTextContent(/^Replace Region on 1 tile$/);
+            ).toHaveTextContent(/^Switch 1 tile to this field$/);
         });
 
         it('says "Filter all" when the field is on no tile of the tab', () => {
@@ -727,7 +728,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Replace Region on 1 tile with Status on this tab',
+                    name: 'Switch 1 tile to this field (Status) on this tab',
                 }),
             );
             expect(getUpdatedRule().tileTargets).toEqual({ 'tile-4': REGION });
@@ -819,7 +820,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Replace city on 1 tile with country',
+                    name: 'Switch 1 tile to this field (country)',
                 }),
             );
             const next = getUpdatedRule();
@@ -1096,13 +1097,70 @@ describe('FieldTilesBar', () => {
         expect(result.current).toBe(first);
     });
 
-    it('has a named button for every action, with no menu and no border', () => {
+    it('never empties a field filter from a SQL column, which is not its field', () => {
+        setSidebar(rule('orders_status'));
+        const columns = {};
+        const store = seedDashboardEditState(
+            createDashboardTestStore(),
+            mockDashboardContext.current as DashboardEditTestValues,
+        );
+        const { result } = renderHook(() => useFieldTileActions(columns), {
+            wrapper: ({ children }: { children: ReactNode }) => (
+                <DashboardStoreTestProvider store={store}>
+                    {children}
+                </DashboardStoreTestProvider>
+            ),
+        });
+
+        result.current?.forSqlColumn('country').remove();
+
+        expect(removeLastField).not.toHaveBeenCalled();
+        expect(updateFilter).not.toHaveBeenCalled();
+        // Its own field still goes that way
+        result.current?.forField('orders_status').remove();
+        expect(removeLastField).toHaveBeenCalledWith('Status');
+    });
+
+    describe('while the tile fields are not loaded', () => {
+        it('switches Clear off, and switches it back on once they are there', () => {
+            const fields =
+                mockDashboardContext.current.filterableFieldsByTileUuid;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: undefined,
+            };
+            // tile-2 is left out: a blind write would lose that
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+                { highlightedFieldId: 'orders_region' },
+            );
+            const { rerender } = renderWithProviders(<Dashboard />);
+
+            const clear = screen.getByRole('button', {
+                name: 'Clear Region from tiles',
+            });
+            expect(clear).toBeDisabled();
+            fireEvent.click(clear);
+            expect(updateFilter).not.toHaveBeenCalled();
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: fields,
+            };
+            rerender(<Dashboard />);
+            expect(
+                screen.getByRole('button', { name: 'Clear Region from tiles' }),
+            ).toBeEnabled();
+        });
+    });
+
+    it('has a named button for every action, with no menu, on a bordered surface', () => {
         setSidebar(rule('orders_status', { 'tile-1': false }));
         renderWithProviders(<Dashboard />);
 
         expect(queryButtonTexts()).not.toHaveLength(0);
         expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-        expect(bar()).not.toHaveAttribute('data-with-border');
+        expect(bar()).toHaveAttribute('data-with-border');
         within(bar())
             .getAllByRole('button')
             .forEach((button) => {

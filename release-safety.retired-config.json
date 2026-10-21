@@ -1,0 +1,6 @@
+{
+    "LUNA_API_KEY": "Set only on the internal analytics deployment for the OpenAI Decisions shadow experiment; never documented for operators. The provider is removed, so the key has nothing to authenticate.",
+    "LUNA_MODEL": "Model name for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
+    "LUNA_TIMEOUT_MS": "Timeout for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
+    "LUNA_SHADOW_ENABLED": "Toggled the removed shadow comparison between Jev and OpenAI Decisions; set only on the internal analytics deployment and never documented for operators."
+}

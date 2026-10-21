@@ -1408,10 +1408,14 @@ export const getAiConfig = () => ({
                   deploymentSupportsReasoning:
                       process.env.AZURE_AI_DEPLOYMENT_SUPPORTS_REASONING ===
                       'true',
+                  reasoningEffort:
+                      process.env.AZURE_AI_REASONING_EFFORT || null,
                   embeddingDeploymentName:
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
+                  useChatCompletions:
+                      process.env.AZURE_AI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'AZURE_AI_CUSTOM_HEADERS',
                   ),
@@ -1435,6 +1439,8 @@ export const getAiConfig = () => ({
                   ),
                   zeroDataRetention:
                       process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
+                  useChatCompletions:
+                      process.env.OPENAI_USE_CHAT_COMPLETIONS === 'true',
                   customHeaders: getProviderCustomHeaders(
                       'OPENAI_CUSTOM_HEADERS',
                   ),
@@ -1628,8 +1634,6 @@ export type MobileAppAssociationConfig = {
 };
 
 export type AiDecisionProviderConfig = {
-    /** Defaults to JEV when omitted. */
-    provider?: 'jev' | 'luna';
     apiKey: string | null;
     model: string;
     timeoutMs: number;
@@ -1846,10 +1850,6 @@ export type LightdashConfig = {
         agentResultIdentityCheckEnabled: boolean;
         copilot: AiCopilotConfigSchemaType;
         decisions: AiDecisionProviderConfig;
-        /** OpenAI's Decisions API, the alternative fast-decision provider for battles. */
-        lunaDecisions: AiDecisionProviderConfig;
-        /** Also ask Luna every question JEV answers and record both; nothing acts on Luna's answers. */
-        lunaShadowEnabled: boolean;
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         agentMemory: {
@@ -4011,21 +4011,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED !== 'false',
             copilot: copilotConfig,
             decisions: {
-                provider: 'jev',
                 apiKey: process.env.JEV_API_KEY?.trim() || null,
                 model: process.env.JEV_MODEL || 'jev-1.13.0',
                 timeoutMs: parseDecisionTimeoutMs('JEV_TIMEOUT_MS'),
             },
-            lunaDecisions: {
-                provider: 'luna',
-                apiKey:
-                    process.env.LUNA_API_KEY?.trim() ||
-                    process.env.OPENAI_API_KEY?.trim() ||
-                    null,
-                model: process.env.LUNA_MODEL || 'gpt-6-luna',
-                timeoutMs: parseDecisionTimeoutMs('LUNA_TIMEOUT_MS'),
-            },
-            lunaShadowEnabled: process.env.LUNA_SHADOW_ENABLED === 'true',
             analyticsProjectUuid: process.env.AI_ANALYTICS_PROJECT_UUID,
             analyticsDashboardUuid: process.env.AI_ANALYTICS_DASHBOARD_UUID,
             agentMemory: {

@@ -136,8 +136,8 @@ const TriggerChip: FC<{
 
 const onChangeTooltip = (materializeOnChange: boolean) =>
     materializeOnChange
-        ? 'Rebuilt on the project compile that changes its definition or the fields it reads (refresh.on_change: true in YAML). Built once when it has never been materialized.'
-        : 'Not rebuilt when a compile changes its definition: the old materialization stops serving until the next scheduled or manual refresh. Built once when it has never been materialized. Set refresh.on_change: true in YAML to rebuild on compile.';
+        ? 'Rebuilt on the project compile that changes its definition or the fields it reads. Compiles that leave it unchanged never rebuild it. Built once when it has never been materialized.'
+        : 'Opted out with refresh.on_change: false in YAML. When a compile changes its definition, the old materialization stops serving until the next scheduled or manual refresh. Built once when it has never been materialized.';
 
 const TriggerChips: FC<{ summary: PreAggregateMaterializationSummary }> = ({
     summary,

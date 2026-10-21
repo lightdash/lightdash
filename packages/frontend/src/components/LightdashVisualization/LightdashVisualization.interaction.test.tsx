@@ -8,9 +8,15 @@ const mocks = vi.hoisted(() => ({
     useVisualizationContext: vi.fn(),
 }));
 
-vi.mock('./useVisualizationContext', () => ({
-    useVisualizationContext: mocks.useVisualizationContext,
-}));
+vi.mock('./useVisualizationContext', () => {
+    const useVisualizationContext = mocks.useVisualizationContext;
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 
 vi.mock('../SimpleTable', () => ({
     default: ({ enableContextMenu }: { enableContextMenu?: boolean }) => (

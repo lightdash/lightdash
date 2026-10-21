@@ -37,9 +37,15 @@ vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
 }));
-vi.mock('../../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: vi.fn(),
-}));
+vi.mock('../../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = vi.fn();
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 vi.mock('../../CustomChartType/CustomChartTypeSection', () => ({
     default: (props: CustomChartTypeSectionProps) => {
         sectionProps.push(props);

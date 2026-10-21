@@ -1,12 +1,24 @@
 import { getGaugeSizes } from '@lightdash/visualization/editor';
 import { IconGauge } from '@tabler/icons-react';
+import { type ECharts } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -29,8 +41,9 @@ type SimpleGaugeProps = Omit<EChartsReactProps, 'option'> & {
 const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleGauge: FC<SimpleGaugeProps> = memo(
-    ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { chartRef, isLoading } = useVisualizationContext();
+    ({ onScreenshotReady, onScreenshotError, onChartReady, ...props }) => {
+        const { chartRef } = useVisualizationServices();
+        const { isLoading } = useVisualizationState();
         const [chartWidth, setChartWidth] = useState(0);
         const [chartHeight, setChartHeight] = useState(0);
 
@@ -56,26 +69,40 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
             }
         }, [isLoading, gaugeOptions, onScreenshotReady, onScreenshotError]);
 
+        const [eChartsInstance, setEChartsInstance] = useState<ECharts | null>(
+            null,
+        );
+        const handleChartReady = useCallback(
+            (instance: ECharts) => {
+                setEChartsInstance(instance);
+                onChartReady?.(instance);
+            },
+            [onChartReady],
+        );
+        // Loading and empty states unmount the chart, which disposes its instance
+        const isChartMounted = !isLoading && !!gaugeOptions;
+        if (!isChartMounted && eChartsInstance) setEChartsInstance(null);
+
         useEffect(() => {
-            const listener = () =>
-                chartRef.current?.getEchartsInstance().resize();
+            const dom = eChartsInstance?.getDom();
+            if (!eChartsInstance || !dom) return;
+            const listener = () => {
+                if (!eChartsInstance.isDisposed()) eChartsInstance.resize();
+            };
             const observer = new ResizeObserver(([entry]) => {
+                // A target detached before cleanup reports 0x0
+                if (!entry.target.isConnected) return;
                 const { width, height } = entry.contentRect;
                 setChartWidth(width);
                 setChartHeight(height);
             });
-
-            if (chartRef.current?.getEchartsInstance().getDom()) {
-                observer.observe(
-                    chartRef.current?.getEchartsInstance().getDom(),
-                );
-            }
+            observer.observe(dom);
             window.addEventListener('resize', listener);
             return () => {
                 window.removeEventListener('resize', listener);
                 observer.disconnect();
             };
-        });
+        }, [eChartsInstance]);
 
         if (isLoading) return <LoadingChart />;
         if (!gaugeOptions) return <EmptyChart />;
@@ -102,6 +129,7 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
                     option={gaugeOptions.eChartsOption}
                     notMerge
                     {...props}
+                    onChartReady={handleChartReady}
                 />
             </>
         );

@@ -29,7 +29,7 @@ import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import {
     DEFAULT_FIXED_RESOLUTION,
     HEXBIN_SIZE_PRESETS,
@@ -95,7 +95,7 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
 
 export const Display: FC = memo(() => {
     const { visualizationConfig, itemsMap, resultsData, colorPalette } =
-        useVisualizationContext();
+        useVisualizationState();
 
     // Ref to hold the current setDataLayerOpacity function
     const setDataLayerOpacityRef = useRef<

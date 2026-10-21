@@ -42,12 +42,12 @@ type SqlWords = {
 };
 
 const getRunSqlWords = (
-    answerWithRunQuery: boolean,
+    canRunQuery: boolean,
     runSqlMaxLimit: number,
 ): SqlWords => ({
     intro: `**Raw SQL (runSql tool):**
 You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.`,
-    preferSemanticLayer: answerWithRunQuery
+    preferSemanticLayer: canRunQuery
         ? 'ALWAYS prefer the semantic layer when the question fits: runQuery for answers, generateVisualization for charts. Both are governed and reusable.'
         : 'ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.',
     semanticQuery: 'generateVisualization',
@@ -90,7 +90,7 @@ export const getRunSqlSection = ({
     // Configurable per instance, so a literal here would contradict the tool schema.
     runSqlMaxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
     viaComposerQueries = false,
-    answerWithRunQuery = false,
+    canRunQuery = false,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
@@ -103,7 +103,7 @@ export const getRunSqlSection = ({
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
     viaComposerQueries?: boolean;
-    answerWithRunQuery?: boolean;
+    canRunQuery?: boolean;
 }) => {
     const warehouseLine = warehouseType
         ? `**Warehouse:** ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
@@ -155,7 +155,7 @@ export const getRunSqlSection = ({
 
     const words = viaComposerQueries
         ? COMPOSER_SQL_WORDS
-        : getRunSqlWords(answerWithRunQuery, runSqlMaxLimit);
+        : getRunSqlWords(canRunQuery, runSqlMaxLimit);
 
     return `
 ${words.intro}

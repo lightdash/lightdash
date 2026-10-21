@@ -318,18 +318,10 @@ export const lightdashConfigMock: LightdashConfig = {
     ai: {
         agentResultIdentityCheckEnabled: true,
         decisions: {
-            provider: 'jev',
             apiKey: null,
             model: 'jev-1.13.0',
             timeoutMs: 900,
         },
-        lunaDecisions: {
-            provider: 'luna',
-            apiKey: null,
-            model: 'gpt-6-luna',
-            timeoutMs: 900,
-        },
-        lunaShadowEnabled: false,
         copilot: {
             enabled: false,
             debugLoggingEnabled: false,
@@ -348,6 +340,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     modelName: 'gpt-5.4',
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
+                    useChatCompletions: false,
                     customHeaders: {},
                     supportsStreaming: true,
                 },

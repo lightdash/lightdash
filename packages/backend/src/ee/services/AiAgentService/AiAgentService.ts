@@ -112,6 +112,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
+    getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
     getGenerateDataAppBuildOutcome,
@@ -194,7 +195,6 @@ import {
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
-    type AiComposerChartArtifactConfig,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -219,7 +219,6 @@ import {
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ThreadComposerQueryNode,
-    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -283,7 +282,11 @@ import {
     ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession, toSessionUser } from '../../../auth/account';
+import {
+    fromSession,
+    getEmbedActorChartSpaceUuids,
+    toSessionUser,
+} from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -436,15 +439,9 @@ import {
 } from '../ai/attachmentFs/attachmentFileSystem';
 import { Compaction } from '../ai/compaction';
 import {
-    getAgentDecisionContext,
-    getAgentQuestion,
-} from '../ai/decisions/agentQuestion';
-import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
-    type DecisionProvider,
-    type DecisionShadowEntry,
 } from '../ai/decisions/AiDecisionClient';
 import {
     applyChartIntent,
@@ -487,10 +484,6 @@ import {
 import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
-import {
-    createVizPlanner,
-    type PlanComposerViz,
-} from '../ai/decisions/vizPlanner';
 import {
     getCompactionModelMetadata,
     getDefaultModel,
@@ -571,6 +564,7 @@ import {
     RecordPromptDecisionFn,
     SendFileFn,
     SendSlackBlocksFn,
+    StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
     StoreToolCallFn,
@@ -591,8 +585,9 @@ import {
 } from '../ai/utils/classifyWritebackError';
 import {
     buildComposerPresentations,
+    hasComposerPresentations,
     resolveComposerPresentations,
-    type ComposerExecutionResult,
+    type ComposerPresentationSelection,
     type TurnToolResult,
 } from '../ai/utils/composerPresentation';
 import {
@@ -679,6 +674,7 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import { isComposerQueriesEnabled } from './composerQueriesGate';
 import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
     redactStreamToolOutputs,
@@ -907,6 +903,8 @@ type EmbedAiAgentRuntimeOptions = {
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
     spaceAccess: string[];
+    // Source spaces the agent may read but not write to.
+    readOnlySpaceUuids: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
 
@@ -1731,6 +1729,11 @@ export class AiAgentService extends BaseService {
                             'External tables are not available in embedded AI',
                         );
                     }
+                    if (!agent.enableComposerQueries) {
+                        throw new ForbiddenError(
+                            'This agent does not have composer queries enabled, so it cannot query attached sources',
+                        );
+                    }
                     if (
                         this.createAuditedAbility(user).cannot(
                             'manage',
@@ -2482,10 +2485,13 @@ export class AiAgentService extends BaseService {
                 decisions:
                     !enabled || credentialUuid
                         ? undefined
-                        : await this.getDecisionClient({
-                              userUuid: args.userUuid,
-                              organizationUuid: args.organizationUuid,
-                          }),
+                        : await this.getDecisionClient(
+                              {
+                                  userUuid: args.userUuid,
+                                  organizationUuid: args.organizationUuid,
+                              },
+                              args.projectUuid,
+                          ),
             }))
             .then(({ credentialUuid, decisions }) =>
                 runPromptInputRequestClassification({
@@ -2596,83 +2602,111 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-        provider: DecisionProvider = 'jev',
+        projectUuid: string | null,
     ) {
         if (
-            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 user.organizationUuid,
+                projectUuid,
             )
         ) {
             return undefined;
         }
-        const config =
-            provider === 'luna'
-                ? this.lightdashConfig.ai.lunaDecisions
-                : this.lightdashConfig.ai.decisions;
-        return resolveAiDecisionClient(config, () =>
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
-        );
+        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
     }
 
-    private async recordDecisionShadow(
-        promptUuid: string,
-        entry: DecisionShadowEntry,
-    ): Promise<void> {
-        await this.aiAgentModel.createPromptDecisionShadow({
-            ai_prompt_uuid: promptUuid,
-            operation: entry.operation,
-            questions: entry.questions,
-            state: entry.state,
-            live_provider: entry.live.provider,
-            live_model: entry.live.model,
-            live_outcome: entry.live.outcome,
-            live_answers: entry.live.answers,
-            live_latency_ms: entry.live.durationMs,
-            live_service_ms: entry.live.serviceMs,
-            shadow_provider: entry.shadow.provider,
-            shadow_model: entry.shadow.model,
-            shadow_outcome: entry.shadow.outcome,
-            shadow_answers: entry.shadow.answers,
-            shadow_latency_ms: entry.shadow.durationMs,
-            shadow_service_ms: entry.shadow.serviceMs,
-        });
-    }
-
-    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the decision client.
     private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         {
+            projectUuid,
             battleProfile,
             enableFastDecisions,
             agentCredentialUuid,
         }: {
+            projectUuid: string;
             battleProfile: AiAgentBattleProfile | null;
             enableFastDecisions: boolean;
             /**
              * The agent's credential pin. In-response decisions see prompt and
              * tool content, so a pinned agent gets no external decision client
-             * — the same rule isOrgBedrockRouted applies at the org level.
+             * — the same rule isOrgOnOwnProviderKeys applies at the org level.
              */
             agentCredentialUuid: string | null;
         },
     ) {
-        // Before the Luna branch too: every battle profile resolves an
-        // external decisions provider, which a pinned agent never gets.
+        // A pinned agent never gets an external decisions provider.
         if (agentCredentialUuid) return undefined;
-        if (battleProfile === 'luna')
-            return this.getDecisionClient(user, 'luna');
-        const enabled =
-            battleProfile === null
-                ? enableFastDecisions
-                : battleProfile === 'fast';
-        return enabled ? this.getDecisionClient(user) : undefined;
+        switch (battleProfile) {
+            case 'fast':
+                return this.getDecisionClient(user, projectUuid);
+            case 'baseline':
+            case 'luna':
+                return undefined;
+            case null:
+            case 'classic':
+            case 'composer':
+                return enableFastDecisions
+                    ? this.getDecisionClient(user, projectUuid)
+                    : undefined;
+            default:
+                return assertUnreachable(
+                    battleProfile,
+                    'Unknown battle profile',
+                );
+        }
+    }
+
+    private async assertBattleProfileAvailable(
+        user: SessionUser,
+        agent: Pick<AiAgent, 'enableDataAccess' | 'projectUuid'>,
+        battleProfile: AiAgentBattleProfile,
+    ): Promise<void> {
+        switch (battleProfile) {
+            case 'fast':
+            case 'baseline':
+            case 'luna':
+                if (!(await this.getDecisionClient(user, agent.projectUuid))) {
+                    throw new ForbiddenError(
+                        'AI agent fast decisions must be enabled to compare profiles',
+                    );
+                }
+                return;
+            case 'classic':
+            case 'composer': {
+                const [multiSourceQuery, composeSqlRunner] = await Promise.all([
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.MultiSourceQuery,
+                    }),
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.ComposeSqlRunner,
+                    }),
+                ]);
+                if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+                    throw new ForbiddenError(
+                        'Composer queries must be enabled to compare query paths',
+                    );
+                }
+                if (!agent.enableDataAccess) {
+                    throw new ForbiddenError(
+                        'The agent needs data access to compare query paths',
+                    );
+                }
+                return;
+            }
+            default:
+                return assertUnreachable(
+                    battleProfile,
+                    'Unknown battle profile',
+                );
+        }
     }
 
     private async getPromptErrorMessage(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
         error: unknown,
         defaultMessage: string,
         // Error text can quote prompt or SQL fragments, so a pinned agent's
@@ -2683,7 +2717,7 @@ export class AiAgentService extends BaseService {
             return await createUserFacingErrorResolver({
                 decisions: agentCredentialUuid
                     ? undefined
-                    : await this.getDecisionClient(user),
+                    : await this.getDecisionClient(user, projectUuid),
             })(error, defaultMessage);
         } catch {
             // Optional classification must never prevent the error reply.
@@ -2959,7 +2993,9 @@ export class AiAgentService extends BaseService {
         runtimeOptions: EmbedAiAgentRuntimeOptions;
     } {
         const { writeActions, content } = account.authentication.data;
-        const spaceUuid = writeActions?.spaceUuid;
+        const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        const spaceUuid = writeSpaceUuids[0];
+        const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
 
         if (
             content.type !== 'aiAgent' ||
@@ -2982,7 +3018,10 @@ export class AiAgentService extends BaseService {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
-                spaceAccess: [spaceUuid],
+                spaceAccess: chartSpaceUuids,
+                readOnlySpaceUuids: chartSpaceUuids.filter(
+                    (uuid) => !writeSpaceUuids.includes(uuid),
+                ),
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
@@ -3015,7 +3054,45 @@ export class AiAgentService extends BaseService {
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
-        return { user, agent, runtimeOptions };
+        return {
+            user,
+            agent,
+            runtimeOptions: {
+                ...runtimeOptions,
+                spaceAccess: runtimeOptions.spaceAccess.filter((uuid) =>
+                    hasAiAgentAccessToSpace(agent, uuid),
+                ),
+            },
+        };
+    }
+
+    private canViewThreadContext(
+        actor: Account | SessionUser,
+        resource: { organizationUuid: string; projectUuid: string },
+    ): boolean {
+        return this.createAuditedAbility(actor).can(
+            'view',
+            subject('AiAgentThreadContext', {
+                organizationUuid: resource.organizationUuid,
+                projectUuid: resource.projectUuid,
+            }),
+        );
+    }
+
+    private withVisibleThreadContext<
+        T extends Pick<AiAgentThreadSummary, 'threadContext'>,
+    >(
+        actor: Account | SessionUser,
+        resource: { organizationUuid: string; projectUuid: string },
+        threads: T[],
+    ): T[] {
+        if (
+            threads.every((thread) => thread.threadContext === null) ||
+            this.canViewThreadContext(actor, resource)
+        ) {
+            return threads;
+        }
+        return threads.map((thread) => ({ ...thread, threadContext: null }));
     }
 
     private canViewEmbedAiAgentDebug(
@@ -3417,7 +3494,7 @@ export class AiAgentService extends BaseService {
                 // agent never sends it to the external decisions provider.
                 const decisions = agent.providerCredentialUuid
                     ? undefined
-                    : await this.getDecisionClient(user);
+                    : await this.getDecisionClient(user, projectUuid);
                 if (decisions) {
                     const signals = await classifyResponseSignals(
                         decisions,
@@ -4411,8 +4488,13 @@ export class AiAgentService extends BaseService {
                 this.slackClient.getUserInfo(organizationUuid, userId!),
             ),
         );
+        const visibleThreads = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            threads,
+        );
 
-        return threads.map((thread) => {
+        return visibleThreads.map((thread) => {
             const threadWithLiveStatus = {
                 ...thread,
                 liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
@@ -4540,8 +4622,13 @@ export class AiAgentService extends BaseService {
                 }),
             )
         ).filter((slackUser) => slackUser !== null);
+        const visibleThreads = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid },
+            threads,
+        );
 
-        const data = threads.map((thread) => {
+        const data = visibleThreads.map((thread) => {
             const threadWithLiveStatus = {
                 ...thread,
                 liveStatus: liveStatusesByThreadUuid.get(thread.uuid) ?? null,
@@ -4675,10 +4762,15 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             threadUuid,
         });
+        const [visibleThread] = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            [thread],
+        );
 
         if (thread.createdFrom !== 'slack') {
             return {
-                ...thread,
+                ...visibleThread,
                 messages,
                 compactions,
             };
@@ -4698,7 +4790,7 @@ export class AiAgentService extends BaseService {
         );
 
         return {
-            ...thread,
+            ...visibleThread,
             compactions,
             messages: messages.map((message) => {
                 if (message.role !== 'user') {
@@ -5206,19 +5298,11 @@ export class AiAgentService extends BaseService {
                     'AI agent battle mode is not available in embedded threads',
                 );
             }
-            if (!(await this.getDecisionClient(user))) {
-                throw new ForbiddenError(
-                    'AI agent fast decisions must be enabled to compare profiles',
-                );
-            }
-            if (
-                body.battleProfile === 'luna' &&
-                !(await this.getDecisionClient(user, 'luna'))
-            ) {
-                throw new ForbiddenError(
-                    'Luna decisions must be configured to compare providers',
-                );
-            }
+            await this.assertBattleProfileAvailable(
+                user,
+                agent,
+                body.battleProfile,
+            );
         }
 
         const threadUuid = await this.aiAgentModel.createWebAppThread({
@@ -5282,11 +5366,18 @@ export class AiAgentService extends BaseService {
             });
         }
 
-        return this.aiAgentModel.getThread({
+        const thread = await this.aiAgentModel.getThread({
             organizationUuid,
             agentUuid,
             threadUuid,
         });
+        if (!thread) return thread;
+        const [visibleThread] = this.withVisibleThreadContext(
+            user,
+            { organizationUuid, projectUuid: agent.projectUuid },
+            [thread],
+        );
+        return visibleThread;
     }
 
     /**
@@ -5752,6 +5843,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
             enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
+            enableComposerQueries: body.enableComposerQueries ?? true,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -7512,6 +7604,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
             enableSqlAutoApproval: body.enableSqlAutoApproval,
+            enableComposerQueries: body.enableComposerQueries,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,
@@ -8175,6 +8268,7 @@ export class AiAgentService extends BaseService {
             currentPromptUuid: prompt.promptUuid,
             userUuid: user.userUuid,
             fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
+                projectUuid: agent.projectUuid,
                 battleProfile: prompt.battleProfile,
                 enableFastDecisions,
                 agentCredentialUuid: agent.providerCredentialUuid,
@@ -8314,37 +8408,23 @@ export class AiAgentService extends BaseService {
 
     /** One composer artifact version per presented node, in answer order. */
     private async saveComposerPresentations({
-        user,
         prompt,
         presented,
-        planViz,
-        enableDataAccess,
         onArtifactReady,
     }: {
-        user: SessionUser;
         prompt: AiPrompt;
-        presented: ToolComposerQueriesSuccessMetadata[];
-        planViz: PlanComposerViz | null;
-        enableDataAccess: boolean;
+        presented: ComposerPresentationSelection;
         onArtifactReady: (artifact: AiArtifact) => void;
     }): Promise<void> {
-        if (presented.length === 0) return;
+        if (!hasComposerPresentations(presented)) return;
         const { threadUuid, promptUuid } = prompt;
         try {
-            const [threadNodes, previousVizConfig] = await Promise.all([
-                this.aiAgentModel.listComposerQueryNodes(
-                    threadComposerQueryScope(threadUuid),
-                ),
-                planViz ? this.getLatestComposerVizConfig(threadUuid) : null,
-            ]);
-            const presentations = await buildComposerPresentations({
+            const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            );
+            const presentations = buildComposerPresentations({
                 presented,
                 threadNodes,
-                planViz,
-                getExecutionResult: (queryUuid) =>
-                    this.getComposerExecutionResult(user, prompt, queryUuid),
-                previousVizConfig,
-                enableDataAccess,
             });
             await presentations.reduce<Promise<void>>(
                 (previous, presentation) =>
@@ -8365,53 +8445,6 @@ export class AiAgentService extends BaseService {
                 error,
             );
         }
-    }
-
-    private async getLatestComposerVizConfig(
-        threadUuid: string,
-    ): Promise<AiComposerChartArtifactConfig['vizConfig']> {
-        return (
-            (
-                await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
-                    threadUuid,
-                )
-            )
-                .filter(isAiComposerChartArtifactConfig)
-                .at(-1)?.vizConfig ?? null
-        );
-    }
-
-    /** The presented execution's columns and rows, read as the agent read them. */
-    private async getComposerExecutionResult(
-        user: SessionUser,
-        prompt: AiPrompt,
-        queryUuid: string,
-    ): Promise<ComposerExecutionResult> {
-        const account = fromSession(user);
-        const results = await this.asyncQueryService.getAsyncQueryResults({
-            account,
-            reader: buildResultReader(
-                account,
-                QueryExecutionContext.AI,
-                querySurfaceFromPrompt(prompt),
-            ),
-            projectUuid: prompt.projectUuid,
-            queryUuid,
-            aiAccessOnly: true,
-            page: 1,
-            pageSize: this.lightdashConfig.ai.copilot.maxQueryLimit,
-        });
-        if (results.status !== QueryHistoryStatus.READY) {
-            throw new UnexpectedServerError(
-                `Composer query ${queryUuid} is not ready`,
-            );
-        }
-        const rows = results.rows.map((row) =>
-            Object.fromEntries(
-                Object.entries(row).map(([key, cell]) => [key, cell.value.raw]),
-            ),
-        );
-        return { columns: results.columns, rows, rowCount: rows.length };
     }
 
     private persistTrackedPromptUpdate(
@@ -9096,9 +9129,12 @@ export class AiAgentService extends BaseService {
         );
         await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         const thread = await this.getAgentThread(user, agentUuid, threadUuid);
+        const [visibleThread] = this.withVisibleThreadContext(account, agent, [
+            thread,
+        ]);
         return this.canViewEmbedAiAgentDebug(account, agent)
-            ? thread
-            : redactThreadToolResults(thread);
+            ? visibleThread
+            : redactThreadToolResults(visibleThread);
     }
 
     async listEmbedAgentThreads(
@@ -9106,7 +9142,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         agentUuid: string,
     ): Promise<AiAgentThreadSummary[]> {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
@@ -9133,12 +9169,16 @@ export class AiAgentService extends BaseService {
             })),
         );
 
-        return threadsWithEmbedSpace
-            .filter(
-                ({ embedSpaceUuid }) =>
-                    embedSpaceUuid === runtimeOptions.embedSpaceUuid,
-            )
-            .map(({ thread }) => thread);
+        return this.withVisibleThreadContext(
+            account,
+            agent,
+            threadsWithEmbedSpace
+                .filter(
+                    ({ embedSpaceUuid }) =>
+                        embedSpaceUuid === runtimeOptions.embedSpaceUuid,
+                )
+                .map(({ thread }) => thread),
+        );
     }
 
     async createEmbedAgentThread(
@@ -9147,18 +9187,23 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
     ) {
-        const { user, runtimeOptions } = await this.getEmbedAgent(
+        const { user, agent, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
-        return this.createAgentThread(
+        const thread = await this.createAgentThread(
             user,
             agentUuid,
             body,
             'web_app',
             runtimeOptions,
         );
+        if (!thread) return thread;
+        const [visibleThread] = this.withVisibleThreadContext(account, agent, [
+            thread,
+        ]);
+        return visibleThread;
     }
 
     async createEmbedAgentThreadMessage(
@@ -9665,7 +9710,7 @@ export class AiAgentService extends BaseService {
             // so a pinned agent skips the external decisions provider.
             agent.providerCredentialUuid
                 ? undefined
-                : await this.getDecisionClient(user),
+                : await this.getDecisionClient(user, agent.projectUuid),
         );
 
         return readinessScore;
@@ -11602,8 +11647,9 @@ export class AiAgentService extends BaseService {
         userUuid?: string;
     }): Promise<RelevantVerifiedAnswerContext> {
         if (
-            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 organizationUuid,
+                projectUuid,
             )
         ) {
             return { relevantVerifiedAnswers: [] };
@@ -11621,9 +11667,10 @@ export class AiAgentService extends BaseService {
                 agentUuid,
             }),
             userUuid && limit > 0 && limit <= 30
-                ? this.getDecisionClient({ organizationUuid, userUuid }).catch(
-                      () => undefined,
-                  )
+                ? this.getDecisionClient(
+                      { organizationUuid, userUuid },
+                      projectUuid,
+                  ).catch(() => undefined)
                 : undefined,
         ]);
         if (!embeddingResult) {
@@ -13587,6 +13634,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            readOnlySpaceUuids:
+                options?.runtimeOptions?.readOnlySpaceUuids ?? [],
             threadBinding,
             sqlScope,
             userAttributeOverrides:
@@ -13843,6 +13892,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 },
                 () => this.aiAgentModel.createReasoning(promptUuid, reasonings),
             );
+        };
+
+        const storeLoadout: StoreLoadoutFn = async (promptUuid, loadout) => {
+            try {
+                await this.aiAgentModel.updatePromptLoadout(
+                    promptUuid,
+                    loadout,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to store loadout for prompt ${promptUuid}: ${getErrorMessage(error)}`,
+                );
+            }
         };
 
         const editDbtProject: EditDbtProjectFn = async (args) => {
@@ -14370,6 +14432,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             storeToolCallError,
             storeToolResults,
             storeReasoning,
+            storeLoadout,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             consumePromptSteers: (args: {
@@ -15525,6 +15588,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
+            readOnlySpaceUuids: [],
             // Read-only runtime; the binding only limits writes.
             threadBinding: null,
             agentUuid: agent.uuid,
@@ -15956,6 +16020,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisionClient = await this.getPromptDecisionClient(
                     user,
                     {
+                        projectUuid: agentSettings.projectUuid,
                         battleProfile,
                         enableFastDecisions:
                             options.enableFastDecisions ?? true,
@@ -15966,26 +16031,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const shadowClient =
-                    decisionClient?.provider === 'jev' &&
-                    this.lightdashConfig.ai.lunaShadowEnabled
-                        ? await this.getDecisionClient(user, 'luna')
-                        : undefined;
                 const decisions = decisionUsage
-                    ? decisionClient?.withUsage(decisionUsage).withShadow(
-                          shadowClient
-                              ? {
-                                    client: shadowClient,
-                                    record: (entry) =>
-                                        this.recordDecisionShadow(
-                                            prompt.promptUuid,
-                                            entry,
-                                        ),
-                                }
-                              : undefined,
-                      )
+                    ? decisionClient?.withUsage(decisionUsage)
                     : undefined;
-                // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
+                // The decision client is the master gate; battle mode and Fast mode can only disable it.
                 const fastExperienceEnabled = decisions !== undefined;
                 let forceChartMutationRouting = false;
                 let chartMutationContext:
@@ -16461,7 +16510,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const [
                     { enabled: multiSourceQueryEnabled },
                     { enabled: composeSqlRunnerEnabled },
-                    { enabled: pythonQueryRunnerEnabled },
                 ] = await Promise.all([
                     this.featureFlagService.get({
                         user,
@@ -16471,10 +16519,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
                     }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.PythonQueryRunner,
-                    }),
                 ]);
                 const standardToolAllowlist =
                     responseExecution.mode === 'standard'
@@ -16483,15 +16527,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                               responseExecution.toolAllowlist,
                           )
                         : undefined;
-                // Allowlisted read-only threads (data-app investigations) keep the classic query tools.
-                const enableComposerQueries =
-                    multiSourceQueryEnabled &&
-                    composeSqlRunnerEnabled &&
-                    agentSettings.enableDataAccess &&
-                    responseExecution.mode !== 'deep_research' &&
-                    standardToolAllowlist === undefined;
-                const enableComposerPythonNodes =
-                    enableComposerQueries && pythonQueryRunnerEnabled;
+                const enableComposerQueries = isComposerQueriesEnabled({
+                    multiSourceQueryEnabled,
+                    composeSqlRunnerEnabled,
+                    agent: agentSettings,
+                    isDeepResearch: responseExecution.mode === 'deep_research',
+                    hasStandardToolAllowlist:
+                        standardToolAllowlist !== undefined,
+                    battleProfile,
+                });
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -16709,6 +16753,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     storeToolCallError,
                     storeToolResults,
                     storeReasoning,
+                    storeLoadout,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -16753,29 +16798,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     invalidateQueryCache: battleProfile !== null,
                 });
 
-                const builtInSkills = canUseContentTools
-                    ? await this.aiAgentToolsService.listAgentSkills()
-                    : [];
+                const builtInSkills =
+                    await this.aiAgentToolsService.listAgentSkills();
                 const modelServableSkills = (
                     await this.aiAgentSkillModel.findBoundToAgent(
                         agentSettings.uuid,
                     )
                 ).filter(AiAgentService.isModelServable);
-                const availableSkills = [
-                    ...builtInSkills,
-                    ...modelServableSkills.map((skill) => ({
-                        name: skill.name,
-                        description: getAiAgentSkillListingText(
-                            skill.parsed.frontmatter,
-                            AI_AGENT_SKILL_LISTING_MAX_CHARS,
-                        ),
-                        resources: skill.parsed.resources.map((resource) => ({
-                            name: resource.name,
-                            description: resource.description,
-                        })),
-                        source: 'custom' as const,
+                const customSkills = modelServableSkills.map((skill) => ({
+                    name: skill.name,
+                    description: getAiAgentSkillListingText(
+                        skill.parsed.frontmatter,
+                        AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                    ),
+                    resources: skill.parsed.resources.map((resource) => ({
+                        name: resource.name,
+                        description: resource.description,
                     })),
-                ];
+                    source: 'custom' as const,
+                }));
                 const copilotConfig =
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid: promptProject.organizationUuid,
@@ -16804,7 +16845,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
                 const initialModelId = modelProperties.model.modelId;
 
-                // AiAgentFastDecisions is the single switch for bounded decisions,
+                // The decision client is the single switch for bounded decisions,
                 // query refinements, fast tool calls and adaptive model selection.
                 const canUseFastToolModel =
                     !!decisions &&
@@ -17023,7 +17064,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    enableComposerPythonNodes,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
@@ -17041,7 +17081,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
-                    availableSkills,
+                    builtInSkills,
+                    customSkills,
                     modelReasoningEnabled:
                         prompt.modelConfig?.reasoning ?? null,
 
@@ -17131,17 +17172,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                 };
 
-                // Data access only gates the row-derived stats the planner sends.
-                const planComposerViz: PlanComposerViz | null =
-                    args.decisions && args.execution.mode === 'standard'
-                        ? createVizPlanner({
-                              decisions: args.decisions,
-                              question: getAgentQuestion(args),
-                              conversation: getAgentDecisionContext(args),
-                              usage: args.decisionUsage,
-                              recordDecision: args.recordPromptDecision,
-                          })
-                        : null;
                 const dependencies: AiAgentDependencies = {
                     assertToolOperation: (kind, key, connectedTool) =>
                         this.agentPermissionService.assertOperation({
@@ -17242,6 +17272,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         return storeToolResults(results);
                     },
                     storeReasoning,
+                    storeLoadout,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -17277,14 +17308,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // classifiers while returning the original text for selection.
                         const composerPresentation =
                             update.response !== undefined
-                                ? resolveComposerPresentations({
-                                      channel: isSlackPrompt(prompt)
-                                          ? 'slack'
-                                          : 'web',
-                                      response: update.response,
-                                      promptUuid: prompt.promptUuid,
-                                      toolResults: turnToolResults,
-                                  })
+                                ? resolveComposerPresentations(
+                                      isSlackPrompt(prompt)
+                                          ? {
+                                                channel: 'slack',
+                                                response: update.response,
+                                                promptUuid: prompt.promptUuid,
+                                                toolResults: turnToolResults,
+                                            }
+                                          : {
+                                                channel: 'web',
+                                                response: update.response,
+                                            },
+                                  )
                                 : null;
                         const visibleUpdate = composerPresentation
                             ? {
@@ -17310,13 +17346,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             async (persisted) => {
                                 if (!persisted || !composerPresentation) return;
                                 await this.saveComposerPresentations({
-                                    user,
                                     prompt,
                                     presented: composerPresentation.presented,
-                                    planViz: isSlackPrompt(prompt)
-                                        ? null
-                                        : planComposerViz,
-                                    enableDataAccess: args.enableDataAccess,
                                     onArtifactReady: (artifact) => {
                                         if (decisions) {
                                             stepProgressEmitter?.emit(
@@ -18229,7 +18260,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizUuid,
                     dataAppVizVersion,
                 ),
-            !!(await this.getDecisionClient(user)),
+            !!(await this.getDecisionClient(user, slackPrompt.projectUuid)),
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
@@ -19607,6 +19638,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
             const userFacingMessage = await this.getPromptErrorMessage(
                 user,
+                slackPrompt.projectUuid,
                 error,
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
@@ -19828,7 +19860,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 currentPromptUuid: promptUuid,
                                 userUuid: user.userUuid,
                                 fastDecisionsEnabled:
-                                    !!(await this.getDecisionClient(user)),
+                                    !!(await this.getDecisionClient(
+                                        user,
+                                        slackPrompt.projectUuid,
+                                    )),
                                 pendingRejectedSqlApprovalResults,
                                 threadUuid: slackPrompt.threadUuid,
                             },
@@ -19895,6 +19930,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     userUuid: slackPrompt.createdByUserUuid,
                     organizationUuid: slackPrompt.organizationUuid,
                 },
+                slackPrompt.projectUuid,
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
@@ -21325,10 +21361,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     })),
                     promptText,
                     { organizationUuid, userUuid, keyManagement },
-                    await this.getDecisionClient({
-                        organizationUuid,
-                        userUuid,
-                    }),
+                    await this.getDecisionClient(
+                        { organizationUuid, userUuid },
+                        null,
+                    ),
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -21444,10 +21480,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         const { model, keyManagement } = getModel(copilotConfig);
 
-        const decisions = await this.getDecisionClient({
-            organizationUuid,
-            userUuid,
-        });
+        const decisions = await this.getDecisionClient(
+            { organizationUuid, userUuid },
+            null,
+        );
         const decision = await selectAgent({
             model,
             candidates: availableAgents,

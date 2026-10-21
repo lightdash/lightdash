@@ -22,5 +22,6 @@
         "searchFieldValues",
         "searchSemanticLayer"
     ],
-    "promptSections": []
+    "promptSections": [],
+    "skills": []
 }

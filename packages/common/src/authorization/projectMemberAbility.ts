@@ -455,6 +455,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'AiAgentThreadContext', {
+            projectUuid: member.projectUuid,
+        });
 
         can('manage', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,

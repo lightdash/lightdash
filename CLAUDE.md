@@ -208,6 +208,8 @@ For REST or MCP changes with no external callers, add an advisory declaration:
 - With `firstPartyOnly`, the reason must say what an old UI pod, browser tab or client sees during a rolling update. For example: "the old settings page shows an error until refresh". Explain why the accepted behaviour is safe.
 - Advisories keep covered API findings rolling-safe. They never cover migrations, config changes or required stops. The author and reviewer accept the no-external-callers claim; release-safety does not verify it.
 
+For an environment variable the backend stops reading, add it to `release-safety.retired-config.json` as `"NAME": "reason"`. The config diff then reports that removal as retired instead of breaking. Use it only for a variable no operator relies on: undocumented, or internal to an experiment. The reason must say who set it and why nothing breaks without it. The file is append-only.
+
 A declaration is active only for a Git range that adds its ID. The release generator compares the last release tag with the target ref. The pull request preview compares the merge base with the head. This makes the declaration expire after the release that first contains it. Do not remove it after release.
 
 The registry is append-only. Never edit, remove, rename, or reuse an existing ID. Add a new ID for every new break, even when it affects the same file or has similar reason text. A release may add `releasedIn` for documentation, but that value never controls activation.

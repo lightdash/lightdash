@@ -241,6 +241,7 @@ interface ServiceManifest {
     aiCreditService: unknown;
     schedulerAiAugmentationService: unknown;
     dataAppAnalysisService: unknown;
+    appStateService: unknown;
     projectContextService: unknown;
     roadmapService: unknown;
     scimService: unknown;
@@ -731,6 +732,7 @@ export class ServiceRepository
                     migrationModel: this.models.getMigrationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     readinessService: this.readinessService,
                     learnSandboxService: this.getLearnSandboxService(),
                 }),
@@ -2178,6 +2180,10 @@ export class ServiceRepository
         DataAppAnalysisServiceImplT,
     >(): DataAppAnalysisServiceImplT {
         return this.getService('dataAppAnalysisService');
+    }
+
+    public getAppStateService<AppStateServiceImplT>(): AppStateServiceImplT {
+        return this.getService('appStateService');
     }
 
     public getAiAgentDocumentService<

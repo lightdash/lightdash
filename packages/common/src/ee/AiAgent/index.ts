@@ -28,11 +28,13 @@ import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
     type AiAgentModelConfig,
+    type AiAgentPromptLoadout,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadBinding,
+    type AiThreadBindingSummary,
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
@@ -184,6 +186,7 @@ export const baseAgentSchema = z.object({
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
     enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     // AI provider credential this agent's prompts run on. Null means the
@@ -228,6 +231,7 @@ export type AiAgent = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -259,6 +263,7 @@ export type AiAgentSummary = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -386,6 +391,8 @@ export type AiAgentMessageAssistant = {
     responseTiming: AiPromptResponseTiming | null;
     /** What the fast decision model did on this turn; null when it did not run. */
     jevDecision: AiAgentJevDecision | null;
+    /** Loadout the turn ran with; null for turns recorded before it was stored. */
+    loadout: AiAgentPromptLoadout | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -421,7 +428,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     firstMessage: AiAgentThreadFirstMessage | null;
     user: TUser;
     liveStatus: AiAgentThreadLiveStatus | null;
-    binding: AiThreadBinding | null;
+    binding: AiThreadBindingSummary | null;
     /** Initial context set at creation. */
     threadContext: string | null;
 };
@@ -684,6 +691,7 @@ export type ApiCreateAiAgent = Pick<
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
     enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -716,6 +724,7 @@ export type ApiUpdateAiAgent = Partial<
     uuid: string;
     enableSqlMode?: boolean;
     enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     mcpServerUuids?: string[];
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;

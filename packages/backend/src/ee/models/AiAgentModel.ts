@@ -25,6 +25,7 @@ import {
     AiAgentMessageUser,
     AiAgentModelConfig,
     AiAgentNotFoundError,
+    AiAgentPromptLoadout,
     AiAgentReasoning,
     AiAgentReviewItemSummary,
     AiAgentSummary,
@@ -55,6 +56,7 @@ import {
     AiResultType,
     AiThread,
     AiThreadBinding,
+    AiThreadBindingSummary,
     AiThreadCompaction,
     AiThreadCreatedFrom,
     AiWebAppPrompt,
@@ -174,7 +176,6 @@ import {
     AiPromptDataAppElementSnapshot,
     AiPromptDataAppRestoreSnapshot,
     AiPromptDataAppSnapshot,
-    AiPromptDecisionShadowTableName,
     AiPromptDecisionTableName,
     AiPromptInterruptTableName,
     AiPromptSkillSnapshot,
@@ -195,7 +196,6 @@ import {
     DbAiPromptContext,
     DbAiPromptDecision,
     DbAiPromptDecisionInsert,
-    DbAiPromptDecisionShadow,
     DbAiPromptInterrupt,
     DbAiPromptSteer,
     DbAiPromptTurnDecision,
@@ -503,6 +503,7 @@ type AiThreadSummaryRow = Pick<
         user_name: string | null;
         agent_name: string | null;
         agent_image_url: string | null;
+        bound_dashboard_name: string | null;
     };
 
 type AiAgentThreadLiveStateRow = {
@@ -797,6 +798,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -957,6 +959,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 adminOnly: `${AiAgentTableName}.admin_only`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 providerCredentialUuid: `${AiAgentTableName}.ai_organization_provider_credential_uuid`,
@@ -1061,6 +1064,7 @@ export class AiAgentModel {
                 | 'enableUserContext'
                 | 'enableSqlMode'
                 | 'enableSqlAutoApproval'
+                | 'enableComposerQueries'
                 | 'threadRetentionHours'
                 | 'modelConfig'
                 | 'updatedAt'
@@ -1094,6 +1098,7 @@ export class AiAgentModel {
                 enableUserContext: `${AiAgentTableName}.enable_user_context`,
                 enableSqlMode: `${AiAgentTableName}.enable_sql_mode`,
                 enableSqlAutoApproval: `${AiAgentTableName}.enable_sql_auto_approval`,
+                enableComposerQueries: `${AiAgentTableName}.enable_composer_queries`,
                 threadRetentionHours: `${AiAgentTableName}.thread_retention_hours`,
                 modelConfig: `${AiAgentTableName}.model_config`,
                 updatedAt: `${AiAgentTableName}.updated_at`,
@@ -2300,6 +2305,7 @@ export class AiAgentModel {
             | 'enableUserContext'
             | 'enableSqlMode'
             | 'enableSqlAutoApproval'
+            | 'enableComposerQueries'
             | 'adminOnly'
             | 'modelConfig'
             | 'providerCredentialUuid'
@@ -2339,6 +2345,7 @@ export class AiAgentModel {
                     enable_sql_mode: args.enableSqlMode ?? true,
                     enable_sql_auto_approval:
                         args.enableSqlAutoApproval ?? false,
+                    enable_composer_queries: args.enableComposerQueries ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     ai_organization_provider_credential_uuid:
@@ -2454,6 +2461,7 @@ export class AiAgentModel {
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
                 enableSqlAutoApproval: agent.enable_sql_auto_approval,
+                enableComposerQueries: agent.enable_composer_queries,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -2600,6 +2608,12 @@ export class AiAgentModel {
                         ? {
                               enable_sql_auto_approval:
                                   args.enableSqlAutoApproval,
+                          }
+                        : {}),
+                    ...(args.enableComposerQueries !== undefined
+                        ? {
+                              enable_composer_queries:
+                                  args.enableComposerQueries,
                           }
                         : {}),
                     ...(args.adminOnly !== undefined
@@ -2793,6 +2807,7 @@ export class AiAgentModel {
                 enableUserContext: agent.enable_user_context,
                 enableSqlMode: agent.enable_sql_mode,
                 enableSqlAutoApproval: agent.enable_sql_auto_approval,
+                enableComposerQueries: agent.enable_composer_queries,
                 adminOnly: agent.admin_only,
                 modelConfig: agent.model_config,
                 providerCredentialUuid:
@@ -3392,6 +3407,19 @@ export class AiAgentModel {
                 `${AiThreadTableName}.agent_uuid`,
                 `${AiAgentTableName}.ai_agent_uuid`,
             )
+            .leftJoin(DashboardsTableName, function joinBoundDashboard() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'dashboard',
+                    )
+                    .andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .where((builder) => {
                 void builder
                     .whereNotNull('first_prompt.ai_prompt_uuid')
@@ -3423,6 +3451,7 @@ export class AiAgentModel {
                 `${AiSlackThreadTableName}.slack_user_id`,
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
+                `${DashboardsTableName}.name as bound_dashboard_name`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
     }
@@ -3446,6 +3475,22 @@ export class AiAgentModel {
                 return { type, dashboardUuid: entityUuid };
             default:
                 return assertUnreachable(type, 'Unknown binding type');
+        }
+    }
+
+    private static toThreadBindingSummary(
+        row: AiThreadSummaryRow,
+    ): AiThreadBindingSummary | null {
+        const binding = AiAgentModel.toThreadBinding(
+            row.bound_entity_type,
+            row.bound_entity_uuid,
+        );
+        if (binding === null) return null;
+        switch (binding.type) {
+            case 'dashboard':
+                return { ...binding, displayName: row.bound_dashboard_name };
+            default:
+                return assertUnreachable(binding.type, 'Unknown binding type');
         }
     }
 
@@ -3475,10 +3520,7 @@ export class AiAgentModel {
                 slackUserId: row.slack_user_id,
             },
             liveStatus: null,
-            binding: AiAgentModel.toThreadBinding(
-                row.bound_entity_type,
-                row.bound_entity_uuid,
-            ),
+            binding: AiAgentModel.toThreadBindingSummary(row),
             threadContext: row.thread_context,
         };
     }
@@ -4766,6 +4808,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -4791,6 +4834,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -4910,6 +4954,7 @@ export class AiAgentModel {
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
                 jevDecision: decisionsMap.get(row.ai_prompt_uuid) ?? null,
+                loadout: AiAgentModel.toPromptLoadout(row),
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5478,6 +5523,21 @@ export class AiAgentModel {
         return 'idle';
     }
 
+    private static toPromptLoadout(
+        row: Pick<DbAiPrompt, 'loadout_base'>,
+    ): AiAgentPromptLoadout | null {
+        return row.loadout_base ? { base: row.loadout_base } : null;
+    }
+
+    async updatePromptLoadout(
+        promptUuid: string,
+        loadout: AiAgentPromptLoadout,
+    ): Promise<void> {
+        await this.database(AiPromptTableName)
+            .where({ ai_prompt_uuid: promptUuid })
+            .update({ loadout_base: loadout.base });
+    }
+
     async findThreadMessage(
         role: 'user',
         {
@@ -5534,6 +5594,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -5559,6 +5620,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -5708,6 +5770,7 @@ export class AiAgentModel {
                         (
                             await this.findPromptDecisions([row.ai_prompt_uuid])
                         ).get(row.ai_prompt_uuid) ?? null,
+                    loadout: AiAgentModel.toPromptLoadout(row),
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -6220,21 +6283,6 @@ export class AiAgentModel {
         decision: DbAiPromptDecisionInsert,
     ): Promise<void> {
         await this.database(AiPromptDecisionTableName).insert(decision);
-    }
-
-    async createPromptDecisionShadow(
-        row: Omit<
-            DbAiPromptDecisionShadow,
-            'ai_prompt_decision_shadow_uuid' | 'created_at'
-        >,
-    ): Promise<void> {
-        await this.database(AiPromptDecisionShadowTableName).insert({
-            ...row,
-            // State may be any JSON value; node-postgres would turn an array into a Postgres array.
-            state: this.database.raw('?::jsonb', [
-                JSON.stringify(row.state ?? null),
-            ]),
-        });
     }
 
     async updatePromptNeedsUserInput({
@@ -9891,25 +9939,6 @@ export class AiAgentModel {
                 chartConfig: parseAiArtifactChartConfig(result.chartConfig),
             }));
         });
-    }
-
-    async findChartArtifactConfigsByThreadUuid(
-        threadUuid: string,
-    ): Promise<AiArtifact['chartConfig'][]> {
-        const rows: { chart_config: unknown }[] = await this.database(
-            AiArtifactVersionsTableName,
-        )
-            .select(`${AiArtifactVersionsTableName}.chart_config`)
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
-            .andWhere(`${AiArtifactsTableName}.artifact_type`, 'chart')
-            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
-            .orderBy(`${AiArtifactVersionsTableName}.version_number`, 'asc');
-        return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
     }
 
     async listComposerQueryNodes(

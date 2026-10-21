@@ -6,7 +6,6 @@ import {
     APITimeoutError as TypeSafeTimeoutError,
     type EntryType,
 } from '@typesafe-ai/sdk';
-import OpenAI from 'openai';
 import { Agent, type Dispatcher } from 'undici';
 import { z } from 'zod';
 import type { LightdashConfig } from '../../../../config/parseConfig';
@@ -63,7 +62,6 @@ const LOGGED_OPERATIONS = new Set([
     'chart-presentation',
     'chart-reuse',
     'chart-title',
-    'composer-viz',
     'content-relevance',
     'context-preload',
     'correction-pick',
@@ -94,18 +92,14 @@ export type AiDecisionUsage = {
     serviceMs: number | null;
 };
 
-// Each provider reports how long its model service spent on the request.
-const SERVICE_TIME_HEADERS = {
-    jev: 'x-envoy-upstream-service-time',
-    luna: 'openai-processing-ms',
-} as const;
+// The provider reports how long its model service spent on the request.
+const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
 // Turns arrive seconds apart, past fetch's default keep-alive, so every turn paid a new TLS handshake.
 const KEEP_ALIVE_DISPATCHER = new Agent({
     keepAliveTimeout: 300_000,
     keepAliveMaxTimeout: 300_000,
 });
 export type DecisionConfig = LightdashConfig['ai']['decisions'];
-export type DecisionProvider = NonNullable<DecisionConfig['provider']>;
 
 class DecisionResponseTooLarge extends Error {}
 
@@ -140,7 +134,7 @@ const spanOutcome = (
     }
 };
 
-/** Provider fetch: our keep-alive pool, and a size cap since the SDKs buffer whole bodies. */
+/** Provider fetch: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
 const pooledFetch =
     (request: typeof fetch) =>
     async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -164,7 +158,7 @@ type TransportRequest = {
     signal: AbortSignal | undefined;
     timeout: number;
 };
-/** Returns the provider's answers in JEV's shape; `responseSchema` validates the result. */
+/** Returns the provider's answers; `responseSchema` validates the result. */
 type DecisionTransport = (
     request: TransportRequest,
 ) => Promise<{ data: unknown; serviceMs: number | null }>;
@@ -197,129 +191,9 @@ const createJevTransport = (
             .withResponse();
         return {
             data,
-            serviceMs: headerMs(response, SERVICE_TIME_HEADERS.jev),
+            serviceMs: headerMs(response, SERVICE_TIME_HEADER),
         };
     };
-};
-
-type LunaQuestion = OpenAI.DecisionCreateParams['questions'][number];
-const toLunaQuestion = (
-    name: string,
-    question: DecisionQuestion,
-): LunaQuestion => {
-    switch (question.type) {
-        case 'noul':
-            return {
-                type: 'predicate',
-                name,
-                instructions: question.instructions,
-            };
-        case 'choice':
-            return {
-                type: 'choice',
-                name,
-                instructions: question.instructions,
-                choices: Object.entries(question.criteria).map(
-                    ([value, description]) =>
-                        description === null
-                            ? { value }
-                            : { value, description },
-                ),
-            };
-        case 'score':
-            return {
-                type: 'score',
-                name,
-                instructions: question.instructions,
-                levels: question.criteria.map((label) => ({ label })),
-            };
-        default:
-            return assertUnreachable(question, 'Unknown decision question');
-    }
-};
-
-type LunaAnswer = OpenAI.Decision['answers'][number];
-const fromLunaAnswer = (answer: LunaAnswer): DecisionAnswers[string] | null => {
-    switch (answer.type) {
-        case 'predicate':
-            return { type: 'noul', noul: answer.probability };
-        case 'choice':
-            return {
-                type: 'choice',
-                choice: String(answer.choice),
-                confidence: answer.confidence,
-                probabilities: Object.fromEntries(
-                    answer.probabilities.map((option) => [
-                        String(option.value),
-                        option.probability,
-                    ]),
-                ),
-            };
-        case 'score':
-            return {
-                type: 'score',
-                score: answer.score,
-                confidence: answer.confidence,
-            };
-        // A refused question is left unanswered, which fails validation and takes the legacy path.
-        case 'refusal':
-            return null;
-        default:
-            return assertUnreachable(answer, 'Unknown decision answer');
-    }
-};
-
-/** OpenAI's Decisions API, translated to and from JEV's question and answer shapes. */
-const createLunaTransport = (
-    config: DecisionConfig,
-    request: typeof fetch,
-): DecisionTransport => {
-    const sdk = new OpenAI({
-        apiKey: config.apiKey ?? '',
-        timeout: MAX_DECISION_TIMEOUT_MS,
-        maxRetries: 0,
-        logLevel: 'off',
-        fetch: pooledFetch(request),
-    });
-    return async ({ state, questions, signal, timeout }) => {
-        const { data, response } = await sdk.decisions
-            .create(
-                {
-                    model: config.model,
-                    input: JSON.stringify(state),
-                    questions: Object.entries(questions).map(([name, q]) =>
-                        toLunaQuestion(name, q),
-                    ),
-                },
-                { signal, timeout },
-            )
-            .withResponse();
-        const answers: Record<string, DecisionAnswers[string]> = {};
-        for (const answer of data.answers) {
-            const converted = fromLunaAnswer(answer);
-            if (answer.name !== null && converted)
-                answers[answer.name] = converted;
-        }
-        return {
-            data: { model: data.model, answers, usage: data.usage },
-            serviceMs: headerMs(response, SERVICE_TIME_HEADERS.luna),
-        };
-    };
-};
-
-const createTransport = (
-    config: DecisionConfig,
-    request: typeof fetch,
-): DecisionTransport => {
-    const provider = config.provider ?? 'jev';
-    switch (provider) {
-        case 'jev':
-            return createJevTransport(config, request);
-        case 'luna':
-            return createLunaTransport(config, request);
-        default:
-            return assertUnreachable(provider, 'Unknown decision provider');
-    }
 };
 
 type EvaluateArgs = {
@@ -338,23 +212,6 @@ export type DecisionEvaluation = {
     durationMs: number;
     serviceMs: number | null;
 };
-type DecisionShadowSide = DecisionEvaluation & {
-    provider: DecisionProvider;
-    model: string;
-};
-/** One live decision and the same questions answered by a second provider that nobody acted on. */
-export type DecisionShadowEntry = {
-    operation: string;
-    questions: Record<string, DecisionQuestion>;
-    state: unknown;
-    live: DecisionShadowSide;
-    shadow: DecisionShadowSide;
-};
-export type DecisionShadow = {
-    client: AiDecisionClient;
-    record: (entry: DecisionShadowEntry) => Promise<void>;
-};
-
 /** Throws on answers the questions cannot have produced; reconciles two-decimal rounding drift. */
 const validateAnswers = (
     questions: Record<string, DecisionQuestion>,
@@ -427,9 +284,8 @@ export class AiDecisionClient {
             retryAfter: 0,
         },
         transport?: DecisionTransport,
-        private readonly shadow?: DecisionShadow,
     ) {
-        this.transport = transport ?? createTransport(config, request);
+        this.transport = transport ?? createJevTransport(config, request);
     }
 
     withUsage(usage: AiDecisionUsage): AiDecisionClient {
@@ -439,20 +295,6 @@ export class AiDecisionClient {
             usage,
             this.health,
             this.transport,
-            this.shadow,
-        );
-    }
-
-    /** Every live decision is also sent to `shadow.client`; both results go to `shadow.record`. */
-    withShadow(shadow: DecisionShadow | undefined): AiDecisionClient {
-        if (!shadow) return this;
-        return new AiDecisionClient(
-            this.config,
-            this.request,
-            this.usage,
-            this.health,
-            this.transport,
-            shadow,
         );
     }
 
@@ -460,15 +302,8 @@ export class AiDecisionClient {
         return this.config.model;
     }
 
-    get provider(): DecisionProvider {
-        return this.config.provider ?? 'jev';
-    }
-
     async evaluate(args: EvaluateArgs): Promise<DecisionAnswers | null> {
-        const live = await this.evaluateWithOutcome(args);
-        if (this.shadow && live.outcome !== 'skipped')
-            void this.runShadow(args, live);
-        return live.answers;
+        return (await this.evaluateWithOutcome(args)).answers;
     }
 
     async evaluateWithOutcome(args: EvaluateArgs): Promise<DecisionEvaluation> {
@@ -485,37 +320,6 @@ export class AiDecisionClient {
             },
             (span) => this.evaluateInSpan(args, loggedOperation, span),
         );
-    }
-
-    private async runShadow(
-        args: EvaluateArgs,
-        live: DecisionEvaluation,
-    ): Promise<void> {
-        if (!this.shadow) return;
-        try {
-            // The shadow gets the client maximum so slow answers are still recorded, with their time.
-            const shadow = await this.shadow.client.evaluateWithOutcome({
-                ...args,
-                timeoutMs: MAX_DECISION_TIMEOUT_MS,
-            });
-            await this.shadow.record({
-                operation: args.operation,
-                questions: args.questions,
-                state: args.state,
-                live: {
-                    ...live,
-                    provider: this.provider,
-                    model: this.modelName,
-                },
-                shadow: {
-                    ...shadow,
-                    provider: this.shadow.client.provider,
-                    model: this.shadow.client.modelName,
-                },
-            });
-        } catch {
-            Logger.warn('AI agent decision shadow failed');
-        }
     }
 
     private async evaluateInSpan(
@@ -601,21 +405,11 @@ export class AiDecisionClient {
             outcome = 'success';
         } catch (error) {
             const status =
-                error instanceof TypeSafeApiError ||
-                error instanceof OpenAI.APIError
-                    ? error.status
-                    : undefined;
-            if (
-                signal?.aborted ||
-                error instanceof TypeSafeAbortError ||
-                error instanceof OpenAI.APIUserAbortError
-            ) {
+                error instanceof TypeSafeApiError ? error.status : undefined;
+            if (signal?.aborted || error instanceof TypeSafeAbortError) {
                 outcome = 'cancelled';
                 retryableFailure = false;
-            } else if (
-                error instanceof TypeSafeTimeoutError ||
-                error instanceof OpenAI.APIConnectionTimeoutError
-            ) {
+            } else if (error instanceof TypeSafeTimeoutError) {
                 outcome = 'timeout';
             } else if (status !== undefined) {
                 outcome = 'provider-http-error';
@@ -648,9 +442,9 @@ export class AiDecisionClient {
 
 const clients = new WeakMap<DecisionConfig, AiDecisionClient>();
 
-// Client state is reusable; feature availability is resolved per request below.
-const getAiDecisionClient = (
-    config: DecisionConfig,
+// Configs are reused per deployment, so outage backoff is shared across requests.
+export const resolveAiDecisionClient = (
+    config: DecisionConfig | undefined,
 ): AiDecisionClient | undefined => {
     if (!config?.apiKey) return undefined;
     let client = clients.get(config);
@@ -659,22 +453,6 @@ const getAiDecisionClient = (
         clients.set(config, client);
     }
     return client;
-};
-
-/** Resolve per request so disabling the flag takes effect without a restart.
- * Decision availability is optional; resolver failures keep the legacy path. */
-export const resolveAiDecisionClient = async (
-    config: DecisionConfig | undefined,
-    getFlag: () => Promise<{ enabled: boolean }>,
-): Promise<AiDecisionClient | undefined> => {
-    if (!config?.apiKey) return undefined;
-    try {
-        return (await getFlag()).enabled
-            ? getAiDecisionClient(config)
-            : undefined;
-    } catch {
-        return undefined;
-    }
 };
 
 export const confidentChoice = (

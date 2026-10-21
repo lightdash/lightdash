@@ -5,6 +5,7 @@ models:
     config:
       tags: ["core"]
       meta:
+        groups: ["facilities", "inventory"]
         primary_key: part_id
     columns:
       - name: part_id

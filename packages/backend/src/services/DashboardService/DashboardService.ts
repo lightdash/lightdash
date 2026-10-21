@@ -1214,19 +1214,21 @@ export class DashboardService
         );
     }
 
-    private async assertWriteSpaceBelongsToProject(
+    private async assertWriteSpacesBelongToProject(
         projectUuid: UUID,
-        spaceUuid: UUID,
+        spaceUuids: string[],
     ) {
-        const space = await this.spaceModel.get(spaceUuid);
+        const uniqueSpaceUuids = new Set(spaceUuids);
+        const spaces = await this.spaceModel.find({
+            projectUuid,
+            spaceUuids: [...uniqueSpaceUuids],
+        });
 
-        if (space.projectUuid !== projectUuid) {
+        if (spaces.length !== uniqueSpaceUuids.size) {
             throw new ForbiddenError(
                 'Embed token does not allow writing to this project space',
             );
         }
-
-        return space;
     }
 
     private static getTileChartReferences(
@@ -1255,19 +1257,19 @@ export class DashboardService
 
     /**
      * Charts already referenced by the stored dashboard are skipped; any newly
-     * referenced chart must come from the write space or a source space.
+     * referenced chart must come from a write space or a source space.
      */
     private async assertDashboardTilesUseAllowedCharts(
         user: SessionUser,
         tiles: CreateDashboard['tiles'],
         {
             projectUuid,
-            writeSpaceUuid,
+            writeSpaceUuids,
             actorChartSpaceUuids,
             existingTiles,
         }: {
             projectUuid: UUID;
-            writeSpaceUuid: UUID;
+            writeSpaceUuids: string[];
             actorChartSpaceUuids: string[];
             existingTiles: DashboardTile[];
         },
@@ -1278,7 +1280,7 @@ export class DashboardService
             spaceUuid: string,
             owningDashboardUuid: string | null,
         ) =>
-            spaceUuid === writeSpaceUuid ||
+            writeSpaceUuids.includes(spaceUuid) ||
             (actorChartSpaceUuids.includes(spaceUuid) &&
                 owningDashboardUuid === null);
 
@@ -1340,10 +1342,10 @@ export class DashboardService
                         { projectUuid },
                     );
 
-                    // Embedded SQL chart fetches only allow the write space.
-                    if (savedSqlChart.space.uuid !== writeSpaceUuid) {
+                    // Embedded SQL chart fetches only allow the write spaces.
+                    if (!writeSpaceUuids.includes(savedSqlChart.space.uuid)) {
                         throw new ForbiddenError(
-                            'Embed token does not allow saving SQL charts from outside the write space',
+                            'Embed token does not allow saving SQL charts from outside the write spaces',
                         );
                     }
 
@@ -1386,13 +1388,16 @@ export class DashboardService
             return { user, dashboard };
         }
 
-        await this.assertWriteSpaceBelongsToProject(
-            projectUuid,
-            embedWriteActions.spaceUuid,
-        );
+        const { writeSpaceUuids } = embedWriteActions;
+        const spaceUuid =
+            dashboard.spaceUuid !== undefined &&
+            writeSpaceUuids.includes(dashboard.spaceUuid)
+                ? dashboard.spaceUuid
+                : writeSpaceUuids[0];
+        await this.assertWriteSpacesBelongToProject(projectUuid, [spaceUuid]);
         await this.assertDashboardTilesUseAllowedCharts(user, dashboard.tiles, {
             projectUuid,
-            writeSpaceUuid: embedWriteActions.spaceUuid,
+            writeSpaceUuids,
             actorChartSpaceUuids: getEmbedActorChartSpaceUuids(account),
             existingTiles: [],
         });
@@ -1401,7 +1406,7 @@ export class DashboardService
             user,
             dashboard: {
                 ...dashboard,
-                spaceUuid: embedWriteActions.spaceUuid,
+                spaceUuid,
             },
         };
     }
@@ -1411,7 +1416,7 @@ export class DashboardService
         projectUuid: UUID | undefined,
     ): Promise<{
         user: SessionUser;
-        embedWriteActions?: { spaceUuid: UUID };
+        embedWriteActions?: { writeSpaceUuids: string[] };
     }> {
         const context = getAccountWriteContext(account);
 
@@ -1422,9 +1427,9 @@ export class DashboardService
                 );
             }
 
-            await this.assertWriteSpaceBelongsToProject(
+            await this.assertWriteSpacesBelongToProject(
                 projectUuid,
-                context.embedWriteActions.spaceUuid,
+                context.embedWriteActions.writeSpaceUuids,
             );
         }
 
@@ -1635,8 +1640,7 @@ export class DashboardService
             projectUuid,
         );
         return this.duplicate(user, projectUuid, dashboardUuidOrSlug, data, {
-            targetSpaceUuid: embedWriteActions?.spaceUuid,
-            sourceSpaceUuid: embedWriteActions?.spaceUuid,
+            embedWriteSpaceUuids: embedWriteActions?.writeSpaceUuids,
         });
     }
 
@@ -1645,18 +1649,19 @@ export class DashboardService
         projectUuid: UUID,
         dashboardUuidOrSlug: UuidOrSlug,
         data: DuplicateDashboardParams,
-        options?: { targetSpaceUuid?: string; sourceSpaceUuid?: string },
+        options?: { embedWriteSpaceUuids?: string[] },
     ): Promise<Dashboard> {
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
         );
+        const embedWriteSpaceUuids = options?.embedWriteSpaceUuids;
         if (
-            options?.sourceSpaceUuid &&
-            dashboardDao.spaceUuid !== options.sourceSpaceUuid
+            embedWriteSpaceUuids &&
+            !embedWriteSpaceUuids.includes(dashboardDao.spaceUuid)
         ) {
             throw new ForbiddenError(
-                'Embed token does not allow duplicating dashboards from outside the write space',
+                'Embed token does not allow duplicating dashboards from outside the write spaces',
             );
         }
         const { inheritsFromOrgOrProject, access } =
@@ -1669,7 +1674,7 @@ export class DashboardService
             inheritsFromOrgOrProject,
             access,
         };
-        const targetSpaceUuid = options?.targetSpaceUuid ?? dashboard.spaceUuid;
+        const targetSpaceUuid = dashboard.spaceUuid;
         const targetSpaceAccess =
             await this.spacePermissionService.resolveAccess(user.userUuid, {
                 type: 'space',
@@ -1683,7 +1688,7 @@ export class DashboardService
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
-            options?.sourceSpaceUuid &&
+            embedWriteSpaceUuids &&
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
@@ -1878,7 +1883,9 @@ export class DashboardService
         );
         if (
             embedWriteActions &&
-            existingDashboardDao.spaceUuid !== embedWriteActions.spaceUuid
+            !embedWriteActions.writeSpaceUuids.includes(
+                existingDashboardDao.spaceUuid,
+            )
         ) {
             throw new ForbiddenError(
                 'Embed token does not allow writing to this dashboard space',
@@ -1889,10 +1896,10 @@ export class DashboardService
             if (
                 isDashboardUnversionedFields(dashboard) &&
                 dashboard.spaceUuid &&
-                dashboard.spaceUuid !== embedWriteActions.spaceUuid
+                !embedWriteActions.writeSpaceUuids.includes(dashboard.spaceUuid)
             ) {
                 throw new ForbiddenError(
-                    'Embed token does not allow moving dashboards outside the write space',
+                    'Embed token does not allow moving dashboards outside the write spaces',
                 );
             }
 
@@ -1904,7 +1911,7 @@ export class DashboardService
                         projectUuid:
                             options?.projectUuid ??
                             existingDashboardDao.projectUuid,
-                        writeSpaceUuid: embedWriteActions.spaceUuid,
+                        writeSpaceUuids: embedWriteActions.writeSpaceUuids,
                         actorChartSpaceUuids:
                             getEmbedActorChartSpaceUuids(account),
                         existingTiles: existingDashboardDao.tiles,

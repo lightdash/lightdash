@@ -27,14 +27,20 @@ vi.mock('../../hooks/useContextMenuPermissions', () => ({
     }),
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         chartRef: { current: null },
         isLoading: false,
         resultsData: { setFetchAll: vi.fn() },
         minimal: false,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 
 vi.mock('../EChartsReactWrapper', () => ({
     default: ({ onEvents }: { onEvents?: Record<string, unknown> }) => (

@@ -103,7 +103,8 @@ const buildAgentArgs = (
             projectUuid: 'project-1',
         },
         aiAgentMemoryEnabled: false,
-        availableSkills: [],
+        builtInSkills: [],
+        customSkills: [],
         callOptions: {},
         canManageAgent: false,
         canRunSql: true,
@@ -219,12 +220,9 @@ describe('flags-off agent turns', () => {
                 expect(options.experimental_repairToolCall).toBeUndefined();
                 expect(options.tools).toHaveProperty('generateVisualization');
                 expect(options.tools).toHaveProperty('loadProjectContext');
-                for (const tool of [
-                    'runQuery',
-                    'exportChartAsCode',
-                    'loadAgentTools',
-                ])
-                    expect(options.tools).not.toHaveProperty(tool);
+                expect(options.tools).toHaveProperty('runQuery');
+                expect(options.tools).toHaveProperty('exportChartAsCode');
+                expect(options.tools).not.toHaveProperty('loadAgentTools');
                 expect(JSON.stringify(options.messages)).toContain(
                     'Call the `loadProjectContext` tool BEFORE grepFields',
                 );
@@ -1918,13 +1916,20 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 },
                 repoFsRoot: 'dbt',
                 repoFsSupportsCodeSearch: true,
-                availableSkills: [{ name: 'modeling' }],
                 canManageAgent: false,
                 canRunSql: true,
                 enableDataAccess: true,
                 enableContentTools: true,
                 autoApproveSql: true,
             } as unknown as AiAgentArgs,
+            [
+                {
+                    name: 'modeling',
+                    description: 'Modeling',
+                    resources: [],
+                    source: 'custom',
+                },
+            ],
             {
                 generateVisualization: {} as never,
                 mcp_github__search_issues: {} as never,
@@ -2115,7 +2120,8 @@ describe('getAgentTools workstream tool gate', () => {
             },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
-            availableSkills: [],
+            builtInSkills: [],
+            customSkills: [],
             callOptions: {},
             compactionSummary: null,
             canManageAgent: false,
@@ -2208,29 +2214,83 @@ describe('getAgentTools workstream tool gate', () => {
     );
 
     it.each([false, true])(
-        'offers chart export only with fast decisions and data access (data=%s)',
+        'offers chart export only with data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({
                 enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess,
             });
-            expect(buildToolsForArgs(args)).not.toHaveProperty(
-                'exportChartAsCode',
+            expect('exportChartAsCode' in buildToolsForArgs(args)).toBe(
+                enableDataAccess,
             );
-            const enabled = buildToolsForArgs({
-                ...args,
-                decisions: new AiDecisionClient({
-                    apiKey: null,
-                    model: 'test',
-                    timeoutMs: 100,
-                }),
-            });
-            expect('exportChartAsCode' in enabled).toBe(enableDataAccess);
         },
     );
 
-    it('registers Slack chart images for delivery without a decision client', async () => {
+    it('loads only the skills the run lists', async () => {
+        const args = {
+            ...buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                enableDataAccess: true,
+            }),
+            builtInSkills: [
+                {
+                    name: 'developing-in-lightdash',
+                    description: 'Charts and dashboards',
+                    resources: [],
+                    source: 'builtIn' as const,
+                },
+            ],
+            customSkills: [
+                {
+                    name: 'revenue-review',
+                    description: 'Revenue reviews',
+                    resources: [],
+                    source: 'custom' as const,
+                },
+            ],
+        };
+        const loadSkill = vi.fn().mockResolvedValue({
+            name: 'revenue-review',
+            body: 'Review revenue.',
+            metadata: {
+                name: 'revenue-review',
+                builtIn: false,
+                uuid: null,
+                versionNumber: null,
+                contentHash: null,
+            },
+        });
+        const dependencies = new Proxy(
+            { loadSkill },
+            { get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            args,
+            loadoutFor(args, mcpStub),
+            dependencies,
+            [],
+            mcpStub,
+            new Map(),
+            {},
+            new AgentContext([]),
+        );
+        const load = (name: string) =>
+            tools.loadSkill.execute!(
+                { name, resourceName: null, arguments: null },
+                { toolCallId: name, messages: [], context: {} },
+            );
+
+        expect(JSON.stringify(await load('developing-in-lightdash'))).toContain(
+            'was not found',
+        );
+        expect(JSON.stringify(await load('Revenue-Review'))).toContain(
+            'Review revenue.',
+        );
+    });
+
+    it('registers Slack chart images for delivery', async () => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: false,

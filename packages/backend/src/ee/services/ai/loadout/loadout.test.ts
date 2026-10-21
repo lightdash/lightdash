@@ -7,7 +7,9 @@ import {
     AGENT_TOOL_NAMES,
     BASES,
     buildLoadout,
+    BUILT_IN_SKILL_NAMES,
     DEFERRED_SECTION_TOOLS,
+    getAvailableSkills,
     resolveLoadout,
     type AgentToolName,
     type Loadout,
@@ -19,6 +21,7 @@ import { toolsForIntent } from '../agents/referenceToolGating';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { TURN_INTENTS } from '../decisions/prepareContext';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { BuiltInSkills } from '../skills/builtInSkills';
 
 const SKILL = {
     name: 'developing-in-lightdash',
@@ -26,6 +29,33 @@ const SKILL = {
     resources: [],
     source: 'builtIn' as const,
 };
+
+const REPOSITORY_SKILLS = [
+    'reading-source-code',
+    'repository-writeback',
+    'editing-source-code',
+].map((name) => ({
+    name,
+    description: `Guidance for ${name}`,
+    resources: [],
+    source: 'builtIn' as const,
+}));
+
+const CUSTOM_SKILL = {
+    name: 'revenue-review',
+    description: 'How finance reviews revenue',
+    resources: [],
+    source: 'custom' as const,
+};
+
+const listedSkills = (loadout: Loadout, input: LoadoutInput) =>
+    getAvailableSkills(
+        {
+            builtInSkills: [SKILL, ...REPOSITORY_SKILLS],
+            customSkills: input.customSkills,
+        },
+        loadout,
+    );
 
 // Every condition on: each base shows its widest query path.
 const fullInput: LoadoutInput = {
@@ -48,7 +78,7 @@ const fullInput: LoadoutInput = {
     enablePreviewDeploySetup: true,
     enableEditProjectContext: true,
     enableReadAttachments: true,
-    availableSkills: [SKILL],
+    customSkills: [],
     projectContextEnabled: true,
     aiAgentMemoryEnabled: true,
     requestingUser: { name: 'Ada', role: null, groups: [] },
@@ -74,7 +104,7 @@ const minimalInput: LoadoutInput = {
     enablePreviewDeploySetup: false,
     enableEditProjectContext: false,
     enableReadAttachments: false,
-    availableSkills: [],
+    customSkills: [],
     projectContextEnabled: false,
     aiAgentMemoryEnabled: false,
     requestingUser: null,
@@ -148,18 +178,21 @@ const contract = (loadout: Loadout) =>
             addOns: [...loadout.addOns].sort(),
             toolNames: [...loadout.toolNames].sort(),
             promptSections: [...loadout.promptSections].sort(),
+            skills: [...loadout.skills].sort(),
         },
         null,
         4,
     )}\n`;
 
 // Wording flags stay at their defaults; composer renders with the data access it requires.
-const renderPrompt = (loadout: Loadout) =>
+const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
         promptSections: loadout.promptSections,
+        availableSkills: listedSkills(loadout, input),
         enableDataAccess: loadout.base === 'composer',
+        canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
 
 const fixture = (name: string) =>
@@ -172,19 +205,25 @@ describe('loadout contracts', () => {
         ).toMatchFileSnapshot(`__snapshots__/bases/${base}.json.snap`);
     });
 
-    test('composer without add-ons renders its prompt', async () => {
-        await expect(
-            renderPrompt(buildLoadout('composer', inputs.composer, [])),
-        ).toMatchFileSnapshot('__snapshots__/bases/composer.prompt.txt');
+    test.each(BASE_NAMES)(
+        '%s base without add-ons renders its prompt',
+        async (base) => {
+            await expect(
+                renderPrompt(
+                    buildLoadout(base, inputs[base], []),
+                    inputs[base],
+                ),
+            ).toMatchFileSnapshot(`__snapshots__/bases/${base}.prompt.txt`);
+        },
+    );
+
+    test('classic without add-ons renders the classic prompt', () => {
+        expect(
+            renderPrompt(buildLoadout('classic', fullInput, []), fullInput),
+        ).toBe(fixture('systemV2.classic.txt'));
     });
 
-    test('classic without add-ons renders the flag-off prompt', () => {
-        expect(renderPrompt(buildLoadout('classic', fullInput, []))).toBe(
-            fixture('systemV2.flag-off.txt'),
-        );
-    });
-
-    test('classic resolved from the capability flags renders the flag-off capabilities prompt', () => {
+    test('classic resolved from the capability flags renders the classic capabilities prompt', () => {
         const loadout = resolveLoadout({
             ...minimalInput,
             enableDataAccess: true,
@@ -192,7 +231,6 @@ describe('loadout contracts', () => {
             enableContentTools: true,
             enableDocuments: true,
             enableGenerateDataApp: true,
-            availableSkills: [SKILL],
         });
         expect(loadout.base).toBe('classic');
         expect(
@@ -202,13 +240,14 @@ describe('loadout contracts', () => {
                 promptSections: loadout.promptSections,
                 enableDataAccess: true,
                 canRunSql: true,
+                canRunQuery: loadout.toolNames.has('runQuery'),
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 runSqlMaxLimit: 5000,
                 slackChannelId: null,
-                availableSkills: [SKILL],
+                availableSkills: listedSkills(loadout, minimalInput),
             }).content,
-        ).toBe(fixture('systemV2.flag-off-capabilities.txt'));
+        ).toBe(fixture('systemV2.classic-capabilities.txt'));
     });
 
     test('each add-on on classic', async () => {
@@ -226,6 +265,7 @@ describe('loadout contracts', () => {
                         addsSections: [...loadout.promptSections].filter(
                             (section) => !classic.promptSections.has(section),
                         ),
+                        addsSkills: [...loadout.skills],
                     },
                 ];
             }),
@@ -246,12 +286,14 @@ describe('loadout contracts', () => {
         },
     );
 
-    // Other bases render the same template from the sections in their JSON.
-    test.each<LoadoutBase>(['classic', 'composer'])(
+    test.each(BASE_NAMES)(
         '%s base with every add-on renders its prompt',
         async (base) => {
             await expect(
-                renderPrompt(buildLoadout(base, inputs[base], ADD_ON_NAMES)),
+                renderPrompt(
+                    buildLoadout(base, inputs[base], ADD_ON_NAMES),
+                    inputs[base],
+                ),
             ).toMatchFileSnapshot(
                 `__snapshots__/bases-with-add-ons/${base}.prompt.txt`,
             );
@@ -283,15 +325,69 @@ describe('resolveLoadout', () => {
             ...fullInput,
             enableAiWriteback: false,
             enableCodingAgent: false,
-            availableSkills: [],
         });
         expect(loadout.addOns.has('writeback')).toBe(false);
         expect(loadout.addOns.has('pullRequests')).toBe(false);
-        expect(loadout.addOns.has('skills')).toBe(false);
         expect(loadout.toolNames.has('listWorkstreams')).toBe(false);
-        expect(loadout.promptSections.has('skills')).toBe(false);
         expect(loadout.addOns.has('contentTools')).toBe(true);
         expect(loadout.addOns.has('legacyDashboards')).toBe(false);
+    });
+
+    test('content tools bring their skill and loadSkill', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+            enableContentTools: true,
+        });
+        expect(loadout.skills).toEqual(new Set(['developing-in-lightdash']));
+        expect(loadout.addOns.has('skills')).toBe(true);
+        expect(loadout.toolNames.has('loadSkill')).toBe(true);
+        expect(loadout.promptSections.has('skills')).toBe(true);
+    });
+
+    test.each([
+        ['repoDiscovery', 'reading-source-code'],
+        ['writeback', 'repository-writeback'],
+        ['codingAgent', 'editing-source-code'],
+    ] as const)('%s declares %s and brings loadSkill', (name, skill) => {
+        const loadout = buildLoadout('classic', fullInput, [name]);
+        expect(loadout.skills).toEqual(new Set([skill]));
+        expect(loadout.toolNames.has('loadSkill')).toBe(true);
+    });
+
+    test('classic with every add-on lists the three repository skills', () => {
+        const loadout = buildLoadout('classic', fullInput, ADD_ON_NAMES);
+        expect(
+            renderPrompt(loadout, fullInput).match(
+                /^- (reading-source-code|repository-writeback|editing-source-code):/gm,
+            ),
+        ).toHaveLength(3);
+    });
+
+    test('custom skills alone bring loadSkill but no built-in skill', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+            customSkills: [CUSTOM_SKILL],
+        });
+        expect(loadout.skills.size).toBe(0);
+        expect(loadout.toolNames.has('loadSkill')).toBe(true);
+        expect(
+            listedSkills(loadout, {
+                ...minimalInput,
+                customSkills: [CUSTOM_SKILL],
+            }),
+        ).toEqual([CUSTOM_SKILL]);
+    });
+
+    test('no skills without content tools or custom skills', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+        });
+        expect(loadout.skills.size).toBe(0);
+        expect(loadout.addOns.has('skills')).toBe(false);
+        expect(loadout.promptSections.has('skills')).toBe(false);
     });
 
     test('composer queries only through runComposerQueries', () => {
@@ -302,6 +398,17 @@ describe('resolveLoadout', () => {
         ).toEqual([]);
     });
 
+    test('classic answers with runQuery without a decision client', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+        });
+        expect(loadout.base).toBe('classic');
+        expect(loadout.addOns.has('intentRouting')).toBe(false);
+        expect(loadout.toolNames.has('runQuery')).toBe(true);
+        expect(loadout.toolNames.has('exportChartAsCode')).toBe(true);
+    });
+
     // The sqlCatalog section keeps its `runSql` id; its composer text names sql nodes.
     test('composer tools and prompts name no classic query tool', () => {
         const loadouts = [
@@ -310,7 +417,7 @@ describe('resolveLoadout', () => {
         ];
         for (const loadout of loadouts) {
             expect(
-                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout)}`,
+                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout, inputs.composer)}`,
             ).not.toMatch(/runQuery|generateVisualization|runSql/);
         }
     });
@@ -345,6 +452,22 @@ describe('loadout structure', () => {
         expect(AGENT_TOOL_NAMES.filter((tool) => !declared.has(tool))).toEqual(
             [],
         );
+    });
+
+    test('built-in skill names are the agent-available skill directories', async () => {
+        const names = (await BuiltInSkills.getAiAgentSkills()).map(
+            ({ name }) => name,
+        );
+        expect(names.sort()).toEqual([...BUILT_IN_SKILL_NAMES].sort());
+    });
+
+    test('every built-in skill is declared by an add-on', () => {
+        const declared = new Set(
+            ADD_ON_NAMES.flatMap((name) => ADD_ONS[name].skills),
+        );
+        expect(
+            BUILT_IN_SKILL_NAMES.filter((skill) => !declared.has(skill)),
+        ).toEqual([]);
     });
 
     test('each add-on renders at most one section, each section has one owner', () => {

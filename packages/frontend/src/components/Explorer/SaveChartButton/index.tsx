@@ -366,8 +366,10 @@ const SaveChartButton: FC<{
                     isSaveAs={isSaveAsModal}
                     redirectOnSuccess={!suppressNavigation}
                     showViewChartAction={!suppressNavigation}
-                    forcedSpaceUuid={
-                        isEmbedded ? embed.writeActions?.spaceUuid : undefined
+                    restrictedSpaces={
+                        isEmbedded
+                            ? embed.embedWriteContext?.writableSpaces
+                            : undefined
                     }
                 />
             )}

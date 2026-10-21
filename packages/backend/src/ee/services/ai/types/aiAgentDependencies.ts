@@ -4,6 +4,7 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
+    AiAgentPromptLoadout,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiPromptSteer,
@@ -68,10 +69,7 @@ import {
     AiAgentToolCallFailedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
-import type {
-    DbAiPromptComposerVizDecision,
-    DbAiPromptTurnDecision,
-} from '../../../database/entities/ai';
+import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
@@ -650,6 +648,11 @@ export type StoreReasoningFn = (
     }>,
 ) => Promise<void>;
 
+export type StoreLoadoutFn = (
+    promptUuid: string,
+    loadout: AiAgentPromptLoadout,
+) => Promise<void>;
+
 export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
 
 export type ConsumePromptSteersFn = (args: {
@@ -709,9 +712,7 @@ type RecordedPromptDecisionField =
 
 /** Records a fast decision for the current prompt; failures are logged, never thrown. */
 export type RecordPromptDecisionFn = (
-    decision:
-        | Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>
-        | Pick<DbAiPromptComposerVizDecision, RecordedPromptDecisionField>,
+    decision: Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>,
 ) => Promise<void>;
 
 export type CheckUserPermissionFn = (args: {

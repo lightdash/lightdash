@@ -3423,18 +3423,12 @@ export class AiWritebackService extends BaseService {
         }
 
         const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 organizationUuid,
+                projectUuid,
             ))
                 ? undefined
-                : await resolveAiDecisionClient(
-                      this.lightdashConfig.ai?.decisions,
-                      () =>
-                          this.featureFlagModel.get({
-                              user: { organizationUuid },
-                              featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                          }),
-                  );
+                : resolveAiDecisionClient(this.lightdashConfig.ai?.decisions);
         if (decisions) {
             const options = candidates.map(
                 AiWritebackService.toDbtSourceOption,

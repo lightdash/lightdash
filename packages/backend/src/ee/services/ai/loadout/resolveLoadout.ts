@@ -1,5 +1,7 @@
 import { assertUnreachable } from '@lightdash/common';
-import { ADD_ON_NAMES, ADD_ONS } from './addOns';
+import type { AiAgentSkillReference } from '../skills/types';
+import type { AiAgentArgs } from '../types/aiAgent';
+import { ADD_ONS, applicableAddOns, withImpliedAddOns } from './addOns';
 import { BASES } from './bases';
 import type { AddOnName, Loadout, LoadoutBase, LoadoutInput } from './types';
 
@@ -30,9 +32,10 @@ export const buildLoadout = (
     addOnNames: readonly AddOnName[],
 ): Loadout => {
     const definition = BASES[base](input);
-    const addOns = definition.accepts.filter((name) =>
-        addOnNames.includes(name),
+    const implied = withImpliedAddOns(
+        definition.accepts.filter((name) => addOnNames.includes(name)),
     );
+    const addOns = definition.accepts.filter((name) => implied.includes(name));
     return {
         base,
         addOns: new Set(addOns),
@@ -47,13 +50,25 @@ export const buildLoadout = (
                 return section ? [section.id] : [];
             }),
         ]),
+        skills: new Set([
+            ...definition.skills,
+            ...addOns.flatMap((name) => ADD_ONS[name].skills),
+        ]),
     };
 };
 
 /** Pure and total: one base plus the add-ons it accepts whose condition holds. */
 export const resolveLoadout = (input: LoadoutInput): Loadout =>
-    buildLoadout(
-        selectLoadoutBase(input),
-        input,
-        ADD_ON_NAMES.filter((name) => ADD_ONS[name].when(input)),
-    );
+    buildLoadout(selectLoadoutBase(input), input, applicableAddOns(input));
+
+/** The loadout's built-in skills, then the agent's custom skills. */
+export const getAvailableSkills = (
+    args: Pick<AiAgentArgs, 'builtInSkills' | 'customSkills'>,
+    loadout: Pick<Loadout, 'skills'>,
+): AiAgentSkillReference[] => {
+    const listed: ReadonlySet<string> = loadout.skills;
+    return [
+        ...args.builtInSkills.filter(({ name }) => listed.has(name)),
+        ...args.customSkills,
+    ];
+};

@@ -27,7 +27,7 @@ import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualizati
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 const mocks = vi.hoisted(() => ({
-    fastDecisions: vi.fn(),
+    featureFlag: vi.fn(),
     isEmbedded: vi.fn(),
     artifact: vi.fn(),
     thread: vi.fn(),
@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: mocks.fastDecisions,
+    useServerFeatureFlag: mocks.featureFlag,
 }));
 vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
     default: mocks.isEmbedded,
@@ -156,7 +156,7 @@ const config: ToolRunQueryArgs = {
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.isEmbedded.mockReturnValue(false);
-    mocks.fastDecisions.mockReturnValue({ data: { enabled: true } });
+    mocks.featureFlag.mockReturnValue({ data: { enabled: true } });
     mocks.artifact.mockReturnValue({
         data: {
             artifactType: 'chart',
@@ -229,24 +229,6 @@ describe('artifact panel recovery and navigation', () => {
                 .find((radio) => radio.getAttribute('value') === 'line')!,
         ).toBeChecked();
     });
-
-    it.each([false, undefined])(
-        'retains the legacy loading behavior with the flag %s',
-        (enabled) => {
-            mocks.fastDecisions.mockReturnValue({
-                data: enabled === undefined ? undefined : { enabled },
-            });
-            mocks.rows.mockReturnValue({
-                ...mocks.rows(),
-                isFetchingRows: true,
-            });
-            renderWithProviders(<AiArtifactPanel artifact={artifact} />);
-            expect(screen.queryByTestId('chart')).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Retry' }),
-            ).not.toBeInTheDocument();
-        },
-    );
 
     it.each(['artifact', 'thread', 'query', 'rows'] as const)(
         'offers a working retry after a %s failure',
@@ -1115,7 +1097,7 @@ describe('inline artifact result routing', () => {
         'routes every owner inline row consumer with identity=$enabled, loading=$isLoading, embed=$isEmbed',
         ({ enabled, isLoading, isEmbed }) => {
             mocks.isEmbedded.mockReturnValue(isEmbed);
-            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
                 flag === FeatureFlags.AgentIdentity
                     ? {
                           data: enabled === undefined ? undefined : { enabled },
@@ -1153,7 +1135,7 @@ describe('inline artifact result routing', () => {
             >('../../../../../hooks/useQueryResults');
             mocks.rows.mockImplementation(useInfiniteQueryResults);
             mocks.isEmbedded.mockReturnValue(isEmbed);
-            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
                 flag === FeatureFlags.AgentIdentity
                     ? { data: undefined, isLoading: true }
                     : { data: { enabled: true }, isLoading: false },
@@ -1195,7 +1177,7 @@ describe('inline artifact result routing', () => {
             } else {
                 expect(sharedLightdashApi).not.toHaveBeenCalled();
             }
-            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) => ({
+            mocks.featureFlag.mockImplementation((flag: FeatureFlags) => ({
                 data: {
                     enabled:
                         flag === FeatureFlags.AgentIdentity ? enabled : true,
@@ -1222,7 +1204,7 @@ describe('inline artifact result routing', () => {
     );
 
     it('starts scoped inline reads only after the identity flag resolves', () => {
-        mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+        mocks.featureFlag.mockImplementation((flag: FeatureFlags) =>
             flag === FeatureFlags.AgentIdentity
                 ? { data: undefined, isLoading: true }
                 : { data: { enabled: true }, isLoading: false },
@@ -1235,7 +1217,7 @@ describe('inline artifact result routing', () => {
             mocks.rows.mock.calls.every((args) => args[1] === undefined),
         ).toBe(true);
         mocks.rows.mockClear();
-        mocks.fastDecisions.mockReturnValue({
+        mocks.featureFlag.mockReturnValue({
             data: { enabled: true },
             isLoading: false,
         });

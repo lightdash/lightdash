@@ -103,6 +103,7 @@ import {
     SendFileFn,
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
+    StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
     StoreToolCallFn,
@@ -296,12 +297,9 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
-    // Whether the runComposerQueries tool (multi-source pipelines) is
-    // available: the MultiSourceQuery flag + data access, web chat only in v0.
+    // Whether runComposerQueries is the query path: composer flags, data
+    // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
-    // Whether runComposerQueries offers python nodes: composer queries plus
-    // the PythonQueryRunner flag.
-    enableComposerPythonNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
@@ -325,7 +323,10 @@ export type AiAgentArgs = AnyAiModel & {
         warehouseType: WarehouseTypes;
         isOriginal: boolean;
     }[];
-    availableSkills: AiAgentSkillReference[];
+    /** Agent-available built-in skills; the run lists those in `loadout.skills`. */
+    builtInSkills: AiAgentSkillReference[];
+    /** Model-servable custom skills bound to the agent. */
+    customSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
     toolDescriptionMaxChars: number;
@@ -425,6 +426,7 @@ export type AiAgentDependencies = {
     storeToolResults: StoreToolResultsFn;
     recordMcpToolCall: RecordMcpToolCallFn;
     storeReasoning: StoreReasoningFn;
+    storeLoadout: StoreLoadoutFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;

@@ -155,7 +155,7 @@ describe.each([false, true])(
                         .mockResolvedValue(null),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: async () => false,
+                    isOrgOnOwnProviderKeys: async () => false,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             vi.spyOn(
@@ -440,6 +440,7 @@ describe.each([false, true])(
                 ]);
                 expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                     expect.anything(),
+                    'project-1',
                     error,
                     expect.anything(),
                     null,
@@ -636,6 +637,7 @@ describe.each([false, true])(
                     ).rejects.toThrow('Failed to generate response');
                     expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                         expect.anything(),
+                        'project-1',
                         first,
                         expect.anything(),
                         null,
@@ -673,6 +675,7 @@ describe.each([false, true])(
                 );
                 expect(h.getPromptErrorMessage).toHaveBeenCalledWith(
                     expect.anything(),
+                    'project-1',
                     error,
                     expect.anything(),
                     null,

@@ -613,7 +613,7 @@ describe('account', () => {
             ).toEqual({
                 user: mockSessionUser,
                 embedWriteActions: {
-                    spaceUuid: 'write-space-uuid',
+                    writeSpaceUuids: ['write-space-uuid'],
                 },
             });
         });
@@ -686,6 +686,25 @@ describe('account', () => {
                     'source-space-uuid',
                 ]);
                 expect(getEmbedContentListingSpaceUuids(account)).toEqual([
+                    'write-space-uuid',
+                    'source-space-uuid',
+                ]);
+            });
+
+            it('includes source spaces for AI agent tokens', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'aiAgent',
+                        agentUuid: 'agent-uuid',
+                    },
+                    writeActions: {
+                        ...writeActions,
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([
                     'write-space-uuid',
                     'source-space-uuid',
                 ]);

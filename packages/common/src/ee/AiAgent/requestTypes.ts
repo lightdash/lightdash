@@ -203,8 +203,29 @@ export type CreateWebAppThread = {
     threadContext?: string | null;
 };
 
-/** `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions. */
-export type AiAgentBattleProfile = 'fast' | 'baseline' | 'luna';
+/**
+ * `fast` is the JEV path, `baseline` has no fast decisions.
+ * `classic` and `composer` force the agent's query path.
+ */
+export type AiAgentBattleProfile =
+    | 'fast'
+    | 'baseline'
+    /** @deprecated Accepted for older clients and treated as `baseline`. */
+    | 'luna'
+    | 'classic'
+    | 'composer';
+
+/** The exclusive core of an agent run's loadout. */
+export type AiAgentLoadoutBase =
+    | 'classic'
+    | 'composer'
+    | 'no_data_access'
+    | 'deep_research_worker'
+    | 'deep_research_coordinator';
+
+export type AiAgentPromptLoadout = {
+    base: AiAgentLoadoutBase;
+};
 
 export type AiPrompt = {
     organizationUuid: string;
@@ -371,6 +392,11 @@ export type AiPromptContextInput = AiPromptContextItemInput[];
 export type AiThreadBinding = {
     type: 'dashboard';
     dashboardUuid: string;
+};
+
+/** A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted. */
+export type AiThreadBindingSummary = AiThreadBinding & {
+    displayName: string | null;
 };
 
 // The concrete change a writeback applies — one card concept, two payloads.

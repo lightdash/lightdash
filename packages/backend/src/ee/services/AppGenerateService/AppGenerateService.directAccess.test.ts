@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    DATA_REFERENCE_EXTRACTOR_VERSION,
     ForbiddenError,
     ProjectType,
     SpaceMemberRole,
@@ -116,6 +117,23 @@ const buildService = (role: SpaceMemberRole) => {
             hasMore: false,
         }),
         getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 2 }),
+        // The ready version's cached source scan; current extractor version
+        // so getAppVersions serves it without an S3 refresh.
+        getVersion: vi.fn().mockResolvedValue({
+            status: 'ready',
+            data_references: {
+                extractorVersion: DATA_REFERENCE_EXTRACTOR_VERSION,
+                references: [],
+                parseErrors: [],
+                stats: {
+                    callSites: 0,
+                    fullyResolved: 0,
+                    partiallyResolved: 0,
+                    unresolved: 0,
+                },
+                usesAiAnalysis: false,
+            },
+        }),
         moveToSpace: vi.fn(),
     };
     const accessContext = {

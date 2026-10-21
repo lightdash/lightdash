@@ -4,7 +4,7 @@ import {
     ParameterError,
     WarehouseTypes,
 } from '@lightdash/common';
-import knex from 'knex';
+import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { generateKeyPairSync } from 'node:crypto';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -1473,7 +1473,7 @@ describe('Trino credential payloads', () => {
 });
 
 describe('ClickHouse encrypted observations', () => {
-    let database: ReturnType<typeof knex>;
+    let database: Knex;
     let tracker: Tracker;
     const decrypt = vi.fn();
     const encrypt = vi.fn().mockReturnValue(Buffer.from('new-ciphertext'));

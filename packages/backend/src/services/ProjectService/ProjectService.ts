@@ -360,6 +360,7 @@ import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
+import { isPreAggregatesEnabled } from '../../ee/preAggregates/isPreAggregatesEnabled';
 import { computeMaterializationFingerprint } from '../../ee/preAggregates/materializationFingerprint';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
@@ -521,9 +522,12 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
+import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
-    getFilteredExplore,
     mergeUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
@@ -3992,8 +3996,8 @@ export class ProjectService
                                 : (preAggregateDefinition.refresh?.cron ??
                                   null),
                             materialize_on_change:
-                                preAggregateDefinition.refresh?.onChange ===
-                                true,
+                                preAggregateDefinition.refresh?.onChange !==
+                                false,
                             definition_fingerprint: definitionFingerprint,
                         });
                     },
@@ -4064,9 +4068,9 @@ export class ProjectService
 
             // A compile builds a definition that has never completed a
             // materialization, so a new pre-aggregate is live without waiting
-            // for cron, and one whose definition just changed when it opted
-            // in with refresh.on_change. Everything else is left to cron or
-            // a manual refresh.
+            // for cron, and one whose definition just changed unless it opted
+            // out with refresh.on_change: false. Everything else is left to
+            // cron or a manual refresh.
             const changed = new Set(changedDefinitionUuids);
             const everMaterialized =
                 materializableDefinitions.length > 0
@@ -4652,7 +4656,12 @@ export class ProjectService
                 prevMetricsTreeNodes,
             }));
 
-        if (this.lightdashConfig.preAggregates.enabled) {
+        if (
+            await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            )
+        ) {
             await this.syncAndEnqueuePreAggregateMaterializations({
                 projectUuid,
                 organizationUuid,
@@ -5946,7 +5955,11 @@ export class ProjectService
             );
         }
 
-        const startOfWeekByExplore = this.lightdashConfig.preAggregates.enabled
+        const preAggregatesEnabled = await isPreAggregatesEnabled(
+            this.featureFlagModel,
+            project.organizationUuid,
+        );
+        const startOfWeekByExplore = preAggregatesEnabled
             ? await this.getDeployStartOfWeekByExplore({
                   userUuid: user.userUuid,
                   organizationUuid: project.organizationUuid,
@@ -5957,7 +5970,7 @@ export class ProjectService
             : new Map<string, WeekDay | null>();
         const exploresWithPreAggregates = enhanceExploresForPreAggregates({
             explores,
-            enabled: this.lightdashConfig.preAggregates.enabled,
+            enabled: preAggregatesEnabled,
             startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
             startOfWeekByExplore,
         });
@@ -9742,6 +9755,12 @@ export class ProjectService
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+        auditMetricQueryAttributeAccess({
+            account,
+            projectUuid,
+            explore: sourceExplore,
+            metricQuery,
+        });
 
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
@@ -10944,14 +10963,18 @@ export class ProjectService
         metricQuery: MetricQuery;
         usePreAggregateCache: boolean;
     }): Promise<PreAggregateCheckResult> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
-            throw new ForbiddenError('Pre-aggregates are not enabled');
-        }
-
         const { account, projectUuid, exploreName, metricQuery } = args;
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        if (
+            !(await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ))
+        ) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
 
         const auditedAbility = this.createAuditedAbility(account);
         if (
@@ -11861,6 +11884,12 @@ export class ProjectService
                             projectUuid,
                             exploreName,
                         ));
+                    auditMetricQueryAttributeAccess({
+                        account,
+                        projectUuid,
+                        explore,
+                        metricQuery: metricQueryWithLimit,
+                    });
 
                     return await this.warehouseClientFactory.withWarehouseClient(
                         {
@@ -12844,6 +12873,7 @@ export class ProjectService
 
     // Note: can't be private method as it is used in EE
     async _getFieldValuesMetricQuery({
+        account,
         projectUuid,
         table,
         initialFieldId,
@@ -12854,6 +12884,7 @@ export class ProjectService
         userAttributes,
         authorizeInitialExplore,
     }: {
+        account: Account;
         projectUuid: string;
         table: string;
         initialFieldId: string;
@@ -12873,6 +12904,7 @@ export class ProjectService
             organizationUuid,
         );
         return getFieldValuesMetricQuery({
+            account,
             projectUuid,
             table,
             initialFieldId,
@@ -12926,6 +12958,7 @@ export class ProjectService
 
         const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
+                account,
                 projectUuid,
                 table,
                 initialFieldId,
@@ -13555,6 +13588,14 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
+        if (
+            !(await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ))
+        ) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
 
         return { organizationUuid };
     }
@@ -14156,12 +14197,17 @@ export class ProjectService
         }, []);
     }
 
-    private canViewPreAggregateExplores(
+    private async canViewPreAggregateExplores(
         account: Account,
         organizationUuid: string,
         projectUuid: string,
-    ): boolean {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+    ): Promise<boolean> {
+        if (
+            !(await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ))
+        ) {
             return false;
         }
 
@@ -14204,11 +14250,11 @@ export class ProjectService
         );
         const shouldIncludePreAggregateExplores =
             includePreAggregates &&
-            this.canViewPreAggregateExplores(
+            (await this.canViewPreAggregateExplores(
                 account,
                 organizationUuid,
                 projectUuid,
-            );
+            ));
         const visibleExploreSummaries = shouldIncludePreAggregateExplores
             ? allExploreSummaries
             : allExploreSummaries.filter(
@@ -14454,7 +14500,7 @@ export class ProjectService
                     ),
                 };
                 const canViewPreAggregateExplores =
-                    this.canViewPreAggregateExplores(
+                    await this.canViewPreAggregateExplores(
                         account,
                         project.organizationUuid,
                         projectUuid,
@@ -14477,10 +14523,13 @@ export class ProjectService
                         if (!shouldFilterExplore) {
                             acc[explore.name] = explore;
                         } else {
-                            acc[explore.name] = getFilteredExplore(
+                            acc[explore.name] = auditAndFilterExplore({
+                                account,
+                                projectUuid,
                                 explore,
-                                userAccessControls.userAttributes,
-                            );
+                                userAttributes:
+                                    userAccessControls.userAttributes,
+                            });
                         }
                     }
                     if (!isExploreError(explore)) {

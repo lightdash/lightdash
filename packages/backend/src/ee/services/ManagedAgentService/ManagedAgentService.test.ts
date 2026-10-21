@@ -4,6 +4,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
+    CommercialFeatureFlags,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
@@ -34,6 +35,17 @@ import {
     createAutopilotAuthority,
 } from './autopilotAuthority';
 import { ManagedAgentService } from './ManagedAgentService';
+
+// Flag lookups other than the pre-aggregates kill switch, which every
+// heartbeat resolves while rendering the agent.
+const flagLookups = (featureFlagModel: {
+    get: { mock: { calls: unknown[][] } };
+}) =>
+    featureFlagModel.get.mock.calls.filter(
+        ([args]) =>
+            (args as { featureFlagId: string }).featureFlagId !==
+            CommercialFeatureFlags.PreAggregates,
+    );
 
 const captureAutopilotFailure = vi.fn();
 vi.mock('./autopilotFailure', async (importOriginal) => ({
@@ -124,6 +136,7 @@ const buildService = ({
             modelVisibility: null,
             keyAccessibleModelIds: null,
         }),
+        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
     };
     const aiOrganizationSettingsService = {
         getDefaultModelConfig: vi.fn().mockResolvedValue(defaultModelConfig),
@@ -604,17 +617,15 @@ describe('ManagedAgentService discovery scope', () => {
     );
 
     it.each([true, false])(
-        'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
+        'reviews managed metric queries only with a decision key (enabled=%s)',
         async (enabled) => {
             const { service, dataRuntime } = buildService();
-            const getFlag = vi.fn().mockResolvedValue({ enabled });
             const internal = service as AnyType;
             internal.lightdashConfig.ai.decisions = {
-                apiKey: 'test',
+                apiKey: enabled ? 'test' : null,
                 model: 'test',
                 timeoutMs: 100,
             };
-            internal.featureFlagModel.get = getFlag;
             dataRuntime.listExplores.mockResolvedValue([
                 validExplore,
             ] as AnyType);
@@ -656,10 +667,6 @@ describe('ManagedAgentService discovery scope', () => {
                     },
                 );
                 expect(output.metadata.status).toBe('success');
-                expect(getFlag).toHaveBeenCalledWith({
-                    user: { organizationUuid: ORGANIZATION_UUID },
-                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                });
                 expect(evaluate).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(output.result.includes('Query/question review')).toBe(
                     enabled,
@@ -1541,7 +1548,7 @@ describe('ManagedAgentService heartbeat authority', () => {
         await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
 
         expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(2);
-        expect(featureFlagModel.get).toHaveBeenCalledTimes(2);
+        expect(flagLookups(featureFlagModel)).toHaveLength(2);
         expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
         expect(
             agentPermissionService.assertOperationWithRequest,
@@ -1692,7 +1699,7 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
             expect(captureAutopilotFailure).toHaveBeenCalledTimes(
                 failure === 'database' ? 1 : 0,
             );
-            expect(fixture.featureFlagModel.get).toHaveBeenCalledTimes(1);
+            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(1);
         },
     );
 
@@ -2036,7 +2043,7 @@ describe('ManagedAgentService authority check cadence', () => {
                 error: 'Autopilot actor is not configured for project project-uuid',
             }),
         );
-        expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
+        expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
         expect(
             fixture.userModel.findSessionUserAndOrgByUuid,
         ).not.toHaveBeenCalled();
@@ -2095,7 +2102,7 @@ describe('ManagedAgentService authority review regressions', () => {
             await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
             expectAuthorityBlocked(fixture, blockedPersonMessage);
             expect(fixture.doGenerate).not.toHaveBeenCalled();
-            expect(fixture.featureFlagModel.get).not.toHaveBeenCalled();
+            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);

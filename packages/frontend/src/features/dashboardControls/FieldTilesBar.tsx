@@ -2,8 +2,12 @@ import { Button, Divider, Group, Paper, Text } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
-import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
-import { joinLabels, pluralizeTiles } from './fieldLabels';
+import {
+    selectActiveTabUuid,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
+import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields } from './peers';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -70,8 +74,8 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         label,
         thisTabScope,
         everyTabScope,
-        replacedLabels,
         otherTabsUnfiltered,
+        canAct,
         addToUnfiltered,
         switchFromOthers,
         clear,
@@ -83,7 +87,6 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         thisTabScope ?? everyTabScope;
     // Ends the count and each `aria-label`
     const scopeSuffix = hasTabs ? ' on this tab' : '';
-    const replacedNames = joinLabels(replacedLabels);
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
     // A pressed button leaves once its action is done: focus stays on the bar
@@ -100,7 +103,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         wasPressedRef.current = true;
         action();
     };
-    // Beside a "Replace" button the count alone would be unclear
+    // Beside a "Switch" button the count alone would be unclear
     const mainLabel =
         replaced > 0
             ? `Filter ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}`
@@ -109,7 +112,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
               : `Filter all ${unfiltered}`;
     // Starts with the words on the button
     const mainName = `${mainLabel}${replaced > 0 ? '' : ` ${pluralizeTiles(unfiltered)}`}${scopeSuffix} by ${label}`;
-    const replaceLabel = `Replace ${replacedNames} on ${replaced} ${pluralizeTiles(replaced)}`;
+    const switchLabel = `Switch ${replaced} ${pluralizeTiles(replaced)} to this field`;
 
     return (
         <Paper
@@ -117,8 +120,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
             role="region"
             tabIndex={-1}
             aria-label={`Tiles filtered by ${label}`}
-            shadow="xl"
-            withBorder={false}
+            shadow="md"
             radius="md"
             className={classes.bar}
         >
@@ -161,11 +163,11 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                     {replaced > 0 && (
                         <Button
                             size="xs"
-                            variant="default"
-                            aria-label={`${replaceLabel} with ${label}${scopeSuffix}`}
+                            variant="subtle"
+                            aria-label={`${switchLabel} (${label})${scopeSuffix}`}
                             onClick={press(() => switchFromOthers(tileScope))}
                         >
-                            {replaceLabel}
+                            {switchLabel}
                         </Button>
                     )}
                     {applied > 0 && (
@@ -173,6 +175,8 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="subtle"
                             color="gray"
+                            // Loading: what a tile offers is not known yet
+                            disabled={!canAct}
                             aria-label={
                                 hasTabs
                                     ? `Clear ${label} from this tab`
@@ -215,11 +219,14 @@ export const FieldTilesBar: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     const fieldId =
         editingRule !== null &&
         highlightedFieldId !== null &&
-        (getFilterFields(editingRule).includes(highlightedFieldId) ||
+        (getFilterFields(editingRule, dashboardTiles).includes(
+            highlightedFieldId,
+        ) ||
             waitingFieldIds.includes(highlightedFieldId))
             ? highlightedFieldId
             : null;

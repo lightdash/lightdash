@@ -3,7 +3,6 @@ import {
     aiAgentReviewClassifierJudgeCallOutputSchema,
     assertUnreachable,
     CatalogType,
-    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
@@ -43,7 +42,6 @@ import {
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
@@ -105,7 +103,6 @@ type AiAgentReviewClassifierServiceDependencies = {
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     lightdashConfig: LightdashConfig;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     aiAgentSkillModel: Pick<AiAgentSkillModel, 'findBoundToAgent'>;
@@ -307,8 +304,6 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
-    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-
     private readonly projectContextModel: Pick<
         ProjectContextModel,
         'getDocument'
@@ -336,7 +331,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
-        this.featureFlagModel = dependencies.featureFlagModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.aiAgentSkillModel = dependencies.aiAgentSkillModel;
         this.judgeTurn =
@@ -359,26 +353,17 @@ export class AiAgentReviewClassifierService extends BaseService {
         >[0],
     ): Promise<AiAgentReviewClassifierTurnCandidate[]> {
         // Evidence ranking runs on the instance decision provider, so it would
-        // send turn content out of a Bedrock org's region before its own judge
+        // send turn content outside a BYOK org's provider before its own judge
         // ever sees it. Skipping it leaves candidates unranked, not unreviewed.
-        const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+        const client =
+            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 args.organizationUuid,
+                args.projectUuid ?? null,
             ))
                 ? undefined
-                : await resolveAiDecisionClient(
-                      this.lightdashConfig.ai?.decisions,
-                      async () =>
-                          (await this.isEnabled(args))
-                              ? this.featureFlagModel.get({
-                                    user: {
-                                        organizationUuid: args.organizationUuid,
-                                    },
-                                    featureFlagId:
-                                        FeatureFlags.AiAgentFastDecisions,
-                                })
-                              : { enabled: false },
-                  );
+                : resolveAiDecisionClient(this.lightdashConfig.ai?.decisions);
+        const decisions =
+            client && (await this.isEnabled(args)) ? client : undefined;
         const candidates =
             await this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
                 ...args,

@@ -20,7 +20,10 @@ import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';
@@ -53,8 +56,8 @@ const FunnelChart: FC<FunnelChartProps> = memo(
         enableContextMenu = true,
         ...props
     }) => {
-        const { chartRef, isLoading, resultsData, minimal } =
-            useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData, minimal } = useVisualizationState();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 
@@ -101,7 +104,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         const handleOpenContextMenu = useCallback(
             (e: ECElementEvent) => {

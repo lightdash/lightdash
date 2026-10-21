@@ -59,6 +59,7 @@ const app = (
     versions,
     hasMore: false,
     latestReadyVersion: null,
+    latestReadyVersionUsesAiAnalysis: null,
     icon: null,
     verification: null,
     autoAnalysis: 'inherit',

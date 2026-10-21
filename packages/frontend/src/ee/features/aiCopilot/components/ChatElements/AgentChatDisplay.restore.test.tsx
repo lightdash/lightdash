@@ -46,6 +46,7 @@ const app: ApiGetAppResponse['results'] = {
     versions: [],
     hasMore: false,
     latestReadyVersion: 3,
+    latestReadyVersionUsesAiAnalysis: null,
     icon: null,
     verification: null,
     autoAnalysis: 'inherit',
@@ -89,6 +90,7 @@ const assistantMessage = (
     tokenUsage: null,
     responseTiming: null,
     jevDecision: null,
+    loadout: null,
     ...overrides,
 });
 

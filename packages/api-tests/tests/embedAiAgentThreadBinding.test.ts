@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { ApiClient, Body } from '../helpers/api-client';
-import { login } from '../helpers/auth';
+import { login, loginAsEditor } from '../helpers/auth';
 import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const projectUuid = SEED_PROJECT.project_uuid;
@@ -145,7 +145,7 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
                 type: 'dashboard',
                 dashboardUuid: tenantBDashboardUuid,
             },
-            threadContext,
+            threadContext: null,
             firstMessage: { message: prompt },
         });
         const threadUuid = created.body.results.uuid;
@@ -160,13 +160,19 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
             binding: {
                 type: 'dashboard',
                 dashboardUuid: tenantBDashboardUuid,
+                displayName: expect.stringContaining('tenant B dashboard'),
             },
-            threadContext,
+            threadContext: null,
         });
         expect(openedByB.body.results.messages[0]).toMatchObject({
             role: 'user',
             message: prompt,
         });
+
+        const openedByAdmin = await admin.get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${threadUuid}`,
+        );
+        expect(openedByAdmin.body.results.threadContext).toBe(threadContext);
 
         const listedByB = await new ApiClient().get<
             Body<AiAgentThreadSummary[]>
@@ -239,7 +245,7 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
                 type: 'dashboard',
                 dashboardUuid: tenantBDashboardUuid,
             },
-            threadContext,
+            threadContext: null,
             firstMessage: null,
         });
         const threadUuid = created.body.results.uuid;
@@ -298,7 +304,7 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
         expect(created.status).toBe(200);
         expect(created.body.results).toMatchObject({
             binding: null,
-            threadContext: 'Only context, no binding',
+            threadContext: null,
             firstMessage: null,
         });
     });
@@ -310,6 +316,27 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
             asTenant(tenantBToken),
         );
         expect(resp.status).toBe(400);
+    });
+
+    it('returns the thread context only to admins', async () => {
+        const editor = await loginAsEditor();
+        const threadContext = 'Internal note for admins';
+        const created = await editor.post<Body<AiAgentThreadSummary>>(
+            threadsUrl(),
+            { prompt: 'What changed?', threadContext },
+        );
+        expect(created.body.results.threadContext).toBeNull();
+        const threadUuid = created.body.results.uuid;
+
+        const openedByEditor = await editor.get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${threadUuid}`,
+        );
+        expect(openedByEditor.body.results.threadContext).toBeNull();
+
+        const openedByAdmin = await admin.get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${threadUuid}`,
+        );
+        expect(openedByAdmin.body.results.threadContext).toBe(threadContext);
     });
 
     it('leaves threads created without the new fields unbound', async () => {

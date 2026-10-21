@@ -26,7 +26,7 @@
 .rowHighlighted,
 .rowHighlighted:hover {
     border-color: var(--mantine-color-blue-5);
-    background-color: var(--mantine-color-blue-light);
+    background-color: var(--mantine-color-default-hover);
 }
 
 .rowHeader {
@@ -40,7 +40,8 @@
     border-radius: var(--mantine-radius-sm);
 }
 
-.rowMain[data-highlighted] {
+/* Keyboard focus keeps its ring on a selected row */
+.rowMain[data-highlighted]:not(:focus-visible) {
     outline: none;
 }
 

@@ -1,6 +1,5 @@
-import { FeatureFlags, type AiAgentThread } from '@lightdash/common';
+import { type AiAgentThread } from '@lightdash/common';
 import { useEffect, useMemo, useRef } from 'react';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import {
     clearPreview,
     selectArtifactPreview,
@@ -25,9 +24,6 @@ export const useAiAgentThreadArtifact = ({
     threadUuid,
     thread,
 }: UseAiAgentThreadArtifactOptions) => {
-    const fastDecisions =
-        useServerFeatureFlag(FeatureFlags.AiAgentFastDecisions).data
-            ?.enabled === true;
     const dispatch = useAiAgentStoreDispatch();
     const artifact = useAiAgentStoreSelector(selectArtifactPreview);
     const {
@@ -117,7 +113,6 @@ export const useAiAgentThreadArtifact = ({
         const latestArtifact = latestAssistantMessage.artifacts?.at(-1);
         if (!latestArtifact) return;
         const followsCurrentArtifact =
-            fastDecisions &&
             artifact?.messageUuid === latestAssistantMessage.uuid &&
             artifact.artifactUuid === latestArtifact.artifactUuid &&
             artifact.versionUuid === lastAutomaticVersionUuidRef.current;
@@ -147,7 +142,6 @@ export const useAiAgentThreadArtifact = ({
         lastHandledMessageUuidRef.current = latestAssistantMessage.uuid;
         lastAutomaticVersionUuidRef.current = latestArtifact.versionUuid;
     }, [
-        fastDecisions,
         artifact,
         latestAssistantMessage,
         projectUuid,

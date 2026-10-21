@@ -8,6 +8,8 @@ import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfiguration';
+import { isPreAggregatesEnabled } from '../../ee/preAggregates/isPreAggregatesEnabled';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -25,6 +27,7 @@ type HealthServiceArguments = {
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    featureFlagModel: FeatureFlagModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
     learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
 };
@@ -40,6 +43,8 @@ export class HealthService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
 
     private readonly learnSandboxService: Pick<
@@ -53,6 +58,7 @@ export class HealthService extends BaseService {
         lightdashConfig,
         licenseService,
         organizationSettingsModel,
+        featureFlagModel,
         readinessService,
         learnSandboxService,
     }: HealthServiceArguments) {
@@ -62,6 +68,7 @@ export class HealthService extends BaseService {
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.featureFlagModel = featureFlagModel;
         this.readinessService = readinessService;
         this.learnSandboxService = learnSandboxService;
     }
@@ -94,6 +101,13 @@ export class HealthService extends BaseService {
                   maxLimit: this.lightdashConfig.query.maxLimit,
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
+
+        const preAggregatesEnabled = user?.organizationUuid
+            ? await isPreAggregatesEnabled(
+                  this.featureFlagModel,
+                  user.organizationUuid,
+              )
+            : this.lightdashConfig.preAggregates.enabled;
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
@@ -304,6 +318,8 @@ export class HealthService extends BaseService {
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
+                fastDecisionsEnabled:
+                    !!this.lightdashConfig.ai.decisions.apiKey,
             },
             echarts6: {
                 enabled: false,
@@ -319,7 +335,7 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.dashboardComments.enabled,
             },
             preAggregates: {
-                enabled: this.lightdashConfig.preAggregates.enabled,
+                enabled: preAggregatesEnabled,
             },
             externalSources: {
                 engineAvailable:

@@ -59,6 +59,7 @@ import {
     getDimensions,
     getDimensionsWithValidParameters,
     getDocumentRuntimeChartConfig,
+    getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
     getFieldFormatOverrideProps,
@@ -341,6 +342,10 @@ import {
 import type { QuerySourceService } from '../QuerySourceService/QuerySourceService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
+import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
 import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
@@ -1251,7 +1256,9 @@ export class AsyncQueryService extends ProjectService {
             }
             return { target: 'warehouse' };
         }
+        assertIsAccountWithOrg(account);
         return this.preAggregateStrategy.getRoutingDecision({
+            organizationUuid: account.organization.organizationUuid,
             metricQuery,
             explore,
             context,
@@ -2023,10 +2030,12 @@ export class AsyncQueryService extends ProjectService {
                             ]);
                             if (isExploreError(explore))
                                 throw new ForbiddenError();
-                            return getFilteredExplore(
+                            return auditAndFilterExplore({
+                                account: fresh,
+                                projectUuid,
                                 explore,
-                                controls.userAttributes,
-                            );
+                                userAttributes: controls.userAttributes,
+                            });
                         })();
                         explorePromises.set(name, explorePromise);
                     }
@@ -6138,6 +6147,15 @@ export class AsyncQueryService extends ProjectService {
                 ? { ...baseUserAttributes, ...userAttributeOverrides }
                 : baseUserAttributes;
 
+        if (materializationRole === undefined) {
+            auditMetricQueryAttributeAccess({
+                account,
+                projectUuid,
+                explore,
+                metricQuery,
+            });
+        }
+
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
@@ -8178,6 +8196,7 @@ export class AsyncQueryService extends ProjectService {
             labelFieldId,
             staticResults,
         } = await getFieldValuesMetricQuery({
+            account,
             projectUuid,
             table,
             initialFieldId,
@@ -8527,7 +8546,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        // An embedded AI agent previews saved charts from its write space (chat
+        // An embedded AI agent previews saved charts from its write spaces (chat
         // chips, saved answers) as the write actor, the same gate the dashboard
         // tile path applies in checkDashboardChartQueryPermissions. Any other
         // JWT still needs a chart token for this chart.
@@ -8535,8 +8554,9 @@ export class AsyncQueryService extends ProjectService {
             isJwtUser(account) &&
             isAiAgentContent(account.authentication.data.content) &&
             account.embedWriteContext?.canUseAiAgent === true &&
-            account.authentication.data.writeActions?.spaceUuid ===
-                savedChartSpaceUuid
+            getEmbedWriteSpaceUuids(
+                account.authentication.data.writeActions,
+            ).includes(savedChartSpaceUuid)
                 ? account.embedWriteUser
                 : undefined;
 
@@ -8961,19 +8981,21 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid: string | undefined;
     }> {
         const { embedWriteUser } = account;
-        const embedWriteActions = account.authentication.data.writeActions;
-        const writeSpaceUuid = embedWriteUser
-            ? embedWriteActions?.spaceUuid
-            : undefined;
+        const writeSpaceUuids = embedWriteUser
+            ? getEmbedWriteSpaceUuids(account.authentication.data.writeActions)
+            : [];
 
-        if (writeSpaceUuid && requestDashboardUuid) {
+        if (writeSpaceUuids.length > 0 && requestDashboardUuid) {
             try {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     requestDashboardUuid,
                     { projectUuid },
                 );
 
-                if (embedWriteUser && dashboard.spaceUuid === writeSpaceUuid) {
+                if (
+                    embedWriteUser &&
+                    writeSpaceUuids.includes(dashboard.spaceUuid)
+                ) {
                     await this.assertDashboardViewAccessForUser(
                         embedWriteUser,
                         dashboard,
@@ -10830,14 +10852,7 @@ export class AsyncQueryService extends ProjectService {
             },
             featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
-        const { enabled: isPythonEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.PythonQueryRunner,
-        });
-        if (!isEndpointEnabled || !isPythonEnabled) {
+        if (!isEndpointEnabled) {
             throw new ForbiddenError('Python queries are not enabled');
         }
 
@@ -14174,10 +14189,11 @@ export class AsyncQueryService extends ProjectService {
 
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
-            const embedWriteActions = account.authentication.data.writeActions;
             const canUseWriteDashboard =
                 embedWriteUser &&
-                embedWriteActions?.spaceUuid === savedChart.space.uuid;
+                getEmbedWriteSpaceUuids(
+                    account.authentication.data.writeActions,
+                ).includes(savedChart.space.uuid);
 
             if (canUseWriteDashboard) {
                 await this.assertSavedChartViewAccessForUser(embedWriteUser, {

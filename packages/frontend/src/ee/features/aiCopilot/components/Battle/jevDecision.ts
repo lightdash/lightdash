@@ -71,15 +71,15 @@ export const isJevTurn = (decision: AiAgentJevDecision) =>
 
 export const describeJevDecision = (
     decision: AiAgentJevDecision,
-    name = 'JEV',
 ): JevDecisionSummary => {
     const edit = editLabel(decision);
     if (decision.applied)
         return {
             applied: true,
-            badge: `${name} · ${edit}`,
-            title: `${name} applied the ${edit}`,
-            description: `${name} made the change directly, so the agent model never ran and spent no tokens.`,
+            badge: `JEV · ${edit}`,
+            title: `JEV applied the ${edit}`,
+            description:
+                'JEV made the change directly, so the agent model never ran and spent no tokens.',
             reasonCode: null,
         };
     switch (decision.outcome) {
@@ -88,44 +88,46 @@ export const describeJevDecision = (
             return handoff(
                 'new question',
                 'New question for the agent',
-                `${name} read this as a new question rather than a change to the current chart, so the agent answered it.`,
+                'JEV read this as a new question rather than a change to the current chart, so the agent answered it.',
             );
         case 'clarify':
             return {
                 applied: true,
-                badge: `${name} · clarifying question`,
-                title: `${name} asked which one you meant`,
-                description: `The request fit more than one option about equally, so ${name} offered the choices instead of guessing. The agent model did not run.`,
+                badge: 'JEV · clarifying question',
+                title: 'JEV asked which one you meant',
+                description:
+                    'The request fit more than one option about equally, so JEV offered the choices instead of guessing. The agent model did not run.',
                 reasonCode: null,
             };
         case 'unresolved':
             return handoff(
-                `${name} unsure`,
-                `${name} was not confident`,
-                `${name} looked for a direct chart edit but was not sure enough to apply one, so the agent took over.`,
+                'JEV unsure',
+                'JEV was not confident',
+                'JEV looked for a direct chart edit but was not sure enough to apply one, so the agent took over.',
                 decision.reason,
             );
         case 'instant_reply':
             return {
                 applied: true,
-                badge: `${name} · ${edit}`,
-                title: `${name} answered directly`,
-                description: `This was a small follow-up ${name} could answer from the chart itself, so the agent model did not run.`,
+                badge: `JEV · ${edit}`,
+                title: 'JEV answered directly',
+                description:
+                    'This was a small follow-up JEV could answer from the chart itself, so the agent model did not run.',
                 reasonCode: null,
             };
         case 'unavailable':
             return handoff(
-                `${name} unavailable`,
-                `${name} did not answer`,
-                `${name} did not respond in time, so the agent handled the turn as usual.`,
+                'JEV unavailable',
+                'JEV did not answer',
+                'JEV did not respond in time, so the agent handled the turn as usual.',
             );
         case 'intent':
         case 'compound':
         case 'needs_values':
             return handoff(
                 edit,
-                `${name} passed the ${edit} to the agent`,
-                `${name} worked out the ${edit} but it needed more than a direct edit, so the agent finished it.`,
+                `JEV passed the ${edit} to the agent`,
+                `JEV worked out the ${edit} but it needed more than a direct edit, so the agent finished it.`,
                 decision.fallbackReason,
             );
         default:

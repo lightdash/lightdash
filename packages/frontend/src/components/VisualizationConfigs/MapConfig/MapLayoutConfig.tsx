@@ -26,7 +26,7 @@ import {
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
@@ -90,7 +90,7 @@ const findLocationField = (
 };
 
 export const Layout: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
 
     const isMapConfig = isMapVisualizationConfig(visualizationConfig);
 

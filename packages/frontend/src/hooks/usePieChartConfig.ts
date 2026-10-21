@@ -420,6 +420,16 @@ const usePieChartConfig: PieChartConfigFn = (
         [],
     );
 
+    const groupFieldIdsCopy = useMemo(
+        () => Array.from(groupFieldIds),
+        [groupFieldIds],
+    );
+    const toggleDonut = useCallback(() => setIsDonut((prev) => !prev), []);
+    const toggleShowLegend = useCallback(
+        () => setShowLegend((prev) => !prev),
+        [],
+    );
+
     const validConfig: PieChart = useMemo(
         () =>
             buildValidPieConfig({
@@ -458,53 +468,95 @@ const usePieChartConfig: PieChartConfigFn = (
         ],
     );
 
-    return {
-        validConfig,
+    return useMemo(
+        () => ({
+            validConfig,
 
-        groupFieldIds: Array.from(groupFieldIds),
-        groupAdd: handleGroupAdd,
-        groupChange: handleGroupChange,
-        groupRemove: handleRemoveGroup,
+            groupFieldIds: groupFieldIdsCopy,
+            groupAdd: handleGroupAdd,
+            groupChange: handleGroupChange,
+            groupRemove: handleRemoveGroup,
 
-        selectedMetric,
-        metricId,
-        metricChange: setMetricId,
+            selectedMetric,
+            metricId,
+            metricChange: setMetricId,
 
-        isDonut,
-        toggleDonut: () => setIsDonut((prev) => !prev),
+            isDonut,
+            toggleDonut,
 
-        valueLabel,
-        valueLabelChange: handleValueLabelChange,
-        valueLabelColor,
-        valueLabelColorChange: handleValueLabelColorChange,
-        showValue,
-        toggleShowValue: handleToggleShowValue,
-        showPercentage,
-        toggleShowPercentage: handleToggleShowPercentage,
+            valueLabel,
+            valueLabelChange: handleValueLabelChange,
+            valueLabelColor,
+            valueLabelColorChange: handleValueLabelColorChange,
+            showValue,
+            toggleShowValue: handleToggleShowValue,
+            showPercentage,
+            toggleShowPercentage: handleToggleShowPercentage,
 
-        isValueLabelOverriden,
-        isShowValueOverriden,
-        isShowPercentageOverriden,
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
 
-        sortedGroupLabels,
-        groupLabelOverrides,
-        groupLabelChange: handleGroupLabelChange,
-        groupColorOverrides,
-        groupColorDefaults,
-        groupColorChange: handleGroupColorChange,
-        groupValueOptionOverrides,
-        groupValueOptionChange: handleGroupValueOptionChange,
-        groupSortOverrides,
-        groupSortChange: handleGroupSortChange,
+            sortedGroupLabels,
+            groupLabelOverrides,
+            groupLabelChange: handleGroupLabelChange,
+            groupColorOverrides,
+            groupColorDefaults,
+            groupColorChange: handleGroupColorChange,
+            groupValueOptionOverrides,
+            groupValueOptionChange: handleGroupValueOptionChange,
+            groupSortOverrides,
+            groupSortChange: handleGroupSortChange,
 
-        showLegend,
-        toggleShowLegend: () => setShowLegend((prev) => !prev),
-        legendPosition,
-        legendPositionChange: handleLegendPositionChange,
-        legendMaxItemLength,
-        legendMaxItemLengthChange: setLegendMaxItemLength,
-        data,
-    };
+            showLegend,
+            toggleShowLegend,
+            legendPosition,
+            legendPositionChange: handleLegendPositionChange,
+            legendMaxItemLength,
+            legendMaxItemLengthChange: setLegendMaxItemLength,
+            data,
+        }),
+        [
+            validConfig,
+            groupFieldIdsCopy,
+            handleGroupAdd,
+            handleGroupChange,
+            handleRemoveGroup,
+            selectedMetric,
+            metricId,
+            setMetricId,
+            isDonut,
+            toggleDonut,
+            valueLabel,
+            handleValueLabelChange,
+            valueLabelColor,
+            handleValueLabelColorChange,
+            showValue,
+            handleToggleShowValue,
+            showPercentage,
+            handleToggleShowPercentage,
+            isValueLabelOverriden,
+            isShowValueOverriden,
+            isShowPercentageOverriden,
+            sortedGroupLabels,
+            groupLabelOverrides,
+            handleGroupLabelChange,
+            groupColorOverrides,
+            groupColorDefaults,
+            handleGroupColorChange,
+            groupValueOptionOverrides,
+            handleGroupValueOptionChange,
+            groupSortOverrides,
+            handleGroupSortChange,
+            showLegend,
+            toggleShowLegend,
+            legendPosition,
+            handleLegendPositionChange,
+            legendMaxItemLength,
+            setLegendMaxItemLength,
+            data,
+        ],
+    );
 };
 
 export default usePieChartConfig;

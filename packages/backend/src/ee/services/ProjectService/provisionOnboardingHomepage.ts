@@ -58,7 +58,7 @@ export const provisionOnboardingHomepage = async ({
         ? 'new'
         : 'legacy';
     let homepageBuilderEnablement: HomepageBuilderEnablement | null = null;
-    let codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null =
+    const codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null =
         null;
     const trackSkipped = (reason: OnboardingHomepageSkippedReason) => {
         analytics.track({
@@ -108,21 +108,22 @@ export const provisionOnboardingHomepage = async ({
             homepageBuilderEnablement = 'failed';
         }
 
-        try {
-            codingAgentOnboardingEnablement =
-                await featureFlagService.ensureOrganizationOverrideEnabled({
-                    user,
-                    featureFlagId: FeatureFlags.CodingAgentOnboarding,
-                });
-        } catch (error) {
-            Sentry.captureException(error);
-            Logger.error(
-                `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
-            );
-            codingAgentOnboardingEnablement = 'failed';
-        }
+        // Coding agent onboarding is opt-in per org until its post-run flow is ready.
+        // try {
+        //     codingAgentOnboardingEnablement =
+        //         await featureFlagService.ensureOrganizationOverrideEnabled({
+        //             user,
+        //             featureFlagId: FeatureFlags.CodingAgentOnboarding,
+        //         });
+        // } catch (error) {
+        //     Sentry.captureException(error);
+        //     Logger.error(
+        //         `Failed to enable coding agent onboarding for organization ${organizationUuid}: ${
+        //             error instanceof Error ? error.message : String(error)
+        //         }`,
+        //     );
+        //     codingAgentOnboardingEnablement = 'failed';
+        // }
 
         const homepageBuilderFlag = await featureFlagService.get({
             user,

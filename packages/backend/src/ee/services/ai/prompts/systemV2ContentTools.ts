@@ -3,27 +3,24 @@ import {
     DOCUMENT_RESEARCH_SUMMARY_GUIDANCE,
 } from '@lightdash/common';
 
-const getAnswerGuidance = (
-    composer: boolean,
-    answerWithRunQuery: boolean,
-): string => {
+const getAnswerGuidance = (composer: boolean, canRunQuery: boolean): string => {
     if (composer)
         return 'Use runComposerQueries to answer a data question or produce an ad hoc chart.';
-    return answerWithRunQuery
+    return canRunQuery
         ? 'Use runQuery to answer a data question and generateVisualization for an ad hoc chart.'
         : "Use generateVisualization when the user's intent is to answer a data question or produce an ad hoc chart.";
 };
 
 export const getContentToolsSection = ({
-    answerWithRunQuery,
+    canRunQuery,
     viaComposerQueries,
 }: {
-    answerWithRunQuery: boolean;
+    canRunQuery: boolean;
     viaComposerQueries: boolean;
 }) => `
 ## Content tools
 
-- ${getAnswerGuidance(viaComposerQueries, answerWithRunQuery)}
+- ${getAnswerGuidance(viaComposerQueries, canRunQuery)}
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.

@@ -6,15 +6,17 @@ const loadoutFor = (base: LoadoutBase): Loadout => ({
     addOns: new Set(['skills', 'contentReads', 'mcp']),
     toolNames: new Set(['runQuery', 'findContent', 'loadSkill']),
     promptSections: new Set(),
+    skills: new Set(['developing-in-lightdash']),
 });
 
 describe('loadout telemetry', () => {
-    it('describes base, sorted add-ons and tool count', () => {
+    it('describes base, sorted add-ons, skills and tool count', () => {
         const loadout = loadoutFor('composer');
 
         expect(loadoutSpanAttributes(loadout)).toEqual({
             'ai.agent.loadout.base': 'composer',
             'ai.agent.loadout.add_ons': ['contentReads', 'mcp', 'skills'],
+            'ai.agent.loadout.skills': ['developing-in-lightdash'],
             'ai.agent.loadout.tool_count': 3,
         });
         expect(loadoutTelemetryMetadata(loadout)).toEqual({

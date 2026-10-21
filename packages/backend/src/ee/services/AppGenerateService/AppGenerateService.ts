@@ -770,6 +770,12 @@ const CANCELLED_PROMPT_NOTICE =
     'The working tree may contain unfinished changes from the cancelled work. ' +
     "Act only on the user's new request below.";
 
+/** Prepended to the build prompt when the builder's org has saved app state. */
+export const APP_STATE_PROMPT_BLOCK =
+    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
@@ -3819,6 +3825,7 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
+        builder?: { userUuid: string; organizationUuid: string },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -3925,6 +3932,20 @@ export class AppGenerateService extends BaseService {
             );
             if (externalBlock) {
                 finalPrompt = externalBlock + finalPrompt;
+            }
+        }
+
+        // Saved app state: told to the agent only when the builder (or their
+        // organization) has the store enabled, so an app never relies on hooks
+        // that would only keep values in memory.
+        if (!isDataAppViz && builder) {
+            const { enabled: appStateEnabled } =
+                await this.featureFlagModel.get({
+                    user: builder,
+                    featureFlagId: FeatureFlags.EnableDataAppState,
+                });
+            if (appStateEnabled) {
+                finalPrompt = APP_STATE_PROMPT_BLOCK + finalPrompt;
             }
         }
 
@@ -6465,6 +6486,10 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -10178,6 +10203,7 @@ export class AppGenerateService extends BaseService {
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        latestReadyVersionUsesAiAnalysis: boolean | null;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
@@ -10229,6 +10255,21 @@ export class AppGenerateService extends BaseService {
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        // Whether that version wires up AI analysis, from the same cached
+        // source scan as data references (lazily re-extracted on extractor
+        // bumps). Null when there is no ready version or the scan failed —
+        // a scan failure must never fail the app read itself.
+        const latestReadyDataReferences = latestReady
+            ? await this.getVersionDataReferences(
+                  appUuid,
+                  latestReady.version,
+              ).catch((error) => {
+                  this.logger.warn(
+                      `App ${appUuid}: failed to read data references for version ${latestReady.version}: ${getErrorMessage(error)}`,
+                  );
+                  return null;
+              })
+            : null;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -10315,6 +10356,8 @@ export class AppGenerateService extends BaseService {
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            latestReadyVersionUsesAiAnalysis:
+                latestReadyDataReferences?.usesAiAnalysis ?? null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
@@ -13114,6 +13157,7 @@ export class AppGenerateService extends BaseService {
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
+            usesAiAnalysis: extracted.usesAiAnalysis,
         };
     }
 

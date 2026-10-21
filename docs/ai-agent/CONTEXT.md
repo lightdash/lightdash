@@ -45,6 +45,22 @@ agent asks rather than guessing. Slack-started threads have no composer, so
 this is their only path to a theme.
 _Avoid_: theme picker (for the tool), design list
 
+**Bound dashboard**:
+The dashboard a thread is tied to for its whole life, set when the thread is
+created through the API. The agent may only change that dashboard and charts
+saved in it. Shown at the top of the thread as the linked dashboard; the
+launcher never pins a different dashboard into a bound thread. Per thread,
+unlike pinned context, which is per prompt.
+_Avoid_: pinned dashboard (for the binding), thread dashboard, scoped dashboard
+
+**Thread context**:
+Free text given when a thread is created through the API, such as a summary of
+an earlier conversation. The agent reads it on every turn; it never appears as
+a chat message. It may hold internal notes, so the API returns it only to
+viewers with `view:AiAgentThreadContext` (organization and project admins by
+default; never embed viewers). Shown collapsed at the top of the thread.
+_Avoid_: context (unqualified), initial prompt, system prompt
+
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the
 current page, or the tiles of a pinned dashboard. A mention is one way to
@@ -87,11 +103,12 @@ auto
 
 **Skill**:
 A named unit of guidance the AI agent can follow: a description, a markdown
-body, and optional resource files. Built-in skills ship with Lightdash;
-custom skills are authored by an organization and enabled on an agent one by
-one. A skill reaches the model two ways: the agent loads it when a request
-matches its description, or a user invokes it directly with a slash command
-and optional arguments.
+body, and optional resource files. Built-in skills ship with Lightdash and
+are declared by the add-on whose tools they explain, so a loadout lists only
+the built-in skills of its add-ons; custom skills are authored by an
+organization and enabled on an agent one by one. A skill reaches the model
+two ways: the agent loads it when a request matches its description, or a
+user invokes it directly with a slash command and optional arguments.
 _Avoid_: command (for the unit), prompt template, action, macro
 
 **Skill proposal**:
@@ -125,12 +142,16 @@ section. Add-ons compose by union; no two add-ons contribute the same tool,
 and no add-on removes anything.
 _Avoid_: capability, feature, extension, module
 
-**Overlay**:
-A per-turn narrowing of a loadout: the intent gate that hides tools until the
-agent asks for more, or a thread's tool allowlist such as a data app
-investigation. An overlay only removes tools the loadout declared; it never
-adds one.
-_Avoid_: filter, gate (for the concept), allowlist (for the concept)
+**Intent gate**:
+With Jev on, the server picks a turn type at the start of each turn and
+withholds the tools and prompt sections that do not fit it; the agent gets
+them back with `loadAgentTools`. It never adds a tool.
+_Avoid_: overlay, filter
+
+**Tool allowlist**:
+A per-thread cap on the loadout, such as a data app investigation thread. It
+never adds a tool.
+_Avoid_: overlay, filter
 
 **SQL chart**:
 A chart saved from raw warehouse SQL rather than from an explore. Lives

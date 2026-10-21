@@ -27,10 +27,12 @@ export const useDashboardPageContextCuration = ({
     previousContext,
     projectUuid,
     threadId,
+    boundDashboardUuid = null,
 }: {
     previousContext: PromptContext;
     projectUuid: string;
     threadId?: string;
+    boundDashboardUuid?: string | null;
 }) => {
     const currentDashboard = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.currentDashboard,
@@ -67,10 +69,14 @@ export const useDashboardPageContextCuration = ({
             const explicitDashboardContext = getLastDashboardContext(
                 context ?? [],
             );
+            const isOtherThanBoundDashboard =
+                boundDashboardUuid !== null &&
+                currentDashboard?.uuid !== boundDashboardUuid;
             const shouldAttachPageContext =
-                !explicitDashboardContext ||
-                explicitDashboardContext.dashboardUuid ===
-                    currentDashboard?.uuid;
+                !isOtherThanBoundDashboard &&
+                (!explicitDashboardContext ||
+                    explicitDashboardContext.dashboardUuid ===
+                        currentDashboard?.uuid);
             const pageComparisonDashboardContext =
                 explicitDashboardContext ?? comparisonDashboardContext;
             const pagePromptContext = shouldAttachPageContext
@@ -96,7 +102,13 @@ export const useDashboardPageContextCuration = ({
                 ),
             };
         },
-        [currentDashboard, previousDashboardContext, projectUuid, threadId],
+        [
+            boundDashboardUuid,
+            currentDashboard,
+            previousDashboardContext,
+            projectUuid,
+            threadId,
+        ],
     );
 
     const recordSubmittedContext = useCallback(

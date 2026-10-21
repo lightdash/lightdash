@@ -2,7 +2,10 @@ import { ChartType } from '@lightdash/common';
 import { getSankeyFields } from '@lightdash/visualization/editor';
 import { useEffect, useMemo, type FC } from 'react';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
-import { type VisualizationConfigSankeyProps } from './types';
+import {
+    type VisualizationConfigSankeyProps,
+    type VisualizationConfigSankeyType,
+} from './types';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     resultsData,
@@ -37,14 +40,17 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
         });
     }, [sankeyChartConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigSankeyType = useMemo(
+        () => ({
             chartType: ChartType.SANKEY,
             chartConfig: sankeyChartConfig,
             dimensions,
             numericFields,
-        },
-    });
+        }),
+        [sankeyChartConfig, dimensions, numericFields],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationConfigSankey;

@@ -58,6 +58,7 @@ import { AiRouterModel } from './models/AiRouterModel';
 import { AiThreadFileModel } from './models/AiThreadFileModel';
 import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
+import { AppStateModel } from './models/AppStateModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DataAppAnalysisModel } from './models/DataAppAnalysisModel';
@@ -79,6 +80,7 @@ import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
+import { isPreAggregatesEnabled } from './preAggregates/isPreAggregatesEnabled';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -106,6 +108,7 @@ import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
+import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { PreAggregationExternalResolver } from './services/AsyncQueryService/PreAggregationExternalResolver';
@@ -664,6 +667,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
                     savedSqlModel: models.getSavedSqlModel(),
+                    spaceModel: models.getSpaceModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -963,7 +967,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
                 new AiAgentReviewClassifierService({
-                    featureFlagModel: models.getFeatureFlagModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
@@ -1041,6 +1044,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     aiService: repository.getAiService<AiService>(),
+                }),
+            appStateService: ({ models, repository }) =>
+                new AppStateService({
+                    appStateModel: models.getAppStateModel<AppStateModel>(),
+                    appModel: models.getAppModel(),
+                    projectModel: models.getProjectModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             dataAppAnalysisService: ({
                 models,
@@ -1554,8 +1566,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
-                        isEnabled: () =>
-                            context.lightdashConfig.preAggregates.enabled,
+                        isEnabled: (organizationUuid) =>
+                            isPreAggregatesEnabled(
+                                models.getFeatureFlagModel(),
+                                organizationUuid,
+                            ),
                         dashboardModel: models.getDashboardModel(),
                         savedChartModel: models.getSavedChartModel(),
                         projectService: repository.getProjectService(),
@@ -1659,14 +1674,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (
+                    exploreEnhancer: async (
                         explores,
-                        { startOfWeek, startOfWeekByExplore },
+                        { organizationUuid, startOfWeek, startOfWeekByExplore },
                     ) =>
                         enhanceExploresForPreAggregates({
                             explores,
-                            enabled:
-                                context.lightdashConfig.preAggregates.enabled,
+                            enabled: await isPreAggregatesEnabled(
+                                models.getFeatureFlagModel(),
+                                organizationUuid,
+                            ),
                             startOfWeek,
                             startOfWeekByExplore,
                         }),
@@ -1721,6 +1738,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new SchedulerAiAugmentationModel({ database }),
             dataAppAnalysisModel: ({ database }) =>
                 new DataAppAnalysisModel({ database }),
+            appStateModel: ({ database }) => new AppStateModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
             mcpToolCallModel: ({ database }) =>
                 new McpToolCallModel({ database }),

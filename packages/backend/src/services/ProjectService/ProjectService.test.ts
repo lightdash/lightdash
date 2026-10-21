@@ -11,6 +11,7 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
+    CommercialFeatureFlags,
     ConflictError,
     convertExplores,
     CreateTrainingPreviewResults,
@@ -790,6 +791,15 @@ const getMockedProjectService = (
                             return {
                                 id: featureFlagId,
                                 enabled: lightdashConfig.results.cacheEnabled,
+                            };
+                        }
+                        if (
+                            featureFlagId ===
+                            CommercialFeatureFlags.PreAggregates
+                        ) {
+                            return {
+                                id: featureFlagId,
+                                enabled: lightdashConfig.preAggregates.enabled,
                             };
                         }
                         return { id: featureFlagId, enabled: false };
@@ -10504,7 +10514,6 @@ describe('ProjectService', () => {
             },
         );
         test('a connection cannot repair a generated target retained beside a scheduled source with no registry row', async () => {
-            vi.stubEnv('PRE_AGGREGATES_ENABLED', 'true');
             const configured = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11114,7 +11123,7 @@ describe('ProjectService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        test('a compile rebuilds a changed definition only when refresh.on_change is true', async () => {
+        test('a compile rebuilds a changed definition unless refresh.on_change is false', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11167,7 +11176,7 @@ describe('ProjectService', () => {
             expect(
                 preAggregateModel.upsertPreAggregateDefinitions,
             ).toHaveBeenCalledWith([
-                expect.objectContaining({ materialize_on_change: false }),
+                expect.objectContaining({ materialize_on_change: true }),
             ]);
             expect(
                 schedulerClient.materializePreAggregate,
@@ -11244,7 +11253,7 @@ describe('ProjectService', () => {
             );
         });
 
-        test('stores materialize_on_change=true from refresh.on_change', async () => {
+        test('stores materialize_on_change=false from refresh.on_change: false', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11259,7 +11268,7 @@ describe('ProjectService', () => {
                         name: 'rollup',
                         dimensions: ['dim1'],
                         metrics: ['met1'],
-                        refresh: { cron: '0 3 * * *', onChange: true },
+                        refresh: { cron: '0 3 * * *', onChange: false },
                     },
                 ],
             } as Explore;
@@ -11284,7 +11293,7 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith([
                 expect.objectContaining({
                     refresh_cron: '0 3 * * *',
-                    materialize_on_change: true,
+                    materialize_on_change: false,
                 }),
             ]);
         });
@@ -11447,6 +11456,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionsForProject as import('vitest').Mock
             ).mockResolvedValue([
@@ -11492,7 +11508,7 @@ describe('ProjectService', () => {
                 schedulerClient.materializePreAggregate as import('vitest').Mock
             ).mockResolvedValueOnce({ jobId: 'job-valid' });
 
-            const result = await service.refreshPreAggregates(
+            const result = await preAggregatesService.refreshPreAggregates(
                 adminUser,
                 projectUuid,
             );
@@ -11512,6 +11528,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionByDefinitionName as import('vitest').Mock
             ).mockResolvedValue({
@@ -11533,7 +11556,7 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.refreshPreAggregateByDefinitionName(
+                preAggregatesService.refreshPreAggregateByDefinitionName(
                     adminUser,
                     projectUuid,
                     'invalid',
@@ -20179,6 +20202,7 @@ describe('ProjectService.compileQueryForResponse', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });

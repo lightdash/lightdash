@@ -15,14 +15,14 @@ import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
 export const GaugeDisplayConfig: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
         return null;

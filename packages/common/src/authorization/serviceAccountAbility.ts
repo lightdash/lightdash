@@ -419,6 +419,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'AiAgentThread', {
             organizationUuid,
         });
+        can('view', 'AiAgentThreadContext', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.SCIM_MANAGE]: ({
         organizationUuid,

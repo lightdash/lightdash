@@ -71,7 +71,7 @@ String dimension metadata has \`caseSensitiveFilters\` when case sensitivity app
 
 {{ai_writeback_section}}
 
-{{coding_agent_section}}
+
 
 {{repo_fs_section}}
 

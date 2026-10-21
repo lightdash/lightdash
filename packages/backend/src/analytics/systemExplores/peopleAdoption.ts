@@ -50,8 +50,8 @@ export const peopleAdoptionSql = `(WITH population AS (
     SELECT org_id, user_id, event_ts,
         CASE WHEN workload_origin IN ('scheduled', 'autorefresh') OR scheduler_id IS NOT NULL
                   OR initiating_actor_type IN ('system', 'service_account') THEN 'system'
-             WHEN workload_origin = 'interactive' AND initiating_actor_type = 'user' THEN 'human'
-             WHEN workload_origin IN ('mcp', 'app') AND initiating_actor_type = 'user' THEN 'inferred'
+             WHEN workload_origin = 'interactive' AND initiating_actor_type IN ('registered_user', 'user') THEN 'human'
+             WHEN workload_origin IN ('mcp', 'app') AND initiating_actor_type IN ('registered_user', 'user') THEN 'inferred'
              ELSE 'unknown' END, false
     FROM query_events
     UNION ALL

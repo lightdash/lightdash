@@ -1436,16 +1436,10 @@ describe('AsyncQueryService', () => {
             });
         };
 
-        test('requires the python query runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.ComposeSqlRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
-        });
-
         test('requires the compose SQL runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.PythonQueryRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
+            await expect(execute({})).rejects.toThrow(
+                'Python queries are not enabled',
+            );
         });
     });
 
@@ -6311,7 +6305,7 @@ describe('AsyncQueryService', () => {
                     query: 'SELECT * FROM duckdb_preagg',
                     execution: 'duckdb',
                 }),
-                getRoutingDecision: ({ explore }) => {
+                getRoutingDecision: async ({ explore }) => {
                     if (
                         explore.type === ExploreType.PRE_AGGREGATE &&
                         explore.preAggregateSource
@@ -7599,6 +7593,7 @@ describe('AsyncQueryService', () => {
                 },
                 embedWriteContext: {
                     canCreateSavedChart: true,
+                    writableSpaces: [],
                     canUseAiAgent: true,
                 },
                 embedWriteUser: {
@@ -18791,6 +18786,7 @@ describe('embedded AI agent result downloads', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });
@@ -23365,7 +23361,7 @@ describe('fresh execution producer to result reader', () => {
                     upsert: vi.fn(async () => {}),
                 } as never,
                 preAggregateResultsStorageClient: {} as never,
-                isEnabled: () => true,
+                isEnabled: async () => true,
                 dashboardModel: f.service.dashboardModel,
                 savedChartModel: f.service.savedChartModel,
                 projectService: f.service,
@@ -24547,7 +24543,7 @@ describe('fresh execution producer to result reader', () => {
                         upsert: vi.fn(async () => {}),
                     } as never,
                     preAggregateResultsStorageClient: {} as never,
-                    isEnabled: () => true,
+                    isEnabled: async () => true,
                     dashboardModel: f.service.dashboardModel,
                     savedChartModel: f.service.savedChartModel,
                     projectService: f.service,
@@ -25017,7 +25013,7 @@ describe('fresh execution producer to result reader', () => {
                     query: 'SELECT 42 AS value',
                     execution,
                 });
-                strategy.getRoutingDecision = () => ({
+                strategy.getRoutingDecision = async () => ({
                     target: 'pre_aggregate',
                     preAggregateMetadata: undefined,
                     route: {

@@ -108,6 +108,7 @@ const formSchema = z.object({
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
     enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     providerCredentialUuid: z.string().nullable(),
@@ -323,6 +324,16 @@ export const AiAgentFormSetup = ({
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
+
+    const multiSourceQueryFlagQuery = useServerFeatureFlag(
+        FeatureFlags.MultiSourceQuery,
+    );
+    const composeSqlRunnerFlagQuery = useServerFeatureFlag(
+        FeatureFlags.ComposeSqlRunner,
+    );
+    const composerQueriesAvailable =
+        multiSourceQueryFlagQuery.data?.enabled === true &&
+        composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
@@ -1000,6 +1011,26 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
+                            {composerQueriesAvailable && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <SwitchLabel
+                                            text="Composer queries"
+                                            help="Requires reading rows to be enabled."
+                                            badge={<BetaBadge />}
+                                        />
+                                    }
+                                    description="Queries run through the composer pipeline instead of the classic query tools."
+                                    {...form.getInputProps(
+                                        'enableComposerQueries',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    disabled={!form.values.enableDataAccess}
+                                />
+                            )}
                         </Stack>
 
                         <Text size="xs" c="dimmed">

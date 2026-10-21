@@ -8,7 +8,10 @@ import {
 } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
 import useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
-import { type VisualizationConfigFunnelProps } from './types';
+import {
+    type VisualizationConfigFunnelProps,
+    type VisualizationConfigFunnelType,
+} from './types';
 
 const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     resultsData,
@@ -57,14 +60,17 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
         });
     }, [FunnelChartConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigFunnelType = useMemo(
+        () => ({
             chartType: ChartType.FUNNEL,
             chartConfig: FunnelChartConfig,
             dimensions,
             numericFields,
-        },
-    });
+        }),
+        [FunnelChartConfig, dimensions, numericFields],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationConfigFunnel;

@@ -1,5 +1,6 @@
 import {
     type AiAgentBattleProfile,
+    type AiAgentLoadoutBase,
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
@@ -264,20 +265,14 @@ export type DbAiPromptTurnDecision = DbAiPromptDecisionFields & {
     outcome: DbAiPromptTurnDecisionOutcome;
 };
 
-export type DbAiPromptComposerVizDecision = DbAiPromptDecisionFields & {
-    operation: 'composer-viz';
-    outcome: 'planned' | 'unresolved' | 'unavailable';
-};
-
-export type DbAiPromptDecision =
-    | DbAiPromptTurnDecision
-    | DbAiPromptComposerVizDecision;
+export type DbAiPromptDecision = DbAiPromptTurnDecision;
 
 type DbAiPromptDecisionGenerated = 'ai_prompt_decision_uuid' | 'created_at';
 
-export type DbAiPromptDecisionInsert =
-    | Omit<DbAiPromptTurnDecision, DbAiPromptDecisionGenerated>
-    | Omit<DbAiPromptComposerVizDecision, DbAiPromptDecisionGenerated>;
+export type DbAiPromptDecisionInsert = Omit<
+    DbAiPromptTurnDecision,
+    DbAiPromptDecisionGenerated
+>;
 
 export type AiPromptDecisionTable = Knex.CompositeTableType<
     DbAiPromptDecision,
@@ -359,6 +354,7 @@ export type DbAiPrompt = {
     // Hidden turn: the agent receives and responds to the prompt, but the UI
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;
+    loadout_base: AiAgentLoadoutBase | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -385,6 +381,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'execution_mode'
             | 'needs_user_input'
             | 'needs_user_input_metadata'
+            | 'loadout_base'
         > & {
             responded_at: Knex.Raw;
             retried_at?: Date | Knex.Raw;

@@ -124,7 +124,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
                         jsonrpc: '2.0',
                         id: 1,
                         method: 'tools/call',
-                        params: { name: 'get_current_project', arguments: {} },
+                        params: { name: 'get_context', arguments: {} },
                     }),
                 );
             });

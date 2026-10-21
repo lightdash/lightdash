@@ -106,7 +106,7 @@ describe('Document runtime access', () => {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+                    isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
                 },
                 slackAuthenticationModel: {
                     getInstallationFromOrganizationUuid: vi
@@ -183,6 +183,7 @@ describe('Document runtime access', () => {
                 projectUuid: 'project',
                 promptUuid: 'prompt',
                 threadUuid: 'thread',
+                battleProfile: null,
                 ...(slack ? { slackUserId: 'slack-user' } : {}),
             };
 

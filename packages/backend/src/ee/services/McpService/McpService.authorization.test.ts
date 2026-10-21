@@ -194,12 +194,7 @@ describe('MCP scoped tool catalogue', () => {
     );
 
     it('follows read annotations and the explicit context-write exceptions', () => {
-        const contextWrites = new Set([
-            'set_project',
-            'set_agent',
-            'clear_agent',
-            'route_agent',
-        ]);
+        const contextWrites = new Set(['route_agent']);
         for (const definition of mcpToolDefinitions) {
             const tool = definition.for('mcp');
             expect([tool.name, MCP_TOOL_SCOPE_MAP[tool.name]]).toEqual([
@@ -242,16 +237,13 @@ describe('MCP scoped tool catalogue', () => {
                       )
                     : baseline,
             );
-            expect(names).toContain('set_project');
+            expect(names).toContain('list_projects');
             expect(names).toContain('route_agent');
             expect(record).not.toHaveBeenCalled();
         },
     );
 
     it.each([
-        { scopes: ['mcp:read'], name: 'set_project', allowed: true },
-        { scopes: ['mcp:read'], name: 'set_agent', allowed: true },
-        { scopes: ['mcp:read'], name: 'clear_agent', allowed: true },
         { scopes: ['mcp:read'], name: 'route_agent', allowed: true },
         { scopes: ['mcp:read'], name: 'run_sql', allowed: true },
         { scopes: ['mcp:read'], name: 'create_content', allowed: false },

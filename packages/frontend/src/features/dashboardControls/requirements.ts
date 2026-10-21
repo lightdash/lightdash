@@ -64,19 +64,25 @@ export const setRuleRequired = (
             : { ...rule, required: true, requiredGroupId: undefined },
     );
 
-/** Out of its rule, and without the temporary value it may have had. */
+/**
+ * Out of its rule. A filter saved as required only had a temporary value, which
+ * goes with it, as in the shipped form; any other keeps its default value.
+ */
 export const clearRuleRequired = (
     rule: DashboardFilterRule,
+    savedRule: DashboardFilterRule | null,
     filterType: FilterType,
     field: DashboardFilterableField | null,
 ): DashboardFilterRule =>
     withShippedDisabledState(
-        getFilterRuleWithDefaultValue(
-            filterType,
-            field ?? undefined,
-            withoutRequirement(rule),
-            null,
-        ),
+        savedRule !== null && isRuleRequired(savedRule)
+            ? getFilterRuleWithDefaultValue(
+                  filterType,
+                  field ?? undefined,
+                  withoutRequirement(rule),
+                  null,
+              )
+            : withoutRequirement(rule),
     );
 
 export const getAlternativeIds = (

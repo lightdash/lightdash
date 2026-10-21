@@ -41,6 +41,9 @@ const buildService = (promptState: {
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
+        orgAiCopilotConfigResolver: {
+            isOrgOnOwnProviderKeys: async () => true,
+        },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },
         },
@@ -61,6 +64,7 @@ const buildService = (promptState: {
                 threadUuid: 'thread-uuid',
                 organizationUuid: 'organization-uuid',
                 projectUuid: 'project-uuid',
+                battleProfile: null,
                 ...promptState,
             }),
             resetPromptResponseForRetry,

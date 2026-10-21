@@ -11,6 +11,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     ResultsExpiredError,
+    TimeFrames,
     TooManyRequestsError,
     type ItemsMap,
 } from '@lightdash/common';
@@ -659,6 +660,69 @@ describe('DataAppAnalysisService reuse', () => {
             ([data]) => data as { contentHash: string },
         );
         expect(first.contentHash).toBe(second.contentHash);
+    });
+
+    it('changes the cache identity when only the assessment context changes', async () => {
+        // Five weeks of flat day-grain rows ending Sunday 2025-02-09. Run one
+        // happens on that Sunday (its rows are a trailing incomplete day),
+        // run two days later: identical serialized rows, different
+        // seasonality coverage — the hashes must not collide.
+        const dayFields = {
+            orders_date_day: {
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.DATE,
+                timeInterval: TimeFrames.DAY,
+                name: 'date_day',
+                label: 'Date',
+            },
+            orders_total: fields.orders_total,
+        } as unknown as ItemsMap;
+        const dayRows = Array.from({ length: 35 }, (_, index) => {
+            const date = new Date(Date.UTC(2025, 0, 6 + index));
+            return {
+                orders_date_day: date.toISOString().slice(0, 10),
+                orders_total: date.getUTCDay() === 0 ? 300 : 100,
+            };
+        });
+        const { service, dataAppAnalysisModel, asyncQueryService, aiService } =
+            buildService();
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: dayRows,
+            fields: dayFields,
+            truncated: false,
+            displayTimezone: null,
+        });
+        aiService.detectDataAppAnomalies.mockResolvedValue({
+            detection: { ...detection, anomalies: [] },
+            modelId: 'fast-model',
+            usage: {
+                inputTokens: 1,
+                outputTokens: 1,
+                cacheReadTokens: null,
+                cacheWriteTokens: null,
+                reasoningTokens: null,
+                totalTokens: 2,
+            },
+        });
+        vi.useFakeTimers();
+        try {
+            vi.setSystemTime(new Date('2025-02-09T12:00:00Z'));
+            await service.detect(account(), 'proj-1', 'app-1', {
+                ...request,
+                force: true,
+            });
+            vi.setSystemTime(new Date('2025-02-12T12:00:00Z'));
+            await service.detect(account(), 'proj-1', 'app-1', {
+                ...request,
+                force: true,
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+        const [first, second] = dataAppAnalysisModel.create.mock.calls.map(
+            ([data]) => data as { contentHash: string },
+        );
+        expect(first.contentHash).not.toBe(second.contentHash);
     });
 
     it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {

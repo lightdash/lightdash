@@ -1740,43 +1740,13 @@ export const getContextToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'getContext',
     title: 'Get context',
     description:
-        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable or full project scope is desired, omit agentUuid; use set_agent for manual selection. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
+        'Call this first to discover available projects, the agents you can access in each project, and Lightdash-configured context. Pass the selected projectUuid to every project-scoped tool call. When agent-specific scope is useful and routing is available, use route_agent and pass its returned agentUuid explicitly. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. This tool reports context but does not establish implicit execution state. When the session is pinned to a project, activeProject is the only allowed project. Otherwise it is a stored default, not a restriction on projectUuid. Use the project the user requested; if none was specified, use activeProject if present or ask. If the requested project is unavailable or rejected, explain rather than substitute another project.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: {
         annotations: readOnlyAnnotations,
         structuredContentSchema: mcpGetContextOutputSchema,
     },
-});
-
-/** @deprecated Use getContextToolDefinition and explicit projectUuid arguments. */
-export const setProjectToolDefinition = defineTool({
-    name: 'setProject',
-    title: 'Set project',
-    description:
-        'Set the configured project context. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) also require its projectUuid explicitly. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request and pass its returned agentUuid explicitly to subsequent scoped tools; use list_agents and set_agent only for manual override.',
-    availability: ['mcp'],
-    inputSchema: z.object({
-        projectUuid: z.string(),
-        tags: z.array(z.string()).optional(),
-    }),
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Use getContextToolDefinition. */
-export const getCurrentProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'getCurrentProject',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'getCurrentProject',
-    title: 'Get current project (deprecated)',
-    description:
-        '@deprecated Use get_context instead. Returns legacy shared project context for older clients.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listAgentsToolDefinition = defineTool({
@@ -1801,58 +1771,13 @@ export const routeAgentToolDefinition: ToolDefinitionWithMcpOutput<
     name: 'routeAgent',
     title: 'Route agent',
     description:
-        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, use list_agents and set_agent for manual selection; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
+        'Select the best AI agent for a user request within the required projectUuid when agent-specific scope is useful and routing is available. Pass the returned agentUuid explicitly to subsequent scoped tools. If routing is unavailable, pick an agent from list_agents and pass its agentUuid explicitly; omit agentUuid when full project scope is desired. Also updates shared agent context for clients that use it.',
     availability: ['mcp'],
     inputSchema: routeAgentArgsSchema,
     mcp: {
         annotations: contextWriteAnnotations,
         structuredContentSchema: routeAgentStructuredOutputSchema,
     },
-});
-
-/** @deprecated Use routeAgentToolDefinition and explicit agentUuid arguments. */
-export const setAgentToolDefinition = defineTool({
-    name: 'setAgent',
-    title: 'Set agent',
-    description:
-        "Manually select an AI agent for the required projectUuid. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Pass the agentUuid explicitly to subsequent scoped tools and use this context to guide them — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
-    availability: ['mcp'],
-    inputSchema: z.object({
-        agentUuid: z.string(),
-    }),
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Omit agentUuid from project-scoped tool calls. */
-export const clearAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'clearAgent',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'clearAgent',
-    title: 'Clear agent (deprecated)',
-    description:
-        '@deprecated Omit agentUuid from scoped tool calls instead. Clears legacy shared agent context for older clients only.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: contextWriteAnnotations },
-});
-
-/** @deprecated Use getContextToolDefinition or routeAgentToolDefinition. */
-export const getCurrentAgentToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'getCurrentAgent',
-    typeof emptyInputSchema,
-    typeof emptyInputSchema,
-    undefined
-> = defineTool({
-    name: 'getCurrentAgent',
-    title: 'Get current agent (deprecated)',
-    description:
-        '@deprecated Use get_context for legacy configured context or route_agent for an explicit agent selection.',
-    availability: ['mcp'],
-    inputSchema: emptyInputSchema,
-    mcp: { annotations: readOnlyAnnotations },
 });
 
 export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -2189,13 +2114,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     mcpListProjectsToolDefinition,
     getProjectInfoToolDefinition,
     getContextToolDefinition,
-    setProjectToolDefinition,
-    getCurrentProjectToolDefinition,
     listAgentsToolDefinition,
     routeAgentToolDefinition,
-    setAgentToolDefinition,
-    clearAgentToolDefinition,
-    getCurrentAgentToolDefinition,
     listVerifiedContentToolDefinition,
     runAiWritebackToolDefinition,
     getAiWritebackStatusToolDefinition,

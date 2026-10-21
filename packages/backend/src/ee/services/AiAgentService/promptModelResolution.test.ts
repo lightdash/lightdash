@@ -59,6 +59,7 @@ const buildService = ({
             getThread: vi.fn(async () => ({
                 uuid: threadUuid,
                 user: { uuid: userUuid },
+                threadContext: null,
             })),
             findThreadMessage: vi.fn(async () => ({ uuid: promptUuid })),
             getContextForPromptUuids: vi.fn(async () => new Map()),

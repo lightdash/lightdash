@@ -35,9 +35,15 @@ vi.mock('../LightdashVisualization/types', () => ({
     isTableVisualizationConfig: () => true,
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => mocks.context.current,
-}));
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => mocks.context.current;
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 
 // Module mocks must be registered before importing the component.
 // eslint-disable-next-line import/first

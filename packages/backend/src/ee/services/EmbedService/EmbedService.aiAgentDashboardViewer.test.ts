@@ -98,6 +98,14 @@ const mintAgentToken = (content: Record<string, unknown> = {}) =>
         '5m',
     );
 
+const writeSpaceAccessContext = {
+    projectUuid: mockProjectUuid,
+    organizationUuid: mockOrganizationUuid,
+    spaceUuid: WRITE_SPACE_UUID,
+    inheritsFromOrgOrProject: true,
+    access: [],
+};
+
 const buildService = ({
     actor = buildActor(),
     dashboardSpaceUuid = WRITE_SPACE_UUID,
@@ -125,13 +133,14 @@ const buildService = ({
             }),
         },
         spacePermissionService: {
-            resolveAccess: vi.fn().mockResolvedValue({
-                projectUuid: mockProjectUuid,
-                organizationUuid: mockOrganizationUuid,
-                spaceUuid: WRITE_SPACE_UUID,
-                inheritsFromOrgOrProject: true,
-                access: [],
-            }),
+            resolveAccess: vi.fn().mockResolvedValue(writeSpaceAccessContext),
+            resolveAccessBatch: vi.fn(
+                async (_userUuid: string, targets: unknown[]) =>
+                    targets.map((target) => ({
+                        target,
+                        context: writeSpaceAccessContext,
+                    })),
+            ),
         },
     } as unknown as ConstructorParameters<typeof EmbedService>[0]);
 

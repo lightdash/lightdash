@@ -181,6 +181,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
         analytics: { track: vi.fn() } as AnyType,
         orgAiCopilotConfigResolver: {
             isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+            isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
         } as AnyType,
         projectModel: {
             get: vi.fn(),
@@ -1085,7 +1086,7 @@ describe('AiWritebackService dbt source targeting', () => {
                 lightdashConfig: {
                     ai: {
                         decisions: {
-                            apiKey: 'test',
+                            apiKey: enabled ? 'test' : null,
                             model: 'test',
                             timeoutMs: 100,
                         },
@@ -1099,8 +1100,8 @@ describe('AiWritebackService dbt source targeting', () => {
             return { service, get };
         };
 
-        it('uses the organization flag and selects only an authorized candidate, ignoring a negated longer name', async () => {
-            const { service, get } = setup();
+        it('selects only an authorized candidate, ignoring a negated longer name', async () => {
+            const { service } = setup();
             vi.spyOn(AiDecisionClient.prototype, 'evaluate').mockResolvedValue({
                 target: {
                     type: 'choice',
@@ -1119,10 +1120,6 @@ describe('AiWritebackService dbt source targeting', () => {
                 kind: 'resolved',
                 candidate: { sourceUuid: 'src-marketing' },
             });
-            expect(get).toHaveBeenCalledExactlyOnceWith({
-                user: { organizationUuid: ORG },
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            });
         });
 
         it('asks for source selection on provider failure instead of guessing from a negated repository name', async () => {
@@ -1137,7 +1134,7 @@ describe('AiWritebackService dbt source targeting', () => {
             expect(result.options).toHaveLength(2);
         });
 
-        it('retains legacy source matching when the flag is off', async () => {
+        it('retains legacy source matching without a decision key', async () => {
             const { service } = setup(false);
             const evaluate = vi.spyOn(AiDecisionClient.prototype, 'evaluate');
             expect(

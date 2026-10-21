@@ -92,7 +92,10 @@ const withChart = {
 const account = {
     user: { type: 'registered', id: 'user', userUuid: 'user' },
 } as unknown as RegisteredAccount;
-const setup = (spaceAccess: string[] | null = null) => {
+const setup = (
+    spaceAccess: string[] | null = null,
+    readOnlySpaceUuids: string[] = [],
+) => {
     const documentService = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
@@ -160,6 +163,7 @@ const setup = (spaceAccess: string[] | null = null) => {
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         tags: null,
         spaceAccess,
+        readOnlySpaceUuids,
         threadBinding: null,
     };
     return {
@@ -437,6 +441,36 @@ describe('MCP Document runtime', () => {
                 documentEdit: { type: 'metadata', name: 'New title' },
             }),
         ).rejects.toThrow(NotFoundError);
+        expect(documentService.create).not.toHaveBeenCalled();
+        expect(documentService.updateMetadata).not.toHaveBeenCalled();
+    });
+    test('AI Agent Documents in a read-only Space are readable but not writable', async () => {
+        const { service, context, documentService } = setup(
+            ['write-space', spaceUuid],
+            [spaceUuid],
+        );
+        const runtime = service.createRuntime({
+            ...context,
+            source: 'ai_agent',
+            enableDocuments: true,
+        });
+        await expect(
+            runtime.readContent({
+                type: 'document',
+                slug: document.slug,
+                chartId: null,
+            }),
+        ).resolves.toMatchObject({ content: readContent });
+        await expect(
+            runtime.createContent({ type: 'document', content }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            runtime.editContent({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: { type: 'metadata', name: 'New title' },
+            }),
+        ).rejects.toThrow(ForbiddenError);
         expect(documentService.create).not.toHaveBeenCalled();
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
     });

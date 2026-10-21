@@ -562,12 +562,16 @@ export class DataAppAnalysisService extends BaseService {
                     prePass.annotations,
                 );
                 const legend = fieldLegend(fields, fieldIds);
-                // Label and query uuid excluded: identity is the rows read
-                // (markers included — they change what the model sees).
+                // Label and query uuid excluded: identity is what the model
+                // sees — the rows (markers included) plus the pre-pass
+                // assessment context, so a run with different coverage notes
+                // cannot reuse a cached result for the same serialized rows.
                 sectionHashes.push({
                     queryUuid: source.queryUuid,
                     hash: sha256(
-                        `${legend}\n${csv}${truncated ? '\n[truncated]' : ''}`,
+                        `${legend}\n${csv}\n${prePass.note ?? ''}\n${
+                            prePass.limitation ?? ''
+                        }${truncated ? '\n[truncated]' : ''}`,
                     ),
                 });
                 return appendCsvSection(

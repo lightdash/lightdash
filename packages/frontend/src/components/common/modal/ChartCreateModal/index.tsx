@@ -1,5 +1,6 @@
 import {
     type CreateSavedChartVersion,
+    type EmbedWritableSpace,
     type SavedChart,
 } from '@lightdash/common';
 import { IconChartBar } from '@tabler/icons-react';
@@ -35,7 +36,7 @@ interface ChartCreateModalProps extends Pick<
     isSaveAs?: boolean;
     redirectOnSuccess?: boolean;
     showViewChartAction?: boolean;
-    forcedSpaceUuid?: string;
+    restrictedSpaces?: EmbedWritableSpace[];
     /** Chart-level palette chosen before the first save. */
     colorPaletteUuid?: string | null;
 }
@@ -56,7 +57,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     isSaveAs = false,
     redirectOnSuccess = true,
     showViewChartAction = true,
-    forcedSpaceUuid,
+    restrictedSpaces,
     colorPaletteUuid,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
@@ -152,7 +153,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     onConfirm={onConfirm}
                     onClose={onClose}
                     defaultSpaceUuid={spaceUuid}
-                    forcedSpaceUuid={forcedSpaceUuid}
+                    restrictedSpaces={restrictedSpaces}
                     dashboardInfoFromSavedData={{
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,

@@ -131,6 +131,7 @@ export type AiAgentThreadDumpAgent = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'version'
 >;

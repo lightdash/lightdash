@@ -253,6 +253,9 @@ const CONTENT_AS_CODE_TYPE_LABELS = {
 export const SQL_CHART_SAVE_PERMISSION_MESSAGE =
     'You do not have the SQL chart save permission (manage custom SQL) in this project, so SQL charts cannot be saved. Do not retry; ask the user to get this permission or save a chart built from an explore instead.';
 
+const READ_ONLY_SPACE_MESSAGE =
+    'This space is read-only for this agent. Save the content to one of its writable spaces instead.';
+
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
 export type AiAgentToolsRuntimeContext = {
@@ -267,6 +270,8 @@ export type AiAgentToolsRuntimeContext = {
     querySurface: QuerySurface;
     tags: string[] | null;
     spaceAccess: string[] | null;
+    /** Spaces in spaceAccess the agent may read but never create or update content in. */
+    readOnlySpaceUuids: string[];
     /** Resource the thread is bound to; writes are limited to it. Null outside bound threads. */
     threadBinding: AiThreadBinding | null;
     sqlScope?: AgentSqlScope | null;
@@ -2201,6 +2206,26 @@ export class AiAgentToolsService extends BaseService {
             );
             throw new NotFoundError(notFoundMessage);
         }
+
+        if (
+            action !== 'read' &&
+            (await this.spaceModel.hasSpaceWithPathAndUuids({
+                projectUuid: context.projectUuid,
+                path: getLtreePathFromContentAsCodePath(spaceSlug),
+                spaceUuids: context.readOnlySpaceUuids,
+            }))
+        ) {
+            await this.recordRefusal(
+                context,
+                'content',
+                action,
+                'agent_scope',
+                'content_in_read_only_space',
+                undefined,
+                null,
+            );
+            throw new ForbiddenError(READ_ONLY_SPACE_MESSAGE);
+        }
     }
 
     private async assertDashboardSpaceInScope(
@@ -2236,6 +2261,13 @@ export class AiAgentToolsService extends BaseService {
             );
             throw new NotFoundError(notFoundMessage);
         }
+        await this.assertSpaceWritable(
+            context,
+            'dashboard',
+            action,
+            dashboard.spaceUuid,
+            dashboard.uuid,
+        );
     }
 
     private async assertSavedChartSpaceInScope(
@@ -2271,6 +2303,13 @@ export class AiAgentToolsService extends BaseService {
             );
             throw new NotFoundError(notFoundMessage);
         }
+        await this.assertSpaceWritable(
+            context,
+            'chart',
+            action,
+            savedChart.spaceUuid,
+            savedChart.uuid,
+        );
     }
 
     // Resolved per write so a slug renamed earlier in the thread still matches.
@@ -2347,7 +2386,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     // Data apps enabled and the user may create them in the project. Without a
-    // project a coarse check keeps tools/list stable across set_project.
+    // project a coarse check keeps tools/list stable across stored context.
     async canGenerateDataApp(context: {
         user: SessionUser;
         projectUuid: string | undefined;
@@ -3158,6 +3197,15 @@ export class AiAgentToolsService extends BaseService {
                 'content_outside_agent_scope',
             );
             throw new NotFoundError(`${noun} "${slug}" was not found`);
+        }
+        if (spaceUuid !== null) {
+            await this.assertSpaceWritable(
+                context,
+                'app',
+                action,
+                spaceUuid,
+                null,
+            );
         }
     }
 
@@ -5198,8 +5246,7 @@ export class AiAgentToolsService extends BaseService {
                         ),
                         alwaysIncludeInContext: false,
                         summary: {
-                            description:
-                                'Deep Research report from this conversation, published as a Document.',
+                            description: `Deep Research report from this conversation, published as the Document with slug "${document.slug}".`,
                             definedTerms: [],
                             relatedExploreNames: [],
                             useWhen: `Answering follow-up questions about: ${run.prompt}`,
@@ -5568,6 +5615,31 @@ export class AiAgentToolsService extends BaseService {
                 'You do not have permission to view this project',
             );
         }
+    }
+
+    private async assertSpaceWritable(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: 'read' | 'create' | 'update',
+        spaceUuid: string,
+        objectUuid: string | null,
+    ) {
+        if (
+            action === 'read' ||
+            !context.readOnlySpaceUuids.includes(spaceUuid)
+        ) {
+            return;
+        }
+        await this.recordRefusal(
+            context,
+            objectType,
+            action,
+            'agent_scope',
+            'content_in_read_only_space',
+            undefined,
+            objectUuid,
+        );
+        throw new ForbiddenError(READ_ONLY_SPACE_MESSAGE);
     }
 
     private static hasAgentSpaceAccess(
@@ -5980,6 +6052,13 @@ export class AiAgentToolsService extends BaseService {
             );
             throw new NotFoundError('Document not found');
         }
+        await this.assertSpaceWritable(
+            context,
+            'document',
+            action,
+            document.spaceUuid,
+            document.documentUuid,
+        );
         const [space] = await this.spaceModel.find({
             projectUuid: context.projectUuid,
             spaceUuids: [document.spaceUuid],
@@ -6067,8 +6146,30 @@ export class AiAgentToolsService extends BaseService {
         return this.documentContentResult(context, document);
     }
 
-    /** A Space by slug, or by the exact name the user gave. */
     private async resolveDocumentSpace(
+        context: AiAgentToolsRuntimeContext,
+        spaceSlugOrName: string,
+        action: 'create' | 'update',
+        documentUuid: string | null = null,
+    ): Promise<{ uuid: string }> {
+        const space = await this.findDocumentSpace(
+            context,
+            spaceSlugOrName,
+            action,
+            documentUuid,
+        );
+        await this.assertSpaceWritable(
+            context,
+            'document',
+            action,
+            space.uuid,
+            documentUuid,
+        );
+        return space;
+    }
+
+    /** A Space by slug, or by the exact name the user gave. */
+    private async findDocumentSpace(
         context: AiAgentToolsRuntimeContext,
         spaceSlugOrName: string,
         action: 'create' | 'update',

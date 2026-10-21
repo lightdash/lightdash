@@ -5,6 +5,7 @@ models:
     config:
       tags: ["core"]
       meta:
+        groups: ["facilities"]
         primary_key: contract_id
         joins:
           - join: fm_buildings

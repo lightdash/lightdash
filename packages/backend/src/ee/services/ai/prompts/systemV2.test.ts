@@ -60,23 +60,24 @@ const normalizeFilterModeSections = (
         .replace(filterGuidance, '{{filter guidance}}');
 
 describe('getSystemPromptV2 filter expressions', () => {
-    test('keeps the complete flag-off prompt byte-identical', () => {
+    test('keeps the classic prompt byte-identical', () => {
         const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.flag-off.txt'),
+            join(__dirname, '__fixtures__/systemV2.classic.txt'),
         );
         const rendered = Buffer.from(
             promptText({
                 availableExplores: [],
                 date: '2026-08-27',
+                canRunQuery: true,
             }),
         );
 
         expect(rendered.equals(baseline)).toBe(true);
     });
 
-    test('keeps the flag-off prompt with every capability byte-identical', () => {
+    test('keeps the classic prompt with every capability byte-identical', () => {
         const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.flag-off-capabilities.txt'),
+            join(__dirname, '__fixtures__/systemV2.classic-capabilities.txt'),
         );
         const rendered = Buffer.from(
             promptText({
@@ -92,6 +93,7 @@ describe('getSystemPromptV2 filter expressions', () => {
                 date: '2026-08-27',
                 enableDataAccess: true,
                 canRunSql: true,
+                canRunQuery: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 runSqlMaxLimit: 5000,
@@ -464,78 +466,57 @@ describe('getSystemPromptV2 response content', () => {
         );
     });
 
-    test('states the working-notes rule once in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
+    test('states the working-notes rule once', () => {
+        const content = promptText({ availableExplores: [] });
         expect(
-            fast.split('Do not write context-preservation notes').length - 1,
+            content.split('Do not write context-preservation notes').length - 1,
         ).toBe(1);
-        expect(extractResponseFormat(fast)).toContain(
+        expect(extractResponseFormat(content)).toContain(
             'Do not write context-preservation notes, scratchpads',
         );
     });
 });
 
 describe('getSystemPromptV2 merge queries', () => {
-    test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
-        expect(fast).toContain('All assistant text is user-visible');
-        expect(fast).toContain('Prior assistant notes are not evidence');
-        expect(fast).toContain(
-            'Correlation, timing and subgroup differences do not establish causation',
+    test('names runQuery for small tables only when the agent has it', () => {
+        expect(
+            promptText({ availableExplores: [], canRunQuery: true }),
+        ).toContain(
+            'For a small tabular answer, use runQuery and present its results as a Markdown table',
         );
-        expect(fast).toContain('Label untested explanations as hypotheses');
-        expect(fast).toContain(
-            'The earliest observed record in one source does not establish the true first occurrence',
+        const withoutRunQuery = promptText({ availableExplores: [] });
+        expect(withoutRunQuery).toContain(
+            'For a small tabular answer, present the results as a Markdown table',
         );
+        expect(withoutRunQuery).not.toContain('runQuery');
     });
 
-    test('allows complete web tables and avoids redundant titles in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
-        expect(fast).toContain(
-            'Markdown tables with a header, separator and data rows',
-        );
-        expect(fast).not.toContain('Never produce markdown tables');
-        expect(fast).not.toContain('no markdown tables');
-        expect(fast).toContain('Do not repeat the artifact title');
-    });
-
-    test.each([{ slackChannelId: 'channel' }, { slackLinksOnly: true }])(
-        'retains Slack table restrictions: %j',
-        (slack) => {
-            const fast = promptText({
-                promptSections: new Set<PromptSection>(['fastMetadata']),
-                availableExplores: [],
-                ...slack,
-            });
-            expect(fast).toContain('Never produce markdown tables');
-            expect(fast).not.toContain(
-                'Markdown tables with a header, separator and data rows',
+    test.each([
+        { surface: 'web', args: {}, markdownTables: true },
+        {
+            surface: 'Slack',
+            args: { slackChannelId: 'channel' },
+            markdownTables: false,
+        },
+        {
+            surface: 'Slack links only',
+            args: { slackLinksOnly: true },
+            markdownTables: false,
+        },
+    ])(
+        'allows Markdown tables on $surface: $markdownTables',
+        ({ args, markdownTables }) => {
+            const content = promptText({ availableExplores: [], ...args });
+            expect(
+                content.includes(
+                    'Markdown tables with a header, separator and data rows',
+                ),
+            ).toBe(markdownTables);
+            expect(content.includes('Never produce markdown tables')).toBe(
+                !markdownTables,
             );
         },
     );
-
-    test('requires result-backed comparisons in fast mode only', () => {
-        const baseline = promptText({ availableExplores: [] });
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
-        expect(baseline).not.toContain(
-            'Category labels are values, not comparisons',
-        );
-        expect(fast).toContain(
-            'A label such as "Low Cost" does not prove that its group is cheaper',
-        );
-    });
 
     test('directs cross-explore questions to runSql, never mergeConfig', () => {
         const content = promptText({
@@ -624,7 +605,6 @@ describe('getSystemPromptV2 composer queries', () => {
                             'contentTools',
                             'documents',
                             'aiWriteback',
-                            'fastMetadata',
                         ),
                         canRunSql,
                         enableDataAccess: true,
@@ -681,6 +661,15 @@ describe('getSystemPromptV2 memories', () => {
         });
 
         expect(content).toContain('## Memories');
+        expect(content).toContain(
+            'Do not save temporary query results as durable user memories.',
+        );
+    });
+
+    test('keeps the memories rule out of prompts without memories', () => {
+        expect(promptText({ availableExplores: [] })).not.toContain(
+            'durable user memories',
+        );
     });
 });
 
@@ -710,25 +699,17 @@ describe('getSystemPromptV2 knowledge documents', () => {
         content: 'Net revenue excludes refunds.',
     } satisfies AiAgentDocumentContext;
 
-    test.each([false, true])(
-        'recognizes preloaded documents only in fast mode: %s',
-        (enableFastMetadata) => {
-            const content = promptText({
-                availableExplores: [],
-                knowledgeDocuments: [document],
-                promptSections: new Set<PromptSection>(
-                    enableFastMetadata ? ['fastMetadata'] : [],
-                ),
-            });
-            expect(
-                content.includes(
-                    'whose complete content has not already been preloaded for this request',
-                ),
-            ).toBe(enableFastMetadata);
-            expect(content).toContain('Multiple matches → read each of them.');
-            expect(content).not.toContain('{{unloaded_knowledge_documents}}');
-        },
-    );
+    test('recognizes preloaded documents', () => {
+        const content = promptText({
+            availableExplores: [],
+            knowledgeDocuments: [document],
+        });
+        expect(content).toContain(
+            'whose complete content has not already been preloaded for this request',
+        );
+        expect(content).toContain('Multiple matches → read each of them.');
+        expect(content).not.toContain('{{unloaded_knowledge_documents}}');
+    });
 
     test('includes full content for documents configured to always load', () => {
         const content = promptText({
@@ -855,6 +836,38 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).toContain('Why did &lt;revenue&gt; fall?');
         expect(content).toContain('getKnowledgeDocumentContent');
         expect(content).toContain('implicitly start a duplicate run');
+        expect(content).toContain('You cannot update a published report here');
+        expect(content).toContain('"Create and edit content"');
+        expect(content).not.toContain('`editContent` it');
+    });
+
+    test('lets content tools update a published report in place', () => {
+        const content = promptText({
+            availableExplores: [],
+            promptSections: new Set<PromptSection>(['contentTools']),
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did revenue fall?',
+                    status: 'completed',
+                    phase: null,
+                    activity: null,
+                    progressCurrent: null,
+                    progressTotal: null,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 600,
+                    hasReport: true,
+                },
+            ],
+        });
+
+        expect(content).toContain(
+            '`readContent` it by its Document slug, then `editContent` it',
+        );
+        expect(content).toContain('new version of the same Document');
+        expect(content).not.toContain(
+            'You cannot update a published report here',
+        );
     });
 });
 
@@ -1038,57 +1051,32 @@ describe('getSystemPromptV2 MCP connections', () => {
     });
 });
 
-describe('getSystemPromptV2 coding agent section', () => {
-    test('omits the coding-agent section when the coding agent is disabled', () => {
-        const content = promptText({
-            availableExplores: [],
-        });
-        expect(content).not.toContain(
-            'Editing source code in connected repositories',
-        );
-        expect(content).not.toContain('`editRepo`');
-    });
-
-    test('includes the coding-agent section when enabled', () => {
-        const content = promptText({
-            promptSections: new Set<PromptSection>(['codingAgent']),
-            availableExplores: [],
-        });
-        expect(content).toContain(
-            'Editing source code in connected repositories',
-        );
-        expect(content).toContain('`editRepo`');
-    });
-});
-
 describe('getSystemPromptV2 writeback attribution', () => {
-    test('omits the writeback section entirely when writeback is disabled', () => {
+    const writebackArgs = {
+        promptSections: new Set<PromptSection>(['aiWriteback']),
+        availableExplores: [],
+        siteUrl: 'https://app.lightdash.cloud',
+    };
+
+    test('omits the attribution block when writeback is disabled', () => {
         const content = promptText({
             availableExplores: [],
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud',
         });
-        expect(content).not.toContain('## Repository writeback');
         expect(content).not.toContain('Pull request attribution');
     });
 
-    test('includes the base section but no attribution block when attribution is null', () => {
-        const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
-            writebackAttribution: null,
-            siteUrl: 'https://app.lightdash.cloud',
-        });
-        expect(content).toContain('## Repository writeback');
-        expect(content).not.toContain('Pull request attribution');
+    test('omits the attribution block when attribution is null', () => {
+        expect(
+            promptText({ ...writebackArgs, writebackAttribution: null }),
+        ).not.toContain('Pull request attribution');
     });
 
     test('nudges unlinked users who can link, with an absolute settings link', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: true },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('not** linked a personal GitHub account');
@@ -1103,8 +1091,7 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not duplicate slashes in the settings link when siteUrl has a trailing slash', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud/',
         });
@@ -1116,10 +1103,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not nudge or deep-link when the user cannot link', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: { mode: 'org', canLink: false },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('shared organization-level Lightdash GitHub');
@@ -1128,113 +1113,87 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('states personal attribution without nudging when the user has linked', () => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['aiWriteback']),
-            availableExplores: [],
+            ...writebackArgs,
             writebackAttribution: {
                 mode: 'personal',
                 githubLogin: 'octocat',
             },
-            siteUrl: 'https://app.lightdash.cloud',
         });
         expect(content).toContain('Pull request attribution');
         expect(content).toContain('@octocat');
         expect(content).not.toContain('/generalSettings/profile');
     });
-});
 
-describe('getSystemPromptV2 change-validation policy', () => {
-    const writebackArgs = {
-        promptSections: new Set<PromptSection>(['aiWriteback']),
-        availableExplores: [],
-        writebackAttribution: null,
-        siteUrl: 'https://app.lightdash.cloud',
-    };
+    const missingFieldLine = 'offer to add it to the semantic layer';
+    const noContentLine = 'You cannot edit saved charts or dashboards';
 
-    test('requires validating a value-affecting change before calling it safe', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
+    test('offers semantic-layer fixes only with writeback', () => {
+        expect(promptText(writebackArgs)).toContain(missingFieldLine);
+        expect(promptText({ availableExplores: [] })).not.toContain(
+            missingFieldLine,
         );
     });
 
-    test('frames the policy beyond consolidation (split / replace / refactor)', () => {
-        const content = promptText(writebackArgs);
-        // the trigger is any value claim, not just merging duplicates
-        expect(content).toContain('splitting');
-        expect(content).toContain('refactoring');
-    });
-
-    test('spells out both halves of "safe": reference impact AND value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('Reference impact');
-        expect(content).toContain('Value correctness');
-        // both proof methods the policy offers
-        expect(content).toContain('By construction');
-        expect(content).toContain('By data');
-    });
-
-    test('names the real tools the agent uses to prove value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('runQuery');
-        expect(content).toContain('generateVisualization');
-        expect(content).toContain('total grain');
-        expect(content).toContain('time dimension');
-    });
-
-    test('requires surfacing divergence rather than asserting safety', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('diverge');
-        expect(content).toContain('do **not** call it safe');
-    });
-
-    test('omits the change-validation policy when writeback is disabled', () => {
-        const content = promptText({
-            ...writebackArgs,
-            promptSections: new Set<PromptSection>(),
-        });
-        expect(content).not.toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
-        );
+    test('says content cannot be repointed only without content tools', () => {
+        expect(promptText(writebackArgs)).toContain(noContentLine);
+        expect(
+            promptText({
+                ...writebackArgs,
+                promptSections: new Set<PromptSection>([
+                    'aiWriteback',
+                    'contentTools',
+                ]),
+            }),
+        ).not.toContain(noContentLine);
     });
 });
 
-describe('getSystemPromptV2 repo-fs code search caveat', () => {
+describe('getSystemPromptV2 repository context', () => {
     const repoFsArgs = {
         promptSections: new Set<PromptSection>(['repoFs']),
         availableExplores: [],
         repoFsRoot: '.',
     };
+    const caveat = "`search` is unavailable for this project's repositories";
+
+    test('names the dbt sub-path behind the /dbt mount', () => {
+        expect(
+            promptText({ ...repoFsArgs, repoFsRoot: 'transform/dbt' }),
+        ).toContain(
+            'the `transform/dbt/` subdirectory of the underlying repository',
+        );
+        expect(promptText(repoFsArgs)).toContain(
+            "The `/dbt` mount is this project's governed dbt repository.",
+        );
+    });
 
     test('appends the no-search caveat when code search is unsupported (GitLab)', () => {
-        const content = promptText({
-            ...repoFsArgs,
-            repoFsSupportsCodeSearch: false,
-        });
-        expect(content).toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(
+            promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: false }),
+        ).toContain(caveat);
     });
 
     test('omits the caveat when code search is supported (GitHub / default)', () => {
         expect(
             promptText({ ...repoFsArgs, repoFsSupportsCodeSearch: true }),
-        ).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        ).not.toContain(caveat);
         // Default (arg omitted) is "supported", so no caveat either.
-        expect(promptText(repoFsArgs)).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(promptText(repoFsArgs)).not.toContain(caveat);
+    });
+
+    test('routes data questions to the semantic layer only with repo discovery', () => {
+        const dataLine = 'questions about data, metrics or fields go to';
+        expect(promptText(repoFsArgs)).toContain(dataLine);
+        expect(promptText({ availableExplores: [] })).not.toContain(dataLine);
     });
 
     test('never adds the caveat when repo discovery is off', () => {
-        const content = promptText({
-            availableExplores: [],
-            repoFsSupportsCodeSearch: false,
-        });
-        expect(content).not.toContain(
-            "`search` is unavailable for this project's repositories",
-        );
+        expect(
+            promptText({
+                availableExplores: [],
+                repoFsSupportsCodeSearch: false,
+            }),
+        ).not.toContain(caveat);
     });
 });
 
@@ -1279,7 +1238,6 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         { enableDataAccess: false, slackLinksOnly: true },
     ])('selects useful charts for every Slack sharing mode: %j', (flags) => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
             slackChannelId: 'channel',
             ...flags,
@@ -1323,42 +1281,42 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             'Every selected chart card carries an "Explore in Lightdash" button',
         );
     });
+
+    test('web answer guidance never mentions Slack result cards', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            canRunQuery: true,
+        });
+        expect(content).toContain(
+            'it returns rows as a table rather than a chart. Use generateVisualization only',
+        );
+        expect(content).not.toContain('Slack result cards');
+    });
 });
 
 describe('getSystemPromptV2 Slack table selection', () => {
-    test.each([false, true])(
-        'prefers summaries and selectively renders useful current-turn tables in Slack (fast: %s)',
-        (enableFastMetadata) => {
-            const content = promptText({
-                availableExplores: [],
-                slackChannelId: 'channel',
-                enableDataAccess: true,
-                promptSections: new Set<PromptSection>(
-                    enableFastMetadata ? ['fastMetadata'] : [],
-                ),
-            });
-            expect(content).toContain('a summary is the default');
-            expect(content).toContain(
-                '<slack-table queryUuid="<queryUuid>" />',
-            );
-            expect(content).toContain('The marker is hidden from visible text');
-            expect(content).toContain('on its own line in your final response');
-            expect(content).toContain(
-                'Select at most 10 requested or useful final tables',
-            );
-            expect(content).toContain(
-                'Never automatically include every table',
-            );
-            expect(content).toContain(
-                'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
-            );
-            if (enableFastMetadata) {
-                expect(content).not.toContain(
-                    'Slack result cards are attached automatically',
-                );
-            }
-        },
-    );
+    test('prefers summaries and selectively renders useful current-turn tables in Slack', () => {
+        const content = promptText({
+            availableExplores: [],
+            slackChannelId: 'channel',
+            enableDataAccess: true,
+        });
+        expect(content).toContain('a summary is the default');
+        expect(content).toContain('<slack-table queryUuid="<queryUuid>" />');
+        expect(content).toContain('The marker is hidden from visible text');
+        expect(content).toContain('on its own line in your final response');
+        expect(content).toContain(
+            'Select at most 10 requested or useful final tables',
+        );
+        expect(content).toContain('Never automatically include every table');
+        expect(content).toContain(
+            'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
+        );
+        expect(content).not.toContain(
+            'Slack result cards are attached automatically',
+        );
+    });
 
     test.each([
         { slackChannelId: null, enableDataAccess: true, slackLinksOnly: false },
@@ -1375,11 +1333,7 @@ describe('getSystemPromptV2 Slack table selection', () => {
     ])(
         'omits table selection guidance where it is unavailable: %j',
         (flags) => {
-            const content = promptText({
-                promptSections: new Set<PromptSection>(['fastMetadata']),
-                availableExplores: [],
-                ...flags,
-            });
+            const content = promptText({ availableExplores: [], ...flags });
             expect(content).not.toContain('<slack-table');
             expect(content).not.toContain(
                 'renders that execution as a native Slack table',
@@ -1437,7 +1391,6 @@ describe('getSystemPromptV2 existing chart export', () => {
 describe('getSystemPromptV2 deferred capability sections', () => {
     const capabilities = {
         promptSections: new Set<PromptSection>([
-            'fastMetadata',
             'contentTools',
             'schedulingTools',
             'generateDataApp',
@@ -1445,6 +1398,7 @@ describe('getSystemPromptV2 deferred capability sections', () => {
         ]),
         availableExplores: [],
         canRunSql: true,
+        canRunQuery: true,
     };
 
     test('omits deferred sections and returns them for loadAgentTools', () => {

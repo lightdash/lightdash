@@ -18,4 +18,5 @@ started this thread.
 - If ANY memory informed your answer, you MUST cite it: append
   \`<ld-mem-cite id="slug"></ld-mem-cite>\` at the end of the sentence it
   supports — one slug per tag, adjacent tags for several, never inside code
-  fences.`;
+  fences.
+- Do not save temporary query results as durable user memories.`;

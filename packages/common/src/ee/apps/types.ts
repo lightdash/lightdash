@@ -591,6 +591,11 @@ export type ApiGetAppResponse = ApiSuccess<{
     // Viewers must use this (not scan `versions`) to decide whether the app
     // can be previewed — the ready version may be older than the page window.
     latestReadyVersion: number | null;
+    // Whether the latest ready version's own code wires up the AI-analysis
+    // SDK surface (markers, summary, prompt hook). Null when there is no
+    // ready version or the source scan is unavailable — never offer an
+    // analysis upgrade on null.
+    latestReadyVersionUsesAiAnalysis: boolean | null;
     // The registry slug it was installed from, or null for a project-authored
     // (or forked) app. Registry-installed chart types are read-only.
     registrySlug: string | null;
@@ -1441,6 +1446,10 @@ export {
 // AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).
 // Host → iframe with the current analysis, in reply to a request and on change.
 export const APP_SDK_INSIGHTS_MESSAGE = 'lightdash:sdk:insights';
+/** Iframe → parent: a durable app state call to run as the viewer. */
+export const APP_SDK_APP_STATE_MESSAGE = 'lightdash:sdk:app-state';
+export const APP_SDK_APP_STATE_RESPONSE_MESSAGE =
+    'lightdash:sdk:app-state-response';
 // Iframe → host once the SDK's listener is live (and on sdk:ready);
 // `inUse: true` once a hook subscribed, i.e. the app renders analysis.
 export const APP_SDK_INSIGHTS_REQUEST_MESSAGE =

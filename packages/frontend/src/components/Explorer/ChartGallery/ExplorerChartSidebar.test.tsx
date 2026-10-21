@@ -76,11 +76,17 @@ vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
 vi.mock('../../../features/apps/hooks/useCanEditDataApp', () => ({
     useCanEditDataAppChecker: () => () => true,
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         visualizationConfig: vizConfig.current,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 
 const { getSelectedChartTypeItem } = vi.hoisted(() => ({
     getSelectedChartTypeItem: vi.fn(() => ({

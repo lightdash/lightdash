@@ -1,10 +1,15 @@
 import { ChartType } from '@lightdash/common';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
-import { createRef, type ContextType } from 'react';
+import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MantineProvider from '../../providers/MantineProvider';
 import { type EChartsReact } from '../EChartsReactWrapper';
-import VisualizationContext from '../LightdashVisualization/context';
+import {
+    LayoutContext,
+    ServicesContext,
+    StateContext,
+    type VisualizationContextValue,
+} from '../LightdashVisualization/context';
 import { type VisualizationConfigTreemap } from '../LightdashVisualization/types';
 import SimpleTreemap from './index';
 
@@ -73,10 +78,10 @@ const makeContext = () => {
         chartConfig: { type: ChartType.TREEMAP, config: {} },
         hasExplorerStore: false,
         isTouchDevice: false,
-    } satisfies NonNullable<ContextType<typeof VisualizationContext>>;
+    } satisfies VisualizationContextValue;
 };
 
-type TestContext = NonNullable<ContextType<typeof VisualizationContext>>;
+type TestContext = VisualizationContextValue;
 
 const renderTreemap = (
     context: TestContext,
@@ -84,14 +89,18 @@ const renderTreemap = (
     onScreenshotError = vi.fn(),
 ) => (
     <MantineProvider env="test">
-        <VisualizationContext.Provider value={context}>
-            <SimpleTreemap
-                isInDashboard
-                opts={{ renderer: 'svg', width: 800, height: 600 }}
-                onScreenshotReady={onScreenshotReady}
-                onScreenshotError={onScreenshotError}
-            />
-        </VisualizationContext.Provider>
+        <ServicesContext.Provider value={context}>
+            <LayoutContext.Provider value={context}>
+                <StateContext.Provider value={context}>
+                    <SimpleTreemap
+                        isInDashboard
+                        opts={{ renderer: 'svg', width: 800, height: 600 }}
+                        onScreenshotReady={onScreenshotReady}
+                        onScreenshotError={onScreenshotError}
+                    />
+                </StateContext.Provider>
+            </LayoutContext.Provider>
+        </ServicesContext.Provider>
     </MantineProvider>
 );
 
@@ -322,5 +331,20 @@ describe('SimpleTreemap screenshot readiness', { timeout: 20_000 }, () => {
         );
         expect(onScreenshotError).toHaveBeenCalledOnce();
         expect(onScreenshotReady).not.toHaveBeenCalled();
+    });
+});
+
+describe('SimpleTreemap resize listener', { timeout: 20_000 }, () => {
+    it('adds the window resize listener once across re-renders', () => {
+        const addListener = vi.spyOn(window, 'addEventListener');
+        const context = makeContext();
+        const onScreenshotReady = vi.fn();
+        const { rerender } = render(renderTreemap(context, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        expect(
+            addListener.mock.calls.filter(([type]) => type === 'resize'),
+        ).toHaveLength(1);
+        addListener.mockRestore();
     });
 });
