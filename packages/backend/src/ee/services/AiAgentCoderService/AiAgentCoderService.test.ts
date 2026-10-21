@@ -509,6 +509,14 @@ describe('AiAgentCoderService', () => {
             },
             error: 'must enable data access before enabling content tools',
         },
+        {
+            agent: {
+                ...agentAsCode,
+                enableDataAccess: false,
+                enableComposerQueries: true,
+            },
+            error: 'must enable data access before enabling composer queries',
+        },
     ])(
         'rejects invalid agent configuration: $error',
         async ({ agent, error }) => {
