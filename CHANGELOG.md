@@ -1,3 +1,16 @@
+# [3.17.0](https://github.com/lightdash/lightdash/compare/3.16.0...3.17.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ai:** make the Jev-era prompt wording and runQuery the default for every agent ([#31296](https://github.com/lightdash/lightdash/issues/31296)) ([577e945](https://github.com/lightdash/lightdash/commit/577e94514ff3d4d66124efc268dc433d8b6ce221))
+* **ai:** memories rule lives in the memories section, web answer guidance stops naming Slack cards ([#31298](https://github.com/lightdash/lightdash/issues/31298)) ([2b210c6](https://github.com/lightdash/lightdash/commit/2b210c6d84a6aa2d67a3dc69da715052dba1cc6f))
+
+
+### Features
+
+* **ai:** repository guidance loads on demand as three skills, one per setting ([#31305](https://github.com/lightdash/lightdash/issues/31305)) ([a9c278a](https://github.com/lightdash/lightdash/commit/a9c278a792486e67fb46310f650dbc20e2294ee8))
+
 # [3.16.0](https://github.com/lightdash/lightdash/compare/3.15.0...3.16.0) (2026-10-21)
 
 
