@@ -1,4 +1,6 @@
 import type { AiDeepResearchPhase } from '@lightdash/common';
+import { loadoutTelemetryMetadata } from '../loadout/telemetry';
+import type { Loadout } from '../loadout/types';
 import type { AiAgentArgs } from '../types/aiAgent';
 import {
     AiCallFeature,
@@ -59,6 +61,7 @@ export const getAgentTelemetryConfig = (
         | 'externalUserId'
     > & { execution?: AiAgentArgs['execution'] },
     feature: AiCallFeature = 'agent',
+    loadout: Loadout | null = null,
 ) =>
     getAiCallTelemetry({
         functionId,
@@ -73,13 +76,14 @@ export const getAgentTelemetryConfig = (
         keyManagement,
         channel,
         externalUserId,
-        ...(execution?.mode === 'deep_research'
-            ? {
-                  extra: getDeepResearchTelemetryExtra(
+        extra: {
+            ...(execution?.mode === 'deep_research'
+                ? getDeepResearchTelemetryExtra(
                       execution.runUuid,
                       execution.phase,
-                  ),
-              }
-            : {}),
+                  )
+                : {}),
+            ...(loadout ? loadoutTelemetryMetadata(loadout) : {}),
+        },
         recordIO: telemetryEnabled,
     });
