@@ -59,13 +59,9 @@ it('prints the full multi-line 409 message from finalize through the compiled CL
     const message = `This deploy was not saved and nothing in the project changed.
 The project has several dbt sources and Lightdash could not tell which one these explores belong to: no source in this project provides the dbt project analytics.
 
-To fix it, name the source for this deploy:
-  lightdash deploy --source <name>
-or store it once for this project:
-  lightdash config set-source <name>
+To fix it, make sure each dbt project has a distinct name in its dbt_project.yml, and that the repository you are deploying from is added as a dbt source in the project settings. If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.
 
-Sources in this project: Core models, Replica models.
-If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.`;
+Sources in this project: Core models, Replica models.`;
     const requests: string[] = [];
     const server = createServer((request, response) => {
         requests.push(`${request.method} ${request.url}`);
@@ -117,6 +113,8 @@ If the sources show no dbt project name yet, refresh the project in Lightdash, t
         ]);
         expect(result.code).toBe(1);
         expect(result.stderr).toContain(`${message}\n`);
+        expect(result.stderr).not.toContain('--source');
+        expect(result.stderr).not.toContain('set-source');
         expect(result.stderr.split(message)).toHaveLength(2);
     } finally {
         server.closeAllConnections();

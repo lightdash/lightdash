@@ -240,7 +240,7 @@ describe('deploy completeness transport', () => {
             name: 'ConflictError',
             statusCode: 409,
             message:
-                'This deploy was not saved.\nChoose a source with --source.',
+                'This deploy was not saved and nothing in the project changed.\nGive each dbt project a distinct name in dbt_project.yml.',
             data: {},
         });
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
