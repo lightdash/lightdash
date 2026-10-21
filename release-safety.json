@@ -1,14 +1,40 @@
 {
   "schemaVersion": "2",
-  "version": "2.631.7",
-  "previousVersion": "2.631.6",
-  "releaseDate": "2026-10-21T07:17:06.600Z",
+  "version": "3.0.0",
+  "previousVersion": "2.631.7",
+  "releaseDate": "2026-10-21T08:22:07.677Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 2,
+    "coreCount": 2,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261015100000_add_materialize_on_change_to_pre_aggregate_definitions.ts",
+        "edition": "core",
+        "tables": [
+          "pre_aggregate_definitions"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261020100000_add_fingerprints_to_pre_aggregate_tables.ts",
+        "edition": "core",
+        "tables": [
+          "pre_aggregate_definitions",
+          "pre_aggregate_materializations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

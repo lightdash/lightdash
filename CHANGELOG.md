@@ -1,3 +1,22 @@
+# [3.0.0](https://github.com/lightdash/lightdash/compare/2.631.7...3.0.0) (2026-10-21)
+
+
+* feat(pre-aggregates)!: rebuild on compile only for new or changed definitions (#31196) ([0d6fe18](https://github.com/lightdash/lightdash/commit/0d6fe18059f9531012ed2a8096cb59afca812f73)), closes [#31196](https://github.com/lightdash/lightdash/issues/31196)
+
+
+### Features
+
+* **ai:** composer queries are the agent's only query path under the composer flag ([#31257](https://github.com/lightdash/lightdash/issues/31257)) ([0949635](https://github.com/lightdash/lightdash/commit/094963569b72ef94737b1fc711dee83933fca7bb))
+* **ai:** loadout base and add-ons on agent turn trace (ZAP-1289) ([#31267](https://github.com/lightdash/lightdash/issues/31267)) ([03156f4](https://github.com/lightdash/lightdash/commit/03156f4d4ebdccedb805238a8c7ebbfc23d7236c))
+
+
+### BREAKING CHANGES
+
+* a project compile no longer refreshes an existing, unchanged pre-aggregate. Deployments with PRE_AGGREGATES_ENABLED=true must give each pre-aggregate a refresh.cron or refresh it manually; set refresh.on_change: true to rebuild on the compile that changes a definition. refresh.on_compile and the compile-trigger page override never shipped and are removed.
+
+Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01GdiFsDGeJySQ1WgvdWLTFh
+
 ## [2.631.7](https://github.com/lightdash/lightdash/compare/2.631.6...2.631.7) (2026-10-21)
 
 
