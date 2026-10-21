@@ -66,7 +66,8 @@ In `FilterConfiguration/`:
   is `openNew`. It tracks nothing; `ADD_FILTER_CLICKED` stays with the
   provider. The provider returns focus to it by
   `[data-filter-actions] > button[data-dashboard-filter-control]`.
-- `FilterPills`: click opens the control, the X removes it and is hidden while
+- `FilterPills`: click opens the control (on the pill being edited it is
+  `close()`, as "Done"), the X removes it and is hidden while
   the sidebar is open. A pill is disabled until the filterable fields exist
   (`allFilterableFields`), as the shipped pill is; a SQL column filter waits
   for none. Dimension rules and metric rules are two dnd-kit
@@ -415,7 +416,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   fields of the filter.
 - A data app tile takes the filter as a whole, as in the shipped popover: on
   with no entry, off with `false`, never a field. Its card has the line
-  "Filtered" / "Not filtered" and a `Switch` in place of the select. While it
+  "This tile is filtered" / "This tile is not filtered" and a `Switch` in place of the select. While it
   is on it is `mapped`, and `other` once any field is active, since it is on
   no particular field. It counts as filtered in the tab and sidebar counts and
   never in a field's count; clearing or removing a field leaves it as it is.
@@ -436,8 +437,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   are mapped to on a filter of any kind (it is never a field of the filter).
   Both give the same shape: the
   field, its labels, `isWaiting`, two `FieldScope`s (`thisTabScope`,
-  `everyTabScope`), `replacedLabels` for the scope in view,
-  `otherTabsUnfiltered`, and `addToUnfiltered`, `switchFromOthers`, `clear`
+  `everyTabScope`), `otherTabsUnfiltered`, and `addToUnfiltered`, `switchFromOthers`, `clear`
   (each taking a `TileScope`) and `remove`.
 - Scope: there is no mode. On a dashboard with two tabs or more the scopes
   are `'this-tab'` (the dashboard's active tab, which it follows),
@@ -472,7 +472,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     tiles (`applyFieldToUnfilteredTiles`). Its label is "Filter n unfiltered
     tile(s)" when a tile of the scope is on another field, else "Filter the
     other n" when the field is on a tile there, else "Filter all n".
-    "Replace <fields> on n tile(s)" (`default`, `switchTilesToField`: only
+    "Switch n tile(s) to this field" (`subtle`, `switchFromOthers`: only
     the tiles on another field of the filter, so the two never count the
     same tile); a subtle gray "Clear" (`removeFieldFromAll`).
   - With tabs, after a second `Divider`: a subtle "Filter m on other tabs"
@@ -484,8 +484,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - It is a `region` named "Tiles filtered by <field>"; the count sentence
     is the `aria-live="polite"` element. A button's `aria-label` starts with
     the words on the button, then adds the scope and the field: "Filter all
-    3 tiles on this tab by <field>", "Replace <fields> on 2 tiles with
-    <field> on this tab", "Filter 4 on other tabs by <field>" (no "on this
+    3 tiles on this tab by <field>", "Switch 2 tiles to this field (<field>)
+    on this tab", "Filter 4 on other tabs by <field>" (no "on this
     tab" without tabs). "Clear" is named "Clear <field> from this tab".
   - A pressed button leaves once its action is done, so focus moves to the
     region itself (`tabIndex={-1}`), from a layout effect and only when
@@ -577,7 +577,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   or the first has more than 8.
 - A placeholder shows the cards too, so a new control can start from a tile.
   A tile is reachable when it offers a filterable field; SQL chart tiles are
-  not. A reachable tile is `available` with "Not filtered" and an empty
+  not. A reachable tile is `available` with "This tile is not filtered" and an empty
   select ("Select a field"); none is `mapped` or `other`. The list is the
   tile's fields of every kind (`getTileStarterFieldIds`: every grain an
   entry, sorted and labelled like the candidates), as one plain list.
@@ -625,7 +625,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     over the other SQL chart tiles that have the column.
   - The card gets it as two strings (`followUpLabel`, `followUpName`, null
     on every other tile) and one stable `onFollowUp`, so the memo holds.
-- `TileOverlays` portals a veil and a "Filtered by" card into each
+- `TileOverlays` portals a veil and a "This tile is filtered on" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
   `usePortalTargets`. `TabCounts` renders nothing for a placeholder. A badge

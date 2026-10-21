@@ -268,8 +268,8 @@ const TileOverlay = memo<TileOverlayProps>(
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed">
                                 {tileFieldId !== null
-                                    ? 'Filtered'
-                                    : 'Not filtered'}
+                                    ? 'This tile is filtered'
+                                    : 'This tile is not filtered'}
                             </Text>
                             <Switch
                                 size="xs"
@@ -293,8 +293,8 @@ const TileOverlay = memo<TileOverlayProps>(
                                     {missingFieldId !== null
                                         ? 'Filtered by a field this tile no longer has'
                                         : tileFieldId !== null
-                                          ? 'Filtered by'
-                                          : 'Not filtered'}
+                                          ? 'This tile is filtered on'
+                                          : 'This tile is not filtered'}
                                 </Text>
                                 {missingFieldId !== null && (
                                     <MissingFieldWarning

@@ -147,6 +147,7 @@ const queryPill = (name: RegExp) =>
 
 describe('FilterPills', () => {
     const open = vi.fn();
+    const close = vi.fn();
     const removeFilterById = vi.fn();
     const setDashboardFilters = vi.fn();
     const setHaveFiltersChanged = vi.fn();
@@ -214,6 +215,7 @@ describe('FilterPills', () => {
             isSidebarOpen: false,
             isNew: false,
             open,
+            close,
             removeFilterById,
         };
     });
@@ -233,6 +235,21 @@ describe('FilterPills', () => {
 
         expect(open).toHaveBeenCalledWith('saved');
         expect(removeFilterById).not.toHaveBeenCalled();
+    });
+
+    it('closes the editor from the pill being edited, as Done does', async () => {
+        const user = userEvent.setup();
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            editing: { filterId: 'saved' },
+            isSidebarOpen: true,
+        };
+        renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+        await user.click(pill(/^Status/));
+
+        expect(close).toHaveBeenCalledTimes(1);
+        expect(open).not.toHaveBeenCalled();
     });
 
     it('removes the filter from the X without opening it', async () => {

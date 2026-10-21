@@ -242,7 +242,7 @@ describe('TileOverlays', () => {
     it('shows the field a filterable tile is filtered by', () => {
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Filtered by');
+        expect(status(both.uuid)).toBe('This tile is filtered on');
         expect(select(both.uuid)).toHaveTextContent('Status');
         expect(select(both.uuid)).toHaveAccessibleName(
             'Status on Title tile-both',
@@ -313,7 +313,7 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Not filtered');
+        expect(status(both.uuid)).toBe('This tile is not filtered');
         expect(select(both.uuid)).toHaveTextContent('Select a field');
         expect(clearButton(both.uuid)).not.toBeInTheDocument();
         expect(clearButton(statusOnly.uuid)).toBeInTheDocument();
@@ -466,7 +466,7 @@ describe('TileOverlays', () => {
         });
         rerender(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Not filtered');
+        expect(status(both.uuid)).toBe('This tile is not filtered');
         expect(renders(both.uuid)).toBe(2);
         expect(renders(statusOnly.uuid)).toBe(1);
 
@@ -889,7 +889,7 @@ describe('TileOverlays', () => {
                 'data-highlighted',
                 'available',
             );
-            expect(status(statusOnly.uuid)).toBe('Not filtered');
+            expect(status(statusOnly.uuid)).toBe('This tile is not filtered');
             expect(select(statusOnly.uuid)).toHaveTextContent('Select a field');
             expect(clearButton(statusOnly.uuid)).not.toBeInTheDocument();
 
@@ -1123,7 +1123,7 @@ describe('TileOverlays', () => {
                     'data-highlighted',
                     'available',
                 );
-                expect(status(t.uuid)).toBe('Not filtered');
+                expect(status(t.uuid)).toBe('This tile is not filtered');
                 expect(clearButton(t.uuid)).not.toBeInTheDocument();
                 expect(select(t.uuid).tagName).toBe('BUTTON');
             });
@@ -1335,7 +1335,7 @@ describe('TileOverlays', () => {
             activeFieldId: 'orders_region',
         });
         rerender(<TileOverlays />);
-        expect(status(statusOnly.uuid)).toBe('Not filtered');
+        expect(status(statusOnly.uuid)).toBe('This tile is not filtered');
         expect(overlay(statusOnly.uuid)).toHaveAttribute(
             'data-highlighted',
             'available',
@@ -1381,7 +1381,7 @@ describe('TileOverlays', () => {
         });
         renderWithProviders(<TileOverlays />);
 
-        expect(status(both.uuid)).toBe('Not filtered');
+        expect(status(both.uuid)).toBe('This tile is not filtered');
         expect(overlay(both.uuid)).toHaveAttribute(
             'data-highlighted',
             'available',
@@ -1409,7 +1409,7 @@ describe('TileOverlays', () => {
         };
         renderWithProviders(<TileOverlays />);
 
-        expect(status(sql.uuid)).toBe('Not filtered');
+        expect(status(sql.uuid)).toBe('This tile is not filtered');
         expect(select(sql.uuid)).toHaveTextContent('Select a column');
         await userEvent.click(select(sql.uuid));
         const options = screen.getAllByRole('option', { hidden: true });
@@ -1672,7 +1672,7 @@ describe('TileOverlays', () => {
         it('gets a card with a switch instead of a field select, on by default', () => {
             renderWithProviders(<TileOverlays />);
 
-            expect(status(app.uuid)).toBe('Filtered');
+            expect(status(app.uuid)).toBe('This tile is filtered');
             expect(appSwitch()).toBeChecked();
             expect(
                 card(app.uuid).queryByLabelText(/ on Title /, {
@@ -1696,14 +1696,14 @@ describe('TileOverlays', () => {
             );
         });
 
-        it('reads "Not filtered" and is available once it is left out', () => {
+        it('reads "This tile is not filtered" and is available once it is left out', () => {
             setSidebar({
                 editingRule: rule({ tileTargets: { [app.uuid]: false } }),
                 activeFieldId: 'orders_status',
             });
             renderWithProviders(<TileOverlays />);
 
-            expect(status(app.uuid)).toBe('Not filtered');
+            expect(status(app.uuid)).toBe('This tile is not filtered');
             expect(appSwitch()).not.toBeChecked();
             expect(overlay(app.uuid)).toHaveAttribute(
                 'data-highlighted',
@@ -1744,7 +1744,7 @@ describe('TileOverlays', () => {
             });
             rerender(<TileOverlays />);
 
-            expect(status(app.uuid)).toBe('Not filtered');
+            expect(status(app.uuid)).toBe('This tile is not filtered');
             expect(renders(both.uuid)).toBe(1);
             expect(renders(statusOnly.uuid)).toBe(1);
         });
@@ -1885,7 +1885,7 @@ describe('TileOverlays', () => {
             await choose(first.uuid, 'Region');
             applyLastWrite(rerender);
 
-            expect(status(first.uuid)).toBe('Filtered by');
+            expect(status(first.uuid)).toBe('This tile is filtered on');
             expect(anyFollowUp()).not.toBeInTheDocument();
         });
 
