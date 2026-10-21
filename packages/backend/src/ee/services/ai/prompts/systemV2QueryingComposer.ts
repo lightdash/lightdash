@@ -26,6 +26,7 @@ export const getQueryingComposerSection = ({
         '',
         '- Start from one semanticLayer node per explore, built from the fieldIds the field-discovery tool returned. Pick the date granularity the user asked for (`order_date_month` over `order_date` for "by month").',
         '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons and row-level conditionals.',
+        '- A duckdb node computes over the rows its source nodes returned. Before aggregating or ranking over a source, give that semanticLayer node a limit that holds its whole population, or aggregate in the semanticLayer node itself; a result that reached its row limit is an incomplete input and must not feed a total, an average or a rank.',
         '- Combine explores that are not joined in the semantic layer with one semanticLayer node per explore plus a duckdb node that joins their results.',
         ...(enablePythonNodes
             ? [
