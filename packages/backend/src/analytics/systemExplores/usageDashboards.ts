@@ -37,7 +37,7 @@ const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
     const originSql = usageActivityOriginSql(chart.tableName);
     return {
         ...chart,
-        description: `${chart.description} Names fall back to email when available in refreshed user metadata. User <ID> means no display name is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
+        description: `${chart.description} User <ID> means no display name is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
         metricQuery: {
             ...chart.metricQuery,
             metrics: [...chart.metricQuery.metrics, originField],

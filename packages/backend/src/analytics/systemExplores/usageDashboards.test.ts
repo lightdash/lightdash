@@ -96,7 +96,7 @@ describe('built-in usage dashboards', () => {
             await db.run(`INSERT INTO lightdash_users VALUES
                 ('org','named-a','Alex'), ('org','named-b','Alex'),
                 ('org','unnamed-a',NULL), ('org','unnamed-b','  '),
-                ('org','empty-name','person@example.com'), ('other','missing-name','Other tenant')`);
+                ('org','empty-name',''), ('other','missing-name','Other tenant')`);
             await db.run(`INSERT INTO user_activity (org_id,project_id,user_id,activity_date,event_count,stream) VALUES
                 ('org','project','named-a','2026-01-05',2,'ai_usage'),
                 ('org','project','named-b','2026-01-05',3,'query_events'),
@@ -131,6 +131,17 @@ describe('built-in usage dashboards', () => {
                 )
             ).getRowObjects();
             expect(rows).toHaveLength(before.length);
+            const labels = new Map<unknown, string>([
+                ['named-a', 'Alex'],
+                ['named-b', 'Alex'],
+                ['unnamed-a', 'User unnamed-a'],
+                ['unnamed-b', 'User unnamed-b'],
+                ['empty-name', 'User empty-name'],
+                ['missing-name', 'User missing-name'],
+                [null, 'No user recorded'],
+                ['', 'No user recorded'],
+                ['   ', 'No user recorded'],
+            ]);
             for (const {
                 user_display_name: label,
                 user_activity_activity_origin: origin,
@@ -138,16 +149,7 @@ describe('built-in usage dashboards', () => {
             } of rows) {
                 expect(before).toContainEqual(row);
                 expect(typeof origin).toBe('string');
-                const id = row.user_activity_user_id;
-                expect(label).toBe(
-                    id === 'named-a' || id === 'named-b'
-                        ? 'Alex'
-                        : id === 'empty-name'
-                          ? 'person@example.com'
-                          : typeof id === 'string' && id.trim()
-                            ? `User ${id}`
-                            : 'No user recorded',
-                );
+                expect(label).toBe(labels.get(row.user_activity_user_id));
             }
             expect(
                 rows.reduce(

@@ -108,7 +108,6 @@ export class UsageDimensionsModel {
                                     'u.user_uuid',
                                     'u.first_name',
                                     'u.last_name',
-                                    'u.email',
                                     'u.is_active',
                                     'u.is_setup_complete',
                                     'm.role',
@@ -155,7 +154,7 @@ export class UsageDimensionsModel {
                             this.database.raw(
                                 `json_build_object(
                             'org_id', ?::text, 'user_id', p.user_uuid,
-                            'name', COALESCE(NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''), NULLIF(trim(p.email), '')),
+                            'name', NULLIF(trim(concat_ws(' ', p.first_name, p.last_name)), ''),
                             'organization_role', p.role, 'role_id', p.role_uuid,
                             'membership_created_at', p.created_at, 'snapshot_at', ?::timestamptz,
                             'is_active', p.is_active, 'is_setup_complete', p.is_setup_complete,
@@ -311,7 +310,7 @@ export class UsageDimensionsModel {
                         this.database.raw(
                             `json_build_object(
                         'org_id', ?::text, 'user_id', u.user_uuid,
-                        'name', COALESCE(NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), ''), NULLIF(trim(u.email), ''))
+                        'name', NULLIF(trim(concat_ws(' ', u.first_name, u.last_name)), '')
                     )::text AS json`,
                             [orgUuid],
                         ),
