@@ -1,3 +1,13 @@
+## [3.18.1](https://github.com/lightdash/lightdash/compare/3.18.0...3.18.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** close editor from its pill and reword tile copy ([#31338](https://github.com/lightdash/lightdash/issues/31338)) ([52ba8fd](https://github.com/lightdash/lightdash/commit/52ba8fdae958a39b34d70e5843f3576de110d594))
+* **dashboards:** drop a field once its last tile is cleared ([#31339](https://github.com/lightdash/lightdash/issues/31339)) ([d51753e](https://github.com/lightdash/lightdash/commit/d51753ebf875696f6a5fb5a5aea35a3faa6c0967))
+* **dashboards:** keep filtered tiles neutral until a field is picked ([#31343](https://github.com/lightdash/lightdash/issues/31343)) ([a4016f0](https://github.com/lightdash/lightdash/commit/a4016f0bcdf856d97ba64c831564e9568311efd6))
+* **dashboards:** track a new filter only once it is kept ([#31340](https://github.com/lightdash/lightdash/issues/31340)) ([f74f5d6](https://github.com/lightdash/lightdash/commit/f74f5d606dbad7f8cfcde9cda3841f5d2fb2eb70))
+
 # [3.18.0](https://github.com/lightdash/lightdash/compare/3.17.1...3.18.0) (2026-10-21)
 
 
