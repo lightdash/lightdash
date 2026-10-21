@@ -46,12 +46,11 @@ export const removeFilterRule = (
     metrics: filters.metrics.filter((rule) => rule.id !== filterId),
 });
 
-// A rule as it would save, with the tile entries that equal the default dropped
+// A rule with the field entries that equal the tile's default dropped
 type ToSavedRule = (rule: DashboardFilterRule) => DashboardFilterRule;
 
-// Keys holding undefined (JSON drops them) and `required: false` read as
-// absent; locks are read as a set, so their order is not kept. Empty tile
-// targets stay: tabs read them differently from no tile targets
+// Undefined keys and `required: false` read as absent, locks as a set; empty
+// tile targets stay, since tabs read them differently from none
 const toComparableRule = (rule: DashboardFilterRule, toSaved: ToSavedRule) => {
     const { required, lockedTabUuids, ...rest } = toSaved(rule);
     return omitBy(

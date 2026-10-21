@@ -107,6 +107,20 @@ describe('peers', () => {
         expect(withoutDefaultTileTargets(r, undefined, fieldsByTile)).toBe(r);
     });
 
+    // A query reads the entry's table, so the same field id on another table
+    // is not the default: a stale target table is the real-world case
+    it('keeps an entry on the target field id but another table', () => {
+        const staleTarget = { ...ORDERS, tableName: 'orders_old' };
+        const onTile = { ...rule({ a: ORDERS }), target: staleTarget };
+        expect(
+            withoutDefaultTileTargets(onTile, tiles, fieldsByTile).tileTargets,
+        ).toEqual({ a: ORDERS });
+        const leftOut = setTileField(onTile, a, null, fieldsByTile);
+        expect(
+            setTileField(leftOut, a, ORDERS, fieldsByTile).tileTargets,
+        ).toEqual({ a: ORDERS });
+    });
+
     it('resolves auto, excluded and peer tiles', () => {
         const r = rule({ b: false, c: PAYMENTS });
         expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
@@ -450,22 +464,18 @@ describe('peers with data app tiles', () => {
         expect(on.tileTargets).toBeUndefined();
     });
 
-    it('withoutDefaultTileTargets keeps false and drops the target, as setTileField writes them', () => {
+    it('withoutDefaultTileTargets keeps an exclusion and drops a default entry on a data app tile', () => {
         const off = setTileField(rule(), appTile, null, fieldsByTile);
         expect(withoutDefaultTileTargets(off, allTiles, fieldsByTile)).toEqual(
             off,
         );
-        // setTileField drops the emptied key; the comparison keeps it
         expect(
             withoutDefaultTileTargets(
                 rule({ app: ORDERS }),
                 allTiles,
                 fieldsByTile,
             ),
-        ).toEqual({
-            ...setTileField(off, appTile, ORDERS, fieldsByTile),
-            tileTargets: {},
-        });
+        ).toEqual(rule({}));
     });
 
     it('counts in its tab while on, and never as a tile on a field', () => {

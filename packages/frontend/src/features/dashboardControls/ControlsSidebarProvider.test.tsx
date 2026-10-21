@@ -1678,13 +1678,12 @@ describe('ControlsSidebarProvider', () => {
         const leaveOutAndPutBack = (
             onTile: DashboardFilterRule,
             tile: DashboardTile,
-            act_: typeof act,
             updateFilter: (next: DashboardFilterRule) => void,
         ) => {
             const fields = mockFieldsByTile.current as FieldsByTile;
             const leftOut = setTileField(onTile, tile, null, fields);
-            act_(() => updateFilter(leftOut));
-            act_(() =>
+            act(() => updateFilter(leftOut));
+            act(() =>
                 updateFilter(
                     setTileField(leftOut, tile, onTile.target, fields),
                 ),
@@ -1712,7 +1711,6 @@ describe('ControlsSidebarProvider', () => {
             leaveOutAndPutBack(
                 onTile,
                 mockTiles.current[0] as DashboardTile,
-                act,
                 result.current.updateFilter,
             );
             expect(result.current.isDirty).toBe(false);
@@ -1739,7 +1737,6 @@ describe('ControlsSidebarProvider', () => {
             leaveOutAndPutBack(
                 onTile,
                 mockTiles.current[0] as DashboardTile,
-                act,
                 result.current.updateFilter,
             );
             expect(result.current.isDirty).toBe(true);

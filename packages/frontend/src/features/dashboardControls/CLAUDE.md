@@ -171,10 +171,12 @@ In `FilterConfiguration/`:
   `undefined` (JSON has none) and field entries that say what the tile does
   by default (`withoutDefaultTileTargets`) leave no trace. `required: false`
   reads as no `required`, and `lockedTabUuids` as a set (re-locking a tab
-  appends it). Two things are never normalised away, since shipped code reads
-  them: an exclusion (`false`), which decides whether a tile added to its tab
-  is left out, and whether `tileTargets` is there at all, since the tab
-  gating of required filters applies a rule without it on every tab. So a
+  appends it). A field entry is the default only when its field id and table
+  both match (queries read the entry's table). Two things are never
+  normalised away, since shipped code reads them: an exclusion (`false`),
+  which a duplicated tile copies and which keeps applying if the tile gains
+  the field, and whether `tileTargets` is there at all, since the tab gating
+  of required filters applies a rule without it on every tab. So a
   lock switched on and off, a tab unlocked and locked again, "Required"
   switched on and off, or a tile left out and put back, is no change, unless
   putting it back removed the rule's last tile entry (`setTileField` then

@@ -269,9 +269,19 @@ const withTileTargets = (
         : rest;
 };
 
-// Drops the field entries that say what the tile does by default, so two rules
-// that filter the same tiles compare equal. Exclusions and the key itself stay:
-// tabs read both (a new tile, and a rule with no tile targets on every tab)
+// Field and table both: a query reads the table of the entry it gets
+const isDefaultTileField = (
+    field: DashboardFieldTarget | null,
+    fallback: DashboardFieldTarget | null,
+): boolean =>
+    field === null || fallback === null
+        ? field === fallback
+        : !field.isSqlColumn &&
+          field.fieldId === fallback.fieldId &&
+          field.tableName === fallback.tableName;
+
+// Drops the field entries that equal the tile's default. Exclusions stay, and
+// so does the key: shipped tab code reads both
 export const withoutDefaultTileTargets = (
     rule: DashboardFilterRule,
     tiles: DashboardTile[] | undefined,
@@ -282,8 +292,10 @@ export const withoutDefaultTileTargets = (
     const kept = entries.filter(([tileUuid, target]) => {
         const tile = tiles.find(({ uuid }) => uuid === tileUuid);
         if (tile === undefined || target === false) return true;
-        const fallback = getDefaultTileField(rule, tile, fieldsByTile);
-        return target.fieldId !== (fallback?.fieldId ?? null);
+        return !isDefaultTileField(
+            target,
+            getDefaultTileField(rule, tile, fieldsByTile),
+        );
     });
     return kept.length === entries.length
         ? rule
@@ -308,7 +320,7 @@ export const setTileField = (
     // An entry is only dropped when the default is known to say the same
     if (
         isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile) &&
-        (field?.fieldId ?? null) === (fallback?.fieldId ?? null)
+        isDefaultTileField(field, fallback)
     ) {
         return withTileTargets(rule, others);
     }
