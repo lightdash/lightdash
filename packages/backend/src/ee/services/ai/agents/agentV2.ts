@@ -12,6 +12,7 @@ import {
     type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
@@ -71,6 +72,7 @@ import {
     type DeferredPromptSection,
     type Loadout,
 } from '../loadout';
+import { loadoutSpanAttributes } from '../loadout/telemetry';
 import { AI_DEEP_RESEARCH_INSTRUCTIONS } from '../prompts/deepResearch';
 import {
     getDeferredToolInstructions,
@@ -261,14 +263,21 @@ const createAgentStepUsageRecorder = ({
     preloadedMcpToolNames,
     functionId,
     feature,
+    loadout,
 }: {
     args: AiAgentArgs;
     turnIntent: TurnIntent | null | undefined;
     preloadedMcpToolNames?: string[];
     functionId: string;
     feature?: Parameters<typeof getAgentTelemetryConfig>[2];
+    loadout: Loadout;
 }) => {
-    const telemetry = getAgentTelemetryConfig(functionId, args, feature);
+    const telemetry = getAgentTelemetryConfig(
+        functionId,
+        args,
+        feature,
+        loadout,
+    );
     const fastToolTelemetry = args.toolCallModel
         ? getAgentTelemetryConfig(
               `${functionId}.fastToolStep`,
@@ -278,6 +287,7 @@ const createAgentStepUsageRecorder = ({
                   keyManagement: args.toolCallModel.keyManagement,
               },
               'agent',
+              loadout,
           )
         : null;
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
@@ -2726,6 +2736,7 @@ const prepareAgentTurn = async ({
             toolNames: [...loadout.toolNames].sort(),
         },
     );
+    trace.getActiveSpan()?.setAttributes(loadoutSpanAttributes(loadout));
     let tools = getAgentTools(
         args,
         loadout,
@@ -2848,6 +2859,7 @@ const prepareAgentTurn = async ({
     return {
         agentContext,
         answerVerifier,
+        loadout,
         tools,
         messages,
         preparedContext,
@@ -2905,6 +2917,7 @@ export const generateAgentResponse = async ({
         const {
             agentContext,
             answerVerifier,
+            loadout,
             tools,
             messages,
             preparedContext,
@@ -2931,6 +2944,7 @@ export const generateAgentResponse = async ({
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'generateAgentResponse',
+                loadout,
                 feature:
                     args.execution.mode === 'deep_research'
                         ? 'deep-research'
@@ -3346,6 +3360,7 @@ export const streamAgentResponse = async ({
     try {
         const {
             agentContext,
+            loadout,
             tools,
             messages,
             preparedContext,
@@ -3374,6 +3389,7 @@ export const streamAgentResponse = async ({
                 turnIntent: preparedContext?.turnIntent,
                 preloadedMcpToolNames: preparedContext?.mcpToolNames,
                 functionId: 'streamAgentResponse',
+                loadout,
             });
         const fastToolCalls = new Map<
             string,

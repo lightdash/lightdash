@@ -7,6 +7,10 @@ What an AI agent run can do: its tools and the system prompt sections that expla
 - **Add-on**: an independent unit (`addOns.ts`) with a condition, disjoint tools and at most one section.
 - **Overlay**: a per-turn narrowing (intent gate, `toolAllowlist`) that only removes loadout tools.
 
+## Observability
+
+A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_ons,tool_count}` and `loadoutBase`/`loadoutAddOns` on AI SDK `ai.*` spans (`telemetry.ts`). Logs: event `ai_agent.loadout_resolved`.
+
 ## Adding a tool
 
 1. Add the name to `AGENT_TOOL_NAMES` and its builder to `toolBuilders` in `agents/agentV2.ts`.
