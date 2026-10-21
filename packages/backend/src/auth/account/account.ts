@@ -295,7 +295,7 @@ export const getEmbedActorChartSpaceUuids = (account: Account): string[] => {
     // apiAccess tokens may omit the write space.
     if (writeSpaceUuids.length === 0) return [];
     const sourceSpaceUuids =
-        content?.type === 'dashboard'
+        content?.type === 'dashboard' || content?.type === 'aiAgent'
             ? (writeActions?.sourceSpaceUuids ?? [])
             : [];
     return [...new Set([...writeSpaceUuids, ...sourceSpaceUuids])];

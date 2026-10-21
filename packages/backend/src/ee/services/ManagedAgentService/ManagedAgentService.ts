@@ -2061,6 +2061,7 @@ export class ManagedAgentService extends BaseService {
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: null,
             spaceAccess: allowedSpaceUuids,
+            readOnlySpaceUuids: [],
             threadBinding: null,
         });
         const reportRefusal = (error: unknown) => {

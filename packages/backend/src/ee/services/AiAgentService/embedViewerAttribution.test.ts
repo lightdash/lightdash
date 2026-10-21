@@ -43,6 +43,7 @@ const buildEmbedAccount = (
     tokenUser: { externalId?: string | null } | undefined,
 ): AnonymousAccount =>
     ({
+        isJwtUser: () => true,
         authentication: {
             type: 'jwt',
             data: {

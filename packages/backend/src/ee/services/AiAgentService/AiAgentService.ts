@@ -282,7 +282,11 @@ import {
     ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession, toSessionUser } from '../../../auth/account';
+import {
+    fromSession,
+    getEmbedActorChartSpaceUuids,
+    toSessionUser,
+} from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -899,6 +903,8 @@ type EmbedAiAgentRuntimeOptions = {
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
     spaceAccess: string[];
+    // Source spaces the agent may read but not write to.
+    readOnlySpaceUuids: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
 
@@ -2994,6 +3000,7 @@ export class AiAgentService extends BaseService {
         const { writeActions, content } = account.authentication.data;
         const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
         const spaceUuid = writeSpaceUuids[0];
+        const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
 
         if (
             content.type !== 'aiAgent' ||
@@ -3016,7 +3023,10 @@ export class AiAgentService extends BaseService {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
-                spaceAccess: writeSpaceUuids,
+                spaceAccess: chartSpaceUuids,
+                readOnlySpaceUuids: chartSpaceUuids.filter(
+                    (uuid) => !writeSpaceUuids.includes(uuid),
+                ),
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
@@ -3049,7 +3059,16 @@ export class AiAgentService extends BaseService {
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
-        return { user, agent, runtimeOptions };
+        return {
+            user,
+            agent,
+            runtimeOptions: {
+                ...runtimeOptions,
+                spaceAccess: runtimeOptions.spaceAccess.filter((uuid) =>
+                    hasAiAgentAccessToSpace(agent, uuid),
+                ),
+            },
+        };
     }
 
     private canViewThreadContext(
@@ -13620,6 +13639,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            readOnlySpaceUuids:
+                options?.runtimeOptions?.readOnlySpaceUuids ?? [],
             threadBinding,
             sqlScope,
             userAttributeOverrides:
@@ -15572,6 +15593,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
+            readOnlySpaceUuids: [],
             // Read-only runtime; the binding only limits writes.
             threadBinding: null,
             agentUuid: agent.uuid,

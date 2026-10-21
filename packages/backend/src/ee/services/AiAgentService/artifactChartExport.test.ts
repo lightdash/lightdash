@@ -160,6 +160,7 @@ describe('artifact export access', () => {
             embedSpaceUuid: 'other-space',
             externalUserId: null,
             spaceAccess: ['other-space'],
+            readOnlySpaceUuids: [],
             userAttributeOverrides: {},
         });
         await expect(access.prepare(reference)).rejects.toThrow();

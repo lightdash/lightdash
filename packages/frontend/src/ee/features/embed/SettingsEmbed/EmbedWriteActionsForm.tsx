@@ -97,8 +97,26 @@ type Props = {
     onChange: (value: CreateEmbedJwt['writeActions'] | undefined) => void;
     required?: boolean;
     fixedWriteSpaceUuid?: string;
-    // Dashboard tokens can let editors add existing charts from other spaces.
-    allowSourceSpaces?: boolean;
+    // Dashboard and AI agent tokens can read existing content from other spaces.
+    sourceSpacesTarget?: SourceSpacesTarget;
+};
+
+type SourceSpacesTarget = 'dashboard' | 'aiAgent';
+
+const SOURCE_SPACES_COPY: Record<
+    SourceSpacesTarget,
+    { label: string; description: string }
+> = {
+    dashboard: {
+        label: 'Spaces to add charts from',
+        description:
+            "Dashboard editors can add existing charts from these spaces. Charts stay in their space and can't be edited from the dashboard. The service account must be able to view them.",
+    },
+    aiAgent: {
+        label: 'Extra spaces the agent can use',
+        description:
+            'The agent can find and read charts and dashboards in these spaces, in addition to the write spaces. The service account must be able to view them.',
+    },
 };
 
 const EmbedWriteActionsForm: FC<Props> = ({
@@ -107,7 +125,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
     onChange,
     required = false,
     fixedWriteSpaceUuid,
-    allowSourceSpaces = false,
+    sourceSpacesTarget,
 }) => {
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
@@ -220,14 +238,14 @@ const EmbedWriteActionsForm: FC<Props> = ({
     );
     const selectedSourceSpaceUuids = useMemo(
         () =>
-            allowSourceSpaces
+            sourceSpacesTarget
                 ? sourceSpaceUuids.filter((uuid) =>
                       sourceSpaceOptions.some(
                           (option) => option.value === uuid,
                       ),
                   )
                 : [],
-        [allowSourceSpaces, sourceSpaceOptions, sourceSpaceUuids],
+        [sourceSpacesTarget, sourceSpaceOptions, sourceSpaceUuids],
     );
 
     useEffect(() => {
@@ -599,10 +617,13 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         disabled={isLoadingSpaces}
                     />
 
-                    {allowSourceSpaces && (
+                    {sourceSpacesTarget && (
                         <MultiSelect
-                            label="Spaces to add charts from"
-                            description="Dashboard editors can add existing charts from these spaces. Charts stay in their space and can't be edited from the dashboard. The service account must be able to view them."
+                            label={SOURCE_SPACES_COPY[sourceSpacesTarget].label}
+                            description={
+                                SOURCE_SPACES_COPY[sourceSpacesTarget]
+                                    .description
+                            }
                             placeholder={
                                 selectedSourceSpaceUuids.length === 0
                                     ? 'Only the write spaces'
