@@ -89,6 +89,8 @@ export type SettingsContext = {
     dataAppsFlag: FeatureFlag | undefined;
     dataAppAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    // Chart Studio uses org themes, so it opens Themes without data apps.
+    isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
     isResultsCacheEnabled: boolean;
     embeddingEnabled: FeatureFlag | undefined;

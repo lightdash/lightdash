@@ -1,14 +1,13 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { IconPlus, IconPuzzle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import { useChartStudioAvailable } from '../hooks/useChartStudioAvailable';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 
 type Props = {
@@ -20,10 +19,8 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
-    // Building a new chart type is authoring, so the CTA needs data apps.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    // Building a new chart type is authoring, so the CTA needs Chart Studio.
+    const chartStudioAvailable = useChartStudioAvailable();
 
     return (
         <Stack align="center" gap="sm" py="7xl">
@@ -43,7 +40,7 @@ const ChartTypeGalleryEmptyState: FC<Props> = ({ projectUuid }) => {
                 across your project.
             </Text>
 
-            {dataAppsEnabled && (
+            {chartStudioAvailable && (
                 <Can
                     I="create"
                     this={subject('DataApp', {

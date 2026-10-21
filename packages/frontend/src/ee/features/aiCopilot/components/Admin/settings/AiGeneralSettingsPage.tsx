@@ -21,6 +21,7 @@ import {
 } from '../../../../../../components/common/ModelSelector/modelSelectOption';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import { useChartStudioAvailable } from '../../../../../../features/chartTypes/hooks/useChartStudioAvailable';
 import {
     useGetSlack,
     useUpdateSlackAppCustomSettingsMutation,
@@ -69,6 +70,7 @@ export const AiGeneralSettingsPage = () => {
         useUpdateAiOrganizationSettings();
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const chartStudioAvailable = useChartStudioAvailable();
     const dataAppAnalysisFlag = useServerFeatureFlag(
         FeatureFlags.EnableDataAppAnalysis,
     );
@@ -366,7 +368,8 @@ export const AiGeneralSettingsPage = () => {
                                         settings.dataAppModelVisibility ?? null
                                     }
                                     showDataAppModels={
-                                        dataAppsFlag.data?.enabled === true
+                                        dataAppsFlag.data?.enabled === true ||
+                                        chartStudioAvailable
                                     }
                                     bedrockModelOptions={
                                         settings.bedrockModelOptions ?? []

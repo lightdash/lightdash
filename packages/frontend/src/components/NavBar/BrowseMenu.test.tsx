@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    type HealthState,
     type LightdashUserWithAbilityRules,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
@@ -42,21 +43,42 @@ vi.mock('../../hooks/useProjectRoute', () => ({
 
 const projectUuid = 'project-1';
 
-const setDataAppsFlag = (enabled: boolean) => {
-    vi.mocked(useServerFeatureFlag).mockReturnValue({
-        data: { id: FeatureFlags.EnableDataApps, enabled },
-        isLoading: false,
-    } as ReturnType<typeof useServerFeatureFlag>);
+const setFlags = (enabledFlags: string[]) => {
+    vi.mocked(useServerFeatureFlag).mockImplementation(
+        (flag) =>
+            ({
+                data: { id: flag, enabled: enabledFlags.includes(flag) },
+                isLoading: false,
+            }) as ReturnType<typeof useServerFeatureFlag>,
+    );
 };
+
+const runtimeHealth = (runtimeAvailable: boolean): Partial<HealthState> => ({
+    license: { hasLicenseKey: true, valid: true },
+    dataApps: {
+        previewOrigin: null,
+        sampleDataEnabled: true,
+        capturesEnabled: true,
+        runtimeAvailable,
+    },
+});
+
+const dataAppViewerRules: LightdashUserWithAbilityRules['abilityRules'] = [
+    { action: 'view', subject: 'Project' },
+    { action: 'view', subject: 'SavedChart' },
+    { action: 'view', subject: 'DataApp' },
+    { action: 'manage', subject: 'Explore' },
+];
 
 const renderMenu = (
     abilityRules?: LightdashUserWithAbilityRules['abilityRules'],
+    health: Partial<HealthState> = runtimeHealth(false),
 ) => {
     const result = renderWithProviders(
         <MemoryRouter>
             <BrowseMenu projectUuid={projectUuid} />
         </MemoryRouter>,
-        abilityRules ? { user: { abilityRules } } : undefined,
+        abilityRules ? { user: { abilityRules }, health } : { health },
     );
     fireEvent.click(screen.getByRole('button', { name: 'Browse' }));
     return result;
@@ -65,7 +87,7 @@ const renderMenu = (
 describe('BrowseMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        setDataAppsFlag(true);
+        setFlags([FeatureFlags.EnableDataApps, FeatureFlags.Documents]);
         vi.mocked(useSpaceSummaries).mockReturnValue({
             data: [],
             isInitialLoading: false,
@@ -89,8 +111,9 @@ describe('BrowseMenu', () => {
     });
 
     it('links to Chart Studio when data apps are enabled and the user can manage explores', async () => {
-        renderMenu();
+        renderMenu(dataAppViewerRules);
 
+        expect(await screen.findByText('All data apps')).toBeInTheDocument();
         const item = await screen.findByText('Chart Studio');
         expect(item.closest('a')).toHaveAttribute(
             'href',
@@ -98,8 +121,20 @@ describe('BrowseMenu', () => {
         );
     });
 
-    it('hides chart types when the data apps flag is off', async () => {
-        setDataAppsFlag(false);
+    it('shows Chart Studio but not data apps when only the runtime is available', async () => {
+        setFlags([]);
+        renderMenu(dataAppViewerRules, runtimeHealth(true));
+
+        const item = await screen.findByText('Chart Studio');
+        expect(item.closest('a')).toHaveAttribute(
+            'href',
+            '/projects/jaffle-shop/chart-studio',
+        );
+        expect(screen.queryByText('All data apps')).not.toBeInTheDocument();
+    });
+
+    it('hides chart types without a runtime, the library or data apps', async () => {
+        setFlags([]);
         renderMenu();
 
         await screen.findByText('All saved charts');

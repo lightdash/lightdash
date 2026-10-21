@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import {
     createExplorerStore,
     explorerActions,
@@ -17,6 +18,7 @@ import {
 } from '../../common/ChartGallery/ChartGalleryContext';
 import ExplorerChartSidebar from './ExplorerChartSidebar';
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../VisualizationCard/VisualizationConfig', () => ({
     default: () => <div>Configure controls</div>,
 }));
@@ -45,12 +47,12 @@ vi.mock('./ChartTypeGallery', () => ({
 vi.mock('./AddChartTypeMenu', () => ({
     default: () => <button>Add chart type</button>,
 }));
-const { dataAppsFlagEnabled } = vi.hoisted(() => ({
-    dataAppsFlagEnabled: { current: true },
+const { flagsEnabled } = vi.hoisted(() => ({
+    flagsEnabled: { current: true },
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: dataAppsFlagEnabled.current },
+        data: { enabled: flagsEnabled.current },
         isLoading: false,
     }),
 }));
@@ -133,7 +135,9 @@ describe('ExplorerChartSidebar', () => {
         captureGalleryProps.mockClear();
         refetchSelectedType.mockClear();
         vizConfig.current = { chartType: ChartType.TABLE, chartConfig: {} };
-        dataAppsFlagEnabled.current = true;
+        // Chart Studio does not read the data apps flag, so flags stay off.
+        flagsEnabled.current = false;
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
     });
 
     it('passes its existing selected type lookup and retry to the gallery', async () => {
@@ -229,30 +233,6 @@ describe('ExplorerChartSidebar', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('hides the edit entry entirely while data-apps is disabled', () => {
-        dataAppsFlagEnabled.current = false;
-        vizConfig.current = {
-            chartType: ChartType.DATA_APP_VIZ,
-            chartConfig: { dataAppVizUuid: 'viz-1' },
-        };
-        selectedProjectType.current = {
-            dataAppVizUuid: 'viz-1',
-            name: 'Event pulse',
-            spaceUuid: null,
-            createdByUserUuid: 'user-1',
-        };
-        renderSidebar(
-            <ExplorerChartSidebar
-                chartType={ChartType.DATA_APP_VIZ}
-                onClose={vi.fn()}
-            />,
-        );
-
-        expect(
-            screen.queryByRole('button', { name: 'Edit chart type' }),
-        ).not.toBeInTheDocument();
-    });
-
     it('offers editing the selected custom chart type in place', async () => {
         vizConfig.current = {
             chartType: ChartType.DATA_APP_VIZ,
@@ -281,6 +261,32 @@ describe('ExplorerChartSidebar', () => {
         expect(
             store.getState().explorer.chartTypeAuthoring?.dataAppVizUuid,
         ).toBe('viz-1');
+    });
+
+    it('hides the edit entry without Chart Studio, even with data apps on', () => {
+        flagsEnabled.current = true;
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        vizConfig.current = {
+            chartType: ChartType.DATA_APP_VIZ,
+            chartConfig: { dataAppVizUuid: 'viz-1' },
+        };
+        selectedProjectType.current = {
+            dataAppVizUuid: 'viz-1',
+            name: 'Event pulse',
+            spaceUuid: null,
+            createdByUserUuid: 'user-1',
+            registrySlug: null,
+        };
+        renderSidebar(
+            <ExplorerChartSidebar
+                chartType={ChartType.DATA_APP_VIZ}
+                onClose={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Edit chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('hides the edit entry for an official (registry-installed) chart type', () => {

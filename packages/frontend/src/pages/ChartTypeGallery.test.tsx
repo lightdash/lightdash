@@ -1,4 +1,9 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    FeatureFlags,
+    type DataAppViz,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import {
     act,
     fireEvent,
@@ -14,6 +19,7 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
@@ -22,10 +28,16 @@ import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useIns
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { AbilityContext } from '../providers/Ability/context';
 import { renderWithProviders } from '../testing/testUtils';
 import { EventName } from '../types/Events';
 import ChartTypeGallery from './ChartTypeGallery';
+
+const licensedAppMocks = {
+    health: { license: { hasLicenseKey: true, valid: true } },
+};
 const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
@@ -157,7 +169,7 @@ const setData = (data: DataAppViz[]) => {
 };
 
 const setFlags = ({
-    dataApps = true,
+    dataApps = false,
     chartTypeRegistry = true,
 }: {
     dataApps?: boolean;
@@ -188,8 +200,11 @@ const LocationPathname = () => {
     return <div data-testid="location-pathname">{pathname}</div>;
 };
 
-const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
-    renderWithProviders(
+const renderPage = (
+    initialEntry = '/projects/project-1/chart-studio',
+    ability = new Ability<PossibleAbilities>([]),
+) => {
+    const page = (
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
@@ -218,8 +233,15 @@ const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
                     }
                 />
             </Routes>
-        </MemoryRouter>,
+        </MemoryRouter>
     );
+    return renderWithProviders(
+        <AbilityContext.Provider value={ability}>
+            {page}
+        </AbilityContext.Provider>,
+        licensedAppMocks,
+    );
+};
 
 const mockedDeleteApp = vi.fn();
 const mockedUpgradeMutate = vi.fn();
@@ -255,6 +277,7 @@ describe('ChartTypeGallery', () => {
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
         setFlags();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useDuplicateApp).mockReturnValue({
@@ -932,28 +955,75 @@ describe('ChartTypeGallery', () => {
         );
     });
 
-    it('redirects home when both chart type flags are disabled', () => {
+    it('redirects home without Chart Studio, the library or data apps', async () => {
         setData([]);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         setFlags({ dataApps: false, chartTypeRegistry: false });
         renderPage();
 
-        expect(screen.getByText('home')).toBeInTheDocument();
+        expect(await screen.findByText('home')).toBeInTheDocument();
     });
 
-    it('stays open with data apps off when the library flag is on', () => {
+    it('stays open without Chart Studio when the library flag is on', async () => {
         setData([]);
-        setFlags({ dataApps: false, chartTypeRegistry: true });
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags({ chartTypeRegistry: true });
         renderPage();
+
+        expect(
+            await screen.findByText('Installed chart types'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('home')).not.toBeInTheDocument();
+    });
+
+    it('redirects home without a licence, even with the library flag on', async () => {
+        setData([]);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags({ dataApps: true, chartTypeRegistry: true });
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project-1/chart-studio']}>
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/chart-studio"
+                        element={<ChartTypeGallery />}
+                    />
+                    <Route
+                        path="/projects/:projectUuid/home"
+                        element={<div>home</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        expect(await screen.findByText('home')).toBeInTheDocument();
+    });
+
+    it('offers a new chart type with data apps and the library off when Chart Studio is available', async () => {
+        setData([makeDataAppViz({})]);
+        setFlags({ dataApps: false, chartTypeRegistry: false });
+        renderPage(
+            undefined,
+            new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'DataApp' },
+            ]),
+        );
 
         expect(screen.queryByText('home')).not.toBeInTheDocument();
-        expect(screen.getByText('Installed chart types')).toBeInTheDocument();
+        expect(await screen.findByText('New chart type')).toBeInTheDocument();
     });
 
-    it('hides the new-chart-type button with data apps off', () => {
+    it('hides the new-chart-type button without Chart Studio, even with data apps on', async () => {
         setData([makeDataAppViz({})]);
-        setFlags({ dataApps: false, chartTypeRegistry: true });
-        renderPage();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags({ dataApps: true, chartTypeRegistry: true });
+        renderPage(
+            undefined,
+            new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'DataApp' },
+            ]),
+        );
 
+        await screen.findByText('Installed chart types');
         expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 

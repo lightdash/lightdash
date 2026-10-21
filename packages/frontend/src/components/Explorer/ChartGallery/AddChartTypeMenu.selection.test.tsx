@@ -14,6 +14,9 @@ const { getVisualization } = vi.hoisted(() => ({
     getVisualization: vi.fn(),
 }));
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable', () => ({
+    useChartStudioAvailable: () => false,
+}));
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     getDataAppVisualization: getVisualization,
 }));
