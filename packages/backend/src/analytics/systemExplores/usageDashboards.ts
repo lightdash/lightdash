@@ -4,16 +4,85 @@ import {
     CustomFormatType,
     DashboardTileTypes,
     FilterOperator,
+    MetricType,
+    TableCalculationType,
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
 import { adoptionChartSpecs, adoptionDashboardSpec } from './adoptionDashboard';
+import { usageActivityOriginSql } from './usageActivityOrigin';
 import { usageChartSpecs } from './usageDashboardCharts';
 import { usageDashboardSpecs } from './usageDashboardDefinitions';
 import type {
     AnalyticsContentBundle,
     UsageChartSpec,
 } from './usageDashboardTypes';
+
+const withUserActivityLabels = (chart: ChartAsCode): ChartAsCode => {
+    const nameField = `${chart.tableName}_user_name`;
+    const idField = `${chart.tableName}_user_id`;
+    if (
+        chart.chartConfig.type !== ChartType.TABLE ||
+        !chart.metricQuery.dimensions.includes(nameField) ||
+        !chart.metricQuery.dimensions.includes(idField)
+    ) {
+        return chart;
+    }
+    const columns = chart.chartConfig.config?.columns;
+    const name = `\${${chart.tableName}.user_name}`;
+    const id = `\${${chart.tableName}.user_id}`;
+    const displayField = 'user_display_name';
+    const originName = 'activity_origin';
+    const originField = `${chart.tableName}_${originName}`;
+    const originSql = usageActivityOriginSql(chart.tableName);
+    return {
+        ...chart,
+        description: `${chart.description} Names fall back to email when available in refreshed user metadata. User <ID> means no display name is available; No user recorded means no user identifier was captured. Activity source lists captured origins within each row; older summaries cannot recover missing embed context.`,
+        metricQuery: {
+            ...chart.metricQuery,
+            metrics: [...chart.metricQuery.metrics, originField],
+            additionalMetrics: [
+                ...(chart.metricQuery.additionalMetrics ?? []),
+                {
+                    table: chart.tableName,
+                    name: originName,
+                    label: 'Activity source',
+                    type: MetricType.STRING,
+                    sql: `STRING_AGG(DISTINCT (${originSql}), ', ' ORDER BY (${originSql}))`,
+                },
+            ],
+            tableCalculations: [
+                ...chart.metricQuery.tableCalculations,
+                {
+                    name: displayField,
+                    displayName: columns?.[nameField]?.name ?? 'User name',
+                    type: TableCalculationType.STRING,
+                    sql: `CASE
+                        WHEN NULLIF(TRIM(${name}), '') IS NOT NULL AND ${name} <> 'Unknown user' THEN ${name}
+                        WHEN NULLIF(TRIM(${id}), '') IS NOT NULL THEN 'User ' || ${id}
+                        ELSE 'No user recorded'
+                    END`,
+                },
+            ],
+        },
+        chartConfig: {
+            ...chart.chartConfig,
+            config: {
+                ...chart.chartConfig.config,
+                columns: {
+                    ...columns,
+                    [nameField]: { ...columns?.[nameField], visible: false },
+                },
+            },
+        },
+        tableConfig: {
+            ...chart.tableConfig,
+            columnOrder: (chart.tableConfig?.columnOrder ?? []).flatMap((field) =>
+                field === nameField ? [displayField, originField, field] : [field],
+            ),
+        },
+    };
+};
 
 const chartConfig = (spec: UsageChartSpec): ChartAsCode['chartConfig'] => {
     const [metric] = spec.metrics;
@@ -255,5 +324,5 @@ export const buildUsageDashboards = (
                 y += isKpiRow ? 3 : sectionCharts.length * 6;
             }
         }
-        return { dashboard, charts };
+        return { dashboard, charts: charts.map(withUserActivityLabels) };
     });

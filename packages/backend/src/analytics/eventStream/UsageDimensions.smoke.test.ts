@@ -91,7 +91,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE INDEX ON saved_queries(project_uuid);
                     CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
-                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean, is_setup_complete boolean DEFAULT true);
+                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, email text, is_active boolean, is_internal boolean, is_setup_complete boolean DEFAULT true);
                     CREATE TABLE organization_memberships (organization_id integer, user_id integer, role text DEFAULT 'member', role_uuid uuid, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(organization_id, user_id));
                     CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
                     CREATE TABLE group_memberships (group_uuid uuid, organization_id integer, user_id integer, PRIMARY KEY(group_uuid, user_id));
@@ -636,7 +636,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .update({ name: 'Dashboard renamed' });
                 await fixture('users')
                     .where('user_id', 1)
-                    .update({ first_name: 'User renamed' });
+                    .update({
+                        first_name: 'User renamed',
+                        email: 'owner@example.com',
+                    });
                 expect((await run()).dimensions).toEqual({
                     refreshed: 12,
                     failed: 0,
@@ -654,6 +657,26 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     lightdash_agents_name: 'Sales renamed',
                     ai_usage_total_ai_calls: '1',
                 });
+                await fixture('users').where('user_id', 1).update({
+                    first_name: ' ',
+                    last_name: '',
+                    email: ' person@example.com ',
+                });
+                await run();
+                expect((await reader.runQuery(joinedSql)).rows).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            lightdash_users_name: 'person@example.com',
+                        }),
+                    ]),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT name FROM lightdash_people WHERE user_id = '${user}'`,
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'person@example.com' }]);
                 await fixture('ai_agent')
                     .where('ai_agent_uuid', agent)
                     .delete();

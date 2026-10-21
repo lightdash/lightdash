@@ -10,8 +10,9 @@ One row per current non-internal organization membership. Eligible means an
 active, setup-complete user; pending setup and inactive accounts remain visible
 but are excluded from adoption. A group membership is not an HR team and an
 organization role is not a business-user classification. Customers can filter
-roles or the JSON group UUID list explicitly. No arbitrary user attributes,
-email addresses, prompts, SQL or credentials are exported.
+roles or the JSON group UUID list explicitly. The existing name field uses the
+member's email when their profile name is blank; there is no separate email
+column. No arbitrary user attributes, prompts, SQL or credentials are exported.
 
 The membership snapshot is observed during the nightly dimension refresh.
 Activity windows end at the UTC midnight preceding that observation: the last

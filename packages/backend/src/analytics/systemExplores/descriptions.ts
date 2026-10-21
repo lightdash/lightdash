@@ -384,7 +384,7 @@ const modelDimensions: Record<string, Record<string, string>> = {
         status: 'Recorded query outcome. One query can appear in several field and role rows; use Total queries for distinct attempts.',
     },
     lightdash_users: {
-        name: 'User name from the latest available snapshot. Unknown user means no matching name is available; inspect User UUID to distinguish an identified actor from an event without a user identifier.',
+        name: 'User name from the latest available snapshot, falling back to email for a blank profile name. Unknown user means no matching name is available; inspect User UUID to distinguish an identified actor from an event without a user identifier.',
     },
     lightdash_agents: {
         name: 'AI agent name from the latest available snapshot. Unknown agent means no matching name is available.',
