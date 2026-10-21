@@ -17954,6 +17954,59 @@
                 ],
                 "type": "object"
             },
+            "DbtExploreIdentity": {
+                "properties": {
+                    "latestVersion": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "version": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "modelName": {
+                        "type": "string"
+                    },
+                    "uniqueId": {
+                        "type": "string"
+                    },
+                    "packageName": {
+                        "type": "string"
+                    },
+                    "sourceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "modelName",
+                    "uniqueId",
+                    "packageName",
+                    "sourceName",
+                    "sourceUuid"
+                ],
+                "type": "object"
+            },
             "DbtModelJoinType": {
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
@@ -18158,6 +18211,7 @@
             "InlineErrorType": {
                 "enum": [
                     "METADATA_PARSE_ERROR",
+                    "EXPLORE_NAME_COLLISION",
                     "NO_DIMENSIONS_FOUND",
                     "SKIPPED_JOIN",
                     "MISSING_TABLE",
@@ -18189,6 +18243,12 @@
                         "type": "string"
                     },
                     "ymlPath": {
+                        "type": "string"
+                    },
+                    "dbtModelUniqueId": {
+                        "type": "string"
+                    },
+                    "dbtSourceName": {
                         "type": "string"
                     },
                     "dbtSourceUuid": {
@@ -19165,6 +19225,9 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "dbtModelIdentity": {
+                        "$ref": "#/components/schemas/DbtExploreIdentity"
                     }
                 },
                 "required": [
@@ -59995,6 +60058,9 @@
             },
             "Partial_Explore_": {
                 "properties": {
+                    "dbtModelIdentity": {
+                        "$ref": "#/components/schemas/DbtExploreIdentity"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -64987,6 +65053,9 @@
                         "type": "array",
                         "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
+                    "dbtModelIdentity": {
+                        "$ref": "#/components/schemas/DbtExploreIdentity"
+                    },
                     "tables": {
                         "properties": {},
                         "additionalProperties": {
@@ -65126,6 +65195,9 @@
                         },
                         "type": "array",
                         "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                    },
+                    "dbtModelIdentity": {
+                        "$ref": "#/components/schemas/DbtExploreIdentity"
                     },
                     "tables": {
                         "properties": {},
@@ -73667,7 +73739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.20.3",
+        "version": "3.21.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

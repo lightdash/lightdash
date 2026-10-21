@@ -17063,6 +17063,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtExploreIdentity: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                latestVersion: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                version: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                modelName: { dataType: 'string', required: true },
+                uniqueId: { dataType: 'string', required: true },
+                packageName: { dataType: 'string', required: true },
+                sourceName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                sourceUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DbtModelJoinType: {
         dataType: 'refAlias',
         type: {
@@ -17253,6 +17298,7 @@ const models: TsoaRoute.Models = {
         dataType: 'refEnum',
         enums: [
             'METADATA_PARSE_ERROR',
+            'EXPLORE_NAME_COLLISION',
             'NO_DIMENSIONS_FOUND',
             'SKIPPED_JOIN',
             'MISSING_TABLE',
@@ -17285,6 +17331,8 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 sqlPath: { dataType: 'string' },
                 ymlPath: { dataType: 'string' },
+                dbtModelUniqueId: { dataType: 'string' },
+                dbtSourceName: { dataType: 'string' },
                 dbtSourceUuid: { dataType: 'string' },
                 dbtPackageName: { dataType: 'string' },
                 warnings: {
@@ -18123,6 +18171,7 @@ const models: TsoaRoute.Models = {
                 },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+                dbtModelIdentity: { ref: 'DbtExploreIdentity' },
             },
             validators: {},
         },
@@ -65201,6 +65250,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dbtModelIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DbtExploreIdentity' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 name: {
                     dataType: 'union',
                     subSchemas: [
@@ -70337,6 +70393,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                dbtModelIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'DbtExploreIdentity' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 tables: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
@@ -70518,6 +70581,13 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'undefined' },
+                ],
+            },
+            dbtModelIdentity: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'DbtExploreIdentity' },
                     { dataType: 'undefined' },
                 ],
             },
