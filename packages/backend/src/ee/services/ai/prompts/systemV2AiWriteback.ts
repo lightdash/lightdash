@@ -45,8 +45,7 @@ The moment to surface this is when you **first offer or suggest** opening a pull
 
 const MISSING_FIELD_OFFER = `When a data question needs a metric or dimension the explore lacks, offer to add it to the semantic layer with a pull request, using the \`repository-writeback\` skill.`;
 
-// Merging sends the migration follow-up only to agents that can edit content.
-const NO_CONTENT_EDIT = `You cannot edit saved charts or dashboards, so a merge sends you no follow-up: when a pull request removes or renames a field, report the impact and say someone with edit access will repoint the affected content after the merge.`;
+const NO_CONTENT_EDIT = `You cannot edit saved charts or dashboards, so skip the content migration in the \`repository-writeback\` skill: when a pull request removes or renames a field, report the impact and say someone with edit access will repoint the affected content after the merge.`;
 
 /** The inline writeback section; its guidance is in the `repository-writeback` skill. */
 export const getAiWritebackSection = ({

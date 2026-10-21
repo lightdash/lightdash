@@ -1,6 +1,6 @@
 ---
 name: repository-writeback
-description: Use when changing the dbt project through a pull request (`editDbtProject`), offering to fix or extend the semantic layer, or following up a merged pull request.
+description: Use when changing the dbt project through a pull request (`editDbtProject`) or managing those pull requests, offering to fix or extend the semantic layer, or following up a merged pull request.
 availability: [agent]
 ---
 

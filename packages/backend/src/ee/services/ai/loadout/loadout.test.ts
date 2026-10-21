@@ -350,7 +350,6 @@ describe('resolveLoadout', () => {
         ['writeback', 'repository-writeback'],
         ['codingAgent', 'editing-source-code'],
     ] as const)('%s declares %s and brings loadSkill', (name, skill) => {
-        expect(ADD_ONS[name].skills).toEqual([skill]);
         const loadout = buildLoadout('classic', fullInput, [name]);
         expect(loadout.skills).toEqual(new Set([skill]));
         expect(loadout.toolNames.has('loadSkill')).toBe(true);

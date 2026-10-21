@@ -1,6 +1,6 @@
 ---
 name: editing-source-code
-description: Use when changing a repository other than the dbt project through a pull request (`editRepo`).
+description: Use when changing a repository other than the dbt project through a pull request (`editRepo`) or managing those pull requests.
 availability: [agent]
 ---
 

@@ -1,6 +1,6 @@
 import { UnexpectedServerError } from '@lightdash/common';
 import type { ToolSet } from 'ai';
-import type { BuiltInSkillName } from '../loadout';
+import { ADD_ONS, type BuiltInSkillName } from '../loadout';
 import type { AiAgentSkillReference } from '../skills/types';
 import { extractKeywords } from '../tools/grepFieldsIndex';
 import { renderProjectContextEntries } from '../tools/loadProjectContext';
@@ -27,14 +27,13 @@ export type PreparedContext = {
     toolIntents: TurnIntent[];
 };
 
-// Turn types whose skills always load; each loads only when the loadout lists it.
 const INTENT_SKILLS: Partial<Record<TurnIntent, readonly BuiltInSkillName[]>> =
     {
         document_write: ['developing-in-lightdash'],
         repository_change: [
-            'reading-source-code',
-            'repository-writeback',
-            'editing-source-code',
+            ...ADD_ONS.repoDiscovery.skills,
+            ...ADD_ONS.writeback.skills,
+            ...ADD_ONS.codingAgent.skills,
         ],
     };
 
@@ -439,8 +438,7 @@ export const prepareRelevantContext = async (
         }
     }
     if (turnIntent) toolIntents = [turnIntent];
-    // Document write-ups and repository changes always need their skills; load
-    // them with their resource lists so the model can fetch references in one step.
+    // Document write-ups and repository changes always need their listed skills.
     const intentSkills = turnIntent ? (INTENT_SKILLS[turnIntent] ?? []) : [];
     const preloadedSkills = [
         ...(skillReference ? [skillReference] : []),
