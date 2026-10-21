@@ -6,16 +6,22 @@
             "readContent",
             "runContentQuery"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "contentTools": {
         "description": "Edit and create saved charts and dashboards",
         "addsTools": [
             "createContent",
-            "editContent"
+            "editContent",
+            "loadSkill"
         ],
         "addsSections": [
-            "contentTools"
+            "contentTools",
+            "skills"
+        ],
+        "addsSkills": [
+            "developing-in-lightdash"
         ]
     },
     "scheduling": {
@@ -25,28 +31,32 @@
         ],
         "addsSections": [
             "schedulingTools"
-        ]
+        ],
+        "addsSkills": []
     },
     "legacyDashboards": {
         "description": "Read dashboard charts when content tools are off",
         "addsTools": [
             "getDashboardCharts"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "generateDashboard": {
         "description": "Build dashboards when content tools are off and the user can save one",
         "addsTools": [
             "generateDashboard"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "documents": {
         "description": "Document authoring guidance inside the content section",
         "addsTools": [],
         "addsSections": [
             "documents"
-        ]
+        ],
+        "addsSkills": []
     },
     "generateDataApp": {
         "description": "Start and iterate data app builds",
@@ -58,7 +68,8 @@
         ],
         "addsSections": [
             "generateDataApp"
-        ]
+        ],
+        "addsSkills": []
     },
     "sqlCatalog": {
         "description": "Browse warehouse tables and the raw SQL guidance",
@@ -68,7 +79,8 @@
         ],
         "addsSections": [
             "runSql"
-        ]
+        ],
+        "addsSkills": []
     },
     "writeback": {
         "description": "Edit and sync the dbt project through pull requests",
@@ -78,7 +90,8 @@
         ],
         "addsSections": [
             "aiWriteback"
-        ]
+        ],
+        "addsSkills": []
     },
     "codingAgent": {
         "description": "Edit any writable repository through pull requests",
@@ -87,7 +100,8 @@
         ],
         "addsSections": [
             "codingAgent"
-        ]
+        ],
+        "addsSkills": []
     },
     "pullRequests": {
         "description": "List, inspect and close the pull requests of a thread",
@@ -96,7 +110,8 @@
             "getPullRequestDiff",
             "listWorkstreams"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "repoDiscovery": {
         "description": "Read repositories the user can access",
@@ -106,58 +121,66 @@
         ],
         "addsSections": [
             "repoFs"
-        ]
+        ],
+        "addsSkills": []
     },
     "previewDeploySetup": {
         "description": "Set up preview deploys for the dbt project",
         "addsTools": [
             "setupPreviewDeploy"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "editProjectContext": {
         "description": "Change the project context pull request in review threads",
         "addsTools": [
             "editProjectContext"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "readAttachments": {
         "description": "Read files attached to the thread",
         "addsTools": [
             "readAttachments"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "intentRouting": {
         "description": "Start each turn with the tools its intent needs",
         "addsTools": [
             "loadAgentTools"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "skills": {
-        "description": "Load skills enabled on the agent",
+        "description": "Load built-in skills of active add-ons and agent skills",
         "addsTools": [
             "loadSkill"
         ],
         "addsSections": [
             "skills"
-        ]
+        ],
+        "addsSkills": []
     },
     "mcp": {
         "description": "Load tools from attached MCP servers on demand",
         "addsTools": [
             "loadMcpTools"
         ],
-        "addsSections": []
+        "addsSections": [],
+        "addsSkills": []
     },
     "mcpInventory": {
         "description": "List attached MCP servers and their tools, even when none can run",
         "addsTools": [],
         "addsSections": [
             "mcpTools"
-        ]
+        ],
+        "addsSkills": []
     },
     "projectContext": {
         "description": "Load curated project context and memories",
@@ -166,14 +189,16 @@
         ],
         "addsSections": [
             "projectContext"
-        ]
+        ],
+        "addsSkills": []
     },
     "memories": {
         "description": "Guidance for saving and using agent memories",
         "addsTools": [],
         "addsSections": [
             "memories"
-        ]
+        ],
+        "addsSkills": []
     },
     "customChartTypes": {
         "description": "Find the project's custom chart types",
@@ -182,7 +207,8 @@
         ],
         "addsSections": [
             "availableCustomChartTypes"
-        ]
+        ],
+        "addsSkills": []
     },
     "userIdentity": {
         "description": "Tell the agent who it is talking to and let it fix their name",
@@ -191,6 +217,7 @@
         ],
         "addsSections": [
             "requestingUser"
-        ]
+        ],
+        "addsSkills": []
     }
 }

@@ -16810,29 +16810,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     invalidateQueryCache: battleProfile !== null,
                 });
 
-                const builtInSkills = canUseContentTools
-                    ? await this.aiAgentToolsService.listAgentSkills()
-                    : [];
+                const builtInSkills =
+                    await this.aiAgentToolsService.listAgentSkills();
                 const modelServableSkills = (
                     await this.aiAgentSkillModel.findBoundToAgent(
                         agentSettings.uuid,
                     )
                 ).filter(AiAgentService.isModelServable);
-                const availableSkills = [
-                    ...builtInSkills,
-                    ...modelServableSkills.map((skill) => ({
-                        name: skill.name,
-                        description: getAiAgentSkillListingText(
-                            skill.parsed.frontmatter,
-                            AI_AGENT_SKILL_LISTING_MAX_CHARS,
-                        ),
-                        resources: skill.parsed.resources.map((resource) => ({
-                            name: resource.name,
-                            description: resource.description,
-                        })),
-                        source: 'custom' as const,
+                const customSkills = modelServableSkills.map((skill) => ({
+                    name: skill.name,
+                    description: getAiAgentSkillListingText(
+                        skill.parsed.frontmatter,
+                        AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                    ),
+                    resources: skill.parsed.resources.map((resource) => ({
+                        name: resource.name,
+                        description: resource.description,
                     })),
-                ];
+                    source: 'custom' as const,
+                }));
                 const copilotConfig =
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid: promptProject.organizationUuid,
@@ -17098,7 +17094,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
-                    availableSkills,
+                    builtInSkills,
+                    customSkills,
                     modelReasoningEnabled:
                         prompt.modelConfig?.reasoning ?? null,
 

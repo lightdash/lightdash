@@ -19,5 +19,6 @@
         "runSql",
         "searchSemanticLayer"
     ],
-    "promptSections": []
+    "promptSections": [],
+    "skills": []
 }

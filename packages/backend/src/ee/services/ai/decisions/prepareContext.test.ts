@@ -1,9 +1,12 @@
 import type { ToolSet } from 'ai';
 import { describe, expect, it, vi } from 'vitest';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
-import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import type { AiAgentDependencies } from '../types/aiAgent';
 import { AiDecisionClient } from './AiDecisionClient';
-import { prepareRelevantContext } from './prepareContext';
+import {
+    prepareRelevantContext,
+    type PrepareContextArgs,
+} from './prepareContext';
 
 const choice = (value: string) => ({
     type: 'choice',
@@ -52,7 +55,7 @@ const setup = (allowlist?: Set<string>) => {
                 alwaysIncludeInContext: false,
             },
         ],
-    } as unknown as AiAgentArgs;
+    } as unknown as PrepareContextArgs;
     const loadSkill = vi.fn().mockResolvedValue({
         name: 'metrics',
         body: 'Use documented metrics.',
@@ -354,8 +357,10 @@ describe('context preloading', () => {
             {
                 name: 'developing-in-lightdash',
                 description: 'Charts and dashboards as code',
+                resources: [],
+                source: 'builtIn',
             },
-        ] as AiAgentArgs['availableSkills'];
+        ];
         loadSkill.mockResolvedValue({
             name: 'developing-in-lightdash',
             body: 'Chart-as-code rules.',
@@ -1286,7 +1291,7 @@ describe('context preloading', () => {
                 {
                     ...args,
                     execution: { mode: 'deep_research' },
-                } as AiAgentArgs,
+                } as PrepareContextArgs,
                 dependencies,
             ),
         ).toBeNull();

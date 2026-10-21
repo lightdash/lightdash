@@ -103,7 +103,8 @@ const buildAgentArgs = (
             projectUuid: 'project-1',
         },
         aiAgentMemoryEnabled: false,
-        availableSkills: [],
+        builtInSkills: [],
+        customSkills: [],
         callOptions: {},
         canManageAgent: false,
         canRunSql: true,
@@ -1915,13 +1916,20 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 },
                 repoFsRoot: 'dbt',
                 repoFsSupportsCodeSearch: true,
-                availableSkills: [{ name: 'modeling' }],
                 canManageAgent: false,
                 canRunSql: true,
                 enableDataAccess: true,
                 enableContentTools: true,
                 autoApproveSql: true,
             } as unknown as AiAgentArgs,
+            [
+                {
+                    name: 'modeling',
+                    description: 'Modeling',
+                    resources: [],
+                    source: 'custom',
+                },
+            ],
             {
                 generateVisualization: {} as never,
                 mcp_github__search_issues: {} as never,
@@ -2112,7 +2120,8 @@ describe('getAgentTools workstream tool gate', () => {
             },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
-            availableSkills: [],
+            builtInSkills: [],
+            customSkills: [],
             callOptions: {},
             compactionSummary: null,
             canManageAgent: false,
@@ -2217,6 +2226,69 @@ describe('getAgentTools workstream tool gate', () => {
             );
         },
     );
+
+    it('loads only the skills the run lists', async () => {
+        const args = {
+            ...buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                enableDataAccess: true,
+            }),
+            builtInSkills: [
+                {
+                    name: 'developing-in-lightdash',
+                    description: 'Charts and dashboards',
+                    resources: [],
+                    source: 'builtIn' as const,
+                },
+            ],
+            customSkills: [
+                {
+                    name: 'revenue-review',
+                    description: 'Revenue reviews',
+                    resources: [],
+                    source: 'custom' as const,
+                },
+            ],
+        };
+        const loadSkill = vi.fn().mockResolvedValue({
+            name: 'revenue-review',
+            body: 'Review revenue.',
+            metadata: {
+                name: 'revenue-review',
+                builtIn: false,
+                uuid: null,
+                versionNumber: null,
+                contentHash: null,
+            },
+        });
+        const dependencies = new Proxy(
+            { loadSkill },
+            { get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            args,
+            loadoutFor(args, mcpStub),
+            dependencies,
+            [],
+            mcpStub,
+            new Map(),
+            {},
+            new AgentContext([]),
+        );
+        const load = (name: string) =>
+            tools.loadSkill.execute!(
+                { name, resourceName: null, arguments: null },
+                { toolCallId: name, messages: [], context: {} },
+            );
+
+        expect(JSON.stringify(await load('developing-in-lightdash'))).toContain(
+            'was not found',
+        );
+        expect(JSON.stringify(await load('Revenue-Review'))).toContain(
+            'Review revenue.',
+        );
+    });
 
     it('registers Slack chart images for delivery', async () => {
         const args = buildArgs({
