@@ -458,19 +458,61 @@ describe('ChartRegistryClient', () => {
         expect(await client.getAsset(entry.thumbnail)).toBeUndefined();
     });
 
-    it('serves an octet-stream asset using the type implied by its image extension', async () => {
-        const fetchImpl = vi
-            .fn()
-            .mockResolvedValueOnce(jsonResponse(index))
-            .mockResolvedValueOnce({
-                status: 200,
-                body: Buffer.from([1, 2, 3]),
-                contentType: 'application/octet-stream',
-            });
-        const client = makeClient(fetchImpl);
-        const asset = await client.getAsset('charts/sankey/1.2.0/thumb.webp');
-        expect(asset?.contentType).toBe('image/webp');
-        expect(asset?.buffer).toEqual(Buffer.from([1, 2, 3]));
+    describe('generic or missing content-type (magic-byte sniffing)', () => {
+        const webp = Buffer.concat([
+            Buffer.from('RIFF'),
+            Buffer.from([0x10, 0, 0, 0]),
+            Buffer.from('WEBPVP8 '),
+        ]);
+        const samples: [string, Buffer][] = [
+            [
+                'image/png',
+                Buffer.from([
+                    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0,
+                ]),
+            ],
+            ['image/jpeg', Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0])],
+            ['image/webp', webp],
+            ['image/gif', Buffer.from('GIF89a')],
+        ];
+        const getWith = async (body: Buffer, contentType: string | null) => {
+            const fetchImpl = vi
+                .fn()
+                .mockResolvedValueOnce(jsonResponse(index))
+                .mockResolvedValueOnce({ status: 200, body, contentType });
+            return makeClient(fetchImpl).getAsset(entry.thumbnail);
+        };
+
+        it.each(samples)('serves %s sniffed from octet-stream', async (type, body) => {
+            const asset = await getWith(body, 'application/octet-stream');
+            expect(asset?.contentType).toBe(type);
+        });
+
+        it('serves a sniffed image when content-type is missing', async () => {
+            const asset = await getWith(samples[0][1], null);
+            expect(asset?.contentType).toBe('image/png');
+        });
+
+        it('ignores the file extension and trusts the bytes', async () => {
+            // entry.thumbnail is a .png path; the body is a GIF
+            const asset = await getWith(
+                Buffer.from('GIF89a'),
+                'application/octet-stream',
+            );
+            expect(asset?.contentType).toBe('image/gif');
+        });
+
+        it('rejects octet-stream bodies that are not a known image', async () => {
+            expect(
+                await getWith(
+                    Buffer.from('<svg onload="alert(1)"></svg>'),
+                    'application/octet-stream',
+                ),
+            ).toBeUndefined();
+            expect(
+                await getWith(Buffer.from('RIFF....WAVE'), null),
+            ).toBeUndefined();
+        });
     });
 
     it('rejects an asset with a missing content-type', async () => {

@@ -37,15 +37,35 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
-// Private repositories (e.g. Artifactory proxies) chnage the 
-// contentType to generic octet-stream, so use this mapping to 
-// convert the file extension to regular content types.
-const IMAGE_CONTENT_TYPE_BY_EXTENSION: Record<string, string> = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    webp: 'image/webp',
-    gif: 'image/gif',
+/** Identifies an allowlisted image type from its leading magic bytes. */
+const sniffImageContentType = (body: Buffer): string | undefined => {
+    if (
+        body.length >= 8 &&
+        body.subarray(0, 8).equals(
+            Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        )
+    ) {
+        return 'image/png';
+    }
+    if (
+        body.length >= 3 &&
+        body[0] === 0xff &&
+        body[1] === 0xd8 &&
+        body[2] === 0xff
+    ) {
+        return 'image/jpeg';
+    }
+    if (
+        body.length >= 12 &&
+        body.toString('ascii', 0, 4) === 'RIFF' &&
+        body.toString('ascii', 8, 12) === 'WEBP'
+    ) {
+        return 'image/webp';
+    }
+    if (body.length >= 4 && body.toString('ascii', 0, 4) === 'GIF8') {
+        return 'image/gif';
+    }
+    return undefined;
 };
 
 // Servable asset shape: one image filename under a published version dir of
@@ -494,27 +514,25 @@ export class ChartRegistryClient {
 
     /**
      * Non-2xx or a content type outside the image allowlist is treated as
-     * absent. A generic octet-stream (e.g. Artifactory proxies) falls back to
-     * the type implied by the path's image extension, already restricted by
-     * ASSET_PATH_PATTERN.
+     * absent. A generic octet-stream or missing type (e.g. Artifactory
+     * proxies) is resolved by sniffing the body's magic bytes, never by
+     * trusting the file extension.
      */
     private resolveAssetContentType(
         status: number,
         contentType: string | null,
-        path: string,
+        body: Buffer,
     ): string | undefined {
-        if (status < 200 || status >= 300 || contentType === null) {
+        if (status < 200 || status >= 300) {
             return undefined;
         }
-        const normalized = normalizeContentType(contentType);
-        const resolved =
-            normalized === 'application/octet-stream'
-                ? IMAGE_CONTENT_TYPE_BY_EXTENSION[
-                      path.slice(path.lastIndexOf('.') + 1).toLowerCase()
-                  ]
-                : normalized;
-        return resolved && ALLOWED_ASSET_CONTENT_TYPES.has(resolved)
-            ? resolved
+        const normalized =
+            contentType === null ? null : normalizeContentType(contentType);
+        if (normalized === null || normalized === 'application/octet-stream') {
+            return sniffImageContentType(body);
+        }
+        return ALLOWED_ASSET_CONTENT_TYPES.has(normalized)
+            ? normalized
             : undefined;
     }
 
@@ -539,7 +557,7 @@ export class ChartRegistryClient {
         const resolvedContentType = this.resolveAssetContentType(
             status,
             contentType,
-            path,
+            body,
         );
         if (!resolvedContentType) {
             return undefined;
