@@ -450,7 +450,9 @@ jobs:
     needs: files-changed
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ steps.preview-url.outputs.url }}
+    env:
+      PREVIEW_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -469,7 +471,7 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           initial-status: pending
           environment: pr-${{ github.event.number }}
-          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          environment-url: ${{ env.PREVIEW_URL }}
 
       - name: Deploy preview environment
         id: deploy
@@ -482,7 +484,7 @@ jobs:
           # retry with a full migrate + seed (see okteto.preview.yaml)
           timeout: 40m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
+          variables: SITE_URL=${{ env.PREVIEW_URL }},DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
       - name: Collect failed preview diagnostics
         if: ${{ failure() && steps.deploy.outcome == 'failure' }}
@@ -533,7 +535,8 @@ jobs:
           done <<< "$preview_pods"
 
       - name: Set preview URL output
-        run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
+        id: preview-url
+        run: echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Update deployment status
         uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
@@ -541,7 +544,7 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           state: success
           deployment-id: ${{ steps.deployment.outputs.deployment_id }}
-          environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          environment-url: ${{ env.PREVIEW_URL }}
 
       - name: Comment PR with preview info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
@@ -551,7 +554,7 @@ jobs:
             const body = `${marker}
             ## Preview Environment
 
-            🌐 **URL:** https://lightdash-preview-pr-${context.issue.number}.lightdash.okteto.dev
+            🌐 **URL:** ${process.env.PREVIEW_URL}
 
             📋 **Logs:** [View in GCP Console](https://console.cloud.google.com/logs/query;query=resource.labels.namespace_name%3D%22pr-${context.issue.number}%22;duration=PT30M?project=lightdash-previews)
 
@@ -622,6 +625,7 @@ jobs:
     needs: [preview, files-changed]
     name: "E2E: API (Vitest)"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
       SNOWFLAKE_AI_STUB_URL: http://snowflake-ai-stub:3900
     steps:
@@ -649,7 +653,7 @@ jobs:
       - name: Run API tests
         run: pnpm -F api-tests test:api
         env:
-          SITE_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          SITE_URL: ${{ env.PREVIEW_URL }}
           PGHOST: ${{ secrets.PGHOST }}
           PGPASSWORD: ${{ secrets.PGPASSWORD }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -681,6 +685,7 @@ jobs:
         containers: [1, 2, 3, 4, 5]
     name: "E2E: App (${{ matrix.containers }}/${{ strategy.job-total }})"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
@@ -697,14 +702,14 @@ jobs:
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Warm preview
-        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+        run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           browser: firefox
           working-directory: packages/e2e
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
+          config: "baseUrl=${{ env.PREVIEW_URL }},specPattern=cypress/e2e/app/**/*.cy.{js,jsx,ts,tsx},video=false"
         env:
           SPLIT: ${{ strategy.job-total }}
           SPLIT_INDEX: ${{ strategy.job-index }}
@@ -745,6 +750,7 @@ jobs:
         timezone: ["America/New_York", "Europe/Madrid", "Asia/Tokyo"]
     name: "E2E: Timezone (${{ matrix.timezone }})"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
@@ -761,7 +767,7 @@ jobs:
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Warm preview
-        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+        run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
@@ -769,7 +775,7 @@ jobs:
           browser: firefox
           working-directory: packages/e2e
           spec: cypress/e2e/app/dates.cy.ts
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,video=false"
+          config: "baseUrl=${{ env.PREVIEW_URL }},video=false"
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
@@ -790,6 +796,7 @@ jobs:
     needs: [preview, files-changed]
     name: "CLI: Without dbt"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -813,14 +820,14 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
-        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+        run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/api,cypress/cli/yaml-only
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
 
   # CLI tests with dbt
   cli-tests:
@@ -830,6 +837,7 @@ jobs:
     needs: [preview, files-changed]
     name: "CLI: Integration"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -879,14 +887,14 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
-        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+        run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/integration/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
@@ -904,6 +912,7 @@ jobs:
         dbt: ["1.10", "1.11"]
     name: "CLI: dbt ${{ matrix.dbt }}"
     env:
+      PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -958,14 +967,14 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Warm preview
-        run: node packages/e2e/warm-preview.mjs "https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+        run: node packages/e2e/warm-preview.mjs "$PREVIEW_URL"
       - name: Run Cypress
         uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
           spec: cypress/cli/dbt/*
-          config: "baseUrl=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev"
+          config: "baseUrl=${{ env.PREVIEW_URL }}"
         env:
           CYPRESS_PGHOST: ${{ secrets.PGHOST }}
           CYPRESS_PGPASSWORD: ${{ secrets.PGPASSWORD }}
