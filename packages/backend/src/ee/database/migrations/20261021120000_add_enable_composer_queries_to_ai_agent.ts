@@ -5,7 +5,7 @@ const ENABLE_COMPOSER_QUERIES_COLUMN = 'enable_composer_queries';
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds one boolean column to ai_agent defaulting to false. Existing agents keep the classic query tools until an admin opts in to composer queries.',
+    reason: 'Adds one boolean column to ai_agent defaulting to true. Agents behind the composer flags keep composer queries; admins can turn it off per agent.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -21,7 +21,7 @@ export async function up(knex: Knex): Promise<void> {
                 table
                     .boolean(ENABLE_COMPOSER_QUERIES_COLUMN)
                     .notNullable()
-                    .defaultTo(false);
+                    .defaultTo(true);
             });
         }
     } finally {

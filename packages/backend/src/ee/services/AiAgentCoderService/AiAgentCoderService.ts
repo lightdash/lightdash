@@ -113,7 +113,7 @@ const getComparableAgent = (
     enableUserContext: agent.enableUserContext,
     enableSqlMode: agent.enableSqlMode ?? true,
     enableSqlAutoApproval: agent.enableSqlAutoApproval ?? false,
-    enableComposerQueries: agent.enableComposerQueries ?? false,
+    enableComposerQueries: agent.enableComposerQueries ?? true,
     ...(includeThreadRetention
         ? { threadRetentionHours: agent.threadRetentionHours ?? null }
         : {}),
@@ -621,7 +621,7 @@ export class AiAgentCoderService extends BaseService {
                         enableSqlAutoApproval:
                             agent.enableSqlAutoApproval ?? false,
                         enableComposerQueries:
-                            agent.enableComposerQueries ?? false,
+                            agent.enableComposerQueries ?? true,
                         ...(retentionEnabled &&
                         agent.threadRetentionHours !== undefined
                             ? {
@@ -649,7 +649,7 @@ export class AiAgentCoderService extends BaseService {
                     enableUserContext: agent.enableUserContext,
                     enableSqlMode: agent.enableSqlMode ?? true,
                     enableSqlAutoApproval: agent.enableSqlAutoApproval ?? false,
-                    enableComposerQueries: agent.enableComposerQueries ?? false,
+                    enableComposerQueries: agent.enableComposerQueries ?? true,
                     threadRetentionHours:
                         retentionEnabled &&
                         agent.threadRetentionHours !== undefined

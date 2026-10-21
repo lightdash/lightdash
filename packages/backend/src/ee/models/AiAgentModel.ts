@@ -2344,8 +2344,7 @@ export class AiAgentModel {
                     enable_sql_mode: args.enableSqlMode ?? true,
                     enable_sql_auto_approval:
                         args.enableSqlAutoApproval ?? false,
-                    enable_composer_queries:
-                        args.enableComposerQueries ?? false,
+                    enable_composer_queries: args.enableComposerQueries ?? true,
                     admin_only: args.adminOnly ?? false,
                     model_config: args.modelConfig ?? null,
                     ai_organization_provider_credential_uuid:

@@ -8,7 +8,7 @@ type ComposerQueriesGateInput = {
     hasStandardToolAllowlist: boolean;
 };
 
-/** Flags make composer available; the agent must also opt in. Allowlisted threads keep classic tools. */
+/** Flags make composer available; the agent setting (on by default) can turn it off. Allowlisted threads keep classic tools. */
 export const isComposerQueriesEnabled = ({
     multiSourceQueryEnabled,
     composeSqlRunnerEnabled,

@@ -5759,7 +5759,7 @@ export class AiAgentService extends BaseService {
             enableSqlMode: body.enableSqlMode ?? true,
             enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
             enableComposerQueries:
-                body.enableDataAccess && (body.enableComposerQueries ?? false),
+                body.enableDataAccess && (body.enableComposerQueries ?? true),
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
