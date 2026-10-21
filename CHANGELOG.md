@@ -1,3 +1,10 @@
+# [3.15.0](https://github.com/lightdash/lightdash/compare/3.14.0...3.15.0) (2026-10-21)
+
+
+### Features
+
+* **embed:** let embedded AI agents read source spaces ([#31334](https://github.com/lightdash/lightdash/issues/31334)) ([f74c201](https://github.com/lightdash/lightdash/commit/f74c201df658341cdafdb22035a5cae2e773d9c2))
+
 # [3.14.0](https://github.com/lightdash/lightdash/compare/3.13.1...3.14.0) (2026-10-21)
 
 
