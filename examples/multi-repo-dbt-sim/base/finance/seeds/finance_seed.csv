@@ -1,0 +1,4 @@
+id,label,amount,active,event_date
+1,finance_sample_1,31,true,2026-01-01
+2,finance_sample_2,32,true,2026-01-02
+3,finance_sample_3,33,true,2026-01-03

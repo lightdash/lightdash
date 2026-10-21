@@ -1,0 +1,13 @@
+name: risk
+version: '1.0.0'
+config-version: 2
+profile: multi_repo_sim
+model-paths: [models]
+seed-paths: [seeds]
+models:
+    risk:
+        +materialized: table
+        +schema: risk
+seeds:
+    risk:
+        +schema: risk

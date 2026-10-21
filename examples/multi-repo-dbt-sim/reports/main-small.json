@@ -1,0 +1,2843 @@
+{
+    "code_sha": "b7dd419f984c6eb707635bc40bc784c81f06c614",
+    "target_sha": "b7dd419f984c6eb707635bc40bc784c81f06c614",
+    "scale": "small",
+    "seed": 42,
+    "fixture_stats": {
+        "distinctModelNames": 18,
+        "duplicatedDistinctNames": 1,
+        "largestSource": {
+            "models": 6,
+            "name": "payments"
+        },
+        "modelCounts": {
+            "finance": 4,
+            "growth": 2,
+            "marketing": 2,
+            "merchants": 3,
+            "payments": 6,
+            "risk": 2
+        },
+        "paymentsMerchantsOverlaps": 1,
+        "sourceCount": 6,
+        "totalModelNodes": 20,
+        "totalModels": 19,
+        "totalSeeds": 6
+    },
+    "results": [
+        {
+            "scenario": "config-none",
+            "mode": "cli",
+            "expected": "Missing parameters/categories still erase project configuration",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12747,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 11188,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 2,
+                    "marketing": 0
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "config-partial",
+            "mode": "cli",
+            "expected": "Partial configuration still replaces project configuration",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13102,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13130,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-join",
+            "mode": "cli",
+            "expected": "Record whether the cross-repo join fails or is dropped",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13299,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "dbt19-cli",
+            "mode": "cli",
+            "expected": "Repo compiled with dbt 1.9 deploys",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 11438,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "growth": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null
+            }
+        },
+        {
+            "scenario": "baseline",
+            "mode": "server",
+            "expected": "Ring, shared upstream, mixed refs and joins compile",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20237,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "warehouse_probe": {
+                "resolves": true,
+                "row_count": 3
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "ambiguity",
+            "mode": "server",
+            "expected": "One-argument-only reference fails with a clear ambiguity error",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20206,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": false,
+                    "elapsed_ms": 18221,
+                    "git_discovery_requests": 11,
+                    "passes": null,
+                    "resolver_metrics": [{}],
+                    "guidance_recommends_source": false,
+                    "messages": [
+                        "dbt source \"finance\" references ref('settlement'), but the name 'settlement' is defined by several dbt sources. Use ref('project', 'model') to select a source."
+                    ]
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "unreadable",
+            "mode": "server",
+            "expected": "Refresh fails as a whole; pending isolation work keeps last-good explores",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 22234,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": false,
+                    "elapsed_ms": 4069,
+                    "git_discovery_requests": 6,
+                    "passes": null,
+                    "resolver_metrics": [{}],
+                    "guidance_recommends_source": false,
+                    "messages": [
+                        "Failed to load dbt source \"marketing\" (sim/marketing): Unexpected error while cloning git repository: Command failed with exit code 128: git clone --single-branch --depth=1 --branch=main --no-tags --progress https://localhost:43933/sim/marketing.git /tmp/git_fOlatP\nCloning into '/tmp/git_fOlatP'...\nfatal: unable to access 'https://localhost:43933/sim/marketing.git/': The requested URL returned error: 403"
+                    ]
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "healthy_addition_visible": false,
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "empty-selector",
+            "mode": "server",
+            "expected": "Empty selection fails before #31283",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 24308,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20297,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 5,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 0
+                },
+                "total_explores": 17,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "warn-error",
+            "mode": "server",
+            "expected": "NoNodesForSelectionCriteria fails unless explicitly suppressed",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20241,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": false,
+                    "elapsed_ms": 20185,
+                    "git_discovery_requests": 11,
+                    "passes": null,
+                    "resolver_metrics": [{}],
+                    "guidance_recommends_source": false,
+                    "messages": [
+                        "Failed to load dbt source \"marketing\" (sim/marketing): Failed to run \"dbt1.12 ls --output json --output-keys unique_id --select tag:sim_missing_tag\" with dbt version \"v1.12\"",
+                        "[ERROR]: Encountered an error:\nCompilation Error\n  [WARNING]: The selection criterion 'tag:sim_missing_tag' does not match any enabled nodes"
+                    ]
+                },
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20175,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 5,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 0
+                },
+                "total_explores": 17,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-join-connected",
+            "mode": "cli",
+            "expected": "Loom resolves upstream refs; record whether an already deployed upstream preserves the join",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12604,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12754,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "upstream_deployed": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 3
+                },
+                "total_explores": 3,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "join_observation": {
+                "upstream_registered": true,
+                "compile_and_deploy_success": true,
+                "compile_success": true,
+                "deploy_success": true,
+                "joined_tables": [],
+                "join_present": false,
+                "upstream_explore_before": true,
+                "upstream_explore_after": false,
+                "messages": [
+                    "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                    "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                    "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                ],
+                "loom_upstream_model_in_manifest": true,
+                "downstream_depends_on_upstream": true
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-join-unconnected",
+            "mode": "cli",
+            "expected": "Loom resolves upstream refs without registering the upstream; record join and explore availability",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13242,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "join_observation": {
+                "upstream_registered": false,
+                "compile_and_deploy_success": true,
+                "compile_success": true,
+                "deploy_success": true,
+                "joined_tables": [],
+                "join_present": false,
+                "upstream_explore_before": false,
+                "upstream_explore_after": false,
+                "messages": [
+                    "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                    "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                    "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                ],
+                "loom_upstream_model_in_manifest": true,
+                "downstream_depends_on_upstream": true
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "duplicate-project",
+            "mode": "server",
+            "expected": "Duplicate dbt project names fail early",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20206,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": false,
+                    "elapsed_ms": 6057,
+                    "git_discovery_requests": 6,
+                    "passes": null,
+                    "resolver_metrics": [{}],
+                    "guidance_recommends_source": false,
+                    "messages": [
+                        "dbt sources \"growth\" and \"marketing\" both use the dbt project name \"growth\". Each connected dbt source needs a unique `name:` value in dbt_project.yml. Change the name in one of the repositories."
+                    ]
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "versioned",
+            "mode": "server",
+            "expected": "Pinned/latest refs may require an extra cold parse",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 22303,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 18179,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "scale",
+            "mode": "server",
+            "expected": "Many sources compile; record Git discovery count and timing",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 22217,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-deploy",
+            "mode": "cli",
+            "expected": "Sequential full deploys can erase sibling explores before reworked #31326",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12894,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13271,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 6,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 6,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "finance",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13967,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 4,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "risk",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 14256,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 4,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12653,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13807,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 2
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-source",
+            "mode": "cli",
+            "expected": "Explicit-source diagnostic control; not the normal CLI workflow",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13367,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "merchants",
+                    "explicit_source": true,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13081,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 6,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 6,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "finance",
+                    "explicit_source": true,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12446,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 3,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 3,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 4,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "risk",
+                    "explicit_source": true,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12552,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 4,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 4,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "growth",
+                    "explicit_source": true,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 11760,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 2,
+                            "growth": 0,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": true,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12793,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "before": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 2,
+                            "marketing": 0
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "after": {
+                        "explores_per_source": {
+                            "dbt_project": 0,
+                            "payments": 0,
+                            "merchants": 0,
+                            "finance": 0,
+                            "risk": 0,
+                            "growth": 0,
+                            "marketing": 2
+                        },
+                        "total_explores": 2,
+                        "connection_mode": "single",
+                        "connection_route": "single"
+                    },
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 0,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "repeat_note": "A later redundant repeat was interrupted at its load gate. This row retains the earlier complete six-deploy result on the same product revision."
+        },
+        {
+            "scenario": "collision",
+            "mode": "server",
+            "expected": "Newcomer renames both explores; pending naming work preserves original",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20305,
+                    "git_discovery_requests": 9,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 5,
+                            "cacheRowsWritten": 5,
+                            "dbtLsRuns": 5,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 4
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 22223,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 5,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2
+                },
+                "total_explores": 17,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2
+                },
+                "total_explores": 17,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "original_chart": {
+                "created": true
+            },
+            "original_query_before": {
+                "saved_explore_name": "ledger",
+                "resolves": true,
+                "row_count": 3,
+                "labels": [
+                    "payments_sample_1",
+                    "payments_sample_2",
+                    "payments_sample_3"
+                ]
+            },
+            "original_query_after": {
+                "resolves": false,
+                "http_status": 404,
+                "error": {
+                    "status": "error",
+                    "error": {
+                        "statusCode": 404,
+                        "name": "NotFoundError",
+                        "message": "Explore \"ledger\" was split into \"dbt_project__ledger\" and \"marketing__ledger\". Pick one.",
+                        "data": {
+                            "exploreName": "ledger",
+                            "candidateExploreNames": [
+                                "dbt_project__ledger",
+                                "marketing__ledger"
+                            ]
+                        }
+                    }
+                }
+            },
+            "original_source_preserved": false,
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 3
+                },
+                "total_explores": 20,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "cli-duplicate-project",
+            "mode": "cli",
+            "expected": "Record source inference for duplicate dbt project names",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13479,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 13429,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0,
+                    "unattributed": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "cli_source_inference": {
+                "dbt_project_name": "growth",
+                "model_repo": "marketing",
+                "source_marker_present": false,
+                "assigned_source": null
+            },
+            "warehouse_probe": {
+                "resolves": true,
+                "row_count": 3,
+                "labels": [
+                    "marketing_sample_1",
+                    "marketing_sample_2",
+                    "marketing_sample_3"
+                ]
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 2
+                },
+                "total_explores": 2,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "dbt19-server",
+            "mode": "server",
+            "expected": "Project-wide dbt 1.9 compile succeeds",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20189,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 2,
+                    "payments": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 2,
+                    "payments": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 2,
+                    "payments": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null
+            }
+        },
+        {
+            "scenario": "server-join",
+            "mode": "server",
+            "expected": "Refresh resolves the same cross-repo join and exposes the upstream model",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 6093,
+                    "git_discovery_requests": 2,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 2,
+                            "cacheRowsWritten": 2,
+                            "dbtLsRuns": 2,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 1
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3
+                },
+                "total_explores": 9,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3
+                },
+                "total_explores": 9,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "join_observation": {
+                "upstream_registered": true,
+                "compile_and_deploy_success": true,
+                "compile_success": true,
+                "deploy_success": null,
+                "joined_tables": [
+                    {
+                        "sqlOn": "${payments.merchant_id} = ${merchant.id}",
+                        "table": "merchant",
+                        "relationship": "many-to-one",
+                        "compiledSqlOn": "(\"payments\".merchant_id) = (\"merchant\".id)",
+                        "tablesReferences": ["payments", "merchant"]
+                    }
+                ],
+                "join_present": true,
+                "upstream_explore_before": true,
+                "upstream_explore_after": true,
+                "messages": [],
+                "joined_query": {
+                    "resolves": true,
+                    "row_count": 3,
+                    "labels": [
+                        "merchants_sample_1",
+                        "merchants_sample_2",
+                        "merchants_sample_3"
+                    ]
+                }
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3
+                },
+                "total_explores": 9,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        },
+        {
+            "scenario": "refresh-after-cli",
+            "mode": "server",
+            "expected": "Refresh removes CLI-only explores",
+            "operations": [
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 22207,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 14442,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "refresh",
+                    "success": true,
+                    "elapsed_ms": 20157,
+                    "git_discovery_requests": 11,
+                    "passes": 1,
+                    "resolver_metrics": [
+                        {
+                            "passes": 1,
+                            "rounds": 1,
+                            "cacheRowsLoaded": 6,
+                            "cacheRowsWritten": 6,
+                            "dbtLsRuns": 6,
+                            "contradictions": 0,
+                            "preflightWarnings": 0,
+                            "firstAttemptInjected": 5
+                        }
+                    ],
+                    "guidance_recommends_source": false,
+                    "messages": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "after_cli": {
+                "explores_per_source": {
+                    "dbt_project": 7,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 7,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "git_head_unchanged": true,
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "merchants": 3,
+                    "finance": 4,
+                    "risk": 2,
+                    "growth": 2,
+                    "marketing": 2
+                },
+                "total_explores": 19,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {
+                    "minimum_amount": {
+                        "type": "number",
+                        "label": "Minimum amount",
+                        "default": 0,
+                        "allow_custom_values": true
+                    }
+                },
+                "spotlight_tags": [
+                    {
+                        "name": "Payments",
+                        "color": "blue",
+                        "yamlReference": "payments",
+                        "createdBy": {
+                            "firstName": "David",
+                            "lastName": "Attenborough"
+                        }
+                    }
+                ],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            },
+            "cli_only_visible_after_deploy": true,
+            "cli_only_visible_after_refresh": false
+        },
+        {
+            "scenario": "cli-collision",
+            "mode": "cli",
+            "expected": "Capture collision status and guidance; #31326 adds HTTP 409",
+            "operations": [
+                {
+                    "operation": "deploy",
+                    "source": "payments",
+                    "explicit_source": false,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12673,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [
+                        "    \u26a0 Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- payments: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project.",
+                        "- ledger: Join \"merchant\" to table \"merchant\" was skipped because the model is not available in this project. Check that the model exists, is included by the project's tags/selector, and compiles successfully, then refresh the project."
+                    ],
+                    "resolver_metrics": []
+                },
+                {
+                    "operation": "deploy",
+                    "source": "marketing",
+                    "explicit_source": false,
+                    "success": true,
+                    "compile_success": true,
+                    "exit_code": 0,
+                    "elapsed_ms": 12521,
+                    "git_discovery_requests": 0,
+                    "http_409": false,
+                    "guidance_recommends_source": false,
+                    "http_errors": [],
+                    "messages": [],
+                    "resolver_metrics": []
+                }
+            ],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 3
+                },
+                "total_explores": 3,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "baseline": {
+                "explores_per_source": {
+                    "dbt_project": 6,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 0
+                },
+                "total_explores": 6,
+                "connection_mode": "single",
+                "connection_route": "single"
+            },
+            "original_chart": {
+                "created": true
+            },
+            "original_query_before": {
+                "saved_explore_name": "ledger",
+                "resolves": true,
+                "row_count": 3,
+                "labels": [
+                    "payments_sample_1",
+                    "payments_sample_2",
+                    "payments_sample_3"
+                ]
+            },
+            "original_query_after": {
+                "saved_explore_name": "ledger",
+                "resolves": true,
+                "row_count": 3,
+                "labels": [
+                    "marketing_sample_1",
+                    "marketing_sample_2",
+                    "marketing_sample_3"
+                ]
+            },
+            "original_source_preserved": false,
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "payments": 0,
+                    "merchants": 0,
+                    "finance": 0,
+                    "risk": 0,
+                    "growth": 0,
+                    "marketing": 3
+                },
+                "total_explores": 3,
+                "connection_mode": "single",
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {
+                    "commerce": {
+                        "label": "Commerce"
+                    },
+                    "operations": {
+                        "label": "Operations"
+                    }
+                },
+                "defaults": {
+                    "column_totals": true,
+                    "case_sensitive": false
+                }
+            }
+        }
+    ],
+    "warehouse_build": {
+        "errors": [],
+        "elapsed_ms": 81836,
+        "exit_code": 0,
+        "full": false,
+        "notes": [],
+        "projects_total": 6,
+        "projects_built": 6
+    }
+}
