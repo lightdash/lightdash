@@ -1,8 +1,8 @@
 import {
+    ProjectMemberRole,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    ProjectMemberRole,
     ServiceAccountScope,
     type ChartAsCode,
 } from '@lightdash/common';

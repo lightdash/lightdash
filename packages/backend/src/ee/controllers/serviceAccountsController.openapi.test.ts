@@ -5,7 +5,7 @@ type Operation = {
     responses: Record<
         string,
         {
-            content?: { 'application/json': { schema: unknown } };
+            content?: Record<string, { schema: unknown }>;
         }
     >;
 };
