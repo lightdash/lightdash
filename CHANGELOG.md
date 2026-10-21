@@ -1,3 +1,17 @@
+# [3.3.0](https://github.com/lightdash/lightdash/compare/3.2.0...3.3.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ai-agents:** gate Deep Research report edits on the contentTools prompt section ([#31278](https://github.com/lightdash/lightdash/issues/31278)) ([e5fd800](https://github.com/lightdash/lightdash/commit/e5fd800ff62fb36f13478f415fb0acdf393ad87b))
+
+
+### Features
+
+* add YAML content-as-code uploader with Storybook previews ([#31269](https://github.com/lightdash/lightdash/issues/31269)) ([3094700](https://github.com/lightdash/lightdash/commit/30947004919158701347b73c7af2204c406fe23a))
+* **ai:** default analysis investigations to the user's default agent ([#31246](https://github.com/lightdash/lightdash/issues/31246)) ([39f09df](https://github.com/lightdash/lightdash/commit/39f09df0a36ceb2761eec23cf912edb754039542))
+* **pre-aggregates:** rebuild a changed pre-aggregate on compile by default ([#31277](https://github.com/lightdash/lightdash/issues/31277)) ([dd76797](https://github.com/lightdash/lightdash/commit/dd767979e575016545a30b94d31933c2bbc16198))
+
 # [3.2.0](https://github.com/lightdash/lightdash/compare/3.1.0...3.2.0) (2026-10-21)
 
 
