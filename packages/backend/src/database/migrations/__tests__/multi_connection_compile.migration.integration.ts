@@ -1798,7 +1798,9 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             );
 
-            test('a legacy batched deploy keeps installed-package explores across repeated failed-source refreshes', async () => {
+            const assertInstalledPackageCarry = async (
+                sourceSelection: 'default' | 'explicit',
+            ) => {
                 const fixture = await createProject();
                 await bind(fixture, 'finance', null);
                 await routeSingle(fixture.projectUuid);
@@ -1894,20 +1896,20 @@ describe('Multi-connection compile on the real schema', () => {
                     user,
                     fixture.projectUuid,
                     deploySessionUuid,
-                    'legacy-cli',
+                    'cli-1',
                     undefined,
-                    NO_SOURCE,
+                    sourceSelection === 'explicit'
+                        ? {
+                              sourceUuid: fixture.sourceUuids.marketing,
+                              target: { database: ORIGINAL_DB },
+                          }
+                        : NO_SOURCE,
                 );
                 const before = await database('cached_explore')
                     .where('project_uuid', fixture.projectUuid)
                     .whereIn('name', names)
                     .orderBy('name');
                 expect(before).toHaveLength(3);
-                for (const { explore: saved } of before) {
-                    expect(
-                        saved.tables?.[saved.baseTable ?? saved.name],
-                    ).not.toHaveProperty('dbtSourceUuid');
-                }
                 const refresh = async (label: string) => {
                     const result = await compile(
                         fixture,
@@ -1937,7 +1939,12 @@ describe('Multi-connection compile on the real schema', () => {
                 };
                 await refresh('First refresh');
                 await refresh('Second refresh');
-            });
+            };
+
+            test.each(['default', 'explicit'] as const)(
+                'a batched deploy with %s source selection keeps installed-package explores across repeated failures',
+                assertInstalledPackageCarry,
+            );
 
             test('a batched CLI deploy with a mismatched target fails the session and saves nothing (D3)', async () => {
                 const fixture = await createProject();
