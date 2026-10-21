@@ -85,6 +85,7 @@ export const isUserManagedExplore = (explore: {
 export enum InlineErrorType {
     // Fatal error types (ExploreError - explore is broken)
     METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
+    EXPLORE_NAME_COLLISION = 'EXPLORE_NAME_COLLISION',
     NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
     // Warning types (Explore.warnings - explore still usable)
     SKIPPED_JOIN = 'SKIPPED_JOIN',
@@ -112,7 +113,16 @@ export type PreAggregateSource = {
 
 export type CustomMetaValue = string | number | boolean;
 
+export type DbtExploreIdentity = {
+    sourceUuid: string | null;
+    sourceName: string | null;
+    packageName: string;
+    uniqueId: string;
+    modelName: string;
+};
+
 export type Explore = {
+    dbtModelIdentity?: DbtExploreIdentity;
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
     tags: string[];

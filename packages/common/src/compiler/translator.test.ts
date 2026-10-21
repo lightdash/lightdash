@@ -1616,6 +1616,68 @@ describe('merged manifest model qualification', () => {
         meta: { joins },
     });
 
+    it.each([false, true])(
+        'defers names and keeps a local qualified-looking join target when present: %s',
+        async (localTargetExists) => {
+            const models = [
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'orders',
+                }),
+                buildMergedModel({
+                    sourceName: 'finance',
+                    packageName: 'pkg_b',
+                    name: 'orders',
+                }),
+                ...(localTargetExists
+                    ? [
+                          buildMergedModel({
+                              sourceName: 'analytics',
+                              packageName: 'pkg_a',
+                              name: 'finance__orders',
+                          }),
+                      ]
+                    : []),
+                buildMergedModel({
+                    sourceName: 'analytics',
+                    packageName: 'pkg_a',
+                    name: 'customers',
+                    joins: [
+                        {
+                            join: 'finance__orders',
+                            sql_on: '${customers.id} = ${finance__orders.id}',
+                        },
+                    ],
+                }),
+            ];
+            const explores = await convertExplores(
+                models,
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                { deferExploreNaming: true },
+            );
+            expect(explores).toHaveLength(localTargetExists ? 4 : 3);
+            expect(explores.some(isExploreError)).toBe(false);
+            expect(new Set(explores.map((explore) => explore.name)).size).toBe(
+                localTargetExists ? 4 : 3,
+            );
+            const customers = explores.find(
+                (explore) =>
+                    explore.dbtModelIdentity?.modelName === 'customers',
+            ) as Explore;
+            expect(customers.label).toBe('Customers');
+            expect(customers.tables.finance__orders.dbtPackageName).toBe(
+                localTargetExists ? 'pkg_a' : 'pkg_b',
+            );
+            expect(customers.tables.finance__orders.canonicalName).toMatch(
+                /^__model_/,
+            );
+        },
+    );
+
     it('qualifies every side of a cross-source collision and leaves other explores bare', async () => {
         const explores = await convertExplores(
             [
