@@ -948,10 +948,6 @@ export const AiAgentFormSetup = ({
                                             'enableContentTools',
                                             false,
                                         );
-                                        form.setFieldValue(
-                                            'enableComposerQueries',
-                                            false,
-                                        );
                                     }
                                 }}
                             />

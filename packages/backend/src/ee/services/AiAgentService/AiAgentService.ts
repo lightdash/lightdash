@@ -5758,8 +5758,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
             enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
-            enableComposerQueries:
-                body.enableDataAccess && (body.enableComposerQueries ?? true),
+            enableComposerQueries: body.enableComposerQueries ?? true,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -7520,9 +7519,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
             enableSqlAutoApproval: body.enableSqlAutoApproval,
-            enableComposerQueries: nextEnableDataAccess
-                ? body.enableComposerQueries
-                : false,
+            enableComposerQueries: body.enableComposerQueries,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,

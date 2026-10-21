@@ -392,11 +392,6 @@ export class AiAgentCoderService extends BaseService {
                     `AI agent '${agent.slug}' must enable data access before enabling content tools`,
                 );
             }
-            if (agent.enableComposerQueries && !agent.enableDataAccess) {
-                throw new ParameterError(
-                    `AI agent '${agent.slug}' must enable data access before enabling composer queries`,
-                );
-            }
             const duplicateEvaluationTitles = (agent.evaluations ?? [])
                 .map(({ title }) => title)
                 .filter(
