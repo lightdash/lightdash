@@ -1,8 +1,11 @@
 import {
+    assertUnreachable,
     ChartType,
+    ContentType,
     DashboardTileTypes,
     SearchItemType,
     SEED_ORG_1_ADMIN,
+    SEED_ORG_1_EDITOR,
     SEED_PROJECT,
     type DashboardTabResult,
 } from '@lightdash/common';
@@ -27,6 +30,7 @@ import { getTestContext } from '../../vitest.setup.integration';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { createSavedChart } from '../SavedChartModel';
 import { SearchModel } from './index';
+import { searchReservingVerified } from './utils/search';
 
 const uniqueToken = (prefix: string) =>
     `${prefix}${randomUUID().replace(/-/g, '').slice(0, 10)}`;
@@ -36,16 +40,22 @@ describe('SearchModel.searchDashboards', () => {
     let transaction: Knex.Transaction;
     let model: SearchModel;
     let spaceUuid: string;
+    let spaceId: number;
+    let seedProject: DbProject;
     let dashboardUuid: string;
     let dashboardId: number;
     let dashboardNameToken: string;
     let supersededChartToken: string;
     let currentChartToken: string;
 
-    const createChartInSpace = async (name: string) => {
+    const createChartInSpace = async (
+        name: string,
+        chartSpaceUuid = spaceUuid,
+        projectUuid = SEED_PROJECT.project_uuid,
+    ) => {
         const chartUuid = await createSavedChart(
             transaction,
-            SEED_PROJECT.project_uuid,
+            projectUuid,
             SEED_ORG_1_ADMIN.user_uuid,
             {
                 name,
@@ -72,7 +82,7 @@ describe('SearchModel.searchDashboards', () => {
                     lastName: SEED_ORG_1_ADMIN.last_name,
                 },
                 slug: `search-chart-${randomUUID()}`,
-                spaceUuid,
+                spaceUuid: chartSpaceUuid,
                 dashboardUuid: null,
             },
         );
@@ -86,12 +96,16 @@ describe('SearchModel.searchDashboards', () => {
         return chart.saved_query_id;
     };
 
-    const addVersionWithChartTile = async (savedChartId: number) => {
+    const addVersionWithChartTile = async (
+        savedChartId: number,
+        targetDashboardId = dashboardId,
+        updatedByUserUuid = SEED_ORG_1_ADMIN.user_uuid,
+    ) => {
         const [version] = await transaction(DashboardVersionsTableName)
             .insert({
                 agent_identity: null,
-                dashboard_id: dashboardId,
-                updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                dashboard_id: targetDashboardId,
+                updated_by_user_uuid: updatedByUserUuid,
                 config: undefined,
             })
             .returning('dashboard_version_id');
@@ -113,6 +127,78 @@ describe('SearchModel.searchDashboards', () => {
         });
     };
 
+    const attachChart = async (
+        savedChartId: number,
+        placement: 'direct' | 'tile',
+    ) => {
+        switch (placement) {
+            case 'direct':
+                await transaction(SavedChartsTableName)
+                    .where('saved_query_id', savedChartId)
+                    .update({ dashboard_uuid: dashboardUuid, space_id: null });
+                break;
+            case 'tile':
+                await addVersionWithChartTile(savedChartId);
+                break;
+            default:
+                assertUnreachable(placement, 'Unknown chart placement');
+        }
+    };
+
+    const createDashboard = async (name: string) => {
+        const [dashboard] = await transaction(DashboardsTableName)
+            .insert({
+                project_uuid: SEED_PROJECT.project_uuid,
+                name,
+                description: undefined,
+                space_id: spaceId,
+                slug: `search-ranking-${randomUUID()}`,
+            })
+            .returning(['dashboard_uuid', 'dashboard_id']);
+        await transaction(DashboardVersionsTableName).insert({
+            agent_identity: null,
+            dashboard_id: dashboard.dashboard_id,
+            updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            config: undefined,
+        });
+        return dashboard;
+    };
+
+    const createForeignProjectAndSpace = async () => {
+        const [project] = await transaction(ProjectTableName)
+            .insert({
+                name: `Search foreign project ${randomUUID()}`,
+                organization_id: seedProject.organization_id,
+                project_type: seedProject.project_type,
+                dbt_connection: seedProject.dbt_connection,
+                dbt_connection_type: seedProject.dbt_connection_type,
+                copied_from_project_uuid: seedProject.copied_from_project_uuid,
+                dbt_version: seedProject.dbt_version,
+                created_by_user_uuid: seedProject.created_by_user_uuid,
+                organization_warehouse_credentials_uuid:
+                    seedProject.organization_warehouse_credentials_uuid,
+            })
+            .returning(['project_id', 'project_uuid']);
+        const user = await transaction(UserTableName)
+            .where('user_uuid', SEED_ORG_1_ADMIN.user_uuid)
+            .first('user_id');
+        if (!user) throw new Error('Seed user not found');
+        const slug = `search-foreign-space-${randomUUID()}`;
+        const [space] = await transaction(SpaceTableName)
+            .insert({
+                name: slug,
+                project_id: project.project_id,
+                created_by_user_id: user.user_id,
+                slug,
+                path: slug.replaceAll('-', '_'),
+                parent_space_uuid: null,
+                inherit_parent_permissions: false,
+                is_default_user_space: false,
+            })
+            .returning(['space_id', 'space_uuid']);
+        return { project, space };
+    };
+
     beforeAll(() => {
         database = getTestContext().db;
     });
@@ -125,6 +211,12 @@ describe('SearchModel.searchDashboards', () => {
                 database: transaction,
             }),
         });
+
+        const project = await transaction(ProjectTableName)
+            .where('project_uuid', SEED_PROJECT.project_uuid)
+            .first();
+        if (!project) throw new Error('Seed project not found');
+        seedProject = project;
 
         const space = await transaction(SpaceTableName)
             .innerJoin(
@@ -145,6 +237,7 @@ describe('SearchModel.searchDashboards', () => {
             throw new Error('Seed project space not found');
         }
         spaceUuid = space.space_uuid;
+        spaceId = space.space_id;
 
         dashboardNameToken = uniqueToken('board');
         const [dashboard] = await transaction(DashboardsTableName)
@@ -204,6 +297,317 @@ describe('SearchModel.searchDashboards', () => {
         await expect(
             searchDashboardUuids(dashboardNameToken),
         ).resolves.toContain(dashboardUuid);
+    });
+
+    it('finds a dashboard through a directly owned chart', async () => {
+        const token = uniqueToken('owned');
+        await attachChart(await createChartInSpace(token), 'direct');
+        await expect(searchDashboardUuids(token)).resolves.toContain(
+            dashboardUuid,
+        );
+    });
+
+    it.each([DashboardsTableName, SpaceTableName] as const)(
+        'excludes deleted %s for both name and chart matches',
+        async (table) => {
+            const directChartToken = uniqueToken('deletedparent');
+            await attachChart(
+                await createChartInSpace(directChartToken),
+                'direct',
+            );
+            const target = {
+                dashboards: { column: 'dashboard_id', id: dashboardId },
+                spaces: { column: 'space_id', id: spaceId },
+            }[table];
+            await transaction(table).where(target.column, target.id).update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+            });
+            await Promise.all(
+                [dashboardNameToken, currentChartToken, directChartToken].map(
+                    (token) =>
+                        expect(searchDashboardUuids(token)).resolves.toEqual(
+                            [],
+                        ),
+                ),
+            );
+        },
+    );
+
+    it.each(['direct', 'tile'] as const)(
+        'excludes deleted charts from %s matches',
+        async (placement) => {
+            const token = uniqueToken('deletedchart');
+            const chartId = await createChartInSpace(token);
+            await attachChart(chartId, placement);
+            await expect(searchDashboardUuids(token)).resolves.toContain(
+                dashboardUuid,
+            );
+            await transaction(SavedChartsTableName)
+                .where('saved_query_id', chartId)
+                .update({
+                    deleted_at: new Date(),
+                    deleted_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+                });
+            await expect(searchDashboardUuids(token)).resolves.toEqual([]);
+        },
+    );
+
+    it.each(['direct', 'tile'] as const)(
+        'excludes foreign-project charts from %s matches',
+        async (placement) => {
+            const { project, space } = await createForeignProjectAndSpace();
+            const token = uniqueToken('foreignchart');
+            const chartId = await createChartInSpace(
+                token,
+                space.space_uuid,
+                project.project_uuid,
+            );
+            await attachChart(chartId, placement);
+            await expect(searchDashboardUuids(token)).resolves.toEqual([]);
+        },
+    );
+
+    it('excludes dashboards in another project', async () => {
+        const { project, space } = await createForeignProjectAndSpace();
+        const token = uniqueToken('foreignboard');
+        await transaction(DashboardsTableName).insert({
+            project_uuid: project.project_uuid,
+            name: token,
+            description: undefined,
+            space_id: space.space_id,
+            slug: `search-foreign-${randomUUID()}`,
+        });
+        await expect(searchDashboardUuids(token)).resolves.toEqual([]);
+    });
+
+    it('reserves verified results below the general result cap', async () => {
+        const token = uniqueToken('verified');
+        await transaction(DashboardsTableName)
+            .where('dashboard_id', dashboardId)
+            .update({ description: token });
+        await Promise.all(
+            Array.from({ length: 11 }, () => createDashboard(token)),
+        );
+        await new ContentVerificationModel({ database: transaction }).verify(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+            SEED_PROJECT.project_uuid,
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        await expect(searchDashboardUuids(token)).resolves.not.toContain(
+            dashboardUuid,
+        );
+        const verified = await model.searchDashboards(
+            SEED_PROJECT.project_uuid,
+            token,
+            undefined,
+            { verifiedOnly: true },
+        );
+        expect(verified.map((result) => result.uuid)).toEqual([dashboardUuid]);
+        const combined = await searchReservingVerified(false, (options) =>
+            model.searchDashboards(
+                SEED_PROJECT.project_uuid,
+                token,
+                undefined,
+                options,
+            ),
+        );
+        expect(combined.map((result) => result.uuid)).toContain(dashboardUuid);
+        expect(combined).toHaveLength(11);
+    });
+
+    it.each(['direct', 'tile'] as const)(
+        'finds verified dashboards through %s charts',
+        async (placement) => {
+            const token = uniqueToken('verifiedchart');
+            await attachChart(await createChartInSpace(token), placement);
+            const searchVerified = () =>
+                model.searchDashboards(
+                    SEED_PROJECT.project_uuid,
+                    token,
+                    undefined,
+                    { verifiedOnly: true },
+                );
+            await expect(searchVerified()).resolves.toEqual([]);
+            await new ContentVerificationModel({
+                database: transaction,
+            }).verify(
+                ContentType.DASHBOARD,
+                dashboardUuid,
+                SEED_PROJECT.project_uuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+            );
+            expect(
+                (await searchVerified()).map((result) => result.uuid),
+            ).toEqual([dashboardUuid]);
+        },
+    );
+
+    it('applies inclusive dates and the first-version creator to chart matches', async () => {
+        await transaction.raw(
+            'UPDATE ?? SET created_at = ? WHERE dashboard_id = ?',
+            [DashboardsTableName, '2025-01-03T12:00:00Z', dashboardId],
+        );
+        const chart = await transaction(SavedChartsTableName)
+            .where('name', `Current chart ${currentChartToken}`)
+            .first('saved_query_id');
+        if (!chart) throw new Error('Fixture chart missing');
+        await addVersionWithChartTile(
+            chart.saved_query_id,
+            dashboardId,
+            SEED_ORG_1_EDITOR.user_uuid,
+        );
+        const searchWithFilters = (
+            filters: Parameters<SearchModel['searchDashboards']>[2],
+        ) =>
+            model.searchDashboards(
+                SEED_PROJECT.project_uuid,
+                currentChartToken,
+                filters,
+            );
+        expect(
+            await searchWithFilters({
+                fromDate: '2025-01-03',
+                toDate: '2025-01-03',
+                createdByUuid: SEED_ORG_1_ADMIN.user_uuid,
+            }),
+        ).toHaveLength(1);
+        await Promise.all(
+            [
+                { toDate: '2025-01-02' },
+                { fromDate: '2025-01-04' },
+                { createdByUuid: SEED_ORG_1_EDITOR.user_uuid },
+                { type: SearchItemType.CHART },
+            ].map((filters) =>
+                expect(searchWithFilters(filters)).resolves.toEqual([]),
+            ),
+        );
+        await expect(
+            searchWithFilters({ fromDate: '2025-01-04', toDate: '2025-01-03' }),
+        ).rejects.toThrow('fromDate cannot be after toDate');
+    });
+
+    it('applies creator and date filters before the result cap', async () => {
+        const token = uniqueToken('filteredcap');
+        await transaction(DashboardsTableName)
+            .where('dashboard_id', dashboardId)
+            .update({ description: token });
+        await transaction.raw(
+            'UPDATE ?? SET created_at = ? WHERE dashboard_id = ?',
+            [DashboardsTableName, '2025-03-01T12:00:00Z', dashboardId],
+        );
+        await transaction(DashboardVersionsTableName)
+            .where('dashboard_id', dashboardId)
+            .update({ updated_by_user_uuid: SEED_ORG_1_EDITOR.user_uuid });
+        await Promise.all(
+            Array.from({ length: 11 }, async () => {
+                const higherRanked = await createDashboard(token);
+                await transaction(DashboardVersionsTableName).insert({
+                    agent_identity: null,
+                    dashboard_id: higherRanked.dashboard_id,
+                    updated_by_user_uuid: SEED_ORG_1_EDITOR.user_uuid,
+                    config: undefined,
+                });
+                await transaction.raw(
+                    'UPDATE ?? SET created_at = ? WHERE dashboard_id = ?',
+                    [
+                        DashboardsTableName,
+                        '2025-01-01T12:00:00Z',
+                        higherRanked.dashboard_id,
+                    ],
+                );
+            }),
+        );
+
+        const unfiltered = await searchDashboardUuids(token);
+        expect(unfiltered).toHaveLength(10);
+        expect(unfiltered).not.toContain(dashboardUuid);
+
+        const creatorFilter = {
+            createdByUuid: SEED_ORG_1_EDITOR.user_uuid,
+        };
+        const dateFilter = {
+            fromDate: '2025-03-01',
+            toDate: '2025-03-01',
+        };
+        await Promise.all(
+            [
+                creatorFilter,
+                dateFilter,
+                { ...creatorFilter, ...dateFilter },
+            ].map(async (filters) => {
+                const filtered = await model.searchDashboards(
+                    SEED_PROJECT.project_uuid,
+                    token,
+                    filters,
+                );
+                expect(filtered.map((result) => result.uuid)).toEqual([
+                    dashboardUuid,
+                ]);
+            }),
+        );
+    });
+
+    it('preserves AND and OR matching within each name or chart', async () => {
+        const query = `${dashboardNameToken} ${currentChartToken}`;
+        await expect(searchDashboardUuids(query)).resolves.toEqual([]);
+        const results = await model.searchDashboards(
+            SEED_PROJECT.project_uuid,
+            query,
+            undefined,
+            { fullTextSearchOperator: 'OR' },
+        );
+        expect(results.map((result) => result.uuid)).toEqual([dashboardUuid]);
+    });
+
+    it('preserves exact and prefix boosts and the maximum name or chart rank', async () => {
+        const token = uniqueToken('ranking');
+        await transaction(DashboardsTableName)
+            .where('dashboard_id', dashboardId)
+            .update({ name: token });
+        await attachChart(
+            await createChartInSpace(`A chart ${token}`),
+            'direct',
+        );
+        await addVersionWithChartTile(
+            await createChartInSpace(`A tile ${token}`),
+        );
+        const prefix = await createDashboard(`${token} report`);
+        const descriptionOnly = await createDashboard('Unrelated report');
+        await transaction(DashboardsTableName)
+            .where('dashboard_id', descriptionOnly.dashboard_id)
+            .update({ description: token });
+        const chartRanked = await createDashboard('Another unrelated report');
+        await addVersionWithChartTile(
+            await createChartInSpace(token),
+            chartRanked.dashboard_id,
+        );
+        const weakerOwnedChart = await createChartInSpace(`A chart ${token}`);
+        await transaction(SavedChartsTableName)
+            .where('saved_query_id', weakerOwnedChart)
+            .update({
+                dashboard_uuid: chartRanked.dashboard_uuid,
+                space_id: null,
+            });
+        const results = await model.searchDashboards(
+            SEED_PROJECT.project_uuid,
+            token,
+        );
+        const rankByUuid = new Map(
+            results.map((result) => [result.uuid, result.search_rank]),
+        );
+        expect(rankByUuid).toEqual(
+            new Map([
+                [dashboardUuid, 100.5],
+                [chartRanked.dashboard_uuid, 100.5],
+                [prefix.dashboard_uuid, 50.5],
+                [descriptionOnly.dashboard_uuid, 0.285714],
+            ]),
+        );
+        expect(results.map((result) => result.search_rank)).toEqual([
+            100.5, 100.5, 50.5, 0.285714,
+        ]);
     });
 });
 
