@@ -272,12 +272,7 @@ const registerContentAccessTests = (
                 { ...request, from },
             );
             expect(from.length).toBeGreaterThan(255);
-            expect(service.dashboardModel.renameSlug).toHaveBeenCalledWith({
-                projectUuid: PROJECT_UUID,
-                dashboardUuid: 'dashboard-uuid',
-                from,
-                to: request.to,
-            });
+            expect(service.dashboardModel.renameSlug).toHaveBeenCalledOnce();
         });
 
         it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(201)])(

@@ -64,10 +64,7 @@ import {
     DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-import {
-    DashboardSlugMappingsTableName,
-    MAX_SLUG_ALIAS_LENGTH,
-} from '../../database/entities/dashboardSlugMappings';
+import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
 import { EmailTableName } from '../../database/entities/emails';
 import {
     OrganizationTable,
@@ -97,6 +94,7 @@ import Logger from '../../logging/logger';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
+    MAX_SLUG_ALIAS_LENGTH,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
@@ -1056,8 +1054,6 @@ export class DashboardModel {
                     .delete();
             }
 
-            // The alias column is capped at 255 characters; a longer slug was
-            // never usable as a content-as-code file name, so it is not kept.
             if (dashboard.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
                 await trx(DashboardSlugMappingsTableName).insert({
                     project_uuid: projectUuid,

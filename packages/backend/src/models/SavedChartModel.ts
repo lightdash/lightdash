@@ -111,10 +111,7 @@ import {
     SavedChartVersionSortsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
-import {
-    MAX_SLUG_ALIAS_LENGTH,
-    SavedChartSlugMappingsTableName,
-} from '../database/entities/savedChartSlugMappings';
+import { SavedChartSlugMappingsTableName } from '../database/entities/savedChartSlugMappings';
 import { SchedulerTableName } from '../database/entities/scheduler';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
@@ -124,6 +121,7 @@ import { wrapSentryTransaction } from '../utils';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
+    MAX_SLUG_ALIAS_LENGTH,
 } from '../utils/SlugUtils';
 import { dismissOpenContentDrafts } from './ContentDraftModel';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
@@ -1591,8 +1589,6 @@ export class SavedChartModel {
                     .delete();
             }
 
-            // The alias column is capped at 255 characters; a longer slug was
-            // never usable as a content-as-code file name, so it is not kept.
             if (chart.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
                 await trx(SavedChartSlugMappingsTableName).insert({
                     project_uuid: projectUuid,

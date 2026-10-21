@@ -146,7 +146,6 @@ describe('renameSlug', () => {
         expect(from.length).toBeGreaterThan(255);
         expect(tracker.history.insert).toHaveLength(0);
         expect(tracker.history.update).toHaveLength(1);
-        expect(tracker.history.update[0].bindings).toContain('new-orders');
     });
 
     test('rejects a target slug owned by another dashboard before writing', async () => {

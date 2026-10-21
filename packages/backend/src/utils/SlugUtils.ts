@@ -29,6 +29,10 @@ const SPACE_ACCESS_LOCK_NAMESPACE = 3;
 const ORGANIZATION_PROJECT_SLUG_LOCK_NAMESPACE = 5;
 
 const MAX_GENERATED_APP_SLUG_LENGTH = 255;
+
+// The slug alias tables store varchar(255). A longer previous slug was never
+// usable as a content-as-code file name, so renames do not keep it as an alias.
+export const MAX_SLUG_ALIAS_LENGTH = 255;
 const MAX_GENERATED_PROJECT_SLUG_LENGTH = 255;
 
 const getSlugCandidate = (
