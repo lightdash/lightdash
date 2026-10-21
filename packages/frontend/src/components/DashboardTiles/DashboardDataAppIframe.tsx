@@ -12,7 +12,11 @@ const SDK_ALIVE_FALLBACK_MS = 8_000;
 
 type Props = ComponentProps<typeof AppIframePreview> & { tileUuid: string };
 
-const DashboardDataAppIframe = ({ tileUuid, ...props }: Props) => {
+const DashboardDataAppIframe = ({
+    tileUuid,
+    onIframeLoad,
+    ...props
+}: Props) => {
     const markReady = useDashboardTileStatusContext(
         (context) => context.markTileScreenshotReady,
     );
@@ -55,7 +59,8 @@ const DashboardDataAppIframe = ({ tileUuid, ...props }: Props) => {
 
     const handleLoad = useCallback(() => {
         setLoadEpoch((epoch) => epoch + 1);
-    }, []);
+        onIframeLoad?.();
+    }, [onIframeLoad]);
 
     useEffect(() => {
         if (loadEpoch === 0) {

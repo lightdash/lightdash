@@ -1,10 +1,18 @@
-import { QueryExecutionContext, QueryHistoryStatus } from '@lightdash/common';
+import {
+    DimensionType,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+    type QueryResultProducer,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { buildAccount } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type DbQueryHistory } from '../../database/entities/queryHistory';
+import { CommercialCacheService } from '../../ee/services/CommercialCacheService';
 import { QueryHistoryModel } from './QueryHistoryModel';
 
-describe('cancelRunningQueriesReadOnlyBy (PostgreSQL)', () => {
+describe('QueryHistoryModel (PostgreSQL)', () => {
     let database: Knex;
     let tx: Knex.Transaction;
     let model: QueryHistoryModel;
@@ -87,7 +95,7 @@ describe('cancelRunningQueriesReadOnlyBy (PostgreSQL)', () => {
     beforeEach(async () => {
         tx = await database.transaction();
         await tx.raw(
-            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb) ON COMMIT DROP`,
+            `CREATE TEMP TABLE query_history (query_uuid uuid, project_uuid uuid, status text, created_by_user_uuid text, created_by_account text, context text, created_at timestamptz DEFAULT clock_timestamp(), duckdb_execution jsonb, request_parameters jsonb, cache_key text, agent_identity jsonb, results_file_name text, results_created_at timestamptz, results_updated_at timestamptz, results_expires_at timestamptz, total_row_count bigint, columns jsonb) ON COMMIT DROP`,
         );
         model = new QueryHistoryModel({ database: tx });
     });
@@ -180,5 +188,160 @@ describe('cancelRunningQueriesReadOnlyBy (PostgreSQL)', () => {
 
     it('runs no query without legs', async () => {
         expect(await cancel([])).toEqual([]);
+    });
+
+    describe('result cache provenance', () => {
+        const producer: QueryResultProducer = {
+            version: 1,
+            warehouseConnectionUuid: null,
+            credentialOwner: {
+                kind: 'shared_connection',
+                identityFingerprint: 'shared-connection',
+            },
+            agentIdentity: null,
+            entitlementFingerprint: 'current-access',
+        };
+
+        const insertCachedResult = async (
+            cacheSourceQueryUuid: string | null,
+            createdAt: Date,
+        ) => {
+            const source = cacheSourceQueryUuid
+                ? await model.get(cacheSourceQueryUuid, projectUuid, account)
+                : null;
+            const queryUuid = await insert({
+                status: QueryHistoryStatus.READY,
+            });
+            await tx<DbQueryHistory>('query_history')
+                .where('query_uuid', queryUuid)
+                .update({
+                    cache_key: 'cache-key',
+                    created_at: createdAt,
+                    request_parameters: {
+                        sql: 'SELECT 1',
+                        resultProducer: producer,
+                        ...(cacheSourceQueryUuid
+                            ? { cacheSourceQueryUuid }
+                            : {}),
+                    },
+                    results_file_name: 'original.jsonl',
+                    results_created_at: source?.resultsCreatedAt ?? createdAt,
+                    results_updated_at: source?.resultsUpdatedAt ?? createdAt,
+                    results_expires_at:
+                        source?.resultsExpiresAt ??
+                        new Date(Date.now() + 86400000),
+                    total_row_count: 1,
+                    columns: {
+                        value: {
+                            type: DimensionType.NUMBER,
+                            reference: 'value',
+                        },
+                    },
+                });
+            return queryUuid;
+        };
+
+        it('reuses the original execution after an existing chain and 60 more cache hits', async () => {
+            const now = Date.now();
+            const original = await insertCachedResult(null, new Date(now));
+            const indexes = Array.from({ length: 60 }, (_, index) => index);
+            const oldChainTip = await indexes.reduce(
+                async (previous, index) =>
+                    insertCachedResult(
+                        await previous,
+                        new Date(now + index + 1),
+                    ),
+                Promise.resolve(original),
+            );
+            const service = new CommercialCacheService({
+                lightdashConfig: lightdashConfigMock,
+                queryHistoryModel: model,
+                projectModel: {
+                    getEffectiveResultsCacheTtlSeconds: vi.fn(
+                        async () => 86400,
+                    ),
+                } as never,
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                } as never,
+                storageClient: {} as never,
+            });
+            const newestAlias = await indexes.reduce(
+                async (previous, index) => {
+                    await previous;
+                    const hit = await service.findCachedResultsFile(
+                        projectUuid,
+                        'cache-key',
+                        { userUuid: account.user.id },
+                        producer,
+                        true,
+                    );
+                    expect(hit).toMatchObject({
+                        cacheHit: true,
+                        queryUuid: original,
+                        fileName: 'original.jsonl',
+                        resultProducer: producer,
+                    });
+                    if (!hit?.queryUuid)
+                        throw new Error(
+                            'Expected a cache hit with its source query',
+                        );
+                    const alias = await insertCachedResult(
+                        hit.queryUuid,
+                        new Date(now + 61 + index),
+                    );
+                    const read = await model.get(alias, projectUuid, account);
+                    expect(read).toMatchObject({
+                        status: QueryHistoryStatus.READY,
+                        resultsFileName: 'original.jsonl',
+                        requestParameters: {
+                            cacheSourceQueryUuid: original,
+                            resultProducer: producer,
+                        },
+                    });
+                    return alias;
+                },
+                Promise.resolve(oldChainTip),
+            );
+            await expect(
+                model.findMostRecentByCacheKey('cache-key', projectUuid, {
+                    excludeAgentProduced: true,
+                    excludeCacheHits: false,
+                }),
+            ).resolves.toMatchObject({ queryUuid: newestAlias });
+        });
+
+        it.each(['missing', 'null'] as const)(
+            'selects the newest execution with a %s cache source',
+            async (source) => {
+                const now = Date.now();
+                await insertCachedResult(null, new Date(now));
+                const newestExecution = await insertCachedResult(
+                    null,
+                    new Date(now + 1),
+                );
+                if (source === 'null') {
+                    const requestParameters = {
+                        sql: 'SELECT 1',
+                        resultProducer: producer,
+                        cacheSourceQueryUuid: null,
+                    };
+                    await tx<{
+                        request_parameters: typeof requestParameters;
+                    }>('query_history')
+                        .where('query_uuid', newestExecution)
+                        .update({
+                            request_parameters: requestParameters,
+                        });
+                }
+                await insertCachedResult(newestExecution, new Date(now + 2));
+                await expect(
+                    model.findMostRecentByCacheKey('cache-key', projectUuid, {
+                        excludeAgentProduced: true,
+                        excludeCacheHits: true,
+                    }),
+                ).resolves.toMatchObject({ queryUuid: newestExecution });
+            },
+        );
     });
 });

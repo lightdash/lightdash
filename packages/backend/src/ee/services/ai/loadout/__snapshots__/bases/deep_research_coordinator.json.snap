@@ -1,0 +1,38 @@
+{
+    "base": "deep_research_coordinator",
+    "addOns": [],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "delegateResearchTask",
+        "findContent",
+        "generateVisualization",
+        "getKnowledgeDocumentContent",
+        "getMetadata",
+        "getProjectInfo",
+        "grepFields",
+        "listKnowledgeDocuments",
+        "listProjects",
+        "readPinnedThread",
+        "resolveUrl",
+        "runSavedChart",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer"
+    ],
+    "promptSections": [
+        "aiWriteback",
+        "availableCustomChartTypes",
+        "codingAgent",
+        "contentTools",
+        "documents",
+        "generateDataApp",
+        "mcpTools",
+        "memories",
+        "projectContext",
+        "repoFs",
+        "requestingUser",
+        "runSql",
+        "schedulingTools",
+        "skills"
+    ]
+}

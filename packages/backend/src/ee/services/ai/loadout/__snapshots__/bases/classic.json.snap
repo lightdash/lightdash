@@ -1,0 +1,26 @@
+{
+    "base": "classic",
+    "addOns": [],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "exportChartAsCode",
+        "findContent",
+        "generateHashes",
+        "generateUuids",
+        "generateVisualization",
+        "getKnowledgeDocumentContent",
+        "getMetadata",
+        "getProjectInfo",
+        "grepFields",
+        "listKnowledgeDocuments",
+        "listProjects",
+        "readPinnedThread",
+        "resolveUrl",
+        "runQuery",
+        "runSavedChart",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer"
+    ],
+    "promptSections": []
+}

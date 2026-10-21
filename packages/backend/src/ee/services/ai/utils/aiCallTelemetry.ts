@@ -131,11 +131,18 @@ const CUSTOMER_ONLY_ATTRIBUTION_KEYS: readonly (typeof ATTRIBUTION_KEYS)[number]
  * Widening this list sends the key to whichever telemetry provider the
  * deployment configures, so add one only when it is safe to export.
  */
-const TELEMETRY_REPORTED_KEYS: AiCallRuntimeContextKey[] = [
+const TELEMETRY_REPORTED_KEYS: (
+    | AiCallRuntimeContextKey
+    | 'loadoutBase'
+    | 'loadoutAddOns'
+)[] = [
     'feature',
     ...ATTRIBUTION_KEYS.filter(
         (key) => !CUSTOMER_ONLY_ATTRIBUTION_KEYS.includes(key),
     ),
+    // Agent loadout (base + add-on names); span-only, not on `ai.usage`.
+    'loadoutBase',
+    'loadoutAddOns',
 ];
 
 /**

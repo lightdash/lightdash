@@ -8,6 +8,7 @@ import {
     DashboardTileTypes,
     DELIVERY_CAPTURE_GLOBAL,
     DownloadFileType,
+    EMBED_MINIMAL_SEARCH_PARAM,
     expandSelectedTabs,
     EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
@@ -16,6 +17,7 @@ import {
     HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInEmbedExport,
     isTileInPagedExport,
     isTileInSelectedTabs,
     LightdashMode,
@@ -354,6 +356,10 @@ const isBrowserQueueFullError = (error: unknown): boolean => {
         message.includes('queue is full')
     );
 };
+
+type HeadlessBrowserAuth =
+    | { type: 'cookie'; cookie: string }
+    | { type: 'embedToken'; embedToken: string };
 
 export type ParsedUrl = {
     isValid: boolean;
@@ -819,7 +825,7 @@ export class UnfurlService extends BaseService {
         const screenshotParams = {
             authUserUuid,
             imageId,
-            cookie,
+            auth: { type: 'cookie' as const, cookie },
             url,
             lightdashPage,
             chartType: details?.chartType,
@@ -1011,7 +1017,7 @@ export class UnfurlService extends BaseService {
                 const result = await this.saveScreenshot({
                     authUserUuid,
                     imageId,
-                    cookie,
+                    auth: { type: 'cookie', cookie },
                     url: pagedUrl.href,
                     lightdashPage: LightdashPage.DASHBOARD,
                     organizationUuid: dashboard.organizationUuid,
@@ -1176,6 +1182,106 @@ export class UnfurlService extends BaseService {
         return unfurlImage.imageUrl;
     }
 
+    /**
+     * Renders an embedded dashboard to a PDF with the viewer's embed token, so
+     * the export has the same access, filters and parameters the viewer has.
+     * Callers must have verified the token can export this dashboard.
+     */
+    async exportEmbedDashboardPdf({
+        projectUuid,
+        dashboardUuid,
+        embedToken,
+        externalId,
+        selectedTabs,
+        dashboardFilters,
+        parameters,
+        dateZoomGranularity,
+        gridWidth,
+        contextId,
+    }: {
+        projectUuid: UUID;
+        dashboardUuid: UUID;
+        embedToken: string;
+        externalId: string;
+        selectedTabs: string[] | null;
+        dashboardFilters: DashboardFilters | null;
+        parameters: ParametersValuesMap | null;
+        dateZoomGranularity: string | null;
+        gridWidth: number | null;
+        contextId: string;
+    }): Promise<{ source: string; fileName: string }> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        if (dashboard.projectUuid !== projectUuid) {
+            throw new ForbiddenError();
+        }
+        const visibleTabUuids = dashboard.tabs
+            .filter((tab) => !tab.hidden)
+            .map((tab) => tab.uuid);
+        const invalidTabUuids = (selectedTabs ?? []).filter(
+            (tabUuid) => !visibleTabUuids.includes(tabUuid),
+        );
+        if (invalidTabUuids.length > 0) {
+            throw new ParameterError(
+                `Tabs ${invalidTabUuids.join(', ')} are not visible tabs of dashboard ${dashboardUuid}`,
+            );
+        }
+        const exportTabUuids =
+            selectedTabs && selectedTabs.length > 0
+                ? selectedTabs
+                : visibleTabUuids;
+
+        const url = new URL(
+            `/embed/${projectUuid}`,
+            this.lightdashConfig.headlessBrowser.internalLightdashHost,
+        );
+        url.searchParams.set(EMBED_MINIMAL_SEARCH_PARAM, 'true');
+        if (selectedTabs && selectedTabs.length > 0) {
+            url.searchParams.set('selectedTabs', JSON.stringify(selectedTabs));
+        }
+        if (dateZoomGranularity) {
+            url.searchParams.set('dateZoom', dateZoomGranularity.toLowerCase());
+        }
+
+        const renderedTiles = dashboard.tiles.filter((tile) =>
+            isTileInEmbedExport(tile, exportTabUuids),
+        );
+
+        const imageId = `embed-pdf_${snakeCaseName(dashboard.name)}_${useNanoid()}`;
+        const result = await this.saveScreenshot({
+            imageId,
+            auth: { type: 'embedToken', embedToken },
+            url: url.href,
+            lightdashPage: LightdashPage.DASHBOARD,
+            organizationUuid: dashboard.organizationUuid,
+            authUserUuid: externalId,
+            gridWidth: gridWidth ?? undefined,
+            resourceUuid: dashboard.uuid,
+            resourceName: dashboard.name,
+            chartTileUuids: renderedTiles
+                .filter(isDashboardChartTileType)
+                .map((t) => t.properties.savedChartUuid),
+            sqlChartTileUuids: renderedTiles
+                .filter(isDashboardSqlChartTile)
+                .map((t) => t.properties.savedSqlUuid),
+            loomTileUuids: renderedTiles
+                .filter((t) => t.type === DashboardTileTypes.LOOM)
+                .map((t) => t.uuid),
+            context: ScreenshotContext.EXPORT_DASHBOARD,
+            contextId,
+            selectedTabs,
+            sendNowSchedulerDashboardFilters: dashboardFilters ?? undefined,
+            sendNowSchedulerParameters: parameters ?? undefined,
+            outputFormat: 'pdf',
+        });
+        if (!result?.pdfBuffer) {
+            throw new UnexpectedServerError(
+                `Unable to render PDF for embedded dashboard "${dashboard.name}"`,
+            );
+        }
+        return this.uploadPdf(imageId, result.pdfBuffer, dashboard.name);
+    }
+
     async exportChart(
         chartUuidOrSlug: string,
         user: SessionUser,
@@ -1297,7 +1403,7 @@ export class UnfurlService extends BaseService {
         const result = await this.saveScreenshot({
             authUserUuid: user.userUuid,
             imageId,
-            cookie,
+            auth: { type: 'cookie', cookie },
             url: minimalUrl,
             lightdashPage: LightdashPage.AI_ARTIFACT,
             organizationUuid: user.organizationUuid,
@@ -1479,7 +1585,7 @@ export class UnfurlService extends BaseService {
         const result = await this.saveScreenshot({
             authUserUuid,
             imageId,
-            cookie,
+            auth: { type: 'cookie', cookie },
             url: minimalUrl,
             lightdashPage: LightdashPage.APP,
             organizationUuid,
@@ -1543,7 +1649,7 @@ export class UnfurlService extends BaseService {
         const result = await this.saveScreenshot({
             authUserUuid,
             imageId,
-            cookie,
+            auth: { type: 'cookie', cookie },
             url: minimalPage.href,
             lightdashPage: LightdashPage.DOCUMENT,
             organizationUuid,
@@ -1773,7 +1879,7 @@ export class UnfurlService extends BaseService {
 
     private async saveScreenshot({
         imageId,
-        cookie,
+        auth,
         url,
         lightdashPage,
         chartType,
@@ -1803,7 +1909,7 @@ export class UnfurlService extends BaseService {
         obscureAppText = false,
     }: {
         imageId: string;
-        cookie: string;
+        auth: HeadlessBrowserAuth;
         url: string;
         lightdashPage?: LightdashPage;
         chartType?: string;
@@ -2058,21 +2164,23 @@ export class UnfurlService extends BaseService {
                         },
                     );
 
-                    const parsedUrl = new URL(url);
-
-                    const cookieMatch = cookie.match(/connect\.sid=([^;]+)/); // Extract cookie value
-                    if (!cookieMatch)
-                        throw new Error('Invalid cookie provided');
-                    const cookieValue = cookieMatch[1];
-                    await page.context().addCookies([
-                        {
-                            name: 'connect.sid',
-                            value: cookieValue,
-                            domain: parsedUrl.hostname,
-                            path: '/',
-                            sameSite: 'Strict',
-                        },
-                    ]);
+                    if (auth.type === 'cookie') {
+                        const parsedUrl = new URL(url);
+                        const cookieMatch =
+                            auth.cookie.match(/connect\.sid=([^;]+)/);
+                        if (!cookieMatch)
+                            throw new Error('Invalid cookie provided');
+                        const cookieValue = cookieMatch[1];
+                        await page.context().addCookies([
+                            {
+                                name: 'connect.sid',
+                                value: cookieValue,
+                                domain: parsedUrl.hostname,
+                                path: '/',
+                                sameSite: 'Strict',
+                            },
+                        ]);
+                    }
 
                     page.on('requestfailed', (request) => {
                         this.logger.warn(
@@ -2302,9 +2410,15 @@ export class UnfurlService extends BaseService {
                             ];
                         }
 
-                        await page.goto(url, {
-                            timeout: 150000,
-                        });
+                        // The embed token lives only in the hash so it never reaches logs.
+                        await page.goto(
+                            auth.type === 'embedToken'
+                                ? `${url}#${auth.embedToken}`
+                                : url,
+                            {
+                                timeout: 150000,
+                            },
+                        );
 
                         const blockingElementChecks = [
                             {
@@ -3033,7 +3147,7 @@ export class UnfurlService extends BaseService {
                         return await this.saveScreenshot({
                             authUserUuid,
                             imageId,
-                            cookie,
+                            auth,
                             url,
                             lightdashPage,
                             chartType,

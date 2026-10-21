@@ -1,6 +1,7 @@
 import {
     type PreAggregateMaterializationStatus,
     type PreAggregateMaterializationSummary,
+    type PreAggregateMaterializationTrigger,
     type PreAggregateMaterializationWarning,
 } from '@lightdash/common';
 import {
@@ -107,6 +108,89 @@ const getStatusType = (
 ): StatusType => {
     if (summary.externalTable) return 'external';
     return summary.materialization?.status ?? 'never_materialized';
+};
+
+const TRIGGER_LABELS: Record<PreAggregateMaterializationTrigger, string> = {
+    compile: 'compile',
+    cron: 'schedule',
+    manual: 'manual',
+    webhook: 'webhook',
+};
+
+const TriggerChip: FC<{
+    label: string;
+    tooltip: string;
+    disabled?: boolean;
+}> = ({ label, tooltip, disabled = false }) => (
+    <Tooltip label={tooltip} maw={280} multiline>
+        <Badge
+            size="xs"
+            variant="light"
+            color="gray"
+            className={disabled ? classes.triggerChipDisabled : undefined}
+        >
+            {label}
+        </Badge>
+    </Tooltip>
+);
+
+const onChangeTooltip = (materializeOnChange: boolean) =>
+    materializeOnChange
+        ? 'Rebuilt on the project compile that changes its definition or the fields it reads (refresh.on_change: true in YAML). Built once when it has never been materialized.'
+        : 'Not rebuilt when a compile changes its definition: the old materialization stops serving until the next scheduled or manual refresh. Built once when it has never been materialized. Set refresh.on_change: true in YAML to rebuild on compile.';
+
+const TriggerChips: FC<{ summary: PreAggregateMaterializationSummary }> = ({
+    summary,
+}) => {
+    const { materializeOnChange, refreshCron } = summary;
+    return (
+        <Group gap={4} wrap="nowrap">
+            <TriggerChip
+                label="on change"
+                disabled={!materializeOnChange}
+                tooltip={onChangeTooltip(materializeOnChange)}
+            />
+            {refreshCron && (
+                <TriggerChip
+                    label="schedule"
+                    tooltip={cronstrue.toString(refreshCron, {
+                        throwExceptionOnParseError: false,
+                    })}
+                />
+            )}
+            <TriggerChip label="manual" tooltip="Refresh from this page" />
+        </Group>
+    );
+};
+
+const ScheduleCell: FC<{ summary: PreAggregateMaterializationSummary }> = ({
+    summary,
+}) => {
+    if (summary.externalTable) {
+        return (
+            <Tooltip label="Refreshes are managed outside the app">
+                <Text size="xs" c="ldGray.7" fw={500}>
+                    Customer managed
+                </Text>
+            </Tooltip>
+        );
+    }
+    if (!summary.refreshCron) {
+        return (
+            <Text size="xs" c="dimmed">
+                None
+            </Text>
+        );
+    }
+    return (
+        <Tooltip label={summary.refreshCron}>
+            <Text size="xs" c="ldGray.7" className={classes.helpCursor}>
+                {cronstrue.toString(summary.refreshCron, {
+                    throwExceptionOnParseError: false,
+                })}
+            </Text>
+        </Tooltip>
+    );
 };
 
 const StatusFilter: FC<{
@@ -475,7 +559,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 id: 'materializedAt',
                 header: 'Last materialized',
                 enableSorting: true,
-                size: 140,
+                size: 200,
                 accessorFn: (row) =>
                     row.materialization?.materializedAt ?? null,
                 Header: ({ column }) => (
@@ -502,60 +586,59 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     }
 
                     return (
-                        <Tooltip
-                            label={new Date(materializedAt).toLocaleString()}
-                        >
-                            <TimeAgoText date={materializedAt} />
-                        </Tooltip>
+                        <Group gap="xs" wrap="nowrap">
+                            <Tooltip
+                                label={new Date(
+                                    materializedAt,
+                                ).toLocaleString()}
+                            >
+                                <TimeAgoText date={materializedAt} />
+                            </Tooltip>
+                            <Text
+                                size="xs"
+                                c="ldGray.5"
+                                className={classes.nowrap}
+                            >
+                                via {TRIGGER_LABELS[materialization.trigger]}
+                            </Text>
+                        </Group>
                     );
                 },
                 sortingFn: 'datetime',
             },
             {
-                accessorKey: 'refreshCron',
-                header: 'Refresh schedule',
+                id: 'schedule',
+                header: 'Schedule',
                 enableSorting: false,
-                size: 130,
+                size: 170,
                 Header: ({ column }) => (
                     <Group gap="two" align="flex-start" wrap="nowrap">
                         <MantineIcon icon={IconCalendarTime} color="dimmed" />
                         {column.columnDef.header}
                     </Group>
                 ),
+                Cell: ({ row }) => <ScheduleCell summary={row.original} />,
+            },
+            {
+                id: 'triggers',
+                header: 'Triggers',
+                enableSorting: false,
+                size: 190,
+                Header: ({ column }) => (
+                    <Group gap="two" align="flex-start" wrap="nowrap">
+                        <MantineIcon icon={IconBolt} color="dimmed" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
                 Cell: ({ row }) => {
-                    const { externalTable, refreshCron } = row.original;
-                    if (externalTable) {
-                        return (
-                            <Tooltip label="Refreshes are managed outside Lightdash">
-                                <Text size="xs" c="ldGray.7" fw={500}>
-                                    Customer managed
-                                </Text>
-                            </Tooltip>
-                        );
-                    }
-                    if (!refreshCron) {
+                    if (row.original.externalTable) {
                         return (
                             <Text size="xs" c="dimmed">
-                                Manual
+                                {'\u2014'}
                             </Text>
                         );
                     }
-                    return (
-                        <Tooltip
-                            label={cronstrue.toString(refreshCron, {
-                                throwExceptionOnParseError: false,
-                            })}
-                        >
-                            <Text
-                                size="xs"
-                                c="dimmed"
-                                ff="monospace"
-                                style={{ cursor: 'help' }}
-                            >
-                                {refreshCron}
-                            </Text>
-                        </Tooltip>
-                    );
+                    return <TriggerChips summary={row.original} />;
                 },
             },
             {

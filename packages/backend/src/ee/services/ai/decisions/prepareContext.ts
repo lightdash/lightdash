@@ -27,7 +27,7 @@ export type PreparedContext = {
 
 const DOCUMENT_AUTHORING_SKILL = 'developing-in-lightdash';
 
-const TURN_INTENTS = [
+export const TURN_INTENTS = [
     'reference_answer',
     'data_answer',
     'chart',

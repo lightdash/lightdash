@@ -8,7 +8,11 @@ import {
 } from '@lightdash/common';
 import path from 'node:path';
 import ts from 'typescript-compiler-api';
-import { getAgentTools } from '../../ee/services/ai/agents/agentV2';
+import {
+    getAgentTools,
+    resolveAgentLoadout,
+    type AgentMcpToolSetup,
+} from '../../ee/services/ai/agents/agentV2';
 import { AiDecisionClient } from '../../ee/services/ai/decisions/AiDecisionClient';
 import type {
     AiAgentArgs,
@@ -193,7 +197,7 @@ const factoryNodes = descendants(agentToolsFactory);
 const literalRuntimeToolNames = factoryNodes.flatMap((node) => {
     if (
         ts.isVariableDeclaration(node) &&
-        node.name.getText() === 'tools' &&
+        node.name.getText() === 'toolBuilders' &&
         node.initializer
     )
         return collectLiteralToolKeys(node.initializer);
@@ -250,19 +254,20 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         siteUrl: 'http://localhost',
         ...overrides,
     } as unknown as AiAgentArgs;
+    const mcpToolSetup: AgentMcpToolSetup = {
+        tools: { connected_tool: {} as never },
+        mcpToolNameToServerUuid: { connected_tool: 'server' },
+        unavailableMcpServers: [],
+        closeMcpClients: async () => {},
+    };
     return getAgentTools(
         args,
+        resolveAgentLoadout(args, mcpToolSetup, { types: [], totalCount: 1 }),
         new Proxy({}, { get: () => vi.fn() }) as AiAgentDependencies,
         [],
-        {
-            tools: { connected_tool: {} as never },
-            mcpToolNameToServerUuid: { connected_tool: 'server' },
-            unavailableMcpServers: [],
-            closeMcpClients: async () => {},
-        },
+        mcpToolSetup,
         new Map(),
         {},
-        { types: [], totalCount: 1 },
         new AgentContext([]),
     );
 };

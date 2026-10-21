@@ -360,6 +360,7 @@ import { DbtSourceError } from '../../dbt/DbtSourceError';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
+import { computeMaterializationFingerprint } from '../../ee/preAggregates/materializationFingerprint';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
@@ -3891,7 +3892,7 @@ export class ProjectService
 
     private async syncPreAggregateDefinitionsRegistry(
         projectUuid: string,
-    ): Promise<void> {
+    ): Promise<{ changedDefinitionUuids: string[] }> {
         const exploresByUuid =
             await this.projectModel.getAllExploresFromCache(projectUuid);
 
@@ -3946,6 +3947,7 @@ export class ProjectService
 
                         let materializationMetricQuery = null;
                         let materializationQueryError = null;
+                        let definitionFingerprint = null;
 
                         if (!isExternal) {
                             try {
@@ -3963,6 +3965,12 @@ export class ProjectService
                                             },
                                         },
                                     );
+                                definitionFingerprint =
+                                    computeMaterializationFingerprint({
+                                        sourceExplore,
+                                        preAggregateDef: preAggregateDefinition,
+                                        materializationMetricQuery,
+                                    });
                             } catch (error) {
                                 materializationQueryError =
                                     getErrorMessage(error);
@@ -3983,6 +3991,10 @@ export class ProjectService
                                 ? null
                                 : (preAggregateDefinition.refresh?.cron ??
                                   null),
+                            materialize_on_change:
+                                preAggregateDefinition.refresh?.onChange ===
+                                true,
+                            definition_fingerprint: definitionFingerprint,
                         });
                     },
                 );
@@ -3994,9 +4006,10 @@ export class ProjectService
                 projectUuid,
                 'compileProject',
             );
-        await this.preAggregateModel.upsertPreAggregateDefinitions(
-            definitionRows,
-        );
+        const { changedDefinitionUuids, supersededDefinitionUuids } =
+            await this.preAggregateModel.upsertPreAggregateDefinitions(
+                definitionRows,
+            );
 
         const invalidDefinitionsCount = definitionRows.filter(
             (row) => row.materialization_query_error !== null,
@@ -4005,8 +4018,16 @@ export class ProjectService
             `Upserted ${definitionRows.length} pre-aggregate definition registry row(s) for project ${projectUuid}`,
             {
                 invalidDefinitionsCount,
+                changedDefinitionUuids,
+                supersededDefinitionUuids,
             },
         );
+        if (changedDefinitionUuids.length > 0) {
+            this.logger.info(
+                `${changedDefinitionUuids.length} pre-aggregate definition(s) in project ${projectUuid} changed; superseded ${supersededDefinitionUuids.length} active materialization(s)`,
+            );
+        }
+        return { changedDefinitionUuids };
     }
 
     private async syncAndEnqueuePreAggregateMaterializations(args: {
@@ -4021,7 +4042,10 @@ export class ProjectService
                     args.projectUuid,
                     'compileProject',
                 );
-            await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
+            const { changedDefinitionUuids } =
+                await this.syncPreAggregateDefinitionsRegistry(
+                    args.projectUuid,
+                );
 
             if (args.skipMaterialization) {
                 this.logger.info(
@@ -4038,9 +4062,37 @@ export class ProjectService
                 (definition) => definition.materializationMetricQuery !== null,
             );
 
+            // A compile builds a definition that has never completed a
+            // materialization, so a new pre-aggregate is live without waiting
+            // for cron, and one whose definition just changed when it opted
+            // in with refresh.on_change. Everything else is left to cron or
+            // a manual refresh.
+            const changed = new Set(changedDefinitionUuids);
+            const everMaterialized =
+                materializableDefinitions.length > 0
+                    ? await this.preAggregateModel.getDefinitionUuidsEverMaterialized(
+                          args.projectUuid,
+                      )
+                    : new Set<string>();
+            const compileDefinitions = materializableDefinitions.filter(
+                (definition) =>
+                    !everMaterialized.has(
+                        definition.preAggregateDefinitionUuid,
+                    ) ||
+                    (definition.materializeOnChange &&
+                        changed.has(definition.preAggregateDefinitionUuid)),
+            );
+            const skippedCount =
+                materializableDefinitions.length - compileDefinitions.length;
+            if (skippedCount > 0) {
+                this.logger.info(
+                    `Leaving ${skippedCount} pre-aggregate definition(s) in project ${args.projectUuid} to cron or manual refresh on this compile`,
+                );
+            }
+
             if (materializableDefinitions.length > 0) {
                 await Promise.all(
-                    materializableDefinitions.map((definition) => {
+                    compileDefinitions.map((definition) => {
                         const enqueue = () =>
                             this.schedulerClient.materializePreAggregate({
                                 ...captureAgentConnectionTask(
