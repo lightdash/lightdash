@@ -31,6 +31,27 @@ const space = (slug: string): ImportEntry => ({
 });
 
 describe('content import', () => {
+    it('shows the backend validation or permission message in the file result', async () => {
+        const updates: ImportEntry[] = [];
+        await runContentImport({
+            entries: [space('sales')],
+            upload: vi.fn().mockRejectedValue({
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'You cannot upload to this space.',
+                    data: {},
+                },
+            }),
+            onUpdate: (entry) => updates.push(entry),
+            shouldStop: () => false,
+        });
+        expect(updates.at(-1)).toMatchObject({
+            status: 'error',
+            message: 'You cannot upload to this space.',
+        });
+    });
     it('reads legacy metadata-only space exports without requiring a version', async () => {
         const result = await read(
             'contentType: space\nspaceName: Sales\nslug: sales',

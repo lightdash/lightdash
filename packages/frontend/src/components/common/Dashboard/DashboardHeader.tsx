@@ -68,6 +68,8 @@ import {
     useDashboardCommentsSummary,
 } from '../../../features/comments';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
+import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
+import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -201,6 +203,8 @@ const DashboardHeader = memo(
         const dashboardIdentifier = dashboard.slug;
 
         const { data: project } = useProject(projectUuid);
+        const canUploadContentAsCode = useCanUploadContentAsCode(projectUuid);
+        const [isUploadModalOpen, uploadModalHandlers] = useDisclosure();
 
         const { track } = useTracking();
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -942,6 +946,7 @@ const DashboardHeader = memo(
                                     !hasDashboardManageAbility &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
+                                    !canUploadContentAsCode &&
                                     !canViewDashboardComments &&
                                     !(
                                         compact &&
@@ -1360,7 +1365,8 @@ const DashboardHeader = memo(
                                     )}
 
                                     {(userCanViewContentAsCode ||
-                                        canAuthorDashboard) && (
+                                        canAuthorDashboard ||
+                                        canUploadContentAsCode) && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Label>
@@ -1379,6 +1385,36 @@ const DashboardHeader = memo(
                                                 >
                                                     View as code
                                                 </Menu.Item>
+                                            )}
+                                            {canUploadContentAsCode && (
+                                                <Tooltip
+                                                    label="Save or discard your dashboard changes before uploading content."
+                                                    disabled={
+                                                        !hasDashboardChanged ||
+                                                        !isEditMode
+                                                    }
+                                                >
+                                                    <Box>
+                                                        <Menu.Item
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconUpload
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={
+                                                                uploadModalHandlers.open
+                                                            }
+                                                            disabled={
+                                                                hasDashboardChanged &&
+                                                                isEditMode
+                                                            }
+                                                        >
+                                                            Upload content
+                                                        </Menu.Item>
+                                                    </Box>
+                                                </Tooltip>
                                             )}
                                             {canAuthorDashboard && (
                                                 <Tooltip
@@ -1484,6 +1520,14 @@ const DashboardHeader = memo(
                                 hasUnsavedChanges={
                                     hasDashboardChanged && isEditMode
                                 }
+                            />
+                        )}
+                        {isUploadModalOpen && project && (
+                            <ProjectContentAsCodeUploadModal
+                                opened={isUploadModalOpen}
+                                onClose={uploadModalHandlers.close}
+                                projectUuid={project.projectUuid}
+                                projectName={project.name}
                             />
                         )}
                         {(promoteDashboardDiff ||

@@ -2,6 +2,7 @@ import {
     ContentAsCodeType,
     dashboardAsCodeSchema,
     getChartAsCodeBranchSchema,
+    isApiError,
     SpaceMemberRole,
     type ChartAsCode,
     type DashboardAsCode,
@@ -306,10 +307,11 @@ export const runContentImport = async ({
             onUpdate({
                 ...entry,
                 status: 'error',
-                message:
-                    error instanceof Error
-                        ? error.message
-                        : 'Upload failed. You can retry this file.',
+                message: isApiError(error)
+                    ? error.error.message
+                    : error instanceof Error
+                      ? error.message
+                      : 'Upload failed. You can retry this file.',
             });
         }
     }

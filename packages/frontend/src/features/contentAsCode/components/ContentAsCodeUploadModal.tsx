@@ -23,7 +23,7 @@ import {
     IconUpload,
     IconX,
 } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import FileDropzone from '../../../components/common/FileDropzone/FileDropzone';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -44,6 +44,7 @@ type Props = {
     projectName: string;
     onUpload: UploadContent;
     initialEntries?: ImportEntry[];
+    warning?: string | null;
 };
 
 const typeIcons = {
@@ -67,6 +68,7 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     projectName,
     onUpload,
     initialEntries = [],
+    warning = null,
 }) => {
     const [entries, setEntries] = useState<ImportEntry[]>(initialEntries);
     const [reading, setReading] = useState(false);
@@ -80,6 +82,12 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     const [addError, setAddError] = useState<string | null>(null);
     const busy = useRef(false);
     const stop = useRef(false);
+    useEffect(
+        () => () => {
+            stop.current = true;
+        },
+        [],
+    );
     const duplicates = getDuplicateImportIds(entries);
     const invalidCount = entries.filter(
         (entry) => entry.status === 'invalid' || duplicates.has(entry.id),
@@ -442,6 +450,8 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                 </Stack>
             )}
 
+            {warning && <Callout variant="warning">{warning}</Callout>}
+
             <Box aria-live="polite">
                 {invalidCount > 0 ? (
                     <Callout
@@ -482,6 +492,4 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     );
 };
 
-// Used by Storybook; story files are excluded from the unused-exports check.
-// ts-unused-exports:disable-next-line
 export default ContentAsCodeUploadModal;
