@@ -670,6 +670,7 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import { isComposerQueriesEnabled } from './composerQueriesGate';
 import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
 import {
     redactStreamToolOutputs,
@@ -1720,6 +1721,11 @@ export class AiAgentService extends BaseService {
                     if (allowedSpaces) {
                         throw new ForbiddenError(
                             'External tables are not available in embedded AI',
+                        );
+                    }
+                    if (!agent.enableComposerQueries) {
+                        throw new ForbiddenError(
+                            'This agent does not have composer queries enabled, so it cannot query attached sources',
                         );
                     }
                     if (
@@ -5794,6 +5800,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
             enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
+            enableComposerQueries: body.enableComposerQueries ?? true,
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -7554,6 +7561,7 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
             enableSqlAutoApproval: body.enableSqlAutoApproval,
+            enableComposerQueries: body.enableComposerQueries,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,
@@ -16476,13 +16484,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                               responseExecution.toolAllowlist,
                           )
                         : undefined;
-                // Allowlisted read-only threads (data-app investigations) keep the classic query tools.
-                const enableComposerQueries =
-                    multiSourceQueryEnabled &&
-                    composeSqlRunnerEnabled &&
-                    agentSettings.enableDataAccess &&
-                    responseExecution.mode !== 'deep_research' &&
-                    standardToolAllowlist === undefined;
+                const enableComposerQueries = isComposerQueriesEnabled({
+                    multiSourceQueryEnabled,
+                    composeSqlRunnerEnabled,
+                    agent: agentSettings,
+                    isDeepResearch: responseExecution.mode === 'deep_research',
+                    hasStandardToolAllowlist:
+                        standardToolAllowlist !== undefined,
+                });
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =

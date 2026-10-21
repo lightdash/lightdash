@@ -163,6 +163,7 @@ describe('trusted surface to persisted chart identity', () => {
                 enable_content_tools: true,
                 enable_sql_mode: false,
                 enable_sql_auto_approval: false,
+                enable_composer_queries: false,
                 enable_user_context: false,
                 enable_self_improvement: false,
                 admin_only: false,

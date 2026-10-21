@@ -296,8 +296,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
-    // Whether the runComposerQueries tool (multi-source pipelines) is
-    // available: the MultiSourceQuery flag + data access, web chat only in v0.
+    // Whether runComposerQueries is the query path: composer flags, data
+    // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
     // Whether runComposerQueries offers python nodes: composer queries plus
     // the PythonQueryRunner flag.
