@@ -328,6 +328,12 @@ export const AiAgentFormSetup = ({
     const multiSourceQueryFlagQuery = useServerFeatureFlag(
         FeatureFlags.MultiSourceQuery,
     );
+    const composeSqlRunnerFlagQuery = useServerFeatureFlag(
+        FeatureFlags.ComposeSqlRunner,
+    );
+    const composerQueriesAvailable =
+        multiSourceQueryFlagQuery.data?.enabled === true &&
+        composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
@@ -1009,7 +1015,7 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
-                            {multiSourceQueryFlagQuery.data?.enabled && (
+                            {composerQueriesAvailable && (
                                 <Switch
                                     variant="subtle"
                                     label={

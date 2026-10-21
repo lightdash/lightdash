@@ -1732,6 +1732,11 @@ export class AiAgentService extends BaseService {
                             'External tables are not available in embedded AI',
                         );
                     }
+                    if (!agent.enableComposerQueries) {
+                        throw new ForbiddenError(
+                            'This agent does not have composer queries enabled, so it cannot query attached sources',
+                        );
+                    }
                     if (
                         this.createAuditedAbility(user).cannot(
                             'manage',
@@ -5753,7 +5758,8 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext ?? false,
             enableSqlMode: body.enableSqlMode ?? true,
             enableSqlAutoApproval: body.enableSqlAutoApproval ?? false,
-            enableComposerQueries: body.enableComposerQueries ?? false,
+            enableComposerQueries:
+                body.enableDataAccess && (body.enableComposerQueries ?? false),
             adminOnly: body.adminOnly ?? false,
             modelConfig: body.modelConfig ?? null,
             providerCredentialUuid: body.providerCredentialUuid ?? null,
@@ -7514,7 +7520,9 @@ export class AiAgentService extends BaseService {
             enableUserContext: body.enableUserContext,
             enableSqlMode: body.enableSqlMode,
             enableSqlAutoApproval: body.enableSqlAutoApproval,
-            enableComposerQueries: body.enableComposerQueries,
+            enableComposerQueries: nextEnableDataAccess
+                ? body.enableComposerQueries
+                : false,
             adminOnly: body.adminOnly,
             modelConfig: body.modelConfig,
             providerCredentialUuid: body.providerCredentialUuid,

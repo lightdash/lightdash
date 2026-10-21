@@ -875,6 +875,7 @@ export const AgentChatInput = ({
         app.health.data?.externalSources.engineAvailable &&
         multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
+        agent?.enableComposerQueries &&
         !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
