@@ -395,18 +395,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         });
     }, [writeState, writePlaceholder]);
 
-    // The moment a filter is created, which is what the shipped bar tracks.
-    // A control that lost its last field goes back where it was, untracked
+    // A control that lost its last field goes back where it was
     const writeFirstRule = useCallback(
         (rule: DashboardFilterRule, group: FilterGroup) => {
-            const { state: editingState, track: trackEvent } = latest.current;
+            const { state: editingState } = latest.current;
             const emptiedAt = editingState?.emptiedAt ?? null;
-            if (emptiedAt === null) {
-                trackEvent({
-                    name: EventName.ADD_FILTER_CLICKED,
-                    properties: { mode: 'edit' },
-                });
-            }
             const index =
                 emptiedAt?.group === group ? emptiedAt.index : Infinity;
             writeFilters((filters) => ({
@@ -753,6 +746,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             return;
         }
         rememberFocusReturn();
+        // A new filter is created once it is kept, as the shipped bar tracks it
+        if (current.state.isNew) {
+            current.track({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'edit' },
+            });
+        }
         if (isDefaultValueIncomplete(rule)) {
             writeFilters((filters) =>
                 replaceFilterRule(filters, { ...rule, disabled: true }),
