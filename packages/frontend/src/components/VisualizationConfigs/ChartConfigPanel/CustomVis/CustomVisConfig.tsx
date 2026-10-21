@@ -21,7 +21,7 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import Editor, { type EditorProps, type Monaco } from '../../../MonacoEditor';
 import { Config } from '../../common/Config';
 import CustomChartTypeSection from '../../CustomChartType/CustomChartTypeSection';
@@ -128,7 +128,7 @@ const registerCustomCompletionProvider = (
 };
 
 export const ConfigTabs: React.FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
     const colorScheme = useComputedColorScheme();
     const projectUuid = useProjectUuid();
     const projectRoute = useOptionalProjectRoute();
@@ -247,7 +247,7 @@ export const ConfigTabs: React.FC = memo(() => {
             overflowWidgetsDomNode: container,
         });
     }, [monacoOptions]);
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationState();
 
     if (!isCustomConfig) return null;
 

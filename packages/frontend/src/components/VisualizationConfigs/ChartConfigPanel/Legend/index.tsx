@@ -25,7 +25,7 @@ import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import classes from './Legend.module.css';
@@ -145,7 +145,7 @@ export const Legend: FC<Props> = ({ items }) => {
     // The SDK bundle ships no Monaco workers, so the HTML tooltip editor is not offered in embeds.
     const { embedToken } = useEmbed();
 
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     // Extract fields used in autocomplete for tooltip
     // for non pivot charts, we can use all items in results

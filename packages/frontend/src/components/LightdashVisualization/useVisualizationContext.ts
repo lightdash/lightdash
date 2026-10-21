@@ -20,15 +20,15 @@ const useRequiredContext = <T>(context: Context<T | undefined>): T => {
 };
 
 /** Refs and actions; never re-renders the caller after mount. */
-const useVisualizationServices = (): VisualizationServices =>
+export const useVisualizationServices = (): VisualizationServices =>
     useRequiredContext(ServicesContext);
 
 /** Container size; re-renders the caller on every resize. */
-const useVisualizationLayout = (): VisualizationLayout =>
+export const useVisualizationLayout = (): VisualizationLayout =>
     useRequiredContext(LayoutContext);
 
 /** Data, config and colours; everything except refs, actions and size. */
-const useVisualizationState = (): VisualizationState =>
+export const useVisualizationState = (): VisualizationState =>
     useRequiredContext(StateContext);
 
 /** Everything at once: subscribes to every change, including resizes. */

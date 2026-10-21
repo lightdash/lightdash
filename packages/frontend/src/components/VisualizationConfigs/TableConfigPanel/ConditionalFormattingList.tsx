@@ -13,7 +13,7 @@ import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
@@ -25,7 +25,7 @@ const ConditionalFormattingList = ({}) => {
         useControlledAccordion();
 
     const { itemsMap, resultsData, visualizationConfig, colorPalette } =
-        useVisualizationContext();
+        useVisualizationState();
 
     const chartConfig = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) return undefined;

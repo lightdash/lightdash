@@ -2,11 +2,11 @@ import { getItemId } from '@lightdash/common';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const GaugeFieldsConfig: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     if (!isGaugeVisualizationConfig(visualizationConfig)) {
         return null;

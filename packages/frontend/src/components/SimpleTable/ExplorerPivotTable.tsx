@@ -24,7 +24,7 @@ import { SortDirection } from '../../utils/sortUtils';
 import PivotTable, { type PivotSortMenuTarget } from '../common/PivotTable';
 import ColumnHeaderSortMenuOptions from '../Explorer/ResultsCard/ColumnHeaderSortMenuOptions';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import { getExplorerPivotSortMenu } from './getExplorerPivotSortMenu';
 
 type ExplorerPivotTableProps = Omit<
@@ -52,7 +52,7 @@ const ExplorerPivotTable: FC<ExplorerPivotTableProps> = ({
     const dimensions = useExplorerSelector(selectDimensions);
     const pivotConfig = useExplorerSelector(selectPivotConfig);
 
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
     const chartConfig = isTableVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig
         : null;

@@ -6,7 +6,10 @@ import useEchartsSankeyConfig from '../../hooks/echarts/useEchartsSankeyConfig';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
     <Box h="100%" w="100%" py="xl">
@@ -30,7 +33,8 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleSankey: FC<SimpleSankeyProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { chartRef, isLoading, resultsData } = useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData } = useVisualizationState();
 
         const sankeyChartOptions = useEchartsSankeyConfig(props.isInDashboard);
 

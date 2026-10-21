@@ -22,14 +22,14 @@ import {
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { VisualizationConfigTabs } from '../common/VisualizationConfigTabs';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
 

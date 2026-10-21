@@ -13,7 +13,7 @@ import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
@@ -51,7 +51,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     drawOrder,
     showColorPickerIcon,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationContext();
+    const { colorPalette, getSeriesColor } = useVisualizationState();
     const [value, setValue] = useDebouncedState(
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
         500,

@@ -209,7 +209,7 @@ describe('VisualizationProvider render characterization', () => {
     });
     afterEach(() => cleanup());
 
-    it('re-renders every consumer when only the container size changes', () => {
+    it('re-renders every aggregate-hook reader when only the container size changes', () => {
         const { rerender } = render(
             <VisualizationProvider
                 {...baseProps}
@@ -232,7 +232,8 @@ describe('VisualizationProvider render characterization', () => {
         );
         const after = renderedCounts();
 
-        // Baseline: a size change reaches consumers that never read the size.
+        // useVisualizationContext() subscribes to the size too; consumers that
+        // read the narrow hooks skip it (VisualizationProvider.consumers.test).
         expect(after.size - before.size).toBe(1);
         expect(after.loading - before.loading).toBe(1);
         expect(after.items - before.items).toBe(1);

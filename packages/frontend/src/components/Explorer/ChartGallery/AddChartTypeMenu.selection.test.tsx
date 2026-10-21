@@ -28,9 +28,15 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
 vi.mock('../../../features/apps/hooks/useCanCreateDataApp', () => ({
     useCanCreateDataApp: () => false,
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({ itemsMap: {} }),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({ itemsMap: {} });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationState: useVisualizationContext,
+    };
+});
 vi.mock(
     '../../../features/chartTypes/components/ChartTypeLibraryModal',
     () => ({

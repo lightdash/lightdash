@@ -21,7 +21,7 @@ import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/mo
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import {
     Editor,
     type BeforeMount,
@@ -112,7 +112,7 @@ const calculateEditorHeight = (lineCount: number): number => {
     return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
 };
 export const TooltipConfig: FC<Props> = ({ fields }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);

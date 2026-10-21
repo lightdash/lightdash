@@ -290,6 +290,14 @@ const VisualizationCard: FC<Props> = memo((props) => {
         merge?.replacesQuery,
     ]);
 
+    const savedChartReference = useMemo(
+        () =>
+            savedChart
+                ? { uuid: savedChart.uuid, chartConfig: savedChart.chartConfig }
+                : undefined,
+        [savedChart],
+    );
+
     const dirtyPivotConfiguration = useDirtyPivotConfiguration();
 
     if (!unsavedChartVersion.tableName) {
@@ -341,14 +349,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
-                savedChartReference={
-                    savedChart
-                        ? {
-                              uuid: savedChart.uuid,
-                              chartConfig: savedChart.chartConfig,
-                          }
-                        : undefined
-                }
+                savedChartReference={savedChartReference}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}

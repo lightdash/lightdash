@@ -17,7 +17,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isPieVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type PieChartContextMenuProps = {
@@ -40,14 +40,14 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     canViewUnderlyingData,
 }) => {
     const projectUuid = useProjectUuid();
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap } = useVisualizationState();
 
     if (!value || !metricQueryData || !projectUuid) {
         return null;

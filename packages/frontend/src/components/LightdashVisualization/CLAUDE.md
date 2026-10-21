@@ -44,8 +44,15 @@ web app, the SDK, embedding and Desktop draw the same chart. Read
   selections, display options) and change handlers; calls the package's
   helpers and returns `validConfig`
 - `packages/frontend/src/hooks/echarts/useEchartsXxxConfig.ts`: reads
-  `useVisualizationContext()` and `useVisualizationTheme()` and calls the
+  `useVisualizationState()` and `useVisualizationTheme()` and calls the
   package's builder
+
+Consumers read the narrowest context hook they need
+(`useVisualizationContext.ts`): `useVisualizationServices()` for refs and
+actions, `useVisualizationState()` for data, config and colours,
+`useVisualizationLayout()` only for the container size (it re-renders on
+every resize). `useVisualizationContext()` returns all three and is kept for
+the regression replay and tests.
 
 ### 6. Frontend Visualization Component (`packages/frontend/src/components/SimpleXxx/index.tsx`)
 

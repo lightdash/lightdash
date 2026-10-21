@@ -9,7 +9,7 @@ import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type Limit } from '../../../../../components/ExportResults/types';
 import { isTableVisualizationConfig } from '../../../../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { executeAiChartDownloadQuery } from '../../utils/executeAiChartDownloadQuery';
 
@@ -40,7 +40,7 @@ export const AiChartDownloadModal: FC<Props> = ({
         pivotDimensions,
         resultsData,
         visualizationConfig,
-    } = useVisualizationContext();
+    } = useVisualizationState();
 
     const metricQuery = resultsData?.metricQuery;
     const tableConfig = isTableVisualizationConfig(visualizationConfig)
