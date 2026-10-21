@@ -832,6 +832,59 @@ describe('one-argument refs with same-named models in several sources', () => {
         ]);
         expect(source.fetch.mock.calls[1][0].externalNodes).toEqual([]);
     });
+
+    it('names the injected binding provider when another source contradicts a one-argument ref', async () => {
+        const source = consumer([ref(null, 'm')]);
+        const hidden = provider('primary');
+        hidden.prepare.mockResolvedValue({
+            ...(await hidden.prepare()),
+            localModels: [],
+        });
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [source, provider('up_one'), hidden],
+                enabled: true,
+                concurrency: 2,
+                maxPasses: 1,
+            }),
+        ).rejects.toMatchObject({
+            message:
+                'dbt source "consumer" was compiled against an out-of-date version of model "m" from dbt source "up_one" and the compile ran out of retries.',
+        });
+        expect(source.fetch.mock.calls[0][0].externalNodes).toEqual([
+            expect.objectContaining({ package_name: 'up_one', name: 'm' }),
+        ]);
+    });
+
+    it('falls back to the compared provider when no injected binding supplies the ref', async () => {
+        const source = withRefs('consumer', [], ['uses']);
+        source.fetch.mockImplementation(async () =>
+            boundResult(
+                'consumer',
+                [
+                    placeholderExternalNode({
+                        packageName: 'up_one',
+                        name: 'm',
+                        version: null,
+                        latestVersion: null,
+                    }),
+                ],
+                [ref(null, 'm')],
+            ),
+        );
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [source, provider('primary')],
+                enabled: true,
+                concurrency: 2,
+                maxPasses: 1,
+            }),
+        ).rejects.toMatchObject({
+            message:
+                'dbt source "consumer" was compiled against an out-of-date version of model "m" from dbt source "primary" and the compile ran out of retries.',
+        });
+        expect(source.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+    });
 });
 
 it.each(['ambiguous', 'local', 'installed'])(
@@ -1013,9 +1066,10 @@ it('reports a contradicted binding accurately when the pass cap prevents validat
             concurrency: 2,
             maxPasses: 1,
         }),
-    ).rejects.toThrow(
-        'dbt source "b" was compiled against an out-of-date version of model "orders" from dbt source "a" and the compile ran out of retries. Refresh again; the next compile usually succeeds.',
-    );
+    ).rejects.toMatchObject({
+        message:
+            'dbt source "b" was compiled against an out-of-date version of model "orders" from dbt source "a" and the compile ran out of retries.',
+    });
     expect(consumer.fetch).toHaveBeenCalledTimes(1);
 });
 
@@ -1433,9 +1487,10 @@ it('reports only the contradicted version of a model at the retry cap', async ()
         maxPasses: 1,
         cache: [{ key: 'p', projectName: 'p', nodes, referencedProjects: [] }],
     });
-    await expect(resolution).rejects.toThrow(
-        'model "m" (version "1") from dbt source "p"',
-    );
+    await expect(resolution).rejects.toMatchObject({
+        message:
+            'dbt source "c" was compiled against an out-of-date version of model "m" (version "1") from dbt source "p" and the compile ran out of retries.',
+    });
     await expect(resolution).rejects.not.toThrow('version "2"');
 });
 
