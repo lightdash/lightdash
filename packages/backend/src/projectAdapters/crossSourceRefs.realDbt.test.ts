@@ -227,6 +227,117 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 1,
                 });
 
+            it.each([
+                {
+                    scenario: 'P1',
+                    explicit: true,
+                    usesPrimary: true,
+                    oneArg: true,
+                },
+                {
+                    scenario: 'P2',
+                    explicit: false,
+                    usesPrimary: true,
+                    oneArg: true,
+                },
+                {
+                    scenario: 'P3',
+                    explicit: true,
+                    usesPrimary: false,
+                    oneArg: true,
+                },
+                {
+                    scenario: 'P5',
+                    explicit: true,
+                    usesPrimary: true,
+                    oneArg: false,
+                },
+                {
+                    scenario: 'package kwarg',
+                    explicit: true,
+                    usesPrimary: true,
+                    oneArg: true,
+                },
+            ])(
+                'handles same-named models: $scenario',
+                async ({ scenario, explicit, usesPrimary, oneArg }) => {
+                    const syntheticTask = async (
+                        project: string,
+                        models: Record<string, string>,
+                    ) => {
+                        const source = await task('shared_dimensions');
+                        const copy =
+                            clients[clients.length - 1].dbtProjectDirectory;
+                        await fs.writeFile(
+                            path.join(copy, 'dbt_project.yml'),
+                            `name: ${project}\nversion: '1.0.0'\nconfig-version: 2\nprofile: cross_source_refs\nmodels:\n  ${project}:\n    +access: public\n`,
+                        );
+                        await fs.rm(path.join(copy, 'models'), {
+                            recursive: true,
+                        });
+                        await fs.mkdir(path.join(copy, 'models'));
+                        await Promise.all(
+                            Object.entries(models).map(([name, sql]) =>
+                                fs.writeFile(
+                                    path.join(copy, 'models', `${name}.sql`),
+                                    sql,
+                                ),
+                            ),
+                        );
+                        return { ...source, key: project, context: project };
+                    };
+                    const tasks = [
+                        await syntheticTask('primary', {
+                            m: 'select 1 as id',
+                            other_model: 'select 1 as id',
+                        }),
+                        await syntheticTask('up_one', { m: 'select 2 as id' }),
+                        await syntheticTask('consumer', {
+                            a: `select * from {{ ${oneArg ? "ref('m')" : "ref('up_one', 'm')"} }}`,
+                            ...(explicit
+                                ? {
+                                      b: `select * from {{ ${scenario === 'package kwarg' ? "ref('m', package='up_one')" : "ref('up_one', 'm')"} }}`,
+                                  }
+                                : {}),
+                            ...(usesPrimary
+                                ? {
+                                      c: "select * from {{ ref('primary', 'other_model') }}",
+                                  }
+                                : {}),
+                        }),
+                    ];
+                    const resolution = resolveCrossSourceManifests({
+                        tasks,
+                        enabled: true,
+                        concurrency: 1,
+                    });
+                    if (!explicit) {
+                        await expect(resolution).rejects.toThrow(
+                            "name 'm' is defined by several dbt sources. Use ref('project', 'model')",
+                        );
+                        return;
+                    }
+                    const resolved = await resolution;
+                    expect(resolved.passes).toBe(1);
+                    expect(resolved.contradictions).toBe(0);
+                    expect(
+                        resolved.sources?.map((source) => source.lsRuns),
+                    ).toEqual([1, 1, 1]);
+                    const consumer = resolved.results.find(
+                        (entry) => entry.task.key === 'consumer',
+                    )!;
+                    for (const name of ['a', 'b'])
+                        expect(
+                            (
+                                consumer.result.manifest.nodes[
+                                    `model.consumer.${name}`
+                                ] as DbtRawModelNode
+                            ).depends_on?.nodes,
+                        ).toEqual(['model.up_one.m']);
+                },
+                120_000,
+            );
+
             const access = () => {
                 accessResolution ??= resolve([
                     'access_upstream',

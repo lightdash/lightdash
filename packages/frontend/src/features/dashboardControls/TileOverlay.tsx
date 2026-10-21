@@ -7,7 +7,6 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type DashboardTile,
 } from '@lightdash/common';
 import {
     Box,
@@ -53,7 +52,11 @@ import {
     type SqlColumn,
 } from './peers';
 import classes from './TileOverlay.module.css';
-import { areTilePropsEqual, type TileHighlight } from './tileProps';
+import {
+    areTilePropsEqual,
+    getTileTitle,
+    type TileHighlight,
+} from './tileProps';
 import {
     getTileSelector,
     LOCKED_TILE_CLASS,
@@ -96,13 +99,6 @@ const NO_STARTERS_BY_TILE: Record<string, string[]> = {};
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
     fieldsMap[fieldId]?.label ?? fieldId;
-
-const getTileTitle = (tile: DashboardTile): string => {
-    if (tile.properties.title) return tile.properties.title;
-    if ('chartName' in tile.properties && tile.properties.chartName)
-        return tile.properties.chartName;
-    return 'this tile';
-};
 
 // Finds the target for a field id: a known field, else one already on the rule
 const getFieldTarget = (

@@ -541,7 +541,11 @@ export const resolveCrossSourceManifests = async <T>({
         };
         const contradictedRefs = new Map<
             CrossSourceFetchTask<T>,
-            { provider: CrossSourceFetchTask<T>; ref: ScannedDbtRef }[]
+            {
+                provider: CrossSourceFetchTask<T>;
+                boundProvider: CrossSourceFetchTask<T> | null;
+                ref: ScannedDbtRef;
+            }[]
         >();
         const hiddenRefReason = (
             task: CrossSourceFetchTask<T>,
@@ -552,8 +556,8 @@ export const resolveCrossSourceManifests = async <T>({
             const reports = [...queued].flatMap((task) => {
                 if (resolved.has(task))
                     return (contradictedRefs.get(task) ?? []).map(
-                        ({ provider, ref }) =>
-                            `dbt source "${task.key}" was compiled against an out-of-date version of model "${ref.name}"${ref.version === null ? '' : ` (version ${JSON.stringify(ref.version)})`} from dbt source "${provider.key}" and the compile ran out of retries. Refresh again; the next compile usually succeeds.`,
+                        ({ provider, boundProvider, ref }) =>
+                            `dbt source "${task.key}" was compiled against an out-of-date version of model "${ref.name}"${ref.version === null ? '' : ` (version ${JSON.stringify(ref.version)})`} from dbt source "${(boundProvider ?? provider).key}" and the compile ran out of retries.`,
                     );
                 const missing = getMissingDbtNodeReferences(failures.get(task));
                 const refs =
@@ -898,7 +902,9 @@ export const resolveCrossSourceManifests = async <T>({
                     ...given.keys(),
                 ]);
                 finalDependencies.set(consumer, requiredProviders);
-                const actualRefs: ScannedDbtRef[] = [];
+                const actualRefs: (ScannedDbtRef & {
+                    boundProvider: CrossSourceFetchTask<T> | null;
+                })[] = [];
                 const injectedById = new Map(
                     [...given.entries()].flatMap(([provider, nodes]) =>
                         nodes.map(
@@ -947,7 +953,11 @@ export const resolveCrossSourceManifests = async <T>({
                             )
                                 ? null
                                 : ref.version;
-                        actualRefs.push({ ...ref, version: requestedVersion });
+                        actualRefs.push({
+                            ...ref,
+                            version: requestedVersion,
+                            boundProvider: provider,
+                        });
                         if (fresh.has(provider)) {
                             const candidates = fresh
                                 .get(provider)!
@@ -1018,12 +1028,22 @@ export const resolveCrossSourceManifests = async <T>({
                                     : undefined);
                             if (dependency && isExternalDbtNode(dependency)) {
                                 actualRefs.push({
-                                    packageName: null,
+                                    packageName: refsOf(consumer).some(
+                                        (candidate) =>
+                                            candidate.packageName ===
+                                                dependency.package_name &&
+                                            candidate.name === ref.name,
+                                    )
+                                        ? dependency.package_name
+                                        : null,
                                     name: ref.name,
                                     version:
                                         ref.version == null
                                             ? null
                                             : String(ref.version),
+                                    boundProvider:
+                                        injectedById.get(dependency.unique_id)
+                                            ?.provider ?? null,
                                 });
                                 const versionArg =
                                     ref.version == null
@@ -1046,6 +1066,7 @@ export const resolveCrossSourceManifests = async <T>({
                 }
                 const changed: {
                     provider: CrossSourceFetchTask<T>;
+                    boundProvider: CrossSourceFetchTask<T> | null;
                     ref: ScannedDbtRef;
                 }[] = [];
                 for (const provider of tasks.filter(
@@ -1074,7 +1095,11 @@ export const resolveCrossSourceManifests = async <T>({
                                     changedRef.ref.version === ref.version,
                             )
                         )
-                            changed.push({ provider, ref });
+                            changed.push({
+                                provider,
+                                boundProvider: ref.boundProvider,
+                                ref,
+                            });
                     }
                 }
                 contradictedRefs.set(consumer, changed);
