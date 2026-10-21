@@ -4,7 +4,7 @@ import type {
     AiAgentThread,
 } from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
-import { useContext, useEffect, useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -13,7 +13,6 @@ import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
-import { BattleMessageContext } from './BattleMessageContext';
 import {
     formatTokenCount,
     getBattleTotals,
@@ -42,18 +41,10 @@ const useTicking = (active: boolean) => {
 
 const battleColors: Record<AiAgentBattleProfile, string> = {
     fast: 'violet',
-    luna: 'teal',
+    luna: 'gray',
     baseline: 'gray',
     classic: 'gray',
     composer: 'indigo',
-};
-// Query path sides still make fast decisions with JEV when Fast mode is on.
-const battleDecisionNames: Record<AiAgentBattleProfile, string> = {
-    fast: 'JEV',
-    luna: 'Luna',
-    baseline: 'JEV',
-    classic: 'JEV',
-    composer: 'JEV',
 };
 const loadoutBaseNames: Record<AiAgentLoadoutBase, string> = {
     classic: 'Classic',
@@ -62,7 +53,6 @@ const loadoutBaseNames: Record<AiAgentLoadoutBase, string> = {
     deep_research_worker: 'Deep research',
     deep_research_coordinator: 'Deep research',
 };
-const NO_WINNERS: ReadonlySet<string> = new Set();
 
 // The ticker and stream updates stay here so they never re-render the chat.
 const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
@@ -201,13 +191,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                             {formatDurationMs(sessionMs)}
                         </Text>
                         {' · '}
-                        {formatTokenCount(
-                            totals.agentTokens,
-                            totals.jevTokens,
-                            battleDecisionNames[
-                                thread.battleProfile ?? 'baseline'
-                            ],
-                        )}
+                        {formatTokenCount(totals.agentTokens, totals.jevTokens)}
                     </Text>
                 )}
                 <Anchor
@@ -230,39 +214,25 @@ export const BattleThreadPane: FC<Props> = ({
     thread,
     queuedCount,
     onChoiceSelect,
-}) => {
-    const battle = useContext(BattleMessageContext);
-    const decisionName =
-        battleDecisionNames[thread.battleProfile ?? 'baseline'];
-    const messageContext = useMemo(
-        () => ({
-            winnerMessageUuids: battle?.winnerMessageUuids ?? NO_WINNERS,
-            decisionName,
-        }),
-        [battle?.winnerMessageUuids, decisionName],
-    );
-    return (
-        <Stack h="100%" gap={0} miw={0}>
-            <BattlePaneHeader
-                label={label}
+}) => (
+    <Stack h="100%" gap={0} miw={0}>
+        <BattlePaneHeader
+            label={label}
+            projectUuid={projectUuid}
+            agentUuid={agentUuid}
+            thread={thread}
+            queuedCount={queuedCount}
+        />
+        <Box flex={1} mih={0}>
+            <AgentChatDisplay
+                thread={thread}
+                agentName={agentName}
+                enableAutoScroll
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
-                thread={thread}
-                queuedCount={queuedCount}
+                renderArtifactsInline
+                onChoiceSelect={onChoiceSelect}
             />
-            <Box flex={1} mih={0}>
-                <BattleMessageContext.Provider value={messageContext}>
-                    <AgentChatDisplay
-                        thread={thread}
-                        agentName={agentName}
-                        enableAutoScroll
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        renderArtifactsInline
-                        onChoiceSelect={onChoiceSelect}
-                    />
-                </BattleMessageContext.Provider>
-            </Box>
-        </Stack>
-    );
-};
+        </Box>
+    </Stack>
+);

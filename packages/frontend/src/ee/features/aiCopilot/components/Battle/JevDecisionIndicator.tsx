@@ -4,12 +4,11 @@ import { type FC } from 'react';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { describeJevDecision } from './jevDecision';
 
-export const JevDecisionIndicator: FC<{
-    decision: AiAgentJevDecision;
-    name: string;
-}> = ({ decision, name }) => {
+export const JevDecisionIndicator: FC<{ decision: AiAgentJevDecision }> = ({
+    decision,
+}) => {
     const { applied, badge, title, description, reasonCode } =
-        describeJevDecision(decision, name);
+        describeJevDecision(decision);
     return (
         <Tooltip
             maw={300}

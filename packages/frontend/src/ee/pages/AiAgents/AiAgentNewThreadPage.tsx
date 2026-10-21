@@ -95,14 +95,12 @@ const agentTourProps = {
 
 const battleProfileA: Record<BattleType, AiAgentBattleProfile | undefined> = {
     speed: 'fast',
-    decisions: 'fast',
     queryPath: 'classic',
     models: undefined,
 };
 
 const battleProfileB: Record<BattleType, AiAgentBattleProfile | undefined> = {
     speed: 'baseline',
-    decisions: 'luna',
     queryPath: 'composer',
     models: undefined,
 };
@@ -116,7 +114,6 @@ const resolveBattleType = (
 ): BattleType => {
     const available: Record<BattleType, boolean> = {
         speed: speedBattleAvailable,
-        decisions: speedBattleAvailable,
         queryPath: queryPathBattleAvailable,
         models: true,
     };
