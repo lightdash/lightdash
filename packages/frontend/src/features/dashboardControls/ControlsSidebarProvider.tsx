@@ -38,12 +38,18 @@ import {
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
-import { getFilterFields, getTileField, setTileField } from './peers';
+import {
+    getFilterFields,
+    getTileField,
+    setTileField,
+    withoutDefaultTileTargets,
+} from './peers';
 import { isLockedRequiredMissingValue } from './requirements';
 import {
     canKeepFilterRule,
     findFilterRule,
     haveFiltersChangedSince,
+    haveOtherFilterRulesChanged,
     isDefaultValueIncomplete,
     isFilterRuleDirty,
     PLACEHOLDER_TARGET,
@@ -245,6 +251,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     useLayoutEffect(() => {
         latest.current = rendered;
     });
+    const toSavedRule = useCallback(
+        (rule: DashboardFilterRule) =>
+            withoutDefaultTileTargets(
+                rule,
+                dashboardTiles,
+                filterableFieldsByTileUuid,
+            ),
+        [dashboardTiles, filterableFieldsByTileUuid],
+    );
 
     const writeFilters = useCallback(
         (update: (filters: DashboardFilters) => DashboardFilters) => {
@@ -277,7 +292,19 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const settleFiltersChanged = useCallback(
         (snapshot: ControlsSidebarSnapshot) => {
             const current = latest.current;
-            if (haveFiltersChangedSince(snapshot, current.dashboardFilters)) {
+            const toSaved = (rule: DashboardFilterRule) =>
+                withoutDefaultTileTargets(
+                    rule,
+                    current.dashboardTiles,
+                    current.filterableFieldsByTileUuid,
+                );
+            if (
+                haveFiltersChangedSince(
+                    snapshot,
+                    current.dashboardFilters,
+                    toSaved,
+                )
+            ) {
                 writeFiltersChanged(true);
                 return;
             }
@@ -833,6 +860,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                         state.snapshot.dashboardFilters,
                         dashboardFilters,
                         state.filterId,
+                        toSavedRule,
+                    ) ||
+                    haveOtherFilterRulesChanged(
+                        state.snapshot.dashboardFilters,
+                        dashboardFilters,
+                        state.touchedFilterIds,
+                        toSavedRule,
                     )),
         }),
         [
@@ -861,6 +895,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             discard,
             close,
             dashboardFilters,
+            toSavedRule,
             newTileUuids,
             dismissedLinks,
             dismissLink,

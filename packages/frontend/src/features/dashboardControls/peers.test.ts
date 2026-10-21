@@ -29,6 +29,7 @@ import {
     setTileField,
     switchTilesToField,
     toSqlColumnTarget,
+    withoutDefaultTileTargets,
     type SqlColumnsByTile,
 } from './peers';
 
@@ -83,6 +84,26 @@ const rule = (
 });
 
 describe('peers', () => {
+    it('drops only the tile entries that say what the tile does by default', () => {
+        // a and d by default, b and c not; e is not a tile of this dashboard
+        const r = rule({
+            a: ORDERS,
+            b: false,
+            c: PAYMENTS,
+            d: false,
+            x: false,
+        });
+        expect(
+            withoutDefaultTileTargets(r, tiles, fieldsByTile).tileTargets,
+        ).toEqual({ b: false, c: PAYMENTS, x: false });
+        expect(
+            withoutDefaultTileTargets(rule({ a: ORDERS }), tiles, fieldsByTile),
+        ).not.toHaveProperty('tileTargets');
+        // Unknown fields or tiles: nothing is known to be a default
+        expect(withoutDefaultTileTargets(r, tiles, undefined)).toBe(r);
+        expect(withoutDefaultTileTargets(r, undefined, fieldsByTile)).toBe(r);
+    });
+
     it('resolves auto, excluded and peer tiles', () => {
         const r = rule({ b: false, c: PAYMENTS });
         expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);

@@ -167,6 +167,12 @@ In `FilterConfiguration/`:
   temporary filters are as they were then, so an edit put back by hand (a
   label typed, then emptied) leaves it off, and a flag shipped code raised
   meanwhile (a temporary filter) is never lowered.
+- "Changed" always compares rules as they would save: keys holding
+  `undefined` (JSON has none) and tile entries that say what the tile does
+  by default (`withoutDefaultTileTargets`, what `setTileField` drops) leave no
+  trace. So a lock switched on and off, or a tile left out and put back, is
+  no change. `isDirty`, which shows Discard, also counts the other rules the
+  editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`).
 - `isSidebarOpen` is derived: a control is being edited and its rule is
   still in the dashboard filters. A rule that something else removed closes
   the sidebar at once; the next `open` or `openNew` starts over: `close()`

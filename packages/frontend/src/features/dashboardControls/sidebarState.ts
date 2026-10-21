@@ -3,7 +3,9 @@ import {
     type DashboardFilters,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import isUndefined from 'lodash/isUndefined';
 import omit from 'lodash/omit';
+import omitBy from 'lodash/omitBy';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 
 export type ControlsSidebarSnapshot = {
@@ -44,15 +46,62 @@ export const removeFilterRule = (
     metrics: filters.metrics.filter((rule) => rule.id !== filterId),
 });
 
+// A rule as it would save: what equals the default and keys holding
+// undefined, which JSON drops, leave no trace
+export type ToSavedRule = (rule: DashboardFilterRule) => DashboardFilterRule;
+
+const isSameRule = (
+    a: DashboardFilterRule | null,
+    b: DashboardFilterRule | null,
+    toSaved: ToSavedRule,
+): boolean =>
+    a === null || b === null
+        ? a === b
+        : isEqual(
+              omitBy(toSaved(a), isUndefined),
+              omitBy(toSaved(b), isUndefined),
+          );
+
+const isSameFilters = (
+    a: DashboardFilters,
+    b: DashboardFilters,
+    toSaved: ToSavedRule,
+): boolean =>
+    (['dimensions', 'metrics', 'tableCalculations'] as const).every(
+        (group) =>
+            a[group].length === b[group].length &&
+            a[group].every((rule, index) =>
+                isSameRule(rule, b[group][index], toSaved),
+            ),
+    );
+
 export const isFilterRuleDirty = (
     snapshot: DashboardFilters,
     current: DashboardFilters,
     filterId: string,
+    toSaved: ToSavedRule,
 ): boolean =>
-    !isEqual(
+    !isSameRule(
         findFilterRule(snapshot, filterId),
         findFilterRule(current, filterId),
+        toSaved,
     );
+
+// The other rules the editor wrote to that Discard can put back: in the
+// snapshot and still there
+export const haveOtherFilterRulesChanged = (
+    snapshot: DashboardFilters,
+    current: DashboardFilters,
+    filterIds: string[],
+    toSaved: ToSavedRule,
+): boolean =>
+    filterIds.some((filterId) => {
+        const saved = findFilterRule(snapshot, filterId);
+        const now = findFilterRule(current, filterId);
+        return (
+            saved !== null && now !== null && !isSameRule(saved, now, toSaved)
+        );
+    });
 
 // Puts a rule of the snapshot back in the list the snapshot holds it in: in
 // place when it is still there, else out of any other list and at its index
@@ -109,8 +158,10 @@ export const restoreFilterRules = (
 export const haveFiltersChangedSince = (
     snapshot: ControlsSidebarSnapshot,
     filters: DashboardFilters,
+    toSaved: ToSavedRule,
 ): boolean =>
-    snapshot.haveFiltersChanged || !isEqual(snapshot.dashboardFilters, filters);
+    snapshot.haveFiltersChanged ||
+    !isSameFilters(snapshot.dashboardFilters, filters, toSaved);
 
 // An emptied label leaves the key as it was found, so the rule equals what it
 // was: a saved rule comes from JSON, which has no undefined, so it has no key

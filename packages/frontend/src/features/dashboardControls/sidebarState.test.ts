@@ -27,6 +27,8 @@ const rule = (id: string, values: unknown[]): DashboardFilterRule => ({
     values,
 });
 
+const asIs = (filterRule: DashboardFilterRule) => filterRule;
+
 const filters: DashboardFilters = {
     dimensions: [rule('a', ['1'])],
     metrics: [rule('m', ['2'])],
@@ -49,12 +51,13 @@ describe('sidebarState', () => {
     });
 
     it('reports a rule dirty only when it differs from the snapshot', () => {
-        expect(isFilterRuleDirty(filters, filters, 'a')).toBe(false);
+        expect(isFilterRuleDirty(filters, filters, 'a', asIs)).toBe(false);
         expect(
             isFilterRuleDirty(
                 filters,
                 replaceFilterRule(filters, rule('a', ['9'])),
                 'a',
+                asIs,
             ),
         ).toBe(true);
     });
@@ -143,17 +146,19 @@ describe('sidebarState', () => {
             dashboardFilters: filters,
             haveFiltersChanged: false,
         };
-        expect(haveFiltersChangedSince(snapshot, filters)).toBe(false);
+        expect(haveFiltersChangedSince(snapshot, filters, asIs)).toBe(false);
         expect(
             haveFiltersChangedSince(
                 snapshot,
                 replaceFilterRule(filters, rule('m', ['other'])),
+                asIs,
             ),
         ).toBe(true);
         expect(
             haveFiltersChangedSince(
                 { ...snapshot, haveFiltersChanged: true },
                 filters,
+                asIs,
             ),
         ).toBe(true);
     });

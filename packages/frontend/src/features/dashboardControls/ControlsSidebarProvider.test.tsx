@@ -894,6 +894,18 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
+        it('offer Discard when they are all the editor changed', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateOtherFilters([
+                    asAlternative(initialFilters.dimensions[1]),
+                ]),
+            );
+
+            expect(result.current.isDirty).toBe(true);
+        });
+
         it('are undone by Remove', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
@@ -1693,6 +1705,65 @@ describe('ControlsSidebarProvider', () => {
 
         expect(renders.sliced).toBe(afterOpen.sliced);
         expect(renders.whole).toBe(afterOpen.whole + 4);
+    });
+
+    describe('an edit put back by hand', () => {
+        // As a saved dashboard arrives: JSON has no undefined
+        const asSaved = (filters: DashboardFilters): DashboardFilters =>
+            JSON.parse(JSON.stringify(filters));
+
+        it('leaves nothing changed after a lock is switched on and off', () => {
+            saved.filters = asSaved(initialFilters);
+            const savedA = saved.filters.dimensions[0];
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...savedA,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            act(() =>
+                result.current.updateFilter({
+                    ...savedA,
+                    lockedTabUuids: undefined,
+                }),
+            );
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        it('leaves nothing changed after a tile is left out and put back', () => {
+            const onTile = {
+                ...rule('status', ['x']),
+                target: { fieldId: 'orders_status', tableName: 'orders' },
+                tileTargets: {
+                    t1: { fieldId: 'orders_status', tableName: 'orders' },
+                },
+            };
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [onTile],
+            });
+            mockFieldsByTile.current = { t1: [statusField] };
+            const { result } = setup();
+            act(() => result.current.open('status'));
+            act(() =>
+                result.current.updateFilter({
+                    ...onTile,
+                    tileTargets: { t1: false },
+                }),
+            );
+            // What setTileField writes for a tile back on its default
+            const { tileTargets: _, ...putBack } = onTile;
+            act(() => result.current.updateFilter(putBack));
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
     });
 
     describe('link prompts', () => {
