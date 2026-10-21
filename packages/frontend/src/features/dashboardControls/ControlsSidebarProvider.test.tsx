@@ -379,41 +379,53 @@ describe('ControlsSidebarProvider', () => {
         );
     });
 
-    it('tracks a filter where it is created, not where Add is clicked', () => {
+    it('tracks a new filter once it is kept, never when it is discarded', () => {
         const event = {
             name: EventName.ADD_FILTER_CLICKED,
             properties: { mode: 'edit' },
         };
         const { result } = setup();
         act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
         expect(mockTrack).not.toHaveBeenCalled();
 
+        // Discarded, removed, or closed with no field: nothing was created
+        act(() => result.current.discard());
+        act(() => result.current.openNew());
         act(() => result.current.addFirstField(statusField));
+        act(() => result.current.removeFilter());
+        act(() => result.current.openNew());
+        act(() => result.current.close());
+        expect(mockTrack).not.toHaveBeenCalled();
+
+        // Kept with Done, the X or the pill
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.close());
         expect(mockTrack).toHaveBeenCalledTimes(1);
         expect(mockTrack).toHaveBeenLastCalledWith(event);
 
-        // Nothing is created by a second pick, or by a discarded placeholder
-        act(() => result.current.addFirstField(statusField));
-        act(() => result.current.close());
-        act(() => result.current.openNew());
-        act(() => result.current.close());
-        expect(mockTrack).toHaveBeenCalledTimes(1);
-
+        // Kept by opening another control, from a tile or on a SQL column
         mockFieldsByTile.current = { t1: [statusField] };
         act(() => result.current.openNew());
         act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
-        expect(mockTrack).toHaveBeenCalledTimes(2);
-
-        act(() => result.current.close());
         act(() => result.current.openNew());
+        expect(mockTrack).toHaveBeenCalledTimes(2);
         act(() =>
             result.current.addFirstSqlColumn(
                 { reference: 'total', type: DimensionType.NUMBER },
                 {},
             ),
         );
+        act(() => result.current.close());
         expect(mockTrack).toHaveBeenCalledTimes(3);
         expect(mockTrack).toHaveBeenLastCalledWith(event);
+
+        // Reopening and closing a filter that already existed tracks nothing
+        const kept = latest.filters.dimensions[2];
+        act(() => result.current.open(kept.id));
+        act(() => result.current.close());
+        expect(mockTrack).toHaveBeenCalledTimes(3);
     });
 
     describe('a first field', () => {

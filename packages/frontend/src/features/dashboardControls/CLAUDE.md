@@ -114,9 +114,10 @@ In `FilterConfiguration/`:
   it into a filter on a SQL column, on every SQL chart tile that has it, with
   the shipped `createDashboardFilterRuleFromSqlColumn`. Both are the
   sidebar's.
-- `ADD_FILTER_CLICKED` (`mode: 'edit'`, the shipped payload) is tracked where
-  a filter is created: `addFirstField`, `addFirstSqlColumn` and
-  `addFirstFieldOnTile`. Opening a placeholder tracks nothing.
+- `ADD_FILTER_CLICKED` (`mode: 'edit'`, the shipped payload) is tracked when
+  a new filter is kept: `close()` on a new control that has a field (Done,
+  the X, its pill, or opening another control). Opening a placeholder,
+  picking a field, `discard()` and `removeFilter()` track nothing.
 - `addFirstFieldOnTile(field, tileUuid)` is the tile cards': the same
   control, label carried over, on that tile only. Every other tile the filter
   would reach (all tabs) is left out with `setTileField(rule, tile, null)`.
@@ -136,7 +137,7 @@ In `FilterConfiguration/`:
   `requiredGroupId` and `lockedTabUuids`; operator, values, default and
   `singleValue` go with the field. The next `addFirst*` puts the control back
   where it was in its list (appended when the new field is of the other
-  kind) and tracks nothing. A locked control comes back not `required` when
+  kind). A locked control comes back not `required` when
   the new field brings no value (`isLockedRequiredMissingValue`).
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
 - `close()` keeps the edits: they already live in the dashboard draft. A
