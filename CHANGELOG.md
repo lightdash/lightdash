@@ -1,3 +1,21 @@
+# [3.8.0](https://github.com/lightdash/lightdash/compare/3.7.0...3.8.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** fix the dashboard controls review findings ([#30824](https://github.com/lightdash/lightdash/issues/30824)) ([724d888](https://github.com/lightdash/lightdash/commit/724d8887a858f8faf19478abd9aea06069ee8830))
+* **scheduler:** show the delivery message and a working footer link in Microsoft Teams cards ([#31289](https://github.com/lightdash/lightdash/issues/31289)) ([bc4b3fd](https://github.com/lightdash/lightdash/commit/bc4b3fd76310ad45f87019c94a5235612e9262e3))
+
+
+### Features
+
+* upload content-as-code files from chart and dashboard menus ([#31272](https://github.com/lightdash/lightdash/issues/31272)) ([95dfda3](https://github.com/lightdash/lightdash/commit/95dfda3273170e456fb0ca336306733d7645b8a7))
+
+
+### Performance Improvements
+
+* **visualization:** read narrow visualization contexts in consumers ([#31264](https://github.com/lightdash/lightdash/issues/31264)) ([8ddd60c](https://github.com/lightdash/lightdash/commit/8ddd60c60fe0d35856f0846ca02f0ad4f4847fc0))
+
 # [3.7.0](https://github.com/lightdash/lightdash/compare/3.6.0...3.7.0) (2026-10-21)
 
 
