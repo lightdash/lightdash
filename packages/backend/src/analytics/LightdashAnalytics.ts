@@ -1343,7 +1343,7 @@ type OnboardingOrgFlagsProvisionedEvent = BaseTrack & {
         organizationId: string;
         onboardingFlow: OnboardingFlow;
         homepageBuilderEnablement: HomepageBuilderEnablement;
-        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement;
+        codingAgentOnboardingEnablement: CodingAgentOnboardingEnablement | null;
     };
 };
 
