@@ -170,18 +170,19 @@ In `FilterConfiguration/`:
 - "Changed" always compares rules as they would save: keys holding
   `undefined` (JSON has none) and tile entries that say what the tile does
   by default (`withoutDefaultTileTargets`, what `setTileField` drops) leave no
-  trace. So a lock switched on and off, or a tile left out and put back, is
-  no change. `isDirty`, which shows Discard, also counts the other rules the
+  trace. `required: false` reads as no `required`, and `lockedTabUuids` as a
+  set (re-locking a tab appends it). Empty `tileTargets` is not read as none:
+  the shipped tab gating applies a rule with no `tileTargets` on every tab.
+  So a lock switched on and off, a tab unlocked and locked again, "Required"
+  switched on and off, or a tile left out and put back, is no change.
+  `isDirty`, which shows Discard, also counts the other rules the
   editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`).
 - `isSidebarOpen` is derived: a control is being edited and its rule is
   still in the dashboard filters. A rule that something else removed closes
   the sidebar at once; the next `open` or `openNew` starts over: `close()`
   only resets then, so the rule stays away and the flag is left alone.
-  Nothing is reset in an effect. The dashboard filters can reach the provider a render
-  after a write, so the rule a first field just wrote (`writtenRule`) stands
-  in for `editingRule` until they hold it: "not visible yet" never reads as
-  "gone". It is dropped the moment the filters hold the rule, so a later
-  removal still closes.
+  Nothing is reset in an effect. A first field's store write and dropping
+  the placeholder land in the same render, so the new rule is never missing.
 - `close()`, `discard()`, `removeFilter()` and opening another control clear
   the waiting fields. The first three send focus back to the bar once the
   editor has left the page: to the control's pill when it is still there and
@@ -236,8 +237,7 @@ In `FilterConfiguration/`:
   dropped when another control opens.
 - Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
   editor mounts (from a pill, from "Add", on a switch). The first field of a
-  filter keeps the same editor mounted: the id is the placeholder's, and the
-  rule just written stands in until the dashboard filters show it. So the
+  filter keeps the same editor mounted: the id is the placeholder's. So the
   pick calls `focusLabelInput()`, from the sidebar and from a tile card.
 - The edited filter's field is resolved as the shipped bar does
   (`useFilterRuleField`, over the shipped `useDashboardFilterField`:

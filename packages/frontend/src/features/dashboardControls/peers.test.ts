@@ -85,7 +85,7 @@ const rule = (
 
 describe('peers', () => {
     it('drops only the tile entries that say what the tile does by default', () => {
-        // a and d by default, b and c not; e is not a tile of this dashboard
+        // a and d by default, b and c not; x is not a tile of this dashboard
         const r = rule({
             a: ORDERS,
             b: false,
@@ -346,6 +346,28 @@ describe('peers with SQL chart tiles', () => {
         expect(cleared.tileTargets).toBeUndefined();
     });
 
+    it('withoutDefaultTileTargets keeps a column and drops false, as setTileField writes them', () => {
+        const mapped = setTileField(
+            rule(),
+            sqlTile,
+            SQL_STATUS,
+            fieldsByTile,
+            sqlColumns,
+        );
+        expect(
+            withoutDefaultTileTargets(mapped, allTiles, fieldsByTile),
+        ).toEqual(mapped);
+        expect(
+            withoutDefaultTileTargets(
+                rule({ s: false }),
+                allTiles,
+                fieldsByTile,
+            ),
+        ).toEqual(
+            setTileField(rule(), sqlTile, null, fieldsByTile, sqlColumns),
+        );
+    });
+
     // The column row only exists on a SQL column filter
     const columnRule = (
         tileTargets?: DashboardFilterRule['tileTargets'],
@@ -428,6 +450,20 @@ describe('peers with data app tiles', () => {
         expect(off.tileTargets).toEqual({ app: false });
         const on = setTileField(off, appTile, off.target, fieldsByTile);
         expect(on.tileTargets).toBeUndefined();
+    });
+
+    it('withoutDefaultTileTargets keeps false and drops the target, as setTileField writes them', () => {
+        const off = setTileField(rule(), appTile, null, fieldsByTile);
+        expect(withoutDefaultTileTargets(off, allTiles, fieldsByTile)).toEqual(
+            off,
+        );
+        expect(
+            withoutDefaultTileTargets(
+                rule({ app: ORDERS }),
+                allTiles,
+                fieldsByTile,
+            ),
+        ).toEqual(setTileField(off, appTile, ORDERS, fieldsByTile));
     });
 
     it('counts in its tab while on, and never as a tile on a field', () => {
