@@ -1,3 +1,10 @@
+## [3.17.1](https://github.com/lightdash/lightdash/compare/3.17.0...3.17.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **audit:** record explore and field access denied by user attributes ([#31306](https://github.com/lightdash/lightdash/issues/31306)) ([ad17c17](https://github.com/lightdash/lightdash/commit/ad17c178e73af566f92161211f0f7fc63c014428))
+
 # [3.17.0](https://github.com/lightdash/lightdash/compare/3.16.0...3.17.0) (2026-10-21)
 
 
