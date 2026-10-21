@@ -29,6 +29,14 @@ import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggesti
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
+    QUERY_COST_ESTIMATE_CACHE_RESULTS,
+    QUERY_COST_ESTIMATE_OUTCOMES,
+    QUERY_COST_ESTIMATE_SOURCES,
+    type QueryCostEstimateCacheResult,
+    type QueryCostEstimateOutcome,
+    type QueryCostEstimateSource,
+} from '../services/AsyncQueryService/queryCostEstimateTypes';
+import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
 } from './otelHttpMetrics';
@@ -246,6 +254,14 @@ export default class PrometheusMetrics {
         null;
 
     public duckdbResolutionCounter: prometheus.Counter<string> | null = null;
+
+    public queryCostEstimateCounter: prometheus.Counter<
+        'source' | 'outcome' | 'cache'
+    > | null = null;
+
+    public queryCostEstimateDryRunDurationHistogram: prometheus.Histogram<
+        'source' | 'outcome'
+    > | null = null;
 
     public duckdbResolutionDurationHistogram: prometheus.Histogram<string> | null =
         null;
@@ -978,6 +994,41 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.queryCostEstimateCounter = new prometheus.Counter({
+                    name: 'lightdash_query_cost_estimate_total',
+                    help: 'Query cost estimates by source, outcome and estimate cache result',
+                    labelNames: ['source', 'outcome', 'cache'],
+                    ...rest,
+                });
+
+                this.queryCostEstimateDryRunDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_query_cost_estimate_dry_run_duration_ms',
+                        help: 'Warehouse dry-run duration for query cost estimates in ms',
+                        labelNames: ['source', 'outcome'],
+                        buckets: [
+                            50, 100, 250, 500, 1000, 2000, 5000, 10000, 30000,
+                        ],
+                        ...rest,
+                    });
+
+                QUERY_COST_ESTIMATE_SOURCES.forEach((source) => {
+                    QUERY_COST_ESTIMATE_OUTCOMES.forEach((outcome) => {
+                        QUERY_COST_ESTIMATE_CACHE_RESULTS.forEach((cache) => {
+                            this.queryCostEstimateCounter?.inc(
+                                { source, outcome, cache },
+                                0,
+                            );
+                        });
+                    });
+                    (['ok', 'error'] as const).forEach((outcome) => {
+                        this.queryCostEstimateDryRunDurationHistogram?.zero({
+                            source,
+                            outcome,
+                        });
+                    });
+                });
+
                 this.duckdbResolutionCounter = new prometheus.Counter({
                     name: 'lightdash_pre_aggregate_duckdb_resolution_total',
                     help: 'Total number of DuckDB pre-aggregate resolution attempts',
@@ -1571,6 +1622,33 @@ export default class PrometheusMetrics {
         this.duckdbResolutionDurationHistogram?.observe(
             { status },
             durationMs / 1000,
+        );
+    }
+
+    public trackQueryCostEstimate({
+        source,
+        outcome,
+        cache,
+    }: {
+        source: QueryCostEstimateSource;
+        outcome: QueryCostEstimateOutcome;
+        cache: QueryCostEstimateCacheResult;
+    }) {
+        this.queryCostEstimateCounter?.inc({ source, outcome, cache });
+    }
+
+    public observeQueryCostEstimateDryRun({
+        source,
+        outcome,
+        durationMs,
+    }: {
+        source: QueryCostEstimateSource;
+        outcome: 'ok' | 'error';
+        durationMs: number;
+    }) {
+        this.queryCostEstimateDryRunDurationHistogram?.observe(
+            { source, outcome },
+            durationMs,
         );
     }
 

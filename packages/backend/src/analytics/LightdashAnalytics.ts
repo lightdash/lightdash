@@ -95,6 +95,7 @@ import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { EnsureOrganizationOverrideOutcome } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
+import type { QueryCostEstimateSource } from '../services/AsyncQueryService/queryCostEstimateTypes';
 import { type PersistentDownloadFileSource } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { VERSION } from '../version';
 import {
@@ -889,6 +890,36 @@ export type MergeQueryRefusedEvent = BaseTrack & {
         refusalCount: number;
         /** Set when the refusal arrived as the merged query's error, as the row cap does. */
         queryId: string | null;
+    };
+};
+
+export type QueryCostEstimateAgentRefusedEvent = BaseTrack & {
+    event: 'query_cost_estimate.agent_refused';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        queryContext: QueryExecutionContext | null;
+        queryUuid: string;
+        estimatedBytes: number;
+        limitBytes: number;
+        cacheHit: boolean;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+export type QueryCostEstimateCompletedEvent = BaseTrack & {
+    event: 'query_cost_estimate.completed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        source: Exclude<QueryCostEstimateSource, 'agent_limit'>;
+        outcome: 'ok' | 'error' | 'unavailable';
+        estimatedBytes: number | null;
+        confirmEstimatedBytesAbove: number | null;
+        requiresConfirmation: boolean | null;
+        cacheHit: boolean | null;
+        dryRunDurationMs: number | null;
+        warehouseType: WarehouseTypes;
     };
 };
 
@@ -4935,6 +4966,8 @@ type TypedEvent =
     | SubtotalQueryEvent
     | MergeQueryExecutedEvent
     | MergeQueryRefusedEvent
+    | QueryCostEstimateAgentRefusedEvent
+    | QueryCostEstimateCompletedEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
     | AiAgentThreadDeletedEvent
