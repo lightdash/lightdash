@@ -1,3 +1,10 @@
+# [3.4.0](https://github.com/lightdash/lightdash/compare/3.3.0...3.4.0) (2026-10-21)
+
+
+### Features
+
+* **data-apps:** app state store behind a feature flag ([#31217](https://github.com/lightdash/lightdash/issues/31217)) ([13e6563](https://github.com/lightdash/lightdash/commit/13e6563ca1819b1f2a3d53a645b26ae3d06ee165)), closes [#25355](https://github.com/lightdash/lightdash/issues/25355)
+
 # [3.3.0](https://github.com/lightdash/lightdash/compare/3.2.0...3.3.0) (2026-10-21)
 
 

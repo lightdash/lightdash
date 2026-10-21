@@ -1,22 +1,28 @@
 {
   "schemaVersion": "2",
-  "version": "3.3.0",
-  "previousVersion": "3.2.0",
-  "releaseDate": "2026-10-21T09:29:22.193Z",
+  "version": "3.4.0",
+  "previousVersion": "3.3.0",
+  "releaseDate": "2026-10-21T09:36:42.159Z",
   "migrations": {
     "present": true,
     "count": 1,
-    "coreCount": 1,
-    "eeCount": 0,
+    "coreCount": 0,
+    "eeCount": 1,
     "files": [
       {
-        "name": "20261021100000_default_materialize_on_change_to_true.ts",
-        "edition": "core",
-        "tables": [],
+        "name": "20261020120000_create_app_state_tables.ts",
+        "edition": "ee",
+        "tables": [
+          "app_shared_state",
+          "app_shared_state_history",
+          "app_user_state",
+          "apps",
+          "users"
+        ],
         "heaviness": {
           "locksTable": true,
           "rewritesTable": false,
-          "scansTable": false
+          "scansTable": true
         }
       }
     ]
