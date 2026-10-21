@@ -1,6 +1,6 @@
 import { ContentAsCodeType } from '@lightdash/common';
 import { dump } from 'js-yaml';
-import { describe, expect, it, vi } from 'vitest';
+import { assert, describe, expect, it, vi } from 'vitest';
 import {
     getDuplicateImportIds,
     parseImportFile,
@@ -31,6 +31,45 @@ const space = (slug: string): ImportEntry => ({
 });
 
 describe('content import', () => {
+    it('accepts API-exported dashboards with a null description', async () => {
+        const result = await read(
+            JSON.stringify({
+                contentType: 'dashboard',
+                version: 1,
+                name: 'Overview',
+                slug: 'overview',
+                spaceSlug: 'sales',
+                description: null,
+                tiles: [],
+                tabs: [],
+            }),
+            'overview.yml',
+        );
+        expect(result.status).toBe('ready');
+        assert(result.document?.type === 'dashboard');
+        expect(result.document.content.description).toBeUndefined();
+    });
+    it('shows the backend validation or permission message in the file result', async () => {
+        const updates: ImportEntry[] = [];
+        await runContentImport({
+            entries: [space('sales')],
+            upload: vi.fn().mockRejectedValue({
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 403,
+                    message: 'You cannot upload to this space.',
+                    data: {},
+                },
+            }),
+            onUpdate: (entry) => updates.push(entry),
+            shouldStop: () => false,
+        });
+        expect(updates.at(-1)).toMatchObject({
+            status: 'error',
+            message: 'You cannot upload to this space.',
+        });
+    });
     it('reads legacy metadata-only space exports without requiring a version', async () => {
         const result = await read(
             'contentType: space\nspaceName: Sales\nslug: sales',
