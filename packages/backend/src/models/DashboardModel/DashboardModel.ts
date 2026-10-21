@@ -64,7 +64,10 @@ import {
     DashboardVersionTable,
     DashboardViewsTableName,
 } from '../../database/entities/dashboards';
-import { DashboardSlugMappingsTableName } from '../../database/entities/dashboardSlugMappings';
+import {
+    DashboardSlugMappingsTableName,
+    MAX_SLUG_ALIAS_LENGTH,
+} from '../../database/entities/dashboardSlugMappings';
 import { EmailTableName } from '../../database/entities/emails';
 import {
     OrganizationTable,
@@ -1053,11 +1056,15 @@ export class DashboardModel {
                     .delete();
             }
 
-            await trx(DashboardSlugMappingsTableName).insert({
-                project_uuid: projectUuid,
-                dashboard_uuid: dashboardUuid,
-                slug: dashboard.slug,
-            });
+            // The alias column is capped at 255 characters; a longer slug was
+            // never usable as a content-as-code file name, so it is not kept.
+            if (dashboard.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
+                await trx(DashboardSlugMappingsTableName).insert({
+                    project_uuid: projectUuid,
+                    dashboard_uuid: dashboardUuid,
+                    slug: dashboard.slug,
+                });
+            }
 
             const updated = await trx(DashboardsTableName)
                 .where('project_uuid', projectUuid)
