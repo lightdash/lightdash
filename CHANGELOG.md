@@ -1,3 +1,10 @@
+## [3.9.1](https://github.com/lightdash/lightdash/compare/3.9.0...3.9.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* show people without activity in analytics dashboards ([#31294](https://github.com/lightdash/lightdash/issues/31294)) ([5f4cc11](https://github.com/lightdash/lightdash/commit/5f4cc115c2cc067de2264756f27e95f7d905cc4b))
+
 # [3.9.0](https://github.com/lightdash/lightdash/compare/3.8.0...3.9.0) (2026-10-21)
 
 
