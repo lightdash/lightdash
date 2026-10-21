@@ -1,3 +1,10 @@
+## [3.12.1](https://github.com/lightdash/lightdash/compare/3.12.0...3.12.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* clarify users and activity sources in usage dashboards ([#31293](https://github.com/lightdash/lightdash/issues/31293)) ([fd444bc](https://github.com/lightdash/lightdash/commit/fd444bc0406b49e6f5616e89dfd8112120c4edaf))
+
 # [3.12.0](https://github.com/lightdash/lightdash/compare/3.11.1...3.12.0) (2026-10-21)
 
 
