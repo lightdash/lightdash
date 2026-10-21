@@ -1,3 +1,10 @@
+# [3.16.0](https://github.com/lightdash/lightdash/compare/3.15.0...3.16.0) (2026-10-21)
+
+
+### Features
+
+* **embed:** emit content-change events from the SDK AiAgent ([#31335](https://github.com/lightdash/lightdash/issues/31335)) ([c27074b](https://github.com/lightdash/lightdash/commit/c27074bd7be9e8fbcb0e2f562f9b97e6e5204aa8))
+
 # [3.15.0](https://github.com/lightdash/lightdash/compare/3.14.0...3.15.0) (2026-10-21)
 
 
