@@ -53,6 +53,27 @@
     background-color: var(--mantine-color-ldGray-5);
 }
 
+.investigationMarkdown {
+    padding: 0 4px;
+
+    & :global(.wmde-markdown) {
+        background-color: inherit;
+        color: inherit;
+        font-size: var(--mantine-font-size-sm);
+    }
+
+    & :global(.wmde-markdown) h1,
+    & :global(.wmde-markdown) h2,
+    & :global(.wmde-markdown) h3,
+    & :global(.wmde-markdown) h4 {
+        font-size: var(--mantine-font-size-sm);
+        font-weight: 600;
+        margin: var(--mantine-spacing-xs) 0 4px;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+}
+
 .clampedMarkdown {
     max-height: 4.2em;
     overflow: hidden;
