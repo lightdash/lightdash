@@ -253,7 +253,7 @@ const TileOverlay = memo<TileOverlayProps>(
                 <Box className={classes.ring} aria-hidden />
                 {/* An empty title keeps the veil's hint off the card */}
                 <Paper
-                    shadow="lg"
+                    shadow="md"
                     p="sm"
                     radius="md"
                     className={classes.card}

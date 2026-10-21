@@ -500,7 +500,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     region itself (`tabIndex={-1}`), from a layout effect and only when
     focus would otherwise be on `<body>`.
   - Surface: the tile cards' own: a `Paper` with the theme border in
-    `ldGray-4`, the `lg` shadow and the body background.
+    `ldGray-4`, the `md` shadow and the body background.
   - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
     `.react-grid-layout` with `usePortalTargets`, inserts an element of its
     own right after that grid and portals into it, so it moves no tile. The
