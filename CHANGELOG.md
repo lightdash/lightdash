@@ -1,3 +1,10 @@
+## [3.12.2](https://github.com/lightdash/lightdash/compare/3.12.1...3.12.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **cli:** slug-update no longer crashes on comment-only or empty YAML files ([#31300](https://github.com/lightdash/lightdash/issues/31300)) ([7a65abc](https://github.com/lightdash/lightdash/commit/7a65abc162da3dc0120b5b3801d46ccc58a3f493))
+
 ## [3.12.1](https://github.com/lightdash/lightdash/compare/3.12.0...3.12.1) (2026-10-21)
 
 
