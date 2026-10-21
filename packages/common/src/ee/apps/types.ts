@@ -1441,6 +1441,10 @@ export {
 // AI analysis pushed into a running app (mirrors packages/query-sdk/src/insights.ts).
 // Host → iframe with the current analysis, in reply to a request and on change.
 export const APP_SDK_INSIGHTS_MESSAGE = 'lightdash:sdk:insights';
+/** Iframe → parent: a durable app state call to run as the viewer. */
+export const APP_SDK_APP_STATE_MESSAGE = 'lightdash:sdk:app-state';
+export const APP_SDK_APP_STATE_RESPONSE_MESSAGE =
+    'lightdash:sdk:app-state-response';
 // Iframe → host once the SDK's listener is live (and on sdk:ready);
 // `inUse: true` once a hook subscribed, i.e. the app renders analysis.
 export const APP_SDK_INSIGHTS_REQUEST_MESSAGE =
