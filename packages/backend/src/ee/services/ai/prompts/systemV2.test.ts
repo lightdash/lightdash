@@ -661,6 +661,15 @@ describe('getSystemPromptV2 memories', () => {
         });
 
         expect(content).toContain('## Memories');
+        expect(content).toContain(
+            'Do not save temporary query results as durable user memories.',
+        );
+    });
+
+    test('keeps the memories rule out of prompts without memories', () => {
+        expect(promptText({ availableExplores: [] })).not.toContain(
+            'durable user memories',
+        );
     });
 });
 
@@ -1325,6 +1334,18 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         expect(content).not.toContain(
             'Every selected chart card carries an "Explore in Lightdash" button',
         );
+    });
+
+    test('web answer guidance never mentions Slack result cards', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableDataAccess: true,
+            canRunQuery: true,
+        });
+        expect(content).toContain(
+            'it returns rows as a table rather than a chart. Use generateVisualization only',
+        );
+        expect(content).not.toContain('Slack result cards');
     });
 });
 
