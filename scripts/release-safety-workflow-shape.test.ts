@@ -26,7 +26,9 @@ const triggerBlock = withoutComments.slice(
 // mark as required: PRs that touch none of the watched paths would never report
 // it and could never merge. The in-job `changes` filter is the supported way to
 // skip unwatched diffs.
-const offending = triggerBlock.filter((line) => /^\s*paths(-ignore)?:/.test(line));
+const offending = triggerBlock.filter((line) =>
+    /^\s*paths(-ignore)?:/.test(line),
+);
 assert.deepStrictEqual(
     offending,
     [],
@@ -39,6 +41,7 @@ assert.deepStrictEqual(
 // every other watched path.
 for (const required of [
     'release-safety.declarations.json',
+    'release-safety.retired-config.json',
     'scripts/breaking-change-declarations.ts',
     'scripts/release-safety-declarations.ts',
     'scripts/release-safety-declarations.schema.json',
@@ -57,7 +60,8 @@ for (const required of [
 // gate alone is not enough — it is evaluated when the job starts, and the run
 // takes long enough that a PR can merge mid-run — so the two write steps check
 // again immediately before writing.
-const openGates = workflow.match(/needs\.changes\.outputs\.open == 'true'/g) ?? [];
+const openGates =
+    workflow.match(/needs\.changes\.outputs\.open == 'true'/g) ?? [];
 assert.ok(
     openGates.length >= 3,
     `expected openapi-specs, preview and retract to be gated on the PR being open; found ${openGates.length} gate(s)`,
@@ -95,7 +99,7 @@ assert.ok(
 // red gate by editing the pull request title.
 assert.ok(
     workflow.includes('steps.sticky.outputs.gate }}" = "pass"'),
-    'the freshness check must require the previous run\'s gates to have passed (SPK-1017)',
+    "the freshness check must require the previous run's gates to have passed (SPK-1017)",
 );
 assert.ok(
     /gate:\(pass\|fail\)/.test(workflow),
@@ -103,7 +107,9 @@ assert.ok(
 );
 
 const commentLookups = [
-    ...workflow.matchAll(/const existing = comments\.find\(([\s\S]*?)\n\s*\);/g),
+    ...workflow.matchAll(
+        /const existing = comments\.find\(([\s\S]*?)\n\s*\);/g,
+    ),
 ];
 assert.strictEqual(
     commentLookups.length,
@@ -141,7 +147,10 @@ for (const required of [
     'run.head_sha === stamp[1]',
     'pr.number === context.issue.number',
 ]) {
-    assert.ok(stampReader.includes(required), `the describes-stamp reader must verify ${required}`);
+    assert.ok(
+        stampReader.includes(required),
+        `the describes-stamp reader must verify ${required}`,
+    );
 }
 assert.ok(
     workflow.includes('actions: read'),
@@ -153,7 +162,8 @@ assert.ok(
 );
 for (const output of ['head', 'base', 'gate']) {
     assert.ok(
-        stampReader.indexOf(`core.setOutput('${output}', '');`) < stampReader.indexOf('try {'),
+        stampReader.indexOf(`core.setOutput('${output}', '');`) <
+            stampReader.indexOf('try {'),
         `the ${output} output must fail closed before stamp verification starts`,
     );
 }
