@@ -203,7 +203,11 @@ describe('CommercialCacheService', () => {
             expect(f.findMostRecentByCacheKey).toHaveBeenLastCalledWith(
                 'cache',
                 'project',
-                { excludeAgentClaims: true, excludeAgentProduced: true },
+                {
+                    excludeAgentClaims: true,
+                    excludeAgentProduced: true,
+                    excludeCacheHits: true,
+                },
             );
         },
     );

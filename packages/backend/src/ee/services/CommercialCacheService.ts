@@ -95,7 +95,9 @@ export class CommercialCacheService implements ICacheService {
                 cacheKey,
                 projectUuid,
                 {
-                    ...(identityEnabled ? { excludeAgentClaims: true } : {}),
+                    ...(identityEnabled
+                        ? { excludeAgentClaims: true, excludeCacheHits: true }
+                        : {}),
                     excludeAgentProduced:
                         identityEnabled ||
                         this.lightdashConfig?.ai

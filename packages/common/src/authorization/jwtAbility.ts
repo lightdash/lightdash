@@ -337,12 +337,20 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     // Dashboard specific abilities
     if (isDashboardContent(embedUser.content)) {
         if (
-            (useJwtPermissions && embedUser.content.canExportPagePdf) ||
+            // Unset means enabled, matching the embed dashboard's default.
+            (useJwtPermissions &&
+                embedUser.content.canExportPagePdf !== false) ||
             canViewEmbedScope('EmbedPagePdfExport', builder, embed)
         ) {
             can('export', 'Dashboard', {
                 organizationUuid: organization.organizationUuid,
                 type: 'pdf',
+                'metadata.dashboardUuid': content.dashboardUuid,
+            });
+            can('view', 'JobStatus', {
+                organizationUuid: organization.organizationUuid,
+                projectUuid: embed.projectUuid,
+                createdByUserUuid: externalId,
             });
         }
 

@@ -58,6 +58,9 @@ export type PreAggregateDef = {
     maxRows?: number;
     refresh?: {
         cron?: string;
+        // true rebuilds on the compile that changes the definition; default false
+        // leaves the changed pre-aggregate to cron or a manual refresh
+        onChange?: boolean;
     };
     materializationRole?: PreAggregateMaterializationRole;
 };
@@ -179,6 +182,10 @@ export type PreAggregateDefinition = {
     materializationMetricQuery: MaterializationMetricQueryPayload | null;
     materializationQueryError: string | null;
     refreshCron: string | null;
+    materializeOnChange: boolean;
+    // Hash of what the materialization query reads; null for external
+    // pre-aggregates, broken definitions, and rows written before tracking
+    definitionFingerprint: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -308,6 +315,7 @@ export type PreAggregateMaterializationSummary = {
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
+    materializeOnChange: boolean;
     definitionError: string | null;
     resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];

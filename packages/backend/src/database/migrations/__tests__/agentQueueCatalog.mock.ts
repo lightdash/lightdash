@@ -127,11 +127,8 @@ export const catalogEvidence = async (
             },
         ],
     };
-    expect(await state()).toEqual({
-        tags: [],
-        icons: [],
-        edges: [],
-        nodes: [],
-    });
+    // A compile keeps the uuid of every explore it still has, so the catalog
+    // rows and their metadata survive it; only the re-index replaces them
+    expect(await state()).toEqual(restored);
     return { state, restored };
 };

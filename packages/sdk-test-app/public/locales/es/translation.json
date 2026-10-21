@@ -353,6 +353,7 @@
         "filters.summary.hide": "Ocultar",
         "dashboard.exportAllTiles": "Exportar todos los mosaicos",
         "dashboard.printPage": "Imprimir esta página",
+        "dashboard.exportPdf": "Exportar como PDF",
         "explorer.back": "Volver",
         "explorer.backToDashboard": "Volver al tablero",
         "explorer.backToChart": "Volver al gráfico",

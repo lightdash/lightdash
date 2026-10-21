@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
@@ -317,23 +318,26 @@ describe('AI agent tool contracts', () => {
             name: 'structured-filter-with-composer',
             enableFilterExpressions: false,
             enableGenerateDataApp: false,
-            enableComposerQueries: true,
+            composer: true,
         },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({
-            enableFilterExpressions,
-            enableGenerateDataApp,
-            enableComposerQueries,
-        }) => {
+        ({ enableFilterExpressions, enableGenerateDataApp, composer }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
-                    enableContentTools: enableGenerateDataApp,
-                    enableGenerateDataApp,
-                    enableComposerQueries,
+                    promptSections: new Set<PromptSection>([
+                        ...(enableGenerateDataApp
+                            ? ([
+                                  'contentTools',
+                                  'schedulingTools',
+                                  'generateDataApp',
+                              ] as const)
+                            : []),
+                        ...(composer ? (['queryingComposer'] as const) : []),
+                    ]),
                 }).content,
             ).toMatchSnapshot();
         },

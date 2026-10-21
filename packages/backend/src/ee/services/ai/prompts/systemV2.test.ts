@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PromptSection } from '../loadout';
 import {
     EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
@@ -79,12 +80,17 @@ describe('getSystemPromptV2 filter expressions', () => {
         );
         const rendered = Buffer.from(
             promptText({
+                promptSections: new Set<PromptSection>([
+                    'contentTools',
+                    'schedulingTools',
+                    'documents',
+                    'generateDataApp',
+                    'runSql',
+                    'skills',
+                ]),
                 availableExplores: [],
                 date: '2026-08-27',
                 enableDataAccess: true,
-                enableContentTools: true,
-                enableDocuments: true,
-                enableGenerateDataApp: true,
                 canRunSql: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
@@ -238,6 +244,7 @@ describe('getSystemPromptV2 project context', () => {
     test('advertises the loadProjectContext tool when context exists', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['projectContext']),
             hasProjectContext: true,
         });
         expect(content).toContain('## Project context');
@@ -248,6 +255,7 @@ describe('getSystemPromptV2 project context', () => {
     test('uses preloaded rules without requiring a redundant context tool turn', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['projectContext']),
             hasProjectContext: true,
             projectContextPreloaded: true,
         });
@@ -298,6 +306,9 @@ describe('getSystemPromptV2 custom chart types', () => {
     test('inlines the library as an availableCustomChartTypes block', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>([
+                'availableCustomChartTypes',
+            ]),
             availableCustomChartTypes: {
                 types: [chartType('cohort-waterfall', 'Cohort Waterfall')],
                 totalCount: 1,
@@ -321,6 +332,9 @@ describe('getSystemPromptV2 custom chart types', () => {
     test('points past the inline cap when more types exist', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>([
+                'availableCustomChartTypes',
+            ]),
             availableCustomChartTypes: {
                 types: [chartType('cohort-waterfall', 'Cohort Waterfall')],
                 totalCount: 12,
@@ -333,10 +347,13 @@ describe('getSystemPromptV2 custom chart types', () => {
 
     test('lets Documents use custom chart types when the agent can find and export them', () => {
         const documentArgs = {
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'schedulingTools',
+                'documents',
+            ]),
             availableExplores: [],
             enableDataAccess: true,
-            enableContentTools: true,
-            enableDocuments: true,
         };
         const enabled = promptText({
             ...documentArgs,
@@ -354,10 +371,13 @@ describe('getSystemPromptV2 custom chart types', () => {
 
     test('offers and surfaces Documents only with Document nudges', () => {
         const documentArgs = {
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'schedulingTools',
+                'documents',
+            ]),
             availableExplores: [],
             enableDataAccess: true,
-            enableContentTools: true,
-            enableDocuments: true,
         };
         const offer =
             'end the reply with this line on its own: "Want me to save this as a Document you can share?"';
@@ -396,7 +416,10 @@ describe('getSystemPromptV2 custom chart types', () => {
         expect(
             promptText({
                 ...documentArgs,
-                enableDocuments: false,
+                promptSections: new Set<PromptSection>([
+                    'contentTools',
+                    'schedulingTools',
+                ]),
                 enableDocumentNudges: true,
             }),
         ).not.toContain(offer);
@@ -404,10 +427,13 @@ describe('getSystemPromptV2 custom chart types', () => {
 
     test('keeps the Document offer when content tool instructions are deferred', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'schedulingTools',
+                'documents',
+            ]),
             availableExplores: [],
             enableDataAccess: true,
-            enableContentTools: true,
-            enableDocuments: true,
             enableDocumentNudges: true,
             deferredSections: new Set(['contentTools']),
         });
@@ -440,8 +466,8 @@ describe('getSystemPromptV2 response content', () => {
 
     test('states the working-notes rule once in fast mode', () => {
         const fast = promptText({
+            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
-            enableFastMetadata: true,
         });
         expect(
             fast.split('Do not write context-preservation notes').length - 1,
@@ -455,8 +481,8 @@ describe('getSystemPromptV2 response content', () => {
 describe('getSystemPromptV2 merge queries', () => {
     test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
         const fast = promptText({
+            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
-            enableFastMetadata: true,
         });
         expect(fast).toContain('All assistant text is user-visible');
         expect(fast).toContain('Prior assistant notes are not evidence');
@@ -471,8 +497,8 @@ describe('getSystemPromptV2 merge queries', () => {
 
     test('allows complete web tables and avoids redundant titles in fast mode', () => {
         const fast = promptText({
+            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
-            enableFastMetadata: true,
         });
         expect(fast).toContain(
             'Markdown tables with a header, separator and data rows',
@@ -486,8 +512,8 @@ describe('getSystemPromptV2 merge queries', () => {
         'retains Slack table restrictions: %j',
         (slack) => {
             const fast = promptText({
+                promptSections: new Set<PromptSection>(['fastMetadata']),
                 availableExplores: [],
-                enableFastMetadata: true,
                 ...slack,
             });
             expect(fast).toContain('Never produce markdown tables');
@@ -500,8 +526,8 @@ describe('getSystemPromptV2 merge queries', () => {
     test('requires result-backed comparisons in fast mode only', () => {
         const baseline = promptText({ availableExplores: [] });
         const fast = promptText({
+            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
-            enableFastMetadata: true,
         });
         expect(baseline).not.toContain(
             'Category labels are values, not comparisons',
@@ -514,6 +540,7 @@ describe('getSystemPromptV2 merge queries', () => {
     test('directs cross-explore questions to runSql, never mergeConfig', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['runSql']),
             canRunSql: true,
         });
 
@@ -525,81 +552,132 @@ describe('getSystemPromptV2 merge queries', () => {
 });
 
 describe('getSystemPromptV2 composer queries', () => {
-    test('directs cross-explore questions to runComposerQueries when enabled', () => {
+    const composerSections = (...sections: PromptSection[]) =>
+        new Set<PromptSection>(['queryingComposer', ...sections]);
+
+    test('directs cross-explore questions to a duckdb node over semanticLayer nodes', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: composerSections('runSql'),
             canRunSql: true,
-            enableComposerQueries: true,
         });
 
         expect(content).toContain(
             'one semanticLayer node per explore plus a duckdb node',
         );
-        expect(content).not.toContain(
-            'use the runSql tool to write raw SQL across those tables',
-        );
     });
 
-    test('teaches raw SQL through composer sql nodes instead of a runSql tool', () => {
+    test('teaches raw SQL through composer sql nodes', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: composerSections('runSql'),
             canRunSql: true,
-            enableComposerQueries: true,
         });
 
-        expect(content).toContain('There is NO standalone runSql tool');
-        expect(content).toContain('sql` nodes inside runComposerQueries');
-        expect(content).not.toContain('You have access to a runSql tool');
-        // No-explores guidance points at composer, not runSql.
+        expect(content).toContain(
+            'Raw SELECT queries against the warehouse run as `sql` nodes in runComposerQueries.',
+        );
         expect(content).toContain(
             'answer questions with runComposerQueries using a sql node',
         );
     });
 
-    test('web answers present composer results with a show marker', () => {
+    test('web answers present composer results with their marker', () => {
         const content = promptText({
             availableExplores: [],
-            enableComposerQueries: true,
+            promptSections: composerSections(),
         });
 
+        expect(content).toContain('Present the result your answer rests on');
         expect(content).toContain(
-            'Composer results stay hidden until you present one.',
-        );
-        expect(content).toContain(
-            'the terminal node is the result you can present',
+            'the terminal node is the result you present',
         );
     });
 
-    test('Slack answers keep selecting composer tables without show markers', () => {
+    test('Slack answers share composer tables without show markers', () => {
         const content = promptText({
             availableExplores: [],
-            enableComposerQueries: true,
+            promptSections: composerSections(),
             slackChannelId: 'channel',
         });
 
-        expect(content).not.toContain('stay hidden until you present');
+        expect(content).not.toContain(
+            'Present the result your answer rests on',
+        );
         expect(content).toContain(
             'the terminal node is the table you can share',
         );
     });
 
-    test('keeps the standalone runSql wording when composer queries are off', () => {
+    test.each([
+        ['web', null],
+        ['Slack', 'channel'],
+    ])(
+        'names no classic query tool in any %s composer variant',
+        (_, slackChannelId) => {
+            const variants = [false, true].flatMap((enableFilterExpressions) =>
+                [false, true].map((canRunSql) =>
+                    promptText({
+                        availableExplores: [],
+                        promptSections: composerSections(
+                            'runSql',
+                            'contentTools',
+                            'documents',
+                            'aiWriteback',
+                            'fastMetadata',
+                        ),
+                        canRunSql,
+                        enableDataAccess: true,
+                        enableFilterExpressions,
+                        enableComposerPythonNodes: true,
+                        enableDocumentNudges: true,
+                        slackChannelId,
+                    }),
+                ),
+            );
+            for (const content of variants) {
+                expect(content).not.toMatch(
+                    /runQuery|generateVisualization|runSql/,
+                );
+            }
+        },
+    );
+
+    test.each([
+        [false, true],
+        [true, false],
+    ])(
+        'with python nodes %s, states the forecast limitation: %s',
+        (enableComposerPythonNodes, statesLimitation) => {
+            const content = promptText({
+                availableExplores: [],
+                promptSections: composerSections(),
+                enableComposerPythonNodes,
+            });
+
+            expect(content.includes('You cannot forecast')).toBe(
+                statesLimitation,
+            );
+        },
+    );
+
+    test('keeps the standalone runSql wording for the classic query path', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['runSql']),
             canRunSql: true,
-            enableComposerQueries: false,
         });
 
         expect(content).toContain('You have access to a runSql tool');
-        expect(content).not.toContain('There is NO standalone runSql tool');
+        expect(content).not.toContain('runComposerQueries');
     });
 });
 
 describe('getSystemPromptV2 memories', () => {
     test('includes the memory section when enabled', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['memories']),
             availableExplores: [],
-            enableAiAgentMemory: true,
         });
 
         expect(content).toContain('## Memories');
@@ -638,7 +716,9 @@ describe('getSystemPromptV2 knowledge documents', () => {
             const content = promptText({
                 availableExplores: [],
                 knowledgeDocuments: [document],
-                enableFastMetadata,
+                promptSections: new Set<PromptSection>(
+                    enableFastMetadata ? ['fastMetadata'] : [],
+                ),
             });
             expect(
                 content.includes(
@@ -782,6 +862,7 @@ describe('getSystemPromptV2 requesting user', () => {
     test('renders identity and non-technical guidance for a viewer', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: {
                 name: 'Ada Lovelace',
                 role: requestingUserRoleFromSystemRole(
@@ -805,6 +886,7 @@ describe('getSystemPromptV2 requesting user', () => {
     test('renders technical guidance for a developer', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: {
                 name: 'Grace Hopper',
                 role: requestingUserRoleFromSystemRole(
@@ -823,6 +905,7 @@ describe('getSystemPromptV2 requesting user', () => {
     test('defaults to the non-technical register when the role is unknown', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: {
                 name: 'Sam Service',
                 role: null,
@@ -837,6 +920,7 @@ describe('getSystemPromptV2 requesting user', () => {
     test('renders a custom role name and derives the register from its scopes', () => {
         const technical = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: {
                 name: 'Grace Hopper',
                 role: requestingUserRoleFromCustomRole({
@@ -851,6 +935,7 @@ describe('getSystemPromptV2 requesting user', () => {
 
         const business = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: {
                 name: 'Ada Lovelace',
                 role: requestingUserRoleFromCustomRole({
@@ -879,6 +964,7 @@ describe('getSystemPromptV2 requesting user', () => {
     test('asks for an uncollected name without blocking the request', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['requestingUser']),
             requestingUser: { name: '', role: null, groups: [] },
         });
         expect(content).toContain('## Who you are talking to');
@@ -910,6 +996,7 @@ describe('getSystemPromptV2 MCP connections', () => {
     test('lists attached servers and live tool names without definitions', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['mcpTools']),
             mcpServers: [
                 {
                     name: 'Linear',
@@ -941,6 +1028,7 @@ describe('getSystemPromptV2 MCP connections', () => {
     test('lists attached servers without loader guidance when no tools are live', () => {
         const content = promptText({
             availableExplores: [],
+            promptSections: new Set<PromptSection>(['mcpTools']),
             mcpServers: [{ name: 'Linear', toolNames: [] }],
         });
 
@@ -954,7 +1042,6 @@ describe('getSystemPromptV2 coding agent section', () => {
     test('omits the coding-agent section when the coding agent is disabled', () => {
         const content = promptText({
             availableExplores: [],
-            enableCodingAgent: false,
         });
         expect(content).not.toContain(
             'Editing source code in connected repositories',
@@ -964,8 +1051,8 @@ describe('getSystemPromptV2 coding agent section', () => {
 
     test('includes the coding-agent section when enabled', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['codingAgent']),
             availableExplores: [],
-            enableCodingAgent: true,
         });
         expect(content).toContain(
             'Editing source code in connected repositories',
@@ -978,7 +1065,6 @@ describe('getSystemPromptV2 writeback attribution', () => {
     test('omits the writeback section entirely when writeback is disabled', () => {
         const content = promptText({
             availableExplores: [],
-            enableAiWriteback: false,
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud',
         });
@@ -988,8 +1074,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('includes the base section but no attribution block when attribution is null', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['aiWriteback']),
             availableExplores: [],
-            enableAiWriteback: true,
             writebackAttribution: null,
             siteUrl: 'https://app.lightdash.cloud',
         });
@@ -999,8 +1085,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('nudges unlinked users who can link, with an absolute settings link', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['aiWriteback']),
             availableExplores: [],
-            enableAiWriteback: true,
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud',
         });
@@ -1017,8 +1103,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not duplicate slashes in the settings link when siteUrl has a trailing slash', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['aiWriteback']),
             availableExplores: [],
-            enableAiWriteback: true,
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud/',
         });
@@ -1030,8 +1116,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('does not nudge or deep-link when the user cannot link', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['aiWriteback']),
             availableExplores: [],
-            enableAiWriteback: true,
             writebackAttribution: { mode: 'org', canLink: false },
             siteUrl: 'https://app.lightdash.cloud',
         });
@@ -1042,8 +1128,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
     test('states personal attribution without nudging when the user has linked', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['aiWriteback']),
             availableExplores: [],
-            enableAiWriteback: true,
             writebackAttribution: {
                 mode: 'personal',
                 githubLogin: 'octocat',
@@ -1058,8 +1144,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
 
 describe('getSystemPromptV2 change-validation policy', () => {
     const writebackArgs = {
+        promptSections: new Set<PromptSection>(['aiWriteback']),
         availableExplores: [],
-        enableAiWriteback: true,
         writebackAttribution: null,
         siteUrl: 'https://app.lightdash.cloud',
     };
@@ -1104,7 +1190,7 @@ describe('getSystemPromptV2 change-validation policy', () => {
     test('omits the change-validation policy when writeback is disabled', () => {
         const content = promptText({
             ...writebackArgs,
-            enableAiWriteback: false,
+            promptSections: new Set<PromptSection>(),
         });
         expect(content).not.toContain(
             'Validate that a value-affecting change is correct before calling it safe',
@@ -1114,8 +1200,8 @@ describe('getSystemPromptV2 change-validation policy', () => {
 
 describe('getSystemPromptV2 repo-fs code search caveat', () => {
     const repoFsArgs = {
+        promptSections: new Set<PromptSection>(['repoFs']),
         availableExplores: [],
-        enableRepoDiscovery: true,
         repoFsRoot: '.',
     };
 
@@ -1144,7 +1230,6 @@ describe('getSystemPromptV2 repo-fs code search caveat', () => {
     test('never adds the caveat when repo discovery is off', () => {
         const content = promptText({
             availableExplores: [],
-            enableRepoDiscovery: false,
             repoFsSupportsCodeSearch: false,
         });
         expect(content).not.toContain(
@@ -1156,9 +1241,12 @@ describe('getSystemPromptV2 repo-fs code search caveat', () => {
 describe('getSystemPromptV2 data apps', () => {
     test('teaches generateDataApp when enabled', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'schedulingTools',
+                'generateDataApp',
+            ]),
             availableExplores: [],
-            enableContentTools: true,
-            enableGenerateDataApp: true,
         });
         expect(content).toContain('## Data apps');
         expect(content).toContain('generateDataApp');
@@ -1170,8 +1258,11 @@ describe('getSystemPromptV2 data apps', () => {
 
     test('omits the data apps section when the tool is absent', () => {
         const content = promptText({
+            promptSections: new Set<PromptSection>([
+                'contentTools',
+                'schedulingTools',
+            ]),
             availableExplores: [],
-            enableContentTools: true,
         });
         expect(content).not.toContain('## Data apps');
         expect(content).not.toContain('generateDataApp');
@@ -1188,9 +1279,9 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         { enableDataAccess: false, slackLinksOnly: true },
     ])('selects useful charts for every Slack sharing mode: %j', (flags) => {
         const content = promptText({
+            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
             slackChannelId: 'channel',
-            enableFastMetadata: true,
             ...flags,
         });
         expect(content).toContain(
@@ -1242,7 +1333,9 @@ describe('getSystemPromptV2 Slack table selection', () => {
                 availableExplores: [],
                 slackChannelId: 'channel',
                 enableDataAccess: true,
-                enableFastMetadata,
+                promptSections: new Set<PromptSection>(
+                    enableFastMetadata ? ['fastMetadata'] : [],
+                ),
             });
             expect(content).toContain('a summary is the default');
             expect(content).toContain(
@@ -1283,8 +1376,8 @@ describe('getSystemPromptV2 Slack table selection', () => {
         'omits table selection guidance where it is unavailable: %j',
         (flags) => {
             const content = promptText({
+                promptSections: new Set<PromptSection>(['fastMetadata']),
                 availableExplores: [],
-                enableFastMetadata: true,
                 ...flags,
             });
             expect(content).not.toContain('<slack-table');
@@ -1343,10 +1436,14 @@ describe('getSystemPromptV2 existing chart export', () => {
 
 describe('getSystemPromptV2 deferred capability sections', () => {
     const capabilities = {
+        promptSections: new Set<PromptSection>([
+            'fastMetadata',
+            'contentTools',
+            'schedulingTools',
+            'generateDataApp',
+            'runSql',
+        ]),
         availableExplores: [],
-        enableFastMetadata: true,
-        enableContentTools: true,
-        enableGenerateDataApp: true,
         canRunSql: true,
     };
 
@@ -1389,8 +1486,11 @@ describe('getSystemPromptV2 deferred capability sections', () => {
 
 describe('getSystemPromptV2 thread binding and context', () => {
     const base = {
+        promptSections: new Set<PromptSection>([
+            'contentTools',
+            'schedulingTools',
+        ]),
         availableExplores: [],
-        enableContentTools: true,
         date: '2026-01-01',
     };
     const boundDashboard = {
@@ -1417,7 +1517,7 @@ describe('getSystemPromptV2 thread binding and context', () => {
     it('omits the allowed changes without content tools', () => {
         const content = promptText({
             ...base,
-            enableContentTools: false,
+            promptSections: new Set<PromptSection>(),
             threadBinding: boundDashboard,
         });
 

@@ -173,3 +173,9 @@ export const SCREENSHOT_SELECTORS = {
     /** ID selector: #lightdash-login-page */
     LOGIN_PAGE: `#${LOGIN_PAGE_ID}`,
 } as const;
+
+/**
+ * Search param that renders an embedded dashboard as a minimal page (tiles
+ * only, no header chrome) for server-side PDF exports.
+ */
+export const EMBED_MINIMAL_SEARCH_PARAM = 'minimal';

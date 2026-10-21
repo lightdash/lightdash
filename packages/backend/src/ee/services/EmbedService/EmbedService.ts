@@ -67,6 +67,7 @@ import {
     resolveQueryTimezone,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
+    SchedulerFormat,
     SessionAccount,
     SortField,
     stripOverridesForLockedFiltersOnTab,
@@ -3112,7 +3113,7 @@ export class EmbedService extends BaseService {
     async getAccountForDashboardExport(
         payload: Pick<
             ExportContentPayload,
-            'projectUuid' | 'organizationUuid' | 'resourceUuid'
+            'projectUuid' | 'organizationUuid' | 'resourceUuid' | 'format'
         >,
         encodedJwt: string,
     ): Promise<AnonymousAccount> {
@@ -3121,16 +3122,27 @@ export class EmbedService extends BaseService {
             encodedJwt,
         );
 
-        if (
-            this.createAuditedAbility(account).cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: payload.organizationUuid,
-                    projectUuid: payload.projectUuid,
-                    metadata: { dashboardUuid: payload.resourceUuid },
-                }),
-            )
-        ) {
+        const auditedAbility = this.createAuditedAbility(account);
+        const cannotExport =
+            payload.format === SchedulerFormat.PDF
+                ? auditedAbility.cannot(
+                      'export',
+                      subject('Dashboard', {
+                          organizationUuid: payload.organizationUuid,
+                          projectUuid: payload.projectUuid,
+                          type: 'pdf',
+                          metadata: { dashboardUuid: payload.resourceUuid },
+                      }),
+                  )
+                : auditedAbility.cannot(
+                      'manage',
+                      subject('ExportCsv', {
+                          organizationUuid: payload.organizationUuid,
+                          projectUuid: payload.projectUuid,
+                          metadata: { dashboardUuid: payload.resourceUuid },
+                      }),
+                  );
+        if (cannotExport) {
             throw new ForbiddenError(
                 'Embed token is not authorized to export this dashboard',
             );
