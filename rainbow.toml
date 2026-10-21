@@ -42,6 +42,9 @@ system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE
 build = [
   "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+  # The demo dbt project where the Okteto image and the test suites expect it
+  # (the backend's default project_dir is /usr/app/dbt).
+  "ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /usr/app/dbt && ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /dbt",
 ]
 
 [datastores]
@@ -242,6 +245,19 @@ port = 443
 
 [[egress.allow]]
 host = "api.github.com"             # GitHub App: repo access for dbt projects
+port = 443
+
+# BigQuery (the warehouse test suites): the API and the token endpoint.
+[[egress.allow]]
+host = "bigquery.googleapis.com"
+port = 443
+
+[[egress.allow]]
+host = "oauth2.googleapis.com"
+port = 443
+
+[[egress.allow]]
+host = "www.googleapis.com"
 port = 443
 
 [[egress.allow]]
