@@ -280,17 +280,38 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      preview: ${{ (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
-      frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      # A Rainbow parity run (PR body contains `rainbow-parity`, same-repo PR) runs every suite.
+      preview_backend: ${{ steps.backend.outputs.backend }}
+      # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN; the backend dials it, not the runner.
+      snowflake_ai_stub_url: ${{ steps.backend.outputs.backend == 'rainbow' && 'http://localhost:3900' || 'http://snowflake-ai-stub:3900' }}
+      preview: ${{ steps.backend.outputs.backend == 'rainbow' || (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
+      frontend: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
       db_divert: ${{ steps.changes.outputs.preview_db_full != 'true' }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
+      # Okteto unless the PR asks for a Rainbow parity run and its head branch
+      # lives in this repository. This selects a path; it is not a security
+      # boundary (a PR can edit this file). Fork PRs get no secrets anyway.
+      - name: Select preview backend
+        id: backend
+        env:
+          REQUESTED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'rainbow-parity') }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          backend=okteto
+          if [ "$REQUESTED" = true ] && [ "$SAME_REPO" = true ]; then
+            backend=rainbow
+          elif [ "$REQUESTED" = true ]; then
+            echo "::warning::rainbow-parity requested, but this PR comes from a fork; using Okteto."
+          fi
+          echo "Preview backend: $backend"
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -452,19 +473,22 @@ jobs:
     outputs:
       url: ${{ steps.preview-url.outputs.url }}
     env:
-      PREVIEW_URL: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+      RAINBOW: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' }}
+      PREVIEW_URL: ${{ needs.files-changed.outputs.preview_backend == 'rainbow' && format('https://lightdash--pr-{0}.lightdash.rainbowmachine.dev', github.event.number) || format('https://lightdash-preview-pr-{0}.lightdash.okteto.dev', github.event.number) }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Context
+        if: env.RAINBOW != 'true'
         uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
         with:
           url: ${{ secrets.OKTETO_CONTEXT }}
           token: ${{ secrets.OKTETO_TOKEN }}
 
       - name: Create GitHub deployment
+        if: env.RAINBOW != 'true'
         id: deployment
         uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a # v2
         with:
@@ -474,6 +498,7 @@ jobs:
           environment-url: ${{ env.PREVIEW_URL }}
 
       - name: Deploy preview environment
+        if: env.RAINBOW != 'true'
         id: deploy
         uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
         env:
@@ -487,7 +512,7 @@ jobs:
           variables: SITE_URL=${{ env.PREVIEW_URL }},DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
       - name: Collect failed preview diagnostics
-        if: ${{ failure() && steps.deploy.outcome == 'failure' }}
+        if: ${{ env.RAINBOW != 'true' && failure() && steps.deploy.outcome == 'failure' }}
         continue-on-error: true
         timeout-minutes: 3
         env:
@@ -534,11 +559,32 @@ jobs:
             echo "::endgroup::"
           done <<< "$preview_pods"
 
+      # Rainbow builds the preview itself on every push (GitHub App). Its
+      # verdict is the `rainbow-machine/preview` commit status on the head
+      # commit, so waiting on that status is the deploy, and the commit it
+      # reports on is the commit the suites check out.
+      - name: Wait for the Rainbow preview
+        if: env.RAINBOW == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          for i in $(seq 1 90); do
+            status=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/status" --jq '.statuses[] | select(.context == "rainbow-machine/preview") | "\(.state) \(.description)"' | head -1)
+            case "$status" in
+              success*) echo "$status"; break ;;
+              failure*|error*) echo "::error::$status"; exit 1 ;;
+              *) echo "waiting (${i}/90): ${status:-no status yet}"; sleep 20 ;;
+            esac
+          done
+          [ "${status#success}" != "$status" ] || { echo "::error::Rainbow preview not ready after 30 minutes"; exit 1; }
+          curl -sSf --retry 5 --retry-delay 5 -o /dev/null "$PREVIEW_URL/api/v1/health"
       - name: Set preview URL output
         id: preview-url
         run: echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
 
       - name: Update deployment status
+        if: env.RAINBOW != 'true'
         uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -547,6 +593,7 @@ jobs:
           environment-url: ${{ env.PREVIEW_URL }}
 
       - name: Comment PR with preview info
+        if: env.RAINBOW != 'true'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
@@ -627,7 +674,7 @@ jobs:
     env:
       PREVIEW_URL: ${{ needs.preview.outputs.url }}
       NODE_OPTIONS: "--max-old-space-size=8192"
-      SNOWFLAKE_AI_STUB_URL: http://snowflake-ai-stub:3900
+      SNOWFLAKE_AI_STUB_URL: ${{ needs.files-changed.outputs.snowflake_ai_stub_url }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
