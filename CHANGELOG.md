@@ -1,3 +1,16 @@
+# [3.11.0](https://github.com/lightdash/lightdash/compare/3.10.0...3.11.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **onboarding:** stop auto-enabling coding agent onboarding for new orgs ([#31302](https://github.com/lightdash/lightdash/issues/31302)) ([7ec64ad](https://github.com/lightdash/lightdash/commit/7ec64ad2c586785a7c71a1b973d376e4ff2330d2))
+
+
+### Features
+
+* **ai:** classic vs composer battle mode ([#31287](https://github.com/lightdash/lightdash/issues/31287)) ([94834b3](https://github.com/lightdash/lightdash/commit/94834b36aac7ea54cc74830292fe1e5fbc80477b))
+* **ai:** composer queries become a per-agent setting, on by default ([#31275](https://github.com/lightdash/lightdash/issues/31275)) ([046672a](https://github.com/lightdash/lightdash/commit/046672a8b764266f07141aedb58e4d36cc1b880a))
+
 # [3.10.0](https://github.com/lightdash/lightdash/compare/3.9.1...3.10.0) (2026-10-21)
 
 

@@ -1,14 +1,49 @@
 {
   "schemaVersion": "2",
-  "version": "3.10.0",
-  "previousVersion": "3.9.1",
-  "releaseDate": "2026-10-21T11:27:28.933Z",
+  "version": "3.11.0",
+  "previousVersion": "3.10.0",
+  "releaseDate": "2026-10-21T11:47:44.441Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 3,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 3,
+    "files": [
+      {
+        "name": "20261021120000_add_enable_composer_queries_to_ai_agent.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_agent"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021130000_add_query_path_ai_thread_battle_profiles.ts",
+        "edition": "ee",
+        "tables": [],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      },
+      {
+        "name": "20261021130100_add_loadout_to_ai_prompt.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_prompt"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +55,21 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — added the new `classic` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — added the new `composer` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — added the new `classic` enum value to the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — added the new `composer` enum value to the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `classic` enum value to the `results/items/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `composer` enum value to the `results/items/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `classic` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `composer` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `classic` enum value to the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `composer` enum value to the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — added the new `classic` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — added the new `composer` enum value to the `results/battleProfile/allOf[#/components/schemas/AiAgentBattleProfile]/` response property for the response status `200`"
+      ],
+      "advisoryCount": 12
     },
     "mcp": {
       "checked": true,

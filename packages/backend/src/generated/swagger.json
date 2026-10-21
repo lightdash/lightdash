@@ -8771,6 +8771,9 @@
                         "format": "double",
                         "nullable": true
                     },
+                    "enableComposerQueries": {
+                        "type": "boolean"
+                    },
                     "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
@@ -29334,7 +29337,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -29463,6 +29466,9 @@
                     "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
+                    "enableComposerQueries": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -29508,6 +29514,7 @@
                     "enableUserContext",
                     "enableSqlMode",
                     "enableSqlAutoApproval",
+                    "enableComposerQueries",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -29517,7 +29524,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -30013,8 +30020,8 @@
             },
             "AiAgentBattleProfile": {
                 "type": "string",
-                "enum": ["fast", "baseline", "luna"],
-                "description": "`fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions."
+                "enum": ["fast", "baseline", "luna", "classic", "composer"],
+                "description": "`fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions.\n`classic` and `composer` force the agent's query path."
             },
             "AiAgentThreadFirstMessage": {
                 "properties": {
@@ -30281,7 +30288,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -30410,6 +30417,9 @@
                     "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
+                    "enableComposerQueries": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -30455,6 +30465,7 @@
                     "enableUserContext",
                     "enableSqlMode",
                     "enableSqlAutoApproval",
+                    "enableComposerQueries",
                     "adminOnly",
                     "modelConfig",
                     "providerCredentialUuid",
@@ -30464,7 +30475,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-userAccessDetails-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-modelConfig-or-providerCredentialUuid-or-version-or-threadRetentionHours_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -31346,6 +31357,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableComposerQueries": {
+                                "type": "boolean"
+                            },
                             "enableSqlAutoApproval": {
                                 "type": "boolean"
                             },
@@ -31477,6 +31491,9 @@
                                     "type": "string"
                                 },
                                 "type": "array"
+                            },
+                            "enableComposerQueries": {
+                                "type": "boolean"
                             },
                             "enableSqlAutoApproval": {
                                 "type": "boolean"
@@ -35887,8 +35904,37 @@
                 ],
                 "type": "object"
             },
+            "AiAgentLoadoutBase": {
+                "type": "string",
+                "enum": [
+                    "classic",
+                    "composer",
+                    "no_data_access",
+                    "deep_research_worker",
+                    "deep_research_coordinator"
+                ],
+                "description": "The exclusive core of an agent run's loadout."
+            },
+            "AiAgentPromptLoadout": {
+                "properties": {
+                    "base": {
+                        "$ref": "#/components/schemas/AiAgentLoadoutBase"
+                    }
+                },
+                "required": ["base"],
+                "type": "object"
+            },
             "AiAgentMessageAssistant": {
                 "properties": {
+                    "loadout": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentPromptLoadout"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Loadout the turn ran with; null for turns recorded before it was stored."
+                    },
                     "jevDecision": {
                         "allOf": [
                             {
@@ -35998,6 +36044,7 @@
                     }
                 },
                 "required": [
+                    "loadout",
                     "jevDecision",
                     "responseTiming",
                     "tokenUsage",
@@ -46029,7 +46076,7 @@
                 "type": "string",
                 "enum": ["createdAt", "title"]
             },
-            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_": {
+            "Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-version_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -46087,6 +46134,9 @@
                     "enableSqlAutoApproval": {
                         "type": "boolean"
                     },
+                    "enableComposerQueries": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -46112,6 +46162,7 @@
                     "enableUserContext",
                     "enableSqlMode",
                     "enableSqlAutoApproval",
+                    "enableComposerQueries",
                     "adminOnly",
                     "modelConfig"
                 ],
@@ -46119,7 +46170,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentThreadDumpAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-adminOnly-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgentSummary.uuid-or-name-or-instruction-or-tags-or-integrations-or-modelConfig-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-enableSqlMode-or-enableSqlAutoApproval-or-enableComposerQueries-or-adminOnly-or-version_"
             },
             "ServedSkillMetadata": {
                 "properties": {
@@ -73584,7 +73635,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.10.0",
+        "version": "3.11.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
