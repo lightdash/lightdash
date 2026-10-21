@@ -464,6 +464,29 @@ export class CatalogService<
         return filteredExplores;
     }
 
+    async getIndexCatalogMetadata(projectUuid: string) {
+        const [
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        ] = await Promise.all([
+            this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true,
+                includeYamlTags: false,
+            }),
+            this.catalogModel.getCatalogItemsWithIcons(projectUuid),
+            this.catalogModel.getAllMetricsTreeEdges(projectUuid),
+            this.catalogModel.getAllMetricsTreeNodes(projectUuid),
+        ]);
+        return {
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        };
+    }
+
     async indexCatalog(projectUuid: string, userUuid: string | undefined) {
         const indexReadContext: ExploreCacheReadContext & {
             trigger: CatalogBrowseTrigger;

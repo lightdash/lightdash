@@ -360,7 +360,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['DeployController.finalizeDeploySession'],
         ),
         allowed(
-            'handlers/deploy.ts:574',
+            'handlers/deploy.ts:519',
             'PUT',
             'options.dbtModelNames === undefined\n                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`\n                            : `/api/v2/projects/${options.projectUuid}/deploy`',
             [
@@ -369,7 +369,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/deploy.ts:597',
+            'handlers/deploy.ts:542',
             'PUT',
             '`/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`',
             ['ExploreController.SetExplores'],

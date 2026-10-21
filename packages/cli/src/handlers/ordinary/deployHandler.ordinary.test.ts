@@ -205,12 +205,12 @@ it('deploys timestamp SQL using the named source extra Snowflake connection sett
                 },
             },
         },
-        { ...trace[5], results: {} },
         {
             method: 'PUT',
             path: `${projectUrl}/explores?complete=true&sourceUuid=finance-source`,
             results: { exploreCount: 1 },
         },
+        { ...trace[5], results: {} },
     );
 
     await deployHandler({
@@ -221,7 +221,7 @@ it('deploys timestamp SQL using the named source extra Snowflake connection sett
         batchedDeploy: false,
     });
 
-    const deployed = server.requests.at(-1)!;
+    const deployed = server.requests[5];
     let explores: Explore[];
     try {
         explores = JSON.parse(deployed.body);
@@ -234,12 +234,13 @@ it('deploys timestamp SQL using the named source extra Snowflake connection sett
         compiledSql: '"orders".created_at',
     });
     expect(server.requests).toEqual([
-        ...trace,
+        ...trace.slice(0, 5),
         request(
             'PUT',
             `${projectUrl}/explores?complete=true&sourceUuid=finance-source`,
             deployed.body,
         ),
+        ...trace.slice(5),
     ]);
     server.expectComplete();
     expect(await fs.readFile(file, 'utf8')).toBe(before);
@@ -325,12 +326,12 @@ it.each([false, true])(
             );
         }
         const deployTrace = [
-            request('PUT', `/api/v1/projects/${project}/tags/yaml`, '[]'),
             request(
                 'PUT',
                 `/api/v1/projects/${project}/explores?complete=true${create ? '' : '&sourceUuid=finance-source'}`,
                 JSON.stringify(yamlExplores),
             ),
+            request('PUT', `/api/v1/projects/${project}/tags/yaml`, '[]'),
         ];
         trace.push(...deployTrace);
         server.replies.push(

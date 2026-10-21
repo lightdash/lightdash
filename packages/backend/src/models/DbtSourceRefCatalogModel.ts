@@ -17,6 +17,12 @@ export class DbtSourceRefCatalogModel {
         });
     }
 
+    async getProjectNames(projectUuid: string) {
+        return this.database(DbtSourceRefCatalogsTableName)
+            .select('dbt_source_uuid', 'project_name')
+            .where('project_uuid', projectUuid);
+    }
+
     async upsertProvisional({
         projectUuid,
         dbtSourceUuid,

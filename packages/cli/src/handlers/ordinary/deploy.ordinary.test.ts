@@ -96,7 +96,7 @@ const deployOptions = {
     combineManifest: undefined,
 };
 
-const prefix = [
+const configWrites = [
     request('PUT', '/api/v1/projects/project-uuid/tags/yaml', '[]'),
 ];
 const start = request('POST', '/api/v2/projects/project-uuid/deploy', '{}');
@@ -123,9 +123,6 @@ const prepare = async () => {
     const module = await import('../../config');
     const get = vi.spyOn(module, 'getConfig');
     const { deploy } = await import('../deploy');
-    server.replies.push(
-        ...prefix.map((entry) => ({ ...entry, results: null })),
-    );
     return {
         get,
         deploy,
@@ -146,8 +143,12 @@ const verify = async (
     expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
     expect(vi.mocked(console.error).mock.calls).toEqual(
         [
-            'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
             ...output,
+            ...(expected.some((entry) => entry.path.endsWith('/tags/yaml'))
+                ? [
+                      'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+                  ]
+                : []),
         ].map((line) => [line]),
     );
     expect(console.log).not.toHaveBeenCalled();
@@ -179,7 +180,13 @@ it.each([false, true])(
             })),
             ...(exhausted
                 ? []
-                : [{ ...finalize, results: { exploreCount: 1 } }]),
+                : [
+                      { ...finalize, results: { exploreCount: 1 } },
+                      ...configWrites.map((entry) => ({
+                          ...entry,
+                          results: null,
+                      })),
+                  ]),
         );
         vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
         const backoffs = [500, 1000, 2000].map((delay) => {
@@ -206,12 +213,12 @@ it.each([false, true])(
         );
         await [500, 1000, 2000].reduce(async (previous, delay, index) => {
             await previous;
-            await server.waitForRequest(prefix.length + 2 + index);
+            await server.waitForRequest(2 + index);
             await backoffs[index].ready;
             expect(vi.getTimerCount()).toBe(1);
             expect(Date.now() - began).toBe([0, 500, 1500][index]);
             await vi.advanceTimersByTimeAsync(delay - 1);
-            expect(server.requests.length).toBe(prefix.length + 2 + index);
+            expect(server.requests.length).toBe(2 + index);
             await vi.advanceTimersByTimeAsync(1);
         }, Promise.resolve());
         const error = await result;
@@ -221,13 +228,12 @@ it.each([false, true])(
         await verify(
             get,
             [
-                ...prefix,
                 start,
                 batch,
                 batch,
                 batch,
                 batch,
-                ...(exhausted ? [] : [finalize]),
+                ...(exhausted ? [] : [finalize, ...configWrites]),
             ],
             [
                 ...uploading,
@@ -254,7 +260,7 @@ it.each([400, 403])('never retries batch status %s', async (status) => {
         { ...batch, status, error: 'denied' },
     );
     await expect(deploy([compiledExplore], options)).rejects.toThrow('denied');
-    await verify(get, [...prefix, start, batch], uploading);
+    await verify(get, [start, batch], uploading);
 });
 it.each([404, 403])(
     'pins session status %s fallback policy',
@@ -263,7 +269,13 @@ it.each([404, 403])(
         server.replies.push(
             { ...start, status, error: 'session unavailable' },
             ...(status === 404
-                ? [{ ...legacy, results: { exploreCount: 1 } }]
+                ? [
+                      { ...legacy, results: { exploreCount: 1 } },
+                      ...configWrites.map((entry) => ({
+                          ...entry,
+                          results: null,
+                      })),
+                  ]
                 : []),
         );
         const result = deploy([compiledExplore], options);
@@ -271,7 +283,7 @@ it.each([404, 403])(
         else await expect(result).rejects.toThrow('session unavailable');
         await verify(
             get,
-            [...prefix, start, ...(status === 404 ? [legacy] : [])],
+            [start, ...(status === 404 ? [legacy, ...configWrites] : [])],
             [
                 ...opening,
                 ...(status === 404
@@ -299,7 +311,13 @@ it.each([404, 403])(
         server.replies.push(
             { ...inventory, status, error: 'inventory unavailable' },
             ...(status === 404
-                ? [{ ...legacy, results: { exploreCount: 1 } }]
+                ? [
+                      { ...legacy, results: { exploreCount: 1 } },
+                      ...configWrites.map((entry) => ({
+                          ...entry,
+                          results: null,
+                      })),
+                  ]
                 : []),
         );
         const result = deploy([compiledExplore], {
@@ -311,7 +329,7 @@ it.each([404, 403])(
         else await expect(result).rejects.toThrow('inventory unavailable');
         await verify(
             get,
-            [...prefix, inventory, ...(status === 404 ? [legacy] : [])],
+            [inventory, ...(status === 404 ? [legacy, ...configWrites] : [])],
             status === 404
                 ? [
                       'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',

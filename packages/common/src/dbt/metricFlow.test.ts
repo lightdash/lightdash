@@ -1431,6 +1431,52 @@ describe('applyMetricFlowMetricsToModels', () => {
         });
     });
 
+    it('translates metrics attached to a qualified versioned model', () => {
+        const { models, semanticModels } = buildMeshMetricFixture(true);
+        const versionedModels = models.flatMap((model) =>
+            [1, 2].map((version) => ({
+                ...model,
+                unique_id: `${model.unique_id}.v${version}`,
+                version,
+                latest_version: 2,
+            })),
+        );
+        const result = applyMetricFlowMetricsToModels(versionedModels, {
+            semantic_models: Object.fromEntries(
+                Object.entries(semanticModels).map(([key, semanticModel]) => [
+                    key,
+                    {
+                        ...semanticModel,
+                        depends_on: {
+                            nodes: [
+                                `model.${semanticModel.package_name}.orders.v2`,
+                            ],
+                        },
+                    },
+                ]),
+            ),
+            metrics: {},
+        });
+
+        expect(result.error).toBeNull();
+        expect(result.models[0].meta.metrics).toEqual(
+            result.models[1].meta.metrics,
+        );
+        expect(result.models[2].meta.metrics).toEqual(
+            result.models[3].meta.metrics,
+        );
+        expect(result.models[1].meta.metrics).toEqual({
+            analytics__revenue: expect.objectContaining({
+                sql: '${TABLE}.analytics_amount',
+            }),
+        });
+        expect(result.models[3].meta.metrics).toEqual({
+            finance__revenue: expect.objectContaining({
+                sql: '${TABLE}.finance_amount',
+            }),
+        });
+    });
+
     it('qualifies create_metric measures and resolves derived inputs package-locally', () => {
         const { models, semanticModels } = buildMeshMetricFixture(true);
         const result = applyMetricFlowMetricsToModels(models, {
