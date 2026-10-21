@@ -163,6 +163,28 @@ describe('embedded agent source spaces', () => {
         ]);
     });
 
+    it('keeps source spaces read-only unless they are also write spaces', async () => {
+        const { service } = buildService(buildAgent([]));
+        const internals = service as unknown as {
+            getEmbedAgent: (
+                account: AnonymousAccount,
+                projectUuid: string,
+                agentUuid: string,
+            ) => Promise<{ runtimeOptions: { readOnlySpaceUuids: string[] } }>;
+        };
+
+        const { runtimeOptions } = await internals.getEmbedAgent(
+            buildEmbedAccount({
+                writeSpaceUuids: [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+                sourceSpaceUuids: [SOURCE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+            }),
+            PROJECT_UUID,
+            AGENT_UUID,
+        );
+
+        expect(runtimeOptions.readOnlySpaceUuids).toEqual([SOURCE_SPACE_UUID]);
+    });
+
     it('drops spaces a space-restricted agent cannot access', async () => {
         await expect(
             getAllowedSpaces(

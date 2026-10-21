@@ -1209,6 +1209,7 @@ export class McpService extends BaseService {
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             tags: effectiveScope.tags,
             spaceAccess: effectiveScope.spaceAccess,
+            readOnlySpaceUuids: [],
             threadBinding: null,
             userAttributeOverrides:
                 await this.getUserAttributeOverridesFromContext(context),
