@@ -16,6 +16,15 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
+            // Infra (licence + storage) decides whether pre-aggregates can run
+            // at all; an override can only switch an organization off.
+            [CommercialFeatureFlags.PreAggregates]: (flagArgs, options) =>
+                this.lightdashConfig.preAggregates.enabled
+                    ? this.getWithEnvFallback(flagArgs, true, options)
+                    : Promise.resolve({
+                          id: flagArgs.featureFlagId,
+                          enabled: false,
+                      }),
         };
     }
 

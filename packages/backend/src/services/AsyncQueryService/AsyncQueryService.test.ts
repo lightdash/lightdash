@@ -6311,7 +6311,7 @@ describe('AsyncQueryService', () => {
                     query: 'SELECT * FROM duckdb_preagg',
                     execution: 'duckdb',
                 }),
-                getRoutingDecision: ({ explore }) => {
+                getRoutingDecision: async ({ explore }) => {
                     if (
                         explore.type === ExploreType.PRE_AGGREGATE &&
                         explore.preAggregateSource
@@ -23365,7 +23365,7 @@ describe('fresh execution producer to result reader', () => {
                     upsert: vi.fn(async () => {}),
                 } as never,
                 preAggregateResultsStorageClient: {} as never,
-                isEnabled: () => true,
+                isEnabled: async () => true,
                 dashboardModel: f.service.dashboardModel,
                 savedChartModel: f.service.savedChartModel,
                 projectService: f.service,
@@ -24547,7 +24547,7 @@ describe('fresh execution producer to result reader', () => {
                         upsert: vi.fn(async () => {}),
                     } as never,
                     preAggregateResultsStorageClient: {} as never,
-                    isEnabled: () => true,
+                    isEnabled: async () => true,
                     dashboardModel: f.service.dashboardModel,
                     savedChartModel: f.service.savedChartModel,
                     projectService: f.service,
@@ -25017,7 +25017,7 @@ describe('fresh execution producer to result reader', () => {
                     query: 'SELECT 42 AS value',
                     execution,
                 });
-                strategy.getRoutingDecision = () => ({
+                strategy.getRoutingDecision = async () => ({
                     target: 'pre_aggregate',
                     preAggregateMetadata: undefined,
                     route: {

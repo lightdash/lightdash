@@ -89,7 +89,7 @@ const fixture = () => {
         preAggregationExternalResolver: {} as never,
         preAggregateDailyStatsModel: {} as never,
         preAggregateResultsStorageClient: storage,
-        isEnabled: () => true,
+        isEnabled: async () => true,
         dashboardModel: {} as never,
         savedChartModel: {} as never,
         projectService: {} as never,
