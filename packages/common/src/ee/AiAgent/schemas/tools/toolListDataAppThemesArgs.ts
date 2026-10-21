@@ -14,10 +14,10 @@ export const TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = [
 export const MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = `Tool: list_data_app_themes
 
 Purpose:
-List the organization's data app themes. A theme is a bundle of styling a data app can be built with; each has a slug you pass as themeSlug to generate_data_app.
+List the organization's themes. A theme is a bundle of styling a data app or custom chart type can be built with; each has a slug you pass as themeSlug to whichever build tools are available: generate_data_app, iterate_data_app, create_custom_chart_type or iterate_custom_chart_type.
 
 Important:
-- Call it when the user names a theme, brand, or look for a data app, then match the request to a theme and pass its slug.
+- Call it when the user names a theme, brand, or look for a data app or custom chart type, then match the request to a theme and pass its slug.
 - Skip it when the user says nothing about the look: the organization default theme applies.
 - An organization may have no themes at all, in which case omit themeSlug.
 
@@ -27,7 +27,7 @@ Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<the themes, one per line>" }]
 - structuredContent: {
     themes: [{
-      slug:        string,        // pass as themeSlug to generate_data_app
+      slug:        string,        // pass as themeSlug to a build tool
       name:        string,
       isDefault:   boolean,       // applied when themeSlug is omitted
       description: string | null
@@ -41,9 +41,7 @@ export const mcpListDataAppThemesStructuredOutputSchema = z.object({
     themes: z
         .array(
             z.object({
-                slug: z
-                    .string()
-                    .describe('Pass as themeSlug to generate_data_app.'),
+                slug: z.string().describe('Pass as themeSlug to a build tool.'),
                 name: z.string().describe("The theme's display name."),
                 isDefault: z
                     .boolean()

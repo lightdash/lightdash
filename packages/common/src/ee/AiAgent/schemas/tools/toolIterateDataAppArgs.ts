@@ -48,7 +48,7 @@ Response shape (MCP CallToolResult):
     warnings: string[] // e.g. a connection the brief names but does not link
   }
 
-Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
+Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those, if available.
 `;
 
 export const toolIterateDataAppArgsSchema = z.object({
