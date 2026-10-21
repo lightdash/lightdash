@@ -33,7 +33,12 @@ beforeEach(() => {
 describe('content-as-code upload integration', () => {
     it('waits for validation and explicit upload, then shows and retries backend errors', async () => {
         let fail = true;
-        mockedLightdashApi.mockImplementation(({ method }) => {
+        mockedLightdashApi.mockImplementation(({ method, url }) => {
+            if (method === 'GET' && url.endsWith('/spaces')) {
+                return Promise.resolve([
+                    { uuid: 'sales-space', slug: 'sales', path: 'sales' },
+                ]);
+            }
             if (method === 'GET') return Promise.resolve({ openDraftCount: 1 });
             if (fail) {
                 return Promise.reject({

@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Box,
     Button,
@@ -33,6 +34,7 @@ import {
     parseImportFile,
     runContentImport,
     sortImportEntries,
+    type ImportDocument,
     type ImportEntry,
     type UploadContent,
 } from '../importContent';
@@ -45,6 +47,7 @@ type Props = {
     onUpload: UploadContent;
     initialEntries?: ImportEntry[];
     warning?: string | null;
+    getContentUrl?: (document: ImportDocument) => string | null;
 };
 
 const typeIcons = {
@@ -69,6 +72,7 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     onUpload,
     initialEntries = [],
     warning = null,
+    getContentUrl,
 }) => {
     const [entries, setEntries] = useState<ImportEntry[]>(initialEntries);
     const [reading, setReading] = useState(false);
@@ -293,6 +297,10 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                                 : entry.status === 'ready' && uploading
                                   ? 'Queued'
                                   : statusLabels[entry.status];
+                            const contentUrl =
+                                entry.status === 'success' && entry.document
+                                    ? getContentUrl?.(entry.document)
+                                    : null;
                             return (
                                 <Box
                                     component="li"
@@ -342,6 +350,16 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                                                 >
                                                     {message}
                                                 </Text>
+                                            )}
+                                            {contentUrl && (
+                                                <Anchor
+                                                    href={contentUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    size="xs"
+                                                >
+                                                    Open {entry.document?.type}
+                                                </Anchor>
                                             )}
                                             {entry.warnings.map((warning) => (
                                                 <Text
