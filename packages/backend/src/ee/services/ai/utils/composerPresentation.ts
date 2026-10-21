@@ -32,8 +32,8 @@ const mapProse = (text: string, fn: (prose: string) => string): string =>
         .map((segment, index) => (index % 2 === 0 ? fn(segment) : segment))
         .join('');
 
-export type TurnToolResult = {
-    promptUuid: string;
+/** A stored tool result from any prompt in the thread, oldest first. */
+export type ThreadToolResult = {
     toolName: string;
     metadata: unknown;
 };
@@ -45,25 +45,20 @@ const stripComposerPresentationMarkers = (response: string): string =>
             .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n'),
     ).trim();
 
-/** Resolves presentation markers against this prompt's successful composer
- * results: web `<show node>` by terminal node, Slack `<slack-table queryUuid>`
- * by execution. Anything else is ignored. */
+/** Resolves presentation markers against the thread's successful composer
+ * results, this turn's and earlier prompts': web `<show node>` by terminal
+ * node, Slack `<slack-table queryUuid>` by execution. Anything else is ignored. */
 export const resolveComposerPresentations = ({
     channel,
     response,
-    promptUuid,
     toolResults,
 }: {
     channel: 'web' | 'slack';
     response: string;
-    promptUuid: string;
-    toolResults: TurnToolResult[];
+    toolResults: ThreadToolResult[];
 }): { presented: ToolComposerQueriesSuccessMetadata[]; response: string } => {
     const results = toolResults.flatMap((result) => {
-        if (
-            result.promptUuid !== promptUuid ||
-            result.toolName !== runComposerQueriesToolDefinition.name
-        ) {
+        if (result.toolName !== runComposerQueriesToolDefinition.name) {
             return [];
         }
         const metadata = parseToolComposerQueriesSuccessMetadata(

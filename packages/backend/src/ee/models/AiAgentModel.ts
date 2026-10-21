@@ -98,6 +98,7 @@ import {
     parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
+    runComposerQueriesToolDefinition,
     servedSkillMetadataSchema,
     SlackPrompt,
     ToolName,
@@ -9921,6 +9922,32 @@ export class AiAgentModel {
             .orderBy('created_at', 'asc')
             .orderBy('node_id', 'asc');
         return rows.map((row) => row.definition);
+    }
+
+    /** Every runComposerQueries result stored for the thread, oldest first. */
+    async listComposerQueryToolResults(
+        threadUuid: string,
+    ): Promise<Array<{ toolName: string; metadata: unknown }>> {
+        const rows = await this.database(AiAgentToolResultTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+            )
+            .select<Pick<DbAiAgentToolResult, 'tool_name' | 'metadata'>[]>(
+                `${AiAgentToolResultTableName}.tool_name`,
+                `${AiAgentToolResultTableName}.metadata`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .where(
+                `${AiAgentToolResultTableName}.tool_name`,
+                runComposerQueriesToolDefinition.name,
+            )
+            .orderBy(`${AiAgentToolResultTableName}.created_at`, 'asc');
+        return rows.map((row) => ({
+            toolName: row.tool_name,
+            metadata: row.metadata,
+        }));
     }
 
     /** Identical definitions are a no-op; a different one under a registered node id throws. */

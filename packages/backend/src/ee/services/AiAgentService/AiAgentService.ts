@@ -593,7 +593,7 @@ import {
     buildComposerPresentations,
     resolveComposerPresentations,
     type ComposerExecutionResult,
-    type TurnToolResult,
+    type ThreadToolResult,
 } from '../ai/utils/composerPresentation';
 import {
     createUserFacingErrorResolver,
@@ -15809,8 +15809,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
-        // This turn's tool results, so the final answer can present composer nodes.
-        const turnToolResults: TurnToolResult[] = [];
+        // The thread's composer results, earlier prompts' first, then this turn's,
+        // so the final answer can present any node in the thread; later wins.
+        const threadToolResults: ThreadToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -16492,6 +16493,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     standardToolAllowlist === undefined;
                 const enableComposerPythonNodes =
                     enableComposerQueries && pythonQueryRunnerEnabled;
+                if (enableComposerQueries) {
+                    threadToolResults.push(
+                        ...(await this.aiAgentModel.listComposerQueryToolResults(
+                            prompt.threadUuid,
+                        )),
+                    );
+                }
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -17230,14 +17238,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     storeToolCall,
                     storeToolCallError,
                     storeToolResults: (results) => {
-                        turnToolResults.push(
-                            ...results.map(
-                                ({ promptUuid, toolName, metadata }) => ({
-                                    promptUuid,
-                                    toolName,
-                                    metadata,
-                                }),
-                            ),
+                        threadToolResults.push(
+                            ...results.map(({ toolName, metadata }) => ({
+                                toolName,
+                                metadata,
+                            })),
                         );
                         return storeToolResults(results);
                     },
@@ -17282,8 +17287,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                           ? 'slack'
                                           : 'web',
                                       response: update.response,
-                                      promptUuid: prompt.promptUuid,
-                                      toolResults: turnToolResults,
+                                      toolResults: threadToolResults,
                                   })
                                 : null;
                         const visibleUpdate = composerPresentation

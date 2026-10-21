@@ -12,7 +12,7 @@ import {
     buildComposerPresentations,
     resolveComposerPresentations,
     type ComposerExecutionResult,
-    type TurnToolResult,
+    type ThreadToolResult,
 } from './composerPresentation';
 
 const node = (
@@ -41,36 +41,36 @@ const success = (
 
 const result = (
     metadata: unknown,
-    overrides: Partial<TurnToolResult> = {},
-): TurnToolResult => ({
-    promptUuid: 'prompt-uuid',
+    overrides: Partial<ThreadToolResult> = {},
+): ThreadToolResult => ({
     toolName: 'runComposerQueries',
     metadata,
     ...overrides,
 });
 
-const resolve = (response: string, toolResults: TurnToolResult[]) =>
+const resolve = (response: string, toolResults: ThreadToolResult[]) =>
     resolveComposerPresentations({
         channel: 'web',
         response,
-        promptUuid: 'prompt-uuid',
         toolResults,
     });
 
-const resolveSlack = (response: string, toolResults: TurnToolResult[]) =>
+const resolveSlack = (response: string, toolResults: ThreadToolResult[]) =>
     resolveComposerPresentations({
         channel: 'slack',
         response,
-        promptUuid: 'prompt-uuid',
         toolResults,
     });
 
-const slackPresentedNodes = (response: string, toolResults: TurnToolResult[]) =>
+const slackPresentedNodes = (
+    response: string,
+    toolResults: ThreadToolResult[],
+) =>
     resolveSlack(response, toolResults).presented.map(
         (metadata) => metadata.terminalNodeId,
     );
 
-const presentedNodes = (response: string, toolResults: TurnToolResult[]) =>
+const presentedNodes = (response: string, toolResults: ThreadToolResult[]) =>
     resolve(response, toolResults).presented.map(
         (metadata) => metadata.terminalNodeId,
     );
@@ -113,11 +113,6 @@ describe('resolveComposerPresentations', () => {
         ],
         ['an unknown node', 'missing', [result(success('revenue'))]],
         [
-            "an earlier turn's node",
-            'revenue',
-            [result(success('revenue'), { promptUuid: 'earlier-prompt' })],
-        ],
-        [
             'another tool',
             'revenue',
             [result(success('revenue'), { toolName: 'runQuery' })],
@@ -135,6 +130,22 @@ describe('resolveComposerPresentations', () => {
                 [result(success('revenue'))],
             ),
         ).toEqual([]);
+    });
+
+    it("presents a node from an earlier prompt's result, seeded before this turn's", () => {
+        const earlier = success('revenue', { title: 'Revenue (earlier)' });
+        expect(
+            resolve('Here it is.\n<show node="revenue"/>', [result(earlier)]),
+        ).toEqual({ presented: [earlier], response: 'Here it is.' });
+    });
+
+    it('presents the latest result across prompts when two end at the same node', () => {
+        const earlier = success('revenue', { queryUuid: 'query-earlier' });
+        const later = success('revenue', { queryUuid: 'query-later' });
+        expect(
+            resolve('<show node="revenue"/>', [result(earlier), result(later)])
+                .presented,
+        ).toEqual([later]);
     });
 
     it('presents the latest call when two calls end at the same node', () => {
@@ -343,10 +354,6 @@ describe('resolveComposerPresentations in Slack', () => {
             [result(success('revenue'), { toolName: 'runQuery' })],
         ],
         ['an unknown execution', [result(success('other'))]],
-        [
-            "an earlier turn's execution",
-            [result(success('revenue'), { promptUuid: 'earlier-prompt' })],
-        ],
     ])('ignores a table marker naming %s', (_, toolResults) => {
         expect(
             resolveSlack(
@@ -354,6 +361,15 @@ describe('resolveComposerPresentations in Slack', () => {
                 toolResults,
             ),
         ).toEqual({ presented: [], response: 'Done.' });
+    });
+
+    it("resolves a table marker to an earlier prompt's execution", () => {
+        const earlier = success('revenue');
+        expect(
+            resolveSlack('<slack-table queryUuid="query-revenue"/>', [
+                result(earlier),
+            ]).presented,
+        ).toEqual([earlier]);
     });
 
     it('leaves web markers alone', () => {
