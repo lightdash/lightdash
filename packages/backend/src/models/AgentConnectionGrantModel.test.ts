@@ -3,13 +3,13 @@ import {
     ParameterError,
     type AgentConnectionGrantCreate,
 } from '@lightdash/common';
-import knex from 'knex';
+import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { malformedProjectConstraints } from '../auth/agentConnectionGrants/grant.mock';
 import { type DbAgentConnectionGrant } from '../database/entities/agentConnectionGrants';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 
-let database: ReturnType<typeof knex>;
+let database: Knex;
 let tracker: ReturnType<typeof getTracker>;
 let model: AgentConnectionGrantModel;
 const projectUuid = '11111111-1111-4111-8111-111111111111';
