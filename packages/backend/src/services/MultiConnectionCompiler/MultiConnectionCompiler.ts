@@ -100,6 +100,7 @@ export type LoadExtraConnectionCredentials = (
 ) => Promise<CreateWarehouseCredentials>;
 
 type SourceDiskLifecycle = {
+    isSourceDiskResident?: (source: CompilableDbtSource) => boolean;
     withSourceDisk?: <R>(
         source: CompilableDbtSource,
         credentials: CreateWarehouseCredentials,
@@ -298,6 +299,9 @@ export class MultiConnectionCompiler {
             throw error;
         };
         const sourceTasks = sources.map((source) => ({
+            isDiskResident: resolutionOptions.isSourceDiskResident
+                ? () => resolutionOptions.isSourceDiskResident!(source)
+                : undefined,
             withDisk: resolutionOptions.withSourceDisk
                 ? <R>(operation: () => Promise<R>, signal: AbortSignal) =>
                       resolutionOptions.withSourceDisk!(
@@ -756,6 +760,7 @@ export class MultiConnectionCompiler {
             crossSourceMaxPasses = 3,
             compileJobUuid = null,
             withSourceDisk,
+            isSourceDiskResident,
             prepareSourceFetch,
             releaseSourceDisk,
             releaseAllSourceDisk,
@@ -977,6 +982,7 @@ export class MultiConnectionCompiler {
             };
             const resolutionOptions = (plan: CompileGroupPlan) => ({
                 withSourceDisk,
+                isSourceDiskResident,
                 prepareSourceFetch,
                 releaseSourceDisk,
                 releaseAllSourceDisk,

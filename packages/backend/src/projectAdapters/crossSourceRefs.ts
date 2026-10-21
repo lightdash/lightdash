@@ -34,6 +34,7 @@ import {
 export type CrossSourceFetchResult = DbtManifestFetchResult;
 export type CrossSourceFetchTask<T> = {
     key: string;
+    isDiskResident?: () => boolean;
     fetch: (
         options: DbtManifestFetchOptions,
     ) => Promise<CrossSourceFetchResult>;
@@ -561,7 +562,12 @@ export const resolveCrossSourceManifests = async <T>({
             const payloads = new Map(
                 passTasks.map((task) => [task, buildPayload(task)]),
             );
-            await runWithConcurrency(passTasks, concurrency, async (task) => {
+            const ordered = [...passTasks].sort(
+                (left, right) =>
+                    Number(right.isDiskResident?.() ?? false) -
+                    Number(left.isDiskResident?.() ?? false),
+            );
+            await runWithConcurrency(ordered, concurrency, async (task) => {
                 const externalNodes = payloads.get(task)!;
                 const sourceStats = stats.get(task)!;
                 if (sourceStats.lsRuns === 0 && externalNodes.length > 0)

@@ -1,6 +1,36 @@
+import fs from 'fs/promises';
 import pLimit from 'p-limit';
+import path from 'path';
 import { type ProjectAdapter } from '../types';
 import { waitForDbtSourceCleanup } from './crossSourceCancellation';
+
+export const measureDbtSourceDiskBytes = async (
+    directory: string | undefined,
+    signal?: AbortSignal,
+): Promise<number | null> => {
+    if (directory === undefined) return null;
+    try {
+        const pending = [directory];
+        let bytes = 0;
+        const entries = function* pendingEntries() {
+            while (pending.length > 0) yield pending.pop()!;
+        };
+        for await (const current of entries()) {
+            signal?.throwIfAborted();
+            const stat = await fs.lstat(current);
+            bytes += stat.blocks * 512;
+            if (stat.isDirectory()) {
+                const children = await fs.readdir(current);
+                pending.push(
+                    ...children.map((child) => path.join(current, child)),
+                );
+            }
+        }
+        return bytes;
+    } catch {
+        return null;
+    }
+};
 
 type DiskEntry = {
     adapter: ProjectAdapter | null;
@@ -21,6 +51,10 @@ export class DbtSourceDiskPool {
     private clock = 0;
 
     constructor(private readonly capacity: number) {}
+
+    isResident(key: string): boolean {
+        return this.entries.get(key)?.resident ?? false;
+    }
 
     private notify() {
         for (const wake of this.waiters) wake();
