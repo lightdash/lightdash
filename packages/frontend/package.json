@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "3.1.0",
+    "version": "3.3.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -70,6 +70,8 @@
         "@xyflow/react": "12.3.5",
         "ace-builds": "1.4.14",
         "ai": "7.0.106",
+        "ajv": "8.18.0",
+        "ajv-formats": "2.1.1",
         "canvas-confetti": "1.6.0",
         "clsx": "2.1.1",
         "colorjs.io": "0.5.2",

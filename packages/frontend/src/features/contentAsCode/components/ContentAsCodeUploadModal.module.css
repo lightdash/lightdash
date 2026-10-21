@@ -1,0 +1,40 @@
+.fileList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.fileRow {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+}
+
+.fileRow + .fileRow {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.fileIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.fileName {
+    overflow-wrap: anywhere;
+}
+
+.message {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.order {
+    flex-wrap: wrap;
+}

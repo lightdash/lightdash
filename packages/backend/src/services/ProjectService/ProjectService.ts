@@ -3992,8 +3992,8 @@ export class ProjectService
                                 : (preAggregateDefinition.refresh?.cron ??
                                   null),
                             materialize_on_change:
-                                preAggregateDefinition.refresh?.onChange ===
-                                true,
+                                preAggregateDefinition.refresh?.onChange !==
+                                false,
                             definition_fingerprint: definitionFingerprint,
                         });
                     },
@@ -4064,9 +4064,9 @@ export class ProjectService
 
             // A compile builds a definition that has never completed a
             // materialization, so a new pre-aggregate is live without waiting
-            // for cron, and one whose definition just changed when it opted
-            // in with refresh.on_change. Everything else is left to cron or
-            // a manual refresh.
+            // for cron, and one whose definition just changed unless it opted
+            // out with refresh.on_change: false. Everything else is left to
+            // cron or a manual refresh.
             const changed = new Set(changedDefinitionUuids);
             const everMaterialized =
                 materializableDefinitions.length > 0
