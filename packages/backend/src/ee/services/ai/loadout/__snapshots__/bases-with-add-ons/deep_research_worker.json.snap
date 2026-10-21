@@ -17,7 +17,6 @@
     "promptSections": [
         "aiWriteback",
         "availableCustomChartTypes",
-        "codingAgent",
         "contentTools",
         "documents",
         "generateDataApp",
@@ -31,6 +30,9 @@
         "skills"
     ],
     "skills": [
-        "developing-in-lightdash"
+        "developing-in-lightdash",
+        "editing-source-code",
+        "reading-source-code",
+        "repository-writeback"
     ]
 }

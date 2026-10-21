@@ -88,7 +88,12 @@ export const AGENT_TOOL_NAMES = [
 export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
 
 /** Built-in skills available to the agent; a test pins them to `skills/builtInSkills/`. */
-export const BUILT_IN_SKILL_NAMES = ['developing-in-lightdash'] as const;
+export const BUILT_IN_SKILL_NAMES = [
+    'developing-in-lightdash',
+    'reading-source-code',
+    'repository-writeback',
+    'editing-source-code',
+] as const;
 
 export type BuiltInSkillName = (typeof BUILT_IN_SKILL_NAMES)[number];
 
@@ -100,7 +105,6 @@ export type PromptSection =
     | 'documents'
     | 'generateDataApp'
     | 'aiWriteback'
-    | 'codingAgent'
     | 'repoFs'
     | 'skills'
     | 'mcpTools'

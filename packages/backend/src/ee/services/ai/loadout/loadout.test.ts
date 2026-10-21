@@ -30,6 +30,17 @@ const SKILL = {
     source: 'builtIn' as const,
 };
 
+const REPOSITORY_SKILLS = [
+    'reading-source-code',
+    'repository-writeback',
+    'editing-source-code',
+].map((name) => ({
+    name,
+    description: `Guidance for ${name}`,
+    resources: [],
+    source: 'builtIn' as const,
+}));
+
 const CUSTOM_SKILL = {
     name: 'revenue-review',
     description: 'How finance reviews revenue',
@@ -39,7 +50,10 @@ const CUSTOM_SKILL = {
 
 const listedSkills = (loadout: Loadout, input: LoadoutInput) =>
     getAvailableSkills(
-        { builtInSkills: [SKILL], customSkills: input.customSkills },
+        {
+            builtInSkills: [SKILL, ...REPOSITORY_SKILLS],
+            customSkills: input.customSkills,
+        },
         loadout,
     );
 
@@ -329,6 +343,25 @@ describe('resolveLoadout', () => {
         expect(loadout.addOns.has('skills')).toBe(true);
         expect(loadout.toolNames.has('loadSkill')).toBe(true);
         expect(loadout.promptSections.has('skills')).toBe(true);
+    });
+
+    test.each([
+        ['repoDiscovery', 'reading-source-code'],
+        ['writeback', 'repository-writeback'],
+        ['codingAgent', 'editing-source-code'],
+    ] as const)('%s declares %s and brings loadSkill', (name, skill) => {
+        const loadout = buildLoadout('classic', fullInput, [name]);
+        expect(loadout.skills).toEqual(new Set([skill]));
+        expect(loadout.toolNames.has('loadSkill')).toBe(true);
+    });
+
+    test('classic with every add-on lists the three repository skills', () => {
+        const loadout = buildLoadout('classic', fullInput, ADD_ON_NAMES);
+        expect(
+            renderPrompt(loadout, fullInput).match(
+                /^- (reading-source-code|repository-writeback|editing-source-code):/gm,
+            ),
+        ).toHaveLength(3);
     });
 
     test('custom skills alone bring loadSkill but no built-in skill', () => {

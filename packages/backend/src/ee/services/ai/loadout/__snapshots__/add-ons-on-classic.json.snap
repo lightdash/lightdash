@@ -86,22 +86,29 @@
         "description": "Edit and sync the dbt project through pull requests",
         "addsTools": [
             "editDbtProject",
+            "loadSkill",
             "syncDbtProject"
         ],
         "addsSections": [
-            "aiWriteback"
+            "aiWriteback",
+            "skills"
         ],
-        "addsSkills": []
+        "addsSkills": [
+            "repository-writeback"
+        ]
     },
     "codingAgent": {
         "description": "Edit any writable repository through pull requests",
         "addsTools": [
-            "editRepo"
+            "editRepo",
+            "loadSkill"
         ],
         "addsSections": [
-            "codingAgent"
+            "skills"
         ],
-        "addsSkills": []
+        "addsSkills": [
+            "editing-source-code"
+        ]
     },
     "pullRequests": {
         "description": "List, inspect and close the pull requests of a thread",
@@ -117,12 +124,16 @@
         "description": "Read repositories the user can access",
         "addsTools": [
             "discoverRepos",
-            "exploreRepo"
+            "exploreRepo",
+            "loadSkill"
         ],
         "addsSections": [
-            "repoFs"
+            "repoFs",
+            "skills"
         ],
-        "addsSkills": []
+        "addsSkills": [
+            "reading-source-code"
+        ]
     },
     "previewDeploySetup": {
         "description": "Set up preview deploys for the dbt project",

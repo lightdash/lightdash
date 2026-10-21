@@ -106,14 +106,14 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
             id: 'aiWriteback',
             documents: ['editDbtProject', 'syncDbtProject'],
         },
-        skills: [],
+        skills: ['repository-writeback'],
     },
     codingAgent: {
         description: 'Edit any writable repository through pull requests',
         when: (input) => input.enableCodingAgent,
         tools: ['editRepo'],
-        section: { id: 'codingAgent', documents: ['editRepo'] },
-        skills: [],
+        section: null,
+        skills: ['editing-source-code'],
     },
     pullRequests: {
         description: 'List, inspect and close the pull requests of a thread',
@@ -127,7 +127,7 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         when: (input) => input.enableRepoDiscovery,
         tools: ['exploreRepo', 'discoverRepos'],
         section: { id: 'repoFs', documents: ['exploreRepo', 'discoverRepos'] },
-        skills: [],
+        skills: ['reading-source-code'],
     },
     previewDeploySetup: {
         description: 'Set up preview deploys for the dbt project',

@@ -77,6 +77,7 @@ const DOCUMENT_WRITE_TOOLS = new Set([
 
 const REPOSITORY_CHANGE_TOOLS = new Set([
     ...REFERENCE_TOOLS,
+    'loadSkill',
     'analyzeFieldImpact',
     'editDbtProject',
     'editProjectContext',
