@@ -154,11 +154,12 @@ const contract = (loadout: Loadout) =>
     )}\n`;
 
 // Wording flags stay at their defaults; composer renders with the data access it requires.
-const renderPrompt = (loadout: Loadout) =>
+const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
     getSystemPromptV2({
         availableExplores: [],
         date: '2026-08-27',
         promptSections: loadout.promptSections,
+        availableSkills: input.availableSkills,
         enableDataAccess: loadout.base === 'composer',
         canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
@@ -173,16 +174,22 @@ describe('loadout contracts', () => {
         ).toMatchFileSnapshot(`__snapshots__/bases/${base}.json.snap`);
     });
 
-    test('composer without add-ons renders its prompt', async () => {
-        await expect(
-            renderPrompt(buildLoadout('composer', inputs.composer, [])),
-        ).toMatchFileSnapshot('__snapshots__/bases/composer.prompt.txt');
-    });
+    test.each(BASE_NAMES)(
+        '%s base without add-ons renders its prompt',
+        async (base) => {
+            await expect(
+                renderPrompt(
+                    buildLoadout(base, inputs[base], []),
+                    inputs[base],
+                ),
+            ).toMatchFileSnapshot(`__snapshots__/bases/${base}.prompt.txt`);
+        },
+    );
 
     test('classic without add-ons renders the classic prompt', () => {
-        expect(renderPrompt(buildLoadout('classic', fullInput, []))).toBe(
-            fixture('systemV2.classic.txt'),
-        );
+        expect(
+            renderPrompt(buildLoadout('classic', fullInput, []), fullInput),
+        ).toBe(fixture('systemV2.classic.txt'));
     });
 
     test('classic resolved from the capability flags renders the classic capabilities prompt', () => {
@@ -248,12 +255,14 @@ describe('loadout contracts', () => {
         },
     );
 
-    // Other bases render the same template from the sections in their JSON.
-    test.each<LoadoutBase>(['classic', 'composer'])(
+    test.each(BASE_NAMES)(
         '%s base with every add-on renders its prompt',
         async (base) => {
             await expect(
-                renderPrompt(buildLoadout(base, inputs[base], ADD_ON_NAMES)),
+                renderPrompt(
+                    buildLoadout(base, inputs[base], ADD_ON_NAMES),
+                    inputs[base],
+                ),
             ).toMatchFileSnapshot(
                 `__snapshots__/bases-with-add-ons/${base}.prompt.txt`,
             );
@@ -323,7 +332,7 @@ describe('resolveLoadout', () => {
         ];
         for (const loadout of loadouts) {
             expect(
-                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout)}`,
+                `${[...loadout.toolNames].join('\n')}\n${renderPrompt(loadout, inputs.composer)}`,
             ).not.toMatch(/runQuery|generateVisualization|runSql/);
         }
     });
