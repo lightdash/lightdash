@@ -2275,7 +2275,7 @@ Sources in this project: Core models, marketing, finance.`;
                         { sourceUuid: null, target: { database: EXTRA_DB } },
                     ),
                 ).rejects.toThrow(
-                    `The dbt target compiles against database ${EXTRA_DB}, but the deploy goes to the connection "Original", which points at ${ORIGINAL_DB}. Choose the dbt source for this target with --source.`,
+                    `The dbt target compiles against database ${EXTRA_DB}, but the deploy goes to the connection "Original", which points at ${ORIGINAL_DB}. Check the dbt target and the source's warehouse connection in project settings.`,
                 );
                 expect(await dump(fixture.projectUuid)).toEqual(before);
             });
