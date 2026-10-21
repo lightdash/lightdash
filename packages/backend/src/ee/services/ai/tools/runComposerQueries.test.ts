@@ -357,7 +357,7 @@ describe('getRunComposerQueries', () => {
             description: null,
         });
         expect(output.result).toContain(
-            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer.',
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer; the same marker presents it again in a later message without rerunning it.',
         );
         expect(output.result).toContain(
             [

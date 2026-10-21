@@ -218,7 +218,6 @@ import {
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ThreadComposerQueryNode,
-    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -582,7 +581,9 @@ import {
 } from '../ai/utils/classifyWritebackError';
 import {
     buildComposerPresentations,
+    hasComposerPresentations,
     resolveComposerPresentations,
+    type ComposerPresentationSelection,
     type TurnToolResult,
 } from '../ai/utils/composerPresentation';
 import {
@@ -8309,10 +8310,10 @@ export class AiAgentService extends BaseService {
         onArtifactReady,
     }: {
         prompt: AiPrompt;
-        presented: ToolComposerQueriesSuccessMetadata[];
+        presented: ComposerPresentationSelection;
         onArtifactReady: (artifact: AiArtifact) => void;
     }): Promise<void> {
-        if (presented.length === 0) return;
+        if (!hasComposerPresentations(presented)) return;
         const { threadUuid, promptUuid } = prompt;
         try {
             const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
@@ -17195,14 +17196,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // classifiers while returning the original text for selection.
                         const composerPresentation =
                             update.response !== undefined
-                                ? resolveComposerPresentations({
-                                      channel: isSlackPrompt(prompt)
-                                          ? 'slack'
-                                          : 'web',
-                                      response: update.response,
-                                      promptUuid: prompt.promptUuid,
-                                      toolResults: turnToolResults,
-                                  })
+                                ? resolveComposerPresentations(
+                                      isSlackPrompt(prompt)
+                                          ? {
+                                                channel: 'slack',
+                                                response: update.response,
+                                                promptUuid: prompt.promptUuid,
+                                                toolResults: turnToolResults,
+                                            }
+                                          : {
+                                                channel: 'web',
+                                                response: update.response,
+                                            },
+                                  )
                                 : null;
                         const visibleUpdate = composerPresentation
                             ? {
