@@ -770,6 +770,12 @@ const CANCELLED_PROMPT_NOTICE =
     'The working tree may contain unfinished changes from the cancelled work. ' +
     "Act only on the user's new request below.";
 
+/** Prepended to the build prompt when the builder's org has saved app state. */
+export const APP_STATE_PROMPT_BLOCK =
+    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
@@ -3819,6 +3825,7 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
+        builder?: { userUuid: string; organizationUuid: string },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -3925,6 +3932,20 @@ export class AppGenerateService extends BaseService {
             );
             if (externalBlock) {
                 finalPrompt = externalBlock + finalPrompt;
+            }
+        }
+
+        // Saved app state: told to the agent only when the builder (or their
+        // organization) has the store enabled, so an app never relies on hooks
+        // that would only keep values in memory.
+        if (!isDataAppViz && builder) {
+            const { enabled: appStateEnabled } =
+                await this.featureFlagModel.get({
+                    user: builder,
+                    featureFlagId: FeatureFlags.EnableDataAppState,
+                });
+            if (appStateEnabled) {
+                finalPrompt = APP_STATE_PROMPT_BLOCK + finalPrompt;
             }
         }
 
@@ -6465,6 +6486,10 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {

@@ -28,6 +28,8 @@ import {
 } from 'vitest';
 import { createDeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
+    mapAppStateApiError,
+    resolveAppStateRequest,
     useAppSdkBridge,
     type ExternalRequestEvent,
     type QueryEvent,
@@ -2841,5 +2843,239 @@ describe('explore base-table virtual route', () => {
             error: 'Invalid explore base-table request.',
         });
         expect(fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe('app-state branch', () => {
+    const STATE_BASE = `/api/v1/ee/projects/${PROJECT_UUID}/apps/${APP_UUID}/state`;
+
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+        mockUseEmbed.mockReturnValue({
+            embedToken: undefined,
+            projectUuid: undefined,
+        });
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    function captureResponses() {
+        const responses: Array<Record<string, unknown>> = [];
+        vi.spyOn(window, 'postMessage').mockImplementation((msg: unknown) =>
+            responses.push(msg as Record<string, unknown>),
+        );
+        return responses;
+    }
+
+    function postAppState(payload: Record<string, unknown>) {
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:app-state',
+            id: POST_ID,
+            ...payload,
+        });
+    }
+
+    it('resolves each op to the viewer-scoped REST call', () => {
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'get' }),
+        ).toEqual({
+            method: 'GET',
+            path: STATE_BASE,
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, {
+                id: '1',
+                op: 'set-shared',
+                key: 'a/b',
+                value: [1],
+                expectedVersion: 3,
+            }),
+        ).toEqual({
+            method: 'PUT',
+            path: `${STATE_BASE}/shared/a%2Fb`,
+            body: { value: [1], expectedVersion: 3 },
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, {
+                id: '1',
+                op: 'history',
+                key: 'k',
+                limit: 5,
+                beforeVersion: 9,
+            }),
+        ).toEqual({
+            method: 'GET',
+            path: `${STATE_BASE}/shared/k/history?limit=5&beforeVersion=9`,
+        });
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'set-user' }),
+        ).toBeNull();
+        expect(
+            resolveAppStateRequest(STATE_BASE, { id: '1', op: 'nope' }),
+        ).toBeNull();
+    });
+
+    it('maps API failures to SDK error codes, carrying the current value on 409', () => {
+        expect(
+            mapAppStateApiError(409, {
+                message: 'stale',
+                data: { current: { version: 2 } },
+            }),
+        ).toEqual({
+            code: 'conflict',
+            message: 'stale',
+            current: { version: 2 },
+        });
+        expect(
+            mapAppStateApiError(403, {
+                message: 'off',
+                data: { code: 'feature_not_enabled' },
+            }).code,
+        ).toBe('feature_disabled');
+        expect(mapAppStateApiError(403, { message: 'no' }).code).toBe(
+            'forbidden',
+        );
+        expect(mapAppStateApiError(422, { message: 'bad' }).code).toBe(
+            'invalid',
+        );
+        expect(mapAppStateApiError(500, undefined)).toEqual({
+            code: 'unknown',
+            message: 'App state request failed (500)',
+        });
+    });
+
+    it('PUTs shared state as the viewer and relays the result', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        const entry = {
+            value: { q1: 1 },
+            version: 1,
+            updatedAt: 't',
+            updatedBy: null,
+        };
+        mockFetchOk({ status: 'ok', results: entry });
+
+        postAppState({
+            op: 'set-shared',
+            key: 'targets',
+            value: { q1: 1 },
+            expectedVersion: null,
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                `${STATE_BASE}/shared/targets`,
+                expect.objectContaining({ method: 'PUT' }),
+            ),
+        );
+        const [, init] = (fetch as Mock).mock.calls[0];
+        expect(JSON.parse(init.body)).toEqual({
+            value: { q1: 1 },
+            expectedVersion: null,
+        });
+        expect(Object.keys(init.headers)).toEqual(['Content-Type']);
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                result: entry,
+            }),
+        );
+    });
+
+    it('relays a conflict with the current value', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchNonOk(
+            {
+                status: 'error',
+                error: {
+                    name: 'ConflictError',
+                    message: 'stale',
+                    data: { current: { version: 4 } },
+                },
+            },
+            409,
+        );
+        postAppState({
+            op: 'set-shared',
+            key: 'targets',
+            value: 1,
+            expectedVersion: 3,
+        });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: {
+                    code: 'conflict',
+                    message: 'stale',
+                    current: { version: 4 },
+                },
+            }),
+        );
+    });
+
+    it('unwraps history versions and attaches the embed token when embedded', async () => {
+        mockUseEmbed.mockReturnValue({
+            embedToken: 'jwt-token',
+            projectUuid: PROJECT_UUID,
+        });
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchOk({ status: 'ok', results: { versions: [{ version: 1 }] } });
+        postAppState({ op: 'history', key: 'targets', limit: 10 });
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                `${STATE_BASE}/shared/targets/history?limit=10`,
+                expect.objectContaining({
+                    method: 'GET',
+                    headers: expect.objectContaining({
+                        [JWT_HEADER_NAME]: 'jwt-token',
+                    }),
+                }),
+            ),
+        );
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                result: [{ version: 1 }],
+            }),
+        );
+    });
+
+    it('answers an unknown op without calling the API', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        postAppState({ op: 'explode' });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: {
+                    code: 'invalid',
+                    message: 'Unknown app state request',
+                },
+            }),
+        );
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('reports a network failure as unavailable', async () => {
+        renderBridge(() => undefined);
+        const responses = captureResponses();
+        mockFetchReject(new Error('offline'));
+        postAppState({ op: 'get' });
+        await vi.waitFor(() =>
+            expect(responses).toContainEqual({
+                type: 'lightdash:sdk:app-state-response',
+                id: POST_ID,
+                error: { code: 'unavailable', message: 'offline' },
+            }),
+        );
     });
 });

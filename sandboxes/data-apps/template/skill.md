@@ -190,6 +190,10 @@ If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blue
 
 If the prompt lists external connections (files under `/tmp/external-data/`), read `/app/references/external-apis.md` before calling any external API — it documents each connection file and the `externalFetch` rules.
 
+## Saved app state
+
+If the prompt says saved app state is available, read `/app/references/app-state.md` before building anything that should survive a reload: a person's inputs are remembered with `useAppState` by default, without being asked; shared values (comments, targets, annotations, "everyone", "the team", "who changed") use `useSharedAppState`. Without that line in the prompt, do not use these hooks.
+
 ## Attached images
 
 If the prompt references images under `/tmp/images/`, read `/app/references/attached-images.md` first — screenshots (`screenshot-*` files) describe the current app state, plain-uuid files are design references to approximate, and only design references may be embedded in the app.
@@ -704,6 +708,9 @@ const [period, setPeriod] = useUrlState('period', 'last_month');
 - Ephemeral UI state (open dropdowns, hover, modal visibility, in-progress form input)
   stays in plain `useState` — only state that defines *which view* the user is looking
   at belongs in the URL.
+- When the prompt says saved app state is available, view controls use
+  `useAppState(key, default, { url: true })` instead, which keeps the URL in sync and
+  also remembers the value for the person. See `/app/references/app-state.md`.
 
 ### External APIs
 

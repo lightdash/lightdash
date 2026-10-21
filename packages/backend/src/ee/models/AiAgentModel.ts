@@ -9893,25 +9893,6 @@ export class AiAgentModel {
         });
     }
 
-    async findChartArtifactConfigsByThreadUuid(
-        threadUuid: string,
-    ): Promise<AiArtifact['chartConfig'][]> {
-        const rows: { chart_config: unknown }[] = await this.database(
-            AiArtifactVersionsTableName,
-        )
-            .select(`${AiArtifactVersionsTableName}.chart_config`)
-            .join(
-                AiArtifactsTableName,
-                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
-                `${AiArtifactsTableName}.ai_artifact_uuid`,
-            )
-            .where(`${AiArtifactsTableName}.ai_thread_uuid`, threadUuid)
-            .andWhere(`${AiArtifactsTableName}.artifact_type`, 'chart')
-            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc')
-            .orderBy(`${AiArtifactVersionsTableName}.version_number`, 'asc');
-        return rows.map((row) => parseAiArtifactChartConfig(row.chart_config));
-    }
-
     async listComposerQueryNodes(
         scope: ComposerQueryNodeScope,
     ): Promise<ThreadComposerQueryNode[]> {

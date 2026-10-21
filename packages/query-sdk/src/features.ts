@@ -119,6 +119,13 @@ export const SDK_FEATURES: SdkFeature[] = [
             'Sync in-app state to the page URL so app views can be shared and restored.',
     },
     {
+        key: 'app-state',
+        appliesTo: ['data_app'],
+        label: 'Saved app state',
+        description:
+            'Remember what each person entered and keep values every viewer shares, with a change history, stored by Lightdash so they survive reloads and devices.',
+    },
+    {
         key: 'viz-context',
         appliesTo: ['chart_type'],
         label: 'Dashboard visualization context',

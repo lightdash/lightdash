@@ -125,8 +125,8 @@ boundary.
 
 The hosting Lightdash page is the app's only route to data. The SDK inside the iframe posts requests over
 `postMessage`; the host validates each against a small allowlist (run a metric query, run a saved chart live, poll
-results, underlying data, scheduled exports, current user, external fetch through a linked connection) and executes
-it with the viewer's own session. The same channel carries capability announces (an SDK feature manifest, screenshot
+results, underlying data, scheduled exports, current user, external fetch through a linked connection, saved app
+state) and executes it with the viewer's own session. The same channel carries capability announces (an SDK feature manifest, screenshot
 and lineage availability), URL state sync, the host colour scheme, cache invalidation and the screenshot round trip.
 Unknown routes are rejected.
 
@@ -139,6 +139,11 @@ Unknown routes are rejected.
   of the session, in the builder, the standalone view and dashboard tiles alike.
 - **Shareable URL state** — the app can publish bounded state that the host mirrors into the URL and, for scheduled
   deliveries, into the schedule, so a link or a delivery reopens the same view.
+- **Saved app state** — behind the `enable-data-app-state` flag, the host stores values the app saves through the
+  SDK: per person (`useAppState`) or shared by every viewer with a version and a history of who changed what
+  (`useSharedAppState`). Writes carry the version last read and conflict instead of overwriting. Embedded viewers
+  read shared values and never write. Caps: 64 KB per value, 200 keys per app per scope, 1,000 history versions
+  per key.
 - **Host colour scheme** — the app follows the host's light/dark mode through a handshake; capture surfaces force
   light.
 - **Thumbnails** — one per ready version, captured automatically when a build becomes ready or by hand from the running app. An app's card shows its latest ready version's thumbnail.
@@ -170,6 +175,11 @@ Entities, not columns:
   custom chart types, declared dependencies, generation usage, data references.
 - **Access grants** — per-app user and group access, in addition to space access.
 - **Links** — external connections linked to an app; dashboard tiles that reference an app.
+- **App state** — per-user values (app + user + key), shared values (app + key, versioned) and shared history
+  (every version with its author, `user` today and `agent` reserved for server-side writers). JSON values.
+  Deleting a shared key removes its current value but keeps its history, and a recreated key continues the
+  version sequence, so a writer holding a version from before the delete still conflicts. Key caps are
+  enforced inside the write transaction under an advisory lock.
 
 Artifacts (built assets, source tarballs, staged uploads, thumbnails) live in object storage under the app's prefix.
 
@@ -189,6 +199,10 @@ Checks live in the service layer against a subject that carries the app's space 
   never touches the source app.
 - **Restore from soft delete and permanent delete** are admin-only and bypass the contextual check.
 - **Custom dependencies** are a separate admin-level scope on top of an organization feature flag.
+- **App state** reads need view; writes need view and a registered session (embeds are read-only); deleting a
+  shared key needs manage. All of it sits behind the `enable-data-app-state` flag, resolved per user before
+  organization. Because view starts at interactive viewer, plain viewers cannot use it either. Every viewer who
+  can write may write any shared key; per-app comment-only or edit roles are not modelled.
 
 Once an app moves into a space, its creator has no special rights; access follows the space.
 

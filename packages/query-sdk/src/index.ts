@@ -145,6 +145,36 @@ export { isDeliveryRender, useDeliveryRender } from './deliveryRender';
 export { useUrlState } from './urlState';
 export type { SdkUrlStateChangeMessage, UrlStateMap } from './urlState';
 
+// Durable app state (saved by Lightdash per person or shared by every viewer)
+export {
+    AppStateError,
+    useAppState,
+    useSharedAppState,
+    matchesDefaultShape,
+} from './appState';
+export type {
+    AppStateMeta,
+    AppStateOptions,
+    SharedAppStateMeta,
+} from './appState';
+export type {
+    AppStateAuthor,
+    AppStateErrorCode,
+    AppStateErrorPayload,
+    AppStateHistoryAuthor,
+    AppStateHistoryEntry,
+    AppStateHistoryOptions,
+    AppStateSharedEntry,
+    AppStateSnapshot,
+    AppStateTransport,
+    AppStateUserEntry,
+} from './types';
+export type {
+    SdkAppStateOp,
+    SdkAppStateRequest,
+    SdkAppStateResponse,
+} from './postMessageTransport';
+
 // Free-form AI prompts over loaded results (data apps)
 export { useAiPrompt } from './aiPrompt';
 export type { AiPrompt, AiPromptOptions, AiPromptSource } from './aiPrompt';

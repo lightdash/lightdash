@@ -66,6 +66,7 @@ export const aiCopilotConfigSchema = z
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     zeroDataRetention: z.boolean().default(false),
+                    useChatCompletions: z.boolean().default(false),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })
@@ -77,10 +78,15 @@ export const aiCopilotConfigSchema = z
                     apiVersion: z.string(),
                     deploymentName: z.string(),
                     deploymentSupportsReasoning: z.boolean().default(false),
+                    reasoningEffort: z
+                        .enum(['none', 'minimal', 'low', 'medium', 'high'])
+                        .nullable()
+                        .default(null),
                     embeddingDeploymentName: z
                         .string()
                         .default(DEFAULT_AZURE_EMBEDDING_MODEL),
                     useDeploymentBasedUrls: z.boolean().default(true),
+                    useChatCompletions: z.boolean().default(false),
                     customHeaders: customHeadersSchema,
                     supportsStreaming: supportsStreamingSchema,
                 })

@@ -5,14 +5,9 @@ import {
     runComposerQueriesToolDefinition,
     toComposerArtifactVersion,
     type AiComposerArtifactVersion,
-    type AllVizChartConfig,
-    type AnyType,
-    type ResultColumns,
     type ThreadComposerQueryNode,
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
-import Logger from '../../../../logging/logger';
-import { type PlanComposerViz } from '../decisions/vizPlanner';
 import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
@@ -45,21 +40,19 @@ const stripComposerPresentationMarkers = (response: string): string =>
             .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n'),
     ).trim();
 
-/** Resolves presentation markers against this prompt's successful composer
- * results: web `<show node>` by terminal node, Slack `<slack-table queryUuid>`
- * by execution. Anything else is ignored. */
-export const resolveComposerPresentations = ({
-    channel,
-    response,
-    promptUuid,
-    toolResults,
-}: {
-    channel: 'web' | 'slack';
-    response: string;
-    promptUuid: string;
-    toolResults: TurnToolResult[];
-}): { presented: ToolComposerQueriesSuccessMetadata[]; response: string } => {
-    const results = toolResults.flatMap((result) => {
+/** What the final answer presents: web names nodes in the thread's
+ * registry, Slack names executions of this prompt. */
+export type ComposerPresentationSelection =
+    | { channel: 'web'; nodeIds: string[] }
+    | { channel: 'slack'; results: ToolComposerQueriesSuccessMetadata[] };
+
+const unique = (keys: string[]) => [...new Set(keys)];
+
+const thisPromptComposerResults = (
+    promptUuid: string,
+    toolResults: TurnToolResult[],
+): ToolComposerQueriesSuccessMetadata[] =>
+    toolResults.flatMap((result) => {
         if (
             result.promptUuid !== promptUuid ||
             result.toolName !== runComposerQueriesToolDefinition.name
@@ -71,126 +64,123 @@ export const resolveComposerPresentations = ({
         );
         return metadata ? [metadata] : [];
     });
-    const present = (
-        keys: string[],
-        keyOf: (metadata: ToolComposerQueriesSuccessMetadata) => string,
-    ) => {
-        // Later calls win when two share a key.
-        const byKey = new Map(results.map((m) => [keyOf(m), m] as const));
-        return [...new Set(keys)].flatMap((key) => {
-            const metadata = byKey.get(key);
-            return metadata ? [metadata] : [];
-        });
-    };
-    switch (channel) {
+
+/** Reads presentation markers and strips them from the answer: web
+ * `<show node>` by node id, Slack `<slack-table queryUuid>` by this prompt's
+ * successful composer executions. */
+export const resolveComposerPresentations = (
+    input:
+        | { channel: 'web'; response: string }
+        | {
+              channel: 'slack';
+              response: string;
+              promptUuid: string;
+              toolResults: TurnToolResult[];
+          },
+): { presented: ComposerPresentationSelection; response: string } => {
+    switch (input.channel) {
         case 'web': {
-            const prose = response
+            const prose = input.response
                 .split(FENCED_CODE_BLOCK_REGEX)
                 .filter((_, index) => index % 2 === 0)
                 .join('\n');
             return {
-                presented: present(
-                    [...prose.matchAll(SHOW_MARKER_REGEX)].map((m) => m[1]),
-                    (metadata) => metadata.terminalNodeId,
-                ),
-                response: stripComposerPresentationMarkers(response),
+                presented: {
+                    channel: 'web',
+                    nodeIds: unique(
+                        [...prose.matchAll(SHOW_MARKER_REGEX)].map((m) => m[1]),
+                    ),
+                },
+                response: stripComposerPresentationMarkers(input.response),
             };
         }
-        case 'slack':
+        case 'slack': {
+            // Later calls win when two share an execution.
+            const byQueryUuid = new Map(
+                thisPromptComposerResults(
+                    input.promptUuid,
+                    input.toolResults,
+                ).map((metadata) => [metadata.queryUuid, metadata] as const),
+            );
             return {
-                presented: present(
-                    parseSlackVisualizationSelection(response).tableQueryUuids,
-                    (metadata) => metadata.queryUuid,
-                ),
-                response: stripSlackVisualizationSelection(response),
+                presented: {
+                    channel: 'slack',
+                    results: unique(
+                        parseSlackVisualizationSelection(input.response)
+                            .tableQueryUuids,
+                    ).flatMap((queryUuid) => {
+                        const metadata = byQueryUuid.get(queryUuid);
+                        return metadata ? [metadata] : [];
+                    }),
+                },
+                response: stripSlackVisualizationSelection(input.response),
             };
+        }
         default:
-            return assertUnreachable(channel, 'Unknown presentation channel');
+            return assertUnreachable(input, 'Unknown presentation channel');
     }
 };
 
-export type ComposerExecutionResult = {
-    columns: ResultColumns;
-    rows: Record<string, AnyType>[];
-    rowCount: number;
+export const hasComposerPresentations = (
+    presented: ComposerPresentationSelection,
+): boolean => {
+    switch (presented.channel) {
+        case 'web':
+            return presented.nodeIds.length > 0;
+        case 'slack':
+            return presented.results.length > 0;
+        default:
+            return assertUnreachable(presented, 'Unknown presentation channel');
+    }
 };
 
-/** One artifact version per presented node: its closure over the thread's
- * nodes, plus a viz config when a planner is given (web only). */
-export const buildComposerPresentations = async ({
+/** One table artifact version per presented node found in the thread's
+ * registry: its closure over the thread's nodes. */
+export const buildComposerPresentations = ({
     presented,
     threadNodes,
-    planViz: planner,
-    getExecutionResult,
-    previousVizConfig,
-    enableDataAccess,
 }: {
-    presented: ToolComposerQueriesSuccessMetadata[];
+    presented: ComposerPresentationSelection;
     threadNodes: ThreadComposerQueryNode[];
-    planViz: PlanComposerViz | null;
-    getExecutionResult: (queryUuid: string) => Promise<ComposerExecutionResult>;
-    previousVizConfig: AllVizChartConfig | null;
-    enableDataAccess: boolean;
-}): Promise<AiComposerArtifactVersion[]> => {
-    const planViz = async (
-        metadata: ToolComposerQueriesSuccessMetadata,
-        node: ThreadComposerQueryNode,
-        previous: AllVizChartConfig | null,
-    ): Promise<AllVizChartConfig | null> => {
-        if (!planner) return null;
-        try {
-            return await planner({
-                title: metadata.title,
-                description: metadata.description,
-                terminalNode: {
-                    title: node.title ?? null,
-                    description: node.description ?? null,
-                },
-                ...(await getExecutionResult(metadata.queryUuid)),
-                enableDataAccess,
-                previousVizConfig: previous,
-            });
-        } catch (error) {
-            // The version is still saved; it opens as a table.
-            Logger.error(
-                `Composer presentation could not plan a viz for node ${metadata.terminalNodeId} (query ${metadata.queryUuid}): ${String(error)}`,
-                error,
-            );
-            return null;
-        }
-    };
-    // Sequential so each plan starts from the one before it.
-    const { presentations } = await presented.reduce<
-        Promise<{
-            presentations: AiComposerArtifactVersion[];
-            previous: AllVizChartConfig | null;
-        }>
-    >(
-        (accumulator, metadata) =>
-            accumulator.then(async (acc) => {
-                const node = threadNodes.find(
-                    ({ nodeId }) => nodeId === metadata.terminalNodeId,
-                );
-                if (!node) return acc;
-                const vizConfig = await planViz(metadata, node, acc.previous);
-                return {
-                    presentations: [
-                        ...acc.presentations,
-                        toComposerArtifactVersion({
-                            title: metadata.title,
-                            description: metadata.description,
-                            queries: buildComposerArtifactPipeline({
-                                queries: [node],
-                                threadNodes,
-                            }),
-                            terminalNodeId: metadata.terminalNodeId,
-                            vizConfig,
-                        }),
-                    ],
-                    previous: vizConfig ?? acc.previous,
-                };
+}): AiComposerArtifactVersion[] => {
+    const byNodeId = new Map(threadNodes.map((node) => [node.nodeId, node]));
+    const toVersion = (
+        nodeId: string,
+        label: (node: ThreadComposerQueryNode) => {
+            title: string;
+            description: string | null;
+        },
+    ): AiComposerArtifactVersion[] => {
+        const node = byNodeId.get(nodeId);
+        if (!node) return [];
+        return [
+            toComposerArtifactVersion({
+                ...label(node),
+                queries: buildComposerArtifactPipeline({
+                    queries: [node],
+                    threadNodes,
+                }),
+                terminalNodeId: nodeId,
+                vizConfig: null,
             }),
-        Promise.resolve({ presentations: [], previous: previousVizConfig }),
-    );
-    return presentations;
+        ];
+    };
+    switch (presented.channel) {
+        case 'web':
+            return presented.nodeIds.flatMap((nodeId) =>
+                toVersion(nodeId, (node) => ({
+                    title: node.title ?? node.nodeId,
+                    description: node.description ?? null,
+                })),
+            );
+        case 'slack':
+            return presented.results.flatMap((metadata) =>
+                toVersion(metadata.terminalNodeId, () => ({
+                    title: metadata.title,
+                    description: metadata.description,
+                })),
+            );
+        default:
+            return assertUnreachable(presented, 'Unknown presentation channel');
+    }
 };

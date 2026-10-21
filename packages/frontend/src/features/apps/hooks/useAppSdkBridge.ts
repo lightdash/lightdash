@@ -1,4 +1,6 @@
 import {
+    APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
@@ -70,6 +72,126 @@ const getEmbedAuthHeaders = (
     embedToken: string | undefined,
 ): Record<string, string> =>
     embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
+
+type AppStateBridgeErrorCode =
+    | 'conflict'
+    | 'feature_disabled'
+    | 'forbidden'
+    | 'invalid'
+    | 'unavailable'
+    | 'unknown';
+
+type AppStateBridgeError = {
+    code: AppStateBridgeErrorCode;
+    message: string;
+    current?: unknown;
+};
+
+/**
+ * Map an app state API failure to the SDK's error codes. A 409 carries the
+ * key's current value so the SDK can retry an updater on top of it.
+ */
+export const mapAppStateApiError = (
+    httpStatus: number,
+    error: { message?: string; data?: unknown } | undefined,
+): AppStateBridgeError => {
+    const message =
+        error?.message ?? `App state request failed (${httpStatus})`;
+    const data =
+        typeof error?.data === 'object' && error.data !== null
+            ? (error.data as Record<string, unknown>)
+            : {};
+    if (httpStatus === 409) {
+        return { code: 'conflict', message, current: data.current ?? null };
+    }
+    if (httpStatus === 403) {
+        return {
+            code:
+                data.code === 'feature_not_enabled'
+                    ? 'feature_disabled'
+                    : 'forbidden',
+            message,
+        };
+    }
+    if (httpStatus === 400 || httpStatus === 422) {
+        return { code: 'invalid', message };
+    }
+    return { code: 'unknown', message };
+};
+
+type AppStateBridgeRequest = {
+    id: string;
+    op: unknown;
+    key?: unknown;
+    value?: unknown;
+    expectedVersion?: unknown;
+    limit?: unknown;
+    beforeVersion?: unknown;
+};
+
+/** Resolve an SDK app state op to the REST call the host makes as the viewer. */
+export const resolveAppStateRequest = (
+    base: string,
+    req: AppStateBridgeRequest,
+): {
+    method: 'GET' | 'PUT' | 'DELETE';
+    path: string;
+    body?: unknown;
+} | null => {
+    const key =
+        typeof req.key === 'string' ? encodeURIComponent(req.key) : null;
+    switch (req.op) {
+        case 'get':
+            return { method: 'GET', path: base };
+        case 'set-user':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/user/${key}`,
+                      body: { value: req.value },
+                  }
+                : null;
+        case 'delete-user':
+            return key
+                ? { method: 'DELETE', path: `${base}/user/${key}` }
+                : null;
+        case 'set-shared':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/shared/${key}`,
+                      body: {
+                          value: req.value,
+                          expectedVersion:
+                              typeof req.expectedVersion === 'number'
+                                  ? req.expectedVersion
+                                  : null,
+                      },
+                  }
+                : null;
+        case 'delete-shared':
+            return key
+                ? { method: 'DELETE', path: `${base}/shared/${key}` }
+                : null;
+        case 'history': {
+            if (!key) return null;
+            const params = new URLSearchParams();
+            if (typeof req.limit === 'number') {
+                params.set('limit', String(req.limit));
+            }
+            if (typeof req.beforeVersion === 'number') {
+                params.set('beforeVersion', String(req.beforeVersion));
+            }
+            const query = params.toString();
+            return {
+                method: 'GET',
+                path: `${base}/shared/${key}/history${query ? `?${query}` : ''}`,
+            };
+        }
+        default:
+            return null;
+    }
+};
 
 // Headers every API call made on the app's behalf carries: embed auth and
 // self-reported app attribution (the backend tags warehouse queries with it).
@@ -778,6 +900,76 @@ export function useAppSdkBridge({
                 } catch (e) {
                     respondGsheet({
                         error: e instanceof Error ? e.message : 'Export failed',
+                    });
+                }
+                return;
+            }
+
+            if (data?.type === APP_SDK_APP_STATE_MESSAGE) {
+                const req = data as AppStateBridgeRequest;
+                const respondAppState = (response: {
+                    result?: unknown;
+                    error?: AppStateBridgeError;
+                }) => {
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: APP_SDK_APP_STATE_RESPONSE_MESSAGE,
+                            id: req.id,
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+                // The backend authorizes the viewer against the app and
+                // enforces the flag and caps; the host only routes the call.
+                const resolved = resolveAppStateRequest(
+                    `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`,
+                    req,
+                );
+                if (!resolved) {
+                    respondAppState({
+                        error: {
+                            code: 'invalid',
+                            message: 'Unknown app state request',
+                        },
+                    });
+                    return;
+                }
+                try {
+                    const res = await fetch(resolveFetchUrl(resolved.path), {
+                        method: resolved.method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...getEmbedAuthHeaders(embedToken),
+                        },
+                        ...(resolved.body !== undefined
+                            ? { body: JSON.stringify(resolved.body) }
+                            : {}),
+                        // Writes flushed as the page unloads must outlive it.
+                        keepalive: resolved.method !== 'GET',
+                    });
+                    const json = await res.json();
+                    if (json.status === 'ok') {
+                        respondAppState({
+                            result:
+                                req.op === 'history'
+                                    ? (json.results?.versions ?? [])
+                                    : json.results,
+                        });
+                    } else {
+                        respondAppState({
+                            error: mapAppStateApiError(res.status, json.error),
+                        });
+                    }
+                } catch (err) {
+                    respondAppState({
+                        error: {
+                            code: 'unavailable',
+                            message:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'App state request failed',
+                        },
                     });
                 }
                 return;
