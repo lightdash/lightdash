@@ -832,6 +832,7 @@ export class AiAgentAdminService extends BaseService {
                       enableUserContext: agent.enableUserContext,
                       enableSqlMode: agent.enableSqlMode,
                       enableSqlAutoApproval: agent.enableSqlAutoApproval,
+                      enableComposerQueries: agent.enableComposerQueries,
                       adminOnly: agent.adminOnly,
                       version: agent.version,
                   }

@@ -125,6 +125,7 @@ const createCandidate = (
     enableUserContext: false,
     enableSqlMode: true,
     enableSqlAutoApproval: false,
+    enableComposerQueries: false,
     adminOnly: false,
     modelConfig: null,
     providerCredentialUuid: null,

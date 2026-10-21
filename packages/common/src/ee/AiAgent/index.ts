@@ -184,6 +184,7 @@ export const baseAgentSchema = z.object({
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
     enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     // AI provider credential this agent's prompts run on. Null means the
@@ -228,6 +229,7 @@ export type AiAgent = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -259,6 +261,7 @@ export type AiAgentSummary = Pick<
     | 'enableUserContext'
     | 'enableSqlMode'
     | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
     | 'providerCredentialUuid'
@@ -684,6 +687,7 @@ export type ApiCreateAiAgent = Pick<
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
     enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -716,6 +720,7 @@ export type ApiUpdateAiAgent = Partial<
     uuid: string;
     enableSqlMode?: boolean;
     enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     mcpServerUuids?: string[];
     // Omitted keeps the current pin; null clears it.
     providerCredentialUuid?: string | null;

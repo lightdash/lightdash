@@ -108,6 +108,7 @@ const formSchema = z.object({
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
     enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     providerCredentialUuid: z.string().nullable(),
@@ -322,6 +323,10 @@ export const AiAgentFormSetup = ({
 
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
+    );
+
+    const multiSourceQueryFlagQuery = useServerFeatureFlag(
+        FeatureFlags.MultiSourceQuery,
     );
 
     const isGroupsEnabled =
@@ -937,6 +942,10 @@ export const AiAgentFormSetup = ({
                                             'enableContentTools',
                                             false,
                                         );
+                                        form.setFieldValue(
+                                            'enableComposerQueries',
+                                            false,
+                                        );
                                     }
                                 }}
                             />
@@ -1000,6 +1009,26 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
+                            {multiSourceQueryFlagQuery.data?.enabled && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <SwitchLabel
+                                            text="Composer queries (beta)"
+                                            help="Requires reading rows to be enabled."
+                                            badge={null}
+                                        />
+                                    }
+                                    description="Queries run through the composer pipeline instead of the classic query tools."
+                                    {...form.getInputProps(
+                                        'enableComposerQueries',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    disabled={!form.values.enableDataAccess}
+                                />
+                            )}
                         </Stack>
 
                         <Text size="xs" c="dimmed">

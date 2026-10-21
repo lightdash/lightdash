@@ -81,6 +81,7 @@ const toAgentAsCode = (
     enableUserContext: agent.enableUserContext,
     enableSqlMode: agent.enableSqlMode,
     enableSqlAutoApproval: agent.enableSqlAutoApproval,
+    enableComposerQueries: agent.enableComposerQueries,
     // Omit rather than export null: a dumped `threadRetentionHours: null` in
     // every YAML would trip the flag-off warning on each re-upload.
     threadRetentionHours: agent.threadRetentionHours ?? undefined,
@@ -112,6 +113,7 @@ const getComparableAgent = (
     enableUserContext: agent.enableUserContext,
     enableSqlMode: agent.enableSqlMode ?? true,
     enableSqlAutoApproval: agent.enableSqlAutoApproval ?? false,
+    enableComposerQueries: agent.enableComposerQueries ?? false,
     ...(includeThreadRetention
         ? { threadRetentionHours: agent.threadRetentionHours ?? null }
         : {}),
@@ -613,6 +615,8 @@ export class AiAgentCoderService extends BaseService {
                         enableSqlMode: agent.enableSqlMode ?? true,
                         enableSqlAutoApproval:
                             agent.enableSqlAutoApproval ?? false,
+                        enableComposerQueries:
+                            agent.enableComposerQueries ?? false,
                         ...(retentionEnabled &&
                         agent.threadRetentionHours !== undefined
                             ? {
@@ -640,6 +644,7 @@ export class AiAgentCoderService extends BaseService {
                     enableUserContext: agent.enableUserContext,
                     enableSqlMode: agent.enableSqlMode ?? true,
                     enableSqlAutoApproval: agent.enableSqlAutoApproval ?? false,
+                    enableComposerQueries: agent.enableComposerQueries ?? false,
                     threadRetentionHours:
                         retentionEnabled &&
                         agent.threadRetentionHours !== undefined
