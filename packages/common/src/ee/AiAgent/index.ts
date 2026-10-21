@@ -33,6 +33,7 @@ import {
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadBinding,
+    type AiThreadBindingSummary,
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
@@ -421,7 +422,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     firstMessage: AiAgentThreadFirstMessage | null;
     user: TUser;
     liveStatus: AiAgentThreadLiveStatus | null;
-    binding: AiThreadBinding | null;
+    binding: AiThreadBindingSummary | null;
     /** Initial context set at creation. */
     threadContext: string | null;
 };

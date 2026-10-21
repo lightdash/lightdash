@@ -211,6 +211,7 @@ const BASE_ROLE_SCOPES = {
         'manage:ProjectHomepage', // Curated project homepages (EE)
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
+        'view:AiAgentThreadContext',
         'manage:ScheduledDeliveries',
 
         // Organization-management scopes. These are no-ops at project

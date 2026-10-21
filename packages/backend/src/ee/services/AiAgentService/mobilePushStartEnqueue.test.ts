@@ -17,6 +17,7 @@ const buildService = () => {
     const getThread = vi.fn(async () => ({
         uuid: threadUuid,
         user: { uuid: userUuid },
+        threadContext: null,
     }));
     const findThreadMessage = vi.fn(async () => ({ uuid: promptUuid }));
     const startLiveActivitiesForPrompt = vi.fn(async () => undefined);

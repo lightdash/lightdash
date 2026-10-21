@@ -95,6 +95,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'AiAgentDocument',
     'AiAgentSkill',
     'AiAgentThread',
+    'AiAgentThreadContext',
     'AiDeepResearch',
     'ContentAsCode',
     'PreAggregation',

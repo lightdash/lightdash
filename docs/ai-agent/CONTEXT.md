@@ -45,6 +45,22 @@ agent asks rather than guessing. Slack-started threads have no composer, so
 this is their only path to a theme.
 _Avoid_: theme picker (for the tool), design list
 
+**Bound dashboard**:
+The dashboard a thread is tied to for its whole life, set when the thread is
+created through the API. The agent may only change that dashboard and charts
+saved in it. Shown at the top of the thread as the linked dashboard; the
+launcher never pins a different dashboard into a bound thread. Per thread,
+unlike pinned context, which is per prompt.
+_Avoid_: pinned dashboard (for the binding), thread dashboard, scoped dashboard
+
+**Thread context**:
+Free text given when a thread is created through the API, such as a summary of
+an earlier conversation. The agent reads it on every turn; it never appears as
+a chat message. It may hold internal notes, so the API returns it only to
+viewers with `view:AiAgentThreadContext` (organization and project admins by
+default; never embed viewers). Shown collapsed at the top of the thread.
+_Avoid_: context (unqualified), initial prompt, system prompt
+
 **Mention**:
 Attaching content to a prompt by typing `@` and picking it from search, the
 current page, or the tiles of a pinned dashboard. A mention is one way to

@@ -30,6 +30,7 @@ import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
 import { JevChoiceChips } from './JevChoiceChips';
 import ThreadScrollToBottom from './ScrollToBottom';
+import { ThreadSetupHeader } from './ThreadSetupHeader';
 import { ChatElementsUtils } from './utils';
 
 type Props = {
@@ -204,6 +205,13 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     flex={1}
                 >
                     <Stack flex={1}>
+                        {projectUuid && (
+                            <ThreadSetupHeader
+                                thread={thread}
+                                projectUuid={projectUuid}
+                            />
+                        )}
+
                         {visibleMessages.map((message, i, xs) => (
                             <Fragment key={`${message.role}-${message.uuid}`}>
                                 {message.role === 'user' &&

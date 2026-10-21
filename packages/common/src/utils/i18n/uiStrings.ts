@@ -387,6 +387,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.nodeStatus.running': 'Running',
     'aiAgent.composer.nodeStatus.success': 'Completed',
     'aiAgent.composer.nodeStatus.error': 'Failed',
+    'aiAgent.thread.boundDashboard': 'Linked dashboard',
+    'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'explorer.back': 'Back',
     'explorer.backToDashboard': 'Back to Dashboard',
     'explorer.backToChart': 'Back to Chart',
