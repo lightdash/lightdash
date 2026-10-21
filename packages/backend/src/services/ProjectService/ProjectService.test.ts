@@ -3187,21 +3187,12 @@ describe('ProjectService', () => {
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 previewProjectUuid,
             );
-            projectModel.get
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                    dbtConnection: {
-                        ...primaryDbtConnection,
-                        branch: 'upstream-primary-branch',
-                    },
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                    dbtConnection: primaryDbtConnection,
-                });
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+                dbtConnection: primaryDbtConnection,
+            });
 
             try {
                 await previewService.createWithoutCompile(
@@ -3219,6 +3210,9 @@ describe('ProjectService', () => {
 
                 expect(copySources).toHaveBeenCalledWith(
                     upstreamProjectUuid,
+                    previewProjectUuid,
+                );
+                expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
                     previewProjectUuid,
                 );
                 expect(
@@ -3271,16 +3265,11 @@ describe('ProjectService', () => {
             const copyContentSpy = vi
                 .spyOn(service, 'copyContentOnPreview')
                 .mockResolvedValue();
-            vi.mocked(projectModel.get)
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                });
+            vi.mocked(projectModel.get).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
             return {
                 copyAccessSpy,
                 copyContentSpy,
@@ -3337,11 +3326,14 @@ describe('ProjectService', () => {
             );
         };
 
-        test('queues an opted-in org preview without copying in the request', async () => {
+        test('queues an opted-in preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
                 compile: null,
             });
+            expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
+                previewProjectUuid,
+            );
             expect(mocks.copyContentSpy).not.toHaveBeenCalled();
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
             expect(result).toMatchObject({
@@ -3370,7 +3362,11 @@ describe('ProjectService', () => {
             ).toHaveBeenCalledWith(
                 previewUser.userUuid,
                 previewUser.organizationUuid,
-                expect.objectContaining({}),
+                expect.objectContaining({
+                    name: 'Preview',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid,
+                }),
                 null,
                 undefined,
             );
@@ -3433,7 +3429,7 @@ describe('ProjectService', () => {
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
         });
 
-        test('waits for content before returning an org preview without opt-in', async () => {
+        test('waits for content before returning a preview without opt-in', async () => {
             let finishCopy!: () => void;
             mocks.copyContentSpy.mockImplementationOnce(
                 () =>
