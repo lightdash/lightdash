@@ -1,11 +1,7 @@
+import type { AiAgentLoadoutBase } from '@lightdash/common';
 import type { AiAgentArgs } from '../types/aiAgent';
 
-export type LoadoutBase =
-    | 'classic'
-    | 'composer'
-    | 'no_data_access'
-    | 'deep_research_worker'
-    | 'deep_research_coordinator';
+export type LoadoutBase = AiAgentLoadoutBase;
 
 export type AddOnName =
     | 'contentReads'

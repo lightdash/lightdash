@@ -1,4 +1,8 @@
-import type { AiAgentBattleProfile, AiAgentThread } from '@lightdash/common';
+import type {
+    AiAgentBattleProfile,
+    AiAgentLoadoutBase,
+    AiAgentThread,
+} from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { useContext, useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -51,6 +55,13 @@ const battleDecisionNames: Record<AiAgentBattleProfile, string> = {
     classic: 'JEV',
     composer: 'JEV',
 };
+const loadoutBaseNames: Record<AiAgentLoadoutBase, string> = {
+    classic: 'Classic',
+    composer: 'Composer',
+    no_data_access: 'No data access',
+    deep_research_worker: 'Deep research',
+    deep_research_coordinator: 'Deep research',
+};
 const NO_WINNERS: ReadonlySet<string> = new Set();
 
 // The ticker and stream updates stay here so they never re-render the chat.
@@ -73,6 +84,24 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                 .find((message) => message.role === 'assistant'),
         [thread.messages],
     );
+
+    // The loadout a query path side actually ran with can differ from its profile.
+    const loadoutBase = useMemo(
+        () =>
+            [...thread.messages]
+                .reverse()
+                .flatMap((message) =>
+                    message.role === 'assistant' && message.loadout
+                        ? [message.loadout.base]
+                        : [],
+                )[0] ?? null,
+        [thread.messages],
+    );
+    const isQueryPathSide =
+        thread.battleProfile === 'classic' ||
+        thread.battleProfile === 'composer';
+    const badgeLabel =
+        isQueryPathSide && loadoutBase ? loadoutBaseNames[loadoutBase] : label;
 
     const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
     // The thread's model never changes, so the first persisted config wins
@@ -141,7 +170,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                     variant="light"
                     color={battleColors[thread.battleProfile ?? 'baseline']}
                 >
-                    {label}
+                    {badgeLabel}
                 </Badge>
                 <Text size="sm" fw={600} truncate>
                     {modelDisplayName ?? 'Default model'}

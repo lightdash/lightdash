@@ -214,6 +214,19 @@ export type AiAgentBattleProfile =
     | 'classic'
     | 'composer';
 
+/** The exclusive core of an agent run's loadout. */
+export type AiAgentLoadoutBase =
+    | 'classic'
+    | 'composer'
+    | 'no_data_access'
+    | 'deep_research_worker'
+    | 'deep_research_coordinator';
+
+export type AiAgentPromptLoadout = {
+    base: AiAgentLoadoutBase;
+    addOns: string[];
+};
+
 export type AiPrompt = {
     organizationUuid: string;
     projectUuid: string;

@@ -571,6 +571,7 @@ import {
     RecordPromptDecisionFn,
     SendFileFn,
     SendSlackBlocksFn,
+    StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
     StoreToolCallFn,
@@ -13912,6 +13913,19 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
         };
 
+        const storeLoadout: StoreLoadoutFn = async (promptUuid, loadout) => {
+            try {
+                await this.aiAgentModel.updatePromptLoadout(
+                    promptUuid,
+                    loadout,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to store loadout for prompt ${promptUuid}: ${getErrorMessage(error)}`,
+                );
+            }
+        };
+
         const editDbtProject: EditDbtProjectFn = async (args) => {
             const writebackPrompt = args.prompt;
             const source = isSlackPrompt(prompt) ? 'slack' : 'web';
@@ -14437,6 +14451,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             storeToolCallError,
             storeToolResults,
             storeReasoning,
+            storeLoadout,
             isPromptInterrupted: (promptUuid: string) =>
                 this.aiAgentModel.hasAiPromptInterrupt(promptUuid),
             consumePromptSteers: (args: {
@@ -16778,6 +16793,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     storeToolCallError,
                     storeToolResults,
                     storeReasoning,
+                    storeLoadout,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,
@@ -17311,6 +17327,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         return storeToolResults(results);
                     },
                     storeReasoning,
+                    storeLoadout,
                     isPromptInterrupted,
                     consumePromptSteers,
                     searchFieldValues,

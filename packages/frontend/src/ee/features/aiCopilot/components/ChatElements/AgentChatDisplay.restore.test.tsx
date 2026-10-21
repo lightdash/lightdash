@@ -89,6 +89,7 @@ const assistantMessage = (
     tokenUsage: null,
     responseTiming: null,
     jevDecision: null,
+    loadout: null,
     ...overrides,
 });
 
