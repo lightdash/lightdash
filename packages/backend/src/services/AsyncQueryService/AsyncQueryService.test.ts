@@ -15751,6 +15751,7 @@ describe('runDuckdbQuery', () => {
             .spyOn(service, 'runAsyncWarehouseQuery')
             .mockResolvedValue(undefined);
         return {
+            service,
             run: (args: RunDuckdbQueryArgs) =>
                 (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
             runWarehouseQuery,
@@ -15840,6 +15841,54 @@ describe('runDuckdbQuery', () => {
         cacheKey: 'cache-key',
         context: QueryExecutionContext.EXPLORE,
         ...overrides,
+    });
+
+    it('times each stage of a run over query references', async () => {
+        const { warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { service, run, runWarehouseQuery, update } = buildService();
+        const observeComposerQueryStageDuration = vi.fn();
+        Object.assign(service, {
+            prometheusMetrics: {
+                observeComposerQueryStageDuration,
+                incrementQueryCacheHit: vi.fn(),
+            },
+        });
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { r: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+        runWarehouseQuery.mock.calls[0][0].onComposerStageTimed?.(
+            'execute',
+            12,
+        );
+
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+        expect(
+            observeComposerQueryStageDuration.mock.calls.map(
+                ([source, stage]) => `${source}.${stage}`,
+            ),
+        ).toEqual([
+            'duckdb.wait_references',
+            'duckdb.bind_references',
+            'duckdb.resolve_columns',
+            'duckdb.total',
+            'duckdb.execute',
+        ]);
     });
 
     // A results file name may contain '--'; the limit's comment stripper
@@ -21422,7 +21471,7 @@ describe('fresh stored result read boundary', () => {
                 cacheKey: 'key',
                 context: QueryExecutionContext.EXPLORE,
             };
-            const run = f.service['runDuckdbQuery'](args);
+            const run = f.service['runDuckdbQuery'](args, null);
             await vi.waitFor(() => expect(poll).toHaveBeenCalledOnce());
             expect(bind).not.toHaveBeenCalled();
             if (change === 'access') {
