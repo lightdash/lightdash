@@ -136,22 +136,11 @@ class Harness:
     def detail(self, model):
         return self.api.call('GET', f'/api/v1/projects/{self.project}/explores/{model}')
 
-    def restart(self, extra_env=None):
-        self.stop()
-        env = {**os.environ, 'NODE_OPTIONS': '--max-old-space-size=4096', **(extra_env or {})}
-        result = self.heavy_command([LDENV, 'start', '--no-wait', '--backend', 'bundle'], env)
-        self.enable_wrapper()
+    def restart(self):
+        self.operation('restart')
 
     def enable_wrapper(self):
-        env = {**self.env, 'PATH': str(SCRIPTS / 'bin') + os.pathsep + self.env['PATH']}
-        self.heavy_command(['pnpm', 'exec', 'pm2', 'restart', self.env['LD_INSTANCE_ID'] + '-api', '--update-env'], env)
-        for _ in range(90):
-            try:
-                self.api.call('GET', '/api/v1/health')
-                return
-            except Exception:
-                time.sleep(1)
-        raise RuntimeError('Own instance did not restart')
+        self.operation('enable-wrapper')
 
     def stop(self):
         command([LDENV, 'stop'], CHECKOUT, self.env, 60)

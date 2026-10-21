@@ -1,6 +1,20 @@
 import json
 from harness import *
 
+def wait_api(h):
+    for _ in range(90):
+        try:
+            h.api.call('GET', '/api/v1/health')
+            return
+        except Exception:
+            time.sleep(1)
+    raise RuntimeError('Own instance did not restart')
+
+def enable_wrapper(h):
+    env = {**h.env, 'PATH': str(SCRIPTS / 'bin') + os.pathsep + h.env['PATH']}
+    command(['pnpm', 'exec', 'pm2', 'restart', h.env['LD_INSTANCE_ID'] + '-api', '--update-env'], CHECKOUT, env, 60)
+    wait_api(h)
+
 server = SimpleNamespace(port=GIT_PORT, clone_count=0)
 h = Harness(server)
 h.project = os.environ.get('EXPLORATORY_PROJECT')
@@ -12,6 +26,15 @@ try:
         result = h.r.deploy(h.project, sys.argv[2], True)
     elif operation == 'setup':
         result = h.r.project(sys.argv[2], sys.argv[3], json.loads(sys.argv[4]))
+    elif operation == 'restart':
+        h.stop()
+        command([LDENV, 'start', '--no-wait', '--backend', 'bundle'], CHECKOUT, h.env, 180)
+        wait_api(h)
+        enable_wrapper(h)
+        result = {'healthy': True}
+    elif operation == 'enable-wrapper':
+        enable_wrapper(h)
+        result = {'healthy': True}
     elif operation == 'cancel-refresh':
         started = time.time()
         job = h.api.call('POST', f'/api/v1/projects/{h.project}/refresh')['jobUuid']
