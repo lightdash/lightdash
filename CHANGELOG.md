@@ -1,3 +1,15 @@
+# [3.9.0](https://github.com/lightdash/lightdash/compare/3.8.0...3.9.0) (2026-10-21)
+
+
+### Features
+
+* **pre-aggregates:** one per-organization switch for pre-aggregates ([#31295](https://github.com/lightdash/lightdash/issues/31295)) ([cc9f5c9](https://github.com/lightdash/lightdash/commit/cc9f5c9de5b5acfc9f400524e2b84bca408c86f5))
+
+
+### Performance Improvements
+
+* **charts:** keep one ECharts instance per chart across option and handler changes ([#31265](https://github.com/lightdash/lightdash/issues/31265)) ([8169f85](https://github.com/lightdash/lightdash/commit/8169f85b8a902284db5d44c8da33849e455e4d52))
+
 # [3.8.0](https://github.com/lightdash/lightdash/compare/3.7.0...3.8.0) (2026-10-21)
 
 
