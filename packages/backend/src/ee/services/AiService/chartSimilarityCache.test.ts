@@ -36,6 +36,7 @@ const setup = () => {
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
         getAccessibleModelIds: vi.fn(),
+        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
     };
     const service = new AiService({
         lightdashConfig: lightdashConfigMock,

@@ -51,7 +51,7 @@ const setup = (
             }),
         },
         orgAiCopilotConfigResolver: {
-            isOrgBedrockRouted: async () => false,
+            isOrgOnOwnProviderKeys: async () => false,
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     return { service, request, postMessage, featureFlagService };
@@ -189,7 +189,7 @@ describe.each([false, true])(
                     createToolResults,
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgBedrockRouted: async () => false,
+                    isOrgOnOwnProviderKeys: async () => false,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 

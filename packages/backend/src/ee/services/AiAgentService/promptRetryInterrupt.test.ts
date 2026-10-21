@@ -41,7 +41,9 @@ const buildService = (promptState: {
     const deleteAiPromptInterrupt = vi.fn().mockResolvedValue(undefined);
     const service = new AiAgentService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
-        orgAiCopilotConfigResolver: { isOrgBedrockRouted: async () => true },
+        orgAiCopilotConfigResolver: {
+            isOrgOnOwnProviderKeys: async () => true,
+        },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },
         },

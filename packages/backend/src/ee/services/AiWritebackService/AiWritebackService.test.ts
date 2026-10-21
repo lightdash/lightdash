@@ -181,6 +181,7 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
         analytics: { track: vi.fn() } as AnyType,
         orgAiCopilotConfigResolver: {
             isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+            isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
         } as AnyType,
         projectModel: {
             get: vi.fn(),

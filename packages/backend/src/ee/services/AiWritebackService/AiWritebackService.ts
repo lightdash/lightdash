@@ -3423,8 +3423,9 @@ export class AiWritebackService extends BaseService {
         }
 
         const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 organizationUuid,
+                projectUuid,
             ))
                 ? undefined
                 : await resolveAiDecisionClient(

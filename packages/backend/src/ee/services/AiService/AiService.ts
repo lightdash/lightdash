@@ -245,14 +245,20 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         input: ChartSimilarityInput,
         cachedOnly = false,
     ): Promise<ChartSimilarityMatch[] | undefined> {
-        const decisions = await resolveAiDecisionClient(
-            this.lightdashConfig.ai.decisions,
-            () =>
-                this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                }),
-        );
+        const decisions =
+            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
+                user.organizationUuid,
+                projectUuid,
+            ))
+                ? undefined
+                : await resolveAiDecisionClient(
+                      this.lightdashConfig.ai.decisions,
+                      () =>
+                          this.featureFlagService.get({
+                              user,
+                              featureFlagId: FeatureFlags.AiAgentFastDecisions,
+                          }),
+                  );
         const key = createHash('sha256')
             .update(
                 JSON.stringify([
