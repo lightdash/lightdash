@@ -855,6 +855,38 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).toContain('Why did &lt;revenue&gt; fall?');
         expect(content).toContain('getKnowledgeDocumentContent');
         expect(content).toContain('implicitly start a duplicate run');
+        expect(content).toContain('You cannot update a published report here');
+        expect(content).toContain('"Create and edit content"');
+        expect(content).not.toContain('`editContent` it');
+    });
+
+    test('lets content tools update a published report in place', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableContentTools: true,
+            deepResearchRuns: [
+                {
+                    uuid: 'run-1',
+                    question: 'Why did revenue fall?',
+                    status: 'completed',
+                    phase: null,
+                    activity: null,
+                    progressCurrent: null,
+                    progressTotal: null,
+                    startedAt: '2026-07-29T10:00:00.000Z',
+                    elapsedSeconds: 600,
+                    hasReport: true,
+                },
+            ],
+        });
+
+        expect(content).toContain(
+            '`readContent` it by its Document slug, then `editContent` it',
+        );
+        expect(content).toContain('new version of the same Document');
+        expect(content).not.toContain(
+            'You cannot update a published report here',
+        );
     });
 });
 
