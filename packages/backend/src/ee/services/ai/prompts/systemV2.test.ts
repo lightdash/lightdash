@@ -60,23 +60,24 @@ const normalizeFilterModeSections = (
         .replace(filterGuidance, '{{filter guidance}}');
 
 describe('getSystemPromptV2 filter expressions', () => {
-    test('keeps the complete flag-off prompt byte-identical', () => {
+    test('keeps the classic prompt byte-identical', () => {
         const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.flag-off.txt'),
+            join(__dirname, '__fixtures__/systemV2.classic.txt'),
         );
         const rendered = Buffer.from(
             promptText({
                 availableExplores: [],
                 date: '2026-08-27',
+                canRunQuery: true,
             }),
         );
 
         expect(rendered.equals(baseline)).toBe(true);
     });
 
-    test('keeps the flag-off prompt with every capability byte-identical', () => {
+    test('keeps the classic prompt with every capability byte-identical', () => {
         const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.flag-off-capabilities.txt'),
+            join(__dirname, '__fixtures__/systemV2.classic-capabilities.txt'),
         );
         const rendered = Buffer.from(
             promptText({
@@ -92,6 +93,7 @@ describe('getSystemPromptV2 filter expressions', () => {
                 date: '2026-08-27',
                 enableDataAccess: true,
                 canRunSql: true,
+                canRunQuery: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 runSqlMaxLimit: 5000,
@@ -464,26 +466,20 @@ describe('getSystemPromptV2 response content', () => {
         );
     });
 
-    test('states the working-notes rule once in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
+    test('states the working-notes rule once', () => {
+        const content = promptText({ availableExplores: [] });
         expect(
-            fast.split('Do not write context-preservation notes').length - 1,
+            content.split('Do not write context-preservation notes').length - 1,
         ).toBe(1);
-        expect(extractResponseFormat(fast)).toContain(
+        expect(extractResponseFormat(content)).toContain(
             'Do not write context-preservation notes, scratchpads',
         );
     });
 });
 
 describe('getSystemPromptV2 merge queries', () => {
-    test('keeps context housekeeping private and separates observations from causes in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
+    test('keeps context housekeeping private and separates observations from causes', () => {
+        const fast = promptText({ availableExplores: [] });
         expect(fast).toContain('All assistant text is user-visible');
         expect(fast).toContain('Prior assistant notes are not evidence');
         expect(fast).toContain(
@@ -495,11 +491,8 @@ describe('getSystemPromptV2 merge queries', () => {
         );
     });
 
-    test('allows complete web tables and avoids redundant titles in fast mode', () => {
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
+    test('allows complete web tables and avoids redundant titles', () => {
+        const fast = promptText({ availableExplores: [] });
         expect(fast).toContain(
             'Markdown tables with a header, separator and data rows',
         );
@@ -508,14 +501,23 @@ describe('getSystemPromptV2 merge queries', () => {
         expect(fast).toContain('Do not repeat the artifact title');
     });
 
+    test('names runQuery for small tables only when the agent has it', () => {
+        expect(
+            promptText({ availableExplores: [], canRunQuery: true }),
+        ).toContain(
+            'For a small tabular answer, use runQuery and present its results as a Markdown table',
+        );
+        const withoutRunQuery = promptText({ availableExplores: [] });
+        expect(withoutRunQuery).toContain(
+            'For a small tabular answer, present the results as a Markdown table',
+        );
+        expect(withoutRunQuery).not.toContain('runQuery');
+    });
+
     test.each([{ slackChannelId: 'channel' }, { slackLinksOnly: true }])(
         'retains Slack table restrictions: %j',
         (slack) => {
-            const fast = promptText({
-                promptSections: new Set<PromptSection>(['fastMetadata']),
-                availableExplores: [],
-                ...slack,
-            });
+            const fast = promptText({ availableExplores: [], ...slack });
             expect(fast).toContain('Never produce markdown tables');
             expect(fast).not.toContain(
                 'Markdown tables with a header, separator and data rows',
@@ -523,15 +525,8 @@ describe('getSystemPromptV2 merge queries', () => {
         },
     );
 
-    test('requires result-backed comparisons in fast mode only', () => {
-        const baseline = promptText({ availableExplores: [] });
-        const fast = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
-            availableExplores: [],
-        });
-        expect(baseline).not.toContain(
-            'Category labels are values, not comparisons',
-        );
+    test('requires result-backed comparisons', () => {
+        const fast = promptText({ availableExplores: [] });
         expect(fast).toContain(
             'A label such as "Low Cost" does not prove that its group is cheaper',
         );
@@ -624,7 +619,6 @@ describe('getSystemPromptV2 composer queries', () => {
                             'contentTools',
                             'documents',
                             'aiWriteback',
-                            'fastMetadata',
                         ),
                         canRunSql,
                         enableDataAccess: true,
@@ -710,25 +704,17 @@ describe('getSystemPromptV2 knowledge documents', () => {
         content: 'Net revenue excludes refunds.',
     } satisfies AiAgentDocumentContext;
 
-    test.each([false, true])(
-        'recognizes preloaded documents only in fast mode: %s',
-        (enableFastMetadata) => {
-            const content = promptText({
-                availableExplores: [],
-                knowledgeDocuments: [document],
-                promptSections: new Set<PromptSection>(
-                    enableFastMetadata ? ['fastMetadata'] : [],
-                ),
-            });
-            expect(
-                content.includes(
-                    'whose complete content has not already been preloaded for this request',
-                ),
-            ).toBe(enableFastMetadata);
-            expect(content).toContain('Multiple matches → read each of them.');
-            expect(content).not.toContain('{{unloaded_knowledge_documents}}');
-        },
-    );
+    test('recognizes preloaded documents', () => {
+        const content = promptText({
+            availableExplores: [],
+            knowledgeDocuments: [document],
+        });
+        expect(content).toContain(
+            'whose complete content has not already been preloaded for this request',
+        );
+        expect(content).toContain('Multiple matches → read each of them.');
+        expect(content).not.toContain('{{unloaded_knowledge_documents}}');
+    });
 
     test('includes full content for documents configured to always load', () => {
         const content = promptText({
@@ -1311,7 +1297,6 @@ describe('getSystemPromptV2 Slack chart selection', () => {
         { enableDataAccess: false, slackLinksOnly: true },
     ])('selects useful charts for every Slack sharing mode: %j', (flags) => {
         const content = promptText({
-            promptSections: new Set<PromptSection>(['fastMetadata']),
             availableExplores: [],
             slackChannelId: 'channel',
             ...flags,
@@ -1358,39 +1343,27 @@ describe('getSystemPromptV2 Slack chart selection', () => {
 });
 
 describe('getSystemPromptV2 Slack table selection', () => {
-    test.each([false, true])(
-        'prefers summaries and selectively renders useful current-turn tables in Slack (fast: %s)',
-        (enableFastMetadata) => {
-            const content = promptText({
-                availableExplores: [],
-                slackChannelId: 'channel',
-                enableDataAccess: true,
-                promptSections: new Set<PromptSection>(
-                    enableFastMetadata ? ['fastMetadata'] : [],
-                ),
-            });
-            expect(content).toContain('a summary is the default');
-            expect(content).toContain(
-                '<slack-table queryUuid="<queryUuid>" />',
-            );
-            expect(content).toContain('The marker is hidden from visible text');
-            expect(content).toContain('on its own line in your final response');
-            expect(content).toContain(
-                'Select at most 10 requested or useful final tables',
-            );
-            expect(content).toContain(
-                'Never automatically include every table',
-            );
-            expect(content).toContain(
-                'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
-            );
-            if (enableFastMetadata) {
-                expect(content).not.toContain(
-                    'Slack result cards are attached automatically',
-                );
-            }
-        },
-    );
+    test('prefers summaries and selectively renders useful current-turn tables in Slack', () => {
+        const content = promptText({
+            availableExplores: [],
+            slackChannelId: 'channel',
+            enableDataAccess: true,
+        });
+        expect(content).toContain('a summary is the default');
+        expect(content).toContain('<slack-table queryUuid="<queryUuid>" />');
+        expect(content).toContain('The marker is hidden from visible text');
+        expect(content).toContain('on its own line in your final response');
+        expect(content).toContain(
+            'Select at most 10 requested or useful final tables',
+        );
+        expect(content).toContain('Never automatically include every table');
+        expect(content).toContain(
+            'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
+        );
+        expect(content).not.toContain(
+            'Slack result cards are attached automatically',
+        );
+    });
 
     test.each([
         { slackChannelId: null, enableDataAccess: true, slackLinksOnly: false },
@@ -1407,11 +1380,7 @@ describe('getSystemPromptV2 Slack table selection', () => {
     ])(
         'omits table selection guidance where it is unavailable: %j',
         (flags) => {
-            const content = promptText({
-                promptSections: new Set<PromptSection>(['fastMetadata']),
-                availableExplores: [],
-                ...flags,
-            });
+            const content = promptText({ availableExplores: [], ...flags });
             expect(content).not.toContain('<slack-table');
             expect(content).not.toContain(
                 'renders that execution as a native Slack table',
@@ -1469,7 +1438,6 @@ describe('getSystemPromptV2 existing chart export', () => {
 describe('getSystemPromptV2 deferred capability sections', () => {
     const capabilities = {
         promptSections: new Set<PromptSection>([
-            'fastMetadata',
             'contentTools',
             'schedulingTools',
             'generateDataApp',
@@ -1477,6 +1445,7 @@ describe('getSystemPromptV2 deferred capability sections', () => {
         ]),
         availableExplores: [],
         canRunSql: true,
+        canRunQuery: true,
     };
 
     test('omits deferred sections and returns them for loadAgentTools', () => {

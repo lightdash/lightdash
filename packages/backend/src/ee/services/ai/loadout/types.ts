@@ -97,7 +97,6 @@ export type PromptSection =
     | 'aiWriteback'
     | 'codingAgent'
     | 'repoFs'
-    | 'fastMetadata'
     | 'skills'
     | 'mcpTools'
     | 'projectContext'

@@ -137,11 +137,10 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: null,
     },
     intentRouting: {
-        description:
-            'Start each turn with the tools its intent needs and the fast decision guidance',
+        description: 'Start each turn with the tools its intent needs',
         when: hasDecisionsInStandardMode,
         tools: ['loadAgentTools'],
-        section: { id: 'fastMetadata', documents: [] },
+        section: null,
     },
     skills: {
         description: 'Load skills enabled on the agent',

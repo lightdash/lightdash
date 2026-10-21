@@ -160,6 +160,7 @@ const renderPrompt = (loadout: Loadout) =>
         date: '2026-08-27',
         promptSections: loadout.promptSections,
         enableDataAccess: loadout.base === 'composer',
+        canRunQuery: loadout.toolNames.has('runQuery'),
     }).content;
 
 const fixture = (name: string) =>
@@ -178,13 +179,13 @@ describe('loadout contracts', () => {
         ).toMatchFileSnapshot('__snapshots__/bases/composer.prompt.txt');
     });
 
-    test('classic without add-ons renders the flag-off prompt', () => {
+    test('classic without add-ons renders the classic prompt', () => {
         expect(renderPrompt(buildLoadout('classic', fullInput, []))).toBe(
-            fixture('systemV2.flag-off.txt'),
+            fixture('systemV2.classic.txt'),
         );
     });
 
-    test('classic resolved from the capability flags renders the flag-off capabilities prompt', () => {
+    test('classic resolved from the capability flags renders the classic capabilities prompt', () => {
         const loadout = resolveLoadout({
             ...minimalInput,
             enableDataAccess: true,
@@ -202,13 +203,14 @@ describe('loadout contracts', () => {
                 promptSections: loadout.promptSections,
                 enableDataAccess: true,
                 canRunSql: true,
+                canRunQuery: loadout.toolNames.has('runQuery'),
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 runSqlMaxLimit: 5000,
                 slackChannelId: null,
                 availableSkills: [SKILL],
             }).content,
-        ).toBe(fixture('systemV2.flag-off-capabilities.txt'));
+        ).toBe(fixture('systemV2.classic-capabilities.txt'));
     });
 
     test('each add-on on classic', async () => {
@@ -300,6 +302,17 @@ describe('resolveLoadout', () => {
         expect(
             CLASSIC_QUERY_TOOLS.filter((tool) => toolNames.has(tool)),
         ).toEqual([]);
+    });
+
+    test('classic answers with runQuery without a decision client', () => {
+        const loadout = resolveLoadout({
+            ...minimalInput,
+            enableDataAccess: true,
+        });
+        expect(loadout.base).toBe('classic');
+        expect(loadout.addOns.has('intentRouting')).toBe(false);
+        expect(loadout.toolNames.has('runQuery')).toBe(true);
+        expect(loadout.toolNames.has('exportChartAsCode')).toBe(true);
     });
 
     // The sqlCatalog section keeps its `runSql` id; its composer text names sql nodes.

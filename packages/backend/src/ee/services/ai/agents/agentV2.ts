@@ -2032,7 +2032,7 @@ export const getAgentTools = (
                 maxLimit: args.maxQueryLimit,
                 maxContextRows: args.maxContextRows,
                 exposeQueryUuid: args.execution.mode === 'deep_research',
-                enableChartExport: hasDecisionsInStandardMode(args),
+                enableChartExport: loadout.toolNames.has('exportChartAsCode'),
                 enableDataAccess: args.enableDataAccess,
                 projectParameterDefinitions,
                 slackLinksOnly: args.slackLinksOnly,
@@ -2487,6 +2487,7 @@ const getCapabilitySectionArgs = (
     warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
     runSqlMaxLimit: args.runSqlMaxLimit,
+    canRunQuery: loadout.toolNames.has('runQuery'),
 });
 
 export const getAgentMessages = (
