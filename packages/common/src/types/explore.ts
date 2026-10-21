@@ -119,6 +119,8 @@ export type DbtExploreIdentity = {
     packageName: string;
     uniqueId: string;
     modelName: string;
+    version?: string | number | null;
+    latestVersion?: string | number | null;
 };
 
 export type Explore = {

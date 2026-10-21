@@ -1,7 +1,12 @@
 #!/bin/sh
 
 GENERATED_API_FILES="packages/backend/src/generated/routes.ts packages/backend/src/generated/swagger.json"
-if git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
+if git rev-parse --verify -q MERGE_HEAD >/dev/null; then
+  if ! git diff --cached --quiet MERGE_HEAD -- $GENERATED_API_FILES; then
+    git restore --source=MERGE_HEAD --staged -- $GENERATED_API_FILES || exit 1
+    echo "Preserved generated API artifacts from the merge parent."
+  fi
+elif git diff --cached --name-only -- $GENERATED_API_FILES | grep -q .; then
   git restore --staged -- $GENERATED_API_FILES
   echo "Unstaged generated API artifacts; they are committed by the release workflow."
 fi

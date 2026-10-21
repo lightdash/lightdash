@@ -1027,6 +1027,7 @@ export const applyMetricFlowMetricsToModels = (
                 models.map((model) => ({
                     uniqueId: model.unique_id,
                     name: model.name,
+                    version: model.version,
                     lightdash_source_name: model.lightdash_source_name,
                     package_name: model.package_name,
                 })),

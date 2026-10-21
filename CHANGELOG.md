@@ -1,3 +1,29 @@
+## [3.20.2](https://github.com/lightdash/lightdash/compare/3.20.1...3.20.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dbt:** don't treat versions of one model as an explore name collision ([#31367](https://github.com/lightdash/lightdash/issues/31367)) ([ba2c8a7](https://github.com/lightdash/lightdash/commit/ba2c8a7c9e91be3de54fcaa5a66e179140e072c8))
+
+## [3.20.1](https://github.com/lightdash/lightdash/compare/3.20.0...3.20.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dbt:** accept empty model selections from dbt ls ([#31283](https://github.com/lightdash/lightdash/issues/31283)) ([fbc8294](https://github.com/lightdash/lightdash/commit/fbc8294e5d9adf3d5cec39a987d4c74cac77c707)), closes [#31113](https://github.com/lightdash/lightdash/issues/31113)
+
+# [3.20.0](https://github.com/lightdash/lightdash/compare/3.19.0...3.20.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* stop cross-source staleness loop when a one-arg ref is disambiguated by an explicit two-arg ref ([#31313](https://github.com/lightdash/lightdash/issues/31313)) ([b4fbe77](https://github.com/lightdash/lightdash/commit/b4fbe779561f8077259dc6beb504f45b6dfe3238))
+
+
+### Features
+
+* **dashboards:** answer a new tile's link prompts in one card ([#31354](https://github.com/lightdash/lightdash/issues/31354)) ([af651b8](https://github.com/lightdash/lightdash/commit/af651b84bec846c64d4130185b2a8d315735502f))
+
 # [3.19.0](https://github.com/lightdash/lightdash/compare/3.18.3...3.19.0) (2026-10-21)
 
 

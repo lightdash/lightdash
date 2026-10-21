@@ -1816,6 +1816,86 @@ describe('merged manifest model qualification', () => {
         ).not.toHaveProperty('finance__customers.customer_name');
     });
 
+    it('qualifies versioned models without treating their versions as collisions', async () => {
+        const models = ['analytics', 'finance'].flatMap((sourceName) =>
+            [1, 2].map((version) => ({
+                ...buildMergedModel({
+                    sourceName,
+                    packageName: sourceName,
+                    name: 'orders',
+                }),
+                unique_id: `model.${sourceName}.orders.v${version}`,
+                version,
+                latest_version: 2,
+                alias: `orders_v${version}`,
+                relation_name: `${sourceName}.orders_v${version}`,
+            })),
+        );
+        const explores = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(explores.every((explore) => !isExploreError(explore))).toBe(
+            true,
+        );
+        expect(explores.map(({ name }) => name)).toEqual([
+            'analytics__orders',
+            'analytics__orders',
+            'finance__orders',
+            'finance__orders',
+        ]);
+        const analytics = explores.find(
+            (explore) => explore.name === 'analytics__orders',
+        ) as Explore;
+        expect(analytics.tables.analytics__orders.sqlTable).toBe(
+            'analytics.orders_v2',
+        );
+    });
+
+    it.each([null, 1, 2])(
+        'keeps single-source version naming with selection %s',
+        async (selectedVersion) => {
+            const models = [1, 2]
+                .filter(
+                    (version) =>
+                        selectedVersion === null || version === selectedVersion,
+                )
+                .map((version) => ({
+                    ...buildMergedModel({
+                        sourceName: 'analytics',
+                        packageName: 'pkg_a',
+                        name: 'orders',
+                    }),
+                    lightdash_source_name: undefined,
+                    unique_id: `model.pkg_a.orders.v${version}`,
+                    version,
+                    latest_version: 2,
+                    alias: `orders_v${version}`,
+                    relation_name: `analytics.orders_v${version}`,
+                }));
+            const explores = await convertExplores(
+                models,
+                false,
+                SupportedDbtAdapter.POSTGRES,
+                warehouseClientMock,
+                { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+            );
+
+            expect(explores.map(({ name }) => name)).toEqual(
+                models.map(() => 'orders'),
+            );
+            for (const explore of explores as Explore[]) {
+                expect(explore.tables.orders.sqlTable).toBe(
+                    `analytics.orders_v${selectedVersion ?? 2}`,
+                );
+            }
+        },
+    );
+
     it('rejects a qualified name that collides with a genuine model name', async () => {
         await expect(
             convertExplores(

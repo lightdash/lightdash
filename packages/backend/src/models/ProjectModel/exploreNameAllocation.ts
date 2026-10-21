@@ -29,9 +29,45 @@ export type ExploreNaming = {
     refreshedSourceUuids: string[];
     warnings: string[];
     onPublished?: (explores: (Explore | ExploreError)[]) => void;
+    sourceMapping?: {
+        sourcesByPackage: ReadonlyMap<string, string>;
+        sourceAliases: ReadonlyMap<string, string>;
+    };
 };
 
 type Candidate = { identity: DbtExploreIdentity; references: Set<string> };
+
+export const getLegacyPrimaryExploreNames = async (
+    database: Knex | Knex.Transaction,
+    projectUuid: string,
+): Promise<string[]> => {
+    const allocations = await database(ExploreNameAllocationsTableName)
+        .where('project_uuid', projectUuid)
+        .first();
+    if (allocations) return [];
+    const cached = await database(CachedExploreTableName)
+        .where('project_uuid', projectUuid)
+        .select('name', 'explore', 'warehouse_connection_uuid');
+    const dbtExplores = cached.filter(
+        ({ explore }) =>
+            !isUserManagedExplore(explore) && !isExploreError(explore),
+    );
+    if (
+        dbtExplores.some(
+            ({ explore, warehouse_connection_uuid }) =>
+                warehouse_connection_uuid !== null ||
+                !explore.tables?.[explore.baseTable] ||
+                explore.dbtModelIdentity?.sourceUuid != null ||
+                Object.values(explore.tables as Explore['tables']).some(
+                    (table) =>
+                        table.dbtSourceUuid !== undefined ||
+                        table.dbtSourceName !== undefined,
+                ),
+        )
+    )
+        return [];
+    return dbtExplores.map(({ name }) => name);
+};
 
 export const allocateStagedExploreNames = async (
     trx: Knex.Transaction,
@@ -81,26 +117,143 @@ export const allocateStagedExploreNames = async (
         uniqueId: allocation.model_unique_id,
         modelName: allocation.model_name,
     });
-    const cached = await trx(CachedExploreTableName)
+    let cached = await trx(CachedExploreTableName)
         .where('project_uuid', projectUuid)
         .select('name', 'explore', 'warehouse_connection_uuid');
+    if (naming.sourceMapping) {
+        const { sourcesByPackage, sourceAliases } = naming.sourceMapping;
+        const changed: { name: string; explore: Explore | ExploreError }[] = [];
+        cached = cached.map((row) => {
+            const explore = row.explore as Explore | ExploreError;
+            if (isUserManagedExplore(explore)) return row;
+            const table = explore.tables?.[explore.baseTable ?? explore.name];
+            const stamped =
+                table?.dbtSourceUuid ??
+                (isExploreError(explore)
+                    ? (explore as ExploreError & { dbtSourceUuid?: string })
+                          .dbtSourceUuid
+                    : undefined);
+            let sourceUuid: string | undefined;
+            if (stamped) sourceUuid = sourceAliases.get(stamped) ?? stamped;
+            else if (table?.dbtPackageName)
+                sourceUuid = sourcesByPackage.get(table.dbtPackageName);
+            if (!sourceUuid || !sourceNames.has(sourceUuid)) return row;
+            if (
+                stamped === sourceUuid &&
+                (!explore.dbtModelIdentity ||
+                    explore.dbtModelIdentity.sourceUuid === sourceUuid)
+            )
+                return row;
+            const normalized = {
+                ...explore,
+                ...(explore.dbtModelIdentity
+                    ? {
+                          dbtModelIdentity: {
+                              ...explore.dbtModelIdentity,
+                              sourceUuid,
+                              sourceName: sourceNames.get(sourceUuid) ?? null,
+                          },
+                      }
+                    : {}),
+                ...(table
+                    ? {
+                          tables: {
+                              ...explore.tables,
+                              [explore.baseTable ?? explore.name]: {
+                                  ...table,
+                                  dbtSourceUuid: sourceUuid,
+                                  dbtSourceName: sourceNames.get(sourceUuid),
+                              },
+                          },
+                      }
+                    : { dbtSourceUuid: sourceUuid }),
+            } as Explore | ExploreError;
+            changed.push({ name: row.name, explore: normalized });
+            return { ...row, explore: normalized };
+        });
+        await chunk(changed, 500).reduce(async (previous, rows) => {
+            await previous;
+            await trx.raw(
+                'UPDATE ?? AS cached SET explore = normalized.explore FROM jsonb_to_recordset(?::jsonb) AS normalized(name text, explore jsonb) WHERE cached.project_uuid = ? AND cached.name = normalized.name',
+                [CachedExploreTableName, JSON.stringify(rows), projectUuid],
+            );
+        }, Promise.resolve());
+    }
     const existing = await trx(ExploreNameAllocationsTableName)
         .where('project_uuid', projectUuid)
         .select('*');
     const existingOwners = existing.filter(isOwnedExploreNameAllocation);
-    const modelsBySourceAndName = new Map<string, DbtExploreIdentity[]>();
-    [...naming.models, ...existingOwners.map(allocationIdentity)].forEach(
-        (model) => {
-            const key = JSON.stringify([sourceKey(model), model.modelName]);
-            modelsBySourceAndName.set(key, [
-                ...(modelsBySourceAndName.get(key) ?? []),
-                model,
-            ]);
-        },
-    );
-    const staged = await trx(CachedExploreStagingTableName)
+    const stagedRows = await trx(CachedExploreStagingTableName)
         .where({ project_uuid: projectUuid, save_uuid: saveUuid })
         .select('*');
+    const versionKey = (identity: DbtExploreIdentity) =>
+        JSON.stringify([
+            sourceKey(identity),
+            identity.packageName,
+            identity.modelName,
+        ]);
+    const selectedVersions = new Map<string, DbtExploreIdentity>();
+    const stagedModels = stagedRows.flatMap(
+        ({ explore }: { explore: Explore | ExploreError }) =>
+            explore.dbtModelIdentity ? [explore.dbtModelIdentity] : [],
+    );
+    [...naming.models, ...stagedModels].forEach((identity) => {
+        if (identity.version == null) return;
+        const key = versionKey(identity);
+        const current = selectedVersions.get(key);
+        const isLatest = (model: DbtExploreIdentity) =>
+            model.latestVersion != null &&
+            String(model.version) === String(model.latestVersion);
+        if (!current || isLatest(identity) || !isLatest(current))
+            selectedVersions.set(key, identity);
+    });
+    const isVersionOf = (uniqueId: string, selected: DbtExploreIdentity) => {
+        if (selected.version == null) return false;
+        const version = String(selected.version);
+        if (!selected.uniqueId.endsWith(`.v${version}`)) return false;
+        const prefix = selected.uniqueId.slice(0, -version.length);
+        return uniqueId.startsWith(prefix) && uniqueId.length > prefix.length;
+    };
+    const selectedIdentity = (identity: DbtExploreIdentity) => {
+        const selected = selectedVersions.get(versionKey(identity));
+        return selected && isVersionOf(identity.uniqueId, selected)
+            ? selected
+            : identity;
+    };
+    const models = naming.models.filter(
+        (identity) => selectedIdentity(identity).uniqueId === identity.uniqueId,
+    );
+    const staged = stagedRows.filter(
+        ({ explore }: { explore: Explore | ExploreError }) =>
+            !explore.dbtModelIdentity ||
+            selectedIdentity(explore.dbtModelIdentity).uniqueId ===
+                explore.dbtModelIdentity.uniqueId,
+    );
+    const versionUpdates = existingOwners.flatMap((allocation) => {
+        const identity = allocationIdentity(allocation);
+        const selected = selectedIdentity(identity);
+        return selected.uniqueId !== identity.uniqueId
+            ? [{ allocation, selected }]
+            : [];
+    });
+    await versionUpdates.reduce(async (previous, { allocation, selected }) => {
+        await previous;
+        await trx(ExploreNameAllocationsTableName)
+            .where(
+                'explore_name_allocation_uuid',
+                allocation.explore_name_allocation_uuid,
+            )
+            .update({ model_unique_id: selected.uniqueId });
+        Object.assign(allocation, { model_unique_id: selected.uniqueId });
+    }, Promise.resolve());
+    const modelsBySourceAndName = new Map<string, DbtExploreIdentity[]>();
+    [...models, ...existingOwners.map(allocationIdentity)].forEach((model) => {
+        const key = JSON.stringify([sourceKey(model), model.modelName]);
+        modelsBySourceAndName.set(key, [
+            ...(modelsBySourceAndName.get(key) ?? []),
+            model,
+        ]);
+    });
     const candidates = new Map<string, Candidate>();
     const add = (identity: DbtExploreIdentity, reference?: string) => {
         const key = ownerKey(identity);
@@ -111,7 +264,7 @@ export const allocateStagedExploreNames = async (
         if (reference !== undefined) candidate.references.add(reference);
         candidates.set(key, candidate);
     };
-    naming.models.forEach((identity) =>
+    models.forEach((identity) =>
         add(
             identity,
             getDeferredExploreName({
@@ -123,7 +276,8 @@ export const allocateStagedExploreNames = async (
     const identityOf = (
         explore: Explore | ExploreError,
     ): DbtExploreIdentity => {
-        if (explore.dbtModelIdentity) return explore.dbtModelIdentity;
+        if (explore.dbtModelIdentity)
+            return selectedIdentity(explore.dbtModelIdentity);
         const table = explore.tables?.[explore.baseTable ?? explore.name];
         const sourceUuid =
             table?.dbtSourceUuid ??
@@ -148,7 +302,7 @@ export const allocateStagedExploreNames = async (
             );
         const packageName =
             table?.dbtPackageName ?? matching?.packageName ?? '';
-        return {
+        return selectedIdentity({
             sourceUuid,
             sourceName: namespace,
             packageName,
@@ -157,7 +311,7 @@ export const allocateStagedExploreNames = async (
                 matching?.uniqueId ??
                 `model.${packageName}.${modelName}`,
             modelName,
-        };
+        });
     };
     const providers = new Map<
         string,
@@ -181,6 +335,10 @@ export const allocateStagedExploreNames = async (
     cached.forEach(({ name, explore }) => {
         if (!isUserManagedExplore(explore))
             addProvider(identityOf(explore), name);
+    });
+    staged.forEach(({ explore }: { explore: Explore | ExploreError }) => {
+        if (!isUserManagedExplore(explore))
+            addProvider(identityOf(explore), explore.name);
     });
     const providersByReference = new Map<string, DbtExploreIdentity[]>();
     const providersByModel = new Map<string, DbtExploreIdentity[]>();
@@ -398,20 +556,37 @@ export const allocateStagedExploreNames = async (
                 claim(identity, name);
         },
     );
+    const legacyPrimaryCandidates =
+        existing.length === 0 &&
+        cached.some(
+            ({ explore, warehouse_connection_uuid }) =>
+                !isUserManagedExplore(explore) &&
+                !isExploreError(explore) &&
+                warehouse_connection_uuid === null &&
+                explore.tables[explore.baseTable]?.dbtSourceUuid === undefined,
+        )
+            ? new Set(await getLegacyPrimaryExploreNames(trx, projectUuid))
+            : new Set<string>();
     const legacyPrimaryNames = cached
-        .filter(({ explore, warehouse_connection_uuid }) => {
+        .filter(({ name, explore, warehouse_connection_uuid }) => {
             if (isUserManagedExplore(explore) || isExploreError(explore))
                 return false;
             const table = explore.tables[explore.baseTable];
             return (
                 warehouse_connection_uuid === null &&
+                (legacyPrimaryCandidates.has(name) ||
+                    existingOwners.some(
+                        (allocation) =>
+                            allocation.name === name &&
+                            allocation.source_key === 'primary',
+                    )) &&
                 table !== undefined &&
                 table.dbtSourceUuid === undefined &&
                 sourceKey(identityOf(explore)) === 'primary'
             );
         })
         .map(({ name }) => name);
-    if (legacyPrimaryNames.length > 0)
+    if (!naming.sourceMapping && legacyPrimaryNames.length > 0)
         await trx(CachedExploreTableName)
             .where('project_uuid', projectUuid)
             .whereIn('name', legacyPrimaryNames)

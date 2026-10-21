@@ -1652,6 +1652,9 @@ export class SchedulerClient {
             payload,
             now,
             JobPriority.MEDIUM,
+            undefined,
+            undefined,
+            `index-catalog-${payload.projectUuid}`,
         );
         await this.schedulerModel.logSchedulerJob({
             task: SCHEDULER_TASKS.INDEX_CATALOG,

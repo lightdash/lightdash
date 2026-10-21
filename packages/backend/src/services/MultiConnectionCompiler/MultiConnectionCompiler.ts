@@ -1328,6 +1328,8 @@ export class MultiConnectionCompiler {
                                 sourceName: model.lightdash_source_name ?? null,
                                 packageName: model.package_name,
                                 uniqueId: model.unique_id,
+                                version: model.version,
+                                latestVersion: model.latest_version,
                                 modelName: model.name,
                             }),
                         ),
@@ -1402,6 +1404,124 @@ export class MultiConnectionCompiler {
         markCompilePublished();
         await compilation.persistArtifacts({ exploresCommitted: true });
         return saved;
+    }
+
+    async preparePreviewDeploy({
+        projectUuid,
+        explores,
+        sourcesByPackage,
+        sourceAliases,
+    }: {
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        sourcesByPackage: ReadonlyMap<string, string>;
+        sourceAliases: ReadonlyMap<string, string>;
+    }): Promise<MultiConnectionSave> {
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        const sources =
+            await this.projectDbtSourcesModel.getSourcesWithBindings(
+                projectUuid,
+            );
+        const bindings = new Map<string, string | null>([
+            [identity.dbtSourceUuid, null],
+            ...sources.map(
+                (source) =>
+                    [
+                        source.projectDbtSourceUuid,
+                        source.warehouseConnectionUuid,
+                    ] as const,
+            ),
+        ]);
+        const sourceOf = (explore: Explore | ExploreError): string => {
+            const packageName =
+                explore.tables?.[explore.baseTable ?? explore.name]
+                    ?.dbtPackageName;
+            const sourceUuid = packageName
+                ? sourcesByPackage.get(packageName)
+                : undefined;
+            if (!sourceUuid || !bindings.has(sourceUuid)) {
+                throw new ParameterError(
+                    'The preview deploy has no source for an uploaded explore.',
+                );
+            }
+            return sourceUuid;
+        };
+        const sourceByName = new Map(
+            explores.map((explore) => [explore.name, sourceOf(explore)]),
+        );
+        const sourceNames = new Map([
+            [identity.dbtSourceUuid, identity.dbtSourceName],
+            ...sources.map(
+                (source) => [source.projectDbtSourceUuid, source.name] as const,
+            ),
+        ]);
+        const warnings: string[] = [];
+        return {
+            naming: {
+                mode: 'deploy',
+                sourceMapping: { sourcesByPackage, sourceAliases },
+                models: [],
+                refreshedSourceUuids: [...new Set(sourceByName.values())],
+                warnings,
+                onPublished: (published) =>
+                    explores.splice(0, explores.length, ...published),
+            },
+            exploreStream: (async function* deployedExplores() {
+                for (const explore of explores) {
+                    const dbtSourceUuid = sourceOf(explore);
+                    const stamped = explore.dbtModelIdentity
+                        ? {
+                              ...explore,
+                              dbtModelIdentity: {
+                                  ...explore.dbtModelIdentity,
+                                  sourceUuid: dbtSourceUuid,
+                                  sourceName:
+                                      sourceNames.get(dbtSourceUuid) ?? null,
+                              },
+                          }
+                        : explore;
+                    yield stamped.tables
+                        ? {
+                              ...stamped,
+                              tables: Object.fromEntries(
+                                  Object.entries(stamped.tables).map(
+                                      ([name, table]) => [
+                                          name,
+                                          {
+                                              ...table,
+                                              dbtSourceName: sourceNames.get(
+                                                  (table.dbtPackageName
+                                                      ? sourcesByPackage.get(
+                                                            table.dbtPackageName,
+                                                        )
+                                                      : undefined) ??
+                                                      dbtSourceUuid,
+                                              ),
+                                              dbtSourceUuid:
+                                                  (table.dbtPackageName
+                                                      ? sourcesByPackage.get(
+                                                            table.dbtPackageName,
+                                                        )
+                                                      : undefined) ??
+                                                  dbtSourceUuid,
+                                          },
+                                      ],
+                                  ),
+                              ),
+                          }
+                        : stampedError(explore, dbtSourceUuid);
+                }
+            })(),
+            bindingOf: (name) => bindings.get(sourceByName.get(name)!) ?? null,
+            carry: {
+                kind: 'otherDbtSourceSet',
+                dbtSourceUuids: [...new Set(sourceByName.values())],
+                packageSources: Object.fromEntries(sourcesByPackage),
+                sourceAliases: Object.fromEntries(sourceAliases),
+            },
+            persistArtifacts: async () => {},
+        };
     }
 
     async prepareSourceDeploy({

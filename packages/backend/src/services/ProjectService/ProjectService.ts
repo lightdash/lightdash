@@ -513,6 +513,7 @@ import {
 } from '../cliDeploy';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import { inferCliDeploySource } from '../inferCliDeploySource';
 import {
     MultiConnectionCompiler,
     withConnectionWarnings,
@@ -521,6 +522,7 @@ import {
 } from '../MultiConnectionCompiler/MultiConnectionCompiler';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
+import { resolveCliPreviewDeploy } from '../resolveCliPreviewDeploy';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     auditAndFilterExplore,
@@ -4179,11 +4181,15 @@ export class ProjectService
             explores: (Explore | ExploreError)[];
         },
         checkRefresh: boolean,
+        hasAdditionalDbtSources: boolean | null = null,
     ) {
         const { explores, ...metadata } = args;
         const hasDbtSources =
             args.dbtModelNames !== undefined &&
-            (await this.projectDbtSourcesModel.hasSources(args.projectUuid));
+            (hasAdditionalDbtSources ??
+                (await this.projectDbtSourcesModel.hasSources(
+                    args.projectUuid,
+                )));
         const dbtModelNames = hasDbtSources ? undefined : args.dbtModelNames;
         if (
             checkRefresh &&
@@ -4313,19 +4319,68 @@ export class ProjectService
                 args.explores,
             );
         const { cliDeploy, ...deploy } = args;
+        const connectionRoute = await this.projectModel.getConnectionRoute(
+            args.projectUuid,
+            { kind: 'original' },
+        );
+        const hasAdditionalDbtSources =
+            args.complete === true
+                ? await this.projectDbtSourcesModel.hasSources(args.projectUuid)
+                : null;
+        const deployProject =
+            hasAdditionalDbtSources === true
+                ? await this.projectModel.getSummary(args.projectUuid)
+                : null;
+        const previewResolution =
+            deployProject?.type === ProjectType.PREVIEW &&
+            args.dbtModelNames === undefined
+                ? await resolveCliPreviewDeploy(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          dbtSourceRefCatalogModel:
+                              this.dbtSourceRefCatalogModel,
+                      },
+                      {
+                          projectUuid: args.projectUuid,
+                          upstreamProjectUuid:
+                              deployProject.upstreamProjectUuid,
+                          explores: args.explores,
+                          sourceUuid: cliDeploy.sourceUuid,
+                      },
+                  )
+                : null;
+        const previewSources = previewResolution?.sourcesByPackage ?? null;
+        const sourceSelection =
+            hasAdditionalDbtSources === true && previewSources === null
+                ? await inferCliDeploySource(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          dbtSourceRefCatalogModel:
+                              this.dbtSourceRefCatalogModel,
+                          warehouseConnectionModel:
+                              this.warehouseConnectionModel,
+                      },
+                      {
+                          projectUuid: args.projectUuid,
+                          explores: args.explores,
+                          dbtModelNames: args.dbtModelNames,
+                          cliDeploy,
+                      },
+                  )
+                : null;
         if (
-            (await this.projectModel.getConnectionRoute(args.projectUuid, {
-                kind: 'original',
-            })) !== 'multi' &&
+            connectionRoute !== 'multi' &&
+            hasAdditionalDbtSources !== true &&
             !(await this.projectModel.hasExploreNameAllocations(
                 args.projectUuid,
-            )) &&
-            (await this.projectDbtSourcesModel.getSources(args.projectUuid))
-                .length === 0
+            ))
         ) {
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
                 false,
+                hasAdditionalDbtSources,
             );
         }
         if (args.complete !== true) {
@@ -4333,43 +4388,157 @@ export class ProjectService
                 'A deploy to a project with multiple connections must send every explore of its dbt source',
             );
         }
-        const projectDbtSourceUuid = await resolveCliDeploySource(
-            {
-                projectModel: this.projectModel,
-                projectDbtSourcesModel: this.projectDbtSourcesModel,
-                warehouseConnectionModel: this.warehouseConnectionModel,
-            },
-            args.projectUuid,
-            cliDeploy,
-        );
-        const { explores, ...metadata } = deploy;
-        const serverExplores = explores.map(withoutClientBindings);
-        const sourceDeploy =
-            await this.multiConnectionCompiler.prepareSourceDeploy({
-                projectUuid: args.projectUuid,
-                projectDbtSourceUuid,
-                explores: serverExplores,
-            });
+        const previewSourceUuids = previewResolution?.sourceUuids ?? [];
+        if (
+            previewSources &&
+            previewSourceUuids.length > 1 &&
+            cliDeploy.sourceUuid === null &&
+            cliDeploy.target !== null
+        ) {
+            const targets = await Promise.allSettled(
+                previewSourceUuids.map((sourceUuid) =>
+                    resolveCliDeploySource(
+                        {
+                            projectModel: this.projectModel,
+                            projectDbtSourcesModel: this.projectDbtSourcesModel,
+                            warehouseConnectionModel:
+                                this.warehouseConnectionModel,
+                        },
+                        args.projectUuid,
+                        { ...cliDeploy, sourceUuid },
+                    ),
+                ),
+            );
+            if (!targets.some((target) => target.status === 'fulfilled')) {
+                const failed = targets.find(
+                    (target) => target.status === 'rejected',
+                );
+                if (failed?.status === 'rejected') throw failed.reason;
+            }
+        }
+        let selection = cliDeploy;
+        if (sourceSelection)
+            selection = {
+                ...cliDeploy,
+                sourceUuid: sourceSelection.sourceUuid,
+            };
+        else if (
+            previewSources &&
+            cliDeploy.sourceUuid === null &&
+            previewSourceUuids.length === 1
+        ) {
+            selection = { ...cliDeploy, sourceUuid: previewSourceUuids[0] };
+        }
+        const projectDbtSourceUuid =
+            previewSources &&
+            previewSourceUuids.length > 1 &&
+            cliDeploy.sourceUuid === null
+                ? null
+                : await resolveCliDeploySource(
+                      {
+                          projectModel: this.projectModel,
+                          projectDbtSourcesModel: this.projectDbtSourcesModel,
+                          warehouseConnectionModel:
+                              this.warehouseConnectionModel,
+                      },
+                      args.projectUuid,
+                      selection,
+                  );
+        const { explores: uploadedExplores, ...metadata } = deploy;
+        const uploadedExploreCount = uploadedExplores.length;
+        const explores = sourceSelection?.explores ?? uploadedExplores;
+        const sourceDeploy = previewSources
+            ? await this.multiConnectionCompiler.preparePreviewDeploy({
+                  projectUuid: args.projectUuid,
+                  explores: explores.map(withoutClientBindings),
+                  sourcesByPackage: previewSources,
+                  sourceAliases: previewResolution!.sourceAliases,
+              })
+            : await this.multiConnectionCompiler.prepareSourceDeploy({
+                  projectUuid: args.projectUuid,
+                  projectDbtSourceUuid,
+                  explores: explores.map(withoutClientBindings),
+              });
         if (sourceDeploy.naming) {
             const { onPublished } = sourceDeploy.naming;
             sourceDeploy.naming.onPublished = (published) => {
                 onPublished?.(published);
-                explores.splice(0, explores.length, ...published);
+                uploadedExplores.splice(
+                    0,
+                    uploadedExplores.length,
+                    ...published,
+                );
+                if (explores !== uploadedExplores)
+                    explores.splice(0, explores.length, ...published);
             };
         }
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
             connectionWarnings: sourceDeploy.naming?.warnings ?? [],
+            readSavedExploreNames: true,
             saveExplores: async (summary) => {
+                let writeChecks = this.getConnectionStagedWriteChecks(
+                    args.projectUuid,
+                );
+                if (sourceSelection || previewSources) {
+                    const [checkWrite] = writeChecks;
+                    writeChecks = [
+                        async (trx, saveUuid) => {
+                            await checkWrite?.(trx, saveUuid);
+                            await this.projectModel.assertSourceDeployOwnership(
+                                args.projectUuid,
+                                sourceSelection?.sourceUuid ?? null,
+                                saveUuid,
+                                trx,
+                                previewResolution === null &&
+                                    cliDeploy.sourceUuid !== null,
+                                previewResolution ?? undefined,
+                            );
+                        },
+                    ];
+                }
                 const saved = await this.multiConnectionCompiler.save(
                     args.projectUuid,
                     sourceDeploy,
-                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
+                    ...writeChecks,
                 );
                 explores.forEach((explore) => summary.add(explore));
                 return saved;
             },
         });
+        if (previewSources) {
+            this.logger.info('cli.deploy.preview_sources_inferred', {
+                projectUuid: args.projectUuid,
+                dbtSourceUuids: previewSourceUuids,
+                method: 'preview_package_match',
+                uploadedExploreCount,
+            });
+        }
+        if (sourceSelection) {
+            this.logger.info(
+                sourceSelection.method === 'explicit'
+                    ? 'cli.deploy.source_selected'
+                    : 'cli.deploy.source_inferred',
+                {
+                    projectUuid: args.projectUuid,
+                    dbtSourceUuid: sourceSelection.sourceUuid,
+                    method: sourceSelection.method,
+                    uploadedExploreCount,
+                    droppedExploreCount: sourceSelection.droppedExploreCount,
+                },
+            );
+            if (sourceSelection.droppedExploreCount > 0) {
+                this.logger.warn(
+                    'CLI deploy dropped explores from other dbt sources',
+                    {
+                        projectUuid: args.projectUuid,
+                        dbtSourceUuid: sourceSelection.sourceUuid,
+                        droppedExploreCount:
+                            sourceSelection.droppedExploreCount,
+                    },
+                );
+            }
+        }
         return result.indexCatalogJobUuid;
     }
 
@@ -4539,6 +4708,7 @@ export class ProjectService
                 summary: ExploreCompilationSummary,
             ) => Promise<{ cachedExploreUuids: string[] }>;
             connectionWarnings: string[];
+            readSavedExploreNames?: boolean;
         },
     ) {
         const {
@@ -4552,6 +4722,7 @@ export class ProjectService
             projectConfigDefaults,
             cliVersion,
             complete,
+            readSavedExploreNames = false,
         } = args;
         const summary = new ExploreCompilationSummary();
         const prevCatalogItemsWithTags =
@@ -4622,7 +4793,7 @@ export class ProjectService
             const NAME_SAMPLE_CAP = 50;
             const reconciled = complete || args.dbtModelNames !== undefined;
             const newNames =
-                args.dbtModelNames !== undefined
+                args.dbtModelNames !== undefined || readSavedExploreNames
                     ? await this.projectModel.getCachedExploreNames(projectUuid)
                     : summary.names;
             const previousNameSet = new Set(previousExploreNames ?? []);
@@ -9078,6 +9249,8 @@ export class ProjectService
                     sourceName: model.lightdash_source_name ?? null,
                     packageName: model.package_name,
                     uniqueId: model.unique_id,
+                    version: model.version,
+                    latestVersion: model.latest_version,
                     modelName: model.name,
                 })),
             },
@@ -18499,12 +18672,34 @@ export class ProjectService
             );
         }
 
+        const prevCatalogItemsWithTags =
+            await this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true,
+                includeYamlTags: false,
+            });
+        const prevCatalogItemsWithIcons =
+            await this.catalogModel.getCatalogItemsWithIcons(projectUuid);
+        const prevMetricTreeEdges =
+            await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
+        const prevMetricsTreeNodes =
+            await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
+
         await this.replaceYamlTagsWithoutPermissionCheck(
             user,
             organizationUuid,
             projectUuid,
             yamlTags,
         );
+        await this.schedulerClient.indexCatalog({
+            projectUuid,
+            userUuid: user.userUuid,
+            organizationUuid,
+            refreshMetadataBeforeIndex: true,
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        });
     }
 
     private async replaceYamlTagsWithoutPermissionCheck(

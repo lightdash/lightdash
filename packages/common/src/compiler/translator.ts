@@ -1551,6 +1551,7 @@ export async function* iterateExplores(
               models.map((model) => ({
                   uniqueId: model.unique_id,
                   name: model.name,
+                  version: model.version,
                   lightdash_source_name: model.lightdash_source_name,
                   package_name: model.package_name,
               })),
@@ -2109,6 +2110,12 @@ export async function* iterateExplores(
                               sourceName: model.lightdash_source_name ?? null,
                               packageName: model.package_name,
                               uniqueId: model.unique_id,
+                              ...(model.version != null
+                                  ? {
+                                        version: model.version,
+                                        latestVersion: model.latest_version,
+                                    }
+                                  : {}),
                               modelName:
                                   explore.name === model.name
                                       ? originalModel.name
@@ -2141,6 +2148,12 @@ export async function* iterateExplores(
                       sourceName: model.lightdash_source_name ?? null,
                       packageName: model.package_name,
                       uniqueId: model.unique_id,
+                      ...(model.version != null
+                          ? {
+                                version: model.version,
+                                latestVersion: model.latest_version,
+                            }
+                          : {}),
                       modelName: model.name,
                   },
               }
