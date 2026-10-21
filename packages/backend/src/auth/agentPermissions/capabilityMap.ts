@@ -1808,6 +1808,12 @@ export const REST_OPERATION_CAPABILITIES = {
     'ScimRequestLogController.getScimRequestLogs': [
         AgentCapability.ReadDiscover,
     ],
+    'ServiceAccountsController.createServiceAccount': [
+        AgentCapability.Administration,
+    ],
+    'ServiceAccountsController.deleteServiceAccount': [
+        AgentCapability.Administration,
+    ],
     'ServiceAccountsController.getServiceAccountProjectGrants': [
         AgentCapability.ReadDiscover,
     ],
