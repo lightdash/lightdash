@@ -896,7 +896,14 @@ export const resolveCrossSourceManifests = async <T>({
                                     : undefined);
                             if (dependency && isExternalDbtNode(dependency)) {
                                 actualRefs.push({
-                                    packageName: null,
+                                    packageName: refsOf(consumer).some(
+                                        (candidate) =>
+                                            candidate.packageName ===
+                                                dependency.package_name &&
+                                            candidate.name === ref.name,
+                                    )
+                                        ? dependency.package_name
+                                        : null,
                                     name: ref.name,
                                     version:
                                         ref.version == null
