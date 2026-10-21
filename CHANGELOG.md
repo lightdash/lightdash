@@ -1,3 +1,10 @@
+## [2.631.7](https://github.com/lightdash/lightdash/compare/2.631.6...2.631.7) (2026-10-21)
+
+
+### Bug Fixes
+
+* keep cached query result lineage bounded ([#31238](https://github.com/lightdash/lightdash/issues/31238)) ([8409afb](https://github.com/lightdash/lightdash/commit/8409afb5b75f97c42a120576f7502a5ce9781604))
+
 ## [2.631.6](https://github.com/lightdash/lightdash/compare/2.631.5...2.631.6) (2026-10-20)
 
 
