@@ -12,6 +12,14 @@ command = "pnpm dev"
 ports = [8080, 3000]
 serve_port = 3000
 
+# The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
+# docker/docker-compose.preview.yml). Plain node, no deps; it reads only PORT,
+# and the recipe's PORT is the backend's, so the stub's is set inline.
+[[app.service]]
+name = "snowflake-ai-stub"
+command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
+port = 3900
+
 # Anyone with the URL can open an environment of this repo.
 [access]
 public = true
@@ -26,12 +34,14 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # and the migrate rung can import them; from then on the `pnpm dev` watchers
 # keep common and warehouses current (no common-build rung below; formula has
 # no watcher, so it is a run rung). The second is the dbt venv the seed's
-# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+# project compile shells out to (`dbt1.12`). Its adapters and pins are
+# dockerfile-prs's: the API and app tests compile Snowflake, BigQuery,
+# Databricks and Trino projects with dbt1.12 too.
 [runtime]
 system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
   "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
-  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
 ]
 
 [datastores]
@@ -62,6 +72,7 @@ PGHOST = "localhost"
 PGPORT = "5432"
 PGUSER = "postgres"
 PGDATABASE = "postgres"
+PGMAXCONNECTIONS = "30"            # as the Okteto preview; the API tests run four workers
 DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
 DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
 S3_ENDPOINT = "http://localhost:9000"
@@ -122,6 +133,9 @@ PGWIRE_SSL_MODE = "disabled"
 AI_COPILOT_ENABLED = "true"
 AI_COPILOT_REQUIRES_FEATURE_FLAG = "true"
 AI_DEFAULT_PROVIDER = "anthropic"
+# The Snowflake AI test loop: the backend accepts only this exact account
+# origin and dials it itself, so it is the stub service above.
+SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = "http://localhost:3900"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
