@@ -540,9 +540,11 @@ export class QueryHistoryModel {
         {
             excludeAgentProduced,
             excludeAgentClaims = false,
+            excludeCacheHits = false,
         }: {
             excludeAgentProduced: boolean;
             excludeAgentClaims?: boolean;
+            excludeCacheHits?: boolean;
         },
     ) {
         const result = await this.database(QueryHistoryTableName)
@@ -550,6 +552,11 @@ export class QueryHistoryModel {
             .andWhere('project_uuid', projectUuid)
             .modify((query) => {
                 if (excludeAgentClaims) void query.whereNull('agent_identity');
+                if (excludeCacheHits) {
+                    void query.whereRaw(
+                        "request_parameters->>'cacheSourceQueryUuid' is null",
+                    );
+                }
                 if (excludeAgentProduced) {
                     void query.whereRaw(
                         "request_parameters->>'aiSignInCredentialUuid' is null",
