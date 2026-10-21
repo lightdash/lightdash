@@ -6,7 +6,6 @@ export type RequiredAgentCapabilities = readonly [
 ];
 
 export const MCP_TOOL_CAPABILITIES = {
-    clear_agent: [AgentCapability.ReadDiscover],
     connect_agent: [AgentCapability.ReadDiscover],
     create_content: [AgentCapability.ContentWrite],
     create_custom_chart_type: [AgentCapability.ContentWrite],
@@ -22,8 +21,6 @@ export const MCP_TOOL_CAPABILITIES = {
     generate_hashes: [AgentCapability.ReadDiscover],
     get_ai_writeback_status: [AgentCapability.ReadDiscover],
     get_context: [AgentCapability.ReadDiscover],
-    get_current_agent: [AgentCapability.ReadDiscover],
-    get_current_project: [AgentCapability.ReadDiscover],
     get_custom_chart_type_frame: [
         AgentCapability.ReadDiscover,
         AgentCapability.Export,
@@ -54,8 +51,6 @@ export const MCP_TOOL_CAPABILITIES = {
     run_metric_query: [AgentCapability.Query],
     run_sql: [AgentCapability.RawSql],
     search_field_values: [AgentCapability.Query],
-    set_agent: [AgentCapability.ReadDiscover],
-    set_project: [AgentCapability.ReadDiscover],
 } as const satisfies Record<string, RequiredAgentCapabilities>;
 
 export const AGENT_TOOL_CAPABILITIES = {

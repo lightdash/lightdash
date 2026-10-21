@@ -49,7 +49,7 @@ export async function createPersonalAccessToken(
     return response.body.results.token;
 }
 
-export async function openMcpSession(client: ApiClient, projectUuid: string) {
+export async function openMcpSession(client: ApiClient) {
     const token = await createPersonalAccessToken(client);
     const authHeaders = { ...mcpHeaders, Authorization: `ApiKey ${token}` };
     const mcp = new ApiClient();
@@ -118,7 +118,5 @@ export async function openMcpSession(client: ApiClient, projectUuid: string) {
         expect(parsed.id).toBe(requestId);
         return parsed.result;
     };
-    const selected = await callTool('set_project', { projectUuid });
-    if (selected.isError) throw new Error(mcpText(selected));
     return Object.assign(callTool, { readResource });
 }

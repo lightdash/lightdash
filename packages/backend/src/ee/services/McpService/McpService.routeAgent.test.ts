@@ -267,18 +267,14 @@ describe('McpService route_agent', () => {
         mockRegisteredMcpTools.clear();
     });
 
-    it('writes the routed agent into context and get_current_agent returns it', async () => {
+    it('writes the routed agent into context', async () => {
         const { aiRouterService, mcpContextModel } = makeMcpService();
 
         const routeAgentTool = mockRegisteredMcpTools.get(
             McpToolName.ROUTE_AGENT,
         );
-        const getCurrentAgentTool = mockRegisteredMcpTools.get(
-            McpToolName.GET_CURRENT_AGENT,
-        );
 
         expect(routeAgentTool).toBeDefined();
-        expect(getCurrentAgentTool).toBeDefined();
 
         const routeResult = (await routeAgentTool!(
             { prompt: 'show revenue by month', projectUuid },
@@ -313,20 +309,6 @@ describe('McpService route_agent', () => {
                 agentName: 'Finance',
                 confidence: 'low',
                 reasoning: 'Finance agent is the closest fit.',
-            }),
-        );
-
-        const currentResult = (await getCurrentAgentTool!(
-            { projectUuid },
-            extra,
-        )) as {
-            content: Array<{ text: string }>;
-        };
-        expect(JSON.parse(currentResult.content[0].text)).toEqual(
-            expect.objectContaining({
-                agentUuid: 'agent-uuid',
-                agentName: 'Finance',
-                explores: ['orders'],
             }),
         );
     });
@@ -398,43 +380,5 @@ describe('McpService route_agent', () => {
             'The requested project does not match the pinned MCP project',
         );
         expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
-    });
-
-    it('uses pinned project context instead of a stored project and agent', async () => {
-        const { aiAgentService, storedContext } = makeMcpService();
-        storedContext.projectUuid = 'stored-project-uuid';
-        storedContext.agentUuid = 'stored-agent-uuid';
-        const getCurrentProjectTool = mockRegisteredMcpTools.get(
-            McpToolName.GET_CURRENT_PROJECT,
-        );
-        const getCurrentAgentTool = mockRegisteredMcpTools.get(
-            McpToolName.GET_CURRENT_AGENT,
-        );
-        const pinnedExtra = {
-            ...extra,
-            authInfo: {
-                extra: {
-                    ...extra.authInfo.extra,
-                    headerProjectUuid: projectUuid,
-                },
-            },
-        };
-
-        const projectResult = (await getCurrentProjectTool!(
-            {},
-            pinnedExtra,
-        )) as { content: Array<{ text: string }> };
-        const agentResult = (await getCurrentAgentTool!(
-            { projectUuid },
-            pinnedExtra,
-        )) as { content: Array<{ text: string }> };
-
-        expect(JSON.parse(projectResult.content[0].text)).toEqual(
-            expect.objectContaining({ projectUuid }),
-        );
-        expect(JSON.parse(agentResult.content[0].text)).toEqual({
-            error: 'No active agent set. Use set_agent to set one.',
-        });
-        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
     });
 });

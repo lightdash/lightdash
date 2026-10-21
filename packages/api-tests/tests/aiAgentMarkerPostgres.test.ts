@@ -63,7 +63,7 @@ describe('Postgres marked person agent identity', () => {
 
     it('marks MCP SQL sessions and leaves the normal SQL runner unmarked', async () => {
         const startedAt = Date.now();
-        const callTool = await openMcpSession(admin, projectUuid);
+        const callTool = await openMcpSession(admin);
         const result = await callTool('run_sql', {
             projectUuid,
             sql: `${sql}, '${startedAt}' AS marker_test`,

@@ -666,7 +666,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'use route_agent',
                         'returned agentUuid explicitly',
-                        'omit agentUuid; use set_agent for manual selection',
+                        'pass its agentUuid explicitly',
                     ],
                 },
                 {
@@ -1024,9 +1024,6 @@ describe('MCP tool contracts', () => {
             );
             const names = mockRegisteredMcpTools.map(({ name }) => name);
             expect(names.includes(McpToolName.LIST_PROJECTS)).toBe(
-                pinnedProjectUuid === undefined,
-            );
-            expect(names.includes(McpToolName.SET_PROJECT)).toBe(
                 pinnedProjectUuid === undefined,
             );
         },
