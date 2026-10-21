@@ -23,5 +23,5 @@ lives in exactly one base or add-on, add-ons depend on each other only through
 their conditions, and per-turn overlays only remove. In exchange, one contract
 snapshot per base, one per add-on, and one per base with every add-on cover
 the space, roughly twenty-three snapshots instead of a matrix. The resolver
-always yields a base, classic by default, and never throws, so a flag turning
-off can only shrink a loadout, never fail a run.
+always yields a base, classic by default, and never throws: a flag turning off
+swaps the base or drops an add-on, never fails a run.
