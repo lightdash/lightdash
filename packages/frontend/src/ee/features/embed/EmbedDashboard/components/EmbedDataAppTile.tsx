@@ -6,8 +6,8 @@ import { Box, Loader, Stack } from '@mantine/core';
 import { IconAppsOff } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
+import DashboardDataAppIframe from '../../../../../components/DashboardTiles/DashboardDataAppIframe';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
-import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { getVisiblePreviewTokenError } from '../../../../../features/apps/hooks/previewTokenQueryOptions';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
@@ -74,14 +74,19 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
     const markEmbedTileComplete = useDashboardTileStatusContext(
         (c) => c.markEmbedTileComplete,
     );
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
+        (c) => c.markTileScreenshotErrored,
+    );
     const handleIframeLoad = useCallback(
         () => markEmbedTileComplete(uuid),
         [markEmbedTileComplete, uuid],
     );
 
     useEffect(() => {
-        if (hasLoadError) markEmbedTileComplete(uuid);
-    }, [hasLoadError, markEmbedTileComplete, uuid]);
+        if (!hasLoadError) return;
+        markEmbedTileComplete(uuid);
+        markTileScreenshotErrored(uuid);
+    }, [hasLoadError, markEmbedTileComplete, markTileScreenshotErrored, uuid]);
 
     return (
         <TileBase
@@ -109,7 +114,10 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
                         <Loader size="sm" />
                     </Stack>
                 ) : (
-                    <AppIframePreview
+                    // Marks screenshot-ready once the app's queries go quiet.
+                    <DashboardDataAppIframe
+                        key={`${appUuid}:${tokenQuery.data.version}:${filtersKey}`}
+                        tileUuid={uuid}
                         src={previewUrl}
                         previewToken={tokenQuery.data.token}
                         expectedPreviewOrigin={previewOrigin}

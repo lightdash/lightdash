@@ -6449,6 +6449,32 @@ export default class SchedulerTask {
                     );
                 }
 
+                if (
+                    payload.format === SchedulerFormat.PDF &&
+                    overrideAccount?.isJwtUser() &&
+                    payload.encodedJwt
+                ) {
+                    const pdfFile =
+                        await this.unfurlService.exportEmbedDashboardPdf({
+                            projectUuid: payload.projectUuid,
+                            dashboardUuid: payload.resourceUuid,
+                            embedToken: payload.encodedJwt,
+                            externalId: payload.userUuid,
+                            selectedTabs: payload.selectedTabs ?? null,
+                            dashboardFilters: payload.dashboardFilters ?? null,
+                            parameters: payload.parameters ?? null,
+                            dateZoomGranularity:
+                                payload.dateZoomGranularity ?? null,
+                            gridWidth: payload.customViewportWidth ?? null,
+                            contextId: jobId,
+                        });
+                    return {
+                        url: pdfFile.source,
+                        fileType: payload.format,
+                        numFailures: 0,
+                    };
+                }
+
                 const scheduler = {
                     name: 'Content export',
                     createdBy: payload.userUuid,

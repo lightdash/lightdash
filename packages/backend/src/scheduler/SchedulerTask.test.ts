@@ -30,6 +30,7 @@ import {
     UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
+    type Account,
     type CapturedQuery,
     type CompileProjectPayload,
     type CreateSchedulerAndTargets,
@@ -1005,8 +1006,16 @@ describe('uploadGsheetFromQuery', () => {
 type TaskDeps = ConstructorParameters<typeof SchedulerTask>[0];
 
 class TestSchedulerTask extends SchedulerTask {
-    public exportContentForTest(payload: ExportContentPayload) {
-        return this.exportContent('export-job', new Date(), payload);
+    public exportContentForTest(
+        payload: ExportContentPayload,
+        overrideAccount?: Account,
+    ) {
+        return this.exportContent(
+            'export-job',
+            new Date(),
+            payload,
+            overrideAccount,
+        );
     }
 
     public sendEmailNotificationForTest(
@@ -1089,6 +1098,41 @@ describe('PDF content export', () => {
         getNotificationPageData.mockResolvedValue({});
         await expect(task.exportContentForTest(payload)).rejects.toThrow(
             'Dashboard PDF export failed',
+        );
+    });
+
+    it('renders embed exports with the embed token instead of a user session', async () => {
+        const { task, logSchedulerJob, getNotificationPageData } = setup();
+        const exportEmbedDashboardPdf = vi.fn().mockResolvedValue({
+            source: 'https://storage.example/embed.pdf',
+            fileName: 'embed.pdf',
+        });
+        Object.assign(task, { unfurlService: { exportEmbedDashboardPdf } });
+        const jwtAccount = { isJwtUser: () => true } as unknown as Account;
+
+        await task.exportContentForTest(
+            { ...payload, userUuid: 'external::viewer', encodedJwt: 'jwt' },
+            jwtAccount,
+        );
+
+        expect(getNotificationPageData).not.toHaveBeenCalled();
+        expect(exportEmbedDashboardPdf).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project-1',
+                dashboardUuid: 'dashboard-1',
+                embedToken: 'jwt',
+                externalId: 'external::viewer',
+                selectedTabs: ['tab-1'],
+                parameters: payload.parameters,
+            }),
+        );
+        expect(logSchedulerJob).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                status: SchedulerJobStatus.COMPLETED,
+                details: expect.objectContaining({
+                    url: 'https://storage.example/embed.pdf',
+                }),
+            }),
         );
     });
 
