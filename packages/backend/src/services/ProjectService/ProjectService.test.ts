@@ -8829,6 +8829,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 userUuid: user.userUuid,
                 organizationUuid: projectSummary.organizationUuid,
+                refreshMetadataBeforeIndex: true,
                 prevCatalogItemsWithTags: [],
                 prevCatalogItemsWithIcons: [],
                 prevMetricTreeEdges: [],

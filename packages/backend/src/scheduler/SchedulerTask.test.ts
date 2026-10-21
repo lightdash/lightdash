@@ -47,6 +47,7 @@ import {
     type ReadyQueryResultsPage,
     type ScheduledDeliveryPayload,
     type SchedulerAndTargets,
+    type SchedulerIndexCatalogJobPayload,
     type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
@@ -1031,6 +1032,83 @@ const makeTaskWithDeps = (overrides: Partial<TaskDeps> = {}) =>
 
 const asDep = <K extends keyof TaskDeps>(value: unknown): TaskDeps[K] =>
     value as TaskDeps[K];
+
+test.each([false, true])(
+    'restores catalog annotations using execution-time metadata when requested: %s',
+    async (refreshMetadataBeforeIndex) => {
+        const currentMetadata = {
+            prevCatalogItemsWithTags: [
+                { name: 'orders', catalogTags: [{ tagUuid: 'manual-tag' }] },
+            ],
+            prevCatalogItemsWithIcons: [{ name: 'orders', icon: 'sparkles' }],
+            prevMetricTreeEdges: [{ source: 'count', target: 'total' }],
+            prevMetricsTreeNodes: [{ name: 'count', xPosition: 100 }],
+        };
+        const catalog = {
+            getIndexCatalogMetadata: vi.fn().mockResolvedValue(currentMetadata),
+            indexCatalog: vi.fn().mockResolvedValue({ catalogFieldMap: {} }),
+            migrateCatalogItemTags: vi.fn(),
+            migrateCatalogItemIcons: vi.fn(),
+            migrateMetricsTreeEdges: vi.fn(),
+            migrateMetricsTreeNodes: vi.fn(),
+            setChartUsages: vi.fn(),
+        };
+        const payload = {
+            projectUuid: 'project-1',
+            organizationUuid: 'org-1',
+            userUuid: 'user-1',
+            prevCatalogItemsWithTags: [],
+            prevCatalogItemsWithIcons: [],
+            prevMetricTreeEdges: [],
+            prevMetricsTreeNodes: [],
+            refreshMetadataBeforeIndex,
+        };
+        const task = makeTaskWithDeps({
+            catalogService: asDep<'catalogService'>(catalog),
+            schedulerService: asDep<'schedulerService'>({
+                logSchedulerJob: vi.fn(),
+            }),
+        });
+
+        await (
+            task as unknown as {
+                indexCatalog(
+                    jobId: string,
+                    scheduledTime: Date,
+                    data: SchedulerIndexCatalogJobPayload,
+                ): Promise<void>;
+            }
+        ).indexCatalog('catalog-job', new Date(), payload);
+
+        const expected = refreshMetadataBeforeIndex ? currentMetadata : payload;
+        expect(catalog.migrateCatalogItemTags).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevCatalogItemsWithTags,
+        );
+        expect(catalog.migrateCatalogItemIcons).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevCatalogItemsWithIcons,
+        );
+        expect(catalog.migrateMetricsTreeEdges).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevMetricTreeEdges,
+        );
+        expect(catalog.migrateMetricsTreeNodes).toHaveBeenCalledWith(
+            payload.projectUuid,
+            expected.prevMetricsTreeNodes,
+        );
+        if (refreshMetadataBeforeIndex) {
+            expect(catalog.getIndexCatalogMetadata).toHaveBeenCalledWith(
+                payload.projectUuid,
+            );
+            expect(
+                catalog.getIndexCatalogMetadata.mock.invocationCallOrder[0],
+            ).toBeLessThan(catalog.indexCatalog.mock.invocationCallOrder[0]);
+        } else {
+            expect(catalog.getIndexCatalogMetadata).not.toHaveBeenCalled();
+        }
+    },
+);
 
 describe('PDF content export', () => {
     const payload: ExportContentPayload = {

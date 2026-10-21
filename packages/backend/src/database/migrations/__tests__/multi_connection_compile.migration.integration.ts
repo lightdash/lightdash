@@ -36,6 +36,7 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
+import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
 import { DeploySessionModel } from '../../../models/DeploySessionModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -1370,6 +1371,206 @@ Sources in this project: Core models, marketing, finance.`;
                 return { fixture, primary, deploy, service };
             };
 
+            const seedGuardedState = async (projectUuid: string) => {
+                const user = await compilingUser(projectUuid);
+                const [project] = await database('projects').where(
+                    'project_uuid',
+                    projectUuid,
+                );
+                await database('projects')
+                    .where('project_uuid', projectUuid)
+                    .update({
+                        project_defaults: { case_sensitive: false },
+                        table_groups: { retained: { label: 'Retained group' } },
+                    });
+                await database('project_parameters').insert({
+                    project_uuid: projectUuid,
+                    name: 'minimum_amount',
+                    config: {
+                        label: 'Minimum amount',
+                        type: 'number',
+                        default: 5,
+                    },
+                });
+                const tags = await database('tags')
+                    .insert({
+                        project_uuid: projectUuid,
+                        name: 'Payments',
+                        color: 'blue',
+                        yaml_reference: 'payments',
+                        created_by_user_uuid: null,
+                    })
+                    .returning('*');
+                await new CatalogModel({
+                    database,
+                    lightdashConfig: lightdashConfigMock,
+                }).indexCatalog(
+                    projectUuid,
+                    await projectModel.getAllExploresFromCache(projectUuid),
+                    tags,
+                    user.userUuid,
+                );
+                const rawTable = (name: string) =>
+                    database<Record<string, unknown>>(name);
+                const [space] = await rawTable('spaces')
+                    .insert({
+                        project_id: project.project_id,
+                        name: 'Retained space',
+                        slug: 'retained-space',
+                        path: 'retained_space',
+                    })
+                    .returning('*');
+                const [chart] = await rawTable('saved_queries')
+                    .insert({
+                        project_uuid: projectUuid,
+                        space_id: space.space_id,
+                        name: 'Retained chart',
+                        slug: 'retained-chart',
+                        last_version_chart_kind: 'cartesian',
+                        last_version_updated_by_user_uuid: user.userUuid,
+                    })
+                    .returning('*');
+                await rawTable('saved_queries_versions').insert({
+                    saved_query_id: chart.saved_query_id,
+                    explore_name: 'orders',
+                    filters: {},
+                    row_limit: 10,
+                    chart_type: 'cartesian',
+                    chart_config: {},
+                    updated_by_user_uuid: user.userUuid,
+                });
+                return async () => {
+                    const [row] = await database(
+                        'saved_queries_versions as version',
+                    )
+                        .join(
+                            'saved_queries as chart',
+                            'chart.saved_query_id',
+                            'version.saved_query_id',
+                        )
+                        .join(
+                            'cached_explore as explore',
+                            function joinExplore() {
+                                this.on(
+                                    'explore.name',
+                                    'version.explore_name',
+                                ).andOn(
+                                    'explore.project_uuid',
+                                    'chart.project_uuid',
+                                );
+                            },
+                        )
+                        .where('chart.project_uuid', projectUuid)
+                        .select('explore.explore');
+                    const saved = row.explore as Explore;
+                    return saved.tables[saved.baseTable].dbtSourceUuid;
+                };
+            };
+
+            const guardedState = async (projectUuid: string) => ({
+                explores: await dump(projectUuid),
+                project: await database('projects')
+                    .where('project_uuid', projectUuid)
+                    .first(),
+                parameters: await database('project_parameters')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('name'),
+                tags: await database('tags')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('name'),
+                catalog: await database('catalog_search')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('catalog_search_uuid'),
+                charts: await database('saved_queries_versions')
+                    .whereIn(
+                        'saved_query_id',
+                        database('saved_queries')
+                            .select('saved_query_id')
+                            .where('project_uuid', projectUuid),
+                    )
+                    .orderBy('saved_queries_version_id'),
+            });
+
+            test.each([
+                { route: 'single', explicit: false },
+                { route: 'single', explicit: true },
+                { route: 'multi', explicit: false },
+                { route: 'multi', explicit: true },
+            ])(
+                'rejects cross-source name collisions without side effects ($route, explicit $explicit)',
+                async ({ route, explicit }) => {
+                    const { fixture, primary, deploy } = await setup();
+                    if (route === 'multi') {
+                        await database('projects')
+                            .where('project_uuid', fixture.projectUuid)
+                            .update({ connection_mode: 'multi' } as never);
+                        await bind(
+                            fixture,
+                            'finance',
+                            fixture.extraConnectionUuid,
+                        );
+                    }
+                    const chartOwner = await seedGuardedState(
+                        fixture.projectUuid,
+                    );
+                    const before = await guardedState(fixture.projectUuid);
+                    expect(before.catalog.length).toBeGreaterThan(0);
+                    expect(await chartOwner()).toBe(primary.dbtSourceUuid);
+                    await expect(
+                        deploy({
+                            explores: [
+                                packagedExplore('payments', 'finance'),
+                                packagedExplore('orders', 'dbt_utils'),
+                            ],
+                            cliDeploy: {
+                                sourceUuid: explicit
+                                    ? fixture.sourceUuids.finance
+                                    : null,
+                                target: null,
+                            },
+                        }),
+                    ).rejects.toMatchObject({
+                        statusCode: 409,
+                        message: expectedRejection(
+                            'the upload would replace explores owned by another source: orders (source Core models)',
+                        ),
+                    });
+                    expect(await guardedState(fixture.projectUuid)).toEqual(
+                        before,
+                    );
+                    expect(await chartOwner()).toBe(primary.dbtSourceUuid);
+                },
+            );
+
+            test.each([false, true])(
+                'allows a same-source redeploy and removal of an omitted name (explicit %s)',
+                async (explicit) => {
+                    const { fixture, primary, deploy } = await setup();
+                    await deploy({
+                        cliDeploy: {
+                            sourceUuid: explicit ? primary.dbtSourceUuid : null,
+                            target: null,
+                        },
+                    });
+                    const before = await dump(fixture.projectUuid);
+                    await deploy({
+                        cliDeploy: {
+                            sourceUuid: explicit ? primary.dbtSourceUuid : null,
+                            target: null,
+                        },
+                    });
+                    expect(await dump(fixture.projectUuid)).toEqual(before);
+                    expect(
+                        Object.keys(await bindings(fixture.projectUuid)),
+                    ).not.toContain('retired');
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).find(
+                            (row) => row.name === 'orders',
+                        )?.explore.tables?.orders.dbtSourceUuid,
+                    ).toBe(primary.dbtSourceUuid);
+                },
+            );
+
             test('replaces only the matched source and preserves other cached explores', async () => {
                 const { fixture, primary, deploy } = await setup();
                 await deploy();
@@ -1477,6 +1678,9 @@ Sources in this project: Core models, marketing, finance.`;
                 'rejects ownership changes before publication ($change, explicit $explicit)',
                 async ({ change, explicit }) => {
                     const { fixture, primary, deploy } = await setup();
+                    const chartOwner = await seedGuardedState(
+                        fixture.projectUuid,
+                    );
                     const upload = packagedExplore('orders', 'analytics');
                     if (explicit) delete upload.tables.orders.dbtPackageName;
                     const save =
@@ -1491,7 +1695,9 @@ Sources in this project: Core models, marketing, finance.`;
                                   'marketing',
                                   fixture.sourceUuids.marketing,
                               );
-                    let before: Awaited<ReturnType<typeof dump>> = [];
+                    let before:
+                        | Awaited<ReturnType<typeof guardedState>>
+                        | undefined;
                     const intercepted = vi
                         .spyOn(projectModel, 'saveMultiConnectionExplores')
                         .mockImplementationOnce(async (...args) => {
@@ -1499,7 +1705,7 @@ Sources in this project: Core models, marketing, finance.`;
                                 fixture.projectUuid,
                                 [changed],
                             );
-                            before = await dump(fixture.projectUuid);
+                            before = await guardedState(fixture.projectUuid);
                             return save(...args);
                         });
                     try {
@@ -1516,10 +1722,19 @@ Sources in this project: Core models, marketing, finance.`;
                         ).rejects.toMatchObject({
                             statusCode: 409,
                             message: expectedRejection(
-                                'another deploy or refresh changed the project while this deploy ran; deploy again',
+                                change === 'name-collision'
+                                    ? 'another deploy or refresh changed the project while this deploy ran; the upload would replace explores owned by another source: orders (source marketing); deploy again'
+                                    : 'another deploy or refresh changed the project while this deploy ran; deploy again',
                             ),
                         });
-                        expect(await dump(fixture.projectUuid)).toEqual(before);
+                        expect(await guardedState(fixture.projectUuid)).toEqual(
+                            before,
+                        );
+                        expect(await chartOwner()).toBe(
+                            change === 'name-collision'
+                                ? fixture.sourceUuids.marketing
+                                : primary.dbtSourceUuid,
+                        );
                     } finally {
                         intercepted.mockRestore();
                     }
@@ -1665,7 +1880,7 @@ Sources in this project: Core models, marketing, finance.`;
                     'multiple-databases':
                         'the uploaded explores name several databases; run the deploy again',
                     'name-collision':
-                        'an uploaded explore name already belongs to another source',
+                        'the upload would replace explores owned by another source: payments (source finance)',
                 };
                 if (kind === 'ambiguous-target')
                     explores[0].tables!.new_model.database =

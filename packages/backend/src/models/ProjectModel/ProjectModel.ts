@@ -222,7 +222,10 @@ import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
-import { cliDeployConflictError } from '../../utils/cliDeployError';
+import {
+    cliDeployCollisionReason,
+    cliDeployConflictError,
+} from '../../utils/cliDeployError';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -4018,8 +4021,11 @@ export class ProjectModel {
         allowUnstampedErrors = false,
     ): Promise<void> {
         const sourceIdentity = `COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid')`;
-        const conflict = await trx(CachedExploreTableName)
-            .select('name')
+        const conflicts = await trx(CachedExploreTableName)
+            .select<{ name: string; source_uuid: string | null }[]>(
+                'name',
+                trx.raw(`${sourceIdentity} AS source_uuid`),
+            )
             .where('project_uuid', projectUuid)
             .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
                 [...USER_MANAGED_EXPLORE_TYPES],
@@ -4050,19 +4056,43 @@ export class ProjectModel {
                                     ]),
                             );
                     });
-            })
-            .first();
-        if (conflict) {
+            });
+        if (conflicts.length > 0) {
             const [primary] = await trx(ProjectTableName)
-                .select('dbt_source_name')
+                .select('dbt_source_name', 'dbt_source_uuid')
                 .where('project_uuid', projectUuid);
             const extraSources = await trx(ProjectDbtSourcesTableName)
-                .select('name')
+                .select('name', 'project_dbt_source_uuid')
                 .where('project_uuid', projectUuid)
                 .orderBy('precedence', 'asc')
                 .orderBy('name', 'asc');
+            const sourceNames = new Map([
+                [
+                    primary.dbt_source_uuid ?? projectUuid,
+                    primary.dbt_source_name,
+                ],
+                ...extraSources.map(
+                    (source) =>
+                        [source.project_dbt_source_uuid, source.name] as const,
+                ),
+            ]);
+            const collisions = conflicts
+                .filter(
+                    (
+                        conflict,
+                    ): conflict is { name: string; source_uuid: string } =>
+                        conflict.source_uuid !== null,
+                )
+                .map((conflict) => ({
+                    exploreName: conflict.name,
+                    sourceName:
+                        sourceNames.get(conflict.source_uuid) ??
+                        'unknown source',
+                }));
             throw cliDeployConflictError(
-                'another deploy or refresh changed the project while this deploy ran; deploy again',
+                collisions.length > 0
+                    ? `another deploy or refresh changed the project while this deploy ran; ${cliDeployCollisionReason(collisions)}; deploy again`
+                    : 'another deploy or refresh changed the project while this deploy ran; deploy again',
                 [
                     primary.dbt_source_name,
                     ...extraSources.map((source) => source.name),

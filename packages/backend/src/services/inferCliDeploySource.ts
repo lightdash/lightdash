@@ -10,7 +10,10 @@ import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogMode
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { cliDeployConflictError } from '../utils/cliDeployError';
+import {
+    cliDeployCollisionReason,
+    cliDeployConflictError,
+} from '../utils/cliDeployError';
 import { type CliDeploySelection } from './cliDeploy';
 
 type InferenceModels = {
@@ -82,9 +85,9 @@ export const inferCliDeploySource = async (
     const sourceName = (sourceUuid: string): string =>
         sourceUuid === identity.dbtSourceUuid
             ? identity.dbtSourceName
-            : sources.find(
+            : (sources.find(
                   (source) => source.projectDbtSourceUuid === sourceUuid,
-              )!.name;
+              )?.name ?? 'unknown source');
     const cached = Object.values(
         await models.projectModel.getAllExploresFromCache(projectUuid),
     ).filter((explore) => !isUserManagedExplore(explore));
@@ -288,20 +291,37 @@ export const inferCliDeploySource = async (
     const kept = explores.filter((explore) => {
         const packageName = baseTable(explore)?.dbtPackageName;
         const owners = packageName ? packages.get(packageName) : undefined;
+        if (owners && !owners.has(sourceUuid)) return false;
         const existing = cachedByName.get(explore.name);
         const existingSource = existing
             ? cachedSourceUuid(existing)
             : undefined;
-        if (owners && !owners.has(sourceUuid)) return false;
-        if (existingSource && existingSource !== sourceUuid) {
-            if (isExploreError(explore)) return false;
-            throw cliDeployConflictError(
-                'an uploaded explore name already belongs to another source',
-                sourceNames,
-            );
-        }
-        return true;
+        return !(
+            isExploreError(explore) &&
+            existingSource &&
+            existingSource !== sourceUuid
+        );
     });
+    const collisions = kept.flatMap((explore) => {
+        const existing = cachedByName.get(explore.name);
+        const existingSource = existing
+            ? cachedSourceUuid(existing)
+            : undefined;
+        return existingSource && existingSource !== sourceUuid
+            ? [
+                  {
+                      exploreName: explore.name,
+                      sourceName: sourceName(existingSource),
+                  },
+              ]
+            : [];
+    });
+    if (collisions.length > 0) {
+        throw cliDeployConflictError(
+            cliDeployCollisionReason(collisions),
+            sourceNames,
+        );
+    }
     if (explores.length > 0 && kept.length === 0) {
         throw cliDeployConflictError(
             `the upload contains no models for source ${sourceName(sourceUuid)}`,

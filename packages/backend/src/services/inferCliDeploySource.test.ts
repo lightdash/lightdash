@@ -190,7 +190,7 @@ test('does not overwrite another source through an unmapped installed package', 
     await expect(inferCliDeploySource(models, args)).rejects.toMatchObject({
         statusCode: 409,
         message: expectedMessage(
-            'an uploaded explore name already belongs to another source',
+            'the upload would replace explores owned by another source: shared_name (source Replica models)',
         ),
     });
 });
@@ -264,7 +264,7 @@ test.each([
     },
     {
         kind: 'name-collision',
-        reason: 'an uploaded explore name already belongs to another source',
+        reason: 'the upload would replace explores owned by another source: payments (source Replica models)',
     },
 ])(
     'explains $kind and lists the source names without source-flag hints',
@@ -507,4 +507,50 @@ test('does not clear an explicit source when all uploaded models belong elsewher
     });
     expect((rejected as Error).message).not.toContain('--source');
     expect((rejected as Error).message).not.toContain('set-source');
+});
+
+test.each([null, 'primary'])(
+    'lists every cross-source name collision with explicit source %s',
+    async (sourceUuid) => {
+        const { models, args } = setup();
+        models.projectModel.getAllExploresFromCache.mockResolvedValue({
+            primary: explore('orders', 'primary'),
+            first: explore('payments', 'extra', 'finance'),
+            second: explore('refunds', 'extra', 'finance'),
+        });
+        await expect(
+            inferCliDeploySource(models, {
+                ...args,
+                cliDeploy: { sourceUuid, target: null },
+                explores: [
+                    ...args.explores,
+                    explore('refunds', undefined, 'dbt_utils'),
+                    explore('payments', undefined, 'dbt_utils'),
+                ],
+            }),
+        ).rejects.toThrow(
+            'the upload would replace explores owned by another source: payments (source Replica models), refunds (source Replica models)',
+        );
+    },
+);
+
+test('keeps an unstamped legacy error when an explicit source is accepted', async () => {
+    const { models, args } = setup();
+    const legacyError = {
+        name: 'legacy_error',
+        label: 'Legacy error',
+        errors: [],
+    };
+    models.projectModel.getAllExploresFromCache.mockResolvedValue({
+        orders: explore('orders', 'primary'),
+        legacy: legacyError,
+    });
+    const upload = [...args.explores, legacyError];
+    await expect(
+        inferCliDeploySource(models, {
+            ...args,
+            explores: upload,
+            cliDeploy: { sourceUuid: 'primary', target: null },
+        }),
+    ).resolves.toMatchObject({ explores: upload, droppedExploreCount: 0 });
 });

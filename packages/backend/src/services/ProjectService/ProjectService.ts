@@ -18492,6 +18492,7 @@ export class ProjectService
             projectUuid,
             userUuid: user.userUuid,
             organizationUuid,
+            refreshMetadataBeforeIndex: true,
             prevCatalogItemsWithTags,
             prevCatalogItemsWithIcons,
             prevMetricTreeEdges,
