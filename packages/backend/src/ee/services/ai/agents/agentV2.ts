@@ -66,6 +66,7 @@ import {
 import { queryErrorOverride } from '../decisions/queryErrors';
 import { createQueryReviewer } from '../decisions/queryReview';
 import {
+    getAvailableSkills,
     hasDecisionsInStandardMode,
     resolveLoadout,
     type AgentToolName,
@@ -85,6 +86,7 @@ import {
     completedPromptTokenUsage,
     initialPromptTokenUsage,
 } from '../promptTokenUsage';
+import type { AiAgentSkillReference } from '../skills/types';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
@@ -890,6 +892,7 @@ export type AgentMcpToolSetup = {
 
 export const buildDeepResearchExecutionContextSnapshot = (
     args: AiAgentArgs,
+    availableSkills: readonly AiAgentSkillReference[],
     tools: ToolSet,
     mcpToolSetup: AgentMcpToolSetup,
 ): AiDeepResearchExecutionContextSnapshot => ({
@@ -945,9 +948,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
-        availableSkillNames: args.availableSkills
-            .map((skill) => skill.name)
-            .sort(),
+        availableSkillNames: availableSkills.map((skill) => skill.name).sort(),
     },
     effectivePermissions: {
         canManageAgent: args.canManageAgent,
@@ -964,6 +965,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
 
 const persistDeepResearchExecutionContext = async (
     args: AiAgentArgs,
+    loadout: Loadout,
     tools: ToolSet,
     mcpToolSetup: AgentMcpToolSetup,
 ): Promise<void> => {
@@ -971,7 +973,12 @@ const persistDeepResearchExecutionContext = async (
         return;
     }
     await args.execution.onExecutionContextResolved?.(
-        buildDeepResearchExecutionContextSnapshot(args, tools, mcpToolSetup),
+        buildDeepResearchExecutionContextSnapshot(
+            args,
+            getAvailableSkills(args, loadout),
+            tools,
+            mcpToolSetup,
+        ),
     );
 };
 
@@ -2213,7 +2220,20 @@ export const getAgentTools = (
             getDescribeWarehouseTable({
                 describeWarehouseTable: dependencies.describeWarehouseTable,
             }),
-        loadSkill: () => getLoadSkill({ loadSkill: dependencies.loadSkill }),
+        loadSkill: () => {
+            const listed = new Set(
+                getAvailableSkills(args, loadout).map(({ name }) =>
+                    name.toLowerCase(),
+                ),
+            );
+            // A built-in skill outside the loadout stays unloadable even by name.
+            return getLoadSkill({
+                loadSkill: async (name, options) =>
+                    listed.has(name.trim().toLowerCase())
+                        ? dependencies.loadSkill(name, options)
+                        : undefined,
+            });
+        },
         loadProjectContext: () =>
             getLoadProjectContext({
                 getDocument: async () => {
@@ -2474,7 +2494,7 @@ const getCapabilitySectionArgs = (
     customChartTypeLibrary: CustomChartTypeLibrary,
 ): CapabilitySectionArgs => ({
     promptSections: loadout.promptSections,
-    availableSkills: args.availableSkills,
+    availableSkills: getAvailableSkills(args, loadout),
     enableDocumentNudges: areDocumentNudgesEnabled(args),
     // Custom charts reach Documents through findCustomChartTypes and
     // exportChartAsCode, so the guidance needs both tools.
@@ -2735,6 +2755,7 @@ const prepareAgentTurn = async ({
             base: loadout.base,
             addOns: [...loadout.addOns].sort(),
             toolNames: [...loadout.toolNames].sort(),
+            skills: [...loadout.skills].sort(),
         },
     );
     trace.getActiveSpan()?.setAttributes(loadoutSpanAttributes(loadout));
@@ -2752,7 +2773,12 @@ const prepareAgentTurn = async ({
         projectParameterDefinitions,
         agentContext,
     );
-    await persistDeepResearchExecutionContext(args, tools, mcpToolSetup);
+    await persistDeepResearchExecutionContext(
+        args,
+        loadout,
+        tools,
+        mcpToolSetup,
+    );
     // model-routing already classified this first turn as a simple data answer
     // with >=99% confidence. Reuse that decision instead of serially asking
     // JEV for the same intent plus catalog ranking before a fast model can
@@ -2772,7 +2798,10 @@ const prepareAgentTurn = async ({
         fastDataAnswerContext
             ? Promise.resolve(fastDataAnswerContext)
             : prepareRelevantContext(
-                  args,
+                  {
+                      ...args,
+                      availableSkills: getAvailableSkills(args, loadout),
+                  },
                   dependencies,
                   tools,
                   Object.keys(mcpToolSetup.tools),

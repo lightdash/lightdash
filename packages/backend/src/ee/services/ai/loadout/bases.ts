@@ -1,7 +1,8 @@
-import { ADD_ON_NAMES, ADD_ONS } from './addOns';
+import { ADD_ON_NAMES, ADD_ONS, applicableAddOns } from './addOns';
 import type {
     AgentToolName,
     BaseDefinition,
+    BuiltInSkillName,
     LoadoutBase,
     LoadoutInput,
     PromptSection,
@@ -29,13 +30,21 @@ const onlyIf = (
     tools: readonly AgentToolName[],
 ): readonly AgentToolName[] => (condition ? tools : []);
 
-// Deep research narrows tools only; its prompt still renders every applicable add-on section.
-const applicableAddOnSections = (
+// Deep research narrows tools only; its prompt still renders every applicable add-on's sections and skills.
+const applicableAddOnPrompt = (
     input: LoadoutInput,
-): readonly PromptSection[] =>
-    Object.values(ADD_ONS).flatMap(({ when: applies, section }) =>
-        section && applies(input) ? [section.id] : [],
-    );
+): {
+    sections: readonly PromptSection[];
+    skills: readonly BuiltInSkillName[];
+} => {
+    const addOns = applicableAddOns(input).map((name) => ADD_ONS[name]);
+    return {
+        sections: addOns.flatMap(({ section }) =>
+            section ? [section.id] : [],
+        ),
+        skills: addOns.flatMap(({ skills }) => skills),
+    };
+};
 
 export const BASES: Record<LoadoutBase, BaseDefinition> = {
     classic: (input) => ({
@@ -48,6 +57,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
         sections: [],
+        skills: [],
         accepts: ADD_ON_NAMES,
     }),
     // exportChartAsCode cannot export composer artifacts.
@@ -59,6 +69,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
         ],
         sections: ['queryingComposer'],
+        skills: [],
         accepts: ADD_ON_NAMES,
     }),
     // Today every add-on can apply without data access; narrowing it is a behaviour change.
@@ -69,6 +80,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
         ],
         sections: [],
+        skills: [],
         accepts: ADD_ON_NAMES,
     }),
     deep_research_worker: (input) => ({
@@ -81,7 +93,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
             'submitWorkerFindings',
         ],
-        sections: applicableAddOnSections(input),
+        ...applicableAddOnPrompt(input),
         accepts: ['sqlCatalog'],
     }),
     deep_research_coordinator: (input) => ({
@@ -94,7 +106,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
             ...onlyIf(input.canRunSql, ['runSql']),
             'delegateResearchTask',
         ],
-        sections: applicableAddOnSections(input),
+        ...applicableAddOnPrompt(input),
         accepts: [
             'contentReads',
             'legacyDashboards',

@@ -1,5 +1,7 @@
 import { UnexpectedServerError } from '@lightdash/common';
 import type { ToolSet } from 'ai';
+import type { BuiltInSkillName } from '../loadout';
+import type { AiAgentSkillReference } from '../skills/types';
 import { extractKeywords } from '../tools/grepFieldsIndex';
 import { renderProjectContextEntries } from '../tools/loadProjectContext';
 import { formatSkillResult } from '../tools/loadSkill';
@@ -25,7 +27,12 @@ export type PreparedContext = {
     toolIntents: TurnIntent[];
 };
 
-const DOCUMENT_AUTHORING_SKILL = 'developing-in-lightdash';
+const DOCUMENT_AUTHORING_SKILL: BuiltInSkillName = 'developing-in-lightdash';
+
+/** Run args plus the skills the turn's loadout lists. */
+export type PrepareContextArgs = AiAgentArgs & {
+    availableSkills: readonly AiAgentSkillReference[];
+};
 
 export const TURN_INTENTS = [
     'reference_answer',
@@ -122,7 +129,7 @@ const boundCandidates = <T>(
 };
 
 export const prepareRelevantContext = async (
-    args: AiAgentArgs,
+    args: PrepareContextArgs,
     dependencies: AiAgentDependencies,
     runtimeTools: ToolSet = {},
     mcpToolNames: string[] = [],

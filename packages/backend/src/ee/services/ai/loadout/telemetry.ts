@@ -6,6 +6,7 @@ const sortedAddOns = (loadout: Loadout): string[] => [...loadout.addOns].sort();
 export const loadoutSpanAttributes = (loadout: Loadout) => ({
     'ai.agent.loadout.base': loadout.base,
     'ai.agent.loadout.add_ons': sortedAddOns(loadout),
+    'ai.agent.loadout.skills': [...loadout.skills].sort(),
     'ai.agent.loadout.tool_count': loadout.toolNames.size,
 });
 

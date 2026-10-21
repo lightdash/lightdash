@@ -25,5 +25,8 @@
         "runSql",
         "schedulingTools",
         "skills"
+    ],
+    "skills": [
+        "developing-in-lightdash"
     ]
 }

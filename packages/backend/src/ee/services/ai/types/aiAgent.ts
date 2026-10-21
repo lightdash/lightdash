@@ -326,7 +326,10 @@ export type AiAgentArgs = AnyAiModel & {
         warehouseType: WarehouseTypes;
         isOriginal: boolean;
     }[];
-    availableSkills: AiAgentSkillReference[];
+    /** Agent-available built-in skills; the run lists those in `loadout.skills`. */
+    builtInSkills: AiAgentSkillReference[];
+    /** Model-servable custom skills bound to the agent. */
+    customSkills: AiAgentSkillReference[];
     modelReasoningEnabled: boolean | null;
 
     toolDescriptionMaxChars: number;
