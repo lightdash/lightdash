@@ -5,7 +5,10 @@ import {
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../config/lightdashConfig.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -110,6 +113,39 @@ describe('health', () => {
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
+        },
+    );
+    it.each([
+        ['no', licenseService, lightdashConfigWithAppRuntimeMock, false],
+        [
+            'an invalid',
+            invalidLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            false,
+        ],
+        ['a valid', validLicenseService, lightdashConfigMock, false],
+        [
+            'a valid',
+            validLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            true,
+        ],
+    ])(
+        'reports the app runtime available only with a valid licence and a configured runtime (%s licence)',
+        async (_licence, caseLicenseService, config, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: config,
+                licenseService: caseLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.dataApps.runtimeAvailable).toBe(expected);
         },
     );
     it('Should return last version as undefined when fails fetch', async () => {

@@ -94,6 +94,7 @@ const createMcpService = (documentsEnabled: boolean) =>
         isFilterExpressionsEnabled: vi.fn().mockResolvedValue(true),
         isRunMetricQueryEnabled: vi.fn().mockResolvedValue(false),
         isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
+        isChartTypeBuildsEnabled: vi.fn().mockResolvedValue(false),
         isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),
         isAgentIdentityEnabled: vi.fn().mockResolvedValue(false),
         isRunSqlEnabled: vi.fn().mockResolvedValue(false),
@@ -433,6 +434,44 @@ describe('project-scoped MCP route', () => {
         });
         expect(transport.handleRequest).toHaveBeenCalledOnce();
     });
+
+    it('offers chart type builds without data app builds', async () => {
+        transport.handleRequest.mockImplementation(
+            async (_request, response) => {
+                response.status(200).json({ status: 'ok' });
+            },
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            configureService: (service) => {
+                vi.mocked(service.isChartTypeBuildsEnabled).mockResolvedValue(
+                    true,
+                );
+            },
+            method: 'POST',
+            path: `/api/v1/mcp/projects/${PROJECT_UUID}`,
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'initialize',
+                params: {},
+            },
+        });
+
+        expect(response.status).toBe(200);
+        expect(mcpService.isChartTypeBuildsEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
+        expect(mcpService.createServer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureAvailability: expect.objectContaining({
+                    chartTypeBuildsEnabled: true,
+                    dataAppBuildsEnabled: false,
+                }),
+            }),
+        );
+    });
 });
 
 describe('MCP call-time OAuth scope enforcement', () => {
@@ -584,82 +623,114 @@ describe('trusted MCP execution identity', () => {
     });
 });
 
+const dataAppsFlag = (enabled: boolean) => ({
+    featureFlagService: { get: vi.fn().mockResolvedValue({ enabled }) },
+});
+const chartStudio = (available: boolean) => ({
+    aiAgentToolsService: { isChartStudioAvailable: () => available },
+});
+
 describe.each([true, false])(
-    'hidden data app dispatch refusals identity=%s',
+    'hidden app build dispatch refusals identity=%s',
     (enabled) => {
-        describe.each([true, false])('data apps=%s', (dataAppsEnabled) => {
+        describe.each([true, false])('available=%s', (available) => {
             test.each([
-                ['generate_data_app', 'create'],
-                ['iterate_data_app', 'update'],
-                ['create_custom_chart_type', 'create'],
-                ['iterate_custom_chart_type', 'update'],
-            ])('%s is recorded before SDK dispatch', async (name, action) => {
-                const insert = vi.fn().mockResolvedValue(undefined);
-                transport.handleRequest.mockImplementationOnce(
-                    (_req: unknown, res: Response) => {
-                        expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
-                        res.status(200).json({
-                            error: { code: -32602, message: 'Tool not found' },
-                        });
-                    },
-                );
-                const { response } = await requestMcp({
-                    account: createAccount({
-                        type: 'oauth',
-                        scopes: ['mcp:write'],
-                    }),
-                    agentIdentityEnabled: enabled,
-                    method: 'POST',
-                    configureService: (service) =>
-                        Object.assign(service, {
-                            recordDisabledToolRefusal:
-                                McpService.prototype.recordDisabledToolRefusal,
-                            agentActionLogModel: { insert },
-                            featureFlagService: {
-                                get: vi.fn().mockResolvedValue({
-                                    enabled: dataAppsEnabled,
-                                }),
-                            },
+                [
+                    'generate_data_app',
+                    'create',
+                    dataAppsFlag,
+                    'data_apps_disabled',
+                ],
+                [
+                    'iterate_data_app',
+                    'update',
+                    dataAppsFlag,
+                    'data_apps_disabled',
+                ],
+                [
+                    'create_custom_chart_type',
+                    'create',
+                    chartStudio,
+                    'chart_studio_unavailable',
+                ],
+                [
+                    'iterate_custom_chart_type',
+                    'update',
+                    chartStudio,
+                    'chart_studio_unavailable',
+                ],
+            ] as const)(
+                '%s is recorded before SDK dispatch',
+                async (name, action, configure, unavailableReason) => {
+                    const insert = vi.fn().mockResolvedValue(undefined);
+                    transport.handleRequest.mockImplementationOnce(
+                        (_req: unknown, res: Response) => {
+                            expect(insert).toHaveBeenCalledTimes(
+                                enabled ? 1 : 0,
+                            );
+                            res.status(200).json({
+                                error: {
+                                    code: -32602,
+                                    message: 'Tool not found',
+                                },
+                            });
+                        },
+                    );
+                    const { response } = await requestMcp({
+                        account: createAccount({
+                            type: 'oauth',
+                            scopes: ['mcp:write'],
                         }),
-                    requestBody: {
-                        jsonrpc: '2.0',
-                        id: 1,
-                        method: 'tools/call',
-                        params: {
-                            name,
-                            arguments: {
-                                prompt: 'private prompt',
-                                projectUuid: PROJECT_UUID,
+                        agentIdentityEnabled: enabled,
+                        method: 'POST',
+                        configureService: (service) =>
+                            Object.assign(service, {
+                                recordDisabledToolRefusal:
+                                    McpService.prototype
+                                        .recordDisabledToolRefusal,
+                                agentActionLogModel: { insert },
+                                ...configure(available),
+                            }),
+                        requestBody: {
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'tools/call',
+                            params: {
+                                name,
+                                arguments: {
+                                    prompt: 'private prompt',
+                                    projectUuid: PROJECT_UUID,
+                                },
                             },
                         },
-                    },
-                });
-                expect(response.status).toBe(200);
-                expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
-                if (enabled)
-                    expect(insert).toHaveBeenCalledExactlyOnceWith(
-                        expect.objectContaining({
-                            action,
-                            object_type: 'app',
-                            outcome: 'denied',
-                            policy_layer: dataAppsEnabled
-                                ? 'casl'
-                                : 'organization_setting',
-                            reason_code: dataAppsEnabled
-                                ? 'data_app_create_forbidden'
-                                : 'data_apps_disabled',
-                            agent_identity: expect.objectContaining({
-                                act: expect.objectContaining({
-                                    surface: AgentActorSurface.MCP,
-                                    client_id: 'authenticated-client',
+                    });
+                    expect(response.status).toBe(200);
+                    expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                    if (enabled)
+                        expect(insert).toHaveBeenCalledExactlyOnceWith(
+                            expect.objectContaining({
+                                action,
+                                object_type: 'app',
+                                outcome: 'denied',
+                                policy_layer: available
+                                    ? 'casl'
+                                    : 'organization_setting',
+                                reason_code: available
+                                    ? 'data_app_create_forbidden'
+                                    : unavailableReason,
+                                agent_identity: expect.objectContaining({
+                                    act: expect.objectContaining({
+                                        surface: AgentActorSurface.MCP,
+                                        client_id: 'authenticated-client',
+                                    }),
                                 }),
                             }),
-                        }),
+                        );
+                    expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                        'private prompt',
                     );
-                expect(JSON.stringify(insert.mock.calls)).not.toContain(
-                    'private prompt',
-                );
-            });
+                },
+            );
         });
     },
 );

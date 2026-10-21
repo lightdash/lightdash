@@ -489,8 +489,8 @@ describe('AiAgentToolsService', () => {
             viz_schema: latestRenderableSchema,
         });
         const service = makeService({
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
+            appGenerateService: {
+                chartTypesEnabledFor: vi.fn().mockResolvedValue(true),
             },
             appModel: {
                 findDataAppVisualizationBySlug,
@@ -4626,8 +4626,14 @@ describe('AiAgentToolsService generateDataApp', () => {
     const makeAppGenerateService = ({
         enabled = true,
         canCreate = true,
-    }: { enabled?: boolean; canCreate?: boolean } = {}) => ({
+        chartStudioAvailable = true,
+    }: {
+        enabled?: boolean;
+        canCreate?: boolean;
+        chartStudioAvailable?: boolean;
+    } = {}) => ({
         dataAppsEnabledFor: vi.fn().mockResolvedValue(enabled),
+        isChartStudioAvailable: vi.fn().mockReturnValue(chartStudioAvailable),
         canCreateDataApp: vi.fn().mockResolvedValue(canCreate),
         generateApp: vi.fn().mockResolvedValue({
             appUuid: 'app-uuid',
@@ -4695,6 +4701,31 @@ describe('AiAgentToolsService generateDataApp', () => {
                 expect(
                     await service.canGenerateDataApp({ user, projectUuid }),
                 ).toBe(expected);
+            },
+        );
+
+        it.each([
+            [true, true, true],
+            [false, true, false],
+            [true, false, false],
+        ])(
+            'chart type authoring follows Chart Studio=%s canCreate=%s, not the data apps flag → %s',
+            async (chartStudioAvailable, canCreate, expected) => {
+                const appGenerateService = makeAppGenerateService({
+                    enabled: false,
+                    canCreate,
+                    chartStudioAvailable,
+                });
+                const service = makeService({ appGenerateService });
+                expect(
+                    await service.canAuthorCustomChartTypes({
+                        user,
+                        projectUuid,
+                    }),
+                ).toBe(expected);
+                expect(
+                    appGenerateService.dataAppsEnabledFor,
+                ).not.toHaveBeenCalled();
             },
         );
     });

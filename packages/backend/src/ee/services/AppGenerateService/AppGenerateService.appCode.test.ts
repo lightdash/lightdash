@@ -22,6 +22,7 @@ import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { MockSandbox } from '../SandboxRuntime/SandboxRuntime.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 import { ZERO_CLAUDE_USAGE } from './ClaudeStreamProcessor';
 import {
     TEMPLATE_DEPENDENCIES,
@@ -155,6 +156,8 @@ function buildService(
     opts: {
         customDependenciesOrgEnabled?: boolean;
         canManageDataAppDependencies?: boolean;
+        dataAppsEnabled?: boolean;
+        chartStudioAvailable?: boolean;
     } = {},
 ) {
     const appModel = {
@@ -190,18 +193,11 @@ function buildService(
         appBuildFromSource: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
     };
 
-    const featureFlagModel = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-            if (
-                featureFlagId === FeatureFlags.EnableDataAppCustomDependencies
-            ) {
-                return {
-                    enabled: opts.customDependenciesOrgEnabled ?? true,
-                };
-            }
-            return { enabled: true };
-        }),
-    };
+    const featureFlagModel = featureFlagModelWith({
+        [FeatureFlags.EnableDataAppCustomDependencies]:
+            opts.customDependenciesOrgEnabled ?? true,
+        [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
+    });
 
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({
@@ -273,6 +269,9 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        opts.chartStudioAvailable ?? true,
+    );
 
     // Stub ability checks to allow everything
     vi.spyOn(
@@ -923,6 +922,90 @@ describe('AppGenerateService.importAppCode', () => {
                 ),
             ]),
         );
+    });
+
+    describe('the app gate with data apps off', () => {
+        const chartTypeCode = () =>
+            makeCode(undefined, {
+                template: 'data_app_viz',
+                vizSchema: VIZ_SCHEMA,
+            });
+
+        it('imports a chart type manifest while Chart Studio is available', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: chartTypeCode(),
+            } as ImportAppCodeRequestBody);
+
+            expect(appModel.createWithVersion).toHaveBeenCalledWith(
+                expect.objectContaining({ template: 'data_app_viz' }),
+                expect.anything(),
+                'pending',
+                expect.any(Object),
+                undefined,
+                expect.anything(),
+                expect.anything(),
+            );
+        });
+
+        it('refuses a chart type manifest when Chart Studio is not available', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+                chartStudioAvailable: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: chartTypeCode(),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow(
+                new ForbiddenError('Chart Studio is not available'),
+            );
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+
+        it('refuses a data app manifest', async () => {
+            const { service, appModel } = buildService({
+                dataAppsEnabled: false,
+            });
+            appModel.findApp.mockResolvedValue(undefined);
+
+            await expect(
+                service.importAppCode(makeUser(), PROJECT_UUID, {
+                    code: makeCode(),
+                } as ImportAppCodeRequestBody),
+            ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+            expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        });
+    });
+
+    it('refuses a chart type manifest that targets an existing data app while data apps are off', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            dataAppsEnabled: false,
+        });
+        appModel.findAppBySlug.mockResolvedValue({
+            ...makeExistingApp(),
+            template: null,
+        });
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: makeCode(undefined, {
+                    slug: EXISTING_APP_SLUG,
+                    template: 'data_app_viz',
+                    vizSchema: VIZ_SCHEMA,
+                }),
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
+
+        expect(appModel.createVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
     });
 
     it('throws ParameterError when targetAppUuid is given but app is not found', async () => {

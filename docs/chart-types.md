@@ -94,8 +94,14 @@ pipeline, and authoring runbook are documented in
 - `LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE` — permits plain-http registries
   (local fixture servers, air-gapped mirrors). Logs a startup security
   warning; never set it against a registry you don't control.
-- The feature sits on top of data apps (enterprise + its config/flags) and
-  is additionally gated by the `chart-type-registry` feature flag.
+- The library is enterprise-only and gated by the `chart-type-registry`
+  feature flag alone; it does not need data apps or Chart Studio.
+- Installed chart types are usable (picked, configured, rendered) wherever
+  the library flag is on, the `enable-data-apps` flag is on, or Chart Studio
+  is available. Chart Studio, which authors and forks chart types, is
+  available with a valid licence and a configured sandbox provider, not the
+  `enable-data-apps` flag. The coding agent key is resolved per organization
+  when a build starts.
 
 ## Where to look
 

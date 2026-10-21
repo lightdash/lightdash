@@ -3,52 +3,57 @@ import { assertChartTypesEnabled } from './chartTypeFeatureGate';
 
 const user = { userUuid: 'user-1', organizationUuid: 'org-1' };
 
-describe('chart type flag resolution', () => {
-    it.each([
-        [false, false],
-        [false, true],
-        [true, false],
-        [true, true],
-    ])(
-        'checks data apps=%s, library=%s in the supplied context',
-        async (dataApps, library) => {
-            const get = vi
-                .fn()
-                .mockImplementation(async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.EnableDataApps
-                            ? dataApps
-                            : library,
-                }));
-            const result = assertChartTypesEnabled({ get }, user);
-            if (dataApps || library)
-                await expect(result).resolves.toBeUndefined();
-            else
-                await expect(result).rejects.toThrow(
-                    new ForbiddenError('Chart types are not enabled'),
-                );
-            expect(get).toHaveBeenNthCalledWith(1, {
-                user,
-                featureFlagId: FeatureFlags.EnableDataApps,
-            });
-            expect(get).toHaveBeenCalledTimes(dataApps ? 1 : 2);
-            if (!dataApps) {
-                expect(get).toHaveBeenNthCalledWith(2, {
-                    user,
-                    featureFlagId: FeatureFlags.ChartTypeRegistry,
-                });
-            }
+const libraryFlag = (enabled: boolean) =>
+    vi.fn().mockImplementation(async ({ featureFlagId }) => ({
+        id: featureFlagId,
+        enabled,
+    }));
+
+const flags = (enabled: Partial<Record<FeatureFlags, boolean>>) =>
+    vi.fn().mockImplementation(async ({ featureFlagId }) => ({
+        id: featureFlagId,
+        enabled: enabled[featureFlagId as FeatureFlags] ?? false,
+    }));
+
+describe('chart type usage gate', () => {
+    it.each([true, false])(
+        'allows chart types wherever Chart Studio is available (library=%s)',
+        async (library) => {
+            const get = libraryFlag(library);
+            await expect(
+                assertChartTypesEnabled({ get }, true, user),
+            ).resolves.toBeUndefined();
+            expect(get).not.toHaveBeenCalled();
         },
     );
 
-    it('propagates data apps resolver errors without checking the library', async () => {
-        const error = new Error('resolver unavailable');
-        const get = vi.fn().mockRejectedValue(error);
-        await expect(assertChartTypesEnabled({ get }, user)).rejects.toBe(
-            error,
-        );
-        expect(get).toHaveBeenCalledTimes(1);
+    it('falls back to the chart type library without Chart Studio or data apps', async () => {
+        const get = flags({ [FeatureFlags.ChartTypeRegistry]: true });
+        await expect(
+            assertChartTypesEnabled({ get }, false, user),
+        ).resolves.toBeUndefined();
+        expect(get).toHaveBeenNthCalledWith(1, {
+            user,
+            featureFlagId: FeatureFlags.EnableDataApps,
+        });
+        expect(get).toHaveBeenNthCalledWith(2, {
+            user,
+            featureFlagId: FeatureFlags.ChartTypeRegistry,
+        });
+    });
+
+    it('keeps chart types usable where data apps are on without Chart Studio or the library', async () => {
+        const get = flags({ [FeatureFlags.EnableDataApps]: true });
+        await expect(
+            assertChartTypesEnabled({ get }, false, user),
+        ).resolves.toBeUndefined();
+    });
+
+    it('refuses without Chart Studio, the library or data apps', async () => {
+        const get = flags({});
+        await expect(
+            assertChartTypesEnabled({ get }, false, user),
+        ).rejects.toThrow(new ForbiddenError('Chart types are not enabled'));
     });
 
     it('propagates library resolver errors when data apps are disabled', async () => {
@@ -60,9 +65,9 @@ describe('chart type flag resolution', () => {
                 enabled: false,
             })
             .mockRejectedValueOnce(error);
-        await expect(assertChartTypesEnabled({ get }, user)).rejects.toBe(
-            error,
-        );
+        await expect(
+            assertChartTypesEnabled({ get }, false, user),
+        ).rejects.toBe(error);
     });
 
     it('does not consult a failing library resolver when data apps are enabled', async () => {
@@ -72,7 +77,7 @@ describe('chart type flag resolution', () => {
             return { id: featureFlagId, enabled: true };
         });
         await expect(
-            assertChartTypesEnabled({ get }, user),
+            assertChartTypesEnabled({ get }, false, user),
         ).resolves.toBeUndefined();
         expect(get).toHaveBeenCalledTimes(1);
     });

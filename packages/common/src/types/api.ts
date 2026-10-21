@@ -910,6 +910,11 @@ export type HealthState = {
          * `GET /org/settings`.
          */
         capturesEnabled: boolean;
+        /**
+         * Whether app builds can run here: a valid licence and a configured
+         * sandbox provider. Data apps also need the enable-data-apps flag.
+         */
+        runtimeAvailable: boolean;
     };
 };
 

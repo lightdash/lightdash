@@ -105,7 +105,9 @@ export enum FeatureFlags {
     /**
      * Enable data apps feature. Disabled by default. Self-hosted
      * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
-     * the config parser translates into the enable allowlist.
+     * the config parser translates into the enable allowlist. Does not gate
+     * Chart Studio, which is available with a valid licence and a configured
+     * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
     // Enable the Learn library, walkthroughs and training project per org.
@@ -367,10 +369,12 @@ export enum FeatureFlags {
 
     /**
      * Enables the chart type library — browsing and installing official
-     * chart types from the configured chart registry — and, together with
-     * `EnableDataApps` as an either/or gate, usage of installed chart types
-     * (picking, configuring, rendering). Authoring, editing, and forking
-     * chart types stay behind `EnableDataApps`. Default: off.
+     * chart types from the configured chart registry — and, as an either/or
+     * gate with Chart Studio availability and `EnableDataApps`, usage of
+     * installed chart types (picking, configuring, rendering). Authoring,
+     * editing, and forking chart types follow Chart Studio availability
+     * (a valid licence and a configured sandbox provider), not this flag.
+     * Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
 

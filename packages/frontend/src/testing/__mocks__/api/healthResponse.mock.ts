@@ -166,6 +166,7 @@ export default function mockHealthResponse(
             previewOrigin: null,
             sampleDataEnabled: true,
             capturesEnabled: true,
+            runtimeAvailable: false,
         },
         ...overrides,
     };

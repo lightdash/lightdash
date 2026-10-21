@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
+import { isAppRuntimeConfigured } from '../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../config/parseConfig';
 import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfiguration';
 import { isPreAggregatesEnabled } from '../../ee/preAggregates/isPreAggregatesEnabled';
@@ -349,6 +350,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.appRuntime.sampleDataEnabled,
                 capturesEnabled:
                     this.lightdashConfig.appRuntime.capturesEnabled,
+                runtimeAvailable:
+                    this.licenseService.getLicenseStatus().valid &&
+                    isAppRuntimeConfigured(this.lightdashConfig),
             },
             learnSandbox: {
                 enabled: await this.learnSandboxService.isRuntimeAvailable(),

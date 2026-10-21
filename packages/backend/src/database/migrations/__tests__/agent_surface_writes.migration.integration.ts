@@ -259,6 +259,8 @@ describe('trusted surface to persisted chart identity', () => {
             },
         } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
         vi.spyOn(tools, 'canGenerateDataApp').mockResolvedValue(false);
+        vi.spyOn(tools, 'isChartStudioAvailable').mockReturnValue(false);
+        vi.spyOn(tools, 'canAuthorCustomChartTypes').mockResolvedValue(false);
         vi.spyOn(tools, 'canUseCustomChartTypes').mockResolvedValue(false);
         const content = {
             version: 1,
