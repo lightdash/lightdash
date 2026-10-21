@@ -1,0 +1,4 @@
+#!/bin/zsh
+set -eu
+cd /Users/charlie/.t3/worktrees/lightdash/test-exploratory-refresh-mac
+exec env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" EXPLORE_BATCH="${EXPLORE_BATCH:-31358}" /bin/zsh .expl-e2/run-clean "$@"

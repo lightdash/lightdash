@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+root=Path(__file__).resolve().parents[1]
+pidfile=root/'.expl-e2/instance.pid'
+def alive(pid):
+ try: os.kill(pid,0);return True
+ except ProcessLookupError:return False
+if sys.argv[1]=='stop':
+ if pidfile.exists():
+  pid=int(pidfile.read_text())
+  if alive(pid):
+   os.killpg(pid,signal.SIGTERM)
+   for _ in range(100):
+    if not alive(pid): break
+    time.sleep(.2)
+  pidfile.unlink(missing_ok=True)
+ print('Stopped own private backend')
+elif sys.argv[1] in ['start','up']:
+ if pidfile.exists() and alive(int(pidfile.read_text())):raise RuntimeError('Own backend already running')
+ env={k:v for k,v in os.environ.items() if k in ['PATH','HOME','TMPDIR','LANG','LC_ALL','FNM_DIR','FNM_MULTISHELL_PATH']}
+ for line in (root/'.env.expl-e2').read_text().splitlines():
+  key,value=line.split('=',1);env[key]=value
+ env['PATH']=str(root/'scratch-exploratory/e2/bin')+':'+str(root/'.venv-dbt/bin')+':'+env['PATH']
+ env['GIT_CONFIG_SYSTEM']=str(root/'.expl-e2/gitconfig')
+ env['NODE_OPTIONS']='--max-old-space-size=4096 --require '+str(root/'.expl-e2/git-private.cjs')
+ log=(root/'.expl-e2/backend.log').open('a')
+ child=subprocess.Popen(['fnm','exec','--using','24.18.1','pnpm','-F','backend','exec','tsx','src/index.ts'],cwd=root,env=env,stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
+ pidfile.write_text(str(child.pid))
+ print('Started own private backend')
+else:
+ raise ValueError('Only own start/stop is supported')

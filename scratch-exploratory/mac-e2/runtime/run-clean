@@ -1,0 +1,9 @@
+#!/bin/zsh
+set -eu
+cd /Users/charlie/.t3/worktrees/lightdash/test-exploratory-refresh-mac
+set -a
+source .env.expl-e2
+set +a
+export GIT_CONFIG_SYSTEM="$PWD/.expl-e2/gitconfig"
+export PATH="$PWD/.expl-e2/bin:$PWD/.venv-dbt/bin:$PATH"
+exec fnm exec --using 24.18.1 "$@"

@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from runtime import REAL_DBT, OUT
+
+fault = os.environ.get('EXPLORATORY_FAULT')
+if fault == 'sleep' and 'ls' in sys.argv:
+    with (OUT / 'fault-events.log').open('a') as stream:
+        stream.write(json.dumps({'fault': 'sleep', 'phase': 'ls', 'at': time.time()}) + '\n')
+    time.sleep(90)
+result = subprocess.run([str(REAL_DBT), *sys.argv[1:]])
+if result.returncode == 0 and fault == 'ls' and 'ls' in sys.argv:
+    print(json.dumps({'info': {'level': 'error', 'msg': 'Synthetic dbt ls failure: /private/fixture-only ' + 'https://' + 'fixture-user:' + 'fixture-marker@' + 'example.invalid/fixture-only', 'code': 'X000', 'name': 'SyntheticLsFailure'}}))
+    raise SystemExit(2)
+if result.returncode == 0 and fault == 'manifest' and 'ls' in sys.argv:
+    p = Path(os.environ['DBT_TARGET_PATH']) / 'manifest.json'
+    manifest = json.loads(p.read_text())
+    manifest['metadata']['adapter_type'] = 'unsupported_synthetic_adapter'
+    p.write_text(json.dumps(manifest))
+    with (OUT / 'fault-events.log').open('a') as stream:
+        stream.write(json.dumps({'fault': 'manifest', 'phase': 'validation', 'at': time.time()}) + '\n')
+raise SystemExit(result.returncode)

@@ -1,0 +1,1063 @@
+[
+  {
+    "scenario": "old-writer-upgrade-fixture",
+    "commit": "7ef1abdd388765a353ade4b98046b11c7078d1f0",
+    "success": true,
+    "names": [
+      "dbt_project__shared_old",
+      "ledger",
+      "merchant",
+      "merchants__shared_old",
+      "payments",
+      "settlement"
+    ],
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    }
+  },
+  {
+    "scenario": "old-writer-new-empty-table",
+    "commit": "7ef1abdd388765a353ade4b98046b11c7078d1f0",
+    "success": true,
+    "allocation_rows": 0,
+    "names_unchanged": true
+  },
+  {
+    "scenario": "upgrade-seeding-refresh",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "names_unchanged": true,
+    "expected_names": [
+      "dbt_project__shared_old",
+      "ledger",
+      "merchant",
+      "merchants__shared_old",
+      "payments",
+      "settlement"
+    ],
+    "actual": {
+      "names": [
+        "dbt_project__shared_old",
+        "ledger",
+        "merchant",
+        "merchants__shared_old",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "dbt_project__shared_old",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__shared_old",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "shared_old",
+          "reserved": true,
+          "source": null,
+          "package": "__reserved__"
+        }
+      ]
+    },
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Model \"shared_old\" (model.payments.shared_old) is assigned explore name \"dbt_project__shared_old\". The plain name \"shared_old\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__shared_old\", \"merchants__shared_old\".",
+        "Model \"shared_old\" (model.merchants.shared_old) is assigned explore name \"merchants__shared_old\". The plain name \"shared_old\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__shared_old\", \"merchants__shared_old\"."
+      ],
+      "report": [
+        "Model \"shared_old\" (model.payments.shared_old) is assigned explore name \"dbt_project__shared_old\". The plain name \"shared_old\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__shared_old\", \"merchants__shared_old\".",
+        "Model \"shared_old\" (model.merchants.shared_old) is assigned explore name \"merchants__shared_old\". The plain name \"shared_old\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__shared_old\", \"merchants__shared_old\"."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    }
+  },
+  {
+    "scenario": "upgrade-seeding-cli",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "names_unchanged": true,
+    "actual": {
+      "names": [
+        "dbt_project__shared_old",
+        "ledger",
+        "merchant",
+        "merchants__shared_old",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "dbt_project__shared_old",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__shared_old",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "shared_old",
+          "reserved": true,
+          "source": null,
+          "package": "__reserved__"
+        }
+      ]
+    },
+    "output": "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> shared_old \n- SUCCESS> settlement \n\nCompiled 3 explores, SUCCESS=3 ERRORS=0\nDeploying 3 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (3 explores)...\n  \u2713 Batch 1 uploaded (3 explores)\nFinalizing deploy...\nDeploy completed! 3 explores deployed.\n\nCompilation warnings (1)\n- merchants__shared_old: Model \"shared_old\" (model.merchants.shared_old) is assigned explore name \"merchants__shared_old\". The plain name \"shared_old\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__shared_old\", \"merchants__shared_old\".\n\nSuccessfully deployed project:\n\n      \u26a1\ufe0f http://127.0.0.1:61439/projects/<id>/home\n\nDone \ud83d\udd76\n"
+  },
+  {
+    "scenario": "first-owner-baseline",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "actual": {
+      "names": [
+        "ledger",
+        "merchant",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "first-owner-newcomer-refresh",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "original_retained": true,
+    "newcomer_qualified": true,
+    "saved_chart": {
+      "saved_explore_name": "ledger",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"ledger\".id AS \"ledger_id\",\n  \"ledger\".label AS \"ledger_label\"\nFROM \"explorer\".\"sim_payments\".\"ledger\" AS \"ledger\"\n\nGROUP BY 1,2\nORDER BY \"ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "payments_sample_1",
+        "payments_sample_2",
+        "payments_sample_3"
+      ]
+    },
+    "dashboard_chart_reference": true,
+    "actual": {
+      "names": [
+        "ledger",
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Model \"ledger\" (model.merchants.ledger) is assigned explore name \"merchants__ledger\" because \"ledger\" is owned by model \"ledger\" from source \"dbt_project\" (model.payments.ledger)."
+      ],
+      "report": [
+        "Model \"ledger\" (model.merchants.ledger) is assigned explore name \"merchants__ledger\" because \"ledger\" is owned by model \"ledger\" from source \"dbt_project\" (model.payments.ledger)."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "newcomer_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchants__ledger\".id AS \"merchants__ledger_id\",\n  \"merchants__ledger\".label AS \"merchants__ledger_label\"\nFROM \"explorer\".\"sim_merchants\".\"ledger\" AS \"merchants__ledger\"\n\nGROUP BY 1,2\nORDER BY \"merchants__ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "first-owner-newcomer-cli",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "actual": {
+      "names": [
+        "ledger",
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "saved_chart": {
+      "saved_explore_name": "ledger",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"ledger\".id AS \"ledger_id\",\n  \"ledger\".label AS \"ledger_label\"\nFROM \"explorer\".\"sim_payments\".\"ledger\" AS \"ledger\"\n\nGROUP BY 1,2\nORDER BY \"ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "payments_sample_1",
+        "payments_sample_2",
+        "payments_sample_3"
+      ]
+    },
+    "output": "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> ledger \n- SUCCESS> settlement \n\nCompiled 3 explores, SUCCESS=3 ERRORS=0\nDeploying 3 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (3 explores)...\n  \u2713 Batch 1 uploaded (3 explores)\nFinalizing deploy...\nDeploy completed! 3 explores deployed.\n\nCompilation warnings (1)\n- merchants__ledger: Model \"ledger\" (model.merchants.ledger) is assigned explore name \"merchants__ledger\" because \"ledger\" is owned by model \"ledger\" from source \"dbt_project\" (model.payments.ledger).\n\nSuccessfully deployed project:\n\n      \u26a1\ufe0f http://127.0.0.1:61764/projects/<id>/home\n\nDone \ud83d\udd76\n"
+  },
+  {
+    "scenario": "first-owner-cli-fresh-newcomer",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "baseline": true,
+    "success": true,
+    "actual": {
+      "names": [
+        "merchant",
+        "merchants__ledger",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "saved_chart": {
+      "saved_explore_name": "ledger",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"ledger\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "output": "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> ledger \n- SUCCESS> settlement \n\nCompiled 3 explores, SUCCESS=3 ERRORS=0\nDeploying 3 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (3 explores)...\n  \u2713 Batch 1 uploaded (3 explores)\nFinalizing deploy...\nDeploy completed! 3 explores deployed.\n\nCompilation warnings (1)\n- merchants__ledger: Model \"ledger\" (model.merchants.ledger) is assigned explore name \"merchants__ledger\" because \"ledger\" is owned by model \"ledger\" from source \"dbt_project\" (model.payments.ledger).\n\nSuccessfully deployed project:\n\n      \u26a1\ufe0f http://127.0.0.1:61928/projects/<id>/home\n\nDone \ud83d\udd76\n",
+    "newcomer_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchants__ledger\".id AS \"merchants__ledger_id\",\n  \"merchants__ledger\".label AS \"merchants__ledger_label\"\nFROM \"explorer\".\"sim_merchants\".\"ledger\" AS \"merchants__ledger\"\n\nGROUP BY 1,2\nORDER BY \"merchants__ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "source-rename",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "qualified_name_unchanged": true,
+    "no_new_namespace": true,
+    "actual": {
+      "names": [
+        "ledger",
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "saved_chart": {
+      "saved_explore_name": "ledger",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"ledger\".id AS \"ledger_id\",\n  \"ledger\".label AS \"ledger_label\"\nFROM \"explorer\".\"sim_payments\".\"ledger\" AS \"ledger\"\n\nGROUP BY 1,2\nORDER BY \"ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "payments_sample_1",
+        "payments_sample_2",
+        "payments_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "owner-removes-model",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "plain_released": true,
+    "newcomer_stays_qualified": true,
+    "actual": {
+      "names": [
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "owner-readds-model",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "owner_plain": false,
+    "newcomer_stays_qualified": true,
+    "actual": {
+      "names": [
+        "dbt_project__ledger",
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "dbt_project__ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "ledger",
+          "reserved": true,
+          "source": null,
+          "package": "__reserved__"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "saved_chart": {
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"ledger\" was split into \"dbt_project__ledger\" and \"merchants__ledger\". Pick one.",
+          "data": {
+            "exploreName": "ledger",
+            "candidateExploreNames": [
+              "dbt_project__ledger",
+              "merchants__ledger"
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "scenario": "newcomer-removes-model",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "newcomer_gone": true,
+    "original_remains": false,
+    "saved_chart": {
+      "saved_explore_name": "ledger",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"ledger\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "actual": {
+      "names": [
+        "dbt_project__ledger",
+        "merchant",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "dbt_project__ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "ledger",
+          "reserved": true,
+          "source": null,
+          "package": "__reserved__"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    }
+  },
+  {
+    "scenario": "qualified-name-taken-baseline",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "actual": {
+      "names": [
+        "ledger",
+        "marketing_base",
+        "merchant",
+        "merchants__ledger",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "marketing_base",
+          "reserved": false,
+          "source": "marketing",
+          "package": "marketing"
+        },
+        {
+          "name": "marketing_seed",
+          "reserved": false,
+          "source": null,
+          "package": "marketing"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "marketing",
+          "package": "marketing"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "occupied_owner_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchants__ledger\".id AS \"merchants__ledger_id\",\n  \"merchants__ledger\".label AS \"merchants__ledger_label\"\nFROM \"explorer\".\"sim_marketing\".\"merchants__ledger\" AS \"merchants__ledger\"\n\nGROUP BY 1,2\nORDER BY \"merchants__ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "marketing_sample_1",
+        "marketing_sample_2",
+        "marketing_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "qualified-name-taken-refresh",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": true,
+    "summaries": [
+      {
+        "name": "payments",
+        "label": "Payments",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_payments",
+        "description": "initial synthetic definition",
+        "warehouseConnectionUuid": null
+      },
+      {
+        "name": "ledger",
+        "label": "Ledger",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_payments",
+        "description": "ledger table",
+        "warehouseConnectionUuid": null
+      },
+      {
+        "name": "merchant",
+        "label": "Merchant",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_merchants",
+        "description": "CLI-only last good definition",
+        "warehouseConnectionUuid": null
+      },
+      {
+        "name": "merchants__ledger__conflict",
+        "label": "Ledger",
+        "tags": null,
+        "databaseName": null,
+        "schemaName": null,
+        "warehouseConnectionUuid": null,
+        "errors": [
+          {
+            "type": "EXPLORE_NAME_COLLISION",
+            "message": "Model \"ledger\" (model.merchants.ledger) cannot use explore name \"merchants__ledger\" because it is owned by model \"merchants__ledger\" from source \"marketing\" (model.marketing.merchants__ledger). Rename the source, package or model and deploy again."
+          }
+        ]
+      },
+      {
+        "name": "settlement",
+        "label": "Settlement",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_merchants",
+        "description": "initial synthetic definition",
+        "warehouseConnectionUuid": null
+      },
+      {
+        "name": "marketing_base",
+        "label": "Marketing base",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_marketing",
+        "description": "initial synthetic definition",
+        "warehouseConnectionUuid": null
+      },
+      {
+        "name": "merchants__ledger",
+        "label": "Merchants ledger",
+        "tags": [],
+        "databaseName": "explorer",
+        "schemaName": "sim_marketing",
+        "description": "merchants__ledger table",
+        "warehouseConnectionUuid": null
+      }
+    ],
+    "actual": {
+      "names": [
+        "ledger",
+        "marketing_base",
+        "merchant",
+        "merchants__ledger",
+        "merchants__ledger__conflict",
+        "payments",
+        "settlement"
+      ],
+      "allocations": [
+        {
+          "name": "ledger",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "marketing_base",
+          "reserved": false,
+          "source": "marketing",
+          "package": "marketing"
+        },
+        {
+          "name": "marketing_seed",
+          "reserved": false,
+          "source": null,
+          "package": "marketing"
+        },
+        {
+          "name": "merchant",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        },
+        {
+          "name": "merchants__ledger",
+          "reserved": false,
+          "source": "marketing",
+          "package": "marketing"
+        },
+        {
+          "name": "merchants_seed",
+          "reserved": false,
+          "source": null,
+          "package": "merchants"
+        },
+        {
+          "name": "payments",
+          "reserved": false,
+          "source": "dbt_project",
+          "package": "payments"
+        },
+        {
+          "name": "payments_seed",
+          "reserved": false,
+          "source": null,
+          "package": "payments"
+        },
+        {
+          "name": "settlement",
+          "reserved": false,
+          "source": "merchants",
+          "package": "merchants"
+        }
+      ]
+    },
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "original_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"ledger\".id AS \"ledger_id\",\n  \"ledger\".label AS \"ledger_label\"\nFROM \"explorer\".\"sim_payments\".\"ledger\" AS \"ledger\"\n\nGROUP BY 1,2\nORDER BY \"ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "payments_sample_1",
+        "payments_sample_2",
+        "payments_sample_3"
+      ]
+    },
+    "occupied_owner_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchants__ledger\".id AS \"merchants__ledger_id\",\n  \"merchants__ledger\".label AS \"merchants__ledger_label\"\nFROM \"explorer\".\"sim_marketing\".\"merchants__ledger\" AS \"merchants__ledger\"\n\nGROUP BY 1,2\nORDER BY \"merchants__ledger_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "marketing_sample_1",
+        "marketing_sample_2",
+        "marketing_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "qualified-name-taken-cli",
+    "commit": "c0abadfe4a8ef5eee15c452f54e4096d5c60a01d",
+    "success": false,
+    "http_409": true,
+    "unchanged": true,
+    "output": "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> ledger \n- SUCCESS> settlement \n\nCompiled 3 explores, SUCCESS=3 ERRORS=0\nDeploying 3 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (3 explores)...\n  \u2713 Batch 1 uploaded (3 explores)\nFinalizing deploy...\nModel \"ledger\" (model.merchants.ledger) cannot use explore name \"merchants__ledger\" because it is owned by model \"merchants__ledger\" from source \"marketing\" (model.marketing.merchants__ledger). Rename the source, package or model and deploy again.\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n",
+    "errors": [
+      {
+        "http_status": 409,
+        "method": "POST",
+        "path": "/api/v2/projects/<id>/deploy/<id>/finalize",
+        "message": "{\"status\":\"error\",\"error\":{\"statusCode\":409,\"name\":\"ConflictError\",\"message\":\"Model \\\"ledger\\\" (model.merchants.ledger) cannot use explore name \\\"merchants__ledger\\\" because it is owned by model \\\"merchants__ledger\\\" from source \\\"marketing\\\" (model.marketing.merchants__ledger). Rename the source, package or model and deploy again.\",\"data\":{}}}"
+      }
+    ]
+  }
+]

@@ -1,0 +1,6 @@
+{
+  "jobs_with_report_warnings": 10,
+  "warning_count": 12,
+  "all_warnings_on_completed_step": true,
+  "canary_leaks": 0
+}

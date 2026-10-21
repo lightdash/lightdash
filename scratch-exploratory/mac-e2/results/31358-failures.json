@@ -1,0 +1,1224 @@
+[
+  {
+    "scenario": "baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "names": [
+      "finance_base",
+      "ledger",
+      "merchant",
+      "payments",
+      "settlement"
+    ],
+    "merchant_query": {
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    }
+  },
+  {
+    "scenario": "saved-chart-baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "created": true,
+    "query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "unreadable",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "unreadable-repeat",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "unreadable-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "bad-branch",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "bad-branch-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "deps",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "deps-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "parse",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": null
+      }
+    ]
+  },
+  {
+    "scenario": "parse-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "ls",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "ls-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "manifest",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not parse, list models, or validate the manifest; kept its 2 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "manifest-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "never-compiled",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"marketing\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report": [
+        "Source \"marketing\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "names": [
+      "finance_base",
+      "ledger",
+      "merchant",
+      "payments",
+      "settlement"
+    ],
+    "no_marketing": true
+  },
+  {
+    "scenario": "dependent-baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true
+  },
+  {
+    "scenario": "dependent-source-carried",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true,
+      "finance_base": true
+    },
+    "healthy_updated": null,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.",
+        "Source \"finance\" failed: a referenced dbt source failed; kept its 1 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.",
+        "Source \"finance\" failed: a referenced dbt source failed; kept its 1 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.\nSource \"finance\" failed: a referenced dbt source failed; kept its 1 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "primary-consumer-baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true
+  },
+  {
+    "scenario": "primary-consumer-fails",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": false,
+    "expected_success": false,
+    "carried_equal": {
+      "finance_base": true,
+      "ledger": true,
+      "merchant": true,
+      "payments": true,
+      "settlement": true
+    },
+    "healthy_updated": null,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": []
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "ERROR",
+        "error": "A referenced dbt source failed during this refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "all-secondary-fail",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true,
+      "finance_base": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.",
+        "Source \"finance\" failed: could not load the repository or install dbt packages; kept its 1 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.",
+        "Source \"finance\" failed: could not load the repository or install dbt packages; kept its 1 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh.\nSource \"finance\" failed: could not load the repository or install dbt packages; kept its 1 explores from the last successful refresh."
+      }
+    ]
+  },
+  {
+    "scenario": "primary-fail",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": false,
+    "expected_success": false,
+    "carried_equal": {
+      "finance_base": true,
+      "ledger": true,
+      "merchant": true,
+      "payments": true,
+      "settlement": true
+    },
+    "healthy_updated": null,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": []
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "ERROR",
+        "error": "Unexpected error while cloning git repository: Command failed with exit code 128: git clone --single-branch --depth=1 --branch=main --no-tags --progress https://localhost:19462/sim/payments.git /tmp/git_1JepGX\nCloning into '/tmp/git_1JepGX'...\nfatal: unable to access 'https://localhost:19462/sim/payments.git/': The requested URL returned error: 403"
+      }
+    ]
+  },
+  {
+    "scenario": "empty-selection",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "no_failed_source_warning": true,
+    "merchant_removed": true,
+    "names": [
+      "finance_base",
+      "ledger",
+      "payments"
+    ],
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    }
+  },
+  {
+    "scenario": "cli-deploy",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "output": "\nDeploying to project: <id>\n\n\n\n- SUCCESS> merchant \n- SUCCESS> settlement \n\nCompiled 2 explores, SUCCESS=2 ERRORS=0\nDeploying 2 explores using batched deploy (batch size: 50, parallel: 1)\nStarting deploy session...\nDeploy session created: <id>\nUploading 1 batches...\n  Uploading batch 1/1 (2 explores)...\n  \u2713 Batch 1 uploaded (2 explores)\nFinalizing deploy...\nDeploy completed! 2 explores deployed.\nSuccessfully deployed project:\n\n      \u26a1\ufe0f http://127.0.0.1:63849/projects/<id>/home\n\nDone \ud83d\udd76\n",
+    "names": [
+      "merchant",
+      "settlement"
+    ],
+    "remote_head_unchanged": true,
+    "cli_definition_visible": true
+  },
+  {
+    "scenario": "cli-deployed-source-fails",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": false,
+      "settlement": false
+    },
+    "healthy_updated": null,
+    "cache_count": 3,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"merchant\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      }
+    ]
+  },
+  {
+    "scenario": "whole-resolution-timeout",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": false,
+    "expected_success": false,
+    "carried_equal": {
+      "finance_base": true,
+      "ledger": true,
+      "payments": true
+    },
+    "healthy_updated": null,
+    "cache_count": 3,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": []
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"merchant\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "ERROR",
+        "error": "Cross-source dbt resolution timed out after 15 s. Sources still in progress: \"merchants\"."
+      }
+    ]
+  },
+  {
+    "scenario": "whole-resolution-timeout-detail",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "status": {
+      "createdAt": "2026-10-21T18:11:48.650Z",
+      "updatedAt": "2026-10-21T19:12:03.747Z",
+      "projectUuid": "<id>",
+      "userUuid": "<id>",
+      "jobUuid": "<id>",
+      "jobStatus": "ERROR",
+      "steps": [
+        {
+          "jobUuid": "<id>",
+          "createdAt": "2026-10-21T18:11:48.650Z",
+          "updatedAt": "2026-10-21T19:12:03.734Z",
+          "stepStatus": "ERROR",
+          "stepType": "COMPILING",
+          "stepError": "Cross-source dbt resolution timed out after 15 s. Sources still in progress: \"merchants\".",
+          "stepLabel": "Compiling",
+          "startedAt": "2026-10-21T19:11:48.693Z",
+          "stepDbtLogs": []
+        }
+      ],
+      "jobType": "COMPILE_PROJECT",
+      "jobResults": null
+    },
+    "unchanged": true,
+    "secondary_sleep_was_active": true
+  },
+  {
+    "scenario": "cancel-via-instance-stop",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "status": {
+      "createdAt": "2026-10-21T18:12:11.257Z",
+      "updatedAt": "2026-10-21T19:12:16.749Z",
+      "projectUuid": "<id>",
+      "userUuid": "<id>",
+      "jobUuid": "<id>",
+      "jobStatus": "ERROR",
+      "steps": [
+        {
+          "jobUuid": "<id>",
+          "createdAt": "2026-10-21T18:12:11.257Z",
+          "updatedAt": "2026-10-21T19:12:16.751Z",
+          "stepStatus": "ERROR",
+          "stepType": "COMPILING",
+          "stepError": "The worker shut down while this project was compiling. Refresh dbt again.",
+          "stepLabel": "Compiling",
+          "startedAt": "2026-10-21T19:12:11.307Z",
+          "stepDbtLogs": null
+        }
+      ],
+      "jobType": "COMPILE_PROJECT",
+      "jobResults": null
+    },
+    "unchanged": true,
+    "secondary_sleep_was_active": true,
+    "status_before_stop": "RUNNING"
+  },
+  {
+    "scenario": "scheduler-whole-job-timeout",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": false,
+    "expected_success": false,
+    "carried_equal": {
+      "finance_base": true,
+      "ledger": true,
+      "payments": true
+    },
+    "healthy_updated": null,
+    "cache_count": 3,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": []
+    },
+    "warning_safety": true,
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"merchant\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "ERROR",
+        "error": "dbt source \"merchants\" timed out after 60 s while running dbt ls."
+      }
+    ]
+  },
+  {
+    "scenario": "scheduler-timeout-no-late-publication",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "secondary_sleep_was_active": true,
+    "unchanged": true,
+    "final_status": {
+      "createdAt": "2026-10-21T18:12:27.891Z",
+      "updatedAt": "2026-10-21T19:13:32.889Z",
+      "projectUuid": "<id>",
+      "userUuid": "<id>",
+      "jobUuid": "<id>",
+      "jobStatus": "ERROR",
+      "steps": [
+        {
+          "jobUuid": "<id>",
+          "createdAt": "2026-10-21T18:12:27.891Z",
+          "updatedAt": "2026-10-21T19:13:32.865Z",
+          "stepStatus": "ERROR",
+          "stepType": "COMPILING",
+          "stepError": "dbt source \"merchants\" timed out after 60 s while running dbt ls.",
+          "stepLabel": "Compiling",
+          "startedAt": "2026-10-21T19:12:27.930Z",
+          "stepDbtLogs": []
+        }
+      ],
+      "jobType": "COMPILE_PROJECT",
+      "jobResults": null
+    }
+  },
+  {
+    "scenario": "minimal-cli-carry-reproduction",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "baseline": true,
+    "deploy": true,
+    "stamp_before": {
+      "present": true,
+      "matches_merchants": true,
+      "package": "merchants"
+    },
+    "stamp_after": {
+      "present": false,
+      "matches_merchants": false,
+      "package": "merchants"
+    },
+    "refresh": true,
+    "carried": false,
+    "chart_resolves": false,
+    "query": {
+      "saved_explore_name": "merchant",
+      "resolves": false,
+      "http_status": 404,
+      "error": {
+        "status": "error",
+        "error": {
+          "statusCode": 404,
+          "name": "NotFoundError",
+          "message": "Explore \"merchant\" does not exist.",
+          "data": {}
+        }
+      }
+    },
+    "warnings": {
+      "job": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; no explores from a previous successful refresh are available; nothing was carried."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    }
+  },
+  {
+    "scenario": "minimal-cli-carry-reproduction",
+    "commit": "7ef1abdd388765a353ade4b98046b11c7078d1f0",
+    "baseline": true,
+    "deploy": true,
+    "stamp_before": {
+      "present": true,
+      "matches_merchants": true,
+      "package": "merchants"
+    },
+    "stamp_after": {
+      "present": false,
+      "matches_merchants": false,
+      "package": "merchants"
+    },
+    "refresh": false,
+    "carried": true,
+    "chart_resolves": true,
+    "query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "compiled": {
+        "query": "SELECT\n  \"merchant\".id AS \"merchant_id\",\n  \"merchant\".label AS \"merchant_label\"\nFROM \"explorer\".\"sim_merchants\".\"merchant\" AS \"merchant\"\n\nGROUP BY 1,2\nORDER BY \"merchant_id\"\nLIMIT 10",
+        "parameterReferences": []
+      },
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    },
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": []
+    }
+  }
+]

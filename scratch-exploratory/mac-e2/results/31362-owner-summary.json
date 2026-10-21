@@ -1,0 +1,81 @@
+[
+  {
+    "scenario": "old-writer-upgrade-fixture",
+    "success": true
+  },
+  {
+    "scenario": "old-writer-new-empty-table",
+    "success": true,
+    "names_unchanged": true
+  },
+  {
+    "scenario": "upgrade-seeding-refresh",
+    "success": true,
+    "names_unchanged": true
+  },
+  {
+    "scenario": "upgrade-seeding-cli",
+    "success": true,
+    "names_unchanged": true
+  },
+  {
+    "scenario": "first-owner-baseline",
+    "success": true
+  },
+  {
+    "scenario": "first-owner-newcomer-refresh",
+    "success": true,
+    "original_retained": true,
+    "newcomer_qualified": true,
+    "dashboard_chart_reference": true,
+    "saved_chart_resolves": true
+  },
+  {
+    "scenario": "first-owner-newcomer-cli",
+    "success": true,
+    "saved_chart_resolves": true
+  },
+  {
+    "scenario": "first-owner-cli-fresh-newcomer",
+    "success": true,
+    "saved_chart_resolves": false
+  },
+  {
+    "scenario": "source-rename",
+    "success": true,
+    "qualified_name_unchanged": true,
+    "saved_chart_resolves": true
+  },
+  {
+    "scenario": "owner-removes-model",
+    "success": true,
+    "plain_released": true
+  },
+  {
+    "scenario": "owner-readds-model",
+    "success": true,
+    "owner_plain": false,
+    "saved_chart_resolves": false
+  },
+  {
+    "scenario": "newcomer-removes-model",
+    "success": true,
+    "newcomer_gone": true,
+    "original_remains": false,
+    "saved_chart_resolves": false
+  },
+  {
+    "scenario": "qualified-name-taken-baseline",
+    "success": true
+  },
+  {
+    "scenario": "qualified-name-taken-refresh",
+    "success": true
+  },
+  {
+    "scenario": "qualified-name-taken-cli",
+    "success": false,
+    "http_409": true,
+    "unchanged": true
+  }
+]
