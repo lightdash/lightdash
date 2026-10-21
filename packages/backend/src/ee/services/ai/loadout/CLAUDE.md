@@ -9,7 +9,7 @@ What an AI agent run can do: its tools and the system prompt sections that expla
 
 ## Observability
 
-A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_ons,tool_count}` and `loadoutBase`/`loadoutAddOns` on AI SDK `ai.*` spans (`telemetry.ts`). Logs: event `ai_agent.loadout_resolved`.
+A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_ons,tool_count}` and `loadoutBase`/`loadoutAddOns` on AI SDK `ai.*` spans (`telemetry.ts`). Logs: event `ai_agent.loadout_resolved`. Rows: `ai_prompt.loadout_base`, written from `prepareAgentTurn`, exposed as `loadout` on assistant messages.
 
 ## Adding a tool
 

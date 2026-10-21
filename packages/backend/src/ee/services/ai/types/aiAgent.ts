@@ -103,6 +103,7 @@ import {
     SendFileFn,
     SendSlackBlocksFn,
     SetupPreviewDeployFn,
+    StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
     StoreToolCallFn,
@@ -425,6 +426,7 @@ export type AiAgentDependencies = {
     storeToolResults: StoreToolResultsFn;
     recordMcpToolCall: RecordMcpToolCallFn;
     storeReasoning: StoreReasoningFn;
+    storeLoadout: StoreLoadoutFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;
     searchFieldValues: SearchFieldValuesFn;

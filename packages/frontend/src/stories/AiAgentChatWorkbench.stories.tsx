@@ -1202,6 +1202,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
             tokenUsage: null,
             responseTiming: null,
             jevDecision: null,
+            loadout: null,
         };
     });
 

@@ -25,6 +25,7 @@ import {
     AiAgentMessageUser,
     AiAgentModelConfig,
     AiAgentNotFoundError,
+    AiAgentPromptLoadout,
     AiAgentReasoning,
     AiAgentReviewItemSummary,
     AiAgentSummary,
@@ -4809,6 +4810,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -4834,6 +4836,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -4953,6 +4956,7 @@ export class AiAgentModel {
                 tokenUsage: row.token_usage,
                 responseTiming: row.response_timing,
                 jevDecision: decisionsMap.get(row.ai_prompt_uuid) ?? null,
+                loadout: AiAgentModel.toPromptLoadout(row),
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -5521,6 +5525,21 @@ export class AiAgentModel {
         return 'idle';
     }
 
+    private static toPromptLoadout(
+        row: Pick<DbAiPrompt, 'loadout_base'>,
+    ): AiAgentPromptLoadout | null {
+        return row.loadout_base ? { base: row.loadout_base } : null;
+    }
+
+    async updatePromptLoadout(
+        promptUuid: string,
+        loadout: AiAgentPromptLoadout,
+    ): Promise<void> {
+        await this.database(AiPromptTableName)
+            .where({ ai_prompt_uuid: promptUuid })
+            .update({ loadout_base: loadout.base });
+    }
+
     async findThreadMessage(
         role: 'user',
         {
@@ -5577,6 +5596,7 @@ export class AiAgentModel {
                     | 'token_usage'
                     | 'response_timing'
                     | 'hidden'
+                    | 'loadout_base'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -5602,6 +5622,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
+                `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -5751,6 +5772,7 @@ export class AiAgentModel {
                         (
                             await this.findPromptDecisions([row.ai_prompt_uuid])
                         ).get(row.ai_prompt_uuid) ?? null,
+                    loadout: AiAgentModel.toPromptLoadout(row),
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),

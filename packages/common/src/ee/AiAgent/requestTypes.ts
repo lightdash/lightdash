@@ -203,8 +203,28 @@ export type CreateWebAppThread = {
     threadContext?: string | null;
 };
 
-/** `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions. */
-export type AiAgentBattleProfile = 'fast' | 'baseline' | 'luna';
+/**
+ * `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions.
+ * `classic` and `composer` force the agent's query path.
+ */
+export type AiAgentBattleProfile =
+    | 'fast'
+    | 'baseline'
+    | 'luna'
+    | 'classic'
+    | 'composer';
+
+/** The exclusive core of an agent run's loadout. */
+export type AiAgentLoadoutBase =
+    | 'classic'
+    | 'composer'
+    | 'no_data_access'
+    | 'deep_research_worker'
+    | 'deep_research_coordinator';
+
+export type AiAgentPromptLoadout = {
+    base: AiAgentLoadoutBase;
+};
 
 export type AiPrompt = {
     organizationUuid: string;

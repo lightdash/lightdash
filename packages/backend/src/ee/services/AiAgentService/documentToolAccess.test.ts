@@ -183,6 +183,7 @@ describe('Document runtime access', () => {
                 projectUuid: 'project',
                 promptUuid: 'prompt',
                 threadUuid: 'thread',
+                battleProfile: null,
                 ...(slack ? { slackUserId: 'slack-user' } : {}),
             };
 

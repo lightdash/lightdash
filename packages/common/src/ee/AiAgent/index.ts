@@ -28,6 +28,7 @@ import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
     type AiAgentModelConfig,
+    type AiAgentPromptLoadout,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptResponseTiming,
@@ -390,6 +391,8 @@ export type AiAgentMessageAssistant = {
     responseTiming: AiPromptResponseTiming | null;
     /** What the fast decision model did on this turn; null when it did not run. */
     jevDecision: AiAgentJevDecision | null;
+    /** Loadout the turn ran with; null for turns recorded before it was stored. */
+    loadout: AiAgentPromptLoadout | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

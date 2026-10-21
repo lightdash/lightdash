@@ -2737,6 +2737,10 @@ const prepareAgentTurn = async ({
         },
     );
     trace.getActiveSpan()?.setAttributes(loadoutSpanAttributes(loadout));
+    // Workers share the coordinator's prompt; the prompt records the coordinator's loadout.
+    if (loadout.base !== 'deep_research_worker') {
+        void dependencies.storeLoadout(args.promptUuid, { base: loadout.base });
+    }
     let tools = getAgentTools(
         args,
         loadout,

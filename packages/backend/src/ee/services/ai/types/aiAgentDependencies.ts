@@ -4,6 +4,7 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
+    AiAgentPromptLoadout,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiPromptSteer,
@@ -645,6 +646,11 @@ export type StoreReasoningFn = (
         reasoningId: string;
         text: string;
     }>,
+) => Promise<void>;
+
+export type StoreLoadoutFn = (
+    promptUuid: string,
+    loadout: AiAgentPromptLoadout,
 ) => Promise<void>;
 
 export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
