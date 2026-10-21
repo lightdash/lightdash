@@ -989,6 +989,86 @@ describe('OrgAiCopilotConfigResolver', () => {
         ).toEqual(['claude-sonnet-4-6']);
     });
 
+    describe('isOrgOnOwnProviderKeys', () => {
+        const bedrockCredential: DecryptedAiProviderCredential = {
+            uuid: 'cred-tokyo',
+            organizationUuid: 'org-uuid',
+            provider: 'bedrock',
+            label: 'Japan (Tokyo)',
+            isDefault: false,
+            config: {
+                apiKey: 'cred-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+        };
+
+        it('is false on instance keys only', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).isOrgOnOwnProviderKeys(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBe(false);
+        });
+
+        it('is false without an organization', async () => {
+            expect(
+                await makeResolver().isOrgOnOwnProviderKeys(undefined, null),
+            ).toBe(false);
+        });
+
+        it('is true for a Bedrock org', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    defaultCredential: {
+                        ...bedrockCredential,
+                        isDefault: true,
+                    },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is true for an OpenAI key with custom providers on', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is false for an OpenAI key with custom providers off', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                    customProvidersEnabled: false,
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
+
+        it('honours a project credential pin', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                projectCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', 'project-jp'),
+            ).toBe(true);
+        });
+
+        // Agent pins are enforced by the caller, so the org check never reads them.
+        it('ignores agent credential pins', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                explicitCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
+    });
+
     describe('getClaudeCodeConfig', () => {
         it('returns the instance config unchanged without an organization uuid', async () => {
             const result = await makeResolver({

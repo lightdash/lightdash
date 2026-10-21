@@ -2075,12 +2075,21 @@ export class ManagedAgentService extends BaseService {
             await Promise.all([
                 exploresRead,
                 parametersRead,
-                resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-                    this.featureFlagModel.get({
-                        user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                    }),
-                ),
+                this.orgAiCopilotConfigResolver
+                    .isOrgOnOwnProviderKeys(organizationUuid, projectUuid)
+                    .then((onOwnKeys) =>
+                        onOwnKeys
+                            ? undefined
+                            : resolveAiDecisionClient(
+                                  this.lightdashConfig.ai.decisions,
+                                  () =>
+                                      this.featureFlagModel.get({
+                                          user: { organizationUuid },
+                                          featureFlagId:
+                                              FeatureFlags.AiAgentFastDecisions,
+                                      }),
+                              ),
+                    ),
             ]);
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()

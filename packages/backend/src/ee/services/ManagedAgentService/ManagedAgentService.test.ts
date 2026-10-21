@@ -136,6 +136,7 @@ const buildService = ({
             modelVisibility: null,
             keyAccessibleModelIds: null,
         }),
+        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
     };
     const aiOrganizationSettingsService = {
         getDefaultModelConfig: vi.fn().mockResolvedValue(defaultModelConfig),

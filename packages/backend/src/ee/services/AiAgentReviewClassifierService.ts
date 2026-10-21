@@ -359,11 +359,12 @@ export class AiAgentReviewClassifierService extends BaseService {
         >[0],
     ): Promise<AiAgentReviewClassifierTurnCandidate[]> {
         // Evidence ranking runs on the instance decision provider, so it would
-        // send turn content out of a Bedrock org's region before its own judge
+        // send turn content outside a BYOK org's provider before its own judge
         // ever sees it. Skipping it leaves candidates unranked, not unreviewed.
         const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 args.organizationUuid,
+                args.projectUuid ?? null,
             ))
                 ? undefined
                 : await resolveAiDecisionClient(

@@ -269,7 +269,7 @@ describe('AiAgentReviewClassifierService', () => {
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
     const orgAiCopilotConfigResolver = {
         getReviewJudgeAvailability: vi.fn(),
-        isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
+        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
     };
     const catalogModel = {
         getCatalogItemsSummary: vi.fn(),
@@ -404,10 +404,12 @@ describe('AiAgentReviewClassifierService', () => {
         judgeTurn.mockResolvedValue(makeJudgeOutput());
     });
 
-    it('does not rank evidence through the instance provider for a Bedrock org', async () => {
+    it('does not rank evidence through the instance provider for an org on its own provider keys', async () => {
         decisionConfig.apiKey = 'test';
         featureFlagModel.get.mockResolvedValue({ enabled: true });
-        orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(true);
+        orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys.mockResolvedValue(
+            true,
+        );
         const candidate = makeCandidate({
             supportingEvidence: [makeWritebackEvidence('Some result')],
         });
@@ -428,7 +430,7 @@ describe('AiAgentReviewClassifierService', () => {
             });
         } finally {
             evaluate.mockRestore();
-            orgAiCopilotConfigResolver.isOrgBedrockRouted.mockResolvedValue(
+            orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys.mockResolvedValue(
                 false,
             );
         }

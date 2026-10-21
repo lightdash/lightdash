@@ -2480,10 +2480,13 @@ export class AiAgentService extends BaseService {
                 decisions:
                     !enabled || credentialUuid
                         ? undefined
-                        : await this.getDecisionClient({
-                              userUuid: args.userUuid,
-                              organizationUuid: args.organizationUuid,
-                          }),
+                        : await this.getDecisionClient(
+                              {
+                                  userUuid: args.userUuid,
+                                  organizationUuid: args.organizationUuid,
+                              },
+                              args.projectUuid,
+                          ),
             }))
             .then(({ credentialUuid, decisions }) =>
                 runPromptInputRequestClassification({
@@ -2594,11 +2597,13 @@ export class AiAgentService extends BaseService {
 
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string | null,
         provider: DecisionProvider = 'jev',
     ) {
         if (
-            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 user.organizationUuid,
+                projectUuid,
             )
         ) {
             return undefined;
@@ -2643,16 +2648,18 @@ export class AiAgentService extends BaseService {
     private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         {
+            projectUuid,
             battleProfile,
             enableFastDecisions,
             agentCredentialUuid,
         }: {
+            projectUuid: string;
             battleProfile: AiAgentBattleProfile | null;
             enableFastDecisions: boolean;
             /**
              * The agent's credential pin. In-response decisions see prompt and
              * tool content, so a pinned agent gets no external decision client
-             * — the same rule isOrgBedrockRouted applies at the org level.
+             * — the same rule isOrgOnOwnProviderKeys applies at the org level.
              */
             agentCredentialUuid: string | null;
         },
@@ -2662,16 +2669,16 @@ export class AiAgentService extends BaseService {
         if (agentCredentialUuid) return undefined;
         switch (battleProfile) {
             case 'luna':
-                return this.getDecisionClient(user, 'luna');
+                return this.getDecisionClient(user, projectUuid, 'luna');
             case 'fast':
-                return this.getDecisionClient(user);
+                return this.getDecisionClient(user, projectUuid);
             case 'baseline':
                 return undefined;
             case null:
             case 'classic':
             case 'composer':
                 return enableFastDecisions
-                    ? this.getDecisionClient(user)
+                    ? this.getDecisionClient(user, projectUuid)
                     : undefined;
             default:
                 return assertUnreachable(
@@ -2683,21 +2690,25 @@ export class AiAgentService extends BaseService {
 
     private async assertBattleProfileAvailable(
         user: SessionUser,
-        agent: Pick<AiAgent, 'enableDataAccess'>,
+        agent: Pick<AiAgent, 'enableDataAccess' | 'projectUuid'>,
         battleProfile: AiAgentBattleProfile,
     ): Promise<void> {
         switch (battleProfile) {
             case 'fast':
             case 'baseline':
             case 'luna':
-                if (!(await this.getDecisionClient(user))) {
+                if (!(await this.getDecisionClient(user, agent.projectUuid))) {
                     throw new ForbiddenError(
                         'AI agent fast decisions must be enabled to compare profiles',
                     );
                 }
                 if (
                     battleProfile === 'luna' &&
-                    !(await this.getDecisionClient(user, 'luna'))
+                    !(await this.getDecisionClient(
+                        user,
+                        agent.projectUuid,
+                        'luna',
+                    ))
                 ) {
                     throw new ForbiddenError(
                         'Luna decisions must be configured to compare providers',
@@ -2738,6 +2749,7 @@ export class AiAgentService extends BaseService {
 
     private async getPromptErrorMessage(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
         error: unknown,
         defaultMessage: string,
         // Error text can quote prompt or SQL fragments, so a pinned agent's
@@ -2748,7 +2760,7 @@ export class AiAgentService extends BaseService {
             return await createUserFacingErrorResolver({
                 decisions: agentCredentialUuid
                     ? undefined
-                    : await this.getDecisionClient(user),
+                    : await this.getDecisionClient(user, projectUuid),
             })(error, defaultMessage);
         } catch {
             // Optional classification must never prevent the error reply.
@@ -3511,7 +3523,7 @@ export class AiAgentService extends BaseService {
                 // agent never sends it to the external decisions provider.
                 const decisions = agent.providerCredentialUuid
                     ? undefined
-                    : await this.getDecisionClient(user);
+                    : await this.getDecisionClient(user, projectUuid);
                 if (decisions) {
                     const signals = await classifyResponseSignals(
                         decisions,
@@ -8285,6 +8297,7 @@ export class AiAgentService extends BaseService {
             currentPromptUuid: prompt.promptUuid,
             userUuid: user.userUuid,
             fastDecisionsEnabled: !!(await this.getPromptDecisionClient(user, {
+                projectUuid: agent.projectUuid,
                 battleProfile: prompt.battleProfile,
                 enableFastDecisions,
                 agentCredentialUuid: agent.providerCredentialUuid,
@@ -9726,7 +9739,7 @@ export class AiAgentService extends BaseService {
             // so a pinned agent skips the external decisions provider.
             agent.providerCredentialUuid
                 ? undefined
-                : await this.getDecisionClient(user),
+                : await this.getDecisionClient(user, agent.projectUuid),
         );
 
         return readinessScore;
@@ -11663,8 +11676,9 @@ export class AiAgentService extends BaseService {
         userUuid?: string;
     }): Promise<RelevantVerifiedAnswerContext> {
         if (
-            await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
+            await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
                 organizationUuid,
+                projectUuid,
             )
         ) {
             return { relevantVerifiedAnswers: [] };
@@ -11682,9 +11696,10 @@ export class AiAgentService extends BaseService {
                 agentUuid,
             }),
             userUuid && limit > 0 && limit <= 30
-                ? this.getDecisionClient({ organizationUuid, userUuid }).catch(
-                      () => undefined,
-                  )
+                ? this.getDecisionClient(
+                      { organizationUuid, userUuid },
+                      projectUuid,
+                  ).catch(() => undefined)
                 : undefined,
         ]);
         if (!embeddingResult) {
@@ -16031,6 +16046,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisionClient = await this.getPromptDecisionClient(
                     user,
                     {
+                        projectUuid: agentSettings.projectUuid,
                         battleProfile,
                         enableFastDecisions:
                             options.enableFastDecisions ?? true,
@@ -16044,7 +16060,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const shadowClient =
                     decisionClient?.provider === 'jev' &&
                     this.lightdashConfig.ai.lunaShadowEnabled
-                        ? await this.getDecisionClient(user, 'luna')
+                        ? await this.getDecisionClient(
+                              user,
+                              agentSettings.projectUuid,
+                              'luna',
+                          )
                         : undefined;
                 const decisions = decisionUsage
                     ? decisionClient?.withUsage(decisionUsage).withShadow(
@@ -18297,7 +18317,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizUuid,
                     dataAppVizVersion,
                 ),
-            !!(await this.getDecisionClient(user)),
+            !!(await this.getDecisionClient(user, slackPrompt.projectUuid)),
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
@@ -19675,6 +19695,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
             const userFacingMessage = await this.getPromptErrorMessage(
                 user,
+                slackPrompt.projectUuid,
                 error,
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
@@ -19896,7 +19917,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 currentPromptUuid: promptUuid,
                                 userUuid: user.userUuid,
                                 fastDecisionsEnabled:
-                                    !!(await this.getDecisionClient(user)),
+                                    !!(await this.getDecisionClient(
+                                        user,
+                                        slackPrompt.projectUuid,
+                                    )),
                                 pendingRejectedSqlApprovalResults,
                                 threadUuid: slackPrompt.threadUuid,
                             },
@@ -19963,6 +19987,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     userUuid: slackPrompt.createdByUserUuid,
                     organizationUuid: slackPrompt.organizationUuid,
                 },
+                slackPrompt.projectUuid,
                 e,
                 AiAgentService.agentFailedMessage(agent?.name),
                 agent?.providerCredentialUuid ?? null,
@@ -21393,10 +21418,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     })),
                     promptText,
                     { organizationUuid, userUuid, keyManagement },
-                    await this.getDecisionClient({
-                        organizationUuid,
-                        userUuid,
-                    }),
+                    await this.getDecisionClient(
+                        { organizationUuid, userUuid },
+                        null,
+                    ),
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -21512,10 +21537,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
         const { model, keyManagement } = getModel(copilotConfig);
 
-        const decisions = await this.getDecisionClient({
-            organizationUuid,
-            userUuid,
-        });
+        const decisions = await this.getDecisionClient(
+            { organizationUuid, userUuid },
+            null,
+        );
         const decision = await selectAgent({
             model,
             candidates: availableAgents,
