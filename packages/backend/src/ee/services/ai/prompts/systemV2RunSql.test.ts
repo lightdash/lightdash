@@ -21,13 +21,13 @@ describe('run SQL connection dialect guidance', () => {
                 },
             ],
         });
-        expect(prompt).toContain('**Warehouse:** postgres.');
+        expect(prompt).toContain('Warehouse: postgres.');
         expect(prompt).toContain(
             '"Lake" (trino-extra): trino. Trino SQL dialect.',
         );
         expect(prompt).toContain('raw SQL tools cannot target it');
         expect(prompt).toContain(
-            'Do not use them to query tables on extra connections or join across connections.',
+            'Raw SQL and the warehouse discovery tools reach only the original connection',
         );
     });
 });

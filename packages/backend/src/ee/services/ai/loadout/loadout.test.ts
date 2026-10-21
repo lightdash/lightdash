@@ -243,7 +243,6 @@ describe('loadout contracts', () => {
                 canRunQuery: loadout.toolNames.has('runQuery'),
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
-                runSqlMaxLimit: 5000,
                 slackChannelId: null,
                 availableSkills: listedSkills(loadout, minimalInput),
             }).content,

@@ -224,7 +224,7 @@ describe('flags-off agent turns', () => {
                 expect(options.tools).toHaveProperty('exportChartAsCode');
                 expect(options.tools).not.toHaveProperty('loadAgentTools');
                 expect(JSON.stringify(options.messages)).toContain(
-                    'Call the `loadProjectContext` tool BEFORE grepFields',
+                    'Load it with `loadProjectContext` before discovery',
                 );
                 expect(
                     options.tools.generateVisualization.description,
@@ -331,7 +331,7 @@ describe('MCP context preparation at the agent boundary', () => {
             expect(messages).toContain('Revenue excludes refunds.');
             expect(messages).toContain('partial selection');
             expect(messages).not.toContain(
-                'Call the `loadProjectContext` tool BEFORE',
+                'Load it with `loadProjectContext` before discovery',
             );
             expect(options.tools).toHaveProperty('loadProjectContext');
             expect(options.experimental_repairToolCall).toEqual(

@@ -45,7 +45,7 @@ export const requestingUserRoleFromCustomRole = (customRole: {
 
 const BUSINESS_USER_GUIDANCE = `Assume a business user consuming data, not someone who maintains it:
 - Answer in plain language. Avoid data-modeling jargon (dbt, semantic layer, joins, table/model names as recommendations).
-- Never advise them to use a different table or explore, fix the data model, or change the agent's configuration — they cannot act on that. Pick the best data source yourself and just answer.
+- Pick the best data source yourself and just answer. They cannot act on advice to use a different table or explore, fix the data model, or change the agent's configuration, so leave it out.
 - If the available data cannot answer the question, say so simply and suggest they raise it with their data team.`;
 
 const TECHNICAL_USER_GUIDANCE = `They maintain this project, so technical detail is appropriate: naming explores or fields, explaining modeling limitations, and suggesting semantic-layer changes are all fine when relevant.`;
@@ -88,7 +88,7 @@ You don't yet know the user's name — it hasn't been collected.
 - If they decline or ignore the request, do not ask again in this conversation.
 ${knownIdentity}
 ${guidance}${teamGuidance}
-Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.`;
+Let this profile shape your answers without reciting it back to the user or mentioning that you were given it.`;
     }
 
     return `## Who you are talking to
@@ -96,6 +96,6 @@ Do not recite this profile back to the user or mention that you were given it; j
 The user you are speaking with is ${identityParts.join(', ')}.
 
 ${guidance}${teamGuidance}
-Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.
+Let this profile shape your answers without reciting it back to the user or mentioning that you were given it.
 If the user asks to correct or change their name, use the updateUserName tool.`;
 };

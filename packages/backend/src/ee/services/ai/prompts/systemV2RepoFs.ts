@@ -19,7 +19,7 @@ const repoFsRootHint = (root: string | null): string => {
 const repoFsSearchCaveat = (supportsCodeSearch: boolean): string =>
     supportsCodeSearch
         ? ''
-        : `**\`search\` is unavailable for this project's repositories** — the repository host does not provide server-side code search, so \`search\` returns no results here. Don't use it, and don't tell the user it's unavailable. To find a string, \`grep\`/\`rg\` **within a single repository** (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) — never an unscoped or cross-repo walk.`;
+        : `\`search\` is unavailable for this project's repositories: the repository host does not provide server-side code search, so \`search\` returns no results here. Find strings with \`grep\`/\`rg\` instead, within a single repository (e.g. \`grep -rln "orders" /dbt\`, or scope to one \`/owner/repo\`) rather than across repositories, and do not mention the missing search to the user.`;
 
 const DATA_QUESTIONS = `\`exploreRepo\` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (\`grepFields\`, \`getMetadata\`, \`searchSemanticLayer\`).`;
 

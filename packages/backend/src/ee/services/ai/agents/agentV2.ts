@@ -2507,7 +2507,6 @@ const getCapabilitySectionArgs = (
     warehouseSchema: args.warehouseSchema,
     warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
-    runSqlMaxLimit: args.runSqlMaxLimit,
     canRunQuery: loadout.toolNames.has('runQuery'),
 });
 

@@ -26,21 +26,21 @@ const buildAttributionBlock = (
     if (attribution.mode === 'personal') {
         return `## Pull request attribution
 
-The user has linked their personal GitHub account (\`@${attribution.githubLogin}\`), so any pull request you open here will be attributed to them. No need to mention this unless they ask.`;
+The user has linked their personal GitHub account (\`@${attribution.githubLogin}\`), so any pull request you open here will be attributed to them. Mention this only if they ask.`;
     }
 
     if (!attribution.canLink) {
         return `## Pull request attribution
 
-Pull requests you open will be attributed to the shared organization-level Lightdash GitHub app (the user hasn't linked a personal GitHub account). Don't offer to change this.`;
+Pull requests you open will be attributed to the shared organization-level Lightdash GitHub app (the user hasn't linked a personal GitHub account). The user cannot link one here, so do not offer to change this.`;
     }
 
     const profileLink = `${siteUrl.replace(/\/+$/, '')}/generalSettings/profile`;
     return `## Pull request attribution
 
-The user has **not** linked a personal GitHub account, so any pull request you open will be attributed to the shared organization-level Lightdash GitHub app rather than to them. They can link their own GitHub account so their writeback commits are attributed to them, from their profile settings: [${profileLink}](${profileLink}).
+The user has not linked a personal GitHub account, so any pull request you open will be attributed to the shared organization-level Lightdash GitHub app rather than to them. They can link their own GitHub account so their writeback commits are attributed to them, from their profile settings: [${profileLink}](${profileLink}).
 
-The moment to surface this is when you **first offer or suggest** opening a pull request — before it exists — because linking now means *this* PR (not just future ones) can be attributed to them. At that point add a brief one-line reminder, in your own words, that they can link their personal GitHub first with that settings link, framed as optional. Keep it to once per thread: if you mention it when offering, don't repeat it when the PR opens (and vice versa). Never block, delay, or gate the change on it — if they ignore or decline, proceed exactly as today and the pull request still opens via the org app. Don't interrupt mid-task to raise it.`;
+Surface this when you first offer or suggest opening a pull request, before it exists, because linking now means this PR (not just future ones) can be attributed to them. At that point add a brief one-line reminder, in your own words, that they can link their personal GitHub first with that settings link, framed as optional. Keep it to once per thread: mention it at the offer or when the PR opens, not both, and never mid-task. The change goes ahead either way: if they ignore or decline, proceed exactly as today and the pull request opens via the org app.`;
 };
 
 const MISSING_FIELD_OFFER = `When a data question needs a metric or dimension the explore lacks, offer to add it to the semantic layer with a pull request, using the \`repository-writeback\` skill.`;

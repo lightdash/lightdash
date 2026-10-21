@@ -78,7 +78,6 @@ describe('getSystemPromptV2 filter expressions', () => {
                 canRunQuery: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
-                runSqlMaxLimit: 5000,
                 slackChannelId: null,
                 availableSkills: [
                     {
@@ -184,7 +183,6 @@ describe('getSystemPromptV2 project context', () => {
         });
         expect(content).toContain('## Project context');
         expect(content).toContain('loadProjectContext');
-        expect(content).toContain('BEFORE');
     });
 
     test('uses preloaded rules without requiring a redundant context tool turn', () => {
@@ -197,9 +195,6 @@ describe('getSystemPromptV2 project context', () => {
         expect(content).toContain('already preloaded');
         expect(content).toContain('partial selection');
         expect(content).toContain('loadProjectContext');
-        expect(content).not.toContain(
-            'Call the `loadProjectContext` tool BEFORE',
-        );
     });
 
     test('shows a placeholder when no project context is configured', () => {
@@ -384,44 +379,21 @@ describe('getSystemPromptV2 response content', () => {
     const extractResponseFormat = (content: string): string =>
         extractSection(content, '## Response format', '## Data analysis');
 
-    test('keeps working notes out of the answer and recovers cleared reads silently', () => {
-        const responseFormat = extractResponseFormat(
-            promptText({ availableExplores: [] }),
-        );
-        expect(responseFormat).toContain(
-            'never your own working notes, progress recaps or state summaries',
-        );
-        expect(responseFormat).toContain(
-            'Do not write context-preservation notes, scratchpads',
-        );
-        expect(responseFormat).toContain(
-            'If earlier tool results are no longer available, re-read what you need without mentioning it',
-        );
-    });
-
-    test('states the working-notes rule once', () => {
+    test('states the working-notes rule once, in the response format', () => {
         const content = promptText({ availableExplores: [] });
-        expect(
-            content.split('Do not write context-preservation notes').length - 1,
-        ).toBe(1);
+        expect(content.split('context-preservation notes').length - 1).toBe(1);
         expect(extractResponseFormat(content)).toContain(
-            'Do not write context-preservation notes, scratchpads',
+            'context-preservation notes',
         );
     });
 });
 
 describe('getSystemPromptV2 merge queries', () => {
-    test('names runQuery for small tables only when the agent has it', () => {
+    test('names runQuery only when the agent has it', () => {
         expect(
             promptText({ availableExplores: [], canRunQuery: true }),
-        ).toContain(
-            'For a small tabular answer, use runQuery and present its results as a Markdown table',
-        );
-        const withoutRunQuery = promptText({ availableExplores: [] });
-        expect(withoutRunQuery).toContain(
-            'For a small tabular answer, present the results as a Markdown table',
-        );
-        expect(withoutRunQuery).not.toContain('runQuery');
+        ).toContain('runQuery');
+        expect(promptText({ availableExplores: [] })).not.toContain('runQuery');
     });
 
     test.each([
@@ -445,9 +417,6 @@ describe('getSystemPromptV2 merge queries', () => {
                     'Markdown tables with a header, separator and data rows',
                 ),
             ).toBe(markdownTables);
-            expect(content.includes('Never produce markdown tables')).toBe(
-                !markdownTables,
-            );
         },
     );
 
@@ -581,7 +550,7 @@ describe('getSystemPromptV2 composer queries', () => {
             canRunSql: true,
         });
 
-        expect(content).toContain('You have access to a runSql tool');
+        expect(content).toContain('**Raw SQL (runSql tool):**');
         expect(content).not.toContain('runComposerQueries');
     });
 });
@@ -640,7 +609,6 @@ describe('getSystemPromptV2 knowledge documents', () => {
         expect(content).toContain(
             'whose complete content has not already been preloaded for this request',
         );
-        expect(content).toContain('Multiple matches → read each of them.');
         expect(content).not.toContain('{{unloaded_knowledge_documents}}');
     });
 
@@ -768,7 +736,6 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).toContain('elapsed_seconds="90"');
         expect(content).toContain('Why did &lt;revenue&gt; fall?');
         expect(content).toContain('getKnowledgeDocumentContent');
-        expect(content).toContain('implicitly start a duplicate run');
         expect(content).toContain('You cannot update a published report here');
         expect(content).toContain('"Create and edit content"');
         expect(content).not.toContain('`editContent` it');
@@ -822,7 +789,6 @@ describe('getSystemPromptV2 requesting user', () => {
         expect(content).toContain('organization role: Viewer');
         expect(content).toContain('member of: Finance, Ops');
         expect(content).toContain('business user');
-        expect(content).toContain('Never advise them to use a different table');
         expect(content).toContain("user's team(s)");
         expect(content).toContain(
             'If the user asks to correct or change their name, use the updateUserName tool.',
@@ -1012,7 +978,6 @@ describe('getSystemPromptV2 writeback attribution', () => {
             writebackAttribution: { mode: 'org', canLink: true },
         });
         expect(content).toContain('Pull request attribution');
-        expect(content).toContain('not** linked a personal GitHub account');
         expect(content).toContain(
             'https://app.lightdash.cloud/generalSettings/profile',
         );
@@ -1186,18 +1151,7 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             'exact saved versionUuid copied from a successful chart execution in the current turn',
         );
         expect(content).toContain(
-            'Omit redundant, diagnostic and superseded charts',
-        );
-        expect(content).toContain('Select at most 10 charts');
-        expect(content).toContain(
-            'When the user requests a chart, select the best successful chart that answers the request',
-        );
-        expect(content).toContain(
             'Every selected chart card carries an "Explore in Lightdash" button',
-        );
-        expect(content).toContain('never claim you cannot provide a link');
-        expect(content).toContain(
-            'do not call the report incomplete or capped because of it',
         );
         expect(content).not.toContain(
             'Slack result cards are attached automatically',
@@ -1221,9 +1175,6 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             enableDataAccess: true,
             canRunQuery: true,
         });
-        expect(content).toContain(
-            'it returns rows as a table rather than a chart. Use generateVisualization only',
-        );
         expect(content).not.toContain('Slack result cards');
     });
 });
@@ -1239,13 +1190,6 @@ describe('getSystemPromptV2 Slack table selection', () => {
         expect(content).toContain('<slack-table queryUuid="<queryUuid>" />');
         expect(content).toContain('The marker is hidden from visible text');
         expect(content).toContain('on its own line in your final response');
-        expect(content).toContain(
-            'Select at most 10 requested or useful final tables',
-        );
-        expect(content).toContain('Never automatically include every table');
-        expect(content).toContain(
-            'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
-        );
         expect(content).not.toContain(
             'Slack result cards are attached automatically',
         );

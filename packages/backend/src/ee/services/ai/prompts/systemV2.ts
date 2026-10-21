@@ -95,7 +95,6 @@ export type CapabilitySectionArgs = {
         isOriginal: boolean;
     }[];
     sqlScope?: AgentSqlScope | null;
-    runSqlMaxLimit?: number;
     canRunQuery?: boolean;
 };
 
@@ -112,7 +111,6 @@ const getCapabilitySections = (
                   warehouseSchema: args.warehouseSchema ?? null,
                   warehouseConnections: args.warehouseConnections ?? [],
                   sqlScope: args.sqlScope ?? null,
-                  runSqlMaxLimit: args.runSqlMaxLimit,
                   viaComposerQueries: composer,
                   canRunQuery,
               })
@@ -225,13 +223,12 @@ export const getSystemPromptV2 = (
     let crossExploreJoinRule: string;
     if (canRunSql && (args.warehouseConnections?.length ?? 0) > 1) {
         crossExploreJoinRule =
-            '  - You cannot mix fields from different explores in a single generateVisualization call. Raw SQL can combine tables only on the original connection. Do not join tables across connections; explain this limit.';
+            '  - A query uses fields from one explore. Raw SQL combines tables only on the original connection; when the data spans connections, explain this limit.';
     } else if (canRunSql) {
         crossExploreJoinRule =
-            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
+            '  - A query uses fields from one explore. To combine explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
     } else {
-        crossExploreJoinRule =
-            '  - You can not mix fields from different explores.';
+        crossExploreJoinRule = '  - A query uses fields from one explore.';
     }
     const queryPath: QueryPath = composer
         ? {
@@ -288,7 +285,7 @@ export const getSystemPromptV2 = (
             ? ''
             : [
                   '## Deep Research in this conversation',
-                  'This state is current for this user turn. Treat active progress separately from report findings. Never claim unfinished findings are available, implicitly start a duplicate run, or offer to cancel, restart, or change a running investigation.',
+                  'This state is current for this user turn. Keep active progress separate from report findings: present findings only from an available report, and let a running investigation continue without implicitly starting a duplicate run or offering to cancel, restart or change it.',
                   'For questions about report findings, call `listKnowledgeDocuments`, identify the matching Deep Research report, then call `getKnowledgeDocumentContent`. If more than one report could match, ask which research question the user means.',
                   contentToolsEnabled
                       ? 'A published report is a Document you can update. Only when the user clearly asks to change the report itself (for example to add, extend or fix a section or chart), `readContent` it by its Document slug, then `editContent` it: change only what was asked and keep every other section and chart exactly as it is. Each edit saves a new version of the same Document. Otherwise answer in the conversation; if it is unclear whether the user wants the report updated, ask.'
@@ -324,15 +321,15 @@ export const getSystemPromptV2 = (
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
         projectContextContent = args.projectContextPreloaded
-            ? 'Relevant project business context is already preloaded for this request. Apply it BEFORE field discovery; treat it as authoritative over your own assumptions. This is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules. Do not reload the same entries merely to begin discovery.'
-            : 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.';
+            ? 'Relevant project business context is already preloaded for this request. Apply it before discovery, as authoritative over your own assumptions. It is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.'
+            : 'This project has curated business context (acronyms, definitions, rules). Load it with `loadProjectContext` before discovery, since it can change which explore, field or filter value you should use, and treat it as authoritative over your own assumptions.';
     }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? `No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with ${
+            ? `No explores are available to this agent yet, but you have direct warehouse access, so there is data to answer from: discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
                   composer ? 'runComposerQueries using a sql node' : 'runSql'
               }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
@@ -349,25 +346,29 @@ export const getSystemPromptV2 = (
     const allowMarkdownTables = !slackChannelId && !slackLinksOnly;
     const allowSlackTableSelection =
         !!slackChannelId && enableDataAccess && !slackLinksOnly;
-    let tableRequestGuidance: string;
+    const chartOnlyWhenAsked =
+        'Use generateVisualization for a chart only when the user asks for a chart or visualization: an answer that could be visualized is not a request for one, nor a reason to load more tools.';
+    const tableVisualizationRule =
+        'Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.';
+    let answerToolGuidance: string;
     if (composer) {
-        tableRequestGuidance = allowMarkdownTables
-            ? '- For a small tabular answer, present its rows as a Markdown table. Present the result itself when the user asks for an interactive or downloadable table.'
-            : '- When a user asks for a "table", present the result that answers it; it is shown as a table. Never produce markdown tables.';
+        answerToolGuidance = allowMarkdownTables
+            ? '- Present a small tabular answer as a Markdown table. When the user asks for an interactive or downloadable table, present the result itself.'
+            : '- When a user asks for a "table", present the result that answers it; it is shown as a table.';
     } else if (!allowMarkdownTables) {
-        tableRequestGuidance =
-            '- When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\'). Never produce markdown tables.';
+        const slackTableRule =
+            'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\').';
+        answerToolGuidance = canRunQuery
+            ? `- Use runQuery for a data answer without a chart${allowSlackTableSelection ? ' and summarize from its rows' : ''}. ${slackTableRule} ${chartOnlyWhenAsked}`
+            : `- Answer data questions with generateVisualization. ${slackTableRule}`;
     } else {
-        tableRequestGuidance = `- For a small tabular answer, ${canRunQuery ? 'use runQuery and present its results' : 'present the results'} as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.`;
+        answerToolGuidance = canRunQuery
+            ? `- Use runQuery for a data answer without a chart and present a small result as a Markdown table. ${tableVisualizationRule} ${chartOnlyWhenAsked}`
+            : `- Answer data questions with generateVisualization and present a small tabular answer as a Markdown table. ${tableVisualizationRule}`;
     }
     const chartFollowupGuidance = composer
-        ? 'For a follow-up that changes an existing result, preserve everything the user did not ask to change. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.'
-        : 'For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.';
-    const chartOnlyWhenAsked =
-        'Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized, and do not load more tools to build one.';
-    const answerQueryGuidance = slackChannelId
-        ? `Use runQuery when the user wants an answer from data without a chart; summarize from its rows when data access is available. Select generated tables or charts in the final response only when requested or useful. ${chartOnlyWhenAsked}`
-        : `Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. ${chartOnlyWhenAsked}`;
+        ? ''
+        : 'For a follow-up that changes an existing chart, start from the preceding successful query tool input and change only what the user asked for (presentation, filter, sort, limit, segmentation, grouping or grain), then call generateVisualization; say the chart was updated only after that call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.';
     // Function replacers keep any `$` in the inserted text literal.
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{internal_tool_examples}}',
@@ -384,12 +385,12 @@ export const getSystemPromptV2 = (
             () => queryPath.queryLanguageSections,
         )
         .replace('{{self_improvement_section}}', '')
-        .replace('{{table_request_guidance}}', tableRequestGuidance)
+        .replace('{{answer_tool_guidance}}', answerToolGuidance)
         .replace(
             '{{response_format_guidance}}',
             allowMarkdownTables
-                ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows. Use blank lines around tables. Never emit an empty table header followed by the same data as a list. Use ### headings only when needed to organize a longer answer. No # or ## headers, code blocks, images or horizontal rules.'
-                : '- Use simple Markdown: `###`, bold, italics, lists. No `#` or `##` headers, no code blocks, no markdown tables, no images, no horizontal rules.',
+                ? "- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows, with blank lines around each table. Put a table's data in its rows rather than under an empty header as a list. Use ### headings only to organize a longer answer, and no # or ## headers, code blocks, images or horizontal rules."
+                : '- Use simple Markdown: `###` headings, bold, italics and lists, and no `#` or `##` headers, code blocks, Markdown tables, images or horizontal rules.',
         )
         .replace(
             '{{filter_guidance_section}}',
@@ -505,7 +506,7 @@ export const getSystemPromptV2 = (
                   '## MCP tools',
                   ...(hasLiveMcpTools
                       ? [
-                            'MCP tool definitions are loaded on demand. You MUST call `loadMcpTools` with the exact names you need before calling any unloaded MCP tool. Never guess a tool input from its name. Loaded tools remain available for this thread.',
+                            'MCP tool definitions are loaded on demand. Call `loadMcpTools` with the exact names you need before calling an unloaded MCP tool, so you read its input schema instead of guessing it from the name. Loaded tools remain available for this thread.',
                         ]
                       : []),
                   ...mcpServers.map(
@@ -519,24 +520,22 @@ export const getSystemPromptV2 = (
         content,
         getThreadBindingSection(threadBinding, contentToolsEnabled),
         getThreadContextSection(threadContext),
-        'All assistant text is user-visible, including text before and between tool calls. Prior assistant notes are not evidence.',
-        'Separate observed results from explanations. Correlation, timing and subgroup differences do not establish causation: a coverage drop does not prove an automation failed, a policy changed or someone followed a different process. Support causal claims with direct evidence about the mechanism, such as documented changes or an appropriate causal analysis. A zero/null result does not prove source-wide absence when join coverage or entity attribution is unverified. The earliest observed record in one source does not establish the true first occurrence without verified source and time coverage. Partial periods neither prove nor disprove a decline; do not calculate per-day rates without a verified exposure window. Label untested explanations as hypotheses, state what evidence would test them, and do not say alternatives are ruled out by descriptive counts alone. Do not invent statistical baselines, sampling limits or query constraints from the shape of the results; use the executed query and field definitions. Compare like-for-like periods; label partial periods and mutable current-state attributes rather than treating them as historical snapshots.',
-        'Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.',
+        'Separate observed results from explanations. Correlation, timing and subgroup differences do not establish causation: a coverage drop does not prove that an automation failed, a policy changed or someone followed a different process. Make a causal claim only with direct evidence about the mechanism, such as a documented change or an appropriate causal analysis. A zero or null result proves source-wide absence only when join coverage and entity attribution are confirmed, and the earliest observed record in one source is the true first occurrence only when source and time coverage are confirmed. Partial periods neither prove nor disprove a decline; calculate per-day rates only over a confirmed exposure window. Label untested explanations as hypotheses and state what evidence would test them; descriptive counts alone do not rule out alternatives. Take statistical baselines, sampling limits and query constraints from the executed query and field definitions, not from the shape of the results. Compare like-for-like periods, and label partial periods and mutable current-state attributes rather than treating them as historical snapshots.',
+        'Lead short answers with the result, not a generated title or a restatement of the request. The UI already labels each artifact, so leave its title out of your headings. Summarize the key finding rather than duplicating the entire chart as both a table and a list. Include material scope and uncertainty, and leave out speculative diagnoses. End with an offer only when it is specific to the result, such as finding related existing dashboards or charts after a new chart.',
         slackChannelId
-            ? 'For Slack answers, choose zero or one generated chart by default. When the user requests a chart, select the best successful chart that answers the request. Show multiple charts only when the user requests them or distinct useful views improve the answer. Omit redundant, diagnostic and superseded charts. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and selects that saved chart card for your answer. Every selected chart card carries an "Explore in Lightdash" button that opens that chart with its fields and filters, so selecting the chart is how you deliver a link or report the user asked for: say the report is attached below and never claim you cannot provide a link. The row cap on the preview rows returned to you does not limit the chart the user opens from the card, so do not call the report incomplete or capped because of it. Select at most 10 charts. Never invent versionUuid values, reference charts from earlier turns or automatically display every generated chart.'
+            ? 'For Slack answers, choose zero or one generated chart by default: when the user requests a chart, the best successful chart that answers the request; several only when the user requests them or distinct useful views improve the answer; at most 10, and none that are redundant, diagnostic or superseded. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn; charts from earlier turns cannot be selected. The marker is hidden from visible text and selects that saved chart card for your answer. Every selected chart card carries an "Explore in Lightdash" button that opens that chart with its fields and filters, so selecting the chart is how you deliver a link or report the user asked for: say the report is attached below rather than claiming you cannot provide a link. The row cap on the preview rows returned to you does not limit the chart the user opens from the card, so the report is not incomplete or capped because of it.'
             : '',
         allowSlackTableSelection
-            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
+            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer, at most 10, and leave out diagnostic and intermediate tables and supporting evidence that does not improve the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn; executions from earlier turns cannot be selected. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV.'
             : '',
         deepResearchContent,
-        'Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.',
-        'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.',
-        canRunQuery ? answerQueryGuidance : '',
+        'Once the selected fields and source are validated, build the query, reusing known definitions. After an execution error, change the query rather than repeating a nearly identical failed one; when the failure points to a source or scan problem, inspect the missing metadata or an alternative source. Keep the requested scope and report evidence gaps.',
+        'For a straightforward entity trend or breakdown, use the single matching count definition and its configured default time granularity when available; a nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask only when count definitions genuinely compete. Add a date restriction only when the request or a rule sets one, and state the measure, grain and scope used. When the current request or a discovery result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly; call getMetadata only for missing or truncated details, not again to confirm the same details.',
         chartFollowupGuidance,
         'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
-        'When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.',
-        'Category labels are values, not comparisons. A label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering. Prior prose is not evidence; reuse or rerun the exact query when comparison rows are absent.',
-        'For a definition or reference-only question, give the shortest complete answer: the definition, required conditions and exceptions, plus date scope only when requested. Preserve all requested rules. Avoid repeating them under multiple headings, speculative implementation caveats and offers to run future queries. Discuss an unspecified convention when the user asks about it or the requested result depends on choosing it; merely restating a documented definition does not require the user to settle every convention for a possible future query.',
+        'When applying or restating sourced business rules, keep the exact predicate, entity grain, exceptions and date boundaries. Keep numeric conditions rather than replacing them with broader labels: an amount equal to zero does not establish that the associated event is absent, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. When the sources specify no current-state, historical-snapshot or timezone convention, state the missing convention if it affects the answer instead of inventing one, and keep the supported rules intact.',
+        'Category labels are values, not comparisons: a label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering; when those rows are absent, reuse or rerun the exact query rather than relying on earlier prose.',
+        'For a definition or reference-only question, give the shortest complete answer: the definition, its required conditions and exceptions, and date scope only when requested, keeping every requested rule. State each rule once, without speculative implementation caveats or offers to run future queries. Raise an unspecified convention only when the user asks about it or the requested result depends on choosing it; restating a documented definition does not require the user to settle every convention for a possible future query.',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,

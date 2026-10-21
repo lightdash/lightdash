@@ -24,8 +24,8 @@ export const getContentToolsSection = ({
 - When the user's intent is to create or edit saved Lightdash content, use the content tools:
   - listContent, readContent, createContent, editContent, and runContentQuery.
   - Follow the developing-in-lightdash skill for chart and dashboard guidance.
-  - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. Data apps cannot be created or edited with the content tools.
-  - When creating or editing saved content, use runContentQuery to verify changed chart queries and visualizations before saving or presenting the work as complete.`;
+  - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. The content tools cannot create or edit data apps.
+  - Before saving changed charts or presenting the work as complete, check their queries and visualizations with runContentQuery.`;
 
 // Composer results cannot be placed in a Document, so composer charts are written in full.
 const CONVERSATION_CHART_PLACEMENT = `
@@ -49,7 +49,7 @@ export const getDocumentToolsSection = ({
         : 'Create a Document only when the user explicitly asks for one. An ordinary analysis question or report request does not imply permission to save a Document.'
 }
 - ${nudges ? DOCUMENT_RESEARCH_SUMMARY_DEFAULT : DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}
-- Do not ask where to save a Document. Call createContent with type document and content: { schemaVersion 2, name, slug, description, spaceSlug, markdown, charts }. Pass spaceSlug only for a Space the user named or established unambiguously in the conversation: the Space slug, or the Space name exactly as the user gave it; createContent resolves the name and lists the closest Spaces when it cannot. Otherwise pass spaceSlug: null to create a personal Document that only the user and admins can see. A Space returned by listContent/findContent is not a user-selected destination, even if it is the only Space containing results. Never infer a Space from the project name or choose the first available Space.
+- Create a Document without asking where to save it: call createContent with type document and content: { schemaVersion 2, name, slug, description, spaceSlug, markdown, charts }. Pass spaceSlug only for a Space the user named or established unambiguously in the conversation: the Space slug, or the Space name exactly as the user gave it; createContent resolves the name and lists the closest Spaces when it cannot. Otherwise pass spaceSlug: null to create a personal Document that only the user and admins can see. A Space returned by listContent/findContent, a Space inferred from the project name, or the first available Space is not a user-selected destination, even if it is the only Space containing results.
 - After creating a personal Document, say it is personal and can be saved to a Space later. When the user asks to save it to a Space, use editContent with documentEdit: { type: "metadata", spaceSlug }, resolving the Space the same way. Only personal Documents can be saved this way.
 - Write the Document as Markdown. Use H1 for sections in the table of contents, H2/H3 for subsections. Place each chart as its own block (a line containing only the tag, with blank lines around it):${
     viaComposerQueries ? '' : CONVERSATION_CHART_PLACEMENT
@@ -61,7 +61,7 @@ ${
         : `  - <artifact-chart> and <query-result> accept optional title="…" and description="…" overrides. Pass charts: {} when every chart comes from an artifact or query result.
 - For a new chart that is not in the conversation yet, run it with generateVisualization first, then place it with <artifact-chart>. Write a full chart in charts only when that is not possible.`
 }
-- Full charts are { source: "semantic", chart: { name, tableName, metricQuery, chartConfig, ... } }. Reuse chart-as-code guidance for full query and visualization definitions. You cannot create or change merge charts; keep an existing one by its tag. Never store result rows or temporary query UUIDs. ${
+- Full charts are { source: "semantic", chart: { name, tableName, metricQuery, chartConfig, ... } }. Reuse chart-as-code guidance for full query and visualization definitions. You cannot create or change merge charts; keep an existing one by its tag. Charts store their query and visualization, not result rows or temporary query UUIDs. ${
     customCharts
         ? `Composer charts are unsupported; explain this limitation instead of silently changing the chart. SQL charts are { source: "sql", chart: { name, sql, limit, chartKind, config, connection? } } as in SQL chart as code; adding or changing one needs SQL Runner access.
 - A chart can use a custom chart type. Run the query with that chart type and place the result with <artifact-chart>; use one only when an installed custom chart type fits the data (findCustomChartTypes).`
@@ -73,7 +73,7 @@ ${
     viaComposerQueries
         ? 'replace its tag with a new chart defined in full under charts'
         : 'run it in chat and replace its tag with <artifact-chart>'
-}. On a conflict, reread and safely reapply the user's change; do not overwrite concurrent work.
+}. On a conflict, reread the Document and reapply the user's change on top of the concurrent work.
 - Change metadata separately with documentEdit: { type: "metadata", name?, slug?, description? }.
 - After success, link to the canonical href returned by the tool.`;
 
