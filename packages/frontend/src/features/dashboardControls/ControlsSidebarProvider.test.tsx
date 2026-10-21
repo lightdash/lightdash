@@ -1883,10 +1883,38 @@ describe('ControlsSidebarProvider', () => {
             const required = setRuleRequired(savedA, null);
             const notRequired = clearRuleRequired(
                 required,
+                savedA,
                 FilterType.STRING,
                 statusField,
             );
             expect(notRequired.required).toBe(false);
+
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(required));
+            act(() => result.current.updateFilter(notRequired));
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        it('keeps the default value after "Required" is switched on and off', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [
+                    { ...rule('a', ['credit_card']), disabled: false },
+                ],
+            });
+            const savedA = saved.filters.dimensions[0];
+            const required = setRuleRequired(savedA, savedA);
+            const notRequired = clearRuleRequired(
+                required,
+                savedA,
+                FilterType.STRING,
+                statusField,
+            );
+            expect(notRequired.values).toEqual(['credit_card']);
 
             const { result } = setup();
             act(() => result.current.open('a'));
