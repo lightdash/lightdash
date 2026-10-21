@@ -57,6 +57,17 @@ export const assertInferenceGeographyForRegion = (
     }
 };
 
+/**
+ * Unless the caller decides, the first credential becomes the default, so an
+ * org is never left with credentials but nothing serving its unscoped AI
+ * paths. An explicit `false` stores the credential without activating it
+ * anywhere; an explicit `true` takes over as the default.
+ */
+export const resolveIsDefaultOnCreate = (
+    setAsDefault: boolean | undefined,
+    existingCount: number,
+): boolean => setAsDefault ?? existingCount === 0;
+
 export const isMultiCredentialAiProvider = (
     provider: string,
 ): provider is MultiCredentialAiProvider =>
@@ -390,12 +401,28 @@ export class AiOrganizationProviderCredentialModel {
         assertInferenceGeographyForRegion(config);
 
         return this.database.transaction(async (trx) => {
-            // First credential becomes the default, so an org is never left
-            // with credentials but nothing serving its unscoped AI paths.
             const existingCount = await this.countByOrganizationUuid(
                 organizationUuid,
                 trx,
             );
+            const isDefault = resolveIsDefaultOnCreate(
+                data.setAsDefault,
+                existingCount,
+            );
+
+            if (isDefault && existingCount > 0) {
+                // Partial unique index allows one default per organization, so
+                // clear the previous default inside the same transaction.
+                await trx<AiOrganizationProviderCredentialTable>(
+                    AiOrganizationProviderCredentialTableName,
+                )
+                    .where('organization_uuid', organizationUuid)
+                    .andWhere('is_default', true)
+                    .update({
+                        is_default: false,
+                        updated_at: this.database.raw('NOW()'),
+                    });
+            }
 
             const [row] = await trx<AiOrganizationProviderCredentialTable>(
                 AiOrganizationProviderCredentialTableName,
@@ -405,7 +432,7 @@ export class AiOrganizationProviderCredentialModel {
                     provider: data.provider,
                     label,
                     encrypted_config: this.encryptConfig(config),
-                    is_default: existingCount === 0,
+                    is_default: isDefault,
                     created_by_user_uuid: createdByUserUuid,
                 })
                 .onConflict(['organization_uuid', 'label'])

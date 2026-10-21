@@ -2,6 +2,7 @@ import {
     assertInferenceGeographyForRegion,
     isMultiCredentialAiProvider,
     parseCredentialConfig,
+    resolveIsDefaultOnCreate,
     toApiCredential,
     type AiProviderCredentialResolution,
 } from './AiOrganizationProviderCredentialModel';
@@ -104,6 +105,23 @@ describe('assertInferenceGeographyForRegion', () => {
                 inferenceGeography: 'jp',
             }),
         ).toThrow(/not available for region us-east-1/);
+    });
+});
+
+describe('resolveIsDefaultOnCreate', () => {
+    it('makes the first credential the default when the caller does not decide', () => {
+        expect(resolveIsDefaultOnCreate(undefined, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(undefined, 2)).toBe(false);
+    });
+
+    it('stores without activating on an explicit false, even for the first credential', () => {
+        expect(resolveIsDefaultOnCreate(false, 0)).toBe(false);
+        expect(resolveIsDefaultOnCreate(false, 2)).toBe(false);
+    });
+
+    it('takes over as the default on an explicit true', () => {
+        expect(resolveIsDefaultOnCreate(true, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(true, 2)).toBe(true);
     });
 });
 
