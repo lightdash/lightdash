@@ -229,8 +229,7 @@ const buildHarness = ({
                     id: featureFlagId,
                     enabled:
                         flags[featureFlagId as FeatureFlags] ??
-                        (featureFlagId === FeatureFlags.ComposeSqlRunner ||
-                            featureFlagId === FeatureFlags.PythonQueryRunner),
+                        featureFlagId === FeatureFlags.ComposeSqlRunner,
                 }),
             ),
         } as unknown as FeatureFlagModel,

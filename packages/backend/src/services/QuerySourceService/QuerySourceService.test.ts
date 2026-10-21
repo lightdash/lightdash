@@ -796,7 +796,7 @@ describe('python query source gating', () => {
         },
     ];
 
-    it('lists python only when both python flags are on', async () => {
+    it('lists python only when the compose SQL runner flag is on', async () => {
         const { registry } = createRegistry();
         const { service, mocks } = createService(registry);
         const listed = async () =>
@@ -805,10 +805,6 @@ describe('python query source gating', () => {
             );
 
         expect(await listed()).toContain(QuerySourceType.PYTHON);
-        mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.PythonQueryRunner),
-        );
-        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
         mocks.featureFlagModel.get.mockImplementation(
             flagsOnExcept(FeatureFlags.ComposeSqlRunner),
         );
@@ -820,7 +816,7 @@ describe('python query source gating', () => {
             createRegistry();
         const { service, mocks } = createService(registry);
         mocks.featureFlagModel.get.mockImplementation(
-            flagsOnExcept(FeatureFlags.PythonQueryRunner),
+            flagsOnExcept(FeatureFlags.ComposeSqlRunner),
         );
 
         await expect(

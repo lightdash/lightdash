@@ -16510,7 +16510,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const [
                     { enabled: multiSourceQueryEnabled },
                     { enabled: composeSqlRunnerEnabled },
-                    { enabled: pythonQueryRunnerEnabled },
                 ] = await Promise.all([
                     this.featureFlagService.get({
                         user,
@@ -16519,10 +16518,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.PythonQueryRunner,
                     }),
                 ]);
                 const standardToolAllowlist =
@@ -16541,8 +16536,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const enableComposerPythonNodes =
-                    enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -17071,7 +17064,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    enableComposerPythonNodes,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||

@@ -1436,16 +1436,10 @@ describe('AsyncQueryService', () => {
             });
         };
 
-        test('requires the python query runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.ComposeSqlRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
-        });
-
         test('requires the compose SQL runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.PythonQueryRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
+            await expect(execute({})).rejects.toThrow(
+                'Python queries are not enabled',
+            );
         });
     });
 

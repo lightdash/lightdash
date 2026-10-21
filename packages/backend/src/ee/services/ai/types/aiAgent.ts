@@ -300,9 +300,6 @@ export type AiAgentArgs = AnyAiModel & {
     // Whether runComposerQueries is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
-    // Whether runComposerQueries offers python nodes: composer queries plus
-    // the PythonQueryRunner flag.
-    enableComposerPythonNodes: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
     // Gates generateDashboard so the agent does not build one the user is then
     // refused permission to keep.
