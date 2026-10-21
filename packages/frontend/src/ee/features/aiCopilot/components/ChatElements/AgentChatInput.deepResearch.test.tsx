@@ -5,7 +5,6 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
-import { readAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
@@ -137,7 +136,6 @@ describe('AgentChatInput Deep Research mode', () => {
             'Attach a document',
             'SQL Runner',
             'Deep research',
-            'Fast',
         ]);
         expect(
             screen.getByRole('menuitem', { name: 'Enable SQL Runner' }),
@@ -201,31 +199,6 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(inputClick).toHaveBeenCalledOnce();
         inputClick.mockRestore();
-    });
-
-    it('saves the Fast mode choice from the composer menu', async () => {
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-        renderInput({ enableCsvAttachment: true });
-        const user = await openComposerOptions();
-
-        await user.click(
-            screen.getByRole('menuitem', { name: 'Disable Fast mode' }),
-        );
-
-        expect(
-            screen.getByRole('menuitem', { name: 'Enable Fast mode' }),
-        ).toBeInTheDocument();
-        expect(readAiAgentFastMode()).toBe(false);
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-    });
-
-    it('hides Fast mode when fast decisions are off', async () => {
-        renderInput({ onSqlModeChange: vi.fn() });
-        await openComposerOptions();
-
-        expect(
-            screen.queryByRole('menuitem', { name: /Fast mode/ }),
-        ).not.toBeInTheDocument();
     });
 
     it('toggles SQL Runner from the action menu', async () => {
