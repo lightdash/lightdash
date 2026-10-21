@@ -1,3 +1,16 @@
+# [3.5.0](https://github.com/lightdash/lightdash/compare/3.4.0...3.5.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **ai:** present composer nodes from earlier messages via the node registry (ZAP-1291) ([#31280](https://github.com/lightdash/lightdash/issues/31280)) ([3987f77](https://github.com/lightdash/lightdash/commit/3987f7751298a988db3600bc5452b4d8c607b889))
+
+
+### Features
+
+* **data-apps:** teach the build agent saved app state ([#31223](https://github.com/lightdash/lightdash/issues/31223)) ([d0cc23d](https://github.com/lightdash/lightdash/commit/d0cc23dcf1644bb2e0ce625b1c0cf7f63bff3d19)), closes [#31221](https://github.com/lightdash/lightdash/issues/31221) [#25355](https://github.com/lightdash/lightdash/issues/25355)
+* **query-sdk:** useAppState and useSharedAppState hooks ([#31221](https://github.com/lightdash/lightdash/issues/31221)) ([0d4e6d9](https://github.com/lightdash/lightdash/commit/0d4e6d9b97163f9a12f0bf5d5024f80d51013268)), closes [#31217](https://github.com/lightdash/lightdash/issues/31217) [#25355](https://github.com/lightdash/lightdash/issues/25355)
+
 # [3.4.0](https://github.com/lightdash/lightdash/compare/3.3.0...3.4.0) (2026-10-21)
 
 

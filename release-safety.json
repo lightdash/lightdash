@@ -1,31 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.4.0",
-  "previousVersion": "3.3.0",
-  "releaseDate": "2026-10-21T09:36:42.159Z",
+  "version": "3.5.0",
+  "previousVersion": "3.4.0",
+  "releaseDate": "2026-10-21T09:52:23.471Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261020120000_create_app_state_tables.ts",
-        "edition": "ee",
-        "tables": [
-          "app_shared_state",
-          "app_shared_state_history",
-          "app_user_state",
-          "apps",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
