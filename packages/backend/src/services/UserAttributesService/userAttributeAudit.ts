@@ -2,7 +2,6 @@ import {
     getErrorMessage,
     getFilterRules,
     getItemId,
-    isAccount,
     isCustomBinDimension,
     type Account,
     type CompiledDimension,
@@ -10,21 +9,15 @@ import {
     type CompiledTable,
     type Explore,
     type MetricQuery,
-    type SessionUser,
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import {
     createAuditLogEvent,
-    type AuditActor,
-    type AuditContext,
     type AuditLogEvent,
     type AuditStatusType,
 } from '../../logging/auditLog';
 import { captureServiceCallStack } from '../../logging/callStack';
-import {
-    createActorFromAccount,
-    createActorFromUser,
-} from '../../logging/caslAuditWrapper';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { logAuditEvent, winstonLogger } from '../../logging/winston';
 import {
@@ -35,12 +28,9 @@ import {
 
 export type UserAttributeAuditLogger = (event: AuditLogEvent) => void;
 
-/**
- * Who is asking and where. The actor, IP, user agent and request id come from
- * the account so a denial can be tied back to the HTTP request that caused it.
- */
+/** Actor, request context and call stack all derive from the account. */
 export type UserAttributeAuditScope = {
-    account: Account | SessionUser;
+    account: Account;
     projectUuid: string;
     auditLogger?: UserAttributeAuditLogger;
 };
@@ -66,48 +56,46 @@ const resolveSink = (
     return winstonLogger.isLevelEnabled('audit') ? logAuditEvent : null;
 };
 
-const resolveActor = (account: Account | SessionUser): AuditActor =>
-    isAccount(account)
-        ? createActorFromAccount(account)
-        : createActorFromUser(account);
+type ExploreAuditEvent = {
+    scope: UserAttributeAuditScope;
+    sink: UserAttributeAuditLogger;
+    exploreName: string;
+    metadata: Record<string, unknown>;
+    status: AuditStatusType;
+    reason: string | null;
+};
 
-const resolveContext = (account: Account | SessionUser): AuditContext => ({
-    ip: account.requestContext?.ip,
-    userAgent: account.requestContext?.userAgent,
-    requestId: account.requestContext?.requestId,
-});
-
-const resolveOrganizationUuid = (account: Account | SessionUser): string =>
-    (isAccount(account)
-        ? account.organization.organizationUuid
-        : account.organizationUuid) || 'unknown';
-
-const emitExploreEvent = (
-    scope: UserAttributeAuditScope,
-    sink: UserAttributeAuditLogger,
-    exploreName: string,
-    metadata: Record<string, unknown>,
-    status: AuditStatusType,
-    reason?: string,
-): void => {
+const emitExploreEvent = ({
+    scope: { account, projectUuid },
+    sink,
+    exploreName,
+    metadata,
+    status,
+    reason,
+}: ExploreAuditEvent): void => {
     try {
         sink(
             createAuditLogEvent(
-                resolveActor(scope.account),
+                createActorFromAccount(account),
                 'view',
                 {
                     type: 'Explore',
-                    organizationUuid: resolveOrganizationUuid(scope.account),
-                    projectUuid: scope.projectUuid,
+                    organizationUuid:
+                        account.organization.organizationUuid || 'unknown',
+                    projectUuid,
                     metadata: {
                         exploreName,
                         accessControl: ACCESS_CONTROL,
                         ...metadata,
                     },
                 },
-                resolveContext(scope.account),
+                {
+                    ip: account.requestContext?.ip,
+                    userAgent: account.requestContext?.userAgent,
+                    requestId: account.requestContext?.requestId,
+                },
                 status,
-                reason,
+                reason ?? undefined,
                 undefined,
                 captureServiceCallStack(),
             ),
@@ -176,27 +164,27 @@ export const auditExploreAttributeAccess = ({
     if (!sink || !baseTable || !hasAttributeRestriction(baseTable)) {
         return allowed;
     }
-    emitExploreEvent(
+    emitExploreEvent({
         scope,
         sink,
-        explore.name,
-        {
+        exploreName: explore.name,
+        metadata: {
             requiredAttributes: baseTable.requiredAttributes,
             anyAttributes: baseTable.anyAttributes,
             unsatisfiedAttributes: allowed
                 ? []
                 : getUnsatisfiedAttributes(baseTable, userAttributes),
         },
-        allowed ? 'allowed' : 'denied',
-        allowed
-            ? undefined
+        status: allowed ? 'allowed' : 'denied',
+        reason: allowed
+            ? null
             : `User attributes do not satisfy the restrictions on explore "${explore.name}"`,
-    );
+    });
     return allowed;
 };
 
 /** `getFilteredExplore` with the base-table decision written to the audit log. */
-export const getFilteredExploreForAccount = (
+export const auditAndFilterExplore = (
     args: UserAttributeAuditScope & {
         explore: Explore;
         userAttributes: UserAttributeValueMap;
@@ -243,13 +231,8 @@ export const getMetricQueryFieldIds = (metricQuery: MetricQuery): string[] => [
     ]),
 ];
 
-/**
- * Records which of the requested fields are attribute-restricted and whether
- * the actor can see each one. `explore` must be the attribute-filtered
- * explore: a field present in `unfilteredTables` but missing from `tables`
- * was hidden by user attributes, so requesting it is a denial. A query that
- * touches no restricted field emits nothing.
- */
+/** `explore` must be the attribute-filtered one: a field present in
+ *  `unfilteredTables` but missing from `tables` was hidden by user attributes. */
 export const auditFieldAttributeAccess = ({
     explore,
     fieldIds,
@@ -292,18 +275,19 @@ export const auditFieldAttributeAccess = ({
     const deniedFieldIds = decisions
         .filter(({ access }) => access === 'denied')
         .map(({ fieldId }) => fieldId);
-    emitExploreEvent(
+    emitExploreEvent({
         scope,
         sink,
-        explore.name,
-        { fields: decisions, deniedFieldIds },
-        deniedFieldIds.length > 0 ? 'denied' : 'allowed',
-        deniedFieldIds.length > 0
-            ? `User attributes do not satisfy the restrictions on ${
-                  deniedFieldIds.length === 1 ? 'field' : 'fields'
-              } ${deniedFieldIds.join(', ')}`
-            : undefined,
-    );
+        exploreName: explore.name,
+        metadata: { fields: decisions, deniedFieldIds },
+        status: deniedFieldIds.length > 0 ? 'denied' : 'allowed',
+        reason:
+            deniedFieldIds.length > 0
+                ? `User attributes do not satisfy the restrictions on ${
+                      deniedFieldIds.length === 1 ? 'field' : 'fields'
+                  } ${deniedFieldIds.join(', ')}`
+                : null,
+    });
 };
 
 export const auditMetricQueryAttributeAccess = ({

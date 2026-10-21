@@ -523,7 +523,7 @@ import { type PermissionsService } from '../PermissionsService/PermissionsServic
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     auditMetricQueryAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
 } from '../UserAttributesService/userAttributeAudit';
 import {
     doesExploreMatchRequiredAttributes,
@@ -14523,7 +14523,7 @@ export class ProjectService
                         if (!shouldFilterExplore) {
                             acc[explore.name] = explore;
                         } else {
-                            acc[explore.name] = getFilteredExploreForAccount({
+                            acc[explore.name] = auditAndFilterExplore({
                                 account,
                                 projectUuid,
                                 explore,

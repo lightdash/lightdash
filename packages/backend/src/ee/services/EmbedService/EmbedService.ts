@@ -115,7 +115,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     auditMetricQueryAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
 } from '../../../services/UserAttributesService/userAttributeAudit';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
@@ -1182,7 +1182,7 @@ export class EmbedService extends BaseService {
                     this.getAccessControls(account);
 
                 // Filter the explore access and fields based on the user attributes
-                const filteredExplore = getFilteredExploreForAccount({
+                const filteredExplore = auditAndFilterExplore({
                     account,
                     projectUuid,
                     explore,
@@ -2334,7 +2334,7 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExploreForAccount({
+        const filteredExplore = auditAndFilterExplore({
             account,
             projectUuid,
             explore,
@@ -2497,7 +2497,7 @@ export class EmbedService extends BaseService {
             projectUuid,
             organizationUuid: organizationUuid || '',
             metricQuery,
-            explore: getFilteredExploreForAccount({
+            explore: auditAndFilterExplore({
                 account,
                 projectUuid,
                 explore,
@@ -2588,7 +2588,7 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExploreForAccount({
+        const filteredExplore = auditAndFilterExplore({
             account,
             projectUuid,
             explore,

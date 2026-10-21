@@ -14,6 +14,7 @@ import {
     searchFilterAutocompleteValues,
     type Account,
     type AndFilterGroup,
+    type CompiledDimension,
     type Dimension,
     type Explore,
     type ExploreError,
@@ -25,7 +26,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import {
     auditFieldAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
 } from '../UserAttributesService/userAttributeAudit';
 
 const FIELD_VALUES_FORBIDDEN_MESSAGE =
@@ -33,14 +34,16 @@ const FIELD_VALUES_FORBIDDEN_MESSAGE =
 
 /** Dimensions visible to the caller after user-attribute filtering; a gated
  *  base table surfaces as ForbiddenError rather than AuthorizationError. */
-const getVisibleExplore = (
+const getVisibleDimensionsForField = (
     account: Account,
     projectUuid: string,
     explore: Explore,
     userAttributes: UserAttributeValueMap,
-): Explore => {
+    fieldId: string,
+): Record<string, CompiledDimension> => {
+    let visibleExplore: Explore;
     try {
-        return getFilteredExploreForAccount({
+        visibleExplore = auditAndFilterExplore({
             account,
             projectUuid,
             explore,
@@ -52,6 +55,13 @@ const getVisibleExplore = (
         }
         throw e;
     }
+    auditFieldAttributeAccess({
+        account,
+        projectUuid,
+        explore: visibleExplore,
+        fieldIds: [fieldId],
+    });
+    return getDimensionMapFromTables(visibleExplore.tables);
 };
 
 type ExploreResolver = {
@@ -193,20 +203,12 @@ export async function getFieldValuesMetricQuery({
 
     // Attribute-gated tables/dimensions must not be enumerable, including
     // through curated (static) values.
-    const visibleInitialExplore = getVisibleExplore(
+    let visibleDimensions = getVisibleDimensionsForField(
         account,
         projectUuid,
         initialExplore,
         userAttributes,
-    );
-    auditFieldAttributeAccess({
-        account,
-        projectUuid,
-        explore: visibleInitialExplore,
-        fieldIds: [fieldId],
-    });
-    let visibleDimensions = getDimensionMapFromTables(
-        visibleInitialExplore.tables,
+        fieldId,
     );
     if (!(fieldId in visibleDimensions)) {
         throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);
@@ -268,20 +270,12 @@ export async function getFieldValuesMetricQuery({
                 `Filter autocomplete options source must be a dimension, but ${fieldId} is a ${sourceField.type}`,
             );
         }
-        const visibleSourceExplore = getVisibleExplore(
+        visibleDimensions = getVisibleDimensionsForField(
             account,
             projectUuid,
             sourceExplore,
             userAttributes,
-        );
-        auditFieldAttributeAccess({
-            account,
-            projectUuid,
-            explore: visibleSourceExplore,
-            fieldIds: [fieldId],
-        });
-        visibleDimensions = getDimensionMapFromTables(
-            visibleSourceExplore.tables,
+            fieldId,
         );
         if (!(fieldId in visibleDimensions)) {
             throw new ForbiddenError(FIELD_VALUES_FORBIDDEN_MESSAGE);

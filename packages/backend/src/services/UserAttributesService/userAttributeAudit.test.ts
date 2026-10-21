@@ -9,7 +9,7 @@ import { type AuditLogEvent } from '../../logging/auditLog';
 import {
     auditFieldAttributeAccess,
     auditMetricQueryAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
     getMetricQueryFieldIds,
 } from './userAttributeAudit';
 import {
@@ -54,12 +54,12 @@ const emptyMetricQuery: MetricQuery = {
 
 const createLogger = () => vi.fn<(event: AuditLogEvent) => void>();
 
-describe('getFilteredExploreForAccount', () => {
+describe('auditAndFilterExplore', () => {
     test('records a denial attributed to the actor and request when the base table attributes are not satisfied', () => {
         const auditLogger = createLogger();
 
         expect(() =>
-            getFilteredExploreForAccount({
+            auditAndFilterExplore({
                 account,
                 projectUuid: 'project-uuid',
                 auditLogger,
@@ -93,7 +93,7 @@ describe('getFilteredExploreForAccount', () => {
     test('records an allowed decision when the restricted base table attributes are satisfied', () => {
         const auditLogger = createLogger();
 
-        const explore = getFilteredExploreForAccount({
+        const explore = auditAndFilterExplore({
             account,
             projectUuid: 'project-uuid',
             auditLogger,
@@ -117,7 +117,7 @@ describe('getFilteredExploreForAccount', () => {
         const auditLogger = createLogger();
 
         expect(() =>
-            getFilteredExploreForAccount({
+            auditAndFilterExplore({
                 account,
                 projectUuid: 'project-uuid',
                 auditLogger,
@@ -139,7 +139,7 @@ describe('getFilteredExploreForAccount', () => {
     test('is silent for explores without attribute restrictions', () => {
         const auditLogger = createLogger();
 
-        getFilteredExploreForAccount({
+        auditAndFilterExplore({
             account,
             projectUuid: 'project-uuid',
             auditLogger,

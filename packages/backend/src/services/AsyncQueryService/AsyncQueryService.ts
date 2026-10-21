@@ -343,9 +343,12 @@ import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
 import {
     auditMetricQueryAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
 } from '../UserAttributesService/userAttributeAudit';
-import { exploreHasFilteredAttribute } from '../UserAttributesService/UserAttributeUtils';
+import {
+    exploreHasFilteredAttribute,
+    getFilteredExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 import { trustedAgentQueryTags } from '../WarehouseClientFactory/agentQueryTags';
 import {
     connectionContextFromAccount,
@@ -1347,12 +1350,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const executionExplore = exploreHasFilteredAttribute(explore)
-            ? getFilteredExploreForAccount({
-                  account,
-                  projectUuid,
-                  explore,
-                  userAttributes: materializationRole.userAttributes,
-              })
+            ? getFilteredExplore(explore, materializationRole.userAttributes)
             : explore;
         this.unfilteredExploreSnapshots.set(executionExplore, explore);
 
@@ -2031,7 +2029,7 @@ export class AsyncQueryService extends ProjectService {
                             ]);
                             if (isExploreError(explore))
                                 throw new ForbiddenError();
-                            return getFilteredExploreForAccount({
+                            return auditAndFilterExplore({
                                 account: fresh,
                                 projectUuid,
                                 explore,
@@ -6148,12 +6146,14 @@ export class AsyncQueryService extends ProjectService {
                 ? { ...baseUserAttributes, ...userAttributeOverrides }
                 : baseUserAttributes;
 
-        auditMetricQueryAttributeAccess({
-            account,
-            projectUuid,
-            explore,
-            metricQuery,
-        });
+        if (materializationRole === undefined) {
+            auditMetricQueryAttributeAccess({
+                account,
+                projectUuid,
+                explore,
+                metricQuery,
+            });
+        }
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,

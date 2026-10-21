@@ -58,6 +58,7 @@ import {
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
@@ -90,7 +91,7 @@ import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     auditExploreAttributeAccess,
-    getFilteredExploreForAccount,
+    auditAndFilterExplore,
 } from '../UserAttributesService/userAttributeAudit';
 import {
     checkUserAttributesAccess,
@@ -859,7 +860,7 @@ export class CatalogService<
 
         if (
             !auditExploreAttributeAccess({
-                account: user,
+                account: fromSession(user),
                 projectUuid,
                 explore,
                 userAttributes,
@@ -1287,7 +1288,7 @@ export class CatalogService<
                     return [tableName, undefined];
                 }
 
-                const filteredExplore = getFilteredExploreForAccount({
+                const filteredExplore = auditAndFilterExplore({
                     account: user,
                     projectUuid,
                     explore,
