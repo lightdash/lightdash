@@ -81,6 +81,7 @@ export const usageContentInventoryQuery = (
     contentType: UsageContentType,
     cursor: string | null,
     pageSize: number,
+    projectUrlPrefix: string,
 ): Knex.QueryBuilder => {
     const source = sources[contentType];
     const reference =
@@ -138,6 +139,12 @@ export const usageContentInventoryQuery = (
             'org_id', ?::text, 'project_id', i.project_id, 'project_name', p.name,
             'content_type', i.content_type, 'content_id', i.content_id,
             'content_name', i.content_name, 'space_id', s.space_uuid, 'space_name', s.name,
+            'content_url', CASE WHEN i.content_type = 'data_app' THEN NULL ELSE
+                ?::text || i.project_id::text || CASE i.content_type
+                    WHEN 'saved_chart' THEN '/saved/'
+                    WHEN 'sql_chart' THEN '/sql-runner/'
+                    WHEN 'dashboard' THEN '/dashboards/' END || i.content_id::text ||
+                CASE WHEN i.content_type = 'sql_chart' THEN '' ELSE '/view' END END,
             'created_at', i.created_at, 'deleted_at', COALESCE(i.deleted_at, i.parent_deleted_at, s.deleted_at),
             'is_deleted', i.deleted_at IS NOT NULL OR i.parent_deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL,
             'snapshot_at', CURRENT_TIMESTAMP,
@@ -167,6 +174,7 @@ export const usageContentInventoryQuery = (
             ...(cursor === null ? [] : [cursor]),
             pageSize,
             organizationUuid,
+            projectUrlPrefix,
         ],
     );
     return database

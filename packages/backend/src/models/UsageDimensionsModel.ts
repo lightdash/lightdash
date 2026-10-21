@@ -12,7 +12,14 @@ type Organization = { organization_id: number; organization_uuid: string };
 type SnapshotRow = { cursor: string; json: string };
 
 export class UsageDimensionsModel {
-    constructor(private readonly database: Knex) {}
+    private readonly projectUrlPrefix: string;
+
+    constructor(
+        private readonly database: Knex,
+        siteUrl: string,
+    ) {
+        this.projectUrlPrefix = `${new URL(siteUrl).origin}/projects/`;
+    }
 
     private async readPage<Row>(
         query: Knex.QueryBuilder,
@@ -182,6 +189,7 @@ export class UsageDimensionsModel {
                             contentType,
                             cursor,
                             USAGE_DIMENSION_PAGE_SIZE,
+                            this.projectUrlPrefix,
                         );
                         // eslint-disable-next-line no-await-in-loop
                         const rows: SnapshotRow[] = await this.readPage(
@@ -228,11 +236,12 @@ export class UsageDimensionsModel {
                             `json_build_object(
                         'org_id', ?::text, 'chart_id', c.saved_query_uuid,
                         'name', c.name, 'slug', c.slug,
+                        'url', ?::text || c.project_uuid::text || '/saved/' || c.saved_query_uuid::text || '/view',
                         'chart_kind', c.last_version_chart_kind,
                         'space_name', s.name,
                         'is_deleted', c.deleted_at IS NOT NULL OR d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
                 yield* this.readPages(charts, 'c.saved_query_id');
@@ -261,11 +270,12 @@ export class UsageDimensionsModel {
                             `json_build_object(
                         'org_id', ?::text, 'chart_id', c.saved_sql_uuid,
                         'name', c.name, 'slug', c.slug,
+                        'url', ?::text || c.project_uuid::text || '/sql-runner/' || c.saved_sql_uuid::text,
                         'chart_kind', c.last_version_chart_kind,
                         'space_name', s.name,
                         'is_deleted', c.deleted_at IS NOT NULL OR d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
                 yield* this.readPages(sqlCharts, 'c.saved_sql_uuid');
@@ -281,9 +291,10 @@ export class UsageDimensionsModel {
                             `json_build_object(
                         'org_id', ?::text, 'dashboard_id', d.dashboard_uuid,
                         'name', d.name, 'slug', d.slug, 'space_name', s.name,
+                        'url', ?::text || p.project_uuid::text || '/dashboards/' || d.dashboard_uuid::text || '/view',
                         'is_deleted', d.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL
                     )::text AS json`,
-                            [orgUuid],
+                            [orgUuid, this.projectUrlPrefix],
                         ),
                     );
                 yield* this.readPages(dashboards, 'd.dashboard_id');

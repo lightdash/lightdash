@@ -377,7 +377,11 @@ export class ModelRepository
     public getUsageDimensionsModel(): UsageDimensionsModel {
         return this.getModel(
             'usageDimensionsModel',
-            () => new UsageDimensionsModel(this.database),
+            () =>
+                new UsageDimensionsModel(
+                    this.database,
+                    this.lightdashConfig.siteUrl,
+                ),
         );
     }
 
