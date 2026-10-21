@@ -483,10 +483,13 @@ describe('ChartRegistryClient', () => {
             return makeClient(fetchImpl).getAsset(entry.thumbnail);
         };
 
-        it.each(samples)('serves %s sniffed from octet-stream', async (type, body) => {
-            const asset = await getWith(body, 'application/octet-stream');
-            expect(asset?.contentType).toBe(type);
-        });
+        it.each(samples)(
+            'serves %s sniffed from octet-stream',
+            async (type, body) => {
+                const asset = await getWith(body, 'application/octet-stream');
+                expect(asset?.contentType).toBe(type);
+            },
+        );
 
         it('serves a sniffed image when content-type is missing', async () => {
             const asset = await getWith(samples[0][1], null);
