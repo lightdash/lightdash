@@ -1,7 +1,7 @@
 import { deepEqual, type SemanticChartAsCode } from '@lightdash/common';
 import { Button, Group, Stack, TextInput } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useBeforeUnload } from 'react-router';
 import MantineModal from '../../components/common/MantineModal';
@@ -11,6 +11,7 @@ import Explorer from '../../components/Explorer';
 import { useChartGalleryRightSidebar } from '../../components/Explorer/ChartGallery/useChartGalleryRightSidebar';
 import ExploreSideBar from '../../components/Explorer/ExploreSideBar';
 import { RefreshButton } from '../../components/RefreshButton';
+import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQueryEffects } from '../../hooks/useExplorerQueryEffects';
 import { ModalHostedContext } from '../../providers/Explorer/useIsModalHosted';
 import {
@@ -21,6 +22,7 @@ import {
 } from '../explorer/store';
 import {
     buildDocumentChartEditorState,
+    getDefaultDocumentChartName,
     getDocumentChartFromVersion,
     getQuerySignature,
 } from './documentChartEditor';
@@ -75,11 +77,22 @@ const EditorSession = ({
             getQuerySignature(version),
         );
     const rightSidebar = useChartGalleryRightSidebar({ enabled: true });
+    const { data: explore } = useExplore(version.tableName || undefined);
+    const defaultName = useMemo(
+        () => getDefaultDocumentChartName(version, explore ?? null),
+        [version, explore],
+    );
     const applyChart = form.onSubmit(({ name, description }) => {
-        if (!isValidQuery || !name.trim()) {
+        if (!isValidQuery) {
             return;
         }
-        onApply(getDocumentChartFromVersion(version, name.trim(), description));
+        onApply(
+            getDocumentChartFromVersion(
+                version,
+                name.trim() || defaultName,
+                description,
+            ),
+        );
     });
     useBeforeUnload((event) => {
         if (dirty) {
@@ -102,7 +115,7 @@ const EditorSession = ({
                     <Button
                         type="submit"
                         form={CHART_FORM_ID}
-                        disabled={!isValidQuery || !form.values.name.trim()}
+                        disabled={!isValidQuery}
                         // Anchor for scope walkthroughs (data-tour-via)
                         data-tour-anchor="document-chart-apply"
                         data-tour-hint="Click Apply to Document"
@@ -140,7 +153,7 @@ const EditorSession = ({
                         // before its clicks. See scripts/scope-tours.
                         data-tour-scope="manage:Document"
                         data-tour-look="1"
-                        data-tour-after='[data-tour-anchor="document-add-chart"]'
+                        data-tour-after='[data-tour-anchor="document-add-new-chart"]'
                         data-tour-label="The Add chart dialog is a full Explore view"
                         data-tour-docs="explore/documents.mdx#add-and-arrange-charts:2"
                     >
@@ -148,6 +161,7 @@ const EditorSession = ({
                             <Group align="end">
                                 <TextInput
                                     label="Chart name"
+                                    placeholder={defaultName}
                                     // Typed anchor for scope walkthroughs (data-tour-via)
                                     data-tour-anchor="document-chart-name"
                                     data-tour-hint="Name the chart"

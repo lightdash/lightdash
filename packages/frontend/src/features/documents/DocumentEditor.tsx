@@ -8,6 +8,7 @@ import {
     ActionIcon,
     Badge,
     Button,
+    Menu,
     Stack,
     Text,
     Textarea,
@@ -18,6 +19,7 @@ import {
     IconCheck,
     IconDots,
     IconLink,
+    IconPlus,
     IconX,
 } from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
@@ -395,45 +397,58 @@ const DocumentEditor = ({
                                 <MantineIcon icon={IconX} />
                             </ActionIcon>
                         </Tooltip>
-                        {canAuthorCharts && (
-                            <Tooltip label="Add chart">
-                                <ActionIcon
-                                    variant="default"
-                                    size="lg"
-                                    aria-label="Add chart"
-                                    disabled={busy}
-                                    // Anchor for scope walkthroughs (data-tour-via)
-                                    data-tour-anchor="document-add-chart"
-                                    data-tour-hint="Click Add chart"
+                        <Menu position="bottom-end">
+                            <Menu.Target>
+                                <Tooltip label="Add chart">
+                                    <ActionIcon
+                                        variant="default"
+                                        size="lg"
+                                        aria-label="Add chart"
+                                        disabled={busy}
+                                        // Anchor for scope walkthroughs (data-tour-via)
+                                        data-tour-anchor="document-add-chart"
+                                        data-tour-hint="Click Add chart"
+                                    >
+                                        <MantineIcon icon={IconChartBar} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {canAuthorCharts && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPlus} />
+                                        }
+                                        // Anchor for scope walkthroughs (data-tour-via)
+                                        data-tour-anchor="document-add-new-chart"
+                                        data-tour-hint="Choose New chart"
+                                        onClick={() =>
+                                            setChartEditor({
+                                                kind: 'explore',
+                                                mode: 'insert',
+                                                position: null,
+                                                chart: null,
+                                            })
+                                        }
+                                    >
+                                        New chart
+                                    </Menu.Item>
+                                )}
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon icon={IconLink} />
+                                    }
                                     onClick={() =>
                                         setChartEditor({
-                                            kind: 'explore',
-                                            mode: 'insert',
+                                            kind: 'saved',
                                             position: null,
-                                            chart: null,
                                         })
                                     }
                                 >
-                                    <MantineIcon icon={IconChartBar} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                        <Tooltip label="Add saved chart">
-                            <ActionIcon
-                                variant="default"
-                                size="lg"
-                                aria-label="Add saved chart"
-                                disabled={busy}
-                                onClick={() =>
-                                    setChartEditor({
-                                        kind: 'saved',
-                                        position: null,
-                                    })
-                                }
-                            >
-                                <MantineIcon icon={IconLink} />
-                            </ActionIcon>
-                        </Tooltip>
+                                    Saved chart
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                         <Tooltip label="Save document">
                             <ActionIcon
                                 variant="default"
@@ -450,7 +465,7 @@ const DocumentEditor = ({
                                 data-tour-label="Save the document"
                                 data-tour-title="Write a document with a live chart"
                                 data-tour-interactive="true"
-                                data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-document"] >> [data-tour-anchor="document-name"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="document-create-submit"] >> [data-tour-anchor="document-body"] >> [data-tour-anchor="document-add-chart"] >> [data-tour-anchor="explore-table"][data-tour-value="Country orders"] >> [data-tour-anchor="explore-metric"][data-tour-value="Order Count"] >> [data-tour-anchor="explore-dimension"][data-tour-value="Country"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="document-chart-name"] >> [data-tour-anchor="document-chart-apply"]'
+                                data-tour-via='[data-tour-nav="new"] >> [data-tour-nav="new-document"] >> [data-tour-anchor="document-name"] >> [data-tour-anchor="space-option"][data-tour-value="Shared"] >> [data-tour-anchor="document-create-submit"] >> [data-tour-anchor="document-body"] >> [data-tour-anchor="document-add-chart"] >> [data-tour-anchor="document-add-new-chart"] >> [data-tour-anchor="explore-table"][data-tour-value="Country orders"] >> [data-tour-anchor="explore-metric"][data-tour-value="Order Count"] >> [data-tour-anchor="explore-dimension"][data-tour-value="Country"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="document-chart-name"] >> [data-tour-anchor="document-chart-apply"]'
                                 data-tour-docs="explore/documents.mdx#edit-a-document:p3:1"
                                 onClick={() => {
                                     void save();

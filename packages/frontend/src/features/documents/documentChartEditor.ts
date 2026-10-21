@@ -1,6 +1,9 @@
 import {
     getDocumentRuntimeChartConfig,
+    getItemLabelWithoutTableName,
+    getItemMap,
     type CreateSavedChartVersion,
+    type Explore,
     type FilterGroup,
     type FilterGroupInput,
     type FilterGroupItem,
@@ -117,6 +120,32 @@ export const getDocumentChartFromVersion = (
     pivotConfig: version.pivotConfig,
     parameters: version.parameters,
 });
+
+/** Names an unnamed chart after its first metric and dimension, else its table. */
+export const getDefaultDocumentChartName = (
+    version: CreateSavedChartVersion,
+    explore: Explore | null,
+): string => {
+    const { metricQuery } = version;
+    const items = explore
+        ? getItemMap(
+              explore,
+              metricQuery.additionalMetrics,
+              metricQuery.tableCalculations,
+              metricQuery.customDimensions,
+          )
+        : {};
+    const getLabel = (fieldId: string | undefined): string | null => {
+        const item = fieldId === undefined ? undefined : items[fieldId];
+        return item ? getItemLabelWithoutTableName(item) : null;
+    };
+    const metric = getLabel(metricQuery.metrics[0]);
+    const dimension = getLabel(metricQuery.dimensions[0]);
+    if (metric && dimension) {
+        return `${metric} by ${dimension}`;
+    }
+    return metric ?? dimension ?? explore?.label ?? 'Untitled chart';
+};
 
 /** The parts of a chart version a person changes deliberately, excluding derived visualization config. */
 export const getQuerySignature = (version: CreateSavedChartVersion) => ({
