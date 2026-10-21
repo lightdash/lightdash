@@ -114,9 +114,12 @@ const LinkCard: FC<CardProps> = ({
             : skipCount === 0
               ? `Apply all ${linkCount}`
               : `Apply ${linkCount}, skip ${skipCount}`;
-    const applyName = `Apply ${linkCount} ${plural(linkCount, 'filter', 'filters')} to ${tileTitle}${
-        skipCount > 0 && rows.length > 1 ? `, skip ${skipCount}` : ''
-    }`;
+    const applyName =
+        linkCount === 0
+            ? `Apply filters to ${tileTitle}`
+            : `Apply ${linkCount} ${plural(linkCount, 'filter', 'filters')} to ${tileTitle}${
+                  skipCount > 0 && rows.length > 1 ? `, skip ${skipCount}` : ''
+              }`;
 
     return (
         <Stack gap="sm">

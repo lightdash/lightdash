@@ -681,9 +681,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   label (`getCandidateOptions`).
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
   and scrolls.
-- One "Apply" answers the whole card ("Apply all N", "Apply X, skip Y";
-  a plain "Apply", disabled, when no row has a field): rows with a field are linked, the rest
-  skipped. "Skip all" ("Skip" for one row) skips every row. Both are named
+- One "Apply" answers the whole card: "Apply all N" or "Apply X, skip Y",
+  and a plain "Apply" for a single row or when no row has a field (then
+  disabled). Rows with a field are linked, the rest skipped. "Skip all" ("Skip" for one row) skips every row. Both are named
   with the tile title, and focus goes to the tile (`tabindex="-1"`).
 - "New" is derived: `newTileUuids` is the dashboard's tiles that are not in the
   saved dashboard. There is no snapshot state.

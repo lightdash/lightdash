@@ -189,7 +189,7 @@ const select = (tileUuid: string, filterLabel = 'Status') =>
         selector: 'input',
     });
 const applyButton = (tileUuid: string) =>
-    card(tileUuid).getByRole('button', { name: /^Apply \d+ filters? to / });
+    card(tileUuid).getByRole('button', { name: /^Apply (\d+ )?filters? to / });
 const skipButton = (tileUuid: string) =>
     card(tileUuid).getByRole('button', { name: /^Skip / });
 const pick = async (tileUuid: string, filterLabel: string, option: string) => {
@@ -358,6 +358,9 @@ describe('LinkPrompts', () => {
         renderWithProviders(<LinkPrompts />);
 
         expect(applyButton(added.uuid)).toHaveTextContent(/^Apply$/);
+        expect(applyButton(added.uuid)).toHaveAccessibleName(
+            'Apply filters to Title tile-added',
+        );
         expect(applyButton(added.uuid)).toBeDisabled();
     });
 
@@ -483,7 +486,7 @@ describe('LinkPrompts', () => {
             );
             rerender(<LinkPrompts />);
 
-            // A row the user touched stays a row, now on the only candidate
+            // The pick is no longer offered: the choice falls back to the only one
             expect(select(added.uuid)).toHaveValue('Method');
             await userEvent.click(applyButton(added.uuid));
             expect(
