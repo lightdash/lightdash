@@ -1,3 +1,20 @@
+# [3.7.0](https://github.com/lightdash/lightdash/compare/3.6.0...3.7.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* count registered query actors in people adoption ([#31215](https://github.com/lightdash/lightdash/issues/31215)) ([de974a2](https://github.com/lightdash/lightdash/commit/de974a21e2a96f4f12ce29e1bcd6d22c57a60330))
+
+
+### Features
+
+* **ai:** opt-in Chat Completions API for the OpenAI and Azure providers ([#31276](https://github.com/lightdash/lightdash/issues/31276)) ([2fb78c4](https://github.com/lightdash/lightdash/commit/2fb78c4b369217f178d37907bc96ad2e5d234e42))
+
+
+### Performance Improvements
+
+* **visualization:** split provider context and memoize editor hook results ([#31263](https://github.com/lightdash/lightdash/issues/31263)) ([735e2ac](https://github.com/lightdash/lightdash/commit/735e2acecd9274e228d9465a16f64d8de6806e02))
+
 # [3.6.0](https://github.com/lightdash/lightdash/compare/3.5.0...3.6.0) (2026-10-21)
 
 
