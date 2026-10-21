@@ -1,5 +1,7 @@
 import {
     EMBED_MAX_SOURCE_SPACE_UUIDS,
+    EMBED_MAX_WRITE_SPACE_UUIDS,
+    getEmbedWriteSpaceUuids,
     ProjectMemberRole,
     ServiceAccountScope,
     type CreateEmbedJwt,
@@ -95,8 +97,26 @@ type Props = {
     onChange: (value: CreateEmbedJwt['writeActions'] | undefined) => void;
     required?: boolean;
     fixedWriteSpaceUuid?: string;
-    // Dashboard tokens can let editors add existing charts from other spaces.
-    allowSourceSpaces?: boolean;
+    // Dashboard and AI agent tokens can read existing content from other spaces.
+    sourceSpacesTarget?: SourceSpacesTarget;
+};
+
+type SourceSpacesTarget = 'dashboard' | 'aiAgent';
+
+const SOURCE_SPACES_COPY: Record<
+    SourceSpacesTarget,
+    { label: string; description: string }
+> = {
+    dashboard: {
+        label: 'Spaces to add charts from',
+        description:
+            "Dashboard editors can add existing charts from these spaces. Charts stay in their space and can't be edited from the dashboard. The service account must be able to view them.",
+    },
+    aiAgent: {
+        label: 'Extra spaces the agent can use',
+        description:
+            'The agent can find and read charts and dashboards in these spaces, in addition to the write spaces. The service account must be able to view them.',
+    },
 };
 
 const EmbedWriteActionsForm: FC<Props> = ({
@@ -105,7 +125,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
     onChange,
     required = false,
     fixedWriteSpaceUuid,
-    allowSourceSpaces = false,
+    sourceSpacesTarget,
 }) => {
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
@@ -120,6 +140,9 @@ const EmbedWriteActionsForm: FC<Props> = ({
     const [selectedServiceAccountUuid, setSelectedServiceAccountUuid] =
         useState<string | undefined>();
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string>();
+    const [additionalWriteSpaceUuids, setAdditionalWriteSpaceUuids] = useState<
+        string[]
+    >(() => getEmbedWriteSpaceUuids(value).slice(1));
     const [sourceSpaceUuids, setSourceSpaceUuids] = useState<string[]>(
         value?.sourceSpaceUuids ?? [],
     );
@@ -189,23 +212,40 @@ const EmbedWriteActionsForm: FC<Props> = ({
         () => spaces.find((space) => space.uuid === selectedSpaceUuid),
         [selectedSpaceUuid, spaces],
     );
-    const sourceSpaceOptions = useMemo(
+    const additionalWriteSpaceOptions = useMemo(
         () =>
             spaces
                 .filter((space) => space.uuid !== selectedSpaceUuid)
                 .map((space) => ({ value: space.uuid, label: space.name })),
         [selectedSpaceUuid, spaces],
     );
+    const selectedAdditionalWriteSpaceUuids = useMemo(
+        () =>
+            additionalWriteSpaceUuids.filter((uuid) =>
+                additionalWriteSpaceOptions.some(
+                    (option) => option.value === uuid,
+                ),
+            ),
+        [additionalWriteSpaceOptions, additionalWriteSpaceUuids],
+    );
+    const sourceSpaceOptions = useMemo(
+        () =>
+            additionalWriteSpaceOptions.filter(
+                (option) =>
+                    !selectedAdditionalWriteSpaceUuids.includes(option.value),
+            ),
+        [additionalWriteSpaceOptions, selectedAdditionalWriteSpaceUuids],
+    );
     const selectedSourceSpaceUuids = useMemo(
         () =>
-            allowSourceSpaces
+            sourceSpacesTarget
                 ? sourceSpaceUuids.filter((uuid) =>
                       sourceSpaceOptions.some(
                           (option) => option.value === uuid,
                       ),
                   )
                 : [],
-        [allowSourceSpaces, sourceSpaceOptions, sourceSpaceUuids],
+        [sourceSpacesTarget, sourceSpaceOptions, sourceSpaceUuids],
     );
 
     useEffect(() => {
@@ -251,14 +291,15 @@ const EmbedWriteActionsForm: FC<Props> = ({
         });
     }, [selectableServiceAccounts, value?.serviceAccountUserUuid]);
 
+    const valueDefaultSpaceUuid = getEmbedWriteSpaceUuids(value)[0];
     useEffect(() => {
         const nextSpaceUuid =
             fixedWriteSpaceUuid &&
             spaces.some((space) => space.uuid === fixedWriteSpaceUuid)
                 ? fixedWriteSpaceUuid
-                : value?.spaceUuid &&
-                    spaces.some((space) => space.uuid === value.spaceUuid)
-                  ? value.spaceUuid
+                : valueDefaultSpaceUuid &&
+                    spaces.some((space) => space.uuid === valueDefaultSpaceUuid)
+                  ? valueDefaultSpaceUuid
                   : spaces[0]?.uuid;
 
         setSelectedSpaceUuid((currentUuid) => {
@@ -276,7 +317,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
             }
             return nextSpaceUuid;
         });
-    }, [fixedWriteSpaceUuid, spaces, value?.spaceUuid]);
+    }, [fixedWriteSpaceUuid, spaces, valueDefaultSpaceUuid]);
 
     useEffect(() => {
         if (!isEnabled || !selectedServiceAccount || !selectedSpace) {
@@ -286,7 +327,10 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
         onChange({
             serviceAccountUserUuid: selectedServiceAccount.userUuid,
-            spaceUuid: selectedSpace.uuid,
+            writeSpaceUuids: [
+                selectedSpace.uuid,
+                ...selectedAdditionalWriteSpaceUuids,
+            ],
             ...(selectedSourceSpaceUuids.length > 0
                 ? { sourceSpaceUuids: selectedSourceSpaceUuids }
                 : {}),
@@ -296,6 +340,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
         onChange,
         selectedServiceAccount,
         selectedSpace,
+        selectedAdditionalWriteSpaceUuids,
         selectedSourceSpaceUuids,
     ]);
 
@@ -474,7 +519,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
 
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Space for created content
+                            Default space for created content
                         </Text>
                         <Menu
                             width="target"
@@ -537,8 +582,8 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         </Menu>
                         <Text c="dimmed" fz="xs">
                             {fixedWriteSpaceUuid
-                                ? "This is the selected dashboard's space. Embedded dashboard editing requires created content to use the same space."
-                                : 'Charts and other created content from this embed token are written to this space.'}
+                                ? "This is the selected dashboard's space. New content is saved here unless the embedded user picks one of the additional write spaces."
+                                : 'New content is saved here unless the embedded user picks one of the additional write spaces.'}
                         </Text>
                     </Stack>
 
@@ -547,7 +592,7 @@ const EmbedWriteActionsForm: FC<Props> = ({
                             <Badge
                                 leftSection={<MantineIcon icon={IconFolder} />}
                             >
-                                Target space
+                                Default space
                             </Badge>
                             <Text c="dimmed" fz="xs">
                                 Space UUID: <Code>{selectedSpace.uuid}</Code>
@@ -555,13 +600,33 @@ const EmbedWriteActionsForm: FC<Props> = ({
                         </Group>
                     )}
 
-                    {allowSourceSpaces && (
+                    <MultiSelect
+                        label="Additional write spaces"
+                        description="Embedded users can also edit content in these spaces and choose them when saving. The service account needs edit access to each one."
+                        placeholder={
+                            selectedAdditionalWriteSpaceUuids.length === 0
+                                ? 'Only the default space'
+                                : undefined
+                        }
+                        data={additionalWriteSpaceOptions}
+                        value={selectedAdditionalWriteSpaceUuids}
+                        onChange={setAdditionalWriteSpaceUuids}
+                        maxValues={EMBED_MAX_WRITE_SPACE_UUIDS - 1}
+                        searchable
+                        clearable
+                        disabled={isLoadingSpaces}
+                    />
+
+                    {sourceSpacesTarget && (
                         <MultiSelect
-                            label="Spaces to add charts from"
-                            description="Dashboard editors can add existing charts from these spaces. Charts stay in their space and can't be edited from the dashboard. The service account must be able to view them."
+                            label={SOURCE_SPACES_COPY[sourceSpacesTarget].label}
+                            description={
+                                SOURCE_SPACES_COPY[sourceSpacesTarget]
+                                    .description
+                            }
                             placeholder={
                                 selectedSourceSpaceUuids.length === 0
-                                    ? 'Only the space for created content'
+                                    ? 'Only the write spaces'
                                     : undefined
                             }
                             data={sourceSpaceOptions}

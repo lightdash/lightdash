@@ -106,3 +106,12 @@ custom_granularities:
     sql: "TIMESTAMP '2024-01-01' + (FLOOR(EXTRACT(EPOCH FROM (${COLUMN} - TIMESTAMP '2024-01-01')) / 1209600) * INTERVAL '14 days')"
 defaults:
   case_sensitive: true
+table_groups:
+  facilities:
+    label: "Facilities Management"
+    description: "Buildings, service contracts, field service and inventory for the facilities management demo."
+  field_service:
+    label: "Field Service"
+    description: "Work orders and the technicians who complete them."
+  inventory:
+    label: "Inventory"

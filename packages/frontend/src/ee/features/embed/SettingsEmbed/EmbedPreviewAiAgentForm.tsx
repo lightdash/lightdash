@@ -1,4 +1,5 @@
 import {
+    getEmbedWriteSpaceUuids,
     type AiAgentSummary,
     type ApiError,
     type CreateEmbedJwt,
@@ -105,7 +106,8 @@ const EmbedPreviewAiAgentForm: FC<{
     });
     const { onSubmit, values: formValues } = form;
     const hasRequiredWriteActions =
-        !!writeActions?.serviceAccountUserUuid && !!writeActions.spaceUuid;
+        !!writeActions?.serviceAccountUserUuid &&
+        getEmbedWriteSpaceUuids(writeActions).length > 0;
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
         (

@@ -103,11 +103,12 @@ auto
 
 **Skill**:
 A named unit of guidance the AI agent can follow: a description, a markdown
-body, and optional resource files. Built-in skills ship with Lightdash;
-custom skills are authored by an organization and enabled on an agent one by
-one. A skill reaches the model two ways: the agent loads it when a request
-matches its description, or a user invokes it directly with a slash command
-and optional arguments.
+body, and optional resource files. Built-in skills ship with Lightdash and
+are declared by the add-on whose tools they explain, so a loadout lists only
+the built-in skills of its add-ons; custom skills are authored by an
+organization and enabled on an agent one by one. A skill reaches the model
+two ways: the agent loads it when a request matches its description, or a
+user invokes it directly with a slash command and optional arguments.
 _Avoid_: command (for the unit), prompt template, action, macro
 
 **Skill proposal**:
@@ -141,12 +142,16 @@ section. Add-ons compose by union; no two add-ons contribute the same tool,
 and no add-on removes anything.
 _Avoid_: capability, feature, extension, module
 
-**Overlay**:
-A per-turn narrowing of a loadout: the intent gate that hides tools until the
-agent asks for more, or a thread's tool allowlist such as a data app
-investigation. An overlay only removes tools the loadout declared; it never
-adds one.
-_Avoid_: filter, gate (for the concept), allowlist (for the concept)
+**Intent gate**:
+With Jev on, the server picks a turn type at the start of each turn and
+withholds the tools and prompt sections that do not fit it; the agent gets
+them back with `loadAgentTools`. It never adds a tool.
+_Avoid_: overlay, filter
+
+**Tool allowlist**:
+A per-thread cap on the loadout, such as a data app investigation thread. It
+never adds a tool.
+_Avoid_: overlay, filter
 
 **SQL chart**:
 A chart saved from raw warehouse SQL rather than from an explore. Lives

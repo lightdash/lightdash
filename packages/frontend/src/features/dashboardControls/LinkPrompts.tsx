@@ -5,14 +5,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -25,6 +18,7 @@ import { getCandidateOptions } from './fieldCandidates';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
+import { getTileTitle } from './tileProps';
 import {
     getTileSelector,
     LOCKED_TILE_CLASS,
@@ -37,113 +31,160 @@ type Prompt = { rule: DashboardFilterRule; candidates: DashboardFieldTarget[] };
 
 type FieldsMap = Record<string, DashboardFilterableField>;
 
-const NO_LABELS: string[] = [];
-const ROW_ATTRIBUTE = 'data-link-row';
-const ROW_CONTROL_SELECTOR = 'input:not([type="hidden"]), button';
+// A rule id present with null was cleared; absent means the default choice
+type Picks = Record<string, string | null>;
 
-type RowProps = {
+const NO_LABELS: string[] = [];
+
+// A single candidate is the choice without a pick
+const getDefaultChoice = ({ candidates }: Prompt): string | null =>
+    candidates.length === 1 ? candidates[0].fieldId : null;
+
+// A pick that is no longer offered is dropped
+const getChoice = (prompt: Prompt, picks: Picks): string | null => {
+    if (!(prompt.rule.id in picks)) return getDefaultChoice(prompt);
+    const picked = picks[prompt.rule.id];
+    if (picked === null) return null;
+    return prompt.candidates.some((candidate) => candidate.fieldId === picked)
+        ? picked
+        : getDefaultChoice(prompt);
+};
+
+const plural = (count: number, one: string, many: string) =>
+    count === 1 ? one : many;
+
+const focusTile = (tileUuid: string) => {
+    const tileElement = document.querySelector<HTMLElement>(
+        getTileSelector(tileUuid),
+    );
+    if (tileElement === null) return;
+    if (!tileElement.hasAttribute('tabindex')) tileElement.tabIndex = -1;
+    tileElement.focus();
+};
+
+type CardProps = {
     tile: DashboardTile;
-    prompt: Prompt;
+    rows: Prompt[];
     fieldsByTile: FieldsByTile;
     fieldsMap: FieldsMap;
     getLabel: (fieldId: string) => string;
-    // Link or Skip was pressed: the row is about to leave
-    onAnswer: (tileUuid: string, ruleId: string) => void;
 };
 
-const LinkRow: FC<RowProps> = ({
+const LinkCard: FC<CardProps> = ({
     tile,
-    prompt,
+    rows,
     fieldsByTile,
     fieldsMap,
     getLabel,
-    onAnswer,
 }) => {
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
-    const { rule, candidates } = prompt;
-    const [picked, setPicked] = useState<string | null>(null);
-    // The choice follows the candidates: one that is no longer offered is
-    // dropped, and a single candidate is the choice
-    const chosen = candidates.some((candidate) => candidate.fieldId === picked)
-        ? picked
-        : candidates.length === 1
-          ? candidates[0].fieldId
-          : null;
-    const filterLabel = rule.label ?? getLabel(rule.target.fieldId);
+    const [picks, setPicks] = useState<Picks>({});
+    const tileTitle = getTileTitle(tile);
+    const getFilterLabel = (rule: DashboardFilterRule) =>
+        rule.label ?? getLabel(rule.target.fieldId);
+
+    const linkCount = rows.filter(
+        (row) => getChoice(row, picks) !== null,
+    ).length;
+    const skipCount = rows.length - linkCount;
+
+    const skipAll = () => {
+        focusTile(tile.uuid);
+        rows.forEach(({ rule }) => dismissLink(tile.uuid, rule.id));
+    };
+    const applyAll = () => {
+        focusTile(tile.uuid);
+        rows.forEach((row) => {
+            const chosen = getChoice(row, picks);
+            const target = row.candidates.find(
+                (candidate) => candidate.fieldId === chosen,
+            );
+            if (target)
+                updateFilter(
+                    setTileField(row.rule, tile, target, fieldsByTile),
+                );
+            else dismissLink(tile.uuid, row.rule.id);
+        });
+    };
+
+    const applyLabel =
+        rows.length === 1 || linkCount === 0
+            ? 'Apply'
+            : skipCount === 0
+              ? `Apply all ${linkCount}`
+              : `Apply ${linkCount}, skip ${skipCount}`;
+    const applyName =
+        linkCount === 0
+            ? `Apply filters to ${tileTitle}`
+            : `Apply ${linkCount} ${plural(linkCount, 'filter', 'filters')} to ${tileTitle}${
+                  skipCount > 0 && rows.length > 1 ? `, skip ${skipCount}` : ''
+              }`;
+
     return (
-        <Stack gap="xs" data-link-row={rule.id}>
-            <Text fz="sm" fw={600}>
-                {filterLabel}
-            </Text>
-            <Select
-                size="xs"
-                aria-label={`Field for ${filterLabel} on this tile`}
-                placeholder="Select a field"
-                allowDeselect={false}
-                comboboxProps={{ withinPortal: true }}
-                value={chosen}
-                onChange={setPicked}
-                data={getCandidateOptions(
-                    candidates.map((candidate) => candidate.fieldId),
-                    NO_LABELS,
-                    fieldsMap,
-                )}
-            />
-            <Group gap="xs">
-                <Button
-                    size="compact-xs"
-                    aria-label={`Apply ${filterLabel}`}
-                    disabled={chosen === null}
-                    onClick={() => {
-                        const target = candidates.find(
-                            (candidate) => candidate.fieldId === chosen,
-                        );
-                        if (!target) return;
-                        onAnswer(tile.uuid, rule.id);
-                        updateFilter(
-                            setTileField(rule, tile, target, fieldsByTile),
-                        );
-                    }}
-                >
-                    Apply
-                </Button>
+        <Stack gap="sm">
+            <Group justify="space-between" wrap="nowrap" gap="xs">
+                <Text fz="xs" c="dimmed">
+                    {rows.length === 1
+                        ? 'This tile can use a filter'
+                        : `This tile can use ${rows.length} filters`}
+                </Text>
                 <Button
                     size="compact-xs"
                     variant="subtle"
-                    aria-label={`Skip ${filterLabel}`}
-                    onClick={() => {
-                        onAnswer(tile.uuid, rule.id);
-                        dismissLink(tile.uuid, rule.id);
-                    }}
+                    aria-label={
+                        rows.length === 1
+                            ? `Skip ${getFilterLabel(rows[0].rule)} on ${tileTitle}`
+                            : `Skip all filters on ${tileTitle}`
+                    }
+                    onClick={skipAll}
                 >
-                    Skip
+                    {rows.length === 1 ? 'Skip' : 'Skip all'}
+                </Button>
+            </Group>
+            {rows.map((row) => {
+                const filterLabel = getFilterLabel(row.rule);
+                return (
+                    <Stack gap="xs" key={row.rule.id}>
+                        <Text fz="sm" fw={600}>
+                            {filterLabel}
+                        </Text>
+                        <Select
+                            size="xs"
+                            aria-label={`Field for ${filterLabel} on this tile`}
+                            placeholder="Not filtered"
+                            clearable
+                            comboboxProps={{ withinPortal: true }}
+                            value={getChoice(row, picks)}
+                            onChange={(value) =>
+                                setPicks((current) => ({
+                                    ...current,
+                                    [row.rule.id]: value,
+                                }))
+                            }
+                            data={getCandidateOptions(
+                                row.candidates.map(
+                                    (candidate) => candidate.fieldId,
+                                ),
+                                NO_LABELS,
+                                fieldsMap,
+                            )}
+                        />
+                    </Stack>
+                );
+            })}
+            <Group justify="flex-end">
+                <Button
+                    size="compact-xs"
+                    aria-label={applyName}
+                    disabled={linkCount === 0}
+                    onClick={applyAll}
+                >
+                    {applyLabel}
                 </Button>
             </Group>
         </Stack>
     );
-};
-
-type PendingFocus = { tileUuid: string; ruleId: string; index: number };
-
-const getRows = (tileElement: Element): HTMLElement[] => [
-    ...tileElement.querySelectorAll<HTMLElement>(`[${ROW_ATTRIBUTE}]`),
-];
-
-// Once an answered row has left: the prompt that took its place, else the one
-// before it, else the tile itself
-const focusAfterAnswer = (
-    { index }: PendingFocus,
-    tileElement: HTMLElement,
-) => {
-    const rows = getRows(tileElement);
-    const next = rows[index] ?? rows[rows.length - 1];
-    if (next) {
-        next.querySelector<HTMLElement>(ROW_CONTROL_SELECTOR)?.focus();
-        return;
-    }
-    if (!tileElement.hasAttribute('tabindex')) tileElement.tabIndex = -1;
-    tileElement.focus();
 };
 
 export const LinkPrompts: FC = () => {
@@ -201,34 +242,6 @@ export const LinkPrompts: FC = () => {
         [fieldsMap],
     );
 
-    // Focus is a DOM matter: it moves once the answered row has left the page
-    const pendingFocus = useRef<PendingFocus | null>(null);
-    const handleAnswer = useCallback((tileUuid: string, ruleId: string) => {
-        const tileElement = document.querySelector(getTileSelector(tileUuid));
-        if (tileElement === null) return;
-        const index = getRows(tileElement).findIndex(
-            (row) => row.getAttribute(ROW_ATTRIBUTE) === ruleId,
-        );
-        pendingFocus.current = { tileUuid, ruleId, index };
-    }, []);
-    useEffect(() => {
-        const pending = pendingFocus.current;
-        if (pending === null) return;
-        const tileElement = document.querySelector<HTMLElement>(
-            getTileSelector(pending.tileUuid),
-        );
-        if (tileElement === null) {
-            pendingFocus.current = null;
-            return;
-        }
-        const isStillThere = getRows(tileElement).some(
-            (row) => row.getAttribute(ROW_ATTRIBUTE) === pending.ruleId,
-        );
-        if (isStillThere) return;
-        pendingFocus.current = null;
-        focusAfterAnswer(pending, tileElement);
-    });
-
     if (!isEnabled) return null;
 
     return (
@@ -243,29 +256,18 @@ export const LinkPrompts: FC = () => {
                         data-wave={index % WAVE_BUCKETS}
                     >
                         <Paper
-                            shadow="lg"
+                            shadow="md"
                             p="sm"
                             radius="md"
                             className={`${classes.card} ${classes.promptCard}`}
                         >
-                            <Stack gap="sm">
-                                <Text fz="xs" c="dimmed">
-                                    {rows.length === 1
-                                        ? 'This tile can use a filter'
-                                        : 'This tile can use these filters'}
-                                </Text>
-                                {rows.map((prompt) => (
-                                    <LinkRow
-                                        key={prompt.rule.id}
-                                        tile={tile}
-                                        prompt={prompt}
-                                        fieldsByTile={fieldsByTile}
-                                        fieldsMap={fieldsMap}
-                                        getLabel={getLabel}
-                                        onAnswer={handleAnswer}
-                                    />
-                                ))}
-                            </Stack>
+                            <LinkCard
+                                tile={tile}
+                                rows={rows}
+                                fieldsByTile={fieldsByTile}
+                                fieldsMap={fieldsMap}
+                                getLabel={getLabel}
+                            />
                         </Paper>
                     </div>,
                     element,

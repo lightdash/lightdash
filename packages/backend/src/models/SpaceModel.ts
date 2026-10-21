@@ -226,6 +226,19 @@ export class SpaceModel {
         return row ?? null;
     }
 
+    async getSpaceNames(
+        spaceUuids: string[],
+    ): Promise<Array<{ uuid: string; name: string }>> {
+        if (spaceUuids.length === 0) return [];
+        return this.database(SpaceTableName)
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select<Array<{ uuid: string; name: string }>>({
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: `${SpaceTableName}.name`,
+            });
+    }
+
     async getSpacesByProjectUuid(
         projectUuid: string,
         { trx = this.database }: { trx?: Knex } = {},

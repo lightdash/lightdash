@@ -5,13 +5,10 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 
-export type BattleType = 'models' | 'speed' | 'decisions' | 'queryPath';
+export type BattleType = 'models' | 'speed' | 'queryPath';
 
 const isBattleType = (value: string): value is BattleType =>
-    value === 'models' ||
-    value === 'speed' ||
-    value === 'decisions' ||
-    value === 'queryPath';
+    value === 'models' || value === 'speed' || value === 'queryPath';
 
 interface Props {
     enabled: boolean;
@@ -74,10 +71,6 @@ export const BattleModeSetup: FC<Props> = ({
                                               value: 'speed',
                                               label: 'Speed features',
                                           },
-                                          {
-                                              value: 'decisions',
-                                              label: 'JEV vs Luna',
-                                          },
                                       ]
                                     : []),
                                 ...(queryPathBattleAvailable
@@ -122,8 +115,6 @@ export const BattleModeSetup: FC<Props> = ({
             <Text size="xs" c="dimmed" mt={6}>
                 {battleType === 'speed' &&
                     'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'}
-                {battleType === 'decisions' &&
-                    'Same prompt and model. A makes fast decisions with JEV; B makes them with OpenAI Luna. Replies continue both threads side by side.'}
                 {battleType === 'queryPath' &&
                     'Same prompt and model. A answers with the classic query tools; B answers with composer queries. Replies continue both threads side by side.'}
                 {battleType === 'models' &&

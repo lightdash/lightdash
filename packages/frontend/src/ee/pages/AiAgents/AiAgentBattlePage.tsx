@@ -18,7 +18,7 @@ import { type AgentContext } from './AgentPage';
 
 const battleLabels: Record<AiAgentBattleProfile | 'A' | 'B', string> = {
     fast: 'JEV on',
-    luna: 'Luna',
+    luna: 'Baseline',
     baseline: 'Baseline',
     classic: 'Classic',
     composer: 'Composer',
@@ -127,7 +127,6 @@ const AiAgentBattlePage: FC = () => {
                 threadA && threadB
                     ? getTurnWinners(threadA, threadB)
                     : new Set<string>(),
-            decisionName: 'JEV',
         }),
         [threadA, threadB],
     );
@@ -183,7 +182,6 @@ const AiAgentBattlePage: FC = () => {
                     agentUuid={agentUuid}
                     messageCount={threadA.messages.length}
                     showSuggestions={false}
-                    showFastMode={false}
                 />
             </Box>
         </Stack>

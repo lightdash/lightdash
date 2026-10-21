@@ -332,15 +332,6 @@ export enum FeatureFlags {
     MultiSourceQuery = 'multi-source-query',
 
     /**
-     * Enable the python query endpoint
-     * (POST /api/v2/projects/{projectUuid}/query/python): user python run in
-     * a sandbox over other queries' results. Requires compose-sql-runner as
-     * well. Off by default everywhere; enable per organization to limit
-     * blast radius while the sandbox runtime is new.
-     */
-    PythonQueryRunner = 'python-query-runner',
-
-    /**
      * Enable the "My query history" page
      * (/projects/{projectUuid}/query-history) and its listing endpoint
      * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
@@ -401,10 +392,7 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /**
-     * Organization-scoped master rollout switch for bounded semantic
-     * decisions, scoped tools, fast tool calls, reuse and direct chart paths.
-     */
+    /** @deprecated No longer read; the deployment decision key is the only switch. */
     AiAgentFastDecisions = 'ai-agent-fast-decisions',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on

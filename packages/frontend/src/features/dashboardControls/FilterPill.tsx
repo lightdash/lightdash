@@ -64,6 +64,7 @@ export const FilterPill: FC<Props> = memo(
     }) => {
         const { track } = useTracking();
         const open = useControlsSidebarSelector((c) => c.open);
+        const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
@@ -226,7 +227,7 @@ export const FilterPill: FC<Props> = memo(
                                 </Group>
                             )
                         }
-                        onClick={() => open(filter.id)}
+                        onClick={() => (isSelected ? close() : open(filter.id))}
                     >
                         <FilterRuleLabel
                             filterRule={filter}

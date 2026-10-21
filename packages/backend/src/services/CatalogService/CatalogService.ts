@@ -58,6 +58,7 @@ import {
 } from '@lightdash/common';
 import { uniqBy } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
@@ -88,6 +89,10 @@ import {
 } from '../../utils/embedCompiledSql';
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    auditAndFilterExplore,
+    auditExploreAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
 import {
     checkUserAttributesAccess,
     doesExploreMatchRequiredAttributes,
@@ -854,11 +859,12 @@ export class CatalogService<
             });
 
         if (
-            !doesExploreMatchRequiredAttributes(
-                explore.tables[explore.baseTable].requiredAttributes,
-                explore.tables[explore.baseTable].anyAttributes,
+            !auditExploreAttributeAccess({
+                account: fromSession(user),
+                projectUuid,
+                explore,
                 userAttributes,
-            )
+            })
         ) {
             throw new ForbiddenError(
                 `You don't have access to the explore ${explore.name}`,
@@ -1282,10 +1288,12 @@ export class CatalogService<
                     return [tableName, undefined];
                 }
 
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = auditAndFilterExplore({
+                    account: user,
+                    projectUuid,
                     explore,
-                    userAttributesForOrgMember,
-                );
+                    userAttributes: userAttributesForOrgMember,
+                });
                 return [tableName, filteredExplore];
             }),
         );

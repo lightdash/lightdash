@@ -174,7 +174,7 @@ describe('intent toolbox', () => {
         ).not.toContain('generateDataApp');
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
-        ).toEqual(expect.arrayContaining(['editRepo']));
+        ).toEqual(expect.arrayContaining(['editRepo', 'loadSkill']));
         expect(
             createIntentToolGate(tools(), 'repository_change').activeTools(),
         ).not.toContain('generateVisualization');

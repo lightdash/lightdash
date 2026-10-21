@@ -5,7 +5,8 @@ import {
     type Account,
     type SessionUser,
 } from '@lightdash/common';
-import type { AuditResource, CallStackEntry } from '../logging/auditLog';
+import type { AuditResource } from '../logging/auditLog';
+import { captureServiceCallStack } from '../logging/callStack';
 import {
     CaslAuditWrapper,
     createActorFromAccount,
@@ -13,38 +14,6 @@ import {
 } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
 import { logAuditEvent, winstonLogger } from '../logging/winston';
-
-const SKIP_METHODS = new Set(['createAuditedAbility', 'constructor']);
-
-/**
- * Captures the service call stack from the current stack trace.
- * Extracts up to `maxDepth` service method calls by looking for
- * class methods on classes ending in "Service".
- */
-const captureCallStack = (maxDepth: number = 10): CallStackEntry[] => {
-    const { stack } = new Error();
-    if (!stack) return [];
-
-    const entries: CallStackEntry[] = [];
-    const lines = stack.split('\n');
-
-    // eslint-disable-next-line no-restricted-syntax
-    for (const line of lines) {
-        if (entries.length >= maxDepth) break;
-
-        // Match patterns like "at ClassName.methodName" where ClassName ends with Service
-        const match = line.match(/at (\w*Service)\.(\w+)/);
-        if (match && !SKIP_METHODS.has(match[2])) {
-            entries.push({
-                serviceName: match[1],
-                methodName: match[2],
-                depth: entries.length,
-            });
-        }
-    }
-
-    return entries;
-};
 
 export abstract class BaseService {
     protected logger: typeof Logger;
@@ -94,7 +63,7 @@ export abstract class BaseService {
         accountOrUser: Account | SessionUser,
     ): CaslAuditWrapper<Ability> {
         const auditEnabled = winstonLogger.isLevelEnabled('audit');
-        const callStack = auditEnabled ? captureCallStack() : undefined;
+        const callStack = auditEnabled ? captureServiceCallStack() : undefined;
 
         if (isAccount(accountOrUser)) {
             this.logger.debug('Creating audited ability', {
@@ -163,7 +132,7 @@ export abstract class BaseService {
             const actor = isAccount(accountOrUser)
                 ? createActorFromAccount(accountOrUser)
                 : createActorFromUser(accountOrUser);
-            const callStack = captureCallStack();
+            const callStack = captureServiceCallStack();
 
             logAuditEvent({
                 id: crypto.randomUUID(),

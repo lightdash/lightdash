@@ -50,9 +50,6 @@ export type FieldTiles = {
     thisTabScope: FieldScope | null;
     // Counted over every tile
     everyTabScope: FieldScope;
-    // Names of the fields a switch would take off their tiles on this tab, or
-    // on every tile without tabs
-    replacedLabels: string[];
     // Unfiltered tiles the field fits on the tabs that are not active
     otherTabsUnfiltered: number;
     // False while the tiles' fields are not loaded: an action would write
@@ -252,11 +249,6 @@ export const useFieldTileActions = (
                 isWaiting,
                 thisTabScope,
                 everyTabScope,
-                replacedLabels: (
-                    thisTabScope ?? everyTabScope
-                ).replacedFieldIds.map(
-                    (replacedId) => getField(replacedId)?.label ?? replacedId,
-                ),
                 otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
                 canAct,
                 addToUnfiltered: (tileScope) => {

@@ -376,6 +376,7 @@ describe('LightdashUiEvent', () => {
         it('should dispatch DashboardSaved event after a successful dashboard save', () => {
             const payload: DashboardSavedPayload = {
                 dashboardUuid: 'dashboard-uuid',
+                action: 'updated',
             };
 
             eventSystem.dispatch(LightdashEventType.DashboardSaved, payload);

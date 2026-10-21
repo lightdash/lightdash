@@ -523,9 +523,12 @@ import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/
 import { type PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
+import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
-    getFilteredExplore,
     mergeUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
@@ -9830,6 +9833,12 @@ export class ProjectService
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+        auditMetricQueryAttributeAccess({
+            account,
+            projectUuid,
+            explore: sourceExplore,
+            metricQuery,
+        });
 
         // Authorize custom SQL against the explore the query actually runs on
         // (the resolved source explore), not the client-supplied
@@ -11953,6 +11962,12 @@ export class ProjectService
                             projectUuid,
                             exploreName,
                         ));
+                    auditMetricQueryAttributeAccess({
+                        account,
+                        projectUuid,
+                        explore,
+                        metricQuery: metricQueryWithLimit,
+                    });
 
                     return await this.warehouseClientFactory.withWarehouseClient(
                         {
@@ -12936,6 +12951,7 @@ export class ProjectService
 
     // Note: can't be private method as it is used in EE
     async _getFieldValuesMetricQuery({
+        account,
         projectUuid,
         table,
         initialFieldId,
@@ -12946,6 +12962,7 @@ export class ProjectService
         userAttributes,
         authorizeInitialExplore,
     }: {
+        account: Account;
         projectUuid: string;
         table: string;
         initialFieldId: string;
@@ -12965,6 +12982,7 @@ export class ProjectService
             organizationUuid,
         );
         return getFieldValuesMetricQuery({
+            account,
             projectUuid,
             table,
             initialFieldId,
@@ -13018,6 +13036,7 @@ export class ProjectService
 
         const { metricQuery, explore, field, labelFieldId, staticResults } =
             await this._getFieldValuesMetricQuery({
+                account,
                 projectUuid,
                 table,
                 initialFieldId,
@@ -14582,10 +14601,13 @@ export class ProjectService
                         if (!shouldFilterExplore) {
                             acc[explore.name] = explore;
                         } else {
-                            acc[explore.name] = getFilteredExplore(
+                            acc[explore.name] = auditAndFilterExplore({
+                                account,
+                                projectUuid,
                                 explore,
-                                userAccessControls.userAttributes,
-                            );
+                                userAttributes:
+                                    userAccessControls.userAttributes,
+                            });
                         }
                     }
                     if (!isExploreError(explore)) {

@@ -864,6 +864,7 @@ export type HealthState = {
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
+        fastDecisionsEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;

@@ -35,10 +35,7 @@ export class PythonQuerySource implements QuerySourceClient {
 
     readonly supportsPivot = false;
 
-    readonly requiredFeatureFlags = [
-        FeatureFlags.ComposeSqlRunner,
-        FeatureFlags.PythonQueryRunner,
-    ];
+    readonly requiredFeatureFlags = [FeatureFlags.ComposeSqlRunner];
 
     private readonly asyncQueryService: PythonQuerySourceArguments['asyncQueryService'];
 

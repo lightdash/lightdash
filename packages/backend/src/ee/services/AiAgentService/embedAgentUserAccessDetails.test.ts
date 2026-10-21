@@ -26,6 +26,7 @@ const embedWriteUser = {
 } as unknown as SessionUser;
 
 const embedAccount = {
+    isJwtUser: () => true,
     authentication: {
         type: 'jwt',
         data: {

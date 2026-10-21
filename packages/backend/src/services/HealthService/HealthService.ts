@@ -318,6 +318,8 @@ export class HealthService extends BaseService {
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
+                fastDecisionsEnabled:
+                    !!this.lightdashConfig.ai.decisions.apiKey,
             },
             echarts6: {
                 enabled: false,

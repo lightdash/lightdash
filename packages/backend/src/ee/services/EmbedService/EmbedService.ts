@@ -41,6 +41,7 @@ import {
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
+    getEmbedWriteSpaceUuids,
     getExecutableFilterFieldIds,
     getFilterInteractivityValue,
     getHiddenFilterableFieldIds,
@@ -101,6 +102,7 @@ import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -113,7 +115,10 @@ import {
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
-import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import {
+    auditAndFilterExplore,
+    auditMetricQueryAttributeAccess,
+} from '../../../services/UserAttributesService/userAttributeAudit';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
@@ -153,6 +158,7 @@ type Dependencies = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    spaceModel: SpaceModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
@@ -181,6 +187,8 @@ export class EmbedService extends BaseService {
     private readonly savedChartModel: SavedChartModel;
 
     private readonly savedSqlModel: SavedSqlModel;
+
+    private readonly spaceModel: SpaceModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -212,6 +220,7 @@ export class EmbedService extends BaseService {
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
         this.savedSqlModel = dependencies.savedSqlModel;
+        this.spaceModel = dependencies.spaceModel;
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
@@ -1179,10 +1188,18 @@ export class EmbedService extends BaseService {
                     this.getAccessControls(account);
 
                 // Filter the explore access and fields based on the user attributes
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = auditAndFilterExplore({
+                    account,
+                    projectUuid,
                     explore,
                     userAttributes,
-                );
+                });
+                auditMetricQueryAttributeAccess({
+                    account,
+                    projectUuid,
+                    explore: filteredExplore,
+                    metricQuery,
+                });
 
                 const availableParameterDefinitions =
                     await this.getAvailableParameters(
@@ -2323,7 +2340,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = auditAndFilterExplore({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
@@ -2481,7 +2503,12 @@ export class EmbedService extends BaseService {
             projectUuid,
             organizationUuid: organizationUuid || '',
             metricQuery,
-            explore: getFilteredExplore(explore, userAttributes),
+            explore: auditAndFilterExplore({
+                account,
+                projectUuid,
+                explore,
+                userAttributes,
+            }),
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 embed: 'true',
@@ -2567,7 +2594,12 @@ export class EmbedService extends BaseService {
 
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
+        const filteredExplore = auditAndFilterExplore({
+            account,
+            projectUuid,
+            explore,
+            userAttributes,
+        });
 
         // Handle parameter interactivity - only accept user parameters if enabled
         const acceptedUserParameters =
@@ -2801,6 +2833,7 @@ export class EmbedService extends BaseService {
         const { userAttributes } = this.getAccessControls(account);
         const { metricQuery, explore, field, staticResults } =
             await this.projectService._getFieldValuesMetricQuery({
+                account,
                 projectUuid,
                 table: resolvedTableName,
                 initialFieldId: resolvedFieldId,
@@ -3048,7 +3081,9 @@ export class EmbedService extends BaseService {
             dashboardUuid,
             { projectUuid },
         );
-        if (dashboard.spaceUuid !== writeActions.spaceUuid) {
+        if (
+            !getEmbedWriteSpaceUuids(writeActions).includes(dashboard.spaceUuid)
+        ) {
             throw new ForbiddenError('Dashboard is outside the embedded space');
         }
         const spaceAccess = await this.spacePermissionService.resolveAccess(
@@ -3165,35 +3200,81 @@ export class EmbedService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        try {
-            const spaceAccessContext =
-                await this.spacePermissionService.resolveAccess(
-                    embedWriteUser.userUuid,
-                    { type: 'space', spaceUuid: writeActions.spaceUuid },
-                );
+        const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
 
-            if (spaceAccessContext.projectUuid !== projectUuid) {
+        try {
+            const spaceAccessResults =
+                await this.spacePermissionService.resolveAccessBatch(
+                    embedWriteUser.userUuid,
+                    writeSpaceUuids.map((spaceUuid) => ({
+                        type: 'space' as const,
+                        spaceUuid,
+                    })),
+                );
+            const spaceAccessContexts = new Map(
+                spaceAccessResults.flatMap(({ target, context }) =>
+                    context ? [[target.spaceUuid, context] as const] : [],
+                ),
+            );
+            const defaultSpaceContext = spaceAccessContexts.get(
+                writeSpaceUuids[0],
+            );
+            if (
+                defaultSpaceContext === undefined ||
+                spaceAccessContexts.size !== writeSpaceUuids.length
+            ) {
+                throw new NotFoundError(
+                    "Couldn't find access context for embed write spaces",
+                );
+            }
+
+            if (
+                [...spaceAccessContexts.values()].some(
+                    (context) => context.projectUuid !== projectUuid,
+                )
+            ) {
                 return {
                     canUpdateDashboard: false,
                     canUpdateSavedChart: false,
                     canCreateSavedChart: false,
+                    writableSpaces: [],
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
                         'Embed token write actions must use a space in the embedded project',
                 };
             }
 
+            // Content outside the write spaces keeps the default space's context; the write paths reject it.
+            const getContentSpaceAccessContext = (
+                contentSpaceUuid: string | undefined,
+            ) =>
+                (contentSpaceUuid !== undefined &&
+                    spaceAccessContexts.get(contentSpaceUuid)) ||
+                defaultSpaceContext;
+
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const dashboardUuid =
+                content.type === 'dashboard'
+                    ? content.dashboardUuid
+                    : undefined;
+            const dashboardSpaceUuid =
+                dashboardUuid !== undefined && writeSpaceUuids.length > 1
+                    ? await this.dashboardModel
+                          .getSummaryByUuid(dashboardUuid)
+                          .then(({ spaceUuid }) => spaceUuid)
+                          .catch((error) => {
+                              if (error instanceof NotFoundError)
+                                  return undefined;
+                              throw error;
+                          })
+                    : undefined;
             const canUpdateDashboard =
-                content.type === 'dashboard' &&
-                content.dashboardUuid !== undefined &&
+                dashboardUuid !== undefined &&
                 auditedAbility.can(
                     'update',
                     subject('Dashboard', {
-                        ...spaceAccessContext,
-                        metadata: {
-                            dashboardUuid: content.dashboardUuid,
-                        },
+                        ...getContentSpaceAccessContext(dashboardSpaceUuid),
+                        metadata: { dashboardUuid },
                     }),
                 );
             const savedChartUuid =
@@ -3201,34 +3282,51 @@ export class EmbedService extends BaseService {
             const savedChart = savedChartUuid
                 ? await this.savedChartModel.get(savedChartUuid)
                 : undefined;
+            const savedChartSpaceContext =
+                savedChart !== undefined
+                    ? spaceAccessContexts.get(savedChart.spaceUuid)
+                    : undefined;
             const canUpdateSavedChart =
-                savedChart !== undefined &&
-                savedChart.spaceUuid === writeActions.spaceUuid &&
+                savedChartSpaceContext !== undefined &&
                 auditedAbility.can(
                     'update',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject:
-                            spaceAccessContext.inheritsFromOrgOrProject,
-                        access: spaceAccessContext.access,
+                            savedChartSpaceContext.inheritsFromOrgOrProject,
+                        access: savedChartSpaceContext.access,
                         metadata: { savedChartUuid },
                     }),
                 );
-            const canCreateSavedChart = auditedAbility.can(
-                'create',
-                subject('SavedChart', {
-                    organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject:
-                        spaceAccessContext.inheritsFromOrgOrProject,
-                    access: spaceAccessContext.access,
-                    metadata: {
-                        resolvedSpaceUuid: writeActions.spaceUuid,
-                        dashboardUuid: undefined,
-                    },
-                }),
+            const writableSpaceUuids = [...spaceAccessContexts]
+                .filter(([spaceUuid, context]) =>
+                    auditedAbility.can(
+                        'create',
+                        subject('SavedChart', {
+                            organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject:
+                                context.inheritsFromOrgOrProject,
+                            access: context.access,
+                            metadata: {
+                                resolvedSpaceUuid: spaceUuid,
+                                dashboardUuid: undefined,
+                            },
+                        }),
+                    ),
+                )
+                .map(([spaceUuid]) => spaceUuid);
+            const spaceNames = new Map(
+                (await this.spaceModel.getSpaceNames(writableSpaceUuids)).map(
+                    ({ uuid, name }) => [uuid, name],
+                ),
             );
+            const writableSpaces = writableSpaceUuids.flatMap((uuid) => {
+                const name = spaceNames.get(uuid);
+                return name === undefined ? [] : [{ uuid, name }];
+            });
+            const canCreateSavedChart = writableSpaces.length > 0;
             const canViewProject = auditedAbility.can(
                 'view',
                 subject('Project', {
@@ -3253,6 +3351,7 @@ export class EmbedService extends BaseService {
                 canUpdateDashboard,
                 canUpdateSavedChart,
                 canCreateSavedChart,
+                writableSpaces,
                 canUseAiAgent,
                 aiAgentErrorMessage: canUseAiAgent
                     ? undefined
@@ -3272,6 +3371,7 @@ export class EmbedService extends BaseService {
                     canUpdateDashboard: false,
                     canUpdateSavedChart: false,
                     canCreateSavedChart: false,
+                    writableSpaces: [],
                     canUseAiAgent: false,
                     aiAgentErrorMessage:
                         'Embed token write actions must use a space the write actor can access',
@@ -3325,7 +3425,9 @@ export class EmbedService extends BaseService {
         }
 
         if (
-            (!isApiAccess && writeActions && !writeActions.spaceUuid) ||
+            (!isApiAccess &&
+                writeActions &&
+                getEmbedWriteSpaceUuids(writeActions).length === 0) ||
             actorUserUuid === undefined
         ) {
             throw new ForbiddenError(

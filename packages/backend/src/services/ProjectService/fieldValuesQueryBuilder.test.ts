@@ -5,11 +5,28 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    type Account,
     type AndFilterGroup,
     type Explore,
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { validExplore } from './ProjectService.mock';
+
+const mockAccount = {
+    authentication: { type: 'session', source: 'src' },
+    organization: { organizationUuid: 'org-uuid' },
+    user: {
+        id: 'user-uuid',
+        type: 'registered',
+        userUuid: 'user-uuid',
+        email: 'user@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'member',
+    },
+    isAnonymousUser: () => false,
+    isServiceAccount: () => false,
+} as unknown as Account;
 
 const exploreWithLabelDimension = (labelDimension: string): Explore => ({
     ...validExplore,
@@ -112,6 +129,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('builds a MetricQuery with correct structure', async () => {
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -154,6 +172,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_missing',
@@ -172,6 +191,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('returns null staticResults when warehouse fetching is on', async () => {
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -199,6 +219,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -221,6 +242,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -237,6 +259,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('includes compatible filters from input', async () => {
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -285,6 +308,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -359,6 +383,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -388,6 +413,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -415,6 +441,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -442,6 +469,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -469,6 +497,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -499,6 +528,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -521,6 +551,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'alias_table',
             initialFieldId: 'alias_table_dim1',
@@ -568,6 +599,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'alias_table',
             initialFieldId: 'alias_table_dim1',
@@ -609,6 +641,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'b',
             initialFieldId: 'b_dim1',
@@ -635,6 +668,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'nonexistent',
                 initialFieldId: 'nonexistent_dim',
@@ -651,6 +685,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws NotFoundError when field not found in explore', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_nonexistent',
@@ -667,6 +702,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when field is a metric', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_met1',
@@ -683,6 +719,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when limit exceeds max', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -699,6 +736,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when limit contains SQL tokens at runtime', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -715,6 +753,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when table is empty string', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: '',
                 initialFieldId: 'a_dim1',
@@ -731,6 +770,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when table is undefined at runtime', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: undefined as unknown as string,
                 initialFieldId: 'a_dim1',
@@ -750,6 +790,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -799,6 +840,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -821,6 +863,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -841,6 +884,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -914,6 +958,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'b',
                     initialFieldId: 'b_dim1',
@@ -931,6 +976,7 @@ describe('getFieldValuesMetricQuery', () => {
             );
 
             const result = await getFieldValuesMetricQuery({
+                account: mockAccount,
                 ...defaultArgs,
                 table: 'b',
                 initialFieldId: 'b_dim1',
@@ -947,6 +993,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -962,6 +1009,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -996,6 +1044,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -1029,6 +1078,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -1058,6 +1108,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -1093,6 +1144,7 @@ describe('getFieldValuesMetricQuery', () => {
 
             await expect(
                 getFieldValuesMetricQuery({
+                    account: mockAccount,
                     ...defaultArgs,
                     table: 'a',
                     initialFieldId: 'a_dim1',
@@ -1105,6 +1157,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when filters is truthy but missing .and', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',

@@ -16597,8 +16597,16 @@
                         "type": "array",
                         "description": "Extra spaces whose charts dashboards may reference; the write actor still needs view access."
                     },
+                    "writeSpaceUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Spaces the write actor may write to; the first is the default save target."
+                    },
                     "spaceUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
                     },
                     "userUuid": {
                         "type": "string"
@@ -16607,7 +16615,6 @@
                         "type": "string"
                     }
                 },
-                "required": ["spaceUuid"],
                 "type": "object"
             },
             "CreateEmbedJwt": {
@@ -22928,7 +22935,7 @@
                 "enum": ["inherit", "on", "off"],
                 "description": "Whether an app analyses on load: its own choice, or the org default."
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -22953,6 +22960,10 @@
                             },
                             "registrySlug": {
                                 "type": "string",
+                                "nullable": true
+                            },
+                            "latestReadyVersionUsesAiAnalysis": {
+                                "type": "boolean",
                                 "nullable": true
                             },
                             "latestReadyVersion": {
@@ -23022,6 +23033,7 @@
                             "verification",
                             "icon",
                             "registrySlug",
+                            "latestReadyVersionUsesAiAnalysis",
                             "latestReadyVersion",
                             "hasMore",
                             "versions",
@@ -23050,7 +23062,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__"
             },
             "UuidOrSlug": {
                 "type": "string",
@@ -30021,7 +30033,7 @@
             "AiAgentBattleProfile": {
                 "type": "string",
                 "enum": ["fast", "baseline", "luna", "classic", "composer"],
-                "description": "`fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions.\n`classic` and `composer` force the agent's query path."
+                "description": "`fast` is the JEV path, `baseline` has no fast decisions.\n`classic` and `composer` force the agent's query path."
             },
             "AiAgentThreadFirstMessage": {
                 "properties": {
@@ -53018,6 +53030,18 @@
                 "$ref": "#/components/schemas/Pick_Account-at-user.Exclude_keyofAccount-at-user.ability-or-abilityRules__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "EmbedWritableSpace": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
             "SerializedAccount": {
                 "properties": {
                     "embedWriteContext": {
@@ -53027,6 +53051,13 @@
                             },
                             "canUseAiAgent": {
                                 "type": "boolean"
+                            },
+                            "writableSpaces": {
+                                "items": {
+                                    "$ref": "#/components/schemas/EmbedWritableSpace"
+                                },
+                                "type": "array",
+                                "description": "Write spaces the actor can create saved charts in, in token order."
                             },
                             "canCreateSavedChart": {
                                 "type": "boolean"
@@ -53040,6 +53071,7 @@
                         },
                         "required": [
                             "canUseAiAgent",
+                            "writableSpaces",
                             "canCreateSavedChart",
                             "canUpdateSavedChart",
                             "canUpdateDashboard"
@@ -73635,7 +73667,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.12.2",
+        "version": "3.20.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

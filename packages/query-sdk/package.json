@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "3.12.2",
+    "version": "3.20.1",
     "private": false,
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
     "license": "MIT",
@@ -28,7 +28,7 @@
     "scripts": {
         "prebuild": "node ./scripts/generateSdkVersion.mjs",
         "build": "tsc --project tsconfig.build.json",
-        "typecheck": "tsc --noEmit",
+        "typecheck": "tsrs --noEmit",
         "lint": "eslint src/",
         "pretest": "node ./scripts/generateSdkVersion.mjs",
         "test": "vitest run",

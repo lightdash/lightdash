@@ -408,6 +408,25 @@ describe('ViewerControls', () => {
             );
         });
 
+        it('keeps the default value of a filter saved without a requirement when it is switched off', () => {
+            const filter = makeRule('a', {
+                required: true,
+                disabled: false,
+                values: ['x'],
+            });
+            setContext(TABS, [filter], [], [makeRule('a', { values: ['x'] })]);
+            const onChange = renderControls(filter);
+            openRow(/Required/);
+            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    required: false,
+                    disabled: false,
+                    values: ['x'],
+                }),
+            );
+        });
+
         it('switches the default off when it requires a filter with no value', () => {
             const onChange = renderControls(makeRule('a', { disabled: false }));
             openRow(/Required/);
@@ -417,14 +436,14 @@ describe('ViewerControls', () => {
             );
         });
 
-        it('drops the temporary value when the requirement is switched off', () => {
-            const onChange = renderControls(
-                makeRule('a', {
-                    required: true,
-                    disabled: false,
-                    values: ['x'],
-                }),
-            );
+        it('drops the temporary value of a filter saved as required when the requirement is switched off', () => {
+            const filter = makeRule('a', {
+                required: true,
+                disabled: false,
+                values: ['x'],
+            });
+            setContext(TABS, [filter], [], [makeRule('a', { required: true })]);
+            const onChange = renderControls(filter);
             openRow(/Required/);
             fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
             expect(onChange).toHaveBeenCalledWith(

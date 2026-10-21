@@ -5,6 +5,7 @@ models:
     config:
       tags: ["core"]
       meta:
+        groups: ["facilities", "field_service"]
         primary_key: technician_id
     columns:
       - name: technician_id

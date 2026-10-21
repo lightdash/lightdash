@@ -298,6 +298,7 @@ function makeRuntimeContext(
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
         spaceAccess: null,
+        readOnlySpaceUuids: [],
         threadBinding: null,
         ...overrides,
     };
@@ -3286,6 +3287,40 @@ describe('AiAgentToolsService', () => {
             expect(upsertSqlChart).not.toHaveBeenCalled();
         });
 
+        it('does not edit a SQL chart in a read-only space', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    spaceAccess: ['write-space-uuid', 'source-space-uuid'],
+                    readOnlySpaceUuids: ['source-space-uuid'],
+                }),
+            );
+
+            await expect(
+                withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                    runtime.editContent({
+                        slug: 'orders-by-status',
+                        type: 'sql_chart',
+                        patch: [
+                            { op: 'replace', path: '/name', value: 'Orders' },
+                        ],
+                        approveSql: vi.fn(),
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    policy_layer: 'agent_scope',
+                    reason_code: 'content_in_read_only_space',
+                }),
+            );
+        });
+
         it('refuses an edit without the SQL chart save permission', async () => {
             const { service, upsertSqlChart } = makeSqlChartService();
             const approveSql = vi.fn();
@@ -5915,6 +5950,35 @@ describe('AiAgentToolsService iterateCustomChartType', () => {
             );
         },
     );
+
+    it('does not iterate a chart type in a read-only space', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({
+                template: null,
+                spaceUuid: 'source-space-uuid',
+            }),
+        });
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({
+                        source: 'mcp',
+                        spaceAccess: ['write-space-uuid', 'source-space-uuid'],
+                        readOnlySpaceUuids: ['source-space-uuid'],
+                    }),
+                )
+                .iterateCustomChartType({
+                    slug: 'sankey-flow',
+                    prompt: 'Colour the links by source',
+                    themeSlug: null,
+                    vizContext: null,
+                }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
 
     it('records a forbidden build as an app update refusal', async () => {
         const error = new ForbiddenError('secret details');

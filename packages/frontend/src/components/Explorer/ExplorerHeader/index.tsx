@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { assertUnreachable, type UiStringKey } from '@lightdash/common';
+import {
+    assertUnreachable,
+    getEmbedWriteSpaceUuids,
+    type UiStringKey,
+} from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -134,9 +138,9 @@ const ExplorerHeader: FC = memo(() => {
     const isModalHosted = useIsModalHosted();
     const verificationSavePrompt = useVerificationSavePrompt(savedChart);
     const hasEmbedWriteActions =
-        !!embed.writeActions?.spaceUuid &&
-        (!!embed.writeActions.userUuid ||
-            !!embed.writeActions.serviceAccountUserUuid);
+        getEmbedWriteSpaceUuids(embed.writeActions).length > 0 &&
+        (!!embed.writeActions?.userUuid ||
+            !!embed.writeActions?.serviceAccountUserUuid);
     const canCreateEmbedSavedChart =
         hasEmbedWriteActions &&
         embed.embedWriteContext?.canCreateSavedChart === true;

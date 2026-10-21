@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/visualization",
-    "version": "3.12.2",
+    "version": "3.20.1",
     "description": "Headless Lightdash chart engine: turns a saved chart's config and query results into ECharts options, table and big number models",
     "license": "MIT",
     "repository": {
@@ -62,7 +62,7 @@
     "scripts": {
         "dev": "tsc --build --watch --preserveWatchOutput ./tsconfig.build.json",
         "build": "tsc --build ./tsconfig.build.json",
-        "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
+        "typecheck": "tsrs --project tsconfig.json --noEmit --composite false",
         "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",

@@ -87,6 +87,16 @@ export const AGENT_TOOL_NAMES = [
 
 export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
 
+/** Built-in skills available to the agent; a test pins them to `skills/builtInSkills/`. */
+export const BUILT_IN_SKILL_NAMES = [
+    'developing-in-lightdash',
+    'reading-source-code',
+    'repository-writeback',
+    'editing-source-code',
+] as const;
+
+export type BuiltInSkillName = (typeof BUILT_IN_SKILL_NAMES)[number];
+
 export type PromptSection =
     | 'queryingComposer'
     | 'runSql'
@@ -95,9 +105,7 @@ export type PromptSection =
     | 'documents'
     | 'generateDataApp'
     | 'aiWriteback'
-    | 'codingAgent'
     | 'repoFs'
-    | 'fastMetadata'
     | 'skills'
     | 'mcpTools'
     | 'projectContext'
@@ -133,7 +141,7 @@ export type LoadoutInput = Pick<
     | 'enablePreviewDeploySetup'
     | 'enableEditProjectContext'
     | 'enableReadAttachments'
-    | 'availableSkills'
+    | 'customSkills'
     | 'projectContextEnabled'
     | 'aiAgentMemoryEnabled'
     | 'requestingUser'
@@ -149,11 +157,13 @@ export type Loadout = {
     addOns: ReadonlySet<AddOnName>;
     toolNames: ReadonlySet<AgentToolName>;
     promptSections: ReadonlySet<PromptSection>;
+    skills: ReadonlySet<BuiltInSkillName>;
 };
 
 export type BaseDefinition = (input: LoadoutInput) => {
     tools: readonly AgentToolName[];
     sections: readonly PromptSection[];
+    skills: readonly BuiltInSkillName[];
     accepts: readonly AddOnName[];
 };
 
@@ -167,4 +177,6 @@ export type AddOnDefinition = {
         id: PromptSection;
         documents: readonly AgentToolName[];
     } | null;
+    /** Built-in skills that explain this add-on's tools; declaring one brings the `skills` add-on. */
+    skills: readonly BuiltInSkillName[];
 };

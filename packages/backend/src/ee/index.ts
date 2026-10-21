@@ -667,6 +667,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     savedChartModel: models.getSavedChartModel(),
                     savedSqlModel: models.getSavedSqlModel(),
+                    spaceModel: models.getSpaceModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -966,7 +967,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
                 new AiAgentReviewClassifierService({
-                    featureFlagModel: models.getFeatureFlagModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),

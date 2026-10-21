@@ -1436,16 +1436,10 @@ describe('AsyncQueryService', () => {
             });
         };
 
-        test('requires the python query runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.ComposeSqlRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
-        });
-
         test('requires the compose SQL runner flag', async () => {
-            await expect(
-                execute({ [FeatureFlags.PythonQueryRunner]: true }),
-            ).rejects.toThrow('Python queries are not enabled');
+            await expect(execute({})).rejects.toThrow(
+                'Python queries are not enabled',
+            );
         });
     });
 
@@ -7599,6 +7593,7 @@ describe('AsyncQueryService', () => {
                 },
                 embedWriteContext: {
                     canCreateSavedChart: true,
+                    writableSpaces: [],
                     canUseAiAgent: true,
                 },
                 embedWriteUser: {
@@ -18791,6 +18786,7 @@ describe('embedded AI agent result downloads', () => {
                 canUpdateDashboard: false,
                 canUpdateSavedChart: false,
                 canCreateSavedChart: false,
+                writableSpaces: [],
                 canUseAiAgent: true,
             },
         });

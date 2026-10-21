@@ -138,6 +138,7 @@ export default function mockHealthResponse(
             analyticsDashboardUuid: undefined,
             isAmbientAiEnabled: false,
             threadDumpEnabled: false,
+            fastDecisionsEnabled: false,
         },
         echarts6: {
             enabled: false,

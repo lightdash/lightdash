@@ -7,7 +7,6 @@ import {
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type DashboardTile,
 } from '@lightdash/common';
 import {
     Box,
@@ -53,7 +52,11 @@ import {
     type SqlColumn,
 } from './peers';
 import classes from './TileOverlay.module.css';
-import { areTilePropsEqual, type TileHighlight } from './tileProps';
+import {
+    areTilePropsEqual,
+    getTileTitle,
+    type TileHighlight,
+} from './tileProps';
 import {
     getTileSelector,
     LOCKED_TILE_CLASS,
@@ -96,13 +99,6 @@ const NO_STARTERS_BY_TILE: Record<string, string[]> = {};
 
 const getFieldLabel = (fieldId: string, fieldsMap: FieldsMap): string =>
     fieldsMap[fieldId]?.label ?? fieldId;
-
-const getTileTitle = (tile: DashboardTile): string => {
-    if (tile.properties.title) return tile.properties.title;
-    if ('chartName' in tile.properties && tile.properties.chartName)
-        return tile.properties.chartName;
-    return 'this tile';
-};
 
 // Finds the target for a field id: a known field, else one already on the rule
 const getFieldTarget = (
@@ -253,7 +249,7 @@ const TileOverlay = memo<TileOverlayProps>(
                 <Box className={classes.ring} aria-hidden />
                 {/* An empty title keeps the veil's hint off the card */}
                 <Paper
-                    shadow="lg"
+                    shadow="md"
                     p="sm"
                     radius="md"
                     className={classes.card}
@@ -268,8 +264,8 @@ const TileOverlay = memo<TileOverlayProps>(
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed">
                                 {tileFieldId !== null
-                                    ? 'Filtered'
-                                    : 'Not filtered'}
+                                    ? 'This tile is filtered'
+                                    : 'This tile is not filtered'}
                             </Text>
                             <Switch
                                 size="xs"
@@ -293,8 +289,8 @@ const TileOverlay = memo<TileOverlayProps>(
                                     {missingFieldId !== null
                                         ? 'Filtered by a field this tile no longer has'
                                         : tileFieldId !== null
-                                          ? 'Filtered by'
-                                          : 'Not filtered'}
+                                          ? 'This tile is filtered on'
+                                          : 'This tile is not filtered'}
                                 </Text>
                                 {missingFieldId !== null && (
                                     <MissingFieldWarning
@@ -371,6 +367,9 @@ const EditedTileOverlays: FC = () => {
         (c) => c.highlightedFieldId,
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const clearHighlightedField = useControlsSidebarSelector(
+        (c) => c.clearHighlightedField,
+    );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const addFirstFieldOnTile = useControlsSidebarSelector(
         (c) => c.addFirstFieldOnTile,
@@ -460,6 +459,24 @@ const EditedTileOverlays: FC = () => {
                           kind: value === null ? 'clear' : 'filter',
                       },
             );
+            // A field cleared from its last tile leaves the filter, unless it
+            // is the filter's only field
+            if (
+                value === null &&
+                previousFieldId !== null &&
+                !isSqlTile &&
+                !isDashboardDataAppTileType(tile) &&
+                fieldTileActions !== null &&
+                getFilterFields(editingRule, dashboardTiles).length > 1
+            ) {
+                const fieldTiles = fieldTileActions.forField(previousFieldId);
+                if (fieldTiles.everyTabScope.applied === 1) {
+                    if (highlightedFieldId === previousFieldId)
+                        clearHighlightedField();
+                    fieldTiles.remove();
+                    return;
+                }
+            }
             // A data app tile switched on follows the rule, as it does by
             // default
             const field =
@@ -683,8 +700,9 @@ const EditedTileOverlays: FC = () => {
                         missingFieldId !== null ||
                         options.length > 0 ||
                         candidates.length > 0);
-                // mapped: filtered. other: filtered, not by the active field
-                // (a data app tile that is on). available: could be filtered
+                // filtered: no field active. mapped: on the active field.
+                // other: filtered, not by the active field (a data app tile
+                // that is on). available: could be filtered
                 const isOnTheControl =
                     isReachable &&
                     tileFieldId !== null &&
@@ -699,9 +717,11 @@ const EditedTileOverlays: FC = () => {
                     ? null
                     : !isOnTheControl
                       ? 'available'
-                      : activeFieldId === null || isOnRow(activeFieldId)
-                        ? 'mapped'
-                        : 'other';
+                      : activeFieldId === null
+                        ? 'filtered'
+                        : isOnRow(activeFieldId)
+                          ? 'mapped'
+                          : 'other';
                 return createPortal(
                     <TileOverlay
                         tileUuid={tile.uuid}

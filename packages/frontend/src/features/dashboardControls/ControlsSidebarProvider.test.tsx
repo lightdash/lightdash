@@ -379,41 +379,53 @@ describe('ControlsSidebarProvider', () => {
         );
     });
 
-    it('tracks a filter where it is created, not where Add is clicked', () => {
+    it('tracks a new filter once it is kept, never when it is discarded', () => {
         const event = {
             name: EventName.ADD_FILTER_CLICKED,
             properties: { mode: 'edit' },
         };
         const { result } = setup();
         act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
         expect(mockTrack).not.toHaveBeenCalled();
 
+        // Discarded, removed, or closed with no field: nothing was created
+        act(() => result.current.discard());
+        act(() => result.current.openNew());
         act(() => result.current.addFirstField(statusField));
+        act(() => result.current.removeFilter());
+        act(() => result.current.openNew());
+        act(() => result.current.close());
+        expect(mockTrack).not.toHaveBeenCalled();
+
+        // Kept with Done, the X or the pill
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.close());
         expect(mockTrack).toHaveBeenCalledTimes(1);
         expect(mockTrack).toHaveBeenLastCalledWith(event);
 
-        // Nothing is created by a second pick, or by a discarded placeholder
-        act(() => result.current.addFirstField(statusField));
-        act(() => result.current.close());
-        act(() => result.current.openNew());
-        act(() => result.current.close());
-        expect(mockTrack).toHaveBeenCalledTimes(1);
-
+        // Kept by opening another control, from a tile or on a SQL column
         mockFieldsByTile.current = { t1: [statusField] };
         act(() => result.current.openNew());
         act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
-        expect(mockTrack).toHaveBeenCalledTimes(2);
-
-        act(() => result.current.close());
         act(() => result.current.openNew());
+        expect(mockTrack).toHaveBeenCalledTimes(2);
         act(() =>
             result.current.addFirstSqlColumn(
                 { reference: 'total', type: DimensionType.NUMBER },
                 {},
             ),
         );
+        act(() => result.current.close());
         expect(mockTrack).toHaveBeenCalledTimes(3);
         expect(mockTrack).toHaveBeenLastCalledWith(event);
+
+        // Reopening and closing a filter that already existed tracks nothing
+        const kept = latest.filters.dimensions[2];
+        act(() => result.current.open(kept.id));
+        act(() => result.current.close());
+        expect(mockTrack).toHaveBeenCalledTimes(3);
     });
 
     describe('a first field', () => {
@@ -1494,7 +1506,7 @@ describe('ControlsSidebarProvider', () => {
         },
     );
 
-    it('keeps a field listed as waiting when it loses its last tile', () => {
+    it('drops a field that loses its last tile', () => {
         const { result } = setup();
         const peer = { fieldId: 'orders_region', tableName: 'orders' };
         act(() => result.current.open('a'));
@@ -1507,7 +1519,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.waitingFieldIds).toEqual([]);
 
         act(() => result.current.updateFilter(rule('a', ['1'])));
-        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+        expect(result.current.waitingFieldIds).toEqual([]);
 
         // Back on a tile, it is a field of the filter again
         act(() =>
@@ -1517,6 +1529,87 @@ describe('ControlsSidebarProvider', () => {
             }),
         );
         expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    describe('a field that loses its last tile', () => {
+        const regionField: DashboardFilterableField = {
+            ...statusField,
+            name: 'region',
+            label: 'Region',
+        };
+        const status = { fieldId: 'orders_status', tableName: 'orders' };
+        const region = { fieldId: 'orders_region', tableName: 'orders' };
+        const onStatus = (
+            tileTargets: DashboardFilterRule['tileTargets'],
+        ): DashboardFilterRule => ({
+            ...rule('a', ['1']),
+            target: status,
+            tileTargets,
+        });
+
+        beforeEach(() => {
+            mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+            mockFieldsByTile.current = {
+                t1: [statusField, regionField],
+                t2: [statusField, regionField],
+            };
+        });
+
+        it('promotes the next field once no tile is on the first one', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(onStatus({ t1: region })));
+            act(() => result.current.setHighlightedFieldId('orders_status'));
+            act(() =>
+                result.current.updateFilter(
+                    onStatus({ t1: region, t2: region }),
+                ),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(region);
+            expect(result.current.highlightedFieldId).toBeNull();
+        });
+
+        it('leaves a first field that was already on no tile alone', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter(
+                    onStatus({ t1: false, t2: region }),
+                ),
+            );
+            act(() =>
+                result.current.updateFilter({
+                    ...onStatus({ t1: false, t2: region }),
+                    label: 'Renamed',
+                }),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(status);
+        });
+
+        it('keeps the first field when it is the only one', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter(onStatus({ t1: false, t2: false })),
+            );
+
+            expect(result.current.editingRule?.target).toEqual(status);
+        });
+
+        it('does not bring back a waiting field once it was on a tile', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(onStatus(undefined)));
+            act(() => result.current.addWaitingField('orders_region'));
+            expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+
+            act(() => result.current.updateFilter(onStatus({ t1: region })));
+            act(() => result.current.updateFilter(onStatus(undefined)));
+
+            expect(result.current.waitingFieldIds).toEqual([]);
+        });
     });
 
     it('the hovered field wins over the highlighted one', () => {
@@ -1790,10 +1883,38 @@ describe('ControlsSidebarProvider', () => {
             const required = setRuleRequired(savedA, null);
             const notRequired = clearRuleRequired(
                 required,
+                savedA,
                 FilterType.STRING,
                 statusField,
             );
             expect(notRequired.required).toBe(false);
+
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(required));
+            act(() => result.current.updateFilter(notRequired));
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
+        it('keeps the default value after "Required" is switched on and off', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [
+                    { ...rule('a', ['credit_card']), disabled: false },
+                ],
+            });
+            const savedA = saved.filters.dimensions[0];
+            const required = setRuleRequired(savedA, savedA);
+            const notRequired = clearRuleRequired(
+                required,
+                savedA,
+                FilterType.STRING,
+                statusField,
+            );
+            expect(notRequired.values).toEqual(['credit_card']);
 
             const { result } = setup();
             act(() => result.current.open('a'));

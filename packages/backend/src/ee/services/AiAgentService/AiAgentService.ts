@@ -112,6 +112,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getDataAppVizChartFromArtifact,
+    getEmbedWriteSpaceUuids,
     getErrorMessage,
     getFields,
     getGenerateDataAppBuildOutcome,
@@ -281,7 +282,11 @@ import {
     ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession, toSessionUser } from '../../../auth/account';
+import {
+    fromSession,
+    getEmbedActorChartSpaceUuids,
+    toSessionUser,
+} from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -437,8 +442,6 @@ import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
-    type DecisionProvider,
-    type DecisionShadowEntry,
 } from '../ai/decisions/AiDecisionClient';
 import {
     applyChartIntent,
@@ -900,6 +903,8 @@ type EmbedAiAgentRuntimeOptions = {
     // The host application's id for the viewer, when its token carries one.
     externalUserId: string | null;
     spaceAccess: string[];
+    // Source spaces the agent may read but not write to.
+    readOnlySpaceUuids: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
 
@@ -2598,7 +2603,6 @@ export class AiAgentService extends BaseService {
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string | null,
-        provider: DecisionProvider = 'jev',
     ) {
         if (
             await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
@@ -2608,43 +2612,10 @@ export class AiAgentService extends BaseService {
         ) {
             return undefined;
         }
-        const config =
-            provider === 'luna'
-                ? this.lightdashConfig.ai.lunaDecisions
-                : this.lightdashConfig.ai.decisions;
-        return resolveAiDecisionClient(config, () =>
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentFastDecisions,
-            }),
-        );
+        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
     }
 
-    private async recordDecisionShadow(
-        promptUuid: string,
-        entry: DecisionShadowEntry,
-    ): Promise<void> {
-        await this.aiAgentModel.createPromptDecisionShadow({
-            ai_prompt_uuid: promptUuid,
-            operation: entry.operation,
-            questions: entry.questions,
-            state: entry.state,
-            live_provider: entry.live.provider,
-            live_model: entry.live.model,
-            live_outcome: entry.live.outcome,
-            live_answers: entry.live.answers,
-            live_latency_ms: entry.live.durationMs,
-            live_service_ms: entry.live.serviceMs,
-            shadow_provider: entry.shadow.provider,
-            shadow_model: entry.shadow.model,
-            shadow_outcome: entry.shadow.outcome,
-            shadow_answers: entry.shadow.answers,
-            shadow_latency_ms: entry.shadow.durationMs,
-            shadow_service_ms: entry.shadow.serviceMs,
-        });
-    }
-
-    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
+    // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the decision client.
     private async getPromptDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         {
@@ -2664,15 +2635,13 @@ export class AiAgentService extends BaseService {
             agentCredentialUuid: string | null;
         },
     ) {
-        // Before the Luna branch too: every battle profile resolves an
-        // external decisions provider, which a pinned agent never gets.
+        // A pinned agent never gets an external decisions provider.
         if (agentCredentialUuid) return undefined;
         switch (battleProfile) {
-            case 'luna':
-                return this.getDecisionClient(user, projectUuid, 'luna');
             case 'fast':
                 return this.getDecisionClient(user, projectUuid);
             case 'baseline':
+            case 'luna':
                 return undefined;
             case null:
             case 'classic':
@@ -2700,18 +2669,6 @@ export class AiAgentService extends BaseService {
                 if (!(await this.getDecisionClient(user, agent.projectUuid))) {
                     throw new ForbiddenError(
                         'AI agent fast decisions must be enabled to compare profiles',
-                    );
-                }
-                if (
-                    battleProfile === 'luna' &&
-                    !(await this.getDecisionClient(
-                        user,
-                        agent.projectUuid,
-                        'luna',
-                    ))
-                ) {
-                    throw new ForbiddenError(
-                        'Luna decisions must be configured to compare providers',
                     );
                 }
                 return;
@@ -3036,7 +2993,9 @@ export class AiAgentService extends BaseService {
         runtimeOptions: EmbedAiAgentRuntimeOptions;
     } {
         const { writeActions, content } = account.authentication.data;
-        const spaceUuid = writeActions?.spaceUuid;
+        const writeSpaceUuids = getEmbedWriteSpaceUuids(writeActions);
+        const spaceUuid = writeSpaceUuids[0];
+        const chartSpaceUuids = getEmbedActorChartSpaceUuids(account);
 
         if (
             content.type !== 'aiAgent' ||
@@ -3059,7 +3018,10 @@ export class AiAgentService extends BaseService {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
-                spaceAccess: [spaceUuid],
+                spaceAccess: chartSpaceUuids,
+                readOnlySpaceUuids: chartSpaceUuids.filter(
+                    (uuid) => !writeSpaceUuids.includes(uuid),
+                ),
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
@@ -3092,7 +3054,16 @@ export class AiAgentService extends BaseService {
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
-        return { user, agent, runtimeOptions };
+        return {
+            user,
+            agent,
+            runtimeOptions: {
+                ...runtimeOptions,
+                spaceAccess: runtimeOptions.spaceAccess.filter((uuid) =>
+                    hasAiAgentAccessToSpace(agent, uuid),
+                ),
+            },
+        };
     }
 
     private canViewThreadContext(
@@ -13663,6 +13634,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
                 runtimeAgentSettings.spaceAccess,
+            readOnlySpaceUuids:
+                options?.runtimeOptions?.readOnlySpaceUuids ?? [],
             threadBinding,
             sqlScope,
             userAttributeOverrides:
@@ -15615,6 +15588,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
+            readOnlySpaceUuids: [],
             // Read-only runtime; the binding only limits writes.
             threadBinding: null,
             agentUuid: agent.uuid,
@@ -16057,30 +16031,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const shadowClient =
-                    decisionClient?.provider === 'jev' &&
-                    this.lightdashConfig.ai.lunaShadowEnabled
-                        ? await this.getDecisionClient(
-                              user,
-                              agentSettings.projectUuid,
-                              'luna',
-                          )
-                        : undefined;
                 const decisions = decisionUsage
-                    ? decisionClient?.withUsage(decisionUsage).withShadow(
-                          shadowClient
-                              ? {
-                                    client: shadowClient,
-                                    record: (entry) =>
-                                        this.recordDecisionShadow(
-                                            prompt.promptUuid,
-                                            entry,
-                                        ),
-                                }
-                              : undefined,
-                      )
+                    ? decisionClient?.withUsage(decisionUsage)
                     : undefined;
-                // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
+                // The decision client is the master gate; battle mode and Fast mode can only disable it.
                 const fastExperienceEnabled = decisions !== undefined;
                 let forceChartMutationRouting = false;
                 let chartMutationContext:
@@ -16556,7 +16510,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const [
                     { enabled: multiSourceQueryEnabled },
                     { enabled: composeSqlRunnerEnabled },
-                    { enabled: pythonQueryRunnerEnabled },
                 ] = await Promise.all([
                     this.featureFlagService.get({
                         user,
@@ -16565,10 +16518,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     this.featureFlagService.get({
                         user,
                         featureFlagId: FeatureFlags.ComposeSqlRunner,
-                    }),
-                    this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.PythonQueryRunner,
                     }),
                 ]);
                 const standardToolAllowlist =
@@ -16587,8 +16536,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         standardToolAllowlist !== undefined,
                     battleProfile,
                 });
-                const enableComposerPythonNodes =
-                    enableComposerQueries && pythonQueryRunnerEnabled;
                 const { enabled: filterExpressionsEnabled } =
                     await this.featureFlagService.get({
                         user,
@@ -16851,29 +16798,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     invalidateQueryCache: battleProfile !== null,
                 });
 
-                const builtInSkills = canUseContentTools
-                    ? await this.aiAgentToolsService.listAgentSkills()
-                    : [];
+                const builtInSkills =
+                    await this.aiAgentToolsService.listAgentSkills();
                 const modelServableSkills = (
                     await this.aiAgentSkillModel.findBoundToAgent(
                         agentSettings.uuid,
                     )
                 ).filter(AiAgentService.isModelServable);
-                const availableSkills = [
-                    ...builtInSkills,
-                    ...modelServableSkills.map((skill) => ({
-                        name: skill.name,
-                        description: getAiAgentSkillListingText(
-                            skill.parsed.frontmatter,
-                            AI_AGENT_SKILL_LISTING_MAX_CHARS,
-                        ),
-                        resources: skill.parsed.resources.map((resource) => ({
-                            name: resource.name,
-                            description: resource.description,
-                        })),
-                        source: 'custom' as const,
+                const customSkills = modelServableSkills.map((skill) => ({
+                    name: skill.name,
+                    description: getAiAgentSkillListingText(
+                        skill.parsed.frontmatter,
+                        AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                    ),
+                    resources: skill.parsed.resources.map((resource) => ({
+                        name: resource.name,
+                        description: resource.description,
                     })),
-                ];
+                    source: 'custom' as const,
+                }));
                 const copilotConfig =
                     await this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid: promptProject.organizationUuid,
@@ -16902,7 +16845,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
                 const initialModelId = modelProperties.model.modelId;
 
-                // AiAgentFastDecisions is the single switch for bounded decisions,
+                // The decision client is the single switch for bounded decisions,
                 // query refinements, fast tool calls and adaptive model selection.
                 const canUseFastToolModel =
                     !!decisions &&
@@ -17121,7 +17064,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     repoFsSupportsCodeSearch,
                     canRunSql,
                     enableComposerQueries,
-                    enableComposerPythonNodes,
                     canCreateDashboards,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
@@ -17139,7 +17081,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     warehouseConnections,
                     sqlScope: agentSqlScope,
                     hyphenatedIdentifiers,
-                    availableSkills,
+                    builtInSkills,
+                    customSkills,
                     modelReasoningEnabled:
                         prompt.modelConfig?.reasoning ?? null,
 

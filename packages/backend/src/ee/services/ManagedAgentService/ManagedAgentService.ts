@@ -2061,6 +2061,7 @@ export class ManagedAgentService extends BaseService {
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: null,
             spaceAccess: allowedSpaceUuids,
+            readOnlySpaceUuids: [],
             threadBinding: null,
         });
         const reportRefusal = (error: unknown) => {
@@ -2082,12 +2083,6 @@ export class ManagedAgentService extends BaseService {
                             ? undefined
                             : resolveAiDecisionClient(
                                   this.lightdashConfig.ai.decisions,
-                                  () =>
-                                      this.featureFlagModel.get({
-                                          user: { organizationUuid },
-                                          featureFlagId:
-                                              FeatureFlags.AiAgentFastDecisions,
-                                      }),
                               ),
                     ),
             ]);

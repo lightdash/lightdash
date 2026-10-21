@@ -32,6 +32,10 @@ export interface ExtractedConfigValue {
 
 export type ExtractedConfigSurface = Record<string, ExtractedConfigValue>;
 
+/** Env vars the backend stopped reading on purpose, keyed by name with the reason nobody relies on them. */
+export type RetiredConfig = Record<string, string>;
+export const RETIRED_CONFIG_PATH = 'release-safety.retired-config.json';
+
 export interface DiffConfigBetweenRefsOptions {
     fromRef: string;
     toRef: string;
@@ -729,6 +733,7 @@ function groupedBySignature(
 export function diffConfigSurfaces(
     oldSurface: ExtractedConfigSurface,
     newSurface: ExtractedConfigSurface,
+    retired: RetiredConfig = {},
 ): ConfigSurface {
     const oldBySignature = groupedBySignature(oldSurface);
     const newBySignature = groupedBySignature(newSurface);
@@ -748,6 +753,7 @@ export function diffConfigSurfaces(
             }
             continue;
         }
+        if (retired[name]) continue;
 
         const oldNames = oldBySignature.get(previous.usageSignature) ?? [];
         const newNames = newBySignature.get(previous.usageSignature) ?? [];
@@ -816,6 +822,37 @@ function readConfigFiles(ref: string): Record<string, string> {
     );
 }
 
+function readRetiredConfig(ref: string): RetiredConfig {
+    let raw: string;
+    try {
+        raw = execFileSync('git', ['show', `${ref}:${RETIRED_CONFIG_PATH}`], {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        });
+    } catch {
+        return {};
+    }
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        throw new Error(`${RETIRED_CONFIG_PATH} is not valid JSON`);
+    }
+    if (
+        parsed === null ||
+        typeof parsed !== 'object' ||
+        Array.isArray(parsed) ||
+        Object.values(parsed).some(
+            (reason) => typeof reason !== 'string' || reason.trim() === '',
+        )
+    ) {
+        throw new Error(
+            `${RETIRED_CONFIG_PATH} must map env var names to non-empty reasons`,
+        );
+    }
+    return parsed as RetiredConfig;
+}
+
 export function diffConfigBetweenRefs(
     options: DiffConfigBetweenRefsOptions,
 ): ConfigSurface {
@@ -825,11 +862,17 @@ export function diffConfigBetweenRefs(
             readConfigFiles(options.fromRef),
         );
         const newSurface = extractConfigSurface(readConfigFiles(options.toRef));
-        const result = diffConfigSurfaces(oldSurface, newSurface);
+        const retired = readRetiredConfig(options.toRef);
+        const result = diffConfigSurfaces(oldSurface, newSurface, retired);
+        const retiredRemovals = Object.keys(retired).filter(
+            (name) =>
+                oldSurface[name] !== undefined &&
+                newSurface[name] === undefined,
+        );
         log(
             result.breaking
                 ? `config checked: BREAKING (${result.changes.length})`
-                : 'config checked: no breaking changes',
+                : `config checked: no breaking changes${retiredRemovals.length > 0 ? ` (${retiredRemovals.length} retired: ${retiredRemovals.join(', ')})` : ''}`,
         );
         return result;
     } catch (error: unknown) {

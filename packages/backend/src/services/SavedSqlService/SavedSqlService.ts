@@ -458,10 +458,10 @@ export class SavedSqlService
 
         if (
             embedWriteActions &&
-            savedChart.space.uuid !== embedWriteActions.spaceUuid
+            !embedWriteActions.writeSpaceUuids.includes(savedChart.space.uuid)
         ) {
             throw new ForbiddenError(
-                'SQL chart does not belong to embedded write space',
+                'SQL chart does not belong to an embedded write space',
             );
         }
 

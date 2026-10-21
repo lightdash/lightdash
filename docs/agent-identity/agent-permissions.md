@@ -234,8 +234,8 @@ permission rules stay unchanged.
 
 ### Agents over MCP (`mcpAgentsEnabled`)
 
-When off, MCP refuses `list_agents`, `route_agent`, `set_agent`,
-`get_current_agent` and explicit configured-agent scope lookups. It hides
+When off, MCP refuses `list_agents`, `route_agent` and explicit
+configured-agent scope lookups. It hides
 configured agents from project/context results and ignores saved agent context.
 It does not stop in-app agents, Slack or OAuth API operations in either mode.
 Other MCP tools still need their independent permissions.

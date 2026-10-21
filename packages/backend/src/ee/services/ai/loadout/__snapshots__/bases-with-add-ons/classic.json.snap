@@ -80,10 +80,8 @@
     "promptSections": [
         "aiWriteback",
         "availableCustomChartTypes",
-        "codingAgent",
         "contentTools",
         "documents",
-        "fastMetadata",
         "generateDataApp",
         "mcpTools",
         "memories",
@@ -93,5 +91,11 @@
         "runSql",
         "schedulingTools",
         "skills"
+    ],
+    "skills": [
+        "developing-in-lightdash",
+        "editing-source-code",
+        "reading-source-code",
+        "repository-writeback"
     ]
 }

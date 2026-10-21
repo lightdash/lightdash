@@ -44,6 +44,21 @@ export const useAiAgentProjectStreamParts = (
         shallowEqual,
     );
 
+export const useAiAgentStreamParts = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+): StreamPart[] =>
+    useAiAgentStoreSelector(
+        (state) =>
+            Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
+                threadStream.projectUuid === projectUuid &&
+                threadStream.agentUuid === agentUuid
+                    ? threadStream.parts
+                    : [],
+            ),
+        shallowEqual,
+    );
+
 export const useAiAgentThreadMessageStreaming = (
     threadUuid: string,
     messageUuid: string,

@@ -34,7 +34,6 @@
     "promptSections": [
         "aiWriteback",
         "availableCustomChartTypes",
-        "codingAgent",
         "contentTools",
         "documents",
         "generateDataApp",
@@ -46,5 +45,11 @@
         "runSql",
         "schedulingTools",
         "skills"
+    ],
+    "skills": [
+        "developing-in-lightdash",
+        "editing-source-code",
+        "reading-source-code",
+        "repository-writeback"
     ]
 }

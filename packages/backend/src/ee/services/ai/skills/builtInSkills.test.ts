@@ -187,3 +187,60 @@ describe('BuiltInSkills', () => {
         ).toBeUndefined();
     });
 });
+
+describe.each([
+    {
+        name: 'reading-source-code',
+        tools: ['exploreRepo', 'discoverRepos'],
+    },
+    {
+        name: 'repository-writeback',
+        tools: [
+            'editDbtProject',
+            'syncDbtProject',
+            'listWorkstreams',
+            'closePullRequest',
+            'getPullRequestDiff',
+        ],
+    },
+    {
+        name: 'editing-source-code',
+        tools: [
+            'editRepo',
+            'listWorkstreams',
+            'closePullRequest',
+            'getPullRequestDiff',
+        ],
+    },
+])('$name skill', ({ name, tools }) => {
+    it('is available to agents only', async () => {
+        expect(
+            (await BuiltInSkills.getAiAgentSkills()).map((skill) => skill.name),
+        ).toContain(name);
+        expect(
+            (await BuiltInSkills.listSkillToolReferences()).map(
+                (skill) => skill.name,
+            ),
+        ).not.toContain(name);
+    });
+
+    it('names its tools', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(name);
+        tools.forEach((tool) => expect(skill?.body).toContain(`\`${tool}\``));
+    });
+
+    it('never tells the agent a feature is off', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(name);
+        expect(skill?.body).not.toMatch(/feature is off|if you have/i);
+    });
+});
+
+describe('repository-writeback skill', () => {
+    it('plans the content migration a merge triggers', async () => {
+        const skill = await BuiltInSkills.getAiAgentSkill(
+            'repository-writeback',
+        );
+        expect(skill?.body).toContain('present a concise migration plan');
+        expect(skill?.body).not.toContain('do **not** have the ability');
+    });
+});

@@ -1,7 +1,6 @@
-import { FeatureFlags } from '@lightdash/common';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import useHealth from '../../../../hooks/health/useHealth';
 
 export const useAiAgentSpeedBattleAvailable = (): boolean => {
-    const flag = useServerFeatureFlag(FeatureFlags.AiAgentFastDecisions);
-    return flag.data?.enabled === true;
+    const health = useHealth();
+    return health.data?.ai.fastDecisionsEnabled === true;
 };
