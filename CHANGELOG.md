@@ -1,3 +1,10 @@
+# [3.12.0](https://github.com/lightdash/lightdash/compare/3.11.1...3.12.0) (2026-10-21)
+
+
+### Features
+
+* **groups:** sort group members alphabetically in the group editor ([#31312](https://github.com/lightdash/lightdash/issues/31312)) ([fad1547](https://github.com/lightdash/lightdash/commit/fad1547eac39463fed16e67814ec188f56969234)), closes [#31311](https://github.com/lightdash/lightdash/issues/31311)
+
 ## [3.11.1](https://github.com/lightdash/lightdash/compare/3.11.0...3.11.1) (2026-10-21)
 
 
