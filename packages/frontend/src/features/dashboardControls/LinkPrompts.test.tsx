@@ -222,19 +222,13 @@ describe('LinkPrompts', () => {
         setSidebar();
     });
 
-    it('summarises the only candidate and links the tile to it', async () => {
+    it('shows the only candidate chosen and links the tile to it', async () => {
         renderWithProviders(<LinkPrompts />);
 
         expect(
             card(added.uuid).getByText('This tile can use a filter'),
         ).toBeVisible();
-        expect(
-            card(added.uuid).getByText('1 filter links automatically'),
-        ).toBeVisible();
-        expect(card(added.uuid).getByText('Status → Method')).toBeVisible();
-        expect(
-            card(added.uuid).queryByLabelText('Field for Status on this tile'),
-        ).not.toBeInTheDocument();
+        expect(select(added.uuid)).toHaveValue('Method');
         expect(applyButton(added.uuid)).toHaveTextContent('Apply');
         expect(applyButton(added.uuid)).toHaveAccessibleName(
             'Apply 1 filter to Title tile-added',
@@ -262,7 +256,6 @@ describe('LinkPrompts', () => {
             'placeholder',
             'Not filtered',
         );
-        expect(card(added.uuid).queryByText('Needs a field')).toBeNull();
         expect(applyButton(added.uuid)).toBeDisabled();
 
         await userEvent.click(select(added.uuid));
@@ -280,31 +273,16 @@ describe('LinkPrompts', () => {
         });
     });
 
-    it('expands the summarised filters on Review', async () => {
+    it('shows every filter that could link, each with its field', () => {
         setDashboard([paymentsMethod], twoFilters);
         renderWithProviders(<LinkPrompts />);
 
         expect(
             card(added.uuid).getByText('This tile can use 2 filters'),
         ).toBeVisible();
-        expect(
-            card(added.uuid).getByText('2 filters link automatically'),
-        ).toBeVisible();
-        expect(
-            card(added.uuid).getByText('Status → Method · Second → Method'),
-        ).toBeVisible();
-        expect(applyButton(added.uuid)).toHaveTextContent('Apply all 2');
-        await userEvent.click(
-            card(added.uuid).getByRole('button', { name: 'Review' }),
-        );
-
-        expect(
-            card(added.uuid).queryByText('2 filters link automatically'),
-        ).toBeNull();
         expect(select(added.uuid, 'Status')).toHaveValue('Method');
         expect(select(added.uuid, 'Second')).toHaveValue('Method');
-        // The Review button has left: focus goes to the first row it opened
-        expect(select(added.uuid, 'Status')).toHaveFocus();
+        expect(applyButton(added.uuid)).toHaveTextContent('Apply all 2');
     });
 
     it('links every filter with "Apply all"', async () => {
@@ -330,9 +308,6 @@ describe('LinkPrompts', () => {
     it('leaves out a cleared filter: Apply links the others and skips it', async () => {
         setDashboard([paymentsMethod], twoFilters);
         renderWithProviders(<LinkPrompts />);
-        await userEvent.click(
-            card(added.uuid).getByRole('button', { name: 'Review' }),
-        );
 
         // Picking the chosen option again clears it
         await pick(added.uuid, 'Second', 'Method');
@@ -366,10 +341,9 @@ describe('LinkPrompts', () => {
         );
         renderWithProviders(<LinkPrompts />);
 
-        expect(
-            card(added.uuid).getByText('1 filter links automatically'),
-        ).toBeVisible();
-        expect(card(added.uuid).getByText('2 need a field')).toBeVisible();
+        expect(select(added.uuid, 'Status')).toHaveValue('Method');
+        expect(select(added.uuid, 'Second')).toHaveValue('');
+        expect(select(added.uuid, 'Third')).toHaveValue('');
         expect(applyButton(added.uuid)).toHaveTextContent('Apply 1, skip 2');
         expect(applyButton(added.uuid)).toBeEnabled();
 
@@ -383,7 +357,7 @@ describe('LinkPrompts', () => {
         setDashboard([paymentsMethod, paymentsState], twoFilters);
         renderWithProviders(<LinkPrompts />);
 
-        expect(applyButton(added.uuid)).toHaveTextContent('Apply 0, skip 2');
+        expect(applyButton(added.uuid)).toHaveTextContent(/^Apply$/);
         expect(applyButton(added.uuid)).toBeDisabled();
     });
 
@@ -534,9 +508,6 @@ describe('LinkPrompts', () => {
             };
             rerender(<LinkPrompts />);
 
-            expect(
-                card(added.uuid).queryByText('1 filter links automatically'),
-            ).toBeNull();
             expect(select(added.uuid)).toHaveValue('');
             expect(applyButton(added.uuid)).toBeDisabled();
         });

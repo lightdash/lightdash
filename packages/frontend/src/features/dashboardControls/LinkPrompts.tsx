@@ -80,18 +80,10 @@ const LinkCard: FC<CardProps> = ({
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
-    const [isReviewOpen, setIsReviewOpen] = useState(false);
-    const [firstObviousId, setFirstObviousId] = useState<string | null>(null);
     const tileTitle = getTileTitle(tile);
     const getFilterLabel = (rule: DashboardFilterRule) =>
         rule.label ?? getLabel(rule.target.fieldId);
 
-    // A row the user has touched is never summarised, so a cleared one stays visible
-    const isObvious = (row: Prompt) =>
-        getDefaultChoice(row) !== null && !(row.rule.id in picks);
-    const obvious = rows.filter(isObvious);
-    const isSummarised = obvious.length > 0 && !isReviewOpen;
-    const shown = isSummarised ? rows.filter((row) => !isObvious(row)) : rows;
     const linkCount = rows.filter(
         (row) => getChoice(row, picks) !== null,
     ).length;
@@ -117,7 +109,7 @@ const LinkCard: FC<CardProps> = ({
     };
 
     const applyLabel =
-        rows.length === 1
+        rows.length === 1 || linkCount === 0
             ? 'Apply'
             : skipCount === 0
               ? `Apply all ${linkCount}`
@@ -147,49 +139,7 @@ const LinkCard: FC<CardProps> = ({
                     {rows.length === 1 ? 'Skip' : 'Skip all'}
                 </Button>
             </Group>
-            {isSummarised && (
-                <Stack gap={4} className={classes.linkSummary}>
-                    <Group justify="space-between" wrap="nowrap" gap="xs">
-                        <Text fz="sm">
-                            {plural(
-                                obvious.length,
-                                '1 filter links automatically',
-                                `${obvious.length} filters link automatically`,
-                            )}
-                        </Text>
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            onClick={() => {
-                                setFirstObviousId(obvious[0].rule.id);
-                                setIsReviewOpen(true);
-                            }}
-                        >
-                            Review
-                        </Button>
-                    </Group>
-                    <Text fz="xs" c="dimmed">
-                        {obvious
-                            .map(
-                                (row) =>
-                                    `${getFilterLabel(row.rule)} → ${getLabel(
-                                        row.candidates[0].fieldId,
-                                    )}`,
-                            )
-                            .join(' · ')}
-                    </Text>
-                </Stack>
-            )}
-            {isSummarised && shown.length > 0 && (
-                <Text fz="xs" c="dimmed">
-                    {plural(
-                        shown.length,
-                        'Needs a field',
-                        `${shown.length} need a field`,
-                    )}
-                </Text>
-            )}
-            {shown.map((row) => {
+            {rows.map((row) => {
                 const filterLabel = getFilterLabel(row.rule);
                 return (
                     <Stack gap="xs" key={row.rule.id}>
@@ -201,10 +151,6 @@ const LinkCard: FC<CardProps> = ({
                             aria-label={`Field for ${filterLabel} on this tile`}
                             placeholder="Not filtered"
                             clearable
-                            // Review unmounts its button: focus goes to the first row it opened
-                            autoFocus={
-                                isReviewOpen && row.rule.id === firstObviousId
-                            }
                             comboboxProps={{ withinPortal: true }}
                             value={getChoice(row, picks)}
                             onChange={(value) =>

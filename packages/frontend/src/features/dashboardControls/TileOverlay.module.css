@@ -126,13 +126,6 @@
     overflow-y: auto;
 }
 
-/* The link prompt's rows that link without a pick, folded into one block */
-.linkSummary {
-    padding: var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-default-hover);
-}
-
 /* One short wave across the tiles: six buckets, 20ms apart */
 .overlay[data-wave='1'] > .card {
     animation-delay: calc(var(--controls-wave-step) * 1);

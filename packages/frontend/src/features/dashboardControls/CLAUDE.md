@@ -671,12 +671,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   the rule the tile dropdown uses; a date filter is not offered a timestamp).
   A tile with the target field links on its own, SQL chart tiles never
   prompt, and neither does a SQL column filter.
-- One card per tile, summary first. A row with a single candidate links
-  without a pick: those rows fold into one "N filters link automatically"
-  block (`Filter → Field`), and "Review" expands them into rows and focuses
-  the first of them (its button leaves). A row the user has picked or cleared
-  is never folded, so a cleared one stays visible. The other rows sit under
-  "Needs a field", each a clearable select ("Not filtered").
+- One card per tile, one row per filter that could link: the filter's name
+  and a clearable select ("Not filtered"). A filter with a single candidate
+  has it chosen, in plain sight, so the pairing is never hidden.
 - The card keeps the user's picks per rule: a rule present with `null` was
   cleared and is not linked, absent means the default (the single candidate).
   A pick that is no longer offered is dropped. Choices are derived on render,
@@ -685,7 +682,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
   and scrolls.
 - One "Apply" answers the whole card ("Apply all N", "Apply X, skip Y";
-  disabled when no row has a field): rows with a field are linked, the rest
+  a plain "Apply", disabled, when no row has a field): rows with a field are linked, the rest
   skipped. "Skip all" ("Skip" for one row) skips every row. Both are named
   with the tile title, and focus goes to the tile (`tabindex="-1"`).
 - "New" is derived: `newTileUuids` is the dashboard's tiles that are not in the
