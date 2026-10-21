@@ -64,7 +64,7 @@ const SimpleSankey: FC<SimpleSankeyProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         if (isLoading) return <LoadingChart />;
         if (!sankeyChartOptions) return <EmptyChart />;

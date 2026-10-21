@@ -333,3 +333,18 @@ describe('SimpleTreemap screenshot readiness', { timeout: 20_000 }, () => {
         expect(onScreenshotReady).not.toHaveBeenCalled();
     });
 });
+
+describe('SimpleTreemap resize listener', { timeout: 20_000 }, () => {
+    it('adds the window resize listener once across re-renders', () => {
+        const addListener = vi.spyOn(window, 'addEventListener');
+        const context = makeContext();
+        const onScreenshotReady = vi.fn();
+        const { rerender } = render(renderTreemap(context, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        rerender(renderTreemap({ ...context }, onScreenshotReady));
+        expect(
+            addListener.mock.calls.filter(([type]) => type === 'resize'),
+        ).toHaveLength(1);
+        addListener.mockRestore();
+    });
+});

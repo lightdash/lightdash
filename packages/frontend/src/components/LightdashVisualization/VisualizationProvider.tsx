@@ -165,21 +165,11 @@ const VisualizationProvider: FC<
     const chartRef = useRef<EChartsReact | null>(null);
     const leafletMapRef = useRef<LeafletMap | null>(null);
 
+    // echarts-for-react disposes its instance on unmount; disposing here would
+    // destroy a live chart whenever setEchartsRef changes identity
     useEffect(() => {
         if (setEchartsRef)
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);
-
-        // Cleanup: dispose ECharts instance and clear parent reference on unmount
-        return () => {
-            // Dispose the ECharts instance to free up canvas memory
-            if (chartRef.current) {
-                const echartsInstance = chartRef.current.getEchartsInstance();
-                if (echartsInstance && !echartsInstance.isDisposed()) {
-                    echartsInstance.dispose();
-                }
-                chartRef.current = null;
-            }
-        };
     }, [setEchartsRef]);
 
     const {
