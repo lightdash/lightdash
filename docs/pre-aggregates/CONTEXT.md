@@ -49,10 +49,11 @@ What initiated a materialization: compile (dbt project compiled), cron
 (scheduled refresh), or manual (user-requested refresh). Not a scheduler
 delivery trigger or DB trigger. A compile materializes a definition that
 has never completed a materialization, so a new pre-aggregate is live
-without waiting for cron, and one whose definition fingerprint moved when
-it sets `refresh.on_change: true` in YAML. Everything else is left to cron
-or a manual refresh; the registry still syncs on every compile. There is
-no page override: YAML is the only source of the trigger settings.
+without waiting for cron, and one whose definition fingerprint moved,
+unless it sets `refresh.on_change: false` in YAML. Everything else is left
+to cron or a manual refresh; the registry still syncs on every compile.
+There is no page override: YAML is the only source of the trigger
+settings.
 
 **Definition fingerprint**:
 A hash of what a managed pre-aggregate's materialization query reads: the
@@ -63,8 +64,8 @@ comments, filter rule ids, sort order and `refresh` settings do not move
 it. Stored on the definition at every compile and copied onto each
 materialization when it starts. When the fingerprint moves, the active
 materialization is superseded on that compile; the definition is rebuilt
-on the same compile only with `refresh.on_change: true`, otherwise by cron
-or a manual refresh. A materialization started under an older fingerprint
+on the same compile unless `refresh.on_change: false`, in which case cron
+or a manual refresh rebuilds it. A materialization started under an older fingerprint
 never becomes active and is never served. Rows written before fingerprints
 existed take the next compile's value as their baseline.
 _Avoid_: checksum, version, hash (bare), signature

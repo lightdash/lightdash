@@ -58,8 +58,8 @@ export type PreAggregateDef = {
     maxRows?: number;
     refresh?: {
         cron?: string;
-        // true rebuilds on the compile that changes the definition; default false
-        // leaves the changed pre-aggregate to cron or a manual refresh
+        // Default true rebuilds on the compile that changes the definition;
+        // false leaves the changed pre-aggregate to cron or a manual refresh
         onChange?: boolean;
     };
     materializationRole?: PreAggregateMaterializationRole;
