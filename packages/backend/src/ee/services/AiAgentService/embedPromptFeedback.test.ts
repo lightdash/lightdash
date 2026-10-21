@@ -72,6 +72,7 @@ const buildEmbedAccount = ({
     canUseAiAgent?: boolean;
 } = {}): AnonymousAccount =>
     ({
+        isJwtUser: () => true,
         authentication: {
             type: 'jwt',
             data: {

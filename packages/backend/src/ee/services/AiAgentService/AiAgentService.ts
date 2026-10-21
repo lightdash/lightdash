@@ -282,7 +282,11 @@ import {
     ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { fromSession, toSessionUser } from '../../../auth/account';
+import {
+    fromSession,
+    getEmbedActorChartSpaceUuids,
+    toSessionUser,
+} from '../../../auth/account';
 import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
@@ -3061,7 +3065,7 @@ export class AiAgentService extends BaseService {
                 embedSpaceUuid: spaceUuid,
                 externalUserId:
                     account.authentication.data.user?.externalId || null,
-                spaceAccess: writeSpaceUuids,
+                spaceAccess: getEmbedActorChartSpaceUuids(account),
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
             },
@@ -3094,7 +3098,16 @@ export class AiAgentService extends BaseService {
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
-        return { user, agent, runtimeOptions };
+        return {
+            user,
+            agent,
+            runtimeOptions: {
+                ...runtimeOptions,
+                spaceAccess: runtimeOptions.spaceAccess.filter((uuid) =>
+                    hasAiAgentAccessToSpace(agent, uuid),
+                ),
+            },
+        };
     }
 
     private canViewThreadContext(

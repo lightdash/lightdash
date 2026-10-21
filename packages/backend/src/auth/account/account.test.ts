@@ -691,6 +691,25 @@ describe('account', () => {
                 ]);
             });
 
+            it('includes source spaces for AI agent tokens', () => {
+                const account = buildJwtAccount({
+                    content: {
+                        type: 'aiAgent',
+                        agentUuid: 'agent-uuid',
+                    },
+                    writeActions: {
+                        ...writeActions,
+                        sourceSpaceUuids: ['source-space-uuid'],
+                    },
+                    embedWriteUser: mockSessionUser,
+                });
+
+                expect(getEmbedActorChartSpaceUuids(account)).toEqual([
+                    'write-space-uuid',
+                    'source-space-uuid',
+                ]);
+            });
+
             it('ignores source spaces for non-dashboard tokens', () => {
                 const account = buildJwtAccount({
                     content: {

@@ -360,7 +360,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                             fixedWriteSpaceUuid={
                                                 selectedDashboardSpaceUuid
                                             }
-                                            allowSourceSpaces
+                                            sourceSpacesTarget="dashboard"
                                         />
                                     ) : null
                                 }
@@ -416,6 +416,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                                 value={writeActions}
                                                 onChange={setWriteActions}
                                                 required
+                                                sourceSpacesTarget="aiAgent"
                                             />
                                         ) : null
                                     }

@@ -1314,7 +1314,11 @@ const getBackendCodeSnippet = (
         )
         .replace(
             '{{writeActionsGo}}',
-            goWriteActions(data.writeActions, isDashboardContent(data.content)),
+            goWriteActions(
+                data.writeActions,
+                isDashboardContent(data.content) ||
+                    isAiAgentContent(data.content),
+            ),
         )
         .replace(
             '{{externalId}}',
