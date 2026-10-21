@@ -24,6 +24,8 @@ type Props = {
     isHighlighted: boolean;
     // On no tile yet
     isWaiting: boolean;
+    // The tiles' fields are not loaded: removing would write blind
+    isRemoveDisabled: boolean;
     onToggleHighlight: () => void;
     onHoverChange: (isHovered: boolean) => void;
     onRemove: () => void;
@@ -37,6 +39,7 @@ export const FieldRow: FC<Props> = ({
     possible,
     isHighlighted,
     isWaiting,
+    isRemoveDisabled,
     onToggleHighlight,
     onHoverChange,
     onRemove,
@@ -78,6 +81,7 @@ export const FieldRow: FC<Props> = ({
                     color="gray"
                     flex="0 0 auto"
                     aria-label={`Remove field ${label}`}
+                    disabled={isRemoveDisabled}
                     onClick={onRemove}
                 >
                     <MantineIcon icon={IconTrash} />

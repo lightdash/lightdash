@@ -27,7 +27,7 @@ import {
 } from '../../../../hooks/cartesianChartConfig/utils';
 import { usePortalTarget } from '../../../../providers/PortalTarget/usePortalTarget';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
@@ -59,7 +59,7 @@ export const Series: FC<Props> = ({ items }) => {
         pivotDimensions,
         resultsData,
         colorPalette,
-    } = useVisualizationContext();
+    } = useVisualizationState();
 
     const yField = isCartesianVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.dirtyLayout?.yField

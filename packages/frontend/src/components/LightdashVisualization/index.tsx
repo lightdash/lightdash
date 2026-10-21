@@ -25,7 +25,7 @@ import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import SimpleTreemap from '../SimpleTreemap';
 import classes from './LightdashVisualization.module.css';
-import { useVisualizationContext } from './useVisualizationContext';
+import { useVisualizationState } from './useVisualizationContext';
 
 // Lazy load SimpleMap to avoid bundling Leaflet in the main chunk
 const LazySimpleMap = lazy(() => import('../SimpleMap'));
@@ -105,7 +105,7 @@ const LightdashVisualization = memo(
             ref,
         ) => {
             const { visualizationConfig, minimal, apiErrorDetail } =
-                useVisualizationContext();
+                useVisualizationState();
 
             const { sentinelRef, isVisible } = useDeferredVisibility(
                 isDashboard && !minimal,

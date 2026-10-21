@@ -1,7 +1,10 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
-import { type VisualizationTableConfigProps } from './types';
+import {
+    type VisualizationTableConfigProps,
+    type VisualizationConfigTable,
+} from './types';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     itemsMap,
@@ -37,12 +40,15 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         });
     }, [tableConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigTable = useMemo(
+        () => ({
             chartType: ChartType.TABLE,
             chartConfig: tableConfig,
-        },
-    });
+        }),
+        [tableConfig],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationTableConfig;

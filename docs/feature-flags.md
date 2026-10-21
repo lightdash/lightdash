@@ -183,6 +183,27 @@ resolver while its backend checked only ENV. Enabling Console made the menu
 visible but could never enable the API. An ENV workaround can restore availability;
 the proper fix is to use the standard resolver across entry points.
 
+## Pre-aggregates
+
+`pre-aggregates` (`CommercialFeatureFlags.PreAggregates`) is a per-organization
+kill switch, not a rollout gate. The handler in
+`CommercialFeatureFlagModel` answers false when the instance has no licence or
+no pre-aggregate storage (`lightdashConfig.preAggregates.enabled`), and
+otherwise resolves through the database with a default of true. A Console
+override can only switch an organization off; it cannot enable pre-aggregates
+on an instance without the infra.
+
+Every entry point asks the same question through
+`isPreAggregatesEnabled(featureFlagModel, organizationUuid)`: compile-time
+registry sync and materialization enqueue, CLI deploy explore enhancement,
+query routing, the daily cron generator, the materialize task, manual refresh,
+the pre-aggregate match check, pre-aggregate explore visibility, the autopilot
+candidates tool, and `/api/v1/health` (which reports the caller's organization
+value, or the instance value to anonymous callers). The compile post-processor
+that generates virtual pre-aggregate explores has no organization context and
+checks only the instance infra; an organization switched off still compiles
+those explores but never materializes, serves, or shows them.
+
 ## Agent identity
 
 `agent-identity` enables organisation identity rules for each warehouse type and

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 export type LegendClickEvent = {
     name: string;
@@ -41,7 +41,9 @@ export const useLegendDoubleClickSelection = (
 
     // Ref keeps onLegendChange referentially stable so echarts event bindings don't churn
     const onChangeRef = useRef(onChange);
-    onChangeRef.current = onChange;
+    useLayoutEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
     const applySelection = useCallback((selected: LegendSelection) => {
         setSelectedLegends(selected);

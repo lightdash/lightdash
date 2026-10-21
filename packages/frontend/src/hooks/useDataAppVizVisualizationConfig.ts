@@ -4,7 +4,7 @@ import {
     type DataAppVizOptionValue,
     type DataAppVizOptionValues,
 } from '@lightdash/common';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * The chart's binding to a picked viz; null while it points at none.
@@ -213,16 +213,27 @@ const useDataAppVizVisualizationConfig = (
         [commit],
     );
 
-    return {
-        validConfig: config,
-        dataAppVizUuid: config?.dataAppVizUuid ?? null,
-        setDataAppVizUuid,
-        setDataAppVizVersion,
-        upgradeDataAppVizVersion,
-        clearDataAppViz,
-        setField,
-        setOption,
-    };
+    return useMemo(
+        () => ({
+            validConfig: config,
+            dataAppVizUuid: config?.dataAppVizUuid ?? null,
+            setDataAppVizUuid,
+            setDataAppVizVersion,
+            upgradeDataAppVizVersion,
+            clearDataAppViz,
+            setField,
+            setOption,
+        }),
+        [
+            config,
+            setDataAppVizUuid,
+            setDataAppVizVersion,
+            upgradeDataAppVizVersion,
+            clearDataAppViz,
+            setField,
+            setOption,
+        ],
+    );
 };
 
 export default useDataAppVizVisualizationConfig;

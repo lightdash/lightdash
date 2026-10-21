@@ -301,3 +301,98 @@ describe('postCsvsWithWebhook app failure lines', () => {
         expect(text).toContain('did not run in this delivery');
     });
 });
+
+describe('custom delivery message', () => {
+    const client = new MicrosoftTeamsClient({
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            microsoftTeams: { enabled: true },
+        },
+    });
+    const csvUrl: AttachmentUrl = {
+        filename: 'chart-0.csv',
+        path: 'https://s3.example.com/exports/chart-0.csv',
+        localPath: '/tmp/chart-0.csv',
+        truncated: false,
+    };
+    const base = {
+        webhookUrl: 'https://outlook.office.com/webhook/abc',
+        title: 'Weekly revenue',
+        name: 'Total revenue',
+        description: 'Sum of all revenue',
+        ctaUrl: 'https://app.lightdash.com/chart',
+        footer: 'footer',
+    };
+    const message = 'Teams message test with **bold** text';
+
+    const lastCardTexts = (): string[] => {
+        const [, payload] = mockedPostSchedulerWebhook.mock.calls.at(-1)!;
+        return payload.attachments[0].content.body.map(
+            (block: { text?: string }) => block.text ?? '',
+        );
+    };
+
+    beforeEach(() => {
+        mockedPostSchedulerWebhook.mockResolvedValue(successfulWebhookResponse);
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    const sends = [
+        [
+            'image',
+            () =>
+                client.postImageWithWebhook({
+                    ...base,
+                    message,
+                    image: 'https://app.lightdash.com/image.png',
+                }),
+        ],
+        [
+            'chart csv',
+            () => client.postCsvWithWebhook({ ...base, message, csvUrl }),
+        ],
+        [
+            'dashboard csvs',
+            () =>
+                client.postCsvsWithWebhook({
+                    ...base,
+                    message,
+                    csvUrls: [csvUrl],
+                }),
+        ],
+    ] as const;
+
+    it.each(sends)(
+        'shows the message under the content name in the %s card',
+        async (_format, send) => {
+            await send();
+
+            const texts = lastCardTexts();
+            expect(texts.indexOf(message)).toBeGreaterThan(
+                texts.indexOf(base.description),
+            );
+            expect(texts.indexOf(message)).toBeLessThan(
+                texts.indexOf(base.footer),
+            );
+        },
+    );
+
+    it('adds no message block when the delivery has none', async () => {
+        await client.postCsvWithWebhook({ ...base, csvUrl });
+        await client.postCsvWithWebhook({ ...base, csvUrl, message: '  ' });
+
+        const bodyTexts = mockedPostSchedulerWebhook.mock.calls.map(
+            ([, payload]) =>
+                payload.attachments[0].content.body.map(
+                    (block: { text?: string }) => block.text,
+                ),
+        );
+        expect(bodyTexts).toEqual([
+            [base.title, base.name, base.description, base.footer],
+            [base.title, base.name, base.description, base.footer],
+        ]);
+    });
+});

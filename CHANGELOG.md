@@ -1,3 +1,50 @@
+# [3.9.0](https://github.com/lightdash/lightdash/compare/3.8.0...3.9.0) (2026-10-21)
+
+
+### Features
+
+* **pre-aggregates:** one per-organization switch for pre-aggregates ([#31295](https://github.com/lightdash/lightdash/issues/31295)) ([cc9f5c9](https://github.com/lightdash/lightdash/commit/cc9f5c9de5b5acfc9f400524e2b84bca408c86f5))
+
+
+### Performance Improvements
+
+* **charts:** keep one ECharts instance per chart across option and handler changes ([#31265](https://github.com/lightdash/lightdash/issues/31265)) ([8169f85](https://github.com/lightdash/lightdash/commit/8169f85b8a902284db5d44c8da33849e455e4d52))
+
+# [3.8.0](https://github.com/lightdash/lightdash/compare/3.7.0...3.8.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* **dashboards:** fix the dashboard controls review findings ([#30824](https://github.com/lightdash/lightdash/issues/30824)) ([724d888](https://github.com/lightdash/lightdash/commit/724d8887a858f8faf19478abd9aea06069ee8830))
+* **scheduler:** show the delivery message and a working footer link in Microsoft Teams cards ([#31289](https://github.com/lightdash/lightdash/issues/31289)) ([bc4b3fd](https://github.com/lightdash/lightdash/commit/bc4b3fd76310ad45f87019c94a5235612e9262e3))
+
+
+### Features
+
+* upload content-as-code files from chart and dashboard menus ([#31272](https://github.com/lightdash/lightdash/issues/31272)) ([95dfda3](https://github.com/lightdash/lightdash/commit/95dfda3273170e456fb0ca336306733d7645b8a7))
+
+
+### Performance Improvements
+
+* **visualization:** read narrow visualization contexts in consumers ([#31264](https://github.com/lightdash/lightdash/issues/31264)) ([8ddd60c](https://github.com/lightdash/lightdash/commit/8ddd60c60fe0d35856f0846ca02f0ad4f4847fc0))
+
+# [3.7.0](https://github.com/lightdash/lightdash/compare/3.6.0...3.7.0) (2026-10-21)
+
+
+### Bug Fixes
+
+* count registered query actors in people adoption ([#31215](https://github.com/lightdash/lightdash/issues/31215)) ([de974a2](https://github.com/lightdash/lightdash/commit/de974a21e2a96f4f12ce29e1bcd6d22c57a60330))
+
+
+### Features
+
+* **ai:** opt-in Chat Completions API for the OpenAI and Azure providers ([#31276](https://github.com/lightdash/lightdash/issues/31276)) ([2fb78c4](https://github.com/lightdash/lightdash/commit/2fb78c4b369217f178d37907bc96ad2e5d234e42))
+
+
+### Performance Improvements
+
+* **visualization:** split provider context and memoize editor hook results ([#31263](https://github.com/lightdash/lightdash/issues/31263)) ([735e2ac](https://github.com/lightdash/lightdash/commit/735e2acecd9274e228d9465a16f64d8de6806e02))
+
 # [3.6.0](https://github.com/lightdash/lightdash/compare/3.5.0...3.6.0) (2026-10-21)
 
 

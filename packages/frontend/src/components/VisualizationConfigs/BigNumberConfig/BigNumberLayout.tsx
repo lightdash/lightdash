@@ -10,13 +10,13 @@ import { type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
 import { StyleOptions } from './common';
 
 export const Layout: FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
 
     if (!isBigNumberVisualizationConfig(visualizationConfig)) return null;
 

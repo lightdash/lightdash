@@ -1,7 +1,10 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
-import { type VisualizationCustomConfigProps } from './types';
+import {
+    type VisualizationCustomConfigProps,
+    type VisualizationCustomConfigType,
+} from './types';
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     initialChartConfig,
@@ -24,12 +27,15 @@ const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
         });
     }, [customVisConfig, onChartConfigChange]);
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationCustomConfigType = useMemo(
+        () => ({
             chartType: ChartType.CUSTOM,
             chartConfig: customVisConfig,
-        },
-    });
+        }),
+        [customVisConfig],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationCustomConfig;

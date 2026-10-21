@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "3.6.0",
+    "version": "3.9.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -56,11 +56,11 @@
     "dependencies": {
         "@ai-sdk/amazon-bedrock": "5.0.114",
         "@ai-sdk/anthropic": "4.0.57",
-        "@ai-sdk/azure": "4.0.74",
+        "@ai-sdk/azure": "4.0.100",
         "@ai-sdk/google": "4.0.75",
         "@ai-sdk/google-vertex": "5.0.87",
         "@ai-sdk/mcp": "2.0.53",
-        "@ai-sdk/openai": "4.0.70",
+        "@ai-sdk/openai": "4.0.92",
         "@ai-sdk/otel": "1.0.106",
         "@aws-sdk/client-lambda-microvms": "3.1075.0",
         "@aws-sdk/client-s3": "3.992.0",

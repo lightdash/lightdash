@@ -8,7 +8,10 @@ import {
 } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 export { CARTESIAN_HOVER_EMPHASIS, getAxisTypeFromField };
@@ -22,6 +25,7 @@ const useEchartsCartesianConfig = (
     isInDashboard?: boolean,
     chartWidth: number | null = null,
 ) => {
+    const { isTouchDevice } = useVisualizationServices();
     const {
         visualizationConfig,
         pivotDimensions,
@@ -30,10 +34,9 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
         minimal,
         parameters,
-        isTouchDevice,
         colorPalette,
         resolvedTimezone,
-    } = useVisualizationContext();
+    } = useVisualizationState();
 
     const theme = useVisualizationTheme();
 

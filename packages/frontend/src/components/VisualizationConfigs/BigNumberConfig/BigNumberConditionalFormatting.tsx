@@ -11,7 +11,7 @@ import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
@@ -19,7 +19,7 @@ import { BigNumberConditionalFormattingItem } from './BigNumberConditionalFormat
 
 export const BigNumberConditionalFormatting: FC = () => {
     const { itemsMap, visualizationConfig, colorPalette } =
-        useVisualizationContext();
+        useVisualizationState();
 
     const chartConfig = useMemo(() => {
         if (!isBigNumberVisualizationConfig(visualizationConfig))

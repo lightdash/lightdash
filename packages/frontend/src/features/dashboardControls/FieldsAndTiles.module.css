@@ -40,7 +40,8 @@
     border-radius: var(--mantine-radius-sm);
 }
 
-.rowMain[data-highlighted] {
+/* Keyboard focus keeps its ring on a selected row */
+.rowMain[data-highlighted]:not(:focus-visible) {
     outline: none;
 }
 

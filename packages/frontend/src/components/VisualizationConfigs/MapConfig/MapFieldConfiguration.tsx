@@ -5,7 +5,7 @@ import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 
 type MapFieldConfigurationInputProps = {
     fieldId: string;
@@ -60,7 +60,7 @@ type MapFieldConfigurationProps = {
 };
 
 const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
-    const { visualizationConfig, itemsMap } = useVisualizationContext();
+    const { visualizationConfig, itemsMap } = useVisualizationState();
     const [isTooltipVisible, setTooltipVisible] = useState(false);
 
     if (!isMapVisualizationConfig(visualizationConfig) || !itemsMap) {

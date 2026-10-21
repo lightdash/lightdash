@@ -9,9 +9,27 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { FilterValueSettings } from './FilterValueSettings';
 
+// Stands in for the value input, with one way to empty it
 vi.mock('../../components/common/Filters/FilterInputs', () => ({
-    default: () => <div data-testid="value-input" />,
+    default: ({
+        rule,
+        onChange,
+    }: {
+        rule: DashboardFilterRule;
+        onChange: (next: DashboardFilterRule) => void;
+    }) => (
+        <div data-testid="value-input">
+            <button
+                type="button"
+                onClick={() => onChange({ ...rule, values: [] })}
+            >
+                Empty the input
+            </button>
+        </div>
+    ),
 }));
+
+const LOCKED_REQUIRED = 'A locked, required filter must have a value';
 
 const NOTE = /No default: each tile keeps its own values/;
 const HINT = 'Set a value, or the default stays off.';
@@ -129,6 +147,120 @@ describe('FilterValueSettings', () => {
         it('keeps the hint away from a rule that has a value', () => {
             renderSettings(makeRule({ values: ['done'] }));
             expect(screen.queryByText(HINT)).not.toBeInTheDocument();
+        });
+    });
+
+    describe('a locked and required filter', () => {
+        const emptyTheValue = () =>
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Empty the input' }),
+            );
+
+        it('keeps its value: no viewer could satisfy it without one', () => {
+            const onChange = renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            // The shipped Apply guard's own words
+            expect(screen.getByText(LOCKED_REQUIRED)).toBeInTheDocument();
+
+            emptyTheValue();
+
+            expect(onChange).not.toHaveBeenCalled();
+        });
+
+        it('says why on every refused edit, not only the first', () => {
+            renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            emptyTheValue();
+            const first = screen.getByRole('alert');
+            expect(first).toHaveTextContent(LOCKED_REQUIRED);
+
+            emptyTheValue();
+
+            // A new alert node is what a screen reader announces again
+            const second = screen.getByRole('alert');
+            expect(second).toHaveTextContent(LOCKED_REQUIRED);
+            expect(second).not.toBe(first);
+        });
+
+        it('gives focus back to a select the refused edit came from', () => {
+            renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            const operator = screen.getByRole('combobox');
+            expect(operator).toHaveAttribute('readonly');
+            operator.focus();
+
+            chooseOperator('includes');
+
+            expect(screen.getByRole('combobox')).toHaveFocus();
+        });
+
+        it('still takes an edit that leaves it with a value', () => {
+            const onChange = renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Multiple values' }),
+            );
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    singleValue: true,
+                    values: ['done'],
+                }),
+            );
+        });
+
+        it('takes no operator change that would empty it, as the shipped form empties the value', () => {
+            const onChange = renderSettings(
+                makeRule({
+                    values: ['done'],
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            chooseOperator('includes');
+            expect(onChange).not.toHaveBeenCalled();
+        });
+
+        it('can be emptied when it is only required, or only locked', () => {
+            const required = renderSettings(
+                makeRule({ values: ['done'], required: true }),
+            );
+            expect(screen.queryByText(LOCKED_REQUIRED)).not.toBeInTheDocument();
+            emptyTheValue();
+            expect(required).toHaveBeenCalledWith(
+                expect.objectContaining({ values: [], disabled: true }),
+            );
+        });
+
+        it('can be edited when it was saved with no value', () => {
+            const onChange = renderSettings(
+                makeRule({
+                    disabled: true,
+                    required: true,
+                    lockedTabUuids: ['tab-1'],
+                }),
+            );
+            chooseOperator('includes');
+            expect(onChange).toHaveBeenCalledTimes(1);
         });
     });
 

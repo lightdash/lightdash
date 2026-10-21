@@ -47,6 +47,9 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
     // "Filter rules" opens from its button on the bar, which is only there
     // once the editor has closed
     const close = useControlsSidebarSelector((c) => c.close);
+    const updateOtherFilters = useControlsSidebarSelector(
+        (c) => c.updateOtherFilters,
+    );
     const filterBarPopovers = useFilterBarPopovers();
     const handleEditRules = useMemo(() => {
         if (!filterBarPopovers) return null;
@@ -89,6 +92,7 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
                             filterType={filterType}
                             field={field}
                             onChange={onChange}
+                            onChangeOthers={updateOtherFilters}
                             onEditRules={handleEditRules}
                         />
                     </Stack>

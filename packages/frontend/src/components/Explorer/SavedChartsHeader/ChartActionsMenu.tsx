@@ -30,6 +30,7 @@ import {
     IconPinnedOff,
     IconSend,
     IconTrash,
+    IconUpload,
     IconUsers,
 } from '@tabler/icons-react';
 import {
@@ -46,6 +47,8 @@ import {
     useContentReviewEligibility,
 } from '../../../ee/features/contentReview';
 import ChartAsCodeModal from '../../../features/contentAsCode/components/ChartAsCodeModal';
+import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
+import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -225,6 +228,8 @@ const ChartActionsMenu: FC<Props> = ({
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
     const [isChartAsCodeModalOpen, chartAsCodeModalHandlers] = useDisclosure();
+    const [isUploadModalOpen, uploadModalHandlers] = useDisclosure();
+    const canUploadContentAsCode = useCanUploadContentAsCode(projectUuid);
     const [isChartSlugRenameModalOpen, chartSlugRenameModalHandlers] =
         useDisclosure();
 
@@ -275,7 +280,8 @@ const ChartActionsMenu: FC<Props> = ({
         userCanManageChart ||
         userCanCreateDeliveriesAndAlerts ||
         userCanManageExplore ||
-        userCanViewContentAsCode;
+        userCanViewContentAsCode ||
+        canUploadContentAsCode;
 
     const transferItems = useMemo<ResourceViewChartItem[]>(
         () =>
@@ -470,7 +476,9 @@ const ChartActionsMenu: FC<Props> = ({
                         </Menu.Item>
                     )}
 
-                    {(userCanViewContentAsCode || canAuthorChart) && (
+                    {(userCanViewContentAsCode ||
+                        canAuthorChart ||
+                        canUploadContentAsCode) && (
                         <>
                             <Menu.Divider />
                             <Menu.Label>Content as code</Menu.Label>
@@ -493,6 +501,26 @@ const ChartActionsMenu: FC<Props> = ({
                                 >
                                     Change URL slug
                                 </Menu.Item>
+                            )}
+                            {canUploadContentAsCode && (
+                                <Tooltip
+                                    label="Exit edit mode before uploading content."
+                                    disabled={!isEditMode}
+                                >
+                                    <Box>
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconUpload}
+                                                />
+                                            }
+                                            onClick={uploadModalHandlers.open}
+                                            disabled={isEditMode}
+                                        >
+                                            Upload content
+                                        </Menu.Item>
+                                    </Box>
+                                </Tooltip>
                             )}
                         </>
                     )}
@@ -751,6 +779,14 @@ const ChartActionsMenu: FC<Props> = ({
                     projectUuid={projectUuid}
                     projectUrlIdentifier={projectUrlIdentifier}
                     currentSlug={savedChart.slug}
+                />
+            )}
+            {isUploadModalOpen && project && (
+                <ProjectContentAsCodeUploadModal
+                    opened={isUploadModalOpen}
+                    onClose={uploadModalHandlers.close}
+                    projectUuid={project.projectUuid}
+                    projectName={project.name}
                 />
             )}
         </>

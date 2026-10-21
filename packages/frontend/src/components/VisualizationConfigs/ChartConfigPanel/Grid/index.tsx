@@ -1,11 +1,11 @@
 import { defaultGrid } from '@lightdash/visualization/editor';
 import { type FC } from 'react';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 
 export const Grid: FC = () => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
 

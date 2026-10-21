@@ -4649,6 +4649,48 @@ describe('app delivery target senders', () => {
         });
     });
 
+    // Adaptive Card text renders markdown, not HTML, so the footer link must be
+    // a markdown link and the sender's message must reach the card.
+    it('sends the delivery message and a markdown footer link to MS Teams', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                persistentDownloadUrls: { expirationSeconds: 604800 },
+                microsoftTeams: { enabled: true },
+            }),
+            msTeamsClient: asDep<'msTeamsClient'>({ postCsvsWithWebhook }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendMsTeamsNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendMsTeamsNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ message: 'Numbers for the Monday standup' }),
+                page,
+                { webhook: 'https://webhook.example.com/teams' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            message: 'Numbers for the Monday standup',
+            footer: expect.stringContaining(
+                `[scheduled delivery](${page.url})`,
+            ),
+        });
+        expect(postCsvsWithWebhook.mock.calls[0][0].footer).not.toContain(
+            '<a href',
+        );
+    });
+
     it('posts a dashboard xlsx delivery to the Google Chat webhook', async () => {
         const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
         const task = makeTaskWithDeps({
@@ -4928,6 +4970,7 @@ describe('connection compile jobs', () => {
             ...({} as TaskDeps),
             getAgentConnectionGrantService: () => ({ assertActiveExecution }),
             analytics: { track: vi.fn() },
+            featureFlagModel: { get: vi.fn(async () => ({ enabled: true })) },
             userService: {
                 getSessionByUserUuid: getSession,
                 getAccountByUserUuid: getAccount,
@@ -5388,5 +5431,75 @@ describe('connection compile jobs', () => {
         await f.run({ ...f.payload, agentConnectionEffect: 'validateProject' });
         expect(f.effect).not.toHaveBeenCalled();
         expect(f.getSession).not.toHaveBeenCalled();
+    });
+});
+
+describe('pre-aggregates switched off for an organization', () => {
+    const definition = (organizationUuid: string, suffix: string) => ({
+        organizationUuid,
+        projectUuid: `project-${suffix}`,
+        createdByUserUuid: 'user-uuid',
+        preAggregateDefinitionUuid: `definition-${suffix}`,
+        refreshCron: '0 6 * * *',
+        schedulerTimezone: 'UTC',
+        preAggExploreName: `explore_${suffix}`,
+    });
+    const flagModel = (enabledOrganizationUuid: string) =>
+        asDep<'featureFlagModel'>({
+            get: vi.fn(
+                async ({ user }: { user?: { organizationUuid: string } }) => ({
+                    id: 'pre-aggregates',
+                    enabled: user?.organizationUuid === enabledOrganizationUuid,
+                }),
+            ),
+        });
+
+    it('does not schedule cron materializations for it', async () => {
+        const schedulePreAggregateCronJobs = vi.fn(async () => []);
+        const task = makeTaskWithDeps({
+            preAggregateModel: asDep<'preAggregateModel'>({
+                getProjectSchedulerDetailsForPreAggregates: vi.fn(async () => [
+                    definition('org-on', 'a'),
+                    definition('org-off', 'b'),
+                ]),
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                schedulePreAggregateCronJobs,
+            }),
+            featureFlagModel: flagModel('org-on'),
+        });
+
+        await task['generateDailyPreAggregateMaterializationJobs'](new Date());
+
+        expect(schedulePreAggregateCronJobs).toHaveBeenCalledTimes(1);
+        expect(schedulePreAggregateCronJobs).toHaveBeenCalledWith(
+            [expect.objectContaining({ organizationUuid: 'org-on' })],
+            expect.any(Date),
+            true,
+        );
+    });
+
+    it('does not run a queued materialization for it', async () => {
+        const materializePreAggregate = vi.fn();
+        const logSchedulerJob = vi.fn(async () => undefined);
+        const task = makeTaskWithDeps({
+            preAggregateMaterializationService:
+                asDep<'preAggregateMaterializationService'>({
+                    materializePreAggregate,
+                }),
+            schedulerService: asDep<'schedulerService'>({ logSchedulerJob }),
+            featureFlagModel: flagModel('org-on'),
+        });
+
+        await task['materializePreAggregate']('job-uuid', new Date(), {
+            organizationUuid: 'org-off',
+            projectUuid: 'project-b',
+            userUuid: 'user-uuid',
+            preAggregateDefinitionUuid: 'definition-b',
+            trigger: 'cron',
+        });
+
+        expect(materializePreAggregate).not.toHaveBeenCalled();
+        expect(logSchedulerJob).not.toHaveBeenCalled();
     });
 });

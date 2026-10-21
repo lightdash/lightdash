@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -37,6 +37,9 @@ const mockParams = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -133,17 +136,24 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
 };
 
 let dashboardStore: DashboardStore = createDashboardTestStore();
-const renderWithProviders = (ui: ReactElement) =>
-    renderWithAppProviders(
-        <DashboardStoreTestProvider
-            store={seedDashboardEditState(
-                dashboardStore,
-                mockDashboardContext.current as DashboardEditTestValues,
-            )}
-        >
-            {ui}
-        </DashboardStoreTestProvider>,
-    );
+// A rerender reads the store `setDashboard` made last
+const withStore = (node: ReactElement) => (
+    <DashboardStoreTestProvider
+        store={seedDashboardEditState(
+            dashboardStore,
+            mockDashboardContext.current as DashboardEditTestValues,
+        )}
+    >
+        {node}
+    </DashboardStoreTestProvider>
+);
+const renderWithProviders = (ui: ReactElement) => {
+    const result = renderWithAppProviders(withStore(ui));
+    return {
+        ...result,
+        rerender: (node: ReactElement) => result.rerender(withStore(node)),
+    };
+};
 
 const setDashboard = (
     addedFields: FilterableDimension[],
@@ -178,8 +188,10 @@ const select = (tileUuid: string, filterLabel = 'Status') =>
     card(tileUuid).getByLabelText(`Field for ${filterLabel} on this tile`, {
         selector: 'input',
     });
-const linkButton = (tileUuid: string) =>
-    card(tileUuid).getByRole('button', { name: 'Apply' });
+const linkButton = (tileUuid: string, filterLabel = 'Status') =>
+    card(tileUuid).getByRole('button', { name: `Apply ${filterLabel}` });
+const skipButton = (tileUuid: string, filterLabel = 'Status') =>
+    card(tileUuid).getByRole('button', { name: `Skip ${filterLabel}` });
 
 describe('LinkPrompts', () => {
     beforeEach(() => {
@@ -264,9 +276,7 @@ describe('LinkPrompts', () => {
     it('skips a filter for the tile', async () => {
         renderWithProviders(<LinkPrompts />);
 
-        await userEvent.click(
-            card(added.uuid).getByRole('button', { name: 'Skip' }),
-        );
+        await userEvent.click(skipButton(added.uuid));
 
         expect(dismissLink).toHaveBeenCalledWith(added.uuid, 'rule-1');
         expect(updateFilter).not.toHaveBeenCalled();
@@ -339,5 +349,150 @@ describe('LinkPrompts', () => {
         renderWithProviders(<LinkPrompts />);
 
         expect(container(added.uuid)).toBeEmptyDOMElement();
+    });
+
+    describe('the choice follows the candidates', () => {
+        it('drops a choice that is no longer offered and takes the only one left', async () => {
+            setDashboard([paymentsMethod, paymentsState]);
+            const { rerender } = renderWithProviders(<LinkPrompts />);
+            await userEvent.click(select(added.uuid));
+            await userEvent.click(
+                screen.getByRole('option', { name: 'State', hidden: true }),
+            );
+            expect(select(added.uuid)).toHaveValue('State');
+
+            // The filter gained Method as a peer on another tile: only that
+            // one is offered now
+            setDashboard(
+                [paymentsMethod, paymentsState],
+                [
+                    rule({
+                        tileTargets: {
+                            [saved.uuid]: {
+                                fieldId: 'payments_method',
+                                tableName: 'payments',
+                            },
+                        },
+                    }),
+                ],
+            );
+            rerender(<LinkPrompts />);
+
+            expect(select(added.uuid)).toHaveValue('Method');
+            await userEvent.click(linkButton(added.uuid));
+            expect(
+                updateFilter.mock.calls[0][0].tileTargets[added.uuid],
+            ).toEqual({ fieldId: 'payments_method', tableName: 'payments' });
+        });
+
+        it('keeps Apply off when the choice left and several are still offered', async () => {
+            const paymentsKind = dimension(
+                'payments',
+                'kind',
+                'Kind',
+                DimensionType.STRING,
+            );
+            setDashboard([paymentsMethod, paymentsState, paymentsKind]);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                allFilterableFieldsMap: {
+                    ...(mockDashboardContext.current
+                        .allFilterableFieldsMap as object),
+                    payments_kind: paymentsKind,
+                },
+            };
+            const { rerender } = renderWithProviders(<LinkPrompts />);
+            await userEvent.click(select(added.uuid));
+            await userEvent.click(
+                screen.getByRole('option', { name: 'Kind', hidden: true }),
+            );
+            expect(linkButton(added.uuid)).toBeEnabled();
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    [added.uuid]: [paymentsMethod, paymentsState],
+                    [saved.uuid]: [paymentsMethod],
+                },
+            };
+            rerender(<LinkPrompts />);
+
+            expect(select(added.uuid)).toHaveValue('');
+            expect(linkButton(added.uuid)).toBeDisabled();
+        });
+    });
+
+    it('tells apart two candidates that read the same by their table', async () => {
+        const refundsMethod = dimension(
+            'refunds',
+            'method',
+            'Method',
+            DimensionType.STRING,
+        );
+        setDashboard([paymentsMethod, refundsMethod]);
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            allFilterableFieldsMap: {
+                ...(mockDashboardContext.current
+                    .allFilterableFieldsMap as object),
+                refunds_method: refundsMethod,
+            },
+        };
+        renderWithProviders(<LinkPrompts />);
+
+        await userEvent.click(select(added.uuid));
+        expect(
+            screen
+                .getAllByRole('option', { hidden: true })
+                .map((option) => option.textContent),
+        ).toEqual(['payments Method', 'refunds Method']);
+    });
+
+    describe('focus after an answer', () => {
+        // Skips for real, so the answered row leaves the page
+        const Harness = () => {
+            const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                dismissedLinks,
+                dismissLink: (tileUuid: string, ruleId: string) =>
+                    setDismissedLinks((links) => [
+                        ...links,
+                        getLinkKey(tileUuid, ruleId),
+                    ]),
+            };
+            return <LinkPrompts />;
+        };
+        const twoFilters = [rule(), rule({ id: 'rule-2', label: 'Second' })];
+
+        it('goes to the next prompt on the tile', async () => {
+            setDashboard([paymentsMethod], twoFilters);
+            renderWithProviders(<Harness />);
+
+            await userEvent.click(skipButton(added.uuid, 'Status'));
+
+            expect(
+                card(added.uuid).queryByText('Status'),
+            ).not.toBeInTheDocument();
+            expect(select(added.uuid, 'Second')).toHaveFocus();
+        });
+
+        it('goes to the prompt before it when the last one is answered', async () => {
+            setDashboard([paymentsMethod], twoFilters);
+            renderWithProviders(<Harness />);
+
+            await userEvent.click(skipButton(added.uuid, 'Second'));
+
+            expect(select(added.uuid, 'Status')).toHaveFocus();
+        });
+
+        it('goes to the tile once no prompt is left on it', async () => {
+            renderWithProviders(<Harness />);
+
+            await userEvent.click(skipButton(added.uuid));
+
+            expect(container(added.uuid).firstElementChild).toBeNull();
+            expect(container(added.uuid)).toHaveFocus();
+        });
     });
 });

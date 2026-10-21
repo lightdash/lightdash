@@ -1,7 +1,10 @@
 import { ChartType, type DataAppVizChart } from '@lightdash/common';
-import { useCallback, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
-import { type VisualizationDataAppVizConfigProps } from './types';
+import {
+    type VisualizationConfigDataAppViz,
+    type VisualizationDataAppVizConfigProps,
+} from './types';
 
 const VisualizationDataAppVizConfig: FC<VisualizationDataAppVizConfigProps> = ({
     initialChartConfig,
@@ -23,12 +26,15 @@ const VisualizationDataAppVizConfig: FC<VisualizationDataAppVizConfigProps> = ({
         handleConfigChange,
     );
 
-    return children({
-        visualizationConfig: {
+    const visualizationConfig: VisualizationConfigDataAppViz = useMemo(
+        () => ({
             chartType: ChartType.DATA_APP_VIZ,
             chartConfig: dataAppVizConfig,
-        },
-    });
+        }),
+        [dataAppVizConfig],
+    );
+
+    return children({ visualizationConfig });
 };
 
 export default VisualizationDataAppVizConfig;

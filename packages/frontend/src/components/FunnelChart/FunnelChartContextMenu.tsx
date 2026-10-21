@@ -7,7 +7,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isFunnelVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type FunnelChartContextMenuProps = {
@@ -29,7 +29,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig } = useVisualizationState();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });

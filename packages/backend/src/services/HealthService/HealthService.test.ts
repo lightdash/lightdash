@@ -1,7 +1,12 @@
-import { LightdashInstallType, LightdashMode } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    LightdashInstallType,
+    LightdashMode,
+} from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -45,6 +50,13 @@ vi.spyOn(validLicenseService, 'getLicenseStatus').mockReturnValue({
     valid: true,
 });
 
+const featureFlagModelMock = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled: false,
+    })),
+} as unknown as FeatureFlagModel;
+
 const learnSandboxServiceMock = {
     isRuntimeAvailable: vi.fn(async () => false),
 };
@@ -57,6 +69,7 @@ describe('health', () => {
         migrationModel: migrationModel as unknown as MigrationModel,
         organizationSettingsModel:
             organizationSettingsModel as unknown as OrganizationSettingsModel,
+        featureFlagModel: featureFlagModelMock,
         learnSandboxService: learnSandboxServiceMock,
     });
 
@@ -92,6 +105,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
             const health = await service.getHealthState(undefined);
@@ -131,6 +145,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -159,6 +174,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -188,6 +204,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -216,6 +233,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
         expect(
@@ -223,6 +241,27 @@ describe('health', () => {
                 .hasPlaygroundProjects,
         ).toBe(true);
     });
+    it('reports pre-aggregates per organization when the caller has one', async () => {
+        vi.mocked(featureFlagModelMock.get).mockResolvedValueOnce({
+            id: CommercialFeatureFlags.PreAggregates,
+            enabled: true,
+        });
+
+        expect(
+            (await healthService.getHealthState(userMock)).preAggregates,
+        ).toEqual({ enabled: true });
+        expect(featureFlagModelMock.get).toHaveBeenCalledWith({
+            user: { organizationUuid: userMock.organizationUuid },
+            featureFlagId: CommercialFeatureFlags.PreAggregates,
+        });
+    });
+
+    it('reports the instance config for pre-aggregates to anonymous callers', async () => {
+        expect(
+            (await healthService.getHealthState(undefined)).preAggregates,
+        ).toEqual({ enabled: lightdashConfigMock.preAggregates.enabled });
+    });
+
     it('returns the enterprise license validation result', async () => {
         expect((await healthService.getHealthState(undefined)).license).toEqual(
             {
@@ -239,6 +278,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -257,6 +297,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
 
@@ -279,6 +320,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
         });
         expect(await service.getHealthState(undefined)).toEqual({
@@ -350,6 +392,7 @@ describe('health', () => {
             migrationModel: migrationModel as unknown as MigrationModel,
             organizationSettingsModel:
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
             readinessService: { getReadiness },
             learnSandboxService: learnSandboxServiceMock,
         });
@@ -388,6 +431,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
 
@@ -410,6 +454,7 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
             });
 

@@ -1,7 +1,7 @@
 import { buildGaugeEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isGaugeVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { useVisualizationState } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 type Args = {
@@ -30,7 +30,7 @@ const useEchartsGaugeConfig = ({
         parameters,
         minimal,
         resolvedTimezone,
-    } = useVisualizationContext();
+    } = useVisualizationState();
     const theme = useVisualizationTheme();
 
     const validGaugeConfig = isGaugeVisualizationConfig(visualizationConfig)

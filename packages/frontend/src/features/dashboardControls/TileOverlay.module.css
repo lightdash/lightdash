@@ -112,6 +112,13 @@
         var(--controls-ease-arrive) backwards;
 }
 
+/* A link prompt has one row per filter: it scrolls inside the tile instead of
+   spilling out of it */
+.promptCard {
+    max-height: 100%;
+    overflow-y: auto;
+}
+
 /* One short wave across the tiles: six buckets, 20ms apart */
 .overlay[data-wave='1'] > .card {
     animation-delay: calc(var(--controls-wave-step) * 1);

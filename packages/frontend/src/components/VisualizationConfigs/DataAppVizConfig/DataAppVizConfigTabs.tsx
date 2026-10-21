@@ -34,7 +34,10 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import Callout from '../../common/Callout';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { useIsVegaEditorAvailable } from '../ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
@@ -59,13 +62,12 @@ export const ConfigTabs: FC = memo(() => {
         projectRoute?.projectUrlIdentifier ?? projectUuid;
     const location = useLocation();
     const navigate = useNavigate();
+    const { setChartType, setPivotDimensions } = useVisualizationServices();
     const {
         visualizationConfig,
         itemsMap,
         colorPalette: resolvedColorPalette,
-        setChartType,
-        setPivotDimensions,
-    } = useVisualizationContext();
+    } = useVisualizationState();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();

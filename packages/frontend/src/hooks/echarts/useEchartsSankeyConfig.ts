@@ -1,7 +1,10 @@
 import { buildSankeyEchartsOption } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useVisualizationState,
+} from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
 /**
@@ -9,14 +12,14 @@ import { useVisualizationTheme } from '../useVisualizationTheme';
  * The option itself is built by `@lightdash/visualization`.
  */
 const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
+    const { isTouchDevice } = useVisualizationServices();
     const {
         visualizationConfig,
         colorPalette,
         parameters,
-        isTouchDevice,
         minimal,
         resolvedTimezone,
-    } = useVisualizationContext();
+    } = useVisualizationState();
 
     const theme = useVisualizationTheme();
 

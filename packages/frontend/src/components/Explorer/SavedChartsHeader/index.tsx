@@ -20,6 +20,7 @@ import {
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
 import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
+import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
 import {
     useDraftStaleness,
     useRebaseDraftMutation,
@@ -158,6 +159,7 @@ const SavedChartsHeader: FC = () => {
     const compact = useCompactContentHeader();
     const { search } = useLocation();
     const projectUuid = useProjectUuid();
+    const canUploadContentAsCode = useCanUploadContentAsCode(projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
@@ -273,7 +275,8 @@ const SavedChartsHeader: FC = () => {
         (userCanManageChart ||
             userCanCreateDeliveriesAndAlerts ||
             userCanManageExplore ||
-            userCanViewContentAsCode);
+            userCanViewContentAsCode ||
+            canUploadContentAsCode);
 
     const canEditChart =
         showChartActions &&

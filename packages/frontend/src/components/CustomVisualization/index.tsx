@@ -14,7 +14,10 @@ import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisu
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationLayout,
+    useVisualizationState,
+} from '../LightdashVisualization/useVisualizationContext';
 import { vegaStyleConfig } from './vegaConfig';
 
 const VegaEmbed = lazy(async () => {
@@ -36,13 +39,9 @@ const CustomVisualization: FC<Props> = ({
     const { colorScheme } = useMantineColorScheme();
     const isDarkMode = colorScheme === 'dark';
 
-    const {
-        isLoading,
-        visualizationConfig,
-        resultsData,
-        containerWidth,
-        containerHeight,
-    } = useVisualizationContext();
+    const { containerWidth, containerHeight } = useVisualizationLayout();
+    const { isLoading, visualizationConfig, resultsData } =
+        useVisualizationState();
 
     const hasSignaledScreenshotReady = useRef(false);
 

@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Box,
     Button,
@@ -23,7 +24,7 @@ import {
     IconUpload,
     IconX,
 } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import FileDropzone from '../../../components/common/FileDropzone/FileDropzone';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -33,6 +34,7 @@ import {
     parseImportFile,
     runContentImport,
     sortImportEntries,
+    type ImportDocument,
     type ImportEntry,
     type UploadContent,
 } from '../importContent';
@@ -44,6 +46,8 @@ type Props = {
     projectName: string;
     onUpload: UploadContent;
     initialEntries?: ImportEntry[];
+    warning?: string | null;
+    getContentUrl?: (document: ImportDocument) => string | null;
 };
 
 const typeIcons = {
@@ -67,6 +71,8 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     projectName,
     onUpload,
     initialEntries = [],
+    warning = null,
+    getContentUrl,
 }) => {
     const [entries, setEntries] = useState<ImportEntry[]>(initialEntries);
     const [reading, setReading] = useState(false);
@@ -80,6 +86,12 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     const [addError, setAddError] = useState<string | null>(null);
     const busy = useRef(false);
     const stop = useRef(false);
+    useEffect(
+        () => () => {
+            stop.current = true;
+        },
+        [],
+    );
     const duplicates = getDuplicateImportIds(entries);
     const invalidCount = entries.filter(
         (entry) => entry.status === 'invalid' || duplicates.has(entry.id),
@@ -285,6 +297,10 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                                 : entry.status === 'ready' && uploading
                                   ? 'Queued'
                                   : statusLabels[entry.status];
+                            const contentUrl =
+                                entry.status === 'success' && entry.document
+                                    ? getContentUrl?.(entry.document)
+                                    : null;
                             return (
                                 <Box
                                     component="li"
@@ -334,6 +350,16 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                                                 >
                                                     {message}
                                                 </Text>
+                                            )}
+                                            {contentUrl && (
+                                                <Anchor
+                                                    href={contentUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    size="xs"
+                                                >
+                                                    Open {entry.document?.type}
+                                                </Anchor>
                                             )}
                                             {entry.warnings.map((warning) => (
                                                 <Text
@@ -442,6 +468,8 @@ const ContentAsCodeUploadModal: FC<Props> = ({
                 </Stack>
             )}
 
+            {warning && <Callout variant="warning">{warning}</Callout>}
+
             <Box aria-live="polite">
                 {invalidCount > 0 ? (
                     <Callout
@@ -482,6 +510,4 @@ const ContentAsCodeUploadModal: FC<Props> = ({
     );
 };
 
-// Used by Storybook; story files are excluded from the unused-exports check.
-// ts-unused-exports:disable-next-line
 export default ContentAsCodeUploadModal;

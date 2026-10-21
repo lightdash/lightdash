@@ -196,3 +196,22 @@ context, and chart/dashboard. Shown in Project Settings > Pre-aggregates.
 Outside this context, always "pre-aggregate analytics" — unqualified
 "analytics" elsewhere in the repo means product usage tracking.
 _Avoid_: stats, usage, metrics (in this context)
+
+## Enablement
+
+Two switches, one question:
+
+- **Instance infra**: `LIGHTDASH_LICENSE_KEY` plus pre-aggregate storage
+  (`PRE_AGGREGATES_ENABLED=true` and `PRE_AGGREGATE_RESULTS_S3_*`), parsed into
+  `lightdashConfig.preAggregates.enabled`. Without it nothing runs and no
+  override can turn it on.
+- **Organization kill switch**: the `pre-aggregates` commercial feature flag,
+  on by default wherever the infra is present. A Console override switches one
+  organization off.
+
+Backend code asks `isPreAggregatesEnabled(featureFlagModel, organizationUuid)`
+(`packages/backend/src/ee/preAggregates/isPreAggregatesEnabled.ts`) and never
+reads the config or the env directly. See
+[Adding and operating feature flags](../feature-flags.md#pre-aggregates) for
+the list of gated entry points.
+
