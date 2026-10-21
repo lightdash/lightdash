@@ -438,8 +438,6 @@ import {
     resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
-    type DecisionProvider,
-    type DecisionShadowEntry,
 } from '../ai/decisions/AiDecisionClient';
 import {
     applyChartIntent,
@@ -2599,7 +2597,6 @@ export class AiAgentService extends BaseService {
     public async getDecisionClient(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string | null,
-        provider: DecisionProvider = 'jev',
     ) {
         if (
             await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
@@ -2609,40 +2606,12 @@ export class AiAgentService extends BaseService {
         ) {
             return undefined;
         }
-        const config =
-            provider === 'luna'
-                ? this.lightdashConfig.ai.lunaDecisions
-                : this.lightdashConfig.ai.decisions;
-        return resolveAiDecisionClient(config, () =>
+        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
             this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.AiAgentFastDecisions,
             }),
         );
-    }
-
-    private async recordDecisionShadow(
-        promptUuid: string,
-        entry: DecisionShadowEntry,
-    ): Promise<void> {
-        await this.aiAgentModel.createPromptDecisionShadow({
-            ai_prompt_uuid: promptUuid,
-            operation: entry.operation,
-            questions: entry.questions,
-            state: entry.state,
-            live_provider: entry.live.provider,
-            live_model: entry.live.model,
-            live_outcome: entry.live.outcome,
-            live_answers: entry.live.answers,
-            live_latency_ms: entry.live.durationMs,
-            live_service_ms: entry.live.serviceMs,
-            shadow_provider: entry.shadow.provider,
-            shadow_model: entry.shadow.model,
-            shadow_outcome: entry.shadow.outcome,
-            shadow_answers: entry.shadow.answers,
-            shadow_latency_ms: entry.shadow.durationMs,
-            shadow_service_ms: entry.shadow.serviceMs,
-        });
     }
 
     // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the master flag.
@@ -2665,15 +2634,13 @@ export class AiAgentService extends BaseService {
             agentCredentialUuid: string | null;
         },
     ) {
-        // Before the Luna branch too: every battle profile resolves an
-        // external decisions provider, which a pinned agent never gets.
+        // A pinned agent never gets an external decisions provider.
         if (agentCredentialUuid) return undefined;
         switch (battleProfile) {
-            case 'luna':
-                return this.getDecisionClient(user, projectUuid, 'luna');
             case 'fast':
                 return this.getDecisionClient(user, projectUuid);
             case 'baseline':
+            case 'luna':
                 return undefined;
             case null:
             case 'classic':
@@ -2701,18 +2668,6 @@ export class AiAgentService extends BaseService {
                 if (!(await this.getDecisionClient(user, agent.projectUuid))) {
                     throw new ForbiddenError(
                         'AI agent fast decisions must be enabled to compare profiles',
-                    );
-                }
-                if (
-                    battleProfile === 'luna' &&
-                    !(await this.getDecisionClient(
-                        user,
-                        agent.projectUuid,
-                        'luna',
-                    ))
-                ) {
-                    throw new ForbiddenError(
-                        'Luna decisions must be configured to compare providers',
                     );
                 }
                 return;
@@ -16059,28 +16014,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const shadowClient =
-                    decisionClient?.provider === 'jev' &&
-                    this.lightdashConfig.ai.lunaShadowEnabled
-                        ? await this.getDecisionClient(
-                              user,
-                              agentSettings.projectUuid,
-                              'luna',
-                          )
-                        : undefined;
                 const decisions = decisionUsage
-                    ? decisionClient?.withUsage(decisionUsage).withShadow(
-                          shadowClient
-                              ? {
-                                    client: shadowClient,
-                                    record: (entry) =>
-                                        this.recordDecisionShadow(
-                                            prompt.promptUuid,
-                                            entry,
-                                        ),
-                                }
-                              : undefined,
-                      )
+                    ? decisionClient?.withUsage(decisionUsage)
                     : undefined;
                 // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
                 const fastExperienceEnabled = decisions !== undefined;

@@ -204,12 +204,13 @@ export type CreateWebAppThread = {
 };
 
 /**
- * `fast` is the JEV path, `luna` the OpenAI Decisions path, `baseline` has no fast decisions.
+ * `fast` is the JEV path, `baseline` has no fast decisions.
  * `classic` and `composer` force the agent's query path.
  */
 export type AiAgentBattleProfile =
     | 'fast'
     | 'baseline'
+    /** @deprecated Accepted for older clients and treated as `baseline`. */
     | 'luna'
     | 'classic'
     | 'composer';

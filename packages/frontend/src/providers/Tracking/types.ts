@@ -606,7 +606,7 @@ type AiAgentBattleStartedEvent = {
         aiAgentId: string;
         modelA: string | null;
         modelB: string | null;
-        battleType: 'models' | 'speed' | 'decisions' | 'queryPath';
+        battleType: 'models' | 'speed' | 'queryPath';
     };
 };
 
