@@ -595,26 +595,11 @@ export class AiOrganizationProviderCredentialModel {
             if (!deleted) {
                 throw new NotFoundError('AI provider credential not found');
             }
-            if (!deleted.is_default) return;
-
-            const next = await trx(AiOrganizationProviderCredentialTableName)
-                .select('ai_organization_provider_credential_uuid')
-                .where('organization_uuid', organizationUuid)
-                .orderBy('label', 'asc')
-                .first();
-            if (!next) return;
-
-            await trx<AiOrganizationProviderCredentialTable>(
-                AiOrganizationProviderCredentialTableName,
-            )
-                .where(
-                    'ai_organization_provider_credential_uuid',
-                    next.ai_organization_provider_credential_uuid,
-                )
-                .update({
-                    is_default: true,
-                    updated_at: this.database.raw('NOW()'),
-                });
+            // Deleting the default promotes nothing: silently activating a
+            // credential the admin never activated could move AI traffic to a
+            // region they did not choose. Unscoped paths fall back to the
+            // instance provider until a credential is explicitly made the
+            // default.
         });
     }
 
