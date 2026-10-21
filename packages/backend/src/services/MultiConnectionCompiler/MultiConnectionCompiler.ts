@@ -1315,12 +1315,11 @@ export class MultiConnectionCompiler {
                     ],
                     models: [
                         originalMerged.manifest,
-                        ...compiledExtraGroups.flatMap((group) =>
-                            group.sourceManifests.map(
-                                (source) =>
-                                    mergeCompileGroupManifests([source])
-                                        .manifest,
-                            ),
+                        ...compiledExtraGroups.map(
+                            (group) =>
+                                mergeCompileGroupManifests(
+                                    group.sourceManifests,
+                                ).manifest,
                         ),
                     ].flatMap((manifest) =>
                         getModelsFromManifest(manifest).map(

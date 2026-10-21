@@ -3409,6 +3409,86 @@ describe('Multi-connection compile on the real schema', () => {
             },
         );
 
+        test('uses the configured namespace for a newcomer in a multi-source extra group', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            const owner = await database('cached_explore')
+                .where({ project_uuid: fixture.projectUuid, name: 'orders' })
+                .first();
+            if (!owner) throw new Error('Missing orders explore');
+
+            const billingSource = await projectDbtSourcesModel.updateSource(
+                fixture.sourceUuids.finance,
+                { name: 'billing' },
+            );
+            await bind(fixture, 'marketing', fixture.extraConnectionUuid);
+            sourceManifests.billing = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'campaigns', database: EXTRA_DB, table: 'campaigns' },
+            ]);
+
+            const compilation = await compile(fixture);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                billing__orders: fixture.extraConnectionUuid,
+                campaigns: fixture.extraConnectionUuid,
+                customers: null,
+                orders: null,
+            });
+            expect(compilation.warnings).toEqual([
+                expect.stringContaining(
+                    'is assigned explore name "billing__orders"',
+                ),
+            ]);
+            expect(compilation.warnings[0]).toContain('model.primary.orders');
+            expect(
+                (await allocations(fixture)).find(
+                    ({ name }) => name === 'billing__orders',
+                ),
+            ).toMatchObject({
+                source_key: billingSource.projectDbtSourceUuid,
+                source_name: 'billing',
+                package_name: 'finance',
+                model_unique_id: 'model.finance.orders',
+                model_name: 'orders',
+            });
+            const published = await cachedExplores(fixture.projectUuid);
+            expect(
+                published.filter(({ explore: cached }) =>
+                    isExploreError(cached),
+                ),
+            ).toEqual([]);
+            expect(
+                published.find(({ name }) => name === 'billing__orders')
+                    ?.explore,
+            ).toMatchObject({
+                dbtModelIdentity: {
+                    sourceUuid: billingSource.projectDbtSourceUuid,
+                    sourceName: 'billing',
+                    packageName: 'finance',
+                    uniqueId: 'model.finance.orders',
+                    modelName: 'orders',
+                },
+                warnings: [
+                    {
+                        type: 'EXPLORE_NAME_COLLISION',
+                        message: compilation.warnings[0],
+                    },
+                ],
+            });
+            expect(
+                (
+                    await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'orders',
+                        })
+                        .first()
+                )?.cached_explore_uuid,
+            ).toBe(owner.cached_explore_uuid);
+        });
+
         test('keeps a saved extra-source bare name when the primary model appears', async () => {
             const fixture = await createProject();
             await compile(fixture, [primaryModels[1]]);
