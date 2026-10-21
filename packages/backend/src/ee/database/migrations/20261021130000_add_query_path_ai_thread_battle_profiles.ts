@@ -17,18 +17,10 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
-    const [row] = await knex(AiThreadTableName)
-        .whereIn('battle_profile', ['classic', 'composer'])
-        .limit(1)
-        .select('ai_thread_uuid');
-    if (row) {
-        throw new Error(
-            'irreversible: threads use a query path battle profile; the narrower constraint would leave them unwritable',
-        );
-    }
     await knex.raw(`SET LOCAL lock_timeout = '5s'`);
+    // Fails if any thread still uses a query path profile; data is never rewritten here.
     await knex.raw(
-        `ALTER TABLE ?? DROP CONSTRAINT ??, ADD CONSTRAINT ?? CHECK (battle_profile IS NULL OR battle_profile IN ('fast', 'baseline', 'luna')) NOT VALID`,
+        `ALTER TABLE ?? DROP CONSTRAINT ??, ADD CONSTRAINT ?? CHECK (battle_profile IS NULL OR battle_profile IN ('fast', 'baseline', 'luna'))`,
         [AiThreadTableName, ConstraintName, ConstraintName],
     );
 }

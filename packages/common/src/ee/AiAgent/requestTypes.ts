@@ -224,7 +224,6 @@ export type AiAgentLoadoutBase =
 
 export type AiAgentPromptLoadout = {
     base: AiAgentLoadoutBase;
-    addOns: string[];
 };
 
 export type AiPrompt = {

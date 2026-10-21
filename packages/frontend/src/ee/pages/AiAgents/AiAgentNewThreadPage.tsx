@@ -1,7 +1,4 @@
-import {
-    assertUnreachable,
-    type AiAgentBattleProfile,
-} from '@lightdash/common';
+import { type AiAgentBattleProfile } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -117,22 +114,15 @@ const resolveBattleType = (
         queryPathBattleAvailable,
     }: { speedBattleAvailable: boolean; queryPathBattleAvailable: boolean },
 ): BattleType => {
-    const isAvailable = (type: BattleType): boolean => {
-        switch (type) {
-            case 'speed':
-            case 'decisions':
-                return speedBattleAvailable;
-            case 'queryPath':
-                return queryPathBattleAvailable;
-            case 'models':
-                return true;
-            default:
-                return assertUnreachable(type, 'Unknown battle type');
-        }
+    const available: Record<BattleType, boolean> = {
+        speed: speedBattleAvailable,
+        decisions: speedBattleAvailable,
+        queryPath: queryPathBattleAvailable,
+        models: true,
     };
-    if (isAvailable(choice)) return choice;
-    if (speedBattleAvailable) return 'speed';
-    if (queryPathBattleAvailable) return 'queryPath';
+    if (available[choice]) return choice;
+    if (available.speed) return 'speed';
+    if (available.queryPath) return 'queryPath';
     return 'models';
 };
 

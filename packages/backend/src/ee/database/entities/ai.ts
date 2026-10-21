@@ -361,7 +361,6 @@ export type DbAiPrompt = {
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;
     loadout_base: AiAgentLoadoutBase | null;
-    loadout_add_ons: string[] | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -389,7 +388,6 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'needs_user_input'
             | 'needs_user_input_metadata'
             | 'loadout_base'
-            | 'loadout_add_ons'
         > & {
             responded_at: Knex.Raw;
             retried_at?: Date | Knex.Raw;

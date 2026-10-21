@@ -4782,7 +4782,6 @@ export class AiAgentModel {
                     | 'response_timing'
                     | 'hidden'
                     | 'loadout_base'
-                    | 'loadout_add_ons'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -4809,7 +4808,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${AiPromptTableName}.loadout_base`,
-                `${AiPromptTableName}.loadout_add_ons`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -5499,11 +5497,9 @@ export class AiAgentModel {
     }
 
     private static toPromptLoadout(
-        row: Pick<DbAiPrompt, 'loadout_base' | 'loadout_add_ons'>,
+        row: Pick<DbAiPrompt, 'loadout_base'>,
     ): AiAgentPromptLoadout | null {
-        return row.loadout_base
-            ? { base: row.loadout_base, addOns: row.loadout_add_ons ?? [] }
-            : null;
+        return row.loadout_base ? { base: row.loadout_base } : null;
     }
 
     async updatePromptLoadout(
@@ -5512,10 +5508,7 @@ export class AiAgentModel {
     ): Promise<void> {
         await this.database(AiPromptTableName)
             .where({ ai_prompt_uuid: promptUuid })
-            .update({
-                loadout_base: loadout.base,
-                loadout_add_ons: [...loadout.addOns].sort(),
-            });
+            .update({ loadout_base: loadout.base });
     }
 
     async findThreadMessage(
@@ -5575,7 +5568,6 @@ export class AiAgentModel {
                     | 'response_timing'
                     | 'hidden'
                     | 'loadout_base'
-                    | 'loadout_add_ons'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -5602,7 +5594,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.response_timing`,
                 `${AiPromptTableName}.hidden`,
                 `${AiPromptTableName}.loadout_base`,
-                `${AiPromptTableName}.loadout_add_ons`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
