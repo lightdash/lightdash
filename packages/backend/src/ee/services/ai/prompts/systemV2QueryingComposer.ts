@@ -45,6 +45,7 @@ export const getQueryingComposerSection = ({
             ? []
             : [
                   '- Present the result your answer rests on, using the marker its tool result gives you; it is shown as a table. Present a second result only when it adds a distinct view.',
+                  '- To show an earlier result again, write its marker; do not rerun it.',
               ]),
         '',
         '## Field usage',

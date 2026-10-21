@@ -1069,6 +1069,7 @@ Answer data questions with runComposerQueries.
 - Build an answer that takes several queries or a computation over their results as one pipeline in one call: source nodes fetch, duckdb nodes join and reshape, and the terminal node is the result you present.
 - For a follow-up that changes an earlier result, change only what the user asked for. Claim a change only after the call succeeds.
 - Present the result your answer rests on, using the marker its tool result gives you; it is shown as a table. Present a second result only when it adds a distinct view.
+- To show an earlier result again, write its marker; do not rerun it.
 
 ## Field usage
 
