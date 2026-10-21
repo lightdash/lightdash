@@ -2403,10 +2403,19 @@ export type AppRuntimeConfig = {
     chartRegistry: {
         /** null disables the chart type library entirely */
         url: string | null;
-        /** dev-only: allow http/private addresses for a local fixture registry */
+        /**
+         * Dev-only: allow http and private addresses and skip connection
+         * pinning, for a local fixture registry. Implies allowPrivateHosts.
+         */
         allowInsecure: boolean;
         /** Full Authorization header value (e.g. "Basic ..." or "Bearer ...") sent with every registry request; null sends none */
         authorizationHeader: string | null;
+        /**
+         * Allow a registry on a private/internal address (a self-hosted
+         * mirror behind the customer's firewall). Transport stays https-only
+         * and the connection stays pinned to the resolved address.
+         */
+        allowPrivateHosts: boolean;
         /** which index the client reads: stable (index.json) or next (index-next.json, includes beta charts) */
         channel: 'stable' | 'next';
     };
@@ -2701,8 +2710,9 @@ const parseChartRegistryAllowInsecure = (): boolean => {
             'SECURITY WARNING: LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE is enabled. ' +
                 'SSRF defenses for chart registry fetches are OFF (http:// and ' +
                 'private addresses allowed, IP pinning skipped). Only use this ' +
-                'with a local dev fixture or a fully trusted internal registry ' +
-                'mirror — never with a registry you do not control.',
+                'with a local dev fixture. For an internal registry mirror on a ' +
+                'private network use LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS ' +
+                'instead, which keeps https and connection pinning.',
         );
     }
     return enabled;
@@ -2964,12 +2974,17 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             })(process.env.LIGHTDASH_CHART_REGISTRY_URL),
             // Disables the registry client's SSRF defenses (allows http://
             // and private/loopback addresses, skips IP pinning). Only for
-            // local dev fixtures and trusted internal registry mirrors —
-            // never with a registry URL you do not fully control.
+            // local dev fixtures — never with a registry URL you do not
+            // fully control.
             allowInsecure: parseChartRegistryAllowInsecure(),
             authorizationHeader:
                 process.env.LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER?.trim() ||
                 null,
+            // Admits a registry on a private/internal address (self-hosted
+            // mirror) while keeping https-only transport and IP pinning.
+            allowPrivateHosts:
+                process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS ===
+                'true',
             channel: ((raw) => {
                 const normalized = raw?.trim().toLowerCase();
                 if (!normalized || normalized === 'stable')

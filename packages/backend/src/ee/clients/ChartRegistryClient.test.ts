@@ -1,3 +1,4 @@
+import { ParameterError } from '@lightdash/common';
 import { createHash } from 'crypto';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -15,10 +16,12 @@ import {
     ChartRegistryClient,
     chartRegistryFetch,
     createPinnedLookup,
+    resolveRegistryHost,
     type ChartRegistryFetch as ChartRegistryFetchType,
 } from './ChartRegistryClient';
 
 const BASE = 'https://charts.example.com';
+const MAX_TEST_BYTES = 1024 * 1024;
 
 const entry = {
     slug: 'sankey',
@@ -700,7 +703,7 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         await expect(
             chartRegistryFetch(`${baseUrl}/big`, {
                 maxBytes: 16,
-                allowPrivateAddresses: true,
+                allowInsecure: true,
             }),
         ).rejects.toThrow(/maximum allowed size/i);
     });
@@ -784,6 +787,102 @@ describe('ChartRegistryClient real network (defaultFetch)', () => {
         });
         await makeRealClient(baseUrl).getIndex();
         expect(authorization).toBeUndefined();
+    });
+
+    // Private-host mode is for self-hosted mirrors on internal networks:
+    // private/loopback addresses are allowed, but unlike allowInsecure the
+    // transport stays https-only and the connection stays pinned to the
+    // resolved address.
+    describe('private-host mode (allowPrivateAddresses without allowInsecure)', () => {
+        it('still refuses a plain-http registry URL', async () => {
+            let reached = false;
+            const baseUrl = await startServer((req, res) => {
+                reached = true;
+                res.writeHead(200, { 'content-type': 'application/json' });
+                res.end(JSON.stringify(index));
+            });
+            await expect(
+                chartRegistryFetch(`${baseUrl}/index.json`, {
+                    maxBytes: MAX_TEST_BYTES,
+                    allowPrivateAddresses: true,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(reached).toBe(false);
+        });
+
+        it('lets an https request to a loopback address past URL validation', async () => {
+            // The fixture server speaks plain http, so the request fails at
+            // the TLS handshake — proving the private-address gate opened
+            // (strict mode fails earlier, inside validation, see below).
+            const baseUrl = await startServer((req, res) => {
+                res.writeHead(200);
+                res.end();
+            });
+            const httpsUrl = `${baseUrl.replace('http://', 'https://')}/index.json`;
+            const error: unknown = await chartRegistryFetch(httpsUrl, {
+                maxBytes: MAX_TEST_BYTES,
+                allowPrivateAddresses: true,
+            }).catch((e) => e);
+            expect(error).toBeInstanceOf(Error);
+            expect(error).not.toBeInstanceOf(ParameterError);
+        });
+
+        it('strict mode rejects the same loopback https URL inside validation', async () => {
+            await expect(
+                chartRegistryFetch('https://127.0.0.1:9/index.json', {
+                    maxBytes: MAX_TEST_BYTES,
+                }),
+            ).rejects.toThrow(/private/i);
+        });
+
+        it('the client maps allowPrivateHosts to private-host mode, not insecure mode', async () => {
+            const baseUrl = await startServer((req, res) => {
+                res.writeHead(200);
+                res.end();
+            });
+            const httpsBaseUrl = baseUrl.replace('http://', 'https://');
+            const makeLoopbackClient = (allowPrivateHosts: boolean) =>
+                new ChartRegistryClient({
+                    lightdashConfig: {
+                        appRuntime: {
+                            chartRegistry: {
+                                url: httpsBaseUrl,
+                                allowInsecure: false,
+                                allowPrivateHosts,
+                            },
+                        },
+                    } as never,
+                });
+            // Strict: refused inside validation as a private address.
+            await expect(makeLoopbackClient(false).getIndex()).rejects.toThrow(
+                /private/i,
+            );
+            // Private hosts allowed: past validation, fails at the TLS
+            // handshake against the plain-http fixture instead.
+            const error: unknown = await makeLoopbackClient(true)
+                .getIndex()
+                .catch((e) => e);
+            expect(error).toBeInstanceOf(Error);
+            expect(error).not.toBeInstanceOf(ParameterError);
+        });
+    });
+
+    describe('resolveRegistryHost', () => {
+        it('resolves a loopback address when private hosts are allowed', async () => {
+            await expect(
+                resolveRegistryHost('127.0.0.1', {
+                    allowPrivateAddresses: true,
+                }),
+            ).resolves.toEqual({ address: '127.0.0.1', family: 4 });
+        });
+
+        it('rejects a loopback address in strict mode', async () => {
+            await expect(
+                resolveRegistryHost('127.0.0.1', {
+                    allowPrivateAddresses: false,
+                }),
+            ).rejects.toThrow(/private/i);
+        });
     });
 
     // Proves the DNS-rebinding fix: createPinnedLookup is the lookup that
