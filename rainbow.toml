@@ -260,6 +260,23 @@ port = 443
 host = "www.googleapis.com"
 port = 443
 
+# Staging warehouses, by secret (see [secrets]).
+[[egress.allow]]
+host_secret = "WAREHOUSE_POSTGRES_HOST"
+port = 5432
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_SNOWFLAKE_HOST"
+port = 443
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_DATABRICKS_HOST"
+port = 443
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_TRINO_HOST"
+port = 443
+
 [[egress.allow]]
 host = "github.com"                 # GitHub OAuth login
 port = 443
@@ -281,6 +298,13 @@ LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
 LIGHTDASH_LICENSE_KEY = "licence"
 LIGHTDASH_LICENSE_CERTIFICATE = "licence"
+# Staging warehouses the test suites connect projects to. The hosts are
+# secrets so this public file never carries their addresses; the matching
+# [[egress.allow]] rules below name them by secret.
+WAREHOUSE_POSTGRES_HOST = "host"
+WAREHOUSE_SNOWFLAKE_HOST = "host"
+WAREHOUSE_DATABRICKS_HOST = "host"
+WAREHOUSE_TRINO_HOST = "host"
 # Integrations, in the order of the [[egress.allow]] list. Each is optional:
 # with no value stored the variable is absent and the feature stays off.
 ANTHROPIC_API_KEY = "api-key"
