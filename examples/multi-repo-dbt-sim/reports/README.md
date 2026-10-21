@@ -68,7 +68,55 @@ context and redundant setup/build detail. Complete runtime records remain in
 the ignored work directory. No global
 `/tmp` peak is attributed to this fixture while other instances share the host.
 
+## Deploy-head comparison
+
+The optional small comparison tests [#31326](https://github.com/lightdash/lightdash/pull/31326)
+at `4629b2f651098b48e90f0cd340253980af03bcf1`, integrated with the pinned
+main baseline and fixture in a separate T3 worktree. The [JSON](pr-31326-small.json)
+and [Markdown](pr-31326-small.md) contain all nine scenarios, configuration
+snapshots and exact messages. This is a fresh-project test: no server refresh
+populates source metadata first. Database `connection_mode` remains `single`.
+
+| Case                         | Expected to measure                   | Observed                                                                                                                                  |
+| ---------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Normal CLI deploys           | Infer source and keep siblings        | All 19 deployments without `--source` return HTTP 409; all compile successfully; fresh catalogues remain empty                            |
+| Explicit-source diagnostic   | Check the legacy override             | Five flagged deploys succeed and retain 13 sibling explores; the initial unflagged payments deploy fails                                  |
+| Config absent / partial      | Record config loss                    | Rejected payments deploy adds one parameter and tag; rejected follow-up removes both; groups/defaults remain                              |
+| Collision and original chart | Reject newcomer and preserve original | Inconclusive: initial deploy fails and no original chart can be created                                                                   |
+| Duplicate project names      | Record source inference               | Inconclusive beyond HTTP 409: source metadata is not populated                                                                            |
+| Both CLI join cases          | Compare compile and deployed join     | Compile succeeds with the same skipped-merchant warning; deploy fails with HTTP 409; no deployed-join or upstream-preservation conclusion |
+| dbt 1.9                      | Compile and deploy the older repo     | Compile succeeds; deploy returns HTTP 409                                                                                                 |
+| Guidance                     | Flag recommendations for `--source`   | The deprecation warning still says it is needed if source inference rejects a deploy                                                      |
+
+All 24 CLI compilations succeed. The warehouse build takes 116 seconds,
+including a load wait, and the nine scenarios take 312 seconds. No harness
+errors occur. The comparison instance and fixture servers are stopped.
+
+The first rejection says no source provides the dbt project payments and
+instructs the user to refresh if source project names are missing. These runs
+do not test inference after that refresh. They also do not establish collision
+protection or chart survival after a successful initial deploy. Those outcomes
+remain unverified on this head. The empty-selector comparison on the
+[#31283 head](https://github.com/lightdash/lightdash/pull/31283) and the historical
+pre-[#31313](https://github.com/lightdash/lightdash/pull/31313) run are not performed;
+the completed main and deploy-head matrices bound this run.
+
 ## Findings
+
+The deploy-head comparison exposes a configuration change on rejected deploys.
+Run the same `config-none` or `config-partial` scenario against the tested
+[#31326 head](https://github.com/lightdash/lightdash/pull/31326). Both deploys
+return HTTP 409 and zero explores. The first adds `minimum_amount`, the Payments
+tag, two groups and defaults. The second clears the parameter and tag while
+retaining the groups and defaults. The rejection text says:
+
+```text
+This deploy was not saved and nothing in the project changed.
+```
+
+The recorded configuration snapshots contradict that statement. This is a
+verified side effect of the failed deploy command; these runs do not attribute
+it to a specific server endpoint. No product fix is included.
 
 The CLI drops a valid cross-repo Lightdash join in both source-registration
 cases. Run `run --skip-build --scenarios cli-join-connected cli-join-unconnected server-join`

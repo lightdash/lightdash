@@ -114,6 +114,12 @@ def operation_messages(operation):
 
 def recommends_source_flag(message):
     for line in message.splitlines():
+        if "--source" in line and re.search(
+            r"\byou only need it if\b",
+            line,
+            re.IGNORECASE,
+        ):
+            return True
         if "--source" not in line or re.search(
             r"unknown option|unrecogn[iz]ed option|no longer|not supported|deprecated|removed|do not|don't|cannot",
             line,
