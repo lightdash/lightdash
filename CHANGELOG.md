@@ -1,3 +1,10 @@
+# [3.19.0](https://github.com/lightdash/lightdash/compare/3.18.3...3.19.0) (2026-10-21)
+
+
+### Features
+
+* **documents:** offer New or Saved chart from Add chart and default unnamed chart names ([#31297](https://github.com/lightdash/lightdash/issues/31297)) ([6f5a934](https://github.com/lightdash/lightdash/commit/6f5a9344f849987e5bfa9dbc3191af884474a523))
+
 ## [3.18.3](https://github.com/lightdash/lightdash/compare/3.18.2...3.18.3) (2026-10-21)
 
 
