@@ -2714,16 +2714,19 @@ const prepareAgentTurn = async ({
         mcpToolSetup,
         customChartTypeLibrary,
     );
-    Logger.info('AI agent loadout', {
-        event: 'ai_agent.loadout_resolved',
-        promptId: args.promptUuid,
-        threadId: args.threadUuid,
-        organizationId: args.organizationId,
-        projectId: args.agentSettings.projectUuid,
-        base: loadout.base,
-        addOns: [...loadout.addOns].sort(),
-        toolNames: [...loadout.toolNames].sort(),
-    });
+    Logger.info(
+        `AI agent loadout ${loadout.base} [${[...loadout.addOns].sort().join(', ')}]`,
+        {
+            event: 'ai_agent.loadout_resolved',
+            promptId: args.promptUuid,
+            threadId: args.threadUuid,
+            organizationId: args.organizationId,
+            projectId: args.agentSettings.projectUuid,
+            base: loadout.base,
+            addOns: [...loadout.addOns].sort(),
+            toolNames: [...loadout.toolNames].sort(),
+        },
+    );
     let tools = getAgentTools(
         args,
         loadout,
