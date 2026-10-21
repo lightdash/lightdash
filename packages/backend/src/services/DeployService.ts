@@ -29,10 +29,11 @@ import {
 export type DeployExploreEnhancer = (
     explores: (Explore | ExploreError)[],
     context: {
+        organizationUuid: string;
         startOfWeek: WeekDay | null;
         startOfWeekByExplore?: ReadonlyMap<string, WeekDay | null>;
     },
-) => (Explore | ExploreError)[];
+) => Promise<(Explore | ExploreError)[]>;
 
 type ProjectServiceInterface = {
     assertAgentConnectionEffect: (
@@ -98,7 +99,7 @@ export class DeployService extends BaseService {
         this.projectModel = args.projectModel;
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
-        this.exploreEnhancer = args.exploreEnhancer ?? ((e) => e);
+        this.exploreEnhancer = args.exploreEnhancer ?? (async (e) => e);
     }
 
     private async trackCliSourceDeploy(
@@ -333,7 +334,8 @@ export class DeployService extends BaseService {
                     explores: uploadedExplores,
                     sourceUuid: cliDeploy.sourceUuid,
                 });
-            const explores = this.exploreEnhancer(uploadedExplores, {
+            const explores = await this.exploreEnhancer(uploadedExplores, {
+                organizationUuid: project.organizationUuid,
                 startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
                 startOfWeekByExplore,
             });

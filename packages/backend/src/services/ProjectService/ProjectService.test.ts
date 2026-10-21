@@ -11,6 +11,7 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
+    CommercialFeatureFlags,
     ConflictError,
     convertExplores,
     CreateTrainingPreviewResults,
@@ -790,6 +791,15 @@ const getMockedProjectService = (
                             return {
                                 id: featureFlagId,
                                 enabled: lightdashConfig.results.cacheEnabled,
+                            };
+                        }
+                        if (
+                            featureFlagId ===
+                            CommercialFeatureFlags.PreAggregates
+                        ) {
+                            return {
+                                id: featureFlagId,
+                                enabled: lightdashConfig.preAggregates.enabled,
                             };
                         }
                         return { id: featureFlagId, enabled: false };
@@ -10504,7 +10514,6 @@ describe('ProjectService', () => {
             },
         );
         test('a connection cannot repair a generated target retained beside a scheduled source with no registry row', async () => {
-            vi.stubEnv('PRE_AGGREGATES_ENABLED', 'true');
             const configured = getMockedProjectService({
                 ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
@@ -11447,6 +11456,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionsForProject as import('vitest').Mock
             ).mockResolvedValue([
@@ -11492,7 +11508,7 @@ describe('ProjectService', () => {
                 schedulerClient.materializePreAggregate as import('vitest').Mock
             ).mockResolvedValueOnce({ jobId: 'job-valid' });
 
-            const result = await service.refreshPreAggregates(
+            const result = await preAggregatesService.refreshPreAggregates(
                 adminUser,
                 projectUuid,
             );
@@ -11512,6 +11528,13 @@ describe('ProjectService', () => {
         });
 
         test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
+            const preAggregatesService = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
             (
                 preAggregateModel.getPreAggregateDefinitionByDefinitionName as import('vitest').Mock
             ).mockResolvedValue({
@@ -11533,7 +11556,7 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.refreshPreAggregateByDefinitionName(
+                preAggregatesService.refreshPreAggregateByDefinitionName(
                     adminUser,
                     projectUuid,
                     'invalid',

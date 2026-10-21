@@ -71,6 +71,7 @@ import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
+import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
 import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import {
     filterModelsForOrg,
@@ -1927,7 +1928,10 @@ export class ManagedAgentService extends BaseService {
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
-            preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
+            preAggregatesEnabled: await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ),
         });
         const {
             copilotConfig,
@@ -4492,11 +4496,18 @@ chartConfig:
         projectUuid: string,
         input: AutopilotToolInput<'get_preagg_candidates'>,
     ): Promise<string> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            !(await isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            ))
+        ) {
             return JSON.stringify({
                 enabled: false,
                 message:
-                    'Pre-aggregates are not enabled on this instance, so there is nothing to check.',
+                    'Pre-aggregates are not enabled for this organization, so there is nothing to check.',
             });
         }
 

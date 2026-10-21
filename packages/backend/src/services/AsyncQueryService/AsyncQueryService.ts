@@ -1251,7 +1251,9 @@ export class AsyncQueryService extends ProjectService {
             }
             return { target: 'warehouse' };
         }
+        assertIsAccountWithOrg(account);
         return this.preAggregateStrategy.getRoutingDecision({
+            organizationUuid: account.organization.organizationUuid,
             metricQuery,
             explore,
             context,

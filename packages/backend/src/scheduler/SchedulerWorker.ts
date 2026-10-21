@@ -28,7 +28,6 @@ import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompac
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
-import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
@@ -59,7 +58,6 @@ import { TypedTaskList } from './types';
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
-    featureFlagModel: FeatureFlagModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -182,8 +180,6 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly usageDimensionsModel: UsageDimensionsModel;
 
     private readonly activeCompiles = new Set<CompileShutdownContext>();
@@ -229,7 +225,6 @@ export class SchedulerWorker extends SchedulerTask {
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
         this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
-        this.featureFlagModel = schedulerWorkerArgs.featureFlagModel;
         this.dailyJobRetryBackoffMs =
             schedulerWorkerArgs.dailyJobRetryBackoffMs ??
             DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;

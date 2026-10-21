@@ -20,10 +20,6 @@ export const generatePreAggregateExplores = ({
     parsedPreAggregates: PreAggregateDef[];
     startOfWeek: WeekDay | null;
 }): Array<Explore | ExploreError> => {
-    if (process.env.PRE_AGGREGATES_ENABLED !== 'true') {
-        return compiledExplores;
-    }
-
     if (parsedPreAggregates.length === 0) {
         return compiledExplores;
     }

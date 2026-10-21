@@ -183,11 +183,13 @@ import {
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
+import { isPreAggregatesEnabled } from '../ee/preAggregates/isPreAggregatesEnabled';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import { AgentConnectionApprovalRequestModel } from '../models/AgentConnectionApprovalRequestModel';
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
+import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import {
@@ -291,6 +293,7 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+    featureFlagModel: FeatureFlagModel;
     organizationSettingsModel: OrganizationSettingsModel;
     emailWhitelabelService: EmailWhitelabelService;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
@@ -586,6 +589,8 @@ export default class SchedulerTask {
 
     protected readonly preAggregateModel: PreAggregateModel;
 
+    protected readonly featureFlagModel: FeatureFlagModel;
+
     protected readonly organizationSettingsModel: OrganizationSettingsModel;
 
     protected readonly emailWhitelabelService: EmailWhitelabelService;
@@ -630,6 +635,7 @@ export default class SchedulerTask {
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
+        this.featureFlagModel = args.featureFlagModel;
         this.organizationSettingsModel = args.organizationSettingsModel;
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
@@ -3194,6 +3200,17 @@ export default class SchedulerTask {
                 };
 
                 try {
+                    if (
+                        !(await isPreAggregatesEnabled(
+                            this.featureFlagModel,
+                            payload.organizationUuid,
+                        ))
+                    ) {
+                        Logger.info(
+                            `Skipping pre-aggregate materialization ${payload.preAggregateDefinitionUuid}: pre-aggregates are off for organization ${payload.organizationUuid}`,
+                        );
+                        return;
+                    }
                     const materializationAccount =
                         account ??
                         (await this.userService.getAccountByUserUuid(
@@ -3280,11 +3297,25 @@ export default class SchedulerTask {
             await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates();
 
         let totalScheduledJobs = 0;
+        const enabledByOrganization = new Map<string, Promise<boolean>>();
+        const isEnabledFor = (organizationUuid: string) => {
+            const cached = enabledByOrganization.get(organizationUuid);
+            if (cached) return cached;
+            const pending = isPreAggregatesEnabled(
+                this.featureFlagModel,
+                organizationUuid,
+            );
+            enabledByOrganization.set(organizationUuid, pending);
+            return pending;
+        };
 
         await Promise.all(
             preAggregateSchedulerDetails.map(async (definition) => {
                 const { createdByUserUuid } = definition;
                 if (!createdByUserUuid) {
+                    return;
+                }
+                if (!(await isEnabledFor(definition.organizationUuid))) {
                     return;
                 }
 

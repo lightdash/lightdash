@@ -30,7 +30,7 @@ const makeStrategy = () => {
             externalResolver as unknown as PreAggregationExternalResolver,
         preAggregateDailyStatsModel: {} as never,
         preAggregateResultsStorageClient: {} as never,
-        isEnabled: () => true,
+        isEnabled: async () => true,
         dashboardModel: {} as never,
         savedChartModel: {} as never,
         projectService: {} as never,
@@ -150,7 +150,7 @@ describe('PreAggregateStrategy.resolveExecution', () => {
 });
 
 describe('PreAggregateStrategy.getRoutingDecision', () => {
-    test('carries the external table onto the route for matched external defs', () => {
+    test('carries the external table onto the route for matched external defs', async () => {
         const { strategy } = makeStrategy();
         const explore = {
             name: 'orders',
@@ -179,7 +179,8 @@ describe('PreAggregateStrategy.getRoutingDecision', () => {
             ],
         } as unknown as Explore;
 
-        const decision = strategy.getRoutingDecision({
+        const decision = await strategy.getRoutingDecision({
+            organizationUuid: 'org-uuid',
             metricQuery: {
                 exploreName: 'orders',
                 dimensions: ['orders_status'],
@@ -206,9 +207,10 @@ describe('PreAggregateStrategy.getRoutingDecision', () => {
         );
     });
 
-    test('carries the external table onto required routes for direct pre-aggregate explores', () => {
+    test('carries the external table onto required routes for direct pre-aggregate explores', async () => {
         const { strategy } = makeStrategy();
-        const decision = strategy.getRoutingDecision({
+        const decision = await strategy.getRoutingDecision({
+            organizationUuid: 'org-uuid',
             metricQuery: {} as MetricQuery,
             explore: {
                 name: '__preagg__orders__rollup',

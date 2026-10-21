@@ -80,6 +80,7 @@ import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
 import { PostgresWireServer } from './postgresWire/PostgresWireServer';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
+import { isPreAggregatesEnabled } from './preAggregates/isPreAggregatesEnabled';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -1565,8 +1566,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
-                        isEnabled: () =>
-                            context.lightdashConfig.preAggregates.enabled,
+                        isEnabled: (organizationUuid) =>
+                            isPreAggregatesEnabled(
+                                models.getFeatureFlagModel(),
+                                organizationUuid,
+                            ),
                         dashboardModel: models.getDashboardModel(),
                         savedChartModel: models.getSavedChartModel(),
                         projectService: repository.getProjectService(),
@@ -1670,14 +1674,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
-                    exploreEnhancer: (
+                    exploreEnhancer: async (
                         explores,
-                        { startOfWeek, startOfWeekByExplore },
+                        { organizationUuid, startOfWeek, startOfWeekByExplore },
                     ) =>
                         enhanceExploresForPreAggregates({
                             explores,
-                            enabled:
-                                context.lightdashConfig.preAggregates.enabled,
+                            enabled: await isPreAggregatesEnabled(
+                                models.getFeatureFlagModel(),
+                                organizationUuid,
+                            ),
                             startOfWeek,
                             startOfWeekByExplore,
                         }),
