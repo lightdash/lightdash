@@ -1004,6 +1004,7 @@ export type ApplyMetricFlowMetricsResult = {
 export const applyMetricFlowMetricsToModels = (
     models: DbtModelNode[],
     manifest: Pick<DbtManifest, 'semantic_models' | 'metrics'>,
+    modelNames?: ReadonlyMap<string, string>,
 ): ApplyMetricFlowMetricsResult => {
     const noop: ApplyMetricFlowMetricsResult = {
         models,
@@ -1020,16 +1021,18 @@ export const applyMetricFlowMetricsToModels = (
     let modelNamesByUniqueId: Record<string, string>;
     let translation: TranslateMetricFlowResult;
     try {
-        const resolvedModelNamesByUniqueId = qualifyManifestNames(
-            models.map((model) => ({
-                uniqueId: model.unique_id,
-                name: model.name,
-                version: model.version,
-                lightdash_source_name: model.lightdash_source_name,
-                package_name: model.package_name,
-            })),
-            'model',
-        );
+        const resolvedModelNamesByUniqueId =
+            modelNames ??
+            qualifyManifestNames(
+                models.map((model) => ({
+                    uniqueId: model.unique_id,
+                    name: model.name,
+                    version: model.version,
+                    lightdash_source_name: model.lightdash_source_name,
+                    package_name: model.package_name,
+                })),
+                'model',
+            );
         modelNamesByUniqueId = Object.fromEntries(
             models.map((model) => [
                 model.unique_id,

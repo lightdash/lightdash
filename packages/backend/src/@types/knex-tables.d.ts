@@ -173,6 +173,10 @@ import {
 } from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
+    ExploreNameAllocationsTable,
+    ExploreNameAllocationsTableName,
+} from '../database/entities/exploreNameAllocations';
+import {
     ExternalSourceCredentialsTable,
     ExternalSourceCredentialsTableName,
     ExternalSourceIngestAttemptsTable,
@@ -772,6 +776,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
         [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;

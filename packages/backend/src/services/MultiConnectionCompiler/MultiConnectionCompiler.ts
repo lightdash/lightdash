@@ -1,4 +1,5 @@
 import {
+    getDeferredExploreName,
     getErrorMessage,
     getModelsFromManifest,
     InlineErrorType,
@@ -7,6 +8,7 @@ import {
     ParameterError,
     type CompilationHistoryReport,
     type CreateWarehouseCredentials,
+    type DbtExploreIdentity,
     type DbtManifest,
     type Explore,
     type ExploreError,
@@ -25,6 +27,7 @@ import { DbtSourceError } from '../../dbt/DbtSourceError';
 import Logger from '../../logging/logger';
 import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
+import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
     type BoundExplore,
     type MultiConnectionCarry,
@@ -138,6 +141,7 @@ export type MultiConnectionSave = {
     carry: MultiConnectionCarry;
     persistArtifacts: (options?: { exploresCommitted: true }) => Promise<void>;
     signal?: AbortSignal;
+    naming?: ExploreNaming;
 };
 
 export type MultiConnectionCompilation = MultiConnectionSave & {
@@ -177,7 +181,12 @@ const modelSources = (manifest: DbtManifest): ReadonlyMap<string, string> =>
     new Map(
         getModelsFromManifest(manifest).flatMap((model) =>
             model.lightdash_source_uuid
-                ? [[model.name, model.lightdash_source_uuid] as const]
+                ? [
+                      [
+                          getDeferredExploreName(model),
+                          model.lightdash_source_uuid,
+                      ] as const,
+                  ]
                 : [],
         ),
     );
@@ -581,6 +590,7 @@ export class MultiConnectionCompiler {
                     await adapter.compileAllExplores(
                         trackingParams,
                         false,
+                        true,
                         true,
                     )
                 ).map((explore) => withErrorSource(explore, sources));
@@ -1059,6 +1069,7 @@ export class MultiConnectionCompiler {
                 trackingParams,
                 false,
                 true,
+                true,
             );
 
             const compiledExtraGroups: CompiledExtraGroup[] = [];
@@ -1288,6 +1299,42 @@ export class MultiConnectionCompiler {
                     warehouseConnectionUuids: failedConnectionUuids,
                 },
                 warnings,
+                naming: {
+                    mode: 'refresh',
+                    warnings,
+                    refreshedSourceUuids: [
+                        identity.dbtSourceUuid,
+                        ...originalSources.map(
+                            (source) => source.dbtSourceUuid,
+                        ),
+                        ...compiledExtraGroups.flatMap((group) =>
+                            group.sourceManifests.map(
+                                (source) => source.dbtSourceUuid,
+                            ),
+                        ),
+                    ],
+                    models: [
+                        originalMerged.manifest,
+                        ...compiledExtraGroups.map(
+                            (group) =>
+                                mergeCompileGroupManifests(
+                                    group.sourceManifests,
+                                ).manifest,
+                        ),
+                    ].flatMap((manifest) =>
+                        getModelsFromManifest(manifest).map(
+                            (model): DbtExploreIdentity => ({
+                                sourceUuid: model.lightdash_source_uuid ?? null,
+                                sourceName: model.lightdash_source_name ?? null,
+                                packageName: model.package_name,
+                                uniqueId: model.unique_id,
+                                version: model.version,
+                                latestVersion: model.latest_version,
+                                modelName: model.name,
+                            }),
+                        ),
+                    ),
+                },
                 persistArtifacts: async (options) => {
                     if (!options?.exploresCommitted)
                         callerSignal?.throwIfAborted();
@@ -1351,7 +1398,8 @@ export class MultiConnectionCompiler {
                 }
             })(),
             compilation.carry,
-            ...(checkBeforeWrite ? [checkBeforeWrite] : []),
+            checkBeforeWrite,
+            compilation.naming,
         );
         markCompilePublished();
         await compilation.persistArtifacts({ exploresCommitted: true });
@@ -1402,19 +1450,54 @@ export class MultiConnectionCompiler {
         const sourceByName = new Map(
             explores.map((explore) => [explore.name, sourceOf(explore)]),
         );
+        const sourceNames = new Map([
+            [identity.dbtSourceUuid, identity.dbtSourceName],
+            ...sources.map(
+                (source) => [source.projectDbtSourceUuid, source.name] as const,
+            ),
+        ]);
+        const warnings: string[] = [];
         return {
+            naming: {
+                mode: 'deploy',
+                sourceMapping: { sourcesByPackage, sourceAliases },
+                models: [],
+                refreshedSourceUuids: [...new Set(sourceByName.values())],
+                warnings,
+                onPublished: (published) =>
+                    explores.splice(0, explores.length, ...published),
+            },
             exploreStream: (async function* deployedExplores() {
                 for (const explore of explores) {
                     const dbtSourceUuid = sourceOf(explore);
-                    yield explore.tables
+                    const stamped = explore.dbtModelIdentity
                         ? {
                               ...explore,
+                              dbtModelIdentity: {
+                                  ...explore.dbtModelIdentity,
+                                  sourceUuid: dbtSourceUuid,
+                                  sourceName:
+                                      sourceNames.get(dbtSourceUuid) ?? null,
+                              },
+                          }
+                        : explore;
+                    yield stamped.tables
+                        ? {
+                              ...stamped,
                               tables: Object.fromEntries(
-                                  Object.entries(explore.tables).map(
+                                  Object.entries(stamped.tables).map(
                                       ([name, table]) => [
                                           name,
                                           {
                                               ...table,
+                                              dbtSourceName: sourceNames.get(
+                                                  (table.dbtPackageName
+                                                      ? sourcesByPackage.get(
+                                                            table.dbtPackageName,
+                                                        )
+                                                      : undefined) ??
+                                                      dbtSourceUuid,
+                                              ),
                                               dbtSourceUuid:
                                                   (table.dbtPackageName
                                                       ? sourcesByPackage.get(
@@ -1454,6 +1537,7 @@ export class MultiConnectionCompiler {
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const dbtSourceUuid = projectDbtSourceUuid ?? identity.dbtSourceUuid;
         let warehouseConnectionUuid: string | null = null;
+        let { dbtSourceName } = identity;
         if (dbtSourceUuid !== identity.dbtSourceUuid) {
             const source = (
                 await this.projectDbtSourcesModel.getSourcesWithBindings(
@@ -1468,6 +1552,7 @@ export class MultiConnectionCompiler {
                 );
             }
             warehouseConnectionUuid = source.warehouseConnectionUuid;
+            dbtSourceName = source.name;
         }
         const withSourceIdentity = (
             explore: Explore | ExploreError,
@@ -1479,17 +1564,43 @@ export class MultiConnectionCompiler {
                           Object.entries(explore.tables).map(
                               ([name, table]) => [
                                   name,
-                                  { ...table, dbtSourceUuid },
+                                  name === explore.baseTable
+                                      ? {
+                                            ...table,
+                                            dbtSourceUuid,
+                                            dbtSourceName,
+                                        }
+                                      : { ...table },
                               ],
                           ),
                       ),
                   }
                 : stampedError(explore, dbtSourceUuid);
+        const warnings: string[] = [];
+        const deployed = explores.map((explore) => {
+            const stamped = withSourceIdentity(explore);
+            return stamped.dbtModelIdentity
+                ? {
+                      ...stamped,
+                      dbtModelIdentity: {
+                          ...stamped.dbtModelIdentity,
+                          sourceUuid: dbtSourceUuid,
+                          sourceName: dbtSourceName,
+                      },
+                  }
+                : stamped;
+        });
         return {
+            naming: {
+                mode: 'deploy',
+                models: [],
+                refreshedSourceUuids: [dbtSourceUuid],
+                warnings,
+                onPublished: (published) =>
+                    explores.splice(0, explores.length, ...published),
+            },
             exploreStream: (async function* deployedExplores() {
-                for (const explore of explores) {
-                    yield withSourceIdentity(explore);
-                }
+                yield* deployed;
             })(),
             bindingOf: () => warehouseConnectionUuid,
             carry: {

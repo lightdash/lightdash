@@ -2,10 +2,14 @@ import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
     ConflictError,
+    convertExplores,
+    DEFAULT_SPOTLIGHT_CONFIG,
     DeploySessionStatus,
     DimensionType,
     ExploreType,
     getCatalogMissingEntries,
+    getModelsFromManifest,
+    isExploreError,
     JobStatusType,
     JobStepType,
     JobType,
@@ -14,6 +18,7 @@ import {
     ProjectType,
     RequestMethod,
     SingleConnectionProjectError,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     type CreateWarehouseCredentials,
     type DbtManifest,
@@ -26,6 +31,7 @@ import {
 import {
     ListedDatabasesPostgresWarehouseClient,
     warehouseClientFromCredentials,
+    warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import knex, { type Knex } from 'knex';
@@ -46,6 +52,7 @@ import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
+import { rewriteAllocatedExplore } from '../../../models/ProjectModel/allocatedExploreReferences';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -821,6 +828,7 @@ describe('Multi-connection compile on the real schema', () => {
         type CompileServiceOptions = {
             multiDbtSources: boolean;
             dbtProjectDir: string | undefined;
+            primaryModels?: FixtureModel[];
         };
         const defaultCompileServiceOptions: CompileServiceOptions = {
             multiDbtSources: true,
@@ -830,6 +838,7 @@ describe('Multi-connection compile on the real schema', () => {
         const primaryBuild = async (
             projectUuid: string,
             dbtProjectDir: string | undefined,
+            models = primaryModels,
         ): Promise<PrimaryBuild> => {
             const warehouseCredentials = postgresWarehouse(ORIGINAL_DB);
             const connection: ScopedWarehouseConnection = {
@@ -857,7 +866,7 @@ describe('Multi-connection compile on the real schema', () => {
             };
             return {
                 adapter: new DbtManifestProjectAdapter({
-                    parsedManifest: dbtManifest('primary', primaryModels),
+                    parsedManifest: dbtManifest('primary', models),
                     warehouseClient: connection.warehouseClient,
                     cachedWarehouse: cachedWarehouse as never,
                     dbtVersion: SupportedDbtVersions.V1_8,
@@ -933,6 +942,7 @@ describe('Multi-connection compile on the real schema', () => {
                     const primary = await primaryBuild(
                         projectUuid,
                         options.dbtProjectDir,
+                        options.primaryModels,
                     );
                     try {
                         return await fn(primary);
@@ -942,7 +952,11 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             );
             vi.spyOn(internals, 'testProjectAdapter').mockImplementation(() =>
-                primaryBuild(projectUuid, options.dbtProjectDir),
+                primaryBuild(
+                    projectUuid,
+                    options.dbtProjectDir,
+                    options.primaryModels,
+                ),
             );
             vi.spyOn(internals, 'buildSourceAdapter').mockImplementation(
                 async (dbtConnection, _location, _organization, shared) => {
@@ -1064,6 +1078,405 @@ describe('Multi-connection compile on the real schema', () => {
                     .first()
             )?.report;
 
+        test.each(['single', 'multi'] as const)(
+            'a %s connection route publishes stable names and reports final warnings',
+            async (route) => {
+                const fixture = await createProject();
+                if (route === 'single')
+                    await database('projects')
+                        .where('project_uuid', fixture.projectUuid)
+                        .update({ connection_mode: 'single' } as never);
+                await runCompileProject(fixture.projectUuid);
+                sourceManifests.finance = dbtManifest('finance', [
+                    {
+                        name: 'orders',
+                        database: route === 'single' ? ORIGINAL_DB : EXTRA_DB,
+                        table: 'orders',
+                    },
+                ]);
+                const { job } = await runCompileProject(fixture.projectUuid);
+                const report = await latestReport(fixture.projectUuid);
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(job.jobResults).toMatchObject({
+                    connectionWarnings: [
+                        expect.stringContaining('finance__orders'),
+                    ],
+                });
+                expect(report).toMatchObject({
+                    errorExploresCount: 0,
+                    successfulExploresCount: 4,
+                    baseTableNames: expect.arrayContaining([
+                        'orders',
+                        'finance__orders',
+                    ]),
+                    connectionWarnings: [
+                        expect.stringContaining('model.primary.orders'),
+                    ],
+                });
+                expect(await bindings(fixture.projectUuid)).toMatchObject({
+                    orders: null,
+                    finance__orders:
+                        route === 'single' ? null : fixture.extraConnectionUuid,
+                });
+                expect(JSON.stringify(report)).not.toContain('__model_');
+            },
+        );
+
+        test('the compile report counts a naming collision as one model error and keeps the other models', async () => {
+            const fixture = await createProject();
+            const { service } = compileService(fixture.projectUuid, {
+                ...defaultCompileServiceOptions,
+                primaryModels: [
+                    ...primaryModels,
+                    {
+                        name: 'finance__orders',
+                        database: ORIGINAL_DB,
+                        table: 'orders',
+                    },
+                ],
+            });
+            const user = await compilingUser(fixture.projectUuid);
+            const firstJob = await createJob(
+                fixture.projectUuid,
+                user.userUuid,
+            );
+            await service.compileProject(
+                user,
+                fixture.projectUuid,
+                RequestMethod.WEB_APP,
+                firstJob,
+            );
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            const secondJob = await createJob(
+                fixture.projectUuid,
+                user.userUuid,
+            );
+            await service.compileProject(
+                user,
+                fixture.projectUuid,
+                RequestMethod.WEB_APP,
+                secondJob,
+            );
+            const report = await latestReport(fixture.projectUuid);
+            expect(report).toMatchObject({
+                errorExploresCount: 1,
+                successfulExploresCount: 4,
+                totalExploresCount: 5,
+                exploresWithErrors: [
+                    {
+                        name: 'finance__orders__conflict',
+                        errors: [{ type: 'EXPLORE_NAME_COLLISION' }],
+                    },
+                ],
+            });
+            expect(report.baseTableNames).toContain('finance__orders');
+            expect(JSON.stringify(report)).not.toContain('__model_');
+        });
+
+        test.each([
+            {
+                refreshBeforeDeploy: false,
+                collision: true,
+                qualifiedConflict: false,
+                connectionMode: 'single',
+            },
+            {
+                refreshBeforeDeploy: true,
+                collision: true,
+                qualifiedConflict: false,
+                connectionMode: 'single',
+            },
+            {
+                refreshBeforeDeploy: false,
+                collision: false,
+                qualifiedConflict: false,
+                connectionMode: 'single',
+            },
+            {
+                refreshBeforeDeploy: true,
+                collision: false,
+                qualifiedConflict: false,
+                connectionMode: 'single',
+            },
+            {
+                refreshBeforeDeploy: false,
+                collision: true,
+                qualifiedConflict: true,
+                connectionMode: 'single',
+            },
+            {
+                refreshBeforeDeploy: false,
+                collision: true,
+                qualifiedConflict: false,
+                connectionMode: 'multi',
+            },
+        ])(
+            'legacy primary cache survives a first source deploy (refresh $refreshBeforeDeploy, collision $collision, qualified conflict $qualifiedConflict, mode $connectionMode)',
+            async ({
+                refreshBeforeDeploy,
+                collision,
+                qualifiedConflict,
+                connectionMode,
+            }) => {
+                const fixture = await createProject(
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
+                    false,
+                );
+                await database('projects')
+                    .where('project_uuid', fixture.projectUuid)
+                    .update({ connection_mode: 'single' } as never);
+                await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        fixture.extraConnectionUuid,
+                    )
+                    .delete();
+                const models = [
+                    ...primaryModels,
+                    {
+                        name: 'ledger',
+                        database: ORIGINAL_DB,
+                        table: 'payments',
+                    },
+                    ...(qualifiedConflict
+                        ? [
+                              {
+                                  name: 'merchants__ledger',
+                                  database: ORIGINAL_DB,
+                                  table: 'customers',
+                              },
+                          ]
+                        : []),
+                ];
+                const { service } = compileService(fixture.projectUuid, {
+                    ...defaultCompileServiceOptions,
+                    primaryModels: models,
+                });
+                const user = await compilingUser(fixture.projectUuid);
+                const account = fromSession(user, 'session-cookie');
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                });
+                const refresh = async () => {
+                    const jobUuid = await createJob(
+                        fixture.projectUuid,
+                        user.userUuid,
+                    );
+                    await service.compileProject(
+                        user,
+                        fixture.projectUuid,
+                        RequestMethod.WEB_APP,
+                        jobUuid,
+                    );
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                };
+                await refresh();
+                const legacy = await projectModel.getExploreFromCache(
+                    fixture.projectUuid,
+                    'ledger',
+                );
+                expect(legacy.tables?.ledger.dbtSourceUuid).toBeUndefined();
+                expect(
+                    await database('explore_name_allocations').where(
+                        'project_uuid',
+                        fixture.projectUuid,
+                    ),
+                ).toEqual([]);
+                const source = await projectDbtSourcesModel.createSource(
+                    fixture.projectUuid,
+                    {
+                        name: 'merchants',
+                        isPrimary: false,
+                        precedence: 1,
+                        dbtConnection: githubDbtConnection('org/merchants'),
+                        warehouseLocation: { database: null, schema: null },
+                    },
+                );
+                await database('projects')
+                    .where('project_uuid', fixture.projectUuid)
+                    .update({ connection_mode: connectionMode } as never);
+                const modelName = collision ? 'ledger' : 'merchant_ledger';
+                sourceManifests.merchants = dbtManifest('merchants', [
+                    {
+                        name: modelName,
+                        database: ORIGINAL_DB,
+                        table: 'invoices',
+                    },
+                ]);
+                if (refreshBeforeDeploy) await refresh();
+                const uploaded = explore(modelName, [modelName]);
+                uploaded.dbtModelIdentity = {
+                    sourceUuid: null,
+                    sourceName: null,
+                    packageName: 'merchants',
+                    uniqueId: `model.merchants.${modelName}`,
+                    modelName,
+                };
+                uploaded.tables[modelName].dbtPackageName = 'merchants';
+                uploaded.tables[modelName].dbtModelUniqueId =
+                    `model.merchants.${modelName}`;
+                const before = await dump(fixture.projectUuid);
+                const deploy = service.saveDeployExplores({
+                    userUuid: user.userUuid,
+                    projectUuid: fixture.projectUuid,
+                    explores: [uploaded],
+                    complete: true,
+                    compilationSource: 'cli_deploy',
+                    cliDeploy: {
+                        sourceUuid: source.projectDbtSourceUuid,
+                        target: null,
+                    },
+                });
+                if (qualifiedConflict) {
+                    await expect(deploy).rejects.toThrow(
+                        'cannot use explore name "merchants__ledger"',
+                    );
+                    expect(await dump(fixture.projectUuid)).toEqual(before);
+                    expect(
+                        await database('explore_name_allocations').where(
+                            'project_uuid',
+                            fixture.projectUuid,
+                        ),
+                    ).toEqual([]);
+                    await expect(
+                        service.getExplore(
+                            account,
+                            fixture.projectUuid,
+                            'ledger',
+                        ),
+                    ).resolves.toMatchObject({ name: 'ledger' });
+                    return;
+                }
+                await deploy;
+                const published = await bindings(fixture.projectUuid);
+                const allocations = await database('explore_name_allocations')
+                    .select(
+                        'name',
+                        'source_key',
+                        'model_unique_id',
+                        'is_reserved',
+                    )
+                    .where('project_uuid', fixture.projectUuid)
+                    .orderBy('name');
+                const assignedName = collision
+                    ? 'merchants__ledger'
+                    : modelName;
+                expect(published).toEqual({
+                    customers: null,
+                    ledger: null,
+                    orders: null,
+                    [assignedName]: null,
+                });
+                expect(allocations).toEqual(
+                    [
+                        ...models.map(({ name }) => ({
+                            name,
+                            source_key: 'primary',
+                            model_unique_id: `model.primary.${name}`,
+                            is_reserved: false,
+                        })),
+                        {
+                            name: assignedName,
+                            source_key: source.projectDbtSourceUuid,
+                            model_unique_id: `model.merchants.${modelName}`,
+                            is_reserved: false,
+                        },
+                    ].sort((left, right) =>
+                        left.name.localeCompare(right.name),
+                    ),
+                );
+                const { dbtSourceUuid, dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                await Promise.all(
+                    models.map(async ({ name }) => {
+                        const fetched = await service.getExplore(
+                            account,
+                            fixture.projectUuid,
+                            name,
+                        );
+                        expect(fetched.name).toBe(name);
+                        expect(fetched.tables[fetched.baseTable]).toMatchObject(
+                            {
+                                dbtSourceUuid,
+                                dbtSourceName,
+                            },
+                        );
+                    }),
+                );
+                await refresh();
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                    ledger: null,
+                    orders: null,
+                    [assignedName]: null,
+                });
+                expect(
+                    await projectModel.getExploreFromCache(
+                        fixture.projectUuid,
+                        'ledger',
+                    ),
+                ).toMatchObject({ name: 'ledger' });
+            },
+        );
+
+        test('a primary qualified name survives removal of all other sources and connections', async () => {
+            const fixture = await createProject();
+            const user = await compilingUser(fixture.projectUuid);
+            const { service } = compileService(fixture.projectUuid);
+            const initial = explore('orders', ['orders']);
+            initial.tables.orders.dbtPackageName = 'finance';
+            initial.tables.orders.dbtModelUniqueId = 'model.finance.orders';
+            await service.saveDeployExplores({
+                userUuid: user.userUuid,
+                projectUuid: fixture.projectUuid,
+                explores: [initial],
+                complete: true,
+                compilationSource: 'cli_deploy',
+                cliDeploy: {
+                    sourceUuid: fixture.sourceUuids.finance,
+                    target: null,
+                },
+            });
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            await runCompileProject(fixture.projectUuid);
+            const { dbtSourceName } = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+            expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                `${dbtSourceName}__orders`,
+            );
+            await database('project_dbt_sources')
+                .where('project_uuid', fixture.projectUuid)
+                .delete();
+            const removedSources = await runCompileProject(fixture.projectUuid);
+            expect(removedSources.job.jobStatus).toBe(JobStatusType.DONE);
+            await database('warehouse_connections')
+                .where('warehouse_connection_uuid', fixture.extraConnectionUuid)
+                .delete();
+            const { job } = await runCompileProject(fixture.projectUuid);
+            expect(job.jobStatus).toBe(JobStatusType.DONE);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                [`${dbtSourceName}__orders`]: null,
+            });
+            expect(
+                await database('explore_name_allocations')
+                    .where('project_uuid', fixture.projectUuid)
+                    .whereNot('source_key', 'primary'),
+            ).toEqual([]);
+        });
+
         const killExtraWarehouse = async (fixture: Fixture) =>
             warehouseConnectionModel.updateExtraCredentials(
                 await warehouseConnectionModel.getProject(fixture.projectUuid),
@@ -1164,7 +1577,7 @@ describe('Multi-connection compile on the real schema', () => {
             ['compileProject', runCompileProject],
             ['testAndCompileProject', runTestAndCompileProject],
         ] as const)(
-            '%s on a single project runs the main path and never the multi compiler',
+            '%s on one connection allocates source names without using the multi compiler',
             async (_entryPoint, run) => {
                 const fixture = await createProject();
                 await database('projects')
@@ -1187,8 +1600,8 @@ describe('Multi-connection compile on the real schema', () => {
 
                 expect(job.jobStatus).toBe(JobStatusType.DONE);
                 expect(multiCompile).not.toHaveBeenCalled();
-                expect(multiSave).not.toHaveBeenCalled();
-                expect(mainSave).toHaveBeenCalledTimes(1);
+                expect(multiSave).toHaveBeenCalledTimes(1);
+                expect(mainSave).not.toHaveBeenCalled();
                 expect(job.jobResults).not.toHaveProperty('connectionWarnings');
                 expect(
                     await latestReport(fixture.projectUuid),
@@ -1237,13 +1650,13 @@ describe('Multi-connection compile on the real schema', () => {
             'setExplores on a single project writes the rows of the main deploy save (complete $complete)',
             async ({ complete, dbtModelNames }) => {
                 const deployed = await createProject(
-                    undefined,
-                    undefined,
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
                     false,
                 );
                 const baseline = await createProject(
-                    undefined,
-                    undefined,
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
                     false,
                 );
                 await Promise.all(
@@ -1505,6 +1918,300 @@ Sources in this project: Core models, marketing, finance.`;
                     )
                     .orderBy('saved_queries_version_id'),
             });
+
+            test.each([false, true])(
+                'preserves a CLI-first saved ledger chart without a server refresh (explicit %s)',
+                async (explicit) => {
+                    const fixture = await createProject(
+                        undefined,
+                        undefined,
+                        false,
+                    );
+                    await routeSingle(fixture.projectUuid);
+                    await database('warehouse_connections')
+                        .where('project_uuid', fixture.projectUuid)
+                        .where('is_original', false)
+                        .delete();
+                    await projectModel.updateDbtSourceName(
+                        fixture.projectUuid,
+                        'payments',
+                    );
+                    const primary = await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                    const user = await compilingUser(fixture.projectUuid);
+                    const { service } = compileService(fixture.projectUuid);
+                    const compileUpload = async (
+                        packageName: string,
+                        table: string,
+                    ) => {
+                        const result = await convertExplores(
+                            getModelsFromManifest(
+                                dbtManifest(packageName, [
+                                    {
+                                        name: 'ledger',
+                                        database: ORIGINAL_DB,
+                                        table,
+                                    },
+                                ]),
+                            ),
+                            false,
+                            SupportedDbtAdapter.POSTGRES,
+                            warehouseSqlBuilderFromType(
+                                SupportedDbtAdapter.POSTGRES,
+                            ),
+                            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                            { includeModelIdentity: true },
+                        );
+                        expect(result).toHaveLength(1);
+                        expect(isExploreError(result[0])).toBe(false);
+                        return result;
+                    };
+                    const deploy = (
+                        explores: (Explore | ExploreError)[],
+                        sourceUuid: string | null,
+                    ) =>
+                        service.saveDeployExplores({
+                            projectUuid: fixture.projectUuid,
+                            userUuid: user.userUuid,
+                            explores,
+                            compilationSource: 'cli_deploy',
+                            complete: true,
+                            cliDeploy: { sourceUuid, target: null },
+                        });
+                    expect(await cachedExplores(fixture.projectUuid)).toEqual(
+                        [],
+                    );
+                    await expect(
+                        deploy(
+                            await compileUpload('payments', 'payments'),
+                            explicit ? primary.dbtSourceUuid : null,
+                        ),
+                    ).resolves.toEqual(expect.any(String));
+                    expect(await bindings(fixture.projectUuid)).toEqual({
+                        ledger: null,
+                    });
+                    const firstOwner = await projectModel.getExploreFromCache(
+                        fixture.projectUuid,
+                        'ledger',
+                    );
+                    expect(
+                        firstOwner.tables?.ledger.dbtSourceUuid,
+                    ).toBeUndefined();
+                    expect(firstOwner.tables?.ledger.dbtPackageName).toBe(
+                        'payments',
+                    );
+                    expect(firstOwner.dbtModelIdentity).toMatchObject({
+                        packageName: 'payments',
+                        uniqueId: 'model.payments.ledger',
+                        sourceUuid: null,
+                    });
+                    expect(
+                        await database('explore_name_allocations').where(
+                            'project_uuid',
+                            fixture.projectUuid,
+                        ),
+                    ).toEqual([]);
+                    const [project] = await database('projects').where(
+                        'project_uuid',
+                        fixture.projectUuid,
+                    );
+                    const rawTable = (name: string) =>
+                        database<Record<string, unknown>>(name);
+                    const [space] = await rawTable('spaces')
+                        .insert({
+                            project_id: project.project_id,
+                            name: 'CLI ledger space',
+                            slug: 'cli-ledger-space',
+                            path: 'cli_ledger_space',
+                        })
+                        .returning('*');
+                    const [chart] = await rawTable('saved_queries')
+                        .insert({
+                            project_uuid: fixture.projectUuid,
+                            space_id: space.space_id,
+                            name: 'CLI ledger chart',
+                            slug: 'cli-ledger-chart',
+                            last_version_chart_kind: 'cartesian',
+                            last_version_updated_by_user_uuid: user.userUuid,
+                        })
+                        .returning('*');
+                    await rawTable('saved_queries_versions').insert({
+                        saved_query_id: chart.saved_query_id,
+                        explore_name: 'ledger',
+                        filters: {},
+                        row_limit: 10,
+                        chart_type: 'cartesian',
+                        chart_config: {},
+                        updated_by_user_uuid: user.userUuid,
+                    });
+                    const source = await projectDbtSourcesModel.createSource(
+                        fixture.projectUuid,
+                        {
+                            name: 'marketing',
+                            isPrimary: false,
+                            precedence: 1,
+                            dbtConnection: githubDbtConnection('org/marketing'),
+                            warehouseLocation: { database: null, schema: null },
+                        },
+                    );
+                    await database('projects')
+                        .where('project_uuid', fixture.projectUuid)
+                        .update({
+                            project_defaults: { case_sensitive: false },
+                            table_groups: {
+                                retained: { label: 'Retained group' },
+                            },
+                        });
+                    await database('project_parameters').insert({
+                        project_uuid: fixture.projectUuid,
+                        name: 'minimum_amount',
+                        config: {
+                            label: 'Minimum amount',
+                            type: 'number',
+                            default: 5,
+                        },
+                    });
+                    await database('tags').insert({
+                        project_uuid: fixture.projectUuid,
+                        name: 'Ledger',
+                        color: 'blue',
+                        yaml_reference: 'ledger',
+                        created_by_user_uuid: null,
+                    });
+                    const warehouse = knex({
+                        client: 'pg',
+                        connection: {
+                            ...postgresWarehouse(ORIGINAL_DB),
+                            database: ORIGINAL_DB,
+                        },
+                    });
+                    try {
+                        await warehouse('payments').delete();
+                        await warehouse('customers').delete();
+                        await warehouse('payments').insert({
+                            id: 1,
+                            amount: 17,
+                        });
+                        await warehouse('customers').insert({
+                            id: 2,
+                            amount: 29,
+                        });
+                        const chartData = async () => {
+                            const storedChart = await database(
+                                'saved_queries_versions',
+                            )
+                                .where(
+                                    'saved_query_id',
+                                    Number(chart.saved_query_id),
+                                )
+                                .select({ tableName: 'explore_name' })
+                                .first();
+                            expect(storedChart?.tableName).toBe('ledger');
+                            const saved =
+                                await projectModel.getExploreFromCache(
+                                    fixture.projectUuid,
+                                    storedChart!.tableName,
+                                );
+                            return (
+                                await warehouse.raw(
+                                    `SELECT id, amount FROM ${saved.tables![saved.baseTable!].sqlTable} ORDER BY id`,
+                                )
+                            ).rows;
+                        };
+                        expect(await chartData()).toEqual([
+                            { id: 1, amount: 17 },
+                        ]);
+                        const before = await guardedState(fixture.projectUuid);
+                        const upload = await compileUpload(
+                            'marketing',
+                            'customers',
+                        );
+                        if (explicit) {
+                            await deploy(upload, source.projectDbtSourceUuid);
+                            expect(await bindings(fixture.projectUuid)).toEqual(
+                                { ledger: null, marketing__ledger: null },
+                            );
+                            const owner =
+                                await projectModel.getExploreFromCache(
+                                    fixture.projectUuid,
+                                    'ledger',
+                                );
+                            const newcomer =
+                                await projectModel.getExploreFromCache(
+                                    fixture.projectUuid,
+                                    'marketing__ledger',
+                                );
+                            expect(owner.tables?.ledger.dbtSourceUuid).toBe(
+                                primary.dbtSourceUuid,
+                            );
+                            expect(
+                                newcomer.tables?.marketing__ledger
+                                    .dbtSourceUuid,
+                            ).toBe(source.projectDbtSourceUuid);
+                            expect(
+                                (
+                                    await warehouse.raw(
+                                        `SELECT id, amount FROM ${newcomer.tables!.marketing__ledger.sqlTable} ORDER BY id`,
+                                    )
+                                ).rows,
+                            ).toEqual([{ id: 2, amount: 29 }]);
+                            expect(
+                                await database('explore_name_allocations')
+                                    .where('project_uuid', fixture.projectUuid)
+                                    .select(
+                                        'name',
+                                        'source_key',
+                                        'package_name',
+                                        'model_unique_id',
+                                        'is_reserved',
+                                    )
+                                    .orderBy('name'),
+                            ).toEqual([
+                                {
+                                    name: 'ledger',
+                                    source_key: 'primary',
+                                    package_name: 'payments',
+                                    model_unique_id: 'model.payments.ledger',
+                                    is_reserved: false,
+                                },
+                                {
+                                    name: 'marketing__ledger',
+                                    source_key: source.projectDbtSourceUuid,
+                                    package_name: 'marketing',
+                                    model_unique_id: 'model.marketing.ledger',
+                                    is_reserved: false,
+                                },
+                            ]);
+                        } else {
+                            await expect(
+                                deploy(upload, null),
+                            ).rejects.toMatchObject({
+                                statusCode: 409,
+                                message: expect.stringContaining(
+                                    'no source in this project provides the dbt project marketing',
+                                ),
+                            });
+                            expect(
+                                await guardedState(fixture.projectUuid),
+                            ).toEqual(before);
+                            expect(await bindings(fixture.projectUuid)).toEqual(
+                                { ledger: null },
+                            );
+                            expect(
+                                await database(
+                                    'explore_name_allocations',
+                                ).where('project_uuid', fixture.projectUuid),
+                            ).toEqual([]);
+                        }
+                        expect(await chartData()).toEqual([
+                            { id: 1, amount: 17 },
+                        ]);
+                    } finally {
+                        await warehouse.destroy();
+                    }
+                },
+            );
 
             test.each([
                 { explicit: false, route: 'single' },
@@ -1832,7 +2539,7 @@ Sources in this project: Core models, marketing, finance.`;
                 { route: 'multi', explicit: false },
                 { route: 'multi', explicit: true },
             ])(
-                'rejects cross-source name collisions without side effects ($route, explicit $explicit)',
+                'qualifies cross-source names and preserves the saved chart data ($route, explicit $explicit)',
                 async ({ route, explicit }) => {
                     const { fixture, primary, deploy } = await setup();
                     if (route === 'multi') {
@@ -1851,6 +2558,126 @@ Sources in this project: Core models, marketing, finance.`;
                     const before = await guardedState(fixture.projectUuid);
                     expect(before.catalog.length).toBeGreaterThan(0);
                     expect(await chartOwner()).toBe(primary.dbtSourceUuid);
+                    const warehouse = knex({
+                        client: 'pg',
+                        connection: {
+                            ...postgresWarehouse(ORIGINAL_DB),
+                            database: ORIGINAL_DB,
+                        },
+                    });
+                    const chartData = async () => {
+                        const saved = await projectModel.getExploreFromCache(
+                            fixture.projectUuid,
+                            'orders',
+                        );
+                        return (
+                            await warehouse.raw(
+                                `SELECT id, amount FROM ${saved.tables![saved.baseTable!].sqlTable} ORDER BY id`,
+                            )
+                        ).rows;
+                    };
+                    try {
+                        await warehouse('orders').delete();
+                        await warehouse('orders').insert({
+                            id: 1,
+                            amount: 101,
+                        });
+                        await database('cached_explore')
+                            .where({
+                                project_uuid: fixture.projectUuid,
+                                name: 'orders',
+                            })
+                            .update({
+                                explore: database.raw(
+                                    "jsonb_set(explore, '{tables,orders,sqlTable}', to_jsonb(?::text))",
+                                    ['"public"."orders"'],
+                                ),
+                            });
+                        const savedData = await chartData();
+                        expect(savedData).toEqual([{ id: 1, amount: 101 }]);
+                        const ownerBefore =
+                            await projectModel.getExploreFromCache(
+                                fixture.projectUuid,
+                                'orders',
+                            );
+                        const uploaded = [
+                            packagedExplore('payments', 'finance'),
+                            packagedExplore('orders', 'dbt_utils'),
+                        ];
+                        await deploy({
+                            explores: uploaded,
+                            cliDeploy: {
+                                sourceUuid: explicit
+                                    ? fixture.sourceUuids.finance
+                                    : null,
+                                target: null,
+                            },
+                        });
+                        expect(
+                            await projectModel.getExploreFromCache(
+                                fixture.projectUuid,
+                                'orders',
+                            ),
+                        ).toEqual(ownerBefore);
+                        expect(await chartData()).toEqual(savedData);
+                        expect(
+                            uploaded.find(
+                                (item) => item.name === 'finance__orders',
+                            )?.warnings,
+                        ).toEqual(
+                            expect.arrayContaining([
+                                expect.objectContaining({
+                                    message: expect.stringContaining(
+                                        'owned by model "orders" from source "Core models"',
+                                    ),
+                                }),
+                            ]),
+                        );
+                        const after = await guardedState(fixture.projectUuid);
+                        expect({ ...after, explores: before.explores }).toEqual(
+                            before,
+                        );
+                        expect(await chartOwner()).toBe(primary.dbtSourceUuid);
+                    } finally {
+                        await warehouse.destroy();
+                    }
+                },
+            );
+
+            test.each(['owned', 'reserved'])(
+                'rejects an unsafe qualified name with no project changes (%s)',
+                async (kind) => {
+                    const { fixture, primary, deploy } = await setup();
+                    if (kind === 'owned') {
+                        await projectModel.saveExploresToCache(
+                            fixture.projectUuid,
+                            [
+                                packagedExplore(
+                                    'finance__orders',
+                                    'analytics',
+                                    primary.dbtSourceUuid,
+                                ),
+                            ],
+                        );
+                    } else {
+                        await database('explore_name_allocations').insert({
+                            project_uuid: fixture.projectUuid,
+                            name: 'finance__orders',
+                            source_key: '__reserved__',
+                            source_name: null,
+                            package_name: '__reserved__',
+                            model_unique_id: '__reserved__',
+                            model_name: 'finance__orders',
+                            is_reserved: true,
+                        });
+                    }
+                    const chartOwner = await seedGuardedState(
+                        fixture.projectUuid,
+                    );
+                    const before = await guardedState(fixture.projectUuid);
+                    const allocationsBefore = await database(
+                        'explore_name_allocations',
+                    ).where('project_uuid', fixture.projectUuid);
                     await expect(
                         deploy({
                             explores: [
@@ -1858,21 +2685,26 @@ Sources in this project: Core models, marketing, finance.`;
                                 packagedExplore('orders', 'dbt_utils'),
                             ],
                             cliDeploy: {
-                                sourceUuid: explicit
-                                    ? fixture.sourceUuids.finance
-                                    : null,
+                                sourceUuid: fixture.sourceUuids.finance,
                                 target: null,
                             },
+                            projectConfigDefaults: { case_sensitive: true },
                         }),
                     ).rejects.toMatchObject({
                         statusCode: 409,
-                        message: expectedRejection(
-                            'the upload would replace explores owned by another source: orders (source Core models)',
+                        message: expect.stringContaining(
+                            'cannot use explore name "finance__orders"',
                         ),
                     });
                     expect(await guardedState(fixture.projectUuid)).toEqual(
                         before,
                     );
+                    expect(
+                        await database('explore_name_allocations').where(
+                            'project_uuid',
+                            fixture.projectUuid,
+                        ),
+                    ).toEqual(allocationsBefore);
                     expect(await chartOwner()).toBe(primary.dbtSourceUuid);
                 },
             );
@@ -2020,6 +2852,8 @@ Sources in this project: Core models, marketing, finance.`;
                 { change: 'unstamped', explicit: false, preview: false },
                 { change: 'name-collision', explicit: false, preview: false },
                 { change: 'unstamped', explicit: true, preview: false },
+                { change: 'unstamped', explicit: false, preview: true },
+                { change: 'unstamped', explicit: true, preview: true },
                 { change: 'name-collision', explicit: true, preview: false },
                 { change: 'name-collision', explicit: false, preview: true },
                 { change: 'name-collision', explicit: true, preview: true },
@@ -2035,13 +2869,28 @@ Sources in this project: Core models, marketing, finance.`;
                     const upload = packagedExplore('orders', 'analytics');
                     if (explicit && !preview)
                         delete upload.tables.orders.dbtPackageName;
+                    if (change === 'name-collision') {
+                        await projectModel.saveExploresToCache(
+                            fixture.projectUuid,
+                            [
+                                packagedExplore(
+                                    'Core models__orders',
+                                    'marketing',
+                                    fixture.sourceUuids.marketing,
+                                ),
+                            ],
+                        );
+                    }
                     const save =
                         projectModel.saveMultiConnectionExplores.bind(
                             projectModel,
                         );
                     const changed =
                         change === 'unstamped'
-                            ? packagedExplore('new_upstream', 'marketing')
+                            ? packagedExplore(
+                                  'new_upstream',
+                                  preview ? 'unregistered' : 'marketing',
+                              )
                             : packagedExplore(
                                   'orders',
                                   'marketing',
@@ -2073,11 +2922,16 @@ Sources in this project: Core models, marketing, finance.`;
                             }),
                         ).rejects.toMatchObject({
                             statusCode: 409,
-                            message: expectedRejection(
+                            message:
                                 change === 'name-collision'
-                                    ? 'another deploy or refresh changed the project while this deploy ran; the upload would replace explores owned by another source: orders (source marketing); deploy again'
-                                    : 'another deploy or refresh changed the project while this deploy ran; deploy again',
-                            ),
+                                    ? expect.stringContaining(
+                                          'cannot use explore name "Core models__orders"',
+                                      )
+                                    : expectedRejection(
+                                          change === 'name-collision'
+                                              ? 'another deploy or refresh changed the project while this deploy ran; the upload would replace explores owned by another source: orders (source marketing); deploy again'
+                                              : 'another deploy or refresh changed the project while this deploy ran; deploy again',
+                                      ),
                         });
                         expect(await guardedState(fixture.projectUuid)).toEqual(
                             before,
@@ -2139,7 +2993,6 @@ Sources in this project: Core models, marketing, finance.`;
                 'missing-project-name',
                 'contradictory-database',
                 'multiple-databases',
-                'name-collision',
                 'unmapped',
                 'empty',
                 'errors-only',
@@ -2221,8 +3074,6 @@ Sources in this project: Core models, marketing, finance.`;
                     other.tables.another_model.database = 'other_database';
                     explores.push(other);
                 }
-                if (kind === 'name-collision')
-                    explores.push(packagedExplore('payments', 'dbt_utils'));
                 const reasons: Record<string, string> = {
                     ambiguous:
                         'sources Core models and marketing both provide analytics, and the deploy did not send a dbt target database',
@@ -2243,8 +3094,6 @@ Sources in this project: Core models, marketing, finance.`;
                         'the explores and the dbt target name different databases; run the deploy again',
                     'multiple-databases':
                         'the uploaded explores name several databases; run the deploy again',
-                    'name-collision':
-                        'the upload would replace explores owned by another source: payments (source finance)',
                 };
                 if (kind === 'ambiguous-target')
                     explores[0].tables!.new_model.database =
@@ -3007,6 +3856,91 @@ Sources in this project: Core models, marketing, finance.`;
                 ).not.toContain(other.extraConnectionUuid);
             });
 
+            test.each(['direct', 'session'] as const)(
+                '%s deploy returns server name warnings and uses the configured source namespace',
+                async (kind) => {
+                    const fixture = await createProject();
+                    await compile(fixture);
+                    await projectDbtSourcesModel.updateSource(
+                        fixture.sourceUuids.finance,
+                        { name: 'billing' },
+                    );
+                    const user = await compilingUser(fixture.projectUuid);
+                    const payload = explore('orders', ['orders']);
+                    payload.dbtModelIdentity = {
+                        sourceUuid: null,
+                        sourceName: null,
+                        packageName: 'finance',
+                        uniqueId: 'model.finance.orders',
+                        modelName: 'orders',
+                    };
+                    payload.tables.orders.dbtPackageName = 'finance';
+                    payload.tables.orders.dbtModelUniqueId =
+                        'model.finance.orders';
+                    const selection = {
+                        sourceUuid: fixture.sourceUuids.finance,
+                        target: null,
+                    };
+                    let result;
+                    if (kind === 'direct')
+                        result = await compileService(
+                            fixture.projectUuid,
+                        ).service.setExplores(
+                            user,
+                            fixture.projectUuid,
+                            [payload],
+                            'cli-test',
+                            true,
+                            undefined,
+                            selection,
+                        );
+                    else {
+                        const service = deployService(fixture.projectUuid);
+                        const { deploySessionUuid } =
+                            await service.startDeploySession(
+                                fromSession(user, 'session-cookie'),
+                                fixture.projectUuid,
+                            );
+                        await service.addDeployBatch(
+                            user,
+                            fixture.projectUuid,
+                            deploySessionUuid,
+                            [payload],
+                            0,
+                            true,
+                        );
+                        result = await service.finalizeDeploy(
+                            user,
+                            fixture.projectUuid,
+                            deploySessionUuid,
+                            'cli-test',
+                            undefined,
+                            selection,
+                        );
+                    }
+                    expect(result.warnings).toMatchObject({
+                        warningCount: 1,
+                        exploresWithWarnings: [
+                            {
+                                name: 'billing__orders',
+                                warnings: [
+                                    {
+                                        type: 'EXPLORE_NAME_COLLISION',
+                                        message: expect.stringContaining(
+                                            'model.primary.orders',
+                                        ),
+                                    },
+                                ],
+                            },
+                        ],
+                    });
+                    expect(await bindings(fixture.projectUuid)).toMatchObject({
+                        orders: null,
+                        billing__orders: fixture.extraConnectionUuid,
+                    });
+                },
+            );
+
             test('a batched CLI deploy to a multi project starts, uploads and finalizes with the named source', async () => {
                 const fixture = await createProject();
                 await compile(fixture);
@@ -3514,13 +4448,13 @@ Sources in this project: Core models, marketing, finance.`;
 
             test('a project without extra sources ignores the source and the target and writes the rows of the main deploy save', async () => {
                 const deployed = await createProject(
-                    undefined,
-                    undefined,
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
                     false,
                 );
                 const baseline = await createProject(
-                    undefined,
-                    undefined,
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
                     false,
                 );
                 await Promise.all(
@@ -4112,7 +5046,7 @@ Sources in this project: Core models, marketing, finance.`;
             ).toEqual([]);
         });
 
-        test('a fresh explore replaces a carried-forward explore of the same name', async () => {
+        test('a carried source keeps its name when a fresh source introduces the same model', async () => {
             const fixture = await createProject();
             await compile(fixture);
             await warehouseConnectionModel.updateExtraCredentials(
@@ -4134,12 +5068,13 @@ Sources in this project: Core models, marketing, finance.`;
 
             const compilation = await compile(fixture);
 
-            expect(compilation.warnings).toHaveLength(1);
+            expect(compilation.warnings).toHaveLength(2);
             expect(await bindings(fixture.projectUuid)).toEqual({
                 campaigns: null,
                 customers: null,
                 orders: null,
-                payments: null,
+                payments: fixture.extraConnectionUuid,
+                marketing__payments: null,
             });
         });
 
@@ -4275,22 +5210,21 @@ Sources in this project: Core models, marketing, finance.`;
             expect(await cachedExplores(fixture.projectUuid)).toEqual(before);
         });
 
-        test('two fresh groups that produce the same explore name are refused and nothing is saved', async () => {
+        test('a later connection qualifies a colliding explore and keeps the current owner', async () => {
             const fixture = await createProject();
             await compile(fixture);
-            const before = await cachedExplores(fixture.projectUuid);
             sourceManifests.finance = dbtManifest('finance', [
                 { name: 'payments', database: EXTRA_DB, table: 'payments' },
                 { name: 'campaigns', database: EXTRA_DB, table: 'campaigns' },
             ]);
-
-            const error = await compile(fixture).catch((e: Error) => e);
-
-            expect(error).toBeInstanceOf(ParameterError);
-            expect((error as Error).message).toBe(
-                'Explore "campaigns" is produced by both connection "Finance warehouse" and connection "Original". Explore names must be unique across connections.',
-            );
-            expect(await cachedExplores(fixture.projectUuid)).toEqual(before);
+            const compilation = await compile(fixture);
+            expect(compilation.warnings).toEqual([
+                expect.stringContaining('finance__campaigns'),
+            ]);
+            expect(await bindings(fixture.projectUuid)).toMatchObject({
+                campaigns: null,
+                finance__campaigns: fixture.extraConnectionUuid,
+            });
         });
 
         test('two sources in one group that define the same model are refused by the manifest merge', async () => {
@@ -4573,6 +5507,1536 @@ Sources in this project: Core models, marketing, finance.`;
         });
     });
 
+    describe('stable explore names', () => {
+        const deployedModel = (packageName: string, name: string): Explore => {
+            const deployed = explore(name, [name]);
+            return {
+                ...deployed,
+                dbtModelIdentity: {
+                    sourceUuid: null,
+                    sourceName: null,
+                    packageName,
+                    uniqueId: `model.${packageName}.${name}`,
+                    modelName: name,
+                },
+                tables: {
+                    [name]: {
+                        ...deployed.tables[name],
+                        dbtPackageName: packageName,
+                        dbtModelUniqueId: `model.${packageName}.${name}`,
+                    },
+                },
+            };
+        };
+        const sourceDeploy = async (
+            fixture: Fixture,
+            source: string | null,
+            models: Explore[],
+        ) => {
+            const prepared = await compiler.prepareSourceDeploy({
+                projectUuid: fixture.projectUuid,
+                projectDbtSourceUuid:
+                    source === null ? null : fixture.sourceUuids[source],
+                explores: models,
+            });
+            await compiler.save(fixture.projectUuid, prepared);
+            return prepared;
+        };
+        const allocations = (fixture: Fixture) =>
+            database('explore_name_allocations')
+                .where('project_uuid', fixture.projectUuid)
+                .orderBy('name');
+        const freshCompiler = () =>
+            new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
+                    database,
+                }),
+                projectModel,
+                projectDbtSourcesModel,
+                warehouseConnectionCompileModel,
+                warehouseClientFactory:
+                    compileCredentials.warehouseClientFactory,
+            });
+        const expectReservedWarnings = (
+            warnings: string[] | undefined,
+            assignedNames: string[],
+            qualifiedNames: string[],
+        ) => {
+            expect(warnings).toHaveLength(assignedNames.length);
+            for (const name of assignedNames)
+                expect(warnings).toContainEqual(
+                    expect.stringContaining(
+                        `is assigned explore name "${name}"`,
+                    ),
+                );
+            for (const warning of warnings ?? []) {
+                expect(warning).toMatch(
+                    /plain name "orders" is reserved because of an unresolved collision/i,
+                );
+                expect(warning).toMatch(/qualified explore names:/i);
+                const qualifiedList = warning.slice(
+                    warning.toLowerCase().indexOf('qualified explore names:'),
+                );
+                let previousIndex = -1;
+                for (const name of [...qualifiedNames].sort()) {
+                    const index = qualifiedList.indexOf(`"${name}"`);
+                    expect(index).toBeGreaterThan(previousIndex);
+                    previousIndex = index;
+                }
+            }
+        };
+
+        test.each([false, true])(
+            'publishes only the latest version of each colliding source model without false allocation collisions (saved owner %s)',
+            async (savedOwner) => {
+                const fixture = await createProject();
+                await projectModel.updateDbtSourceName(
+                    fixture.projectUuid,
+                    'analytics',
+                );
+                await bind(fixture, 'finance', null);
+                const primary = await projectModel.getDbtSourceIdentity(
+                    fixture.projectUuid,
+                );
+                const sources = [
+                    { name: 'analytics', uuid: primary.dbtSourceUuid },
+                    { name: 'finance', uuid: fixture.sourceUuids.finance },
+                ];
+                const models = sources.flatMap((source) => {
+                    const [model] = getModelsFromManifest(
+                        dbtManifest(source.name, [
+                            {
+                                name: 'orders',
+                                database: ORIGINAL_DB,
+                                table: 'orders',
+                            },
+                        ]),
+                    );
+                    return [1, 2].map((version) => ({
+                        ...model,
+                        unique_id: `model.${source.name}.orders.v${version}`,
+                        version,
+                        latest_version: 2,
+                        alias: `orders_v${version}`,
+                        relation_name: `${source.name}.orders_v${version}`,
+                        lightdash_source_name: source.name,
+                        lightdash_source_uuid: source.uuid,
+                    }));
+                });
+                const warehouse = knex({
+                    client: 'pg',
+                    connection: {
+                        ...postgresWarehouse(ORIGINAL_DB),
+                        database: ORIGINAL_DB,
+                    },
+                });
+                try {
+                    await Promise.all(
+                        sources.map(async (source) => {
+                            await warehouse.raw(
+                                'CREATE SCHEMA IF NOT EXISTS ??',
+                                [source.name],
+                            );
+                            await Promise.all(
+                                [1, 2].map(async (version) => {
+                                    await warehouse.raw(
+                                        'CREATE TABLE IF NOT EXISTS ??.?? (id integer, amount numeric)',
+                                        [source.name, `orders_v${version}`],
+                                    );
+                                    await warehouse
+                                        .withSchema(source.name)
+                                        .table(`orders_v${version}`)
+                                        .delete();
+                                    await warehouse
+                                        .withSchema(source.name)
+                                        .table(`orders_v${version}`)
+                                        .insert({
+                                            id: version,
+                                            amount:
+                                                (source.name === 'analytics'
+                                                    ? 100
+                                                    : 200) + version,
+                                        });
+                                }),
+                            );
+                        }),
+                    );
+                    const publish = async (
+                        versions: number[],
+                        sourceNames = sources.map((source) => source.name),
+                    ) => {
+                        const selected = models.filter(
+                            (model) =>
+                                versions.includes(model.version) &&
+                                sourceNames.includes(
+                                    model.lightdash_source_name,
+                                ),
+                        );
+                        const compiled = await convertExplores(
+                            selected,
+                            false,
+                            SupportedDbtAdapter.POSTGRES,
+                            warehouseSqlBuilderFromType(
+                                SupportedDbtAdapter.POSTGRES,
+                            ),
+                            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                            { deferExploreNaming: true },
+                        );
+                        expect(
+                            compiled.every((item) => !isExploreError(item)),
+                        ).toBe(true);
+                        await compiler.save(fixture.projectUuid, {
+                            exploreStream:
+                                (async function* versionedExplores() {
+                                    yield* compiled;
+                                })(),
+                            bindingOf: () => null,
+                            carry: {
+                                kind: 'connections',
+                                warehouseConnectionUuids: [],
+                            },
+                            naming: {
+                                mode: 'refresh',
+                                models: selected.map((model) => ({
+                                    sourceUuid: model.lightdash_source_uuid,
+                                    sourceName: model.lightdash_source_name,
+                                    packageName: model.package_name,
+                                    uniqueId: model.unique_id,
+                                    version: model.version,
+                                    latestVersion: model.latest_version,
+                                    modelName: model.name,
+                                })),
+                                refreshedSourceUuids: sources.map(
+                                    (source) => source.uuid,
+                                ),
+                                warnings: [],
+                            },
+                            persistArtifacts: async () => {},
+                        });
+                        const rows = await cachedExplores(fixture.projectUuid);
+                        const expectedNames = sourceNames
+                            .map((name) =>
+                                savedOwner && name === 'analytics'
+                                    ? 'orders'
+                                    : `${name}__orders`,
+                            )
+                            .sort();
+                        expect(rows.map(({ name }) => name)).toEqual(
+                            expectedNames,
+                        );
+                        expect(
+                            rows.every(
+                                ({ explore: item }) => !isExploreError(item),
+                            ),
+                        ).toBe(true);
+                        const version = versions.at(-1)!;
+                        await Promise.all(
+                            sources
+                                .filter((candidate) =>
+                                    sourceNames.includes(candidate.name),
+                                )
+                                .map(async (source) => {
+                                    const saved =
+                                        await projectModel.getExploreFromCache(
+                                            fixture.projectUuid,
+                                            savedOwner &&
+                                                source.name === 'analytics'
+                                                ? 'orders'
+                                                : `${source.name}__orders`,
+                                        );
+                                    const table =
+                                        saved.tables![saved.baseTable!];
+                                    expect(table.sqlTable).toBe(
+                                        `${source.name}.orders_v${version}`,
+                                    );
+                                    expect(table.dbtSourceUuid).toBe(
+                                        source.uuid,
+                                    );
+                                    expect(table.dbtModelUniqueId).toBe(
+                                        `model.${source.name}.orders.v${version}`,
+                                    );
+                                    expect(
+                                        (
+                                            await warehouse.raw(
+                                                `SELECT id, amount FROM ${table.sqlTable}`,
+                                            )
+                                        ).rows,
+                                    ).toEqual([
+                                        {
+                                            id: version,
+                                            amount:
+                                                (source.name === 'analytics'
+                                                    ? 100
+                                                    : 200) + version,
+                                        },
+                                    ]);
+                                }),
+                        );
+                        const names = await allocations(fixture);
+                        expect(
+                            names.map(({ name, is_reserved }) => ({
+                                name,
+                                is_reserved,
+                            })),
+                        ).toEqual(
+                            [
+                                ...expectedNames.map((name) => ({
+                                    name,
+                                    is_reserved: false,
+                                })),
+                                ...(!savedOwner
+                                    ? [{ name: 'orders', is_reserved: true }]
+                                    : []),
+                            ].sort((left, right) =>
+                                left.name.localeCompare(right.name),
+                            ),
+                        );
+                        expect(
+                            names
+                                .filter(({ is_reserved }) => !is_reserved)
+                                .map(({ model_unique_id }) => model_unique_id)
+                                .sort(),
+                        ).toEqual(
+                            sourceNames
+                                .map(
+                                    (name) =>
+                                        `model.${name}.orders.v${version}`,
+                                )
+                                .sort(),
+                        );
+                    };
+                    if (savedOwner) await publish([1], ['analytics']);
+                    await publish([1]);
+                    const priorOwners = await allocations(fixture);
+                    await publish([1, 2]);
+                    const upgradedOwners = await allocations(fixture);
+                    expect(
+                        upgradedOwners.map(
+                            ({
+                                name,
+                                explore_name_allocation_uuid,
+                                source_key,
+                                is_reserved,
+                            }) => ({
+                                name,
+                                explore_name_allocation_uuid,
+                                source_key,
+                                is_reserved,
+                            }),
+                        ),
+                    ).toEqual(
+                        priorOwners.map(
+                            ({
+                                name,
+                                explore_name_allocation_uuid,
+                                source_key,
+                                is_reserved,
+                            }) => ({
+                                name,
+                                explore_name_allocation_uuid,
+                                source_key,
+                                is_reserved,
+                            }),
+                        ),
+                    );
+                    const before = await allocations(fixture);
+                    await publish([1, 2]);
+                    expect(await allocations(fixture)).toEqual(before);
+                } finally {
+                    await warehouse.destroy();
+                }
+            },
+        );
+
+        test.each(['refresh', 'deploy'] as const)(
+            'keeps an unresolved plain-name reservation when a third source arrives through %s',
+            async (operation) => {
+                const fixture = await createProject();
+                sourceManifests.finance = dbtManifest('finance', [
+                    { name: 'orders', database: EXTRA_DB, table: 'payments' },
+                ]);
+                sourceManifests.marketing = dbtManifest('marketing', [
+                    { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+                ]);
+                const initialNames = ['finance__orders', 'marketing__orders'];
+                const initial = await compile(fixture, [primaryModels[1]]);
+                expectReservedWarnings(
+                    initial.warnings,
+                    initialNames,
+                    initialNames,
+                );
+                const before = await allocations(fixture);
+                const reservation = before.find(
+                    ({ name }) => name === 'orders',
+                );
+                expect(reservation).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
+                expect(before.filter(({ is_reserved }) => is_reserved)).toEqual(
+                    [reservation],
+                );
+                expect(
+                    before
+                        .filter(({ is_reserved }) => !is_reserved)
+                        .map(({ name, is_reserved }) => ({
+                            name,
+                            is_reserved,
+                        })),
+                ).toEqual([
+                    { name: 'customers', is_reserved: false },
+                    { name: 'finance__orders', is_reserved: false },
+                    { name: 'marketing__orders', is_reserved: false },
+                ]);
+                const beforeBindings = {
+                    customers: null,
+                    finance__orders: fixture.extraConnectionUuid,
+                    marketing__orders: null,
+                };
+                expect(await bindings(fixture.projectUuid)).toEqual(
+                    beforeBindings,
+                );
+                compiler = freshCompiler();
+                const repeated = await compile(fixture, [primaryModels[1]]);
+                expectReservedWarnings(
+                    repeated.warnings,
+                    initialNames,
+                    initialNames,
+                );
+                expect(await allocations(fixture)).toEqual(before);
+                expect(await bindings(fixture.projectUuid)).toEqual(
+                    beforeBindings,
+                );
+
+                const { dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const primaryName = `${dbtSourceName}__orders`;
+                const qualifiedNames = [...initialNames, primaryName].sort();
+                const warnings =
+                    operation === 'refresh'
+                        ? (await compile(fixture)).warnings
+                        : (
+                              await sourceDeploy(fixture, null, [
+                                  deployedModel('primary', 'orders'),
+                                  deployedModel('primary', 'customers'),
+                              ])
+                          ).naming?.warnings;
+                expectReservedWarnings(
+                    warnings,
+                    operation === 'refresh' ? qualifiedNames : [primaryName],
+                    qualifiedNames,
+                );
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    ...beforeBindings,
+                    [primaryName]: null,
+                });
+                const after = await allocations(fixture);
+                expect(after.find(({ name }) => name === 'orders')).toEqual(
+                    reservation,
+                );
+                expect(after.filter(({ is_reserved }) => is_reserved)).toEqual([
+                    reservation,
+                ]);
+                expect(
+                    after.filter(
+                        ({ model_name, is_reserved }) =>
+                            model_name === 'orders' && !is_reserved,
+                    ),
+                ).toHaveLength(3);
+                for (const owner of before.filter(
+                    ({ is_reserved }) => !is_reserved,
+                ))
+                    expect(
+                        after.find(({ name }) => name === owner.name),
+                    ).toEqual(owner);
+                expect(
+                    after.find(({ name }) => name === primaryName),
+                ).toMatchObject({
+                    source_key: 'primary',
+                    model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
+                });
+                compiler = freshCompiler();
+                if (operation === 'refresh') await compile(fixture);
+                else
+                    await sourceDeploy(fixture, null, [
+                        deployedModel('primary', 'orders'),
+                        deployedModel('primary', 'customers'),
+                    ]);
+                expect(await allocations(fixture)).toEqual(after);
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    ...beforeBindings,
+                    [primaryName]: null,
+                });
+            },
+        );
+
+        test('a third-source deploy seeds a reservation from cached qualified owners without renaming them', async () => {
+            const fixture = await createProject();
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+            ]);
+            await compile(fixture, [primaryModels[1]]);
+            await database('explore_name_allocations')
+                .where('project_uuid', fixture.projectUuid)
+                .delete();
+            expect(await allocations(fixture)).toEqual([]);
+            const before = await database('cached_explore')
+                .select(
+                    'cached_explore_uuid',
+                    'name',
+                    'explore',
+                    'warehouse_connection_uuid',
+                )
+                .where('project_uuid', fixture.projectUuid)
+                .whereIn('name', ['finance__orders', 'marketing__orders'])
+                .orderBy('name');
+            expect(before.map(({ name }) => name)).toEqual([
+                'finance__orders',
+                'marketing__orders',
+            ]);
+            compiler = freshCompiler();
+            const { dbtSourceName } = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+            const primaryName = `${dbtSourceName}__orders`;
+            const deployed = [
+                deployedModel('primary', 'orders'),
+                deployedModel('primary', 'customers'),
+            ];
+            const prepared = await sourceDeploy(fixture, null, deployed);
+            expect(deployed.map(({ name }) => name).sort()).toEqual(
+                ['customers', primaryName].sort(),
+            );
+            expectReservedWarnings(
+                prepared.naming?.warnings,
+                [primaryName],
+                ['finance__orders', 'marketing__orders', primaryName],
+            );
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                finance__orders: fixture.extraConnectionUuid,
+                marketing__orders: null,
+                [primaryName]: null,
+            });
+            expect(
+                await database('cached_explore')
+                    .select(
+                        'cached_explore_uuid',
+                        'name',
+                        'explore',
+                        'warehouse_connection_uuid',
+                    )
+                    .where('project_uuid', fixture.projectUuid)
+                    .whereIn('name', ['finance__orders', 'marketing__orders'])
+                    .orderBy('name'),
+            ).toEqual(before);
+            const seeded = await allocations(fixture);
+            const reservation = seeded.find(({ name }) => name === 'orders');
+            expect(reservation).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
+            expect(seeded.filter(({ is_reserved }) => is_reserved)).toEqual([
+                reservation,
+            ]);
+            expect(
+                seeded.filter(({ is_reserved }) => !is_reserved),
+            ).toMatchObject(
+                [
+                    { name: 'customers', is_reserved: false },
+                    {
+                        name: 'finance__orders',
+                        source_key: fixture.sourceUuids.finance,
+                        is_reserved: false,
+                    },
+                    {
+                        name: 'marketing__orders',
+                        source_key: fixture.sourceUuids.marketing,
+                        is_reserved: false,
+                    },
+                    {
+                        name: primaryName,
+                        source_key: 'primary',
+                        is_reserved: false,
+                    },
+                ].sort((left, right) => left.name.localeCompare(right.name)),
+            );
+            await sourceDeploy(fixture, null, [
+                deployedModel('primary', 'orders'),
+                deployedModel('primary', 'customers'),
+            ]);
+            expect(await allocations(fixture)).toEqual(seeded);
+        });
+
+        test.each(['refresh', 'deploy'] as const)(
+            'qualifies a newcomer through %s and keeps the saved owner',
+            async (operation) => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const owner = await database('cached_explore')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        name: 'orders',
+                    })
+                    .first();
+                if (!owner) throw new Error('Missing orders explore');
+                sourceManifests.finance = dbtManifest('finance', [
+                    { name: 'orders', database: EXTRA_DB, table: 'payments' },
+                ]);
+                const warnings =
+                    operation === 'refresh'
+                        ? (await compile(fixture)).warnings
+                        : (
+                              await sourceDeploy(fixture, 'finance', [
+                                  deployedModel('finance', 'orders'),
+                              ])
+                          ).naming?.warnings;
+                expect(await bindings(fixture.projectUuid)).toMatchObject({
+                    orders: null,
+                    finance__orders: fixture.extraConnectionUuid,
+                });
+                expect(warnings).toEqual([
+                    expect.stringContaining(
+                        'is assigned explore name "finance__orders"',
+                    ),
+                ]);
+                expect(warnings?.[0]).toContain('model.primary.orders');
+                const deployed = [deployedModel('finance', 'orders')];
+                const prepared = await sourceDeploy(
+                    fixture,
+                    'finance',
+                    deployed,
+                );
+                expect(deployed[0].name).toBe('finance__orders');
+                expect(prepared.naming?.warnings).toEqual(warnings);
+                expect(
+                    (
+                        await database('cached_explore')
+                            .where({
+                                project_uuid: fixture.projectUuid,
+                                name: 'orders',
+                            })
+                            .first()
+                    )?.cached_explore_uuid,
+                ).toBe(owner.cached_explore_uuid);
+                expect(
+                    (await allocations(fixture)).filter(
+                        (row) => row.name === 'orders',
+                    ),
+                ).toMatchObject([
+                    {
+                        model_unique_id: 'model.primary.orders',
+                        source_key: 'primary',
+                    },
+                ]);
+                expect(
+                    JSON.stringify(await cachedExplores(fixture.projectUuid)),
+                ).not.toContain('__model_');
+            },
+        );
+
+        test('uses the configured namespace for a newcomer in a multi-source extra group', async () => {
+            const fixture = await createProject();
+            await compile(fixture);
+            const owner = await database('cached_explore')
+                .where({ project_uuid: fixture.projectUuid, name: 'orders' })
+                .first();
+            if (!owner) throw new Error('Missing orders explore');
+
+            const billingSource = await projectDbtSourcesModel.updateSource(
+                fixture.sourceUuids.finance,
+                { name: 'billing' },
+            );
+            await bind(fixture, 'marketing', fixture.extraConnectionUuid);
+            sourceManifests.billing = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'campaigns', database: EXTRA_DB, table: 'campaigns' },
+            ]);
+
+            const compilation = await compile(fixture);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                billing__orders: fixture.extraConnectionUuid,
+                campaigns: fixture.extraConnectionUuid,
+                customers: null,
+                orders: null,
+            });
+            expect(compilation.warnings).toEqual([
+                expect.stringContaining(
+                    'is assigned explore name "billing__orders"',
+                ),
+            ]);
+            expect(compilation.warnings[0]).toContain('model.primary.orders');
+            expect(
+                (await allocations(fixture)).find(
+                    ({ name }) => name === 'billing__orders',
+                ),
+            ).toMatchObject({
+                source_key: billingSource.projectDbtSourceUuid,
+                source_name: 'billing',
+                package_name: 'finance',
+                model_unique_id: 'model.finance.orders',
+                model_name: 'orders',
+            });
+            const published = await cachedExplores(fixture.projectUuid);
+            expect(
+                published.filter(({ explore: cached }) =>
+                    isExploreError(cached),
+                ),
+            ).toEqual([]);
+            expect(
+                published.find(({ name }) => name === 'billing__orders')
+                    ?.explore,
+            ).toMatchObject({
+                dbtModelIdentity: {
+                    sourceUuid: billingSource.projectDbtSourceUuid,
+                    sourceName: 'billing',
+                    packageName: 'finance',
+                    uniqueId: 'model.finance.orders',
+                    modelName: 'orders',
+                },
+                warnings: [
+                    {
+                        type: 'EXPLORE_NAME_COLLISION',
+                        message: compilation.warnings[0],
+                    },
+                ],
+            });
+            expect(
+                (
+                    await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'orders',
+                        })
+                        .first()
+                )?.cached_explore_uuid,
+            ).toBe(owner.cached_explore_uuid);
+        });
+
+        test('keeps a saved extra-source bare name when the primary model appears', async () => {
+            const fixture = await createProject();
+            await compile(fixture, [primaryModels[1]]);
+            await sourceDeploy(fixture, 'finance', [
+                deployedModel('finance', 'orders'),
+            ]);
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            const { dbtSourceName } = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+            await compile(fixture);
+            expect(await bindings(fixture.projectUuid)).toMatchObject({
+                orders: fixture.extraConnectionUuid,
+                [`${dbtSourceName}__orders`]: null,
+            });
+            const deployed = [
+                deployedModel('primary', 'orders'),
+                deployedModel('primary', 'customers'),
+            ];
+            await sourceDeploy(fixture, null, deployed);
+            expect(deployed.map((model) => model.name).sort()).toEqual([
+                'customers',
+                `${dbtSourceName}__orders`,
+            ]);
+        });
+
+        test.each([
+            { reverseSources: false, reverseNodes: false },
+            { reverseSources: true, reverseNodes: false },
+            { reverseSources: false, reverseNodes: true },
+            { reverseSources: true, reverseNodes: true },
+        ])(
+            'qualifies all unsaved owners regardless of source and manifest order (sources $reverseSources, nodes $reverseNodes)',
+            async ({ reverseSources, reverseNodes }) => {
+                const fixture = await createProject();
+                await bind(fixture, 'finance', null);
+                const sourceOrder = reverseSources
+                    ? ['finance', 'marketing']
+                    : ['marketing', 'finance'];
+                await Promise.all(
+                    sourceOrder.map((source, index) =>
+                        database('project_dbt_sources')
+                            .where(
+                                'project_dbt_source_uuid',
+                                fixture.sourceUuids[source],
+                            )
+                            .update({ precedence: index + 1 }),
+                    ),
+                );
+                for (const source of sourceOrder) {
+                    const models: FixtureModel[] = [
+                        {
+                            name: 'orders',
+                            database: ORIGINAL_DB,
+                            table: 'orders',
+                        },
+                        {
+                            name:
+                                source === 'finance' ? 'payments' : 'campaigns',
+                            database: ORIGINAL_DB,
+                            table:
+                                source === 'finance' ? 'payments' : 'campaigns',
+                        },
+                    ];
+                    sourceManifests[source] = dbtManifest(
+                        source,
+                        reverseNodes ? models.reverse() : models,
+                    );
+                    expect(Object.keys(sourceManifests[source].nodes)).toEqual(
+                        models.map(({ name }) => `model.${source}.${name}`),
+                    );
+                }
+                expect(
+                    (
+                        await projectDbtSourcesModel.getSourcesWithBindings(
+                            fixture.projectUuid,
+                        )
+                    ).map(({ name }) => name),
+                ).toEqual(sourceOrder);
+                expect(await allocations(fixture)).toEqual([]);
+                expect(await cachedExplores(fixture.projectUuid)).toEqual([]);
+
+                const compilation = await compile(fixture, [primaryModels[1]]);
+                expect(fetchedWith.map(({ source }) => source)).toEqual(
+                    sourceOrder,
+                );
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    campaigns: null,
+                    customers: null,
+                    finance__orders: null,
+                    marketing__orders: null,
+                    payments: null,
+                });
+                expectReservedWarnings(
+                    compilation.warnings,
+                    ['finance__orders', 'marketing__orders'],
+                    ['finance__orders', 'marketing__orders'],
+                );
+                const publishedAllocations = await allocations(fixture);
+                const publishedExplores = await cachedExplores(
+                    fixture.projectUuid,
+                );
+                for (const source of sourceOrder) {
+                    expect(
+                        publishedAllocations.find(
+                            ({ name }) => name === `${source}__orders`,
+                        ),
+                    ).toMatchObject({
+                        source_key: fixture.sourceUuids[source],
+                        model_unique_id: `model.${source}.orders`,
+                        model_name: 'orders',
+                        is_reserved: false,
+                    });
+                    expect(
+                        publishedExplores.find(
+                            ({ name }) => name === `${source}__orders`,
+                        )?.explore,
+                    ).toMatchObject({
+                        dbtModelIdentity: {
+                            sourceUuid: fixture.sourceUuids[source],
+                        },
+                        warnings: [{ type: 'EXPLORE_NAME_COLLISION' }],
+                    });
+                }
+                const reservation = publishedAllocations.find(
+                    ({ name }) => name === 'orders',
+                );
+                expect(reservation).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
+                expect(
+                    publishedAllocations.filter(
+                        ({ is_reserved }) => is_reserved,
+                    ),
+                ).toEqual([reservation]);
+                const before = await allocations(fixture);
+                await compile(fixture, [primaryModels[1]]);
+                expect(await allocations(fixture)).toEqual(before);
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    'orders',
+                );
+
+                const removedSource = reverseSources ? 'finance' : 'marketing';
+                const survivingSource = reverseSources
+                    ? 'marketing'
+                    : 'finance';
+                const remainingModel =
+                    removedSource === 'finance' ? 'payments' : 'campaigns';
+                sourceManifests[removedSource] = dbtManifest(removedSource, [
+                    {
+                        name: remainingModel,
+                        database: ORIGINAL_DB,
+                        table: remainingModel,
+                    },
+                ]);
+                await compile(fixture, [primaryModels[1]]);
+                const survivingOwner = before.find(
+                    ({ name }) => name === `${survivingSource}__orders`,
+                );
+                expect(
+                    (await allocations(fixture)).filter(
+                        ({ model_name }) => model_name === 'orders',
+                    ),
+                ).toEqual([survivingOwner, reservation]);
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    'orders',
+                );
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    `${removedSource}__orders`,
+                );
+                await database('project_dbt_sources')
+                    .where(
+                        'project_dbt_source_uuid',
+                        fixture.sourceUuids[removedSource],
+                    )
+                    .delete();
+                await compile(fixture, [primaryModels[1]]);
+                expect(
+                    (await allocations(fixture)).filter(
+                        ({ model_name }) => model_name === 'orders',
+                    ),
+                ).toEqual([survivingOwner, reservation]);
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    'orders',
+                );
+                expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                    `${survivingSource}__orders`,
+                );
+
+                await compile(fixture);
+                const { dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const primaryName = `${dbtSourceName}__orders`;
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'orders',
+                    ),
+                ).toEqual(reservation);
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === primaryName,
+                    ),
+                ).toMatchObject({
+                    source_key: 'primary',
+                    model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
+                });
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === `${survivingSource}__orders`,
+                    ),
+                ).toEqual(survivingOwner);
+                expect(await bindings(fixture.projectUuid)).toMatchObject({
+                    [primaryName]: null,
+                    [`${survivingSource}__orders`]: null,
+                });
+                expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                    'orders',
+                );
+
+                await compile(fixture, [primaryModels[1]]);
+                await database('project_dbt_sources')
+                    .where(
+                        'project_dbt_source_uuid',
+                        fixture.sourceUuids[survivingSource],
+                    )
+                    .delete();
+                await compile(fixture, [primaryModels[1]]);
+                expect(
+                    (await allocations(fixture)).filter(
+                        ({ model_name }) => model_name === 'orders',
+                    ),
+                ).toEqual([reservation]);
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                });
+                compiler = freshCompiler();
+                const singleton = await compile(fixture);
+                expectReservedWarnings(
+                    singleton.warnings,
+                    ['primary__orders'],
+                    ['primary__orders'],
+                );
+                expect(await bindings(fixture.projectUuid)).toEqual({
+                    customers: null,
+                    primary__orders: null,
+                });
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'orders',
+                    ),
+                ).toEqual(reservation);
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'primary__orders',
+                    ),
+                ).toMatchObject({
+                    source_key: 'primary',
+                    model_unique_id: 'model.primary.orders',
+                    is_reserved: false,
+                });
+            },
+        );
+
+        test.each([
+            { qualified: false, legacy: false },
+            { qualified: true, legacy: false },
+            { qualified: true, legacy: true },
+        ])(
+            'a source deploy keeps the joined provider owner (qualified $qualified, legacy $legacy)',
+            async ({ qualified, legacy }) => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const { dbtSourceUuid, dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const providerName = qualified
+                    ? `${dbtSourceName}__orders`
+                    : 'orders';
+                const owner = await database('cached_explore')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        name: 'orders',
+                    })
+                    .first();
+                if (!owner) throw new Error('Missing orders explore');
+                if (qualified) {
+                    const renamed = rewriteAllocatedExplore(
+                        owner.explore,
+                        new Map([['orders', providerName]]),
+                    );
+                    if (!renamed.tables)
+                        throw new Error('Missing orders tables');
+                    renamed.tables[providerName].originalName = 'orders';
+                    if (legacy) {
+                        delete renamed.dbtModelIdentity;
+                        delete renamed.tables[providerName].dbtModelUniqueId;
+                        delete renamed.tables[providerName].dbtSourceName;
+                    }
+                    await database('cached_explore')
+                        .where('cached_explore_uuid', owner.cached_explore_uuid)
+                        .update({
+                            name: providerName,
+                            explore: JSON.stringify(renamed),
+                            table_names: [providerName],
+                        });
+                    await database('explore_name_allocations')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'orders',
+                        })
+                        .update({ name: providerName });
+                }
+                if (legacy)
+                    await database('explore_name_allocations')
+                        .where('project_uuid', fixture.projectUuid)
+                        .delete();
+                const beforeOwner = await database('cached_explore')
+                    .where('cached_explore_uuid', owner.cached_explore_uuid)
+                    .first();
+                const beforeAllocation = (await allocations(fixture)).find(
+                    (row) => row.name === providerName,
+                );
+                const servedModels = getModelsFromManifest(
+                    dbtManifest('primary', [primaryModels[0]]),
+                ).map((model) => ({
+                    ...model,
+                    lightdash_source_uuid: dbtSourceUuid,
+                    lightdash_source_name: dbtSourceName,
+                }));
+                const localModels = getModelsFromManifest(
+                    dbtManifest('marketing', primaryModels),
+                ).map((model) => ({
+                    ...model,
+                    lightdash_source_uuid: fixture.sourceUuids.marketing,
+                    lightdash_source_name: 'marketing',
+                    meta:
+                        model.name === 'customers'
+                            ? {
+                                  ...model.meta,
+                                  joins: [
+                                      {
+                                          join: `${dbtSourceName}__orders`,
+                                          alias: 'purchased_orders',
+                                          sql_on: '${customers.id} = ${purchased_orders.id}',
+                                      },
+                                  ],
+                              }
+                            : model.meta,
+                }));
+                const compiled = await convertExplores(
+                    [...servedModels, ...localModels],
+                    false,
+                    SupportedDbtAdapter.POSTGRES,
+                    warehouseSqlBuilderFromType(SupportedDbtAdapter.POSTGRES),
+                    { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+                    { includeModelIdentity: true },
+                );
+                const customers = compiled.find(
+                    (candidate) => candidate.name === 'customers',
+                );
+                if (!customers || isExploreError(customers))
+                    throw new Error(JSON.stringify(customers));
+                expect(customers.tables.purchased_orders.dbtSourceUuid).toBe(
+                    dbtSourceUuid,
+                );
+                if (legacy) {
+                    delete customers.tables.purchased_orders.dbtModelUniqueId;
+                    delete customers.tables.purchased_orders.dbtSourceUuid;
+                    delete customers.tables.purchased_orders.dbtSourceName;
+                }
+                customers.tables.customers.dbtSourceUuid = dbtSourceUuid;
+                if (customers.dbtModelIdentity)
+                    customers.dbtModelIdentity.sourceUuid = dbtSourceUuid;
+                const deployed = [customers];
+                await sourceDeploy(fixture, 'marketing', deployed);
+                expect(deployed[0].name).toBe('marketing__customers');
+                expect(deployed[0].dbtModelIdentity?.sourceUuid).toBe(
+                    fixture.sourceUuids.marketing,
+                );
+                expect(deployed[0].tables.purchased_orders).toMatchObject({
+                    name: 'purchased_orders',
+                    canonicalName: providerName,
+                    dbtSourceUuid,
+                    dbtModelUniqueId: 'model.primary.orders',
+                });
+                expect(deployed[0].joinedTables[0]).toMatchObject({
+                    table: 'purchased_orders',
+                    tablesReferences: [
+                        'marketing__customers',
+                        'purchased_orders',
+                    ],
+                });
+                expect(
+                    deployed[0].tables.purchased_orders.dimensions.id
+                        .compiledSql,
+                ).toBe('"purchased_orders".id');
+                const warehouse = knex({
+                    client: 'pg',
+                    connection: {
+                        ...postgresWarehouse(ORIGINAL_DB),
+                        database: ORIGINAL_DB,
+                    },
+                });
+                try {
+                    await warehouse.raw(
+                        `SELECT ${deployed[0].tables.purchased_orders.dimensions.id.compiledSql}
+                         FROM ${deployed[0].tables.marketing__customers.sqlTable} AS "marketing__customers"
+                         LEFT JOIN ${deployed[0].tables.purchased_orders.sqlTable} AS "purchased_orders"
+                         ON ${deployed[0].joinedTables[0].compiledSqlOn}`,
+                    );
+                } finally {
+                    await warehouse.destroy();
+                }
+                expect(
+                    await database('cached_explore')
+                        .where('cached_explore_uuid', owner.cached_explore_uuid)
+                        .first(),
+                ).toEqual(beforeOwner);
+                const afterAllocations = await allocations(fixture);
+                expect(
+                    afterAllocations.filter(
+                        (row) => row.model_unique_id === 'model.primary.orders',
+                    ),
+                ).toMatchObject([
+                    { name: providerName, source_key: 'primary' },
+                ]);
+                if (beforeAllocation)
+                    expect(
+                        afterAllocations.find(
+                            (row) => row.name === providerName,
+                        ),
+                    ).toEqual(beforeAllocation);
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).find(
+                        (row) => row.name === 'marketing__customers',
+                    )?.explore,
+                ).toEqual(deployed[0]);
+            },
+        );
+
+        test('a source deploy rejects a joined provider stamped with a source from another project', async () => {
+            const fixture = await createProject();
+            const foreign = await createProject();
+            await compile(fixture);
+            const customers = deployedModel('marketing', 'customers');
+            const { orders } = deployedModel('primary', 'orders').tables;
+            customers.tables.purchased_orders = {
+                ...orders,
+                name: 'purchased_orders',
+                originalName: 'orders',
+                canonicalName: 'orders',
+                dbtSourceUuid: foreign.sourceUuids.marketing,
+            };
+            const before = await dump(fixture.projectUuid);
+            const beforeAllocations = await allocations(fixture);
+            await expect(
+                sourceDeploy(fixture, 'marketing', [customers]),
+            ).rejects.toMatchObject({ statusCode: 409 });
+            expect(await dump(fixture.projectUuid)).toEqual(before);
+            expect(await allocations(fixture)).toEqual(beforeAllocations);
+        });
+
+        test.each(['refresh', 'deploy'] as const)(
+            'seeds cached qualified names before the first %s without renaming either owner',
+            async (operation) => {
+                const fixture = await createProject();
+                sourceManifests.finance = dbtManifest('finance', [
+                    { name: 'orders', database: EXTRA_DB, table: 'payments' },
+                ]);
+                await compile(fixture);
+                const { dbtSourceName } =
+                    await projectModel.getDbtSourceIdentity(
+                        fixture.projectUuid,
+                    );
+                const primaryName = `${dbtSourceName}__orders`;
+                const [orders] = (
+                    await cachedExplores(fixture.projectUuid)
+                ).filter((row) => row.name === primaryName);
+                const renamed = structuredClone(orders.explore);
+                if (renamed.tables?.[primaryName])
+                    renamed.tables[primaryName].originalName = 'orders';
+                delete renamed.dbtModelIdentity;
+                if (renamed.tables)
+                    renamed.tables = Object.fromEntries(
+                        Object.entries(renamed.tables).map(
+                            ([
+                                name,
+                                {
+                                    dbtModelUniqueId: _dbtModelUniqueId,
+                                    dbtSourceName: _dbtSourceName,
+                                    ...table
+                                },
+                            ]) => [name, table],
+                        ),
+                    );
+                await database('cached_explore')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        name: primaryName,
+                    })
+                    .update({
+                        name: primaryName,
+                        explore: JSON.stringify(renamed),
+                        table_names: Object.keys(renamed.tables ?? {}),
+                    });
+                await database('explore_name_allocations')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
+                const before = (await cachedExplores(fixture.projectUuid)).map(
+                    (row) => row.name,
+                );
+                expect(before).not.toContain('orders');
+                if (operation === 'refresh') await compile(fixture);
+                else
+                    await sourceDeploy(fixture, 'finance', [
+                        deployedModel('finance', 'orders'),
+                    ]);
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.name,
+                    ),
+                ).toEqual(before);
+                expect(
+                    (await allocations(fixture)).map((row) => row.name),
+                ).toContain(primaryName);
+                expect(
+                    (await allocations(fixture)).map((row) => row.name),
+                ).toContain('finance__orders');
+                expect(
+                    (await allocations(fixture)).find(
+                        ({ name }) => name === 'orders',
+                    ),
+                ).toMatchObject({
+                    name: 'orders',
+                    model_name: 'orders',
+                    is_reserved: true,
+                });
+            },
+        );
+
+        test('keeps cached qualified error names with the old top-level source stamp', async () => {
+            const fixture = await createProject();
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            await compile(fixture);
+            await database('cached_explore')
+                .where({
+                    project_uuid: fixture.projectUuid,
+                    name: 'finance__orders',
+                })
+                .update({
+                    table_names: [],
+                    explore: JSON.stringify({
+                        name: 'finance__orders',
+                        label: 'Orders',
+                        dbtSourceUuid: fixture.sourceUuids.finance,
+                        errors: [
+                            {
+                                type: 'NO_DIMENSIONS_FOUND',
+                                message: 'No dimensions',
+                            },
+                        ],
+                    }),
+                });
+            await database('explore_name_allocations')
+                .where('project_uuid', fixture.projectUuid)
+                .delete();
+            await compile(fixture);
+            const { dbtSourceName } = await projectModel.getDbtSourceIdentity(
+                fixture.projectUuid,
+            );
+            expect(await bindings(fixture.projectUuid)).toMatchObject({
+                [`${dbtSourceName}__orders`]: null,
+                finance__orders: fixture.extraConnectionUuid,
+            });
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'finance__orders',
+                ),
+            ).toMatchObject({
+                model_unique_id: 'model.finance.orders',
+                source_key: fixture.sourceUuids.finance,
+            });
+        });
+
+        test('claims genuine bare model names before qualifying simultaneous unsaved collisions', async () => {
+            const fixture = await createProject();
+            await bind(fixture, 'finance', null);
+            await database('project_dbt_sources')
+                .where('project_dbt_source_uuid', fixture.sourceUuids.finance)
+                .update({ precedence: 0 });
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+            ]);
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+                {
+                    name: 'finance__orders',
+                    database: ORIGINAL_DB,
+                    table: 'orders',
+                },
+            ]);
+            await compile(fixture, [primaryModels[1]]);
+            expect(fetchedWith.map(({ source }) => source)).toEqual([
+                'finance',
+                'marketing',
+            ]);
+            const published = await cachedExplores(fixture.projectUuid);
+            expect(
+                published.filter(({ explore: cached }) =>
+                    isExploreError(cached),
+                ),
+            ).toMatchObject([
+                {
+                    name: 'finance__orders__conflict',
+                    explore: {
+                        errors: [
+                            {
+                                type: 'EXPLORE_NAME_COLLISION',
+                                message: expect.stringContaining(
+                                    'model.marketing.finance__orders',
+                                ),
+                            },
+                        ],
+                    },
+                },
+            ]);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                finance__orders: null,
+                finance__orders__conflict: null,
+                marketing__orders: null,
+            });
+            expect(
+                (await allocations(fixture)).find(
+                    ({ name }) => name === 'finance__orders',
+                ),
+            ).toMatchObject({
+                source_key: fixture.sourceUuids.marketing,
+                model_unique_id: 'model.marketing.finance__orders',
+            });
+            expect(
+                (await allocations(fixture)).find(
+                    ({ name }) => name === 'orders',
+                ),
+            ).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
+        });
+
+        test('returns one refresh error for a double collision and rejects deploy atomically with 409', async () => {
+            const fixture = await createProject();
+            const primary = [
+                ...primaryModels,
+                {
+                    name: 'finance__orders',
+                    database: ORIGINAL_DB,
+                    table: 'orders',
+                },
+            ];
+            await compile(fixture, primary);
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            await compile(fixture, primary);
+            const published = await cachedExplores(fixture.projectUuid);
+            expect(
+                published.filter((row) => 'errors' in row.explore),
+            ).toMatchObject([
+                {
+                    name: 'finance__orders__conflict',
+                    explore: {
+                        errors: [
+                            {
+                                type: 'EXPLORE_NAME_COLLISION',
+                                message: expect.stringContaining(
+                                    'model.primary.finance__orders',
+                                ),
+                            },
+                        ],
+                    },
+                },
+            ]);
+            expect(await bindings(fixture.projectUuid)).toMatchObject({
+                orders: null,
+                finance__orders: null,
+                customers: null,
+            });
+            const before = await dump(fixture.projectUuid);
+            const beforeAllocations = await allocations(fixture);
+            await expect(
+                sourceDeploy(fixture, 'finance', [
+                    deployedModel('finance', 'orders'),
+                ]),
+            ).rejects.toMatchObject({ statusCode: 409 });
+            expect(await dump(fixture.projectUuid)).toEqual(before);
+            expect(await allocations(fixture)).toEqual(beforeAllocations);
+        });
+
+        test('keeps a reservation when qualified models are removed and replaced', async () => {
+            const fixture = await createProject();
+            sourceManifests.finance = dbtManifest('finance', [
+                { name: 'orders', database: EXTRA_DB, table: 'payments' },
+            ]);
+            await compile(fixture);
+            const reservation = (await allocations(fixture)).find(
+                ({ name }) => name === 'orders',
+            );
+            expect(reservation).toMatchObject({
+                name: 'orders',
+                model_name: 'orders',
+                is_reserved: true,
+            });
+            await compile(fixture, [primaryModels[1]]);
+            expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                'orders',
+            );
+            expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                'finance__orders',
+            );
+            sourceManifests.marketing = dbtManifest('marketing', [
+                { name: 'orders', database: ORIGINAL_DB, table: 'orders' },
+            ]);
+            await compile(fixture, [primaryModels[1]]);
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'orders',
+                ),
+            ).toEqual(reservation);
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'marketing__orders',
+                ),
+            ).toMatchObject({
+                model_unique_id: 'model.marketing.orders',
+                is_reserved: false,
+            });
+            expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                'marketing__orders',
+            );
+            await sourceDeploy(fixture, 'marketing', [
+                deployedModel('marketing', 'campaigns'),
+            ]);
+            expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                'orders',
+            );
+            expect(await bindings(fixture.projectUuid)).not.toHaveProperty(
+                'marketing__orders',
+            );
+            await sourceDeploy(fixture, 'finance', [
+                deployedModel('finance', 'orders'),
+            ]);
+            expect(await bindings(fixture.projectUuid)).toHaveProperty(
+                'finance__orders',
+            );
+            expect(
+                (await allocations(fixture)).find(
+                    (row) => row.name === 'orders',
+                ),
+            ).toEqual(reservation);
+        });
+
+        test('serializes concurrent source deploys under the publication lock', async () => {
+            const fixture = await createProject();
+            await compile(fixture, [primaryModels[1]]);
+            await Promise.all(
+                ['marketing', 'finance'].map((source) =>
+                    sourceDeploy(fixture, source, [
+                        deployedModel(source, 'orders'),
+                    ]),
+                ),
+            );
+            const rows = (await allocations(fixture)).filter(
+                (row) => row.model_name === 'orders',
+            );
+            expect(rows).toHaveLength(2);
+            expect(rows.filter((row) => row.name === 'orders')).toHaveLength(1);
+            expect(
+                rows.filter((row) => row.name.endsWith('__orders')),
+            ).toHaveLength(1);
+            const cached = await bindings(fixture.projectUuid);
+            rows.forEach((row) => expect(cached).toHaveProperty(row.name));
+        });
+
+        test('leaves a single source unchanged without allocating names', async () => {
+            const fixture = await createProject(
+                postgresWarehouse(EXTRA_DB),
+                { listAllDatabases: false, additionalDatabases: [] },
+                false,
+            );
+            await compile(fixture);
+            expect(await bindings(fixture.projectUuid)).toEqual({
+                customers: null,
+                orders: null,
+            });
+            expect(await allocations(fixture)).toEqual([]);
+            const deployed = [deployedModel('primary', 'orders')];
+            await sourceDeploy(fixture, null, deployed);
+            expect(deployed[0].name).toBe('orders');
+            expect(await allocations(fixture)).toEqual([]);
+        });
+    });
+
     describe('CLI deploy of one source', () => {
         const deployed = (name: string): Explore =>
             ({
@@ -4650,7 +7114,7 @@ Sources in this project: Core models, marketing, finance.`;
     });
 
     describe('two extra connections and sequential deploys', () => {
-        test('each extra connection compiles its own sources, a dead one is carried by name, and a name produced by two healthy extras is refused with both names', async () => {
+        test('each extra connection compiles its sources, carries a dead connection and qualifies a later collision', async () => {
             const fixture = await createProject();
             const marketingUuid = await addExtra(
                 fixture,
@@ -4711,15 +7175,14 @@ Sources in this project: Core models, marketing, finance.`;
                 { name: 'payments', database: EXTRA_DB, table: 'payments' },
                 { name: 'campaigns', database: EXTRA_DB, table: 'campaigns' },
             ]);
-            const before = await dump(fixture.projectUuid);
-            const refusal = await compile(fixture).then(
-                () => null,
-                (error: Error) => error,
-            );
-            expect(refusal?.message).toContain('Explore "campaigns"');
-            expect(refusal?.message).toContain('Finance warehouse');
-            expect(refusal?.message).toContain('Marketing warehouse');
-            expect(await dump(fixture.projectUuid)).toEqual(before);
+            const compilation = await compile(fixture);
+            expect(compilation.warnings).toEqual([
+                expect.stringContaining('finance__campaigns'),
+            ]);
+            expect(await bindings(fixture.projectUuid)).toMatchObject({
+                campaigns: marketingUuid,
+                finance__campaigns: fixture.extraConnectionUuid,
+            });
         });
 
         test('with a dead extra, an explore whose model left a healthy group is still dropped', async () => {
