@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "3.13.1",
+  "version": "3.14.0",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {

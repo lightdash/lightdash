@@ -21642,7 +21642,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__':
+    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__':
         {
             dataType: 'refAlias',
             type: {
@@ -21675,6 +21675,14 @@ const models: TsoaRoute.Models = {
                                 dataType: 'union',
                                 subSchemas: [
                                     { dataType: 'string' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
+                            latestReadyVersionUsesAiAnalysis: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'boolean' },
                                     { dataType: 'enum', enums: [null] },
                                 ],
                                 required: true,
@@ -21758,7 +21766,7 @@ const models: TsoaRoute.Models = {
     ApiGetAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--slug-string--views-number--currentThread-AppThread--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null--latestReadyVersionUsesAiAnalysis-boolean-or-null--registrySlug-string-or-null--icon-ChartTypeIcon-or-null--verification-ContentVerificationInfo-or-null--autoAnalysis-DataAppAutoAnalysis__',
             validators: {},
         },
     },

@@ -1,3 +1,10 @@
+# [3.14.0](https://github.com/lightdash/lightdash/compare/3.13.1...3.14.0) (2026-10-21)
+
+
+### Features
+
+* **data-apps:** offer to add AI analysis to apps built before it ([#31336](https://github.com/lightdash/lightdash/issues/31336)) ([f4da11f](https://github.com/lightdash/lightdash/commit/f4da11f42a3e4705959ec2a130d2611f7c5a8ac7))
+
 ## [3.13.1](https://github.com/lightdash/lightdash/compare/3.13.0...3.13.1) (2026-10-21)
 
 
