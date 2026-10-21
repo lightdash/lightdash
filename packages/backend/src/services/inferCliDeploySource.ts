@@ -1,5 +1,4 @@
 import {
-    ConflictError,
     getWarehouseLocation,
     isExploreError,
     isUserManagedExplore,
@@ -10,6 +9,7 @@ import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogMode
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { cliDeployConflictError } from '../utils/cliDeployError';
 import { type CliDeploySelection } from './cliDeploy';
 
 type InferenceModels = {
@@ -46,12 +46,6 @@ const cachedSourceUuid = (explore: Explore | ExploreError) =>
         ? (explore as ExploreError & { dbtSourceUuid?: string }).dbtSourceUuid
         : undefined);
 
-const cannotInfer = (reason: string): never => {
-    throw new ConflictError(
-        `Cannot infer the dbt source for this complete deploy: ${reason}. Pass --source or run lightdash config set-source, then deploy again. Refresh the project first if its cached source identities are missing.`,
-    );
-};
-
 export const inferCliDeploySource = async (
     models: InferenceModels,
     args: {
@@ -66,6 +60,27 @@ export const inferCliDeploySource = async (
         await models.projectModel.getDbtSourceIdentity(projectUuid);
     const sources =
         await models.projectDbtSourcesModel.getSourcesWithBindings(projectUuid);
+    const sourceNames = [
+        identity.dbtSourceName,
+        ...sources.map((source) => source.name),
+    ];
+    const cannotInfer = (reason: string): never => {
+        throw cliDeployConflictError(reason, sourceNames);
+    };
+    const successful = explores.filter((explore) => !isExploreError(explore));
+    if (explores.length === 0)
+        return cannotInfer(
+            'the upload contains no explores; compile the dbt project and deploy again',
+        );
+    if (successful.length === 0)
+        return cannotInfer(
+            'none of the uploaded explores compiled successfully; fix the compile errors and deploy again',
+        );
+    if (successful.some((explore) => !baseTable(explore)?.dbtPackageName)) {
+        return cannotInfer(
+            'the uploaded explores carry no dbt project name; update the Lightdash CLI',
+        );
+    }
     const sourceUuids = new Set([
         identity.dbtSourceUuid,
         ...sources.map((source) => source.projectDbtSourceUuid),
@@ -78,7 +93,9 @@ export const inferCliDeploySource = async (
             (explore) => !sourceUuids.has(cachedSourceUuid(explore) ?? ''),
         )
     ) {
-        return cannotInfer('cached explores have unknown source identities');
+        return cannotInfer(
+            'the saved explores do not identify their dbt source; refresh the project in Lightdash',
+        );
     }
     const packages = new Map<string, Set<string>>();
     const addPackage = (packageName: string, sourceUuid: string) => {
@@ -99,15 +116,21 @@ export const inferCliDeploySource = async (
     catalogNames.forEach((row) => {
         addPackage(row.project_name, row.dbt_source_uuid);
     });
-    const successful = explores.filter((explore) => !isExploreError(explore));
-    if (successful.some((explore) => !baseTable(explore)?.dbtPackageName)) {
-        return cannotInfer('an uploaded base table has no dbt package');
-    }
     const mapped = successful.filter((explore) =>
         packages.has(baseTable(explore)!.dbtPackageName!),
     );
-    if (mapped.length === 0)
-        return cannotInfer('no uploaded package matches a source');
+    if (mapped.length === 0) {
+        const uploadedPackages = [
+            ...new Set(
+                successful.map(
+                    (explore) => baseTable(explore)!.dbtPackageName!,
+                ),
+            ),
+        ];
+        return cannotInfer(
+            `no source in this project provides the dbt project ${uploadedPackages.join(', ')}`,
+        );
+    }
     const uploadedPackages = new Set(
         mapped.map((explore) => baseTable(explore)!.dbtPackageName!),
     );
@@ -120,7 +143,9 @@ export const inferCliDeploySource = async (
                 ),
         )
     ) {
-        return cannotInfer('the uploaded packages disagree with dbtModelNames');
+        return cannotInfer(
+            'the explores and the model list disagree; run the deploy again',
+        );
     }
     let candidates = [...sourceUuids].filter((sourceUuid) =>
         [...uploadedPackages].every((packageName) =>
@@ -129,7 +154,7 @@ export const inferCliDeploySource = async (
     );
     if (candidates.length === 0)
         return cannotInfer(
-            'the upload contains packages from different sources',
+            `the upload contains models from several sources (${[...uploadedPackages].join(', ')})`,
         );
     let method: InferredCliDeploySource['method'] = 'package_match';
     if (candidates.length > 1) {
@@ -152,15 +177,30 @@ export const inferCliDeploySource = async (
         if (candidates.length === 1) method = 'overlap_tiebreak';
     }
     if (candidates.length > 1) {
+        const candidateNames = candidates.map((sourceUuid) =>
+            sourceUuid === identity.dbtSourceUuid
+                ? identity.dbtSourceName
+                : sources.find(
+                      (source) => source.projectDbtSourceUuid === sourceUuid,
+                  )!.name,
+        );
+        const providerNames =
+            candidateNames.length === 2
+                ? candidateNames.join(' and ')
+                : `${candidateNames.slice(0, -1).join(', ')} and ${candidateNames.at(-1)}`;
+        const ambiguousReason = `sources ${providerNames} ${candidateNames.length === 2 ? 'both' : 'all'} provide ${[...uploadedPackages].join(', ')}, and ${cliDeploy.target ? `the dbt target database ${cliDeploy.target.database} does not pick one` : 'the deploy did not send a dbt target database'}`;
         const databases = new Set(
             mapped
                 .map((explore) => baseTable(explore)?.database)
                 .filter(Boolean),
         );
         if (cliDeploy.target) databases.add(cliDeploy.target.database);
-        if (databases.size !== 1)
+        if (databases.size === 0) return cannotInfer(ambiguousReason);
+        if (databases.size > 1)
             return cannotInfer(
-                'the uploaded database is missing or inconsistent',
+                cliDeploy.target
+                    ? 'the explores and the dbt target name different databases; run the deploy again'
+                    : 'the uploaded explores name several databases; run the deploy again',
             );
         const [database] = databases;
         const matching = await Promise.all(
@@ -192,11 +232,8 @@ export const inferCliDeploySource = async (
             (sourceUuid): sourceUuid is string => sourceUuid !== null,
         );
         method = 'database_tiebreak';
+        if (candidates.length !== 1) return cannotInfer(ambiguousReason);
     }
-    if (candidates.length !== 1)
-        return cannotInfer(
-            'several sources match, or no source matches the database',
-        );
     const [sourceUuid] = candidates;
     const cachedByName = new Map(
         cached.map((explore) => [explore.name, explore]),
@@ -212,7 +249,7 @@ export const inferCliDeploySource = async (
         if (existingSource && existingSource !== sourceUuid) {
             if (isExploreError(explore)) return false;
             return cannotInfer(
-                'an uploaded explore name belongs to another source',
+                'an uploaded explore name already belongs to another source',
             );
         }
         return true;

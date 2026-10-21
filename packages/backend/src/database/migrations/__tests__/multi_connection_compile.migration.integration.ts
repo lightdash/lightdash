@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
-    ConflictError,
     DimensionType,
     ExploreType,
     getCatalogMissingEntries,
@@ -1295,10 +1294,27 @@ describe('Multi-connection compile on the real schema', () => {
                 return compiled;
             };
 
+            const expectedRejection = (
+                reason: string,
+            ) => `This deploy was not saved and nothing in the project changed.
+The project has several dbt sources and Lightdash could not tell which one these explores belong to: ${reason}.
+
+To fix it, name the source for this deploy:
+  lightdash deploy --source <name>
+or store it once for this project:
+  lightdash config set-source <name>
+
+Sources in this project: Core models, marketing, finance.
+If the sources show no dbt project name yet, refresh the project in Lightdash, then deploy again.`;
+
             const setup = async () => {
                 const fixture = await createProject();
                 await bind(fixture, 'finance', null);
                 await routeSingle(fixture.projectUuid);
+                await projectModel.updateDbtSourceName(
+                    fixture.projectUuid,
+                    'Core models',
+                );
                 const primary = await projectModel.getDbtSourceIdentity(
                     fixture.projectUuid,
                 );
@@ -1436,7 +1452,12 @@ describe('Multi-connection compile on the real schema', () => {
                         ),
                     });
                 const before = await dump(fixture.projectUuid);
-                await expect(deploy()).rejects.toBeInstanceOf(ConflictError);
+                await expect(deploy()).rejects.toMatchObject({
+                    statusCode: 409,
+                    message: expectedRejection(
+                        'the saved explores do not identify their dbt source; refresh the project in Lightdash',
+                    ),
+                });
                 expect(await dump(fixture.projectUuid)).toEqual(before);
             });
 
@@ -1468,9 +1489,12 @@ describe('Multi-connection compile on the real schema', () => {
                             return save(...args);
                         });
                     try {
-                        await expect(deploy()).rejects.toBeInstanceOf(
-                            ConflictError,
-                        );
+                        await expect(deploy()).rejects.toMatchObject({
+                            statusCode: 409,
+                            message: expectedRejection(
+                                'another deploy or refresh changed the project while this deploy ran; deploy again',
+                            ),
+                        });
                         expect(await dump(fixture.projectUuid)).toEqual(before);
                     } finally {
                         intercepted.mockRestore();
@@ -1508,6 +1532,11 @@ describe('Multi-connection compile on the real schema', () => {
 
             test.each([
                 'ambiguous',
+                'ambiguous-target',
+                'missing-project-name',
+                'contradictory-database',
+                'multiple-databases',
+                'name-collision',
                 'unmapped',
                 'empty',
                 'errors-only',
@@ -1515,7 +1544,14 @@ describe('Multi-connection compile on the real schema', () => {
                 'multiple-root-packages',
             ])('rejects %s without changing cached explores', async (kind) => {
                 const { fixture, deploy } = await setup();
-                if (kind === 'ambiguous') {
+                if (
+                    [
+                        'ambiguous',
+                        'ambiguous-target',
+                        'contradictory-database',
+                        'multiple-databases',
+                    ].includes(kind)
+                ) {
                     await projectModel.saveExploresToCache(
                         fixture.projectUuid,
                         [
@@ -1530,7 +1566,14 @@ describe('Multi-connection compile on the real schema', () => {
                 const before = await dump(fixture.projectUuid);
                 let explores: (Explore | ExploreError)[] = [
                     packagedExplore(
-                        kind === 'ambiguous' ? 'new_model' : 'orders',
+                        [
+                            'ambiguous',
+                            'ambiguous-target',
+                            'contradictory-database',
+                            'multiple-databases',
+                        ].includes(kind)
+                            ? 'new_model'
+                            : 'orders',
                         kind === 'unmapped' ? 'unknown' : 'analytics',
                     ),
                 ];
@@ -1541,14 +1584,67 @@ describe('Multi-connection compile on the real schema', () => {
                         packagedExplore('orders', 'analytics'),
                         packagedExplore('campaigns', 'marketing'),
                     ];
+                if (kind === 'missing-project-name')
+                    delete explores[0].tables!.orders.dbtPackageName;
+                if (kind === 'contradictory-database')
+                    explores[0].tables!.new_model.database = ORIGINAL_DB;
+                if (kind === 'multiple-databases') {
+                    const other = packagedExplore('another_model', 'analytics');
+                    other.tables.another_model.database = 'other_database';
+                    explores.push(other);
+                }
+                if (kind === 'name-collision')
+                    explores.push(packagedExplore('payments', 'dbt_utils'));
+                const reasons: Record<string, string> = {
+                    ambiguous:
+                        'sources Core models and marketing both provide analytics, and the deploy did not send a dbt target database',
+                    'ambiguous-target':
+                        'sources Core models and marketing both provide analytics, and the dbt target database unmatched_database does not pick one',
+                    'missing-project-name':
+                        'the uploaded explores carry no dbt project name; update the Lightdash CLI',
+                    unmapped:
+                        'no source in this project provides the dbt project unknown',
+                    empty: 'the upload contains no explores; compile the dbt project and deploy again',
+                    'errors-only':
+                        'none of the uploaded explores compiled successfully; fix the compile errors and deploy again',
+                    'contradictory-model-names':
+                        'the explores and the model list disagree; run the deploy again',
+                    'multiple-root-packages':
+                        'the upload contains models from several sources (analytics, marketing)',
+                    'contradictory-database':
+                        'the explores and the dbt target name different databases; run the deploy again',
+                    'multiple-databases':
+                        'the uploaded explores name several databases; run the deploy again',
+                    'name-collision':
+                        'an uploaded explore name already belongs to another source',
+                };
+                if (kind === 'ambiguous-target')
+                    explores[0].tables!.new_model.database =
+                        'unmatched_database';
                 await expect(
                     deploy({
                         explores,
+                        ...([
+                            'ambiguous-target',
+                            'contradictory-database',
+                        ].includes(kind)
+                            ? {
+                                  cliDeploy: {
+                                      sourceUuid: null,
+                                      target: {
+                                          database: 'unmatched_database',
+                                      },
+                                  },
+                              }
+                            : {}),
                         ...(kind === 'contradictory-model-names'
                             ? { dbtModelNames: ['other__orders'] }
                             : {}),
                     }),
-                ).rejects.toBeInstanceOf(ConflictError);
+                ).rejects.toMatchObject({
+                    statusCode: 409,
+                    message: expectedRejection(reasons[kind]),
+                });
                 expect(await dump(fixture.projectUuid)).toEqual(before);
             });
 

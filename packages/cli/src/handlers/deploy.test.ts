@@ -235,6 +235,43 @@ describe('deploy completeness transport', () => {
         });
     });
 
+    test('propagates a 409 from finalize without retrying or falling back', async () => {
+        const failure = new LightdashError({
+            name: 'ConflictError',
+            statusCode: 409,
+            message:
+                'This deploy was not saved.\nChoose a source with --source.',
+            data: {},
+        });
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy'))
+                return { deploySessionUuid: 'deploy-session-uuid' } as never;
+            if (url.endsWith('/batch'))
+                return { batchNumber: 0, exploreCount: 1 } as never;
+            if (url.endsWith('/finalize')) throw failure;
+            return null as never;
+        });
+        await expect(
+            deploy([compiledExplore], { ...deployOptions, complete: true }),
+        ).rejects.toBe(failure);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([request]) =>
+                    request.url.endsWith('/finalize'),
+                ),
+        ).toHaveLength(1);
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(
+                    ([request]) =>
+                        request.method === 'PUT' &&
+                        request.url.includes('/explores'),
+                ),
+        ).toHaveLength(0);
+    });
+
     test('falls back to the legacy deploy when session creation returns 404', async () => {
         vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
             if (url.endsWith('/deploy')) {

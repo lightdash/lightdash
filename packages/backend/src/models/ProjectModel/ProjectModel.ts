@@ -139,6 +139,7 @@ import {
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../../database/entities/pinnedList';
+import { ProjectDbtSourcesTableName } from '../../database/entities/projectDbtSources';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
 import { ProjectGroupAccessCustomRolesTableName } from '../../database/entities/projectGroupAccessCustomRoles';
 import { ProjectMembershipCustomRolesTableName } from '../../database/entities/projectMembershipCustomRoles';
@@ -221,6 +222,7 @@ import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
+import { cliDeployConflictError } from '../../utils/cliDeployError';
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
@@ -4043,8 +4045,20 @@ export class ProjectModel {
             })
             .first();
         if (conflict) {
-            throw new ConflictError(
-                'Cached source ownership changed during this deploy. Refresh the project and deploy again with --source or lightdash config set-source.',
+            const [primary] = await trx(ProjectTableName)
+                .select('dbt_source_name')
+                .where('project_uuid', projectUuid);
+            const extraSources = await trx(ProjectDbtSourcesTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .orderBy('precedence', 'asc')
+                .orderBy('name', 'asc');
+            throw cliDeployConflictError(
+                'another deploy or refresh changed the project while this deploy ran; deploy again',
+                [
+                    primary.dbt_source_name,
+                    ...extraSources.map((source) => source.name),
+                ],
             );
         }
     }
