@@ -21,6 +21,7 @@ export type VirtualListItem =
           type: 'group-header';
           id: string;
           label: string;
+          description?: string;
           path: string;
           depth: number;
           isExpanded: boolean;
@@ -138,6 +139,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         type: 'group-header',
                         id: `group-${itemId++}`,
                         label: node.label,
+                        description: node.description,
                         path: node.path,
                         depth,
                         isExpanded,
@@ -282,6 +284,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         <GroupHeader
                             key={item.id}
                             label={item.label}
+                            description={item.description}
                             isExpanded={item.isExpanded}
                             depth={item.depth}
                             onToggle={() => toggleGroup(item.path)}
