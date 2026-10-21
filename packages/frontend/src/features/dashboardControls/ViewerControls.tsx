@@ -343,6 +343,7 @@ export const ViewerControls: FC<Props> = ({
                                         ? requiredRule
                                         : clearRuleRequired(
                                               rule,
+                                              savedRule,
                                               filterType,
                                               field,
                                           ),

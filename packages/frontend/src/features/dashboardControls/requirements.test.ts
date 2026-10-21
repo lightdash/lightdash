@@ -87,7 +87,7 @@ describe('requirements', () => {
         );
     });
 
-    it('clears the temporary value and settings with the requirement', () => {
+    it('clears the temporary value and settings of a filter saved as required', () => {
         const next = clearRuleRequired(
             rule('a', {
                 required: true,
@@ -96,6 +96,7 @@ describe('requirements', () => {
                 values: [7],
                 settings: { unitOfTime: UnitOfTime.days },
             }),
+            rule('a', { required: true }),
             FilterType.DATE,
             null,
         );
@@ -113,6 +114,7 @@ describe('requirements', () => {
     it('leaves a required filter with no value off when the requirement goes', () => {
         const next = clearRuleRequired(
             rule('a', { requiredGroupId: 'g' }),
+            rule('a', { requiredGroupId: 'g' }),
             FilterType.STRING,
             null,
         );
@@ -125,6 +127,33 @@ describe('requirements', () => {
             }),
         );
     });
+
+    it.each([
+        ['saved without a requirement', rule('a', { values: ['credit_card'] })],
+        ['not saved yet', null],
+    ])(
+        'keeps the default value of a filter %s when the requirement goes',
+        (_, savedRule) => {
+            const next = clearRuleRequired(
+                rule('a', {
+                    required: true,
+                    disabled: false,
+                    values: ['credit_card'],
+                }),
+                savedRule,
+                FilterType.STRING,
+                null,
+            );
+            expect(next).toEqual(
+                expect.objectContaining({
+                    required: false,
+                    requiredGroupId: undefined,
+                    disabled: false,
+                    values: ['credit_card'],
+                }),
+            );
+        },
+    );
 
     it('groups a filter with an alternative', () => {
         const next = addAlternative(

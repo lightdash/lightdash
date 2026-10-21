@@ -313,9 +313,12 @@ In `FilterConfiguration/`:
     of the rule in `dashboard.filters`), valueless; any other becomes required
     on its own. A default value does not block it: it stays as a temporary
     value, removed on dashboard save.
-  - Off: only this filter changes, and its values and settings are cleared
-    (`getFilterRuleWithDefaultValue(..., null)`). The rest of its rule keeps
-    its `requiredGroupId`, even a rule left with one member.
+  - Off: only this filter changes. A filter saved as required loses its
+    values and settings (`getFilterRuleWithDefaultValue(..., null)`), since
+    they were only a temporary value, as in the shipped form. Any other
+    filter keeps its default value, so switching "Required" on and off is no
+    change. The rest of its rule keeps its `requiredGroupId`, even a rule left
+    with one member.
   - Both writes go through the shipped disabled rule, like every edit of
     `FilterValueSettings`.
   - "Or one of these instead" gives the shipped reasons
