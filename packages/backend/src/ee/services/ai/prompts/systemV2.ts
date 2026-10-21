@@ -103,7 +103,6 @@ export type CapabilitySectionArgs = {
     }[];
     sqlScope?: AgentSqlScope | null;
     runSqlMaxLimit?: number;
-    // Whether the loadout has runQuery for answers without a chart.
     canRunQuery?: boolean;
 };
 

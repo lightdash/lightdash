@@ -2205,7 +2205,7 @@ describe('getAgentTools workstream tool gate', () => {
     );
 
     it.each([false, true])(
-        'offers chart export only with data access, without a decision client (data=%s)',
+        'offers chart export only with data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({
                 enableCodingAgent: false,
@@ -2218,7 +2218,7 @@ describe('getAgentTools workstream tool gate', () => {
         },
     );
 
-    it('registers Slack chart images for delivery without a decision client', async () => {
+    it('registers Slack chart images for delivery', async () => {
         const args = buildArgs({
             enableCodingAgent: false,
             enableAiWriteback: false,

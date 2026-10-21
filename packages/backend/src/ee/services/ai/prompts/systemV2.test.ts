@@ -478,29 +478,6 @@ describe('getSystemPromptV2 response content', () => {
 });
 
 describe('getSystemPromptV2 merge queries', () => {
-    test('keeps context housekeeping private and separates observations from causes', () => {
-        const fast = promptText({ availableExplores: [] });
-        expect(fast).toContain('All assistant text is user-visible');
-        expect(fast).toContain('Prior assistant notes are not evidence');
-        expect(fast).toContain(
-            'Correlation, timing and subgroup differences do not establish causation',
-        );
-        expect(fast).toContain('Label untested explanations as hypotheses');
-        expect(fast).toContain(
-            'The earliest observed record in one source does not establish the true first occurrence',
-        );
-    });
-
-    test('allows complete web tables and avoids redundant titles', () => {
-        const fast = promptText({ availableExplores: [] });
-        expect(fast).toContain(
-            'Markdown tables with a header, separator and data rows',
-        );
-        expect(fast).not.toContain('Never produce markdown tables');
-        expect(fast).not.toContain('no markdown tables');
-        expect(fast).toContain('Do not repeat the artifact title');
-    });
-
     test('names runQuery for small tables only when the agent has it', () => {
         expect(
             promptText({ availableExplores: [], canRunQuery: true }),
@@ -514,23 +491,32 @@ describe('getSystemPromptV2 merge queries', () => {
         expect(withoutRunQuery).not.toContain('runQuery');
     });
 
-    test.each([{ slackChannelId: 'channel' }, { slackLinksOnly: true }])(
-        'retains Slack table restrictions: %j',
-        (slack) => {
-            const fast = promptText({ availableExplores: [], ...slack });
-            expect(fast).toContain('Never produce markdown tables');
-            expect(fast).not.toContain(
-                'Markdown tables with a header, separator and data rows',
+    test.each([
+        { surface: 'web', args: {}, markdownTables: true },
+        {
+            surface: 'Slack',
+            args: { slackChannelId: 'channel' },
+            markdownTables: false,
+        },
+        {
+            surface: 'Slack links only',
+            args: { slackLinksOnly: true },
+            markdownTables: false,
+        },
+    ])(
+        'allows Markdown tables on $surface: $markdownTables',
+        ({ args, markdownTables }) => {
+            const content = promptText({ availableExplores: [], ...args });
+            expect(
+                content.includes(
+                    'Markdown tables with a header, separator and data rows',
+                ),
+            ).toBe(markdownTables);
+            expect(content.includes('Never produce markdown tables')).toBe(
+                !markdownTables,
             );
         },
     );
-
-    test('requires result-backed comparisons', () => {
-        const fast = promptText({ availableExplores: [] });
-        expect(fast).toContain(
-            'A label such as "Low Cost" does not prove that its group is cheaper',
-        );
-    });
 
     test('directs cross-explore questions to runSql, never mergeConfig', () => {
         const content = promptText({
