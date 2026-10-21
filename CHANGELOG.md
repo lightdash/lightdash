@@ -1,3 +1,10 @@
+## [3.20.3](https://github.com/lightdash/lightdash/compare/3.20.2...3.20.3) (2026-10-21)
+
+
+### Bug Fixes
+
+* preserve dbt source ownership in CLI deploys and previews ([#31326](https://github.com/lightdash/lightdash/issues/31326)) ([a8f92aa](https://github.com/lightdash/lightdash/commit/a8f92aaf199d0a4f78dcfb45e46b06373fad9bad)), closes [#31323](https://github.com/lightdash/lightdash/issues/31323)
+
 ## [3.20.2](https://github.com/lightdash/lightdash/compare/3.20.1...3.20.2) (2026-10-21)
 
 
