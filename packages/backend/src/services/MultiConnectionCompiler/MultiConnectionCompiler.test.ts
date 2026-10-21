@@ -88,7 +88,7 @@ const manifest: DbtManifest = {
 };
 
 describe('multi-source compilation diagnostics', () => {
-    it('persists the dbt error output when an additional source fails', async () => {
+    it('reports a safe warning and completes the job when an additional source fails', async () => {
         const log: DbtLog = {
             code: 'E001',
             info: {
@@ -109,6 +109,7 @@ describe('multi-source compilation diagnostics', () => {
         const compiler = new MultiConnectionCompiler({
             dbtSourceRefCatalogModel: {} as never,
             projectModel: {
+                countCachedExploresForDbtSource: vi.fn(async () => 2),
                 getDbtSourceIdentity: vi.fn().mockResolvedValue({
                     dbtSourceName: 'primary',
                     dbtSourceUuid: 'primary-source-uuid',
@@ -146,10 +147,20 @@ describe('multi-source compilation diagnostics', () => {
             .mockResolvedValue();
         vi.spyOn(jobModel, 'update').mockResolvedValue();
 
+        const warning = vi.fn(async (_message: string) => undefined);
+        vi.spyOn(
+            DbtManifestProjectAdapter.prototype,
+            'prepareExploreStream',
+        ).mockResolvedValue(
+            (async function* stream() {
+                yield* [];
+            })(),
+        );
         await expect(
             jobModel.tryJobStep('job-uuid', JobStepType.COMPILING, () =>
                 compiler.compile({
                     concurrency: 1,
+                    onSourceWarning: warning,
                     projectUuid: 'project-uuid',
                     context: connectionContextFromUser(
                         { userUuid: 'user-uuid' },
@@ -198,14 +209,21 @@ describe('multi-source compilation diagnostics', () => {
                     loadExtraCredentials: vi.fn(),
                 }),
             ),
-        ).rejects.toThrow('Failed to load dbt source "finance"');
+        ).resolves.toMatchObject({
+            carry: {
+                kind: 'connections',
+                dbtSourceUuids: ['finance-source-uuid'],
+            },
+        });
+        expect(warning).toHaveBeenCalledWith(
+            expect.stringContaining('Source "finance" failed'),
+        );
+        expect(warning.mock.calls.flat().join(' ')).not.toContain(log.info.msg);
 
         expect(updateStep).toHaveBeenCalledWith(
             'job-uuid',
-            JobStepStatusType.ERROR,
+            JobStepStatusType.DONE,
             JobStepType.COMPILING,
-            expect.stringContaining('finance'),
-            [log],
         );
     });
 });

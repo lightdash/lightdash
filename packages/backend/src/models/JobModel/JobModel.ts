@@ -16,6 +16,7 @@ import {
 import { Knex } from 'knex';
 import {
     DbJobs,
+    DbJobSteps,
     JobsTableName,
     JobStepsTableName,
 } from '../../database/entities/jobs';
@@ -356,6 +357,23 @@ export class JobModel {
                         JobStatusType.RUNNING,
                         JobStatusType.STARTED,
                     ]);
+            });
+    }
+
+    async appendJobStepWarning(
+        jobUuid: string,
+        stepType: JobStepType,
+        warning: string,
+    ): Promise<void> {
+        throwIfCompileAborted();
+        await this.database<DbJobSteps>(JobStepsTableName)
+            .where({ job_uuid: jobUuid, step_type: stepType })
+            .update({
+                step_error: this.database.raw(
+                    "concat_ws(E'\\n', NULLIF(step_error, ''), ?::text)",
+                    [warning],
+                ),
+                updated_at: new Date(),
             });
     }
 

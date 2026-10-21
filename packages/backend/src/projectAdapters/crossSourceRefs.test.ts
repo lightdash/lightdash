@@ -1710,3 +1710,159 @@ it('explains ambiguous one-argument names without calling them hidden refs', asy
         'could not be found before compiling',
     );
 });
+
+describe('source failure isolation', () => {
+    const isolate = (tasks: CrossSourceFetchTask<string>[], enabled = true) => {
+        const onSourceFailure = vi.fn(
+            async (source: CrossSourceFetchTask<string>) =>
+                source.key !== 'primary',
+        );
+        return {
+            onSourceFailure,
+            resolution: resolveCrossSourceManifests({
+                tasks,
+                enabled,
+                concurrency: 2,
+                onSourceFailure,
+            }),
+        };
+    };
+
+    it.each([true, false])(
+        'keeps healthy manifests after a sibling fetch failure (refs=%s)',
+        async (enabled) => {
+            const primary = task('primary');
+            const broken = task('broken');
+            broken.fetch.mockRejectedValue(new Error('parse failed'));
+            const healthy = task('healthy');
+            const { resolution, onSourceFailure } = isolate(
+                [primary, broken, healthy],
+                enabled,
+            );
+            expect(
+                (await resolution).results.map((entry) => entry.task.key),
+            ).toEqual(['primary', 'healthy']);
+            expect(onSourceFailure).toHaveBeenCalledWith(
+                broken,
+                expect.any(Error),
+                'manifest',
+            );
+        },
+    );
+
+    it('keeps healthy manifests after a sibling preparation failure', async () => {
+        const primary = scannedTask('primary');
+        const broken = scannedTask('broken');
+        broken.prepare.mockRejectedValue(new Error('clone failed'));
+        const { resolution } = isolate([primary, broken]);
+        expect(
+            (await resolution).results.map((entry) => entry.task.key),
+        ).toEqual(['primary']);
+        expect(broken.fetch).not.toHaveBeenCalled();
+    });
+
+    it('keeps primary failures fatal', async () => {
+        const primary = task('primary');
+        primary.fetch.mockRejectedValue(new Error('primary failed'));
+        await expect(
+            isolate([primary, task('healthy')]).resolution,
+        ).rejects.toThrow('primary failed');
+    });
+
+    it('drops consumers of a failed provider even when cached stubs let dbt parse', async () => {
+        const primary = scannedTask('primary');
+        const provider = scannedTask('provider');
+        provider.fetch.mockRejectedValue(new Error('parse failed'));
+        const consumer = scannedTask('consumer', ['provider']);
+        const consumerManifest = manifest('consumer');
+        const node = consumerManifest.nodes[
+            'model.consumer.orders'
+        ] as DbtRawModelNode;
+        node.depends_on = { nodes: ['model.provider.orders'], macros: [] };
+        consumer.fetch.mockResolvedValue({
+            ...result('consumer'),
+            manifest: consumerManifest,
+        });
+        const { resolution, onSourceFailure } = isolate([
+            primary,
+            provider,
+            consumer,
+        ]);
+        expect(
+            (await resolution).results.map((entry) => entry.task.key),
+        ).toEqual(['primary']);
+        expect(onSourceFailure).toHaveBeenCalledWith(
+            consumer,
+            expect.objectContaining({ name: 'DbtSourceDependencyError' }),
+            'dependency',
+        );
+    });
+
+    it('keeps ambiguity errors fatal when source isolation is enabled', async () => {
+        const consumer = scannedTask('consumer');
+        consumer.prepare.mockResolvedValue({
+            ...(await consumer.prepare()),
+            localModels: [],
+            refs: [{ packageName: null, name: 'orders', version: null }],
+        });
+        consumer.fetch.mockRejectedValue(
+            new DbtError(
+                "depends on a node named 'orders' which was not found",
+            ),
+        );
+        const { resolution, onSourceFailure } = isolate([
+            task('primary'),
+            consumer,
+            scannedTask('first'),
+            scannedTask('second'),
+        ]);
+        await expect(resolution).rejects.toThrow(
+            'defined by several dbt sources',
+        );
+        expect(onSourceFailure).not.toHaveBeenCalled();
+    });
+
+    it('keeps cycles fatal when source isolation is enabled', async () => {
+        const first = scannedTask('first', ['second']);
+        const second = scannedTask('second', ['first']);
+        for (const [source, provider] of [
+            [first, 'second'],
+            [second, 'first'],
+        ] as const) {
+            const fetched = result(source.key);
+            (
+                fetched.manifest.nodes[
+                    `model.${source.key}.orders`
+                ] as DbtRawModelNode
+            ).depends_on = { nodes: [`model.${provider}.orders`], macros: [] };
+            source.fetch.mockResolvedValue(fetched);
+        }
+        const { resolution, onSourceFailure } = isolate([
+            task('primary'),
+            first,
+            second,
+        ]);
+        await expect(resolution).rejects.toThrow('cycle across dbt sources');
+        expect(onSourceFailure).not.toHaveBeenCalled();
+    });
+
+    it('does not swallow cancellation', async () => {
+        const controller = new AbortController();
+        const broken = task('broken');
+        broken.fetch.mockImplementation(async () => {
+            controller.abort(new Error('job cancelled'));
+            throw new Error('parse interrupted');
+        });
+        const onSourceFailure = vi.fn(async () => true);
+        await expect(
+            resolveCrossSourceManifests({
+                tasks: [broken],
+                enabled: true,
+                concurrency: 1,
+                signal: controller.signal,
+                onSourceFailure,
+            }),
+        ).rejects.toThrow('job cancelled');
+        expect(onSourceFailure).not.toHaveBeenCalled();
+    });
+});

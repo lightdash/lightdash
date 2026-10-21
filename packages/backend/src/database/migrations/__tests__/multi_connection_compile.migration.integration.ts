@@ -1,10 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
     calculateCompilationReport,
+    DbtError,
     DimensionType,
     ExploreType,
     getCatalogMissingEntries,
     JobStatusType,
+    JobStepStatusType,
     JobStepType,
     JobType,
     NotFoundError,
@@ -301,6 +303,12 @@ describe('Multi-connection compile on the real schema', () => {
             ORIGINAL_DB,
         ),
         includeUnboundSources = true,
+        failure: {
+            sources: string[];
+            phase: 'prepare' | 'manifest';
+            crossSourceRefs: boolean;
+            onWarning?: (warning: string) => Promise<void>;
+        } | null = null,
     ) => {
         const { organizationUuid } = await projectModel.getSummary(
             fixture.projectUuid,
@@ -323,14 +331,18 @@ describe('Multi-connection compile on the real schema', () => {
                     projectUuid: fixture.projectUuid,
                     primary: {
                         connection,
-                        fetchManifest: async () => ({
-                            manifest: dbtManifest('primary', primary),
-                            timings: {
-                                gitRefreshMs: null,
-                                depsMs: null,
-                                manifestMs: 0,
-                            },
-                        }),
+                        fetchManifest: async () => {
+                            if (failure?.sources.includes('primary'))
+                                throw new DbtError('Primary parse failed');
+                            return {
+                                manifest: dbtManifest('primary', primary),
+                                timings: {
+                                    gitRefreshMs: null,
+                                    depsMs: null,
+                                    manifestMs: 0,
+                                },
+                            };
+                        },
                         dbtProjectDir: undefined,
                         warehouseCredentials: originalCredentials,
                         cachedWarehouse: {
@@ -348,9 +360,25 @@ describe('Multi-connection compile on the real schema', () => {
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
                     includeUnboundSources,
-                    crossSourceRefsEnabled: false,
+                    crossSourceRefsEnabled: failure?.crossSourceRefs ?? false,
                     mixedWarehouseConnectionsEnabled: false,
-                    fetchSourceManifest,
+                    onSourceWarning: failure?.onWarning,
+                    prepareSourceManifest: async (source) => {
+                        if (
+                            failure?.phase === 'prepare' &&
+                            failure.sources.includes(source.name)
+                        )
+                            throw new Error('Repository clone failed');
+                        return null;
+                    },
+                    fetchSourceManifest: async (...args) => {
+                        if (
+                            failure?.phase === 'manifest' &&
+                            failure.sources.includes(args[0].name)
+                        )
+                            throw new DbtError('Source parse failed');
+                        return fetchSourceManifest(args[0], args[1]);
+                    },
                     loadExtraCredentials: loadExtraCredentials(
                         fixture.projectUuid,
                     ),
@@ -2524,6 +2552,318 @@ describe('Multi-connection compile on the real schema', () => {
                 customers: null,
                 orders: null,
                 payments: fixture.extraConnectionUuid,
+            });
+        });
+
+        describe('source failure isolation', () => {
+            test.each(['prepare', 'manifest'] as const)(
+                '%s failure keeps the source rows unchanged and refreshes healthy sources',
+                async (phase) => {
+                    const fixture = await createProject();
+                    await compile(fixture);
+                    const before = await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first();
+                    const refreshedModels = primaryModels.map((model) => ({
+                        ...model,
+                        label: 'Refreshed',
+                    }));
+                    const result = await compile(
+                        fixture,
+                        refreshedModels,
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: ['marketing'],
+                            phase,
+                            crossSourceRefs: true,
+                        },
+                    );
+                    const after = await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first();
+                    expect(after).toEqual(before);
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).find(
+                            (row) => row.name === 'orders',
+                        )?.explore.label,
+                    ).toBe('Refreshed');
+                    expect(result.warnings).toContainEqual(
+                        expect.stringContaining('Source "marketing" failed'),
+                    );
+                    expect(result.warnings).toContainEqual(
+                        expect.stringContaining('kept its 1 explores'),
+                    );
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).map(
+                            (row) => row.name,
+                        ),
+                    ).toEqual(['campaigns', 'customers', 'orders', 'payments']);
+                },
+            );
+
+            test('all non-primary failures still save the primary and carry both sources', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = await cachedExplores(fixture.projectUuid);
+                const result = await compile(
+                    fixture,
+                    primaryModels,
+                    postgresWarehouse(ORIGINAL_DB),
+                    true,
+                    {
+                        sources: ['marketing', 'finance'],
+                        phase: 'manifest',
+                        crossSourceRefs: false,
+                    },
+                );
+                expect(await cachedExplores(fixture.projectUuid)).toEqual(
+                    before,
+                );
+                expect(
+                    result.warnings.filter((warning) =>
+                        warning.startsWith('Source '),
+                    ),
+                ).toHaveLength(2);
+            });
+
+            test('a source without prior explores contributes no rows and has an explicit warning', async () => {
+                const fixture = await createProject();
+                const result = await compile(
+                    fixture,
+                    primaryModels,
+                    postgresWarehouse(ORIGINAL_DB),
+                    true,
+                    {
+                        sources: ['marketing'],
+                        phase: 'manifest',
+                        crossSourceRefs: true,
+                    },
+                );
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.name,
+                    ),
+                ).toEqual(['customers', 'orders', 'payments']);
+                expect(result.warnings).toContainEqual(
+                    expect.stringContaining('nothing was carried'),
+                );
+            });
+
+            test('a primary failure leaves every cached row unchanged', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = await cachedExplores(fixture.projectUuid);
+                await expect(
+                    compile(
+                        fixture,
+                        primaryModels,
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: ['primary'],
+                            phase: 'manifest',
+                            crossSourceRefs: true,
+                        },
+                    ),
+                ).rejects.toThrow('Primary parse failed');
+                expect(await cachedExplores(fixture.projectUuid)).toEqual(
+                    before,
+                );
+            });
+
+            test('the single-connection stream carries a failed source by its stamp and removes retired healthy models', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = await database('cached_explore')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        name: 'campaigns',
+                    })
+                    .first();
+                const rows = await cachedExplores(fixture.projectUuid);
+                const orders = rows.find(
+                    (row) => row.name === 'orders',
+                )!.explore;
+                const stream = (async function* fresh() {
+                    yield { ...orders, label: 'Refreshed' };
+                })();
+                await projectModel.saveExploreStreamToCache(
+                    fixture.projectUuid,
+                    stream,
+                    undefined,
+                    [fixture.sourceUuids.marketing],
+                );
+                expect(
+                    await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'campaigns',
+                        })
+                        .first(),
+                ).toEqual(before);
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.name,
+                    ),
+                ).toEqual(['campaigns', 'orders']);
+            });
+
+            test('error explores with a top-level source stamp survive unchanged', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                await database('cached_explore').insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'marketing_error',
+                    table_names: [],
+                    explore: {
+                        ...exploreError,
+                        name: 'marketing_error',
+                        dbtSourceUuid: fixture.sourceUuids.marketing,
+                    },
+                });
+                const before = await database('cached_explore')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        name: 'marketing_error',
+                    })
+                    .first();
+                const result = await compile(
+                    fixture,
+                    primaryModels,
+                    postgresWarehouse(ORIGINAL_DB),
+                    true,
+                    {
+                        sources: ['marketing'],
+                        phase: 'manifest',
+                        crossSourceRefs: true,
+                    },
+                );
+                expect(
+                    await database('cached_explore')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            name: 'marketing_error',
+                        })
+                        .first(),
+                ).toEqual(before);
+                expect(result.warnings).toContainEqual(
+                    expect.stringContaining('kept its 2 explores'),
+                );
+            });
+
+            test('a fresh model cannot replace a carried source model with the same name', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = await cachedExplores(fixture.projectUuid);
+                const fresh = {
+                    ...before.find((row) => row.name === 'orders')!.explore,
+                    name: 'campaigns',
+                };
+                const stream = (async function* conflicting() {
+                    yield fresh;
+                })();
+                await expect(
+                    projectModel.saveExploreStreamToCache(
+                        fixture.projectUuid,
+                        stream,
+                        undefined,
+                        [fixture.sourceUuids.marketing],
+                    ),
+                ).rejects.toThrow(
+                    'conflicts with an explore kept from a failed dbt source',
+                );
+                expect(await cachedExplores(fixture.projectUuid)).toEqual(
+                    before,
+                );
+            });
+
+            test('warnings stay visible on a completed job step and in the compile report', async () => {
+                const fixture = await createProject();
+                const jobs = new JobModel({ database });
+                const jobUuid = randomUUID();
+                await jobs.create(
+                    {
+                        jobUuid,
+                        jobType: JobType.COMPILE_PROJECT,
+                        projectUuid: fixture.projectUuid,
+                        jobStatus: JobStatusType.STARTED,
+                        userUuid: undefined,
+                        steps: [{ stepType: JobStepType.COMPILING }],
+                    },
+                    false,
+                );
+                const result = await jobs.tryJobStep(
+                    jobUuid,
+                    JobStepType.COMPILING,
+                    () =>
+                        compile(
+                            fixture,
+                            primaryModels,
+                            postgresWarehouse(ORIGINAL_DB),
+                            true,
+                            {
+                                sources: ['marketing'],
+                                phase: 'manifest',
+                                crossSourceRefs: true,
+                                onWarning: (warning) =>
+                                    jobs.appendJobStepWarning(
+                                        jobUuid,
+                                        JobStepType.COMPILING,
+                                        warning,
+                                    ),
+                            },
+                        ),
+                );
+                await jobs.update(jobUuid, { jobStatus: JobStatusType.DONE });
+                const job = await jobs.get(jobUuid);
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(job.steps[0]).toMatchObject({
+                    stepStatus: JobStepStatusType.DONE,
+                    stepError: expect.stringContaining(
+                        'Source "marketing" failed',
+                    ),
+                });
+                const report = withConnectionWarnings(
+                    calculateCompilationReport({
+                        explores: (
+                            await cachedExplores(fixture.projectUuid)
+                        ).map((row) => row.explore),
+                    }),
+                    result.warnings,
+                );
+                expect(report.connectionWarnings).toContain(
+                    job.steps[0].stepError,
+                );
+                const { organizationUuid } = await projectModel.getSummary(
+                    fixture.projectUuid,
+                );
+                const logs = new ProjectCompileLogModel({ database });
+                await logs.insert({
+                    projectUuid: fixture.projectUuid,
+                    jobUuid,
+                    userUuid: null,
+                    organizationUuid,
+                    compilationSource: 'refresh_dbt',
+                    dbtConnectionType: 'github',
+                    requestMethod: null,
+                    warehouseType: 'postgres',
+                    report,
+                });
+                const persisted = await logs.getLogs({
+                    projectUuid: fixture.projectUuid,
+                    organizationUuid,
+                    sort: { column: 'created_at', direction: 'asc' },
+                });
+                expect(persisted.data[0].report.connectionWarnings).toEqual(
+                    report.connectionWarnings,
+                );
             });
         });
 

@@ -55,6 +55,11 @@ import {
 } from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import {
+    isFatalSourceFailure,
+    SourceFailureIsolation,
+    validateDbtSourceManifest,
+} from '../../projectAdapters/sourceFailureIsolation';
+import {
     armCompileShutdown,
     markCompilePublished,
 } from '../../scheduler/compileShutdown';
@@ -199,6 +204,7 @@ class ExtraConnectionCheckError extends Error {
 }
 
 type MultiConnectionCompileInput = SourceDiskLifecycle & {
+    onSourceWarning?: (warning: string) => Promise<void>;
     projectUuid: string;
     context: ConnectionContext;
     primary: PrimaryCompileInput;
@@ -269,6 +275,7 @@ export class MultiConnectionCompiler {
         prepareSourceManifest?: PrepareSourceManifest,
         warnings: string[] = [],
         resolutionOptions: SourceDiskLifecycle & {
+            isolation?: SourceFailureIsolation;
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
             maxPasses?: number;
@@ -359,6 +366,7 @@ export class MultiConnectionCompiler {
                         connection,
                         options,
                     );
+                    validateDbtSourceManifest(result.manifest);
                     if (!enabled)
                         await resolutionOptions.releaseSourceDisk?.(source);
                     return result;
@@ -384,25 +392,38 @@ export class MultiConnectionCompiler {
             }
             return [
                 ...primarySources,
-                ...(await runWithConcurrency(
-                    sourceTasks,
-                    concurrency,
-                    async (task) => {
-                        const fetch = task.fetch({ externalNodes: [] });
-                        activeFetches.add(fetch);
-                        let result: CrossSourceFetchResult;
-                        try {
-                            result = await fetch;
-                        } finally {
-                            activeFetches.delete(fetch);
-                        }
-                        return {
-                            ...task.context,
-                            manifest: result.manifest,
-                            selectedModelIds: result.selectedModelIds,
-                        };
-                    },
-                ).catch(releaseFailed)),
+                ...(
+                    await runWithConcurrency(
+                        sourceTasks,
+                        concurrency,
+                        async (task) => {
+                            const fetch = task.fetch({ externalNodes: [] });
+                            activeFetches.add(fetch);
+                            let result: CrossSourceFetchResult;
+                            try {
+                                result = await fetch;
+                            } catch (error) {
+                                if (
+                                    await resolutionOptions.isolation?.skip(
+                                        task.context.dbtSourceUuid,
+                                        task.key,
+                                        error,
+                                        'manifest',
+                                    )
+                                )
+                                    return null;
+                                throw error;
+                            } finally {
+                                activeFetches.delete(fetch);
+                            }
+                            return {
+                                ...task.context,
+                                manifest: result.manifest,
+                                selectedModelIds: result.selectedModelIds,
+                            };
+                        },
+                    ).catch(releaseFailed)
+                ).filter((entry) => entry !== null),
             ];
         }
         const tasks = [...(primaryTask ? [primaryTask] : []), ...sourceTasks];
@@ -415,6 +436,17 @@ export class MultiConnectionCompiler {
         );
         const resolution = await resolveCrossSourceManifests({
             cache,
+            onSourceFailure: async (task, error, phase) => {
+                const skipped =
+                    (await resolutionOptions.isolation?.skip(
+                        task.context.dbtSourceUuid,
+                        task.key,
+                        error,
+                        phase,
+                    )) ?? false;
+                if (skipped) catalogCache?.discard(task.context.dbtSourceUuid);
+                return skipped;
+            },
             onSourceResolved: async ({
                 task,
                 nodes,
@@ -514,7 +546,7 @@ export class MultiConnectionCompiler {
         resolutionOptions?: Parameters<
             typeof MultiConnectionCompiler.fetchSourceManifests
         >[10];
-    }): Promise<CompiledExtraGroup> {
+    }): Promise<CompiledExtraGroup | null> {
         const credentials = await loadExtraCredentials(
             plan.warehouseConnectionUuid,
         );
@@ -557,6 +589,7 @@ export class MultiConnectionCompiler {
                         warnings,
                         resolutionOptions,
                     );
+                if (sourceManifests.length === 0) return null;
                 const { manifest, selectedModelIds } =
                     mergeCompileGroupManifests(sourceManifests);
                 let catalog: WarehouseCatalog | null = null;
@@ -760,6 +793,7 @@ export class MultiConnectionCompiler {
             releaseSourceDisk,
             releaseAllSourceDisk,
             diskStats,
+            onSourceWarning = async () => {},
         }: MultiConnectionCompileInput,
         compileSignal: AbortSignal | undefined,
         callerSignal: AbortSignal | undefined,
@@ -772,6 +806,13 @@ export class MultiConnectionCompiler {
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];
+        const isolation = new SourceFailureIsolation(
+            this.projectModel,
+            projectUuid,
+            identity.dbtSourceUuid,
+            onSourceWarning,
+        );
+        const sourcePreparationFailures = new Map<string, unknown>();
 
         const loadedCredentials = new Map<
             string,
@@ -839,23 +880,42 @@ export class MultiConnectionCompiler {
                             tasks,
                             concurrency,
                             async (task) => {
-                                const scan = await groupCancellation.run(
-                                    task.key,
-                                    'prepare',
-                                    async (signal) => {
-                                        try {
-                                            return await task.prepare({
-                                                signal,
-                                            });
-                                        } catch (error) {
-                                            signal.throwIfAborted();
-                                            throw new DbtSourceError(
-                                                `Failed to load dbt source "${task.key}": ${getErrorMessage(error)}`,
-                                                error,
-                                            );
-                                        }
-                                    },
-                                );
+                                let scan: DbtProjectScan | null;
+                                try {
+                                    scan = await groupCancellation.run(
+                                        task.key,
+                                        'prepare',
+                                        async (signal) => {
+                                            try {
+                                                return await task.prepare({
+                                                    signal,
+                                                });
+                                            } catch (error) {
+                                                signal.throwIfAborted();
+                                                throw new DbtSourceError(
+                                                    `Failed to load dbt source "${task.key}": ${getErrorMessage(error)}`,
+                                                    error,
+                                                );
+                                            }
+                                        },
+                                    );
+                                } catch (error) {
+                                    groupCancellation.controller.signal.throwIfAborted();
+                                    if (
+                                        !(await isolation.skip(
+                                            task.uuid,
+                                            task.key,
+                                            error,
+                                            'prepare',
+                                        ))
+                                    )
+                                        throw error;
+                                    sourcePreparationFailures.set(
+                                        task.uuid,
+                                        error,
+                                    );
+                                    scan = null;
+                                }
                                 scans.set(task.uuid, scan);
                                 if (scan?.projectName)
                                     projects.push({
@@ -956,8 +1016,17 @@ export class MultiConnectionCompiler {
                     prepare: async () =>
                         scans.get(identity.dbtSourceUuid) ?? null,
                 };
-                preparedSourceManifest = async (source) =>
-                    scans.get(source.projectDbtSourceUuid) ?? null;
+                preparedSourceManifest = async (source) => {
+                    if (
+                        sourcePreparationFailures.has(
+                            source.projectDbtSourceUuid,
+                        )
+                    )
+                        throw sourcePreparationFailures.get(
+                            source.projectDbtSourceUuid,
+                        );
+                    return scans.get(source.projectDbtSourceUuid) ?? null;
+                };
             }
             const catalogCaches = new Map<string, CrossSourceCatalogCache>();
             const cacheFor = (plan: CompileGroupPlan) => {
@@ -976,6 +1045,7 @@ export class MultiConnectionCompiler {
                 return catalogCaches.get(group)!;
             };
             const resolutionOptions = (plan: CompileGroupPlan) => ({
+                isolation,
                 withSourceDisk,
                 prepareSourceFetch,
                 releaseSourceDisk,
@@ -1083,53 +1153,53 @@ export class MultiConnectionCompiler {
                         throw preparationFailures.get(
                             extraPlan.warehouseConnectionUuid,
                         );
-                    compiledExtraGroups.push(
-                        await this.compileExtraGroup({
-                            projectUuid,
-                            context,
-                            plan: extraPlan,
-                            dbtVersion,
-                            fetchSourceManifest:
-                                mixedWarehouseConnectionsEnabled &&
-                                crossSourceRefsEnabled
-                                    ? async (...args) => {
-                                          try {
-                                              const result =
-                                                  await fetchSourceManifest(
-                                                      ...args,
-                                                  );
-                                              sourceErrors.delete(args[0].name);
-                                              return result;
-                                          } catch (error) {
-                                              sourceErrors.set(
-                                                  args[0].name,
-                                                  error,
+                    const compiledGroup = await this.compileExtraGroup({
+                        projectUuid,
+                        context,
+                        plan: extraPlan,
+                        dbtVersion,
+                        fetchSourceManifest:
+                            mixedWarehouseConnectionsEnabled &&
+                            crossSourceRefsEnabled
+                                ? async (...args) => {
+                                      try {
+                                          const result =
+                                              await fetchSourceManifest(
+                                                  ...args,
                                               );
-                                              throw error;
-                                          }
+                                          sourceErrors.delete(args[0].name);
+                                          return result;
+                                      } catch (error) {
+                                          sourceErrors.set(args[0].name, error);
+                                          throw error;
                                       }
-                                    : fetchSourceManifest,
-                            prepareSourceManifest: preparedSourceManifest,
-                            crossSourceRefsEnabled,
-                            concurrency,
-                            loadExtraCredentials: async (uuid) => {
-                                const credentials = crossSourceRefsEnabled
-                                    ? await loadCredentialsOnce(uuid)
-                                    : await loadExtraCredentials(uuid);
-                                extraWarehouseType = credentials.type;
-                                return credentials;
-                            },
-                            beforeAcquireClient: beforeLoadExtraCredentials,
-                            trackingParams,
-                            warnings,
-                            resolutionOptions: resolutionOptions(extraPlan),
-                        }),
-                    );
+                                  }
+                                : fetchSourceManifest,
+                        prepareSourceManifest: preparedSourceManifest,
+                        crossSourceRefsEnabled,
+                        concurrency,
+                        loadExtraCredentials: async (uuid) => {
+                            const credentials = crossSourceRefsEnabled
+                                ? await loadCredentialsOnce(uuid)
+                                : await loadExtraCredentials(uuid);
+                            extraWarehouseType = credentials.type;
+                            return credentials;
+                        },
+                        beforeAcquireClient: beforeLoadExtraCredentials,
+                        trackingParams,
+                        warnings,
+                        resolutionOptions: resolutionOptions(extraPlan),
+                    });
+                    if (compiledGroup) compiledExtraGroups.push(compiledGroup);
                 } catch (error) {
                     compileSignal?.throwIfAborted();
                     if (error instanceof ExtraConnectionCheckError)
                         throw error.refusal;
-                    if (error instanceof ManifestCollisionError) throw error;
+                    if (
+                        error instanceof ManifestCollisionError ||
+                        isFatalSourceFailure(error)
+                    )
+                        throw error;
                     failedConnectionUuids.push(
                         extraPlan.warehouseConnectionUuid,
                     );
@@ -1286,8 +1356,11 @@ export class MultiConnectionCompiler {
                 carry: {
                     kind: 'connections',
                     warehouseConnectionUuids: failedConnectionUuids,
+                    ...(isolation.failedSourceUuids.length > 0
+                        ? { dbtSourceUuids: isolation.failedSourceUuids }
+                        : {}),
                 },
-                warnings,
+                warnings: [...warnings, ...isolation.warnings],
                 persistArtifacts: async (options) => {
                     if (!options?.exploresCommitted)
                         callerSignal?.throwIfAborted();

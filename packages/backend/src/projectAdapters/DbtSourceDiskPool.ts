@@ -2,6 +2,12 @@ import pLimit from 'p-limit';
 import { type ProjectAdapter } from '../types';
 import { waitForDbtSourceCleanup } from './crossSourceCancellation';
 
+export class DbtSourceDiskError extends Error {
+    constructor() {
+        super('Could not release a dbt source from the disk pool.');
+    }
+}
+
 type DiskEntry = {
     adapter: ProjectAdapter | null;
     resident: boolean;
@@ -55,7 +61,11 @@ export class DbtSourceDiskPool {
                         this.waiters.add(wake);
                         return null;
                     }
-                    await oldest.adapter?.releaseDisk();
+                    try {
+                        await oldest.adapter?.releaseDisk();
+                    } catch {
+                        throw new DbtSourceDiskError();
+                    }
                     oldest.resident = false;
                     this.stats.diskEvictions += 1;
                 }

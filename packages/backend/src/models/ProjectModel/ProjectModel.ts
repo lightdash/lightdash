@@ -276,7 +276,12 @@ export type BoundExplore = {
 };
 
 export type MultiConnectionCarry =
-    | { kind: 'connections'; warehouseConnectionUuids: string[] }
+    | {
+          kind: 'connections';
+          warehouseConnectionUuids: string[];
+          dbtSourceUuids?: string[];
+      }
+    | { kind: 'dbtSources'; dbtSourceUuids: string[] }
     | {
           kind: 'otherDbtSources';
           dbtSourceUuid: string;
@@ -3747,12 +3752,43 @@ export class ProjectModel {
         );
     }
 
+    async countCachedExploresForDbtSource(
+        projectUuid: string,
+        dbtSourceUuid: string,
+    ): Promise<number> {
+        const row = await this.database(CachedExploreTableName)
+            .where('project_uuid', projectUuid)
+            .whereRaw(
+                "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ?",
+                [dbtSourceUuid],
+            )
+            .whereRaw("NOT (COALESCE(explore->>'type', '') = ANY(?))", [
+                [...USER_MANAGED_EXPLORE_TYPES],
+            ])
+            .count<{ count: string }>('name as count')
+            .first();
+        return Number(row?.count ?? 0);
+    }
+
     async saveExploreStreamToCache(
         projectUuid: string,
         explores: AsyncIterable<Explore | ExploreError>,
         // Use only statements on the given transaction; no other I/O or connection.
         beforeWrite?: StagedExploreWriteCheck,
+        failedDbtSourceUuids: string[] = [],
     ): Promise<{ cachedExploreUuids: string[] }> {
+        async function* boundExplores() {
+            for await (const explore of explores)
+                yield { explore, warehouseConnectionUuid: null };
+        }
+        if (failedDbtSourceUuids.length > 0) {
+            return this.saveMultiConnectionExplores(
+                projectUuid,
+                boundExplores(),
+                { kind: 'dbtSources', dbtSourceUuids: failedDbtSourceUuids },
+                beforeWrite,
+            );
+        }
         return wrapSentryTransaction(
             'ProjectModel.saveExploresToCache',
             {},
@@ -4259,10 +4295,28 @@ export class ProjectModel {
             ]);
         switch (carry.kind) {
             case 'connections':
-                if (carry.warehouseConnectionUuids.length === 0) return [];
-                void carriedQuery.whereIn(
-                    'warehouse_connection_uuid',
-                    carry.warehouseConnectionUuids,
+                if (
+                    carry.warehouseConnectionUuids.length === 0 &&
+                    !carry.dbtSourceUuids?.length
+                )
+                    return [];
+                void carriedQuery.where((query) => {
+                    query.whereIn(
+                        'warehouse_connection_uuid',
+                        carry.warehouseConnectionUuids,
+                    );
+                    if (carry.dbtSourceUuids?.length)
+                        query.orWhereRaw(
+                            "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
+                            [carry.dbtSourceUuids],
+                        );
+                });
+                break;
+            case 'dbtSources':
+                if (carry.dbtSourceUuids.length === 0) return [];
+                void carriedQuery.whereRaw(
+                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
+                    [carry.dbtSourceUuids],
                 );
                 break;
             case 'otherDbtSources':
@@ -4277,6 +4331,36 @@ export class ProjectModel {
                 break;
             default:
                 return assertUnreachable(carry, 'Unknown carried explores');
+        }
+        if (
+            carry.kind === 'dbtSources' ||
+            (carry.kind === 'connections' && carry.dbtSourceUuids?.length)
+        ) {
+            const collision = await carriedQuery
+                .clone()
+                .clearSelect()
+                .select('name')
+                .whereRaw(
+                    "COALESCE(explore->'tables'->COALESCE(explore->>'baseTable', name)->>'dbtSourceUuid', explore->>'dbtSourceUuid') = ANY(?)",
+                    [carry.dbtSourceUuids ?? []],
+                )
+                .whereExists(
+                    trx(CachedExploreStagingTableName)
+                        .select(trx.raw('1'))
+                        .where({
+                            save_uuid: saveUuid,
+                            project_uuid: projectUuid,
+                        })
+                        .whereRaw('??.name = ??.name', [
+                            CachedExploreStagingTableName,
+                            CachedExploreTableName,
+                        ]),
+                )
+                .first();
+            if (collision)
+                throw new ParameterError(
+                    `Explore "${collision.name}" conflicts with an explore kept from a failed dbt source. Rename the model before refreshing again.`,
+                );
         }
         const result = await trx.raw<{ rows: { name: string }[] }>(
             `INSERT INTO ?? (save_uuid, project_uuid, name, table_names, explore, warehouse_connection_uuid)
