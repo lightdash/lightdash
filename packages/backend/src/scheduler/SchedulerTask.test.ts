@@ -4649,6 +4649,48 @@ describe('app delivery target senders', () => {
         });
     });
 
+    // Adaptive Card text renders markdown, not HTML, so the footer link must be
+    // a markdown link and the sender's message must reach the card.
+    it('sends the delivery message and a markdown footer link to MS Teams', async () => {
+        const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
+        const task = makeTaskWithDeps({
+            ...senderBaseDeps(),
+            lightdashConfig: asDep<'lightdashConfig'>({
+                siteUrl: 'https://lightdash.example.com',
+                persistentDownloadUrls: { expirationSeconds: 604800 },
+                microsoftTeams: { enabled: true },
+            }),
+            msTeamsClient: asDep<'msTeamsClient'>({ postCsvsWithWebhook }),
+        });
+        const page = senderPage();
+
+        await (
+            task as unknown as {
+                sendMsTeamsNotification(
+                    jobId: string,
+                    notification: never,
+                ): Promise<void>;
+            }
+        ).sendMsTeamsNotification(
+            'job-1',
+            notificationOf(
+                appScheduler({ message: 'Numbers for the Monday standup' }),
+                page,
+                { webhook: 'https://webhook.example.com/teams' },
+            ),
+        );
+
+        expect(postCsvsWithWebhook.mock.calls[0][0]).toMatchObject({
+            message: 'Numbers for the Monday standup',
+            footer: expect.stringContaining(
+                `[scheduled delivery](${page.url})`,
+            ),
+        });
+        expect(postCsvsWithWebhook.mock.calls[0][0].footer).not.toContain(
+            '<a href',
+        );
+    });
+
     it('posts a dashboard xlsx delivery to the Google Chat webhook', async () => {
         const postCsvsWithWebhook = vi.fn().mockResolvedValue(undefined);
         const task = makeTaskWithDeps({
