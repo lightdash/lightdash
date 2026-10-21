@@ -1292,3 +1292,5 @@ export * from './utils/agentIdentitySetup';
 export * from './types/credentials';
 
 export * from './types/releaseHighlights';
+
+export { getDeferredExploreName } from './dbt/qualifiedName';

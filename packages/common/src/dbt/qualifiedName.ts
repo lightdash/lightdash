@@ -152,3 +152,9 @@ export const qualifyManifestNames = (
 
     return resolvedNames;
 };
+
+export const getDeferredExploreName = (model: {
+    unique_id: string;
+    lightdash_source_uuid?: string;
+}): string =>
+    `__model_${Array.from(`${model.lightdash_source_uuid ?? 'primary'}:${model.unique_id}`, (character) => character.codePointAt(0)!.toString(16).padStart(6, '0')).join('')}`;

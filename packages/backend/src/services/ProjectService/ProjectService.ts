@@ -393,6 +393,7 @@ import { OrganizationSettingsModel } from '../../models/OrganizationSettingsMode
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
+import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
     ProjectModel,
     type ExploreWriteCheck,
@@ -818,6 +819,7 @@ type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
+    exploreNaming?: ExploreNaming;
 };
 type SaveCompiledExploresArgs = {
     userUuid: string;
@@ -843,6 +845,7 @@ type PreparedExploreStream = {
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
     onCompiled?: (summary: ExploreCompilationSummary) => void;
+    exploreNaming?: ExploreNaming;
     multiConnection: PreparedMultiConnectionSave | null;
 };
 
@@ -4367,7 +4370,13 @@ export class ProjectService
                       },
                   )
                 : null;
-        if (connectionRoute !== 'multi' && hasAdditionalDbtSources !== true) {
+        if (
+            connectionRoute !== 'multi' &&
+            hasAdditionalDbtSources !== true &&
+            !(await this.projectModel.hasExploreNameAllocations(
+                args.projectUuid,
+            ))
+        ) {
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
                 false,
@@ -4436,6 +4445,7 @@ export class ProjectService
                       selection,
                   );
         const { explores: uploadedExplores, ...metadata } = deploy;
+        const uploadedExploreCount = uploadedExplores.length;
         const explores = sourceSelection?.explores ?? uploadedExplores;
         const sourceDeploy = previewSources
             ? await this.multiConnectionCompiler.preparePreviewDeploy({
@@ -4449,9 +4459,22 @@ export class ProjectService
                   projectDbtSourceUuid,
                   explores: explores.map(withoutClientBindings),
               });
+        if (sourceDeploy.naming) {
+            const { onPublished } = sourceDeploy.naming;
+            sourceDeploy.naming.onPublished = (published) => {
+                onPublished?.(published);
+                uploadedExplores.splice(
+                    0,
+                    uploadedExplores.length,
+                    ...published,
+                );
+                if (explores !== uploadedExplores)
+                    explores.splice(0, explores.length, ...published);
+            };
+        }
         const result = await this.saveExploresAndIndexCatalog({
             ...metadata,
-            connectionWarnings: [],
+            connectionWarnings: sourceDeploy.naming?.warnings ?? [],
             readSavedExploreNames: true,
             saveExplores: async (summary) => {
                 let writeChecks = this.getConnectionStagedWriteChecks(
@@ -4488,7 +4511,7 @@ export class ProjectService
                 projectUuid: args.projectUuid,
                 dbtSourceUuids: previewSourceUuids,
                 method: 'preview_package_match',
-                uploadedExploreCount: uploadedExplores.length,
+                uploadedExploreCount,
             });
         }
         if (sourceSelection) {
@@ -4500,7 +4523,7 @@ export class ProjectService
                     projectUuid: args.projectUuid,
                     dbtSourceUuid: sourceSelection.sourceUuid,
                     method: sourceSelection.method,
-                    uploadedExploreCount: uploadedExplores.length,
+                    uploadedExploreCount,
                     droppedExploreCount: sourceSelection.droppedExploreCount,
                 },
             );
@@ -4564,15 +4587,36 @@ export class ProjectService
             exploreStream: AsyncIterable<Explore | ExploreError>;
             onCompiled?: (summary: ExploreCompilationSummary) => void;
             multiConnection: PreparedMultiConnectionSave | null;
+            exploreNaming?: ExploreNaming;
         },
     ) {
         const {
             exploreStream: incomingStream,
             onCompiled,
-            multiConnection,
+            multiConnection: preparedMultiConnection,
+            exploreNaming,
             connectionWarnings = [],
             ...metadata
         } = args;
+        const multiConnection =
+            preparedMultiConnection ??
+            (exploreNaming
+                ? {
+                      exploreStream: incomingStream,
+                      bindingOf: () => null,
+                      carry: {
+                          kind: 'connections' as const,
+                          warehouseConnectionUuids: [],
+                      },
+                      naming: exploreNaming,
+                      warnings: exploreNaming.warnings,
+                      persistArtifacts: async () => {},
+                  }
+                : null);
+        const publishedWarnings = [
+            ...connectionWarnings,
+            ...(multiConnection?.warnings ?? []),
+        ];
         const exploreStream = agentExecutionContext.getStore()
             ?.agentConnectionExecution
             ? await this.prepareConnectionExploreStream(
@@ -4583,23 +4627,40 @@ export class ProjectService
         const saving = this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
-            connectionWarnings: [
-                ...connectionWarnings,
-                ...(multiConnection?.warnings ?? []),
-            ],
+            connectionWarnings: publishedWarnings,
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
-                        summary.add(explore, onCompiled !== undefined);
+                        if (!multiConnection?.naming)
+                            summary.add(explore, onCompiled !== undefined);
                         yield explore;
                     }
-                    onCompiled?.(summary);
+                    if (!multiConnection?.naming) onCompiled?.(summary);
                 }
                 if (multiConnection) {
-                    return this.multiConnectionCompiler.save(
+                    const saved = await this.multiConnectionCompiler.save(
                         args.projectUuid,
                         {
                             ...multiConnection,
+                            ...(multiConnection.naming
+                                ? {
+                                      naming: {
+                                          ...multiConnection.naming,
+                                          onPublished: (published) => {
+                                              multiConnection.naming?.onPublished?.(
+                                                  published,
+                                              );
+                                              published.forEach((explore) =>
+                                                  summary.add(
+                                                      explore,
+                                                      onCompiled !== undefined,
+                                                  ),
+                                              );
+                                              onCompiled?.(summary);
+                                          },
+                                      },
+                                  }
+                                : {}),
                             exploreStream: observedExplores(),
                             ...(agentExecutionContext.getStore()
                                 ?.agentConnectionExecution
@@ -4610,6 +4671,13 @@ export class ProjectService
                             args.projectUuid,
                         ),
                     );
+                    publishedWarnings.splice(
+                        0,
+                        publishedWarnings.length,
+                        ...connectionWarnings,
+                        ...multiConnection.warnings,
+                    );
+                    return saved;
                 }
                 throwIfCompileAborted();
                 return this.projectModel.saveExploreStreamToCache(
@@ -6911,6 +6979,7 @@ export class ProjectService
                         let compileAdapter = primaryAdapter;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
+                        let exploreNaming: ExploreNaming | undefined;
                         let multiConnection: MultiConnectionCompilation | null =
                             null;
                         try {
@@ -6953,6 +7022,7 @@ export class ProjectService
                                     adapter: compileAdapter,
                                     stagedMergedManifest,
                                     connectionWarnings,
+                                    exploreNaming,
                                 } = await this.resolveCompileAdapter({
                                     projectUuid,
                                     jobUuid: job.jobUuid,
@@ -6969,6 +7039,7 @@ export class ProjectService
                                     trackingParams,
                                     false, // loadSources
                                     true, // allowPartialCompilation
+                                    exploreNaming !== undefined,
                                 ));
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
@@ -7038,6 +7109,7 @@ export class ProjectService
                                         exploreStream,
                                         multiConnection,
                                         connectionWarnings,
+                                        exploreNaming,
                                         compilationSource,
                                         jobUuid: job.jobUuid,
                                         requestMethod: method,
@@ -9173,6 +9245,22 @@ export class ProjectService
             ),
             stagedMergedManifest,
             connectionWarnings: resolution.warnings,
+            exploreNaming: {
+                mode: 'refresh',
+                warnings: [],
+                refreshedSourceUuids: resolution.results.map(
+                    ({ task }) => task.context.uuid,
+                ),
+                models: getModelsFromManifest(mergedManifest).map((model) => ({
+                    sourceUuid: model.lightdash_source_uuid ?? null,
+                    sourceName: model.lightdash_source_name ?? null,
+                    packageName: model.package_name,
+                    uniqueId: model.unique_id,
+                    version: model.version,
+                    latestVersion: model.latest_version,
+                    modelName: model.name,
+                })),
+            },
         };
     }
 
@@ -9448,17 +9536,39 @@ export class ProjectService
                 featureFlagId: FeatureFlags.MultiDbtSources,
                 user: { userUuid, organizationUuid },
             });
+        const existingNaming = async (): Promise<ExploreNaming | undefined> => {
+            if (
+                !(await this.projectModel.hasExploreNameAllocations(
+                    projectUuid,
+                ))
+            )
+                return undefined;
+            const identity =
+                await this.projectModel.getDbtSourceIdentity(projectUuid);
+            return {
+                mode: 'refresh',
+                warnings: [],
+                models: [],
+                refreshedSourceUuids: [identity.dbtSourceUuid],
+            };
+        };
         if (!multiDbtSourcesEnabled) {
             await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return { adapter: primary.adapter };
+            return {
+                adapter: primary.adapter,
+                exploreNaming: await existingNaming(),
+            };
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {
             await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
-            return { adapter: primary.adapter };
+            return {
+                adapter: primary.adapter,
+                exploreNaming: await existingNaming(),
+            };
         }
         onDbtSourceCount?.(sources.length + 1);
         return this.buildMergedManifestAdapter({
@@ -13537,6 +13647,7 @@ export class ProjectService
                         let dbtSourceCount = 1;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
+                        let exploreNaming: ExploreNaming | undefined;
                         const trackingParams = {
                             projectUuid,
                             organizationUuid: project.organizationUuid,
@@ -13576,6 +13687,7 @@ export class ProjectService
                                 adapter,
                                 stagedMergedManifest,
                                 connectionWarnings,
+                                exploreNaming,
                             } = await this.resolveCompileAdapter({
                                 projectUuid,
                                 jobUuid,
@@ -13595,6 +13707,7 @@ export class ProjectService
                                 trackingParams,
                                 false, // loadSources
                                 true, // allowPartialCompilation
+                                exploreNaming !== undefined,
                             ));
                         const lightdashProjectConfig =
                             await adapter.getLightdashProjectConfig(
@@ -13636,6 +13749,7 @@ export class ProjectService
                             projectContext,
                             stagedMergedManifest,
                             connectionWarnings,
+                            exploreNaming,
                             onCompiled,
                             multiConnection,
                         });
@@ -14122,6 +14236,7 @@ export class ProjectService
                                 projectContext,
                                 stagedMergedManifest,
                                 connectionWarnings,
+                                exploreNaming,
                                 onCompiled,
                                 multiConnection,
                             }) => {
@@ -14221,6 +14336,7 @@ export class ProjectService
                                             onCompiled,
                                             multiConnection,
                                             connectionWarnings,
+                                            exploreNaming,
                                             compilationSource: 'refresh_dbt',
                                             jobUuid: job.jobUuid,
                                             requestMethod,

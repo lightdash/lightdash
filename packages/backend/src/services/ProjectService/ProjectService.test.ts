@@ -381,6 +381,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    hasExploreNameAllocations: vi.fn(async () => false),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
     ),
@@ -479,6 +480,14 @@ const projectModel = {
     getWarehouseFromCache: vi.fn(async () => undefined),
     saveWarehouseToCache: vi.fn(async () => undefined),
     saveExploresToCache: vi.fn(async () => ({ cachedExploreUuids: [] })),
+    saveMultiConnectionExplores: vi.fn<
+        ProjectModel['saveMultiConnectionExplores']
+    >(async (_projectUuid, stream, _carry, _beforeWrite, naming) => {
+        const explores: (Explore | ExploreError)[] = [];
+        for await (const { explore } of stream) explores.push(explore);
+        naming?.onPublished?.(explores);
+        return { cachedExploreUuids: [] };
+    }),
     saveExploreStreamToCache: vi.fn<ProjectModel['saveExploreStreamToCache']>(
         async (_projectUuid, explores) => {
             for await (const explore of explores) {
@@ -733,6 +742,7 @@ const getMockedProjectService = (
             overrides.projectDbtSourcesModel ??
             ({
                 copySources: vi.fn(async () => undefined),
+                getSources: vi.fn(async () => []),
                 hasSources: vi.fn(async () => false),
             } as unknown as ProjectDbtSourcesModel),
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
@@ -15894,6 +15904,17 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             }),
         ),
     ) => {
+        projectModel.saveMultiConnectionExplores
+            .mockReset()
+            .mockImplementation(
+                async (_projectUuid, stream, _carry, _beforeWrite, naming) => {
+                    const explores: (Explore | ExploreError)[] = [];
+                    for await (const { explore } of stream)
+                        explores.push(explore);
+                    naming?.onPublished?.(explores);
+                    return { cachedExploreUuids: [] };
+                },
+            );
         const primaryManifest = buildManifest([
             {
                 uniqueId: 'model.pkg_a.orders',
@@ -16201,9 +16222,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     return { cachedExploreUuids: [] };
                 },
             );
-            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
                 async (_uuid, stream) => {
-                    for await (const explore of stream)
+                    for await (const { explore } of stream)
                         expect(explore.name).toBeDefined();
                     return afterSave();
                 },
@@ -16481,7 +16502,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectModel.saveExploresToCache
                 .mockReset()
                 .mockResolvedValue({ cachedExploreUuids: [] });
-            projectModel.saveExploreStreamToCache
+            projectModel.saveMultiConnectionExplores
                 .mockReset()
                 .mockResolvedValue({ cachedExploreUuids: [] });
         },
@@ -16578,7 +16599,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             if (outcome === 'success') {
                 await run();
                 expect(
-                    projectModel.saveExploreStreamToCache,
+                    projectModel.saveMultiConnectionExplores,
                 ).toHaveBeenCalled();
                 expect(schedulerClient.indexCatalog).toHaveBeenCalledWith(
                     expect.not.objectContaining({
@@ -16599,7 +16620,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 expect(parameters).not.toHaveBeenCalled();
                 expect(projectModel.setTableGroups).not.toHaveBeenCalled();
                 expect(
-                    projectModel.saveExploreStreamToCache,
+                    projectModel.saveMultiConnectionExplores,
                 ).not.toHaveBeenCalled();
                 expect(
                     projectModel.upsertMergedManifest,
@@ -16624,10 +16645,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 projectAdapterModule.projectAdapterFromConfig,
             );
             const firstResult = adapterBuilder.mock.results.length;
-            projectModel.saveExploreStreamToCache
+            projectModel.saveMultiConnectionExplores
                 .mockReset()
                 .mockImplementationOnce(async (_uuid, explores) => {
-                    for await (const explore of explores)
+                    for await (const { explore } of explores)
                         expect(explore.name).toBeDefined();
                     return { cachedExploreUuids: [] };
                 });
@@ -16679,10 +16700,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             (projectService as unknown as ProjectServiceInternals).logger,
             'warn',
         );
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_uuid, explores) => {
-                for await (const explore of explores)
+                for await (const { explore } of explores)
                     expect(explore.name).toBeDefined();
                 return { cachedExploreUuids: [] };
             });
@@ -16957,7 +16978,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             });
             const reason = new CompileInterruptedError();
-            projectModel.saveExploreStreamToCache.mockClear();
+            projectModel.saveMultiConnectionExplores.mockClear();
             const work = compileShutdown
                 .run(context, () =>
                     service.testAndCompileProject(
@@ -16981,7 +17002,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 );
             expect(signal?.aborted).toBe(true);
             expect(
-                projectModel.saveExploreStreamToCache,
+                projectModel.saveMultiConnectionExplores,
             ).not.toHaveBeenCalled();
             expect(context.state).toBe('terminal');
         },
@@ -17014,7 +17035,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
-            projectModel.saveExploreStreamToCache.mockClear();
+            projectModel.saveMultiConnectionExplores.mockClear();
             jobModel.update.mockClear();
             await expect(
                 compileShutdown.run(context, () =>
@@ -17027,7 +17048,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 ),
             ).rejects.toBe(reason);
             expect(
-                projectModel.saveExploreStreamToCache,
+                projectModel.saveMultiConnectionExplores,
             ).not.toHaveBeenCalled();
             expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
             expect(jobModel.update).not.toHaveBeenCalledWith(
@@ -17105,10 +17126,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     }) as never,
             );
             let committed = false;
-            projectModel.saveExploreStreamToCache.mockImplementationOnce(
-                async (_projectUuid, stream, beforeWrite) => {
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
+                async (_projectUuid, stream, _carry, beforeWrite) => {
                     const explores = [];
-                    for await (const explore of stream) explores.push(explore);
+                    for await (const { explore } of stream)
+                        explores.push(explore);
                     expect(explores.length).toBeGreaterThan(0);
                     context.controller.abort(reason);
                     expect(beforeWrite).toBeDefined();
@@ -17157,7 +17179,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
-            projectModel.saveExploreStreamToCache.mockImplementationOnce(
+            projectModel.saveMultiConnectionExplores.mockImplementationOnce(
                 async () => {
                     context.controller.abort(new CompileInterruptedError());
                     return { cachedExploreUuids: [] };
@@ -17210,10 +17232,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_projectUuid, explores) => {
-                for await (const explore of explores) {
+                for await (const { explore } of explores) {
                     expect(explore.name).toBeDefined();
                 }
                 await Promise.resolve();
@@ -17238,10 +17260,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveMultiConnectionExplores).toHaveBeenCalledTimes(
+            1,
+        );
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploreStreamToCache).mock
+            vi.mocked(projectModel.saveMultiConnectionExplores).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -17254,10 +17278,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         let cacheCompleted = false;
         let persistedManifest: Buffer | undefined;
         const projectService = buildCompilationBoundaryService();
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockImplementationOnce(async (_projectUuid, explores) => {
-                for await (const explore of explores) {
+                for await (const { explore } of explores) {
                     expect(explore.name).toBeDefined();
                 }
                 await Promise.resolve();
@@ -17282,10 +17306,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             'compile-job-uuid',
         );
 
-        expect(projectModel.saveExploreStreamToCache).toHaveBeenCalledTimes(1);
+        expect(projectModel.saveMultiConnectionExplores).toHaveBeenCalledTimes(
+            1,
+        );
         expect(projectModel.upsertMergedManifest).toHaveBeenCalledTimes(1);
         expect(
-            vi.mocked(projectModel.saveExploreStreamToCache).mock
+            vi.mocked(projectModel.saveMultiConnectionExplores).mock
                 .invocationCallOrder[0],
         ).toBeLessThan(
             vi.mocked(projectModel.upsertMergedManifest).mock
@@ -17300,7 +17326,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             (projectService as unknown as ProjectServiceInternals).logger,
             'warn',
         );
-        projectModel.saveExploreStreamToCache
+        projectModel.saveMultiConnectionExplores
             .mockReset()
             .mockResolvedValueOnce({ cachedExploreUuids: [] });
         projectModel.upsertMergedManifest.mockRejectedValueOnce(
