@@ -257,7 +257,6 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
-    organizationWarehouseCredentialsService: unknown;
 }
 
 /**
@@ -1127,8 +1126,6 @@ export class ServiceRepository
                     agentSignInCredentialResolver:
                         new SnowflakeAgentSignInCredentialResolver({
                             projectModel: this.models.getProjectModel(),
-                            organizationWarehouseCredentialsModel:
-                                this.models.getOrganizationWarehouseCredentialsModel(),
                             warehouseConnectionModel:
                                 this.models.getWarehouseConnectionModel(),
                             logger: Logger,
@@ -1217,8 +1214,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
@@ -1384,8 +1379,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectParametersModel:
                         this.models.getProjectParametersModel(),
-                    organizationWarehouseCredentialsModel:
-                        this.models.getOrganizationWarehouseCredentialsModel(),
                     organizationModel: this.models.getOrganizationModel(),
                     pivotTableService: this.getPivotTableService(),
                     prometheusMetrics: this.prometheusMetrics,
@@ -2340,12 +2333,6 @@ export class ServiceRepository
         ExternalConnectionCoderServiceImplT,
     >(): ExternalConnectionCoderServiceImplT {
         return this.getService('externalConnectionCoderService');
-    }
-
-    public getOrganizationWarehouseCredentialsService<
-        OrganizationWarehouseCredentialsServiceImplT,
-    >(): OrganizationWarehouseCredentialsServiceImplT {
-        return this.getService('organizationWarehouseCredentialsService');
     }
 
     public getInstanceConfigurationService<

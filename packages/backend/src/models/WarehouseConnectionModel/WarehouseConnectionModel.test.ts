@@ -3,7 +3,6 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from './WarehouseConnectionModel';
 
 const credentials: CreateTrinoCredentials = {
@@ -33,11 +32,6 @@ describe('updating an extra connection warehouse type', () => {
     const model = new WarehouseConnectionModel({
         database,
         encryptionUtil,
-        organizationWarehouseCredentialsModel:
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            }),
     });
     beforeEach(() => {
         tracker.reset();
@@ -46,7 +40,6 @@ describe('updating an extra connection warehouse type', () => {
                 is_original: false,
                 warehouse_type: WarehouseTypes.POSTGRES,
                 encrypted_credentials: null,
-                organization_warehouse_credentials_uuid: null,
             },
         ]);
         tracker.on.update('warehouse_connections').response(1);
@@ -58,24 +51,6 @@ describe('updating an extra connection warehouse type', () => {
             model.updateExtraCredentials(project, 'connection', {
                 kind: 'project',
                 credentials,
-            }),
-        ).rejects.toThrow(
-            "A connection's warehouse type cannot be changed. Add a new connection instead.",
-        );
-        expect(tracker.history.update).toHaveLength(0);
-    });
-    it('refuses a type change from organization credentials under the row lock', async () => {
-        tracker.on.select('organization_warehouse_credentials').response([
-            {
-                warehouse_type: WarehouseTypes.TRINO,
-                organization_uuid: project.organizationUuid,
-            },
-        ]);
-        await expect(
-            model.updateExtraCredentials(project, 'connection', {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials',
             }),
         ).rejects.toThrow(
             "A connection's warehouse type cannot be changed. Add a new connection instead.",
@@ -94,21 +69,5 @@ describe('updating an extra connection warehouse type', () => {
         expect(JSON.parse(saved!.toString())).toMatchObject({
             type: WarehouseTypes.POSTGRES,
         });
-    });
-    it('refuses organization credentials from another organization', async () => {
-        tracker.on.select('organization_warehouse_credentials').response([
-            {
-                warehouse_type: WarehouseTypes.TRINO,
-                organization_uuid: 'other-org',
-            },
-        ]);
-        await expect(
-            model.updateExtraCredentials(project, 'connection', {
-                kind: 'organization',
-                organizationWarehouseCredentialsUuid:
-                    'organization-credentials',
-            }),
-        ).rejects.toThrow('Organization warehouse credentials not found');
-        expect(tracker.history.update).toHaveLength(0);
     });
 });

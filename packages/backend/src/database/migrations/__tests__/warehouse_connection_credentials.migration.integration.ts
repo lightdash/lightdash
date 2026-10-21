@@ -10,7 +10,6 @@ import {
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
-    ParameterError,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
@@ -19,7 +18,6 @@ import {
 import * as warehouses from '@lightdash/warehouses';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import {
     ORIGINAL_TYPE_LOCKED_MESSAGE,
     ProjectModel,
@@ -88,7 +86,6 @@ type ParityCase = {
     name: string;
     project: CreateWarehouseCredentials;
     personal: Record<string, unknown> | null;
-    organizationCredential?: boolean;
     caller?: 'registered' | 'serviceAccount' | 'embed';
 };
 
@@ -386,18 +383,6 @@ const baseCases: ParityCase[] = [
         personal: null,
     },
     {
-        name: 'Postgres on an organisation credential',
-        project: postgres,
-        personal: passwordPersonal(WarehouseTypes.POSTGRES),
-        organizationCredential: true,
-    },
-    {
-        name: 'Snowflake on an organisation credential',
-        project: snowflake,
-        personal: null,
-        organizationCredential: true,
-    },
-    {
         name: 'Postgres for a service account',
         project: postgres,
         personal: passwordPersonal(WarehouseTypes.POSTGRES),
@@ -452,31 +437,14 @@ describe('Extra connection credentials on the real schema', () => {
 
     type Organization = Awaited<ReturnType<typeof createOrganization>>;
 
-    const createOrganizationCredential = async (
-        organization: Organization,
-        credentials: CreateWarehouseCredentials,
-    ) =>
-        (
-            await database('organization_warehouse_credentials')
-                .insert({
-                    organization_uuid: organization.organizationUuid,
-                    name: `Shared ${Math.random()}`,
-                    warehouse_type: credentials.type,
-                    warehouse_connection: encrypt(credentials),
-                } as never)
-                .returning('organization_warehouse_credentials_uuid')
-        )[0].organization_warehouse_credentials_uuid as string;
-
     const createProject = async (
         organization: Organization,
         {
             mode,
             credentials,
-            organizationWarehouseCredentialsUuid = null,
         }: {
             mode: 'single' | 'multi';
             credentials: CreateWarehouseCredentials;
-            organizationWarehouseCredentialsUuid?: string | null;
         },
     ) => {
         const [project] = await database('projects')
@@ -484,8 +452,6 @@ describe('Extra connection credentials on the real schema', () => {
                 name: 'Credentials project',
                 organization_id: organization.organizationId,
                 connection_mode: mode,
-                organization_warehouse_credentials_uuid:
-                    organizationWarehouseCredentialsUuid,
             } as never)
             .returning(['project_id', 'project_uuid']);
         await database('warehouse_credentials').insert({
@@ -507,11 +473,9 @@ describe('Extra connection credentials on the real schema', () => {
         projectUuid: string,
         {
             credentials,
-            organizationWarehouseCredentialsUuid = null,
             name = 'Extra',
         }: {
             credentials: CreateWarehouseCredentials;
-            organizationWarehouseCredentialsUuid?: string | null;
             name?: string;
         },
     ) =>
@@ -522,12 +486,7 @@ describe('Extra connection credentials on the real schema', () => {
                     is_original: false,
                     name,
                     warehouse_type: credentials.type,
-                    encrypted_credentials:
-                        organizationWarehouseCredentialsUuid === null
-                            ? encrypt(credentials)
-                            : null,
-                    organization_warehouse_credentials_uuid:
-                        organizationWarehouseCredentialsUuid,
+                    encrypted_credentials: encrypt(credentials),
                 })
                 .returning('warehouse_connection_uuid')
         )[0].warehouse_connection_uuid as string;
@@ -612,13 +571,8 @@ describe('Extra connection credentials on the real schema', () => {
             ...callerArgs(userUuid, caller),
         });
 
-    const createService = (refreshLockEnabled = false) => {
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
-        return new ProjectService({
+    const createService = (refreshLockEnabled = false) =>
+        new ProjectService({
             lightdashConfig: lightdashConfigMock,
             ...(refreshLockEnabled
                 ? {
@@ -644,14 +598,11 @@ describe('Extra connection credentials on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel,
             }),
         } as never);
-    };
 
     beforeAll(async () => {
         migrated = await createMigratedTestDatabase(
@@ -700,27 +651,18 @@ describe('Extra connection credentials on the real schema', () => {
     describe('parity with the original connection on the same stored blob', () => {
         test.each(parityCases)(
             '$name, requireUserCredentials $requireUserCredentials',
-            async ({ project, personal, organizationCredential, caller }) => {
+            async ({ project, personal, caller }) => {
                 const organization = await createOrganization();
-                const organizationCredentialUuid = organizationCredential
-                    ? await createOrganizationCredential(organization, project)
-                    : null;
                 const singleProject = await createProject(organization, {
                     mode: 'single',
                     credentials: project,
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredentialUuid,
                 });
                 const multiProject = await createProject(organization, {
                     mode: 'multi',
                     credentials: project,
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredentialUuid,
                 });
                 const extra = await createExtra(multiProject, {
                     credentials: project,
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredentialUuid,
                 });
                 const personalUuid = personal
                     ? await createPersonal(organization.userUuid, personal)
@@ -860,59 +802,6 @@ describe('Extra connection credentials on the real schema', () => {
             });
         });
 
-        test('a compile refreshes an organisation credential through the organisation sink and stored credentials through the connection sink', async () => {
-            const organization = await createOrganization();
-            const multiProject = await createProject(organization, {
-                mode: 'multi',
-                credentials: withRequire(postgres, false),
-            });
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                withRequire({ ...postgres, host: 'shared-host' }, true),
-            );
-            const shared = await createExtra(multiProject, {
-                credentials: withRequire(
-                    { ...postgres, host: 'shared-host' },
-                    true,
-                ),
-                organizationWarehouseCredentialsUuid: organizationCredential,
-                name: 'Shared',
-            });
-            const own = await createExtra(multiProject, {
-                credentials: { ...postgres, host: 'own-host' },
-                name: 'Own',
-            });
-            const refresh = vi.spyOn(
-                service as unknown as {
-                    refreshCredentialsAndPersistRotation: (
-                        credentials: CreateWarehouseCredentials,
-                        userUuid: string,
-                        source: unknown,
-                    ) => Promise<CreateWarehouseCredentials>;
-                },
-                'refreshCredentialsAndPersistRotation',
-            );
-
-            await expect(
-                compileCredentials(multiProject, shared, organization.userUuid),
-            ).resolves.toMatchObject({ host: 'shared-host' });
-            await expect(
-                compileCredentials(multiProject, own, organization.userUuid),
-            ).resolves.toMatchObject({ host: 'own-host' });
-
-            expect(refresh.mock.calls.map(([, , source]) => source)).toEqual([
-                {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid:
-                        organizationCredential,
-                },
-                expect.objectContaining({
-                    kind: 'warehouseConnection',
-                    warehouseConnectionUuid: own,
-                }),
-            ]);
-        });
-
         test('a compile without any personal credential succeeds where a query is refused', async () => {
             const organization = await createOrganization();
             const multiProject = await createProject(organization, {
@@ -1033,80 +922,6 @@ describe('Extra connection credentials on the real schema', () => {
                 host: 'extra-host',
                 user: 'project-user',
                 password: 'project-secret-password',
-                requireUserCredentials: false,
-                userWarehouseCredentialsUuid: undefined,
-            });
-        });
-    });
-
-    describe('D13: an organisation credential that requires personal credentials', () => {
-        test('requires them on the extra connection even when the original does not', async () => {
-            const organization = await createOrganization();
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                withRequire({ ...postgres, host: 'shared-host' }, true),
-            );
-            const multiProject = await createProject(organization, {
-                mode: 'multi',
-                credentials: withRequire(postgres, false),
-            });
-            const extra = await createExtra(multiProject, {
-                credentials: postgres,
-                organizationWarehouseCredentialsUuid: organizationCredential,
-            });
-
-            await expect(
-                extraCredentials(multiProject, extra, organization.userUuid),
-            ).rejects.toBeInstanceOf(MissingWarehouseCredentialsError);
-
-            const personalUuid = await createPersonal(
-                organization.userUuid,
-                passwordPersonal(WarehouseTypes.POSTGRES),
-            );
-            await preferForConnection(
-                organization.userUuid,
-                extra,
-                personalUuid,
-            );
-            expect(
-                await extraCredentials(
-                    multiProject,
-                    extra,
-                    organization.userUuid,
-                ),
-            ).toMatchObject({
-                host: 'shared-host',
-                user: 'personal-user',
-                password: 'personal-secret-password',
-                requireUserCredentials: true,
-                userWarehouseCredentialsUuid: personalUuid,
-            });
-        });
-
-        test('an organisation credential that does not require them keeps the original value', async () => {
-            const organization = await createOrganization();
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                withRequire({ ...postgres, host: 'shared-host' }, false),
-            );
-            const multiProject = await createProject(organization, {
-                mode: 'multi',
-                credentials: withRequire(postgres, false),
-            });
-            const extra = await createExtra(multiProject, {
-                credentials: postgres,
-                organizationWarehouseCredentialsUuid: organizationCredential,
-            });
-
-            expect(
-                await extraCredentials(
-                    multiProject,
-                    extra,
-                    organization.userUuid,
-                ),
-            ).toMatchObject({
-                host: 'shared-host',
-                user: 'project-user',
                 requireUserCredentials: false,
                 userWarehouseCredentialsUuid: undefined,
             });
@@ -1537,66 +1352,6 @@ describe('Extra connection credentials on the real schema', () => {
                         ),
                     ).toMatchObject({ refreshToken: 'original-refresh-token' });
                 });
-
-                test('a rotated organisation credential token is written to the organisation credential', async () => {
-                    const organization = await createOrganization();
-                    const credentials = {
-                        ...providerCredentials,
-                        refreshToken: 'old-refresh-token',
-                    } as CreateWarehouseCredentials;
-                    const organizationCredential =
-                        await createOrganizationCredential(
-                            organization,
-                            credentials,
-                        );
-                    const multiProject = await createProject(organization, {
-                        mode: 'multi',
-                        credentials: withRequire(postgres, false),
-                    });
-                    const extra = await createExtra(multiProject, {
-                        credentials,
-                        organizationWarehouseCredentialsUuid:
-                            organizationCredential,
-                    });
-                    if (providerCredentials.type === WarehouseTypes.SNOWFLAKE) {
-                        vi.mocked(
-                            UserService.generateSnowflakeAccessToken,
-                        ).mockResolvedValue({
-                            accessToken: 'new-access-token',
-                            refreshToken: 'new-refresh-token',
-                        });
-                    } else {
-                        vi.mocked(
-                            warehouses.refreshDatabricksOAuthToken,
-                        ).mockResolvedValue({
-                            accessToken: 'new-access-token',
-                            refreshToken: 'new-refresh-token',
-                            expiresIn: 3600,
-                        });
-                    }
-
-                    await extraCredentials(
-                        multiProject,
-                        extra,
-                        organization.userUuid,
-                    );
-
-                    const row = await database(
-                        'organization_warehouse_credentials',
-                    )
-                        .where(
-                            'organization_warehouse_credentials_uuid',
-                            organizationCredential,
-                        )
-                        .first<{ warehouse_connection: Buffer }>(
-                            'warehouse_connection',
-                        );
-                    expect(
-                        JSON.parse(
-                            encryptionUtil.decrypt(row.warehouse_connection),
-                        ),
-                    ).toMatchObject({ refreshToken: 'new-refresh-token' });
-                });
             },
         );
 
@@ -1648,7 +1403,6 @@ describe('Extra connection credentials on the real schema', () => {
                     dbtConnection: { type: DbtProjectType.NONE },
                     dbtVersion: DefaultSupportedDbtVersion,
                     warehouseConnection,
-                    organizationWarehouseCredentialsUuid: null,
                 } as never,
                 null,
             );
@@ -1729,239 +1483,6 @@ describe('Extra connection credentials on the real schema', () => {
             expect(await storedOriginalType(single)).toBe(
                 WarehouseTypes.SNOWFLAKE,
             );
-        });
-    });
-
-    describe('an organisation credential used by an extra connection keeps its warehouse type', () => {
-        const waitForQuery = (matches: (sql: string) => boolean) =>
-            new Promise<void>((resolve, reject) => {
-                const state: { timeout?: ReturnType<typeof setTimeout> } = {};
-                const onQuery = ({ sql }: { sql: string }) => {
-                    if (!matches(sql)) return;
-                    clearTimeout(state.timeout);
-                    database.off('query', onQuery);
-                    resolve();
-                };
-                state.timeout = setTimeout(() => {
-                    database.off('query', onQuery);
-                    reject(
-                        new Error('Timed out waiting for the credential query'),
-                    );
-                }, 5000);
-                database.on('query', onQuery);
-            });
-
-        const organizationModel = () =>
-            (
-                service as unknown as {
-                    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
-                }
-            ).organizationWarehouseCredentialsModel;
-
-        const storedType = async (organizationCredential: string) =>
-            (
-                await database('organization_warehouse_credentials')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        organizationCredential,
-                    )
-                    .first<{ warehouse_type: string }>('warehouse_type')
-            ).warehouse_type;
-
-        test('refuses a type change and names the projects and connections that use it', async () => {
-            const organization = await createOrganization();
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                postgres,
-            );
-            const project = await createProject(organization, {
-                mode: 'multi',
-                credentials: postgres,
-            });
-            await createExtra(project, {
-                credentials: postgres,
-                organizationWarehouseCredentialsUuid: organizationCredential,
-                name: 'Finance',
-            });
-
-            await expect(
-                organizationModel().update(organizationCredential, {
-                    credentials: snowflake,
-                }),
-            ).rejects.toEqual(
-                new ConflictError(
-                    'The warehouse type of these credentials cannot change while extra connections use them: Credentials project / Finance.',
-                ),
-            );
-            expect(await storedType(organizationCredential)).toBe(
-                WarehouseTypes.POSTGRES,
-            );
-        });
-
-        test('keeps main behaviour: same-type updates with extras, and type changes that only originals use', async () => {
-            const organization = await createOrganization();
-            const usedByExtra = await createOrganizationCredential(
-                organization,
-                postgres,
-            );
-            const withExtra = await createProject(organization, {
-                mode: 'multi',
-                credentials: postgres,
-            });
-            await createExtra(withExtra, {
-                credentials: postgres,
-                organizationWarehouseCredentialsUuid: usedByExtra,
-            });
-            const usedByOriginal = await createOrganizationCredential(
-                organization,
-                postgres,
-            );
-            await createProject(organization, {
-                mode: 'multi',
-                credentials: postgres,
-                organizationWarehouseCredentialsUuid: usedByOriginal,
-            });
-
-            await organizationModel().update(usedByExtra, {
-                credentials: { ...postgres, host: 'new-host' },
-            });
-            await organizationModel().update(usedByOriginal, {
-                credentials: snowflake,
-            });
-
-            expect(await storedType(usedByExtra)).toBe(WarehouseTypes.POSTGRES);
-            expect(await storedType(usedByOriginal)).toBe(
-                WarehouseTypes.SNOWFLAKE,
-            );
-        });
-
-        test('rejects a type change when an extra connection is created while the credential is locked', async () => {
-            const organization = await createOrganization();
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                postgres,
-            );
-            const project = await createProject(organization, {
-                mode: 'multi',
-                credentials: postgres,
-            });
-            const transaction = await database.transaction();
-            let committed = false;
-            try {
-                await transaction('organization_warehouse_credentials')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        organizationCredential,
-                    )
-                    .forUpdate()
-                    .first();
-                const reachedLock = waitForQuery(
-                    (sql) =>
-                        sql.includes('"organization_warehouse_credentials"') &&
-                        (/for update/i.test(sql) || /^update /i.test(sql)),
-                );
-                const update = organizationModel()
-                    .update(organizationCredential, { credentials: snowflake })
-                    .then(
-                        () => null,
-                        (error: Error) => error,
-                    );
-                await reachedLock;
-                await transaction('warehouse_connections').insert({
-                    project_uuid: project,
-                    is_original: false,
-                    name: 'Finance',
-                    warehouse_type: WarehouseTypes.POSTGRES,
-                    encrypted_credentials: null,
-                    organization_warehouse_credentials_uuid:
-                        organizationCredential,
-                });
-                await transaction.commit();
-                committed = true;
-
-                expect(await update).toBeInstanceOf(ConflictError);
-                expect(await storedType(organizationCredential)).toBe(
-                    WarehouseTypes.POSTGRES,
-                );
-            } finally {
-                if (!committed) await transaction.rollback();
-            }
-        });
-
-        test('rejects an extra connection when its credential type changes before create', async () => {
-            const organization = await createOrganization();
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                postgres,
-            );
-            const project = await createProject(organization, {
-                mode: 'multi',
-                credentials: postgres,
-            });
-            const connectionModel = new WarehouseConnectionModel({
-                database,
-                encryptionUtil,
-                organizationWarehouseCredentialsModel: organizationModel(),
-            });
-            const transaction = await database.transaction();
-            let committed = false;
-            try {
-                await transaction('organization_warehouse_credentials')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        organizationCredential,
-                    )
-                    .forUpdate()
-                    .first();
-                const reachedLock = waitForQuery(
-                    (sql) =>
-                        (sql.includes('"organization_warehouse_credentials"') &&
-                            /for update/i.test(sql)) ||
-                        /^insert into "warehouse_connections"/i.test(sql),
-                );
-                const create = connectionModel
-                    .transaction(async (model) => {
-                        await model.lockProject(project);
-                        const lockedProject = await model.getProject(project);
-                        return model.createExtra(lockedProject, {
-                            name: 'Finance',
-                            warehouseType: WarehouseTypes.POSTGRES,
-                            source: {
-                                kind: 'organization',
-                                organizationWarehouseCredentialsUuid:
-                                    organizationCredential,
-                            },
-                            listAllDatabases: false,
-                            additionalDatabases: [],
-                            createdByUserUuid: organization.userUuid,
-                        });
-                    })
-                    .then(
-                        () => null,
-                        (error: Error) => error,
-                    );
-                await reachedLock;
-                await transaction('organization_warehouse_credentials')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        organizationCredential,
-                    )
-                    .update({
-                        warehouse_type: WarehouseTypes.SNOWFLAKE,
-                        warehouse_connection: encrypt(snowflake),
-                    });
-                await transaction.commit();
-                committed = true;
-
-                expect(await create).toBeInstanceOf(ParameterError);
-                const [count] = await database('warehouse_connections')
-                    .where('project_uuid', project)
-                    .where('is_original', false)
-                    .count<{ count: bigint }[]>({ count: '*' });
-                expect(Number(count.count)).toBe(0);
-            } finally {
-                if (!committed) await transaction.rollback();
-            }
         });
     });
 

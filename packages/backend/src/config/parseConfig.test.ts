@@ -2833,10 +2833,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['EMBEDDING_ENABLED', 'embedding'],
         ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
-        [
-            'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-            'organization-warehouse-credentials',
-        ],
         ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
         ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
@@ -2844,6 +2840,15 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         const config = parseConfig();
         expect(config.enabledFeatureFlags.has(flagId)).toBe(true);
     });
+});
+
+test('retired organization credential environment variable has no effect', () => {
+    process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED = 'true';
+    const config = parseConfig();
+    expect(
+        config.enabledFeatureFlags.has('organization-warehouse-credentials'),
+    ).toBe(false);
+    expect(config).not.toHaveProperty('organizationWarehouseCredentials');
 });
 
 describe('feature flag env-var allowlists', () => {

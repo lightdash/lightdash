@@ -290,8 +290,6 @@ export class HealthService extends BaseService {
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,
-            isOrganizationWarehouseCredentialsEnabled:
-                this.lightdashConfig.organizationWarehouseCredentials.enabled,
             isAthenaWarehouseIamRoleAuthEnabled:
                 this.lightdashConfig.athenaWarehouseIamRoleAuth.enabled,
             isSaveCredentialsFormEnabled:

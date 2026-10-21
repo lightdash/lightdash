@@ -125,7 +125,6 @@ import {
     type WarehouseTableSchema,
 } from '@lightdash/common';
 import {
-    checkSnowflakeAgentSessionWithToken,
     refreshDatabricksOAuthToken as refreshDatabricksToken,
     SshTunnel,
     warehouseClientFromCredentials,
@@ -175,7 +174,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import {
@@ -399,7 +397,6 @@ const projectModel = {
     getExploreFromCache: vi.fn(async () => validExplore),
     getQueryTimezone: vi.fn(async (): Promise<string | null> => null),
     getProjectWarehouseConfig: vi.fn(async () => ({
-        organizationWarehouseCredentialsUuid: null,
         queryTimezone: null,
     })),
     findExploresFromCache: vi.fn(async () => allExplores),
@@ -509,12 +506,6 @@ const projectModel = {
         async () => undefined,
     ),
     getMergedManifest: vi.fn(async () => Buffer.from('merged-manifest')),
-};
-const organizationWarehouseCredentialsModel = {
-    getByUuidWithSensitiveData:
-        vi.fn<
-            OrganizationWarehouseCredentialsModel['getByUuidWithSensitiveData']
-        >(),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: vi.fn(async () => ({
@@ -709,7 +700,6 @@ const getMockedProjectService = (
             | 'downloadFileModel'
             | 'getAiAgentService'
             | 'getAppGenerateService'
-            | 'organizationWarehouseCredentialsModel'
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
             | 'dbtSourceRefCatalogModel'
@@ -810,9 +800,6 @@ const getMockedProjectService = (
             find: vi.fn(async () => []),
             replace: vi.fn(async () => undefined),
         } as unknown as ProjectParametersModel,
-        organizationWarehouseCredentialsModel:
-            overrides.organizationWarehouseCredentialsModel ??
-            (organizationWarehouseCredentialsModel as unknown as OrganizationWarehouseCredentialsModel),
         organizationModel: {} as unknown as OrganizationModel,
         githubAppInstallationsModel: overrides.githubAppInstallationsModel,
         projectCompileLogModel:
@@ -1827,7 +1814,6 @@ describe('ProjectService', () => {
                                 userId: string;
                                 isRegisteredUser: boolean;
                                 isServiceAccount: boolean;
-                                preloadedOrgWarehouseCredentialsUuid: null;
                             }) => Promise<unknown>;
                         }
                     ).loadSingleRouteCredentialBase({
@@ -1835,7 +1821,6 @@ describe('ProjectService', () => {
                         userId: 'reader',
                         isRegisteredUser,
                         isServiceAccount,
-                        preloadedOrgWarehouseCredentialsUuid: null,
                     });
                 await expect(load(true)).resolves.toMatchObject({
                     credentials,
@@ -2875,174 +2860,85 @@ describe('ProjectService', () => {
         });
     });
 
-    describe('organization warehouse credential authorization', () => {
-        const organizationWarehouseCredentialsUuid =
-            'organization-warehouse-credentials-uuid';
-        const warehouseConnection: CreateWarehouseCredentials = {
-            type: WarehouseTypes.SNOWFLAKE,
-            account: 'snowflake-account',
-            user: 'snowflake-user',
-            password: 'snowflake-password',
+    describe('removed organization warehouse credentials', () => {
+        const unsupported =
+            'Organization warehouse credentials are no longer supported';
+        const warehouseConnection = {
+            type: WarehouseTypes.SNOWFLAKE as const,
+            account: 'account',
+            user: 'person',
+            password: 'secret',
             database: 'analytics',
-            warehouse: 'transforming',
+            warehouse: 'warehouse',
             schema: 'public',
             authenticationType: SnowflakeAuthenticationType.PASSWORD,
-            organizationWarehouseCredentialsUuid,
         };
-        const createProjectData: CreateProject = {
-            name: 'New project',
-            type: ProjectType.DEFAULT,
-            dbtConnection: { type: DbtProjectType.NONE },
-            dbtVersion: DefaultSupportedDbtVersion,
-            warehouseConnection: {
-                ...warehouseConnection,
-                organizationWarehouseCredentialsUuid: undefined,
-            },
-            organizationWarehouseCredentialsUuid,
-        };
-        const updateProjectData: UpdateProject = {
-            name: projectWithSensitiveFields.name,
-            dbtConnection: projectWithSensitiveFields.dbtConnection,
-            dbtVersion: projectWithSensitiveFields.dbtVersion,
-            warehouseConnection,
-        };
-        const projectCreationUser: SessionUser = {
-            ...user,
-            organizationUuid: projectWithSensitiveFields.organizationUuid,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'create' },
-            ]),
-        };
-        const authorizedDeveloperAccount = {
-            ...developerAccount,
-            user: {
-                ...developerAccount.user,
-                role: OrganizationMemberRole.DEVELOPER,
-                ability: defineUserAbility(
-                    {
-                        userUuid: developerAccount.user.id,
-                        role: OrganizationMemberRole.DEVELOPER,
-                        organizationUuid:
-                            projectWithSensitiveFields.organizationUuid,
-                    },
-                    [],
-                ),
-            },
-        } as typeof developerAccount;
-        const organizationWarehouseCredentials = {
-            organizationWarehouseCredentialsUuid,
-            organizationUuid: projectWithSensitiveFields.organizationUuid,
-            name: 'Shared Snowflake',
-            description: null,
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-            createdAt: new Date('2026-08-03T00:00:00.000Z'),
-            createdByUserUuid: account.user.id,
-            credentials: warehouseConnection,
-        };
-
         beforeEach(() => {
-            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValue(
-                organizationWarehouseCredentials,
-            );
+            projectModel.update.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+            jobModel.create.mockClear();
+            schedulerClient.createProjectWithCompile.mockClear();
         });
-
-        test('rejects save-without-compile before resolving organization credentials', async () => {
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    developerAccount,
-                    { warehouseConnection },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
-
-        test('rejects create-without-compile before resolving organization credentials', async () => {
-            await expect(
-                service.createWithoutCompile(
-                    projectCreationUser,
-                    createProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(
-                projectModel.createWithOptionalCredentials,
-            ).not.toHaveBeenCalled();
-        });
-
-        test('rejects scheduled create before creating a job', async () => {
-            await expect(
-                service.scheduleCreate(
-                    projectCreationUser,
-                    createProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(jobModel.create).not.toHaveBeenCalled();
-            expect(
-                schedulerClient.createProjectWithCompile,
-            ).not.toHaveBeenCalled();
-        });
-
-        test('rejects update-and-compile before resolving organization credentials', async () => {
-            await expect(
-                service.updateAndScheduleAsyncWork(
-                    projectUuid,
-                    developerAccount,
-                    updateProjectData,
-                    RequestMethod.WEB_APP,
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(jobModel.create).not.toHaveBeenCalled();
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
-
-        test('allows organization credentials for an organization developer', async () => {
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    authorizedDeveloperAccount,
-                    { warehouseConnection },
-                ),
-            ).resolves.toBeUndefined();
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
-            expect(projectModel.update).toHaveBeenCalledOnce();
-        });
-
-        test('rejects organization credentials from another organization after lookup', async () => {
-            organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockResolvedValueOnce(
-                {
-                    ...organizationWarehouseCredentials,
-                    organizationUuid: 'another-organization-uuid',
-                },
-            );
-
-            await expect(
-                service.updateWarehouseCredentials(
-                    projectUuid,
-                    authorizedDeveloperAccount,
-                    { warehouseConnection },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-            expect(
-                organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-            ).toHaveBeenCalledWith(organizationWarehouseCredentialsUuid);
-            expect(projectModel.update).not.toHaveBeenCalled();
-        });
+        test.each(['top-level', 'nested'] as const)(
+            'rejects %s organization credentials at create and update boundaries',
+            async (location) => {
+                const data =
+                    location === 'top-level'
+                        ? {
+                              warehouseConnection,
+                              organizationWarehouseCredentialsUuid:
+                                  'removed-credential',
+                          }
+                        : {
+                              warehouseConnection: {
+                                  ...warehouseConnection,
+                                  organizationWarehouseCredentialsUuid:
+                                      'removed-credential',
+                              },
+                          };
+                const creator = {
+                    ...user,
+                    organizationUuid:
+                        projectWithSensitiveFields.organizationUuid,
+                    organizationName: 'Organization',
+                    organizationCreatedAt: new Date(),
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'all', action: 'manage' },
+                    ]),
+                };
+                await expect(
+                    service.createWithoutCompile(
+                        creator,
+                        {
+                            ...data,
+                            name: 'Rejected project',
+                            type: ProjectType.DEFAULT,
+                            dbtVersion: DefaultSupportedDbtVersion,
+                            dbtConnection: { type: DbtProjectType.NONE },
+                        },
+                        RequestMethod.WEB_APP,
+                    ),
+                ).rejects.toThrow(unsupported);
+                projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                    projectWithSensitiveFields,
+                );
+                await expect(
+                    service.updateWarehouseCredentials(
+                        projectWithSensitiveFields.projectUuid,
+                        developerAccount,
+                        data,
+                    ),
+                ).rejects.toThrow(unsupported);
+                expect(projectModel.update).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+                expect(jobModel.create).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.createProjectWithCompile,
+                ).not.toHaveBeenCalled();
+            },
+        );
     });
 
     describe('ensurePlaygroundProject', () => {
@@ -3208,8 +3104,6 @@ describe('ProjectService', () => {
         ).mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: warehouseClientMock.credentials,
-            organizationWarehouseCredentialsUuid:
-                'organization-warehouse-credentials-uuid',
         });
         const createWithoutCompileSpy = vi
             .spyOn(service, 'createWithoutCompile')
@@ -3293,21 +3187,12 @@ describe('ProjectService', () => {
             projectModel.createWithOptionalCredentials.mockResolvedValueOnce(
                 previewProjectUuid,
             );
-            projectModel.get
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                    dbtConnection: {
-                        ...primaryDbtConnection,
-                        branch: 'upstream-primary-branch',
-                    },
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                    dbtConnection: primaryDbtConnection,
-                });
+            projectModel.get.mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+                dbtConnection: primaryDbtConnection,
+            });
 
             try {
                 await previewService.createWithoutCompile(
@@ -3325,6 +3210,9 @@ describe('ProjectService', () => {
 
                 expect(copySources).toHaveBeenCalledWith(
                     upstreamProjectUuid,
+                    previewProjectUuid,
+                );
+                expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
                     previewProjectUuid,
                 );
                 expect(
@@ -3377,18 +3265,11 @@ describe('ProjectService', () => {
             const copyContentSpy = vi
                 .spyOn(service, 'copyContentOnPreview')
                 .mockResolvedValue();
-            vi.mocked(projectModel.get)
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: upstreamProjectUuid,
-                    organizationWarehouseCredentialsUuid:
-                        'organization-warehouse-credentials-uuid',
-                })
-                .mockResolvedValueOnce({
-                    ...projectWithSensitiveFields,
-                    projectUuid: previewProjectUuid,
-                    type: ProjectType.PREVIEW,
-                });
+            vi.mocked(projectModel.get).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                projectUuid: previewProjectUuid,
+                type: ProjectType.PREVIEW,
+            });
             return {
                 copyAccessSpy,
                 copyContentSpy,
@@ -3445,11 +3326,14 @@ describe('ProjectService', () => {
             );
         };
 
-        test('queues an opted-in org preview without copying in the request', async () => {
+        test('queues an opted-in preview without copying in the request', async () => {
             const result = await createWithoutCompile({
                 mode: 'async',
                 compile: null,
             });
+            expect(projectModel.get).toHaveBeenCalledExactlyOnceWith(
+                previewProjectUuid,
+            );
             expect(mocks.copyContentSpy).not.toHaveBeenCalled();
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
             expect(result).toMatchObject({
@@ -3479,8 +3363,9 @@ describe('ProjectService', () => {
                 previewUser.userUuid,
                 previewUser.organizationUuid,
                 expect.objectContaining({
-                    organizationWarehouseCredentialsUuid:
-                        'organization-warehouse-credentials-uuid',
+                    name: 'Preview',
+                    type: ProjectType.PREVIEW,
+                    upstreamProjectUuid,
                 }),
                 null,
                 undefined,
@@ -3544,7 +3429,7 @@ describe('ProjectService', () => {
             expect(schedulerClient.compileProject).not.toHaveBeenCalled();
         });
 
-        test('waits for content before returning an org preview without opt-in', async () => {
+        test('waits for content before returning a preview without opt-in', async () => {
             let finishCopy!: () => void;
             mocks.copyContentSpy.mockImplementationOnce(
                 () =>
@@ -3966,11 +3851,6 @@ describe('ProjectService', () => {
             schema: 'public',
             authenticationType: SnowflakeAuthenticationType.PASSWORD,
         };
-        const embeddedConnection = {
-            type: WarehouseTypes.DUCKDB as const,
-            connectionType: DuckdbConnectionType.EMBEDDED as const,
-            dataset: 'jaffle_shop',
-        };
         const learner: SessionUser = {
             ...user,
             role: OrganizationMemberRole.VIEWER,
@@ -4047,54 +3927,45 @@ describe('ProjectService', () => {
             {
                 reason: 'the upstream connection is not the shipped sample data',
                 credentials: snowflakeConnection,
-                organizationWarehouseCredentialsUuid: undefined,
             },
-            {
-                reason: 'the upstream is bound to organization credentials',
-                credentials: embeddedConnection,
-                organizationWarehouseCredentialsUuid: 'org-creds-uuid',
-            },
-        ])(
-            'refuses a training copy when $reason',
-            async ({ credentials, organizationWarehouseCredentialsUuid }) => {
-                const learnService = getMockedProjectService(
-                    lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get: vi.fn(async () => ({
-                                id: FeatureFlags.EnableLearn,
-                                enabled: true,
-                            })),
-                        } as unknown as FeatureFlagModel,
-                    },
-                );
-                projectModel.get.mockResolvedValueOnce({
-                    ...trainingProject,
-                    organizationWarehouseCredentialsUuid,
-                });
-                projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
-                projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
-                    credentials,
-                );
-                const deletePreviews = vi
-                    .spyOn(learnService, 'deleteTrainingPreviews')
-                    .mockResolvedValue({ deleted: 0 });
-                try {
-                    await expect(
-                        learnService.createTrainingPreview(
-                            learner,
-                            trainingProject.projectUuid,
-                        ),
-                    ).rejects.toThrow(managedMessage);
-                    expect(deletePreviews).not.toHaveBeenCalled();
-                    expect(
-                        projectModel.createWithOptionalCredentials,
-                    ).not.toHaveBeenCalled();
-                } finally {
-                    deletePreviews.mockRestore();
-                }
-            },
-        );
+        ])('refuses a training copy when $reason', async ({ credentials }) => {
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({
+                            id: FeatureFlags.EnableLearn,
+                            enabled: true,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            projectModel.get.mockReset();
+            projectModel.get.mockResolvedValueOnce({
+                ...trainingProject,
+            });
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([]);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            const deletePreviews = vi
+                .spyOn(learnService, 'deleteTrainingPreviews')
+                .mockResolvedValue({ deleted: 0 });
+            try {
+                await expect(
+                    learnService.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).rejects.toThrow(managedMessage);
+                expect(deletePreviews).not.toHaveBeenCalled();
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).not.toHaveBeenCalled();
+            } finally {
+                deletePreviews.mockRestore();
+            }
+        });
     });
 
     test.each(['createWithoutCompile', 'scheduleCreate'] as const)(
@@ -4107,6 +3978,7 @@ describe('ProjectService', () => {
             };
             const getProject = vi
                 .spyOn(projectModel, 'get')
+                .mockReset()
                 .mockResolvedValue(upstream);
             try {
                 await expect(
@@ -4234,7 +4106,7 @@ describe('ProjectService', () => {
             };
             const getProject = vi
                 .spyOn(projectModel, 'get')
-                .mockResolvedValueOnce(training)
+                .mockReset()
                 .mockResolvedValueOnce(training)
                 .mockResolvedValueOnce(preview);
             const getCredentials = vi
@@ -5459,9 +5331,9 @@ describe('ProjectService', () => {
                 warehouseConnectionUuid: connectionUuid,
                 projectUuid,
                 name: 'SQL runner connection',
+                organizationWarehouseCredentialsUuid: null,
                 isOriginal: false,
                 warehouseType: WarehouseTypes.POSTGRES,
-                organizationWarehouseCredentialsUuid: null,
                 listAllDatabases: false,
                 additionalDatabases: ['listed_database'],
                 createdAt: new Date(),
@@ -5499,7 +5371,6 @@ describe('ProjectService', () => {
                     .fn<WarehouseConnectionModel['getExtraCredentialSource']>()
                     .mockResolvedValue({
                         credentials,
-                        organizationWarehouseCredentialsUuid: null,
                     }),
                 list: vi
                     .fn<WarehouseConnectionModel['list']>()
@@ -6171,7 +6042,6 @@ describe('ProjectService', () => {
             })),
             getExtraCredentialSource: vi.fn(async () => ({
                 credentials,
-                organizationWarehouseCredentialsUuid: null,
             })),
             list: vi.fn(async () => [
                 {
@@ -6712,17 +6582,13 @@ describe('ProjectService', () => {
                 vi.fn<
                     UserWarehouseCredentialsModel['findForProjectWithSecrets']
                 >();
-            const getCredentials = (
-                isRegisteredUser = true,
-                preloadedOrgWarehouseCredentialsUuid?: string,
-            ) =>
+            const getCredentials = (isRegisteredUser = true) =>
                 (
                     service as unknown as {
                         getWarehouseCredentials: (args: {
                             projectUuid: string;
                             userId: string;
                             isRegisteredUser: boolean;
-                            preloadedOrgWarehouseCredentialsUuid?: string;
                             binding: { kind: 'original' };
                         }) => Promise<CreateWarehouseCredentials>;
                     }
@@ -6730,7 +6596,6 @@ describe('ProjectService', () => {
                     projectUuid,
                     userId: sessionAccount.user.id,
                     isRegisteredUser,
-                    preloadedOrgWarehouseCredentialsUuid,
                     binding: { kind: 'original' },
                 });
 
@@ -6819,20 +6684,6 @@ describe('ProjectService', () => {
                     ...projectCredentials,
                     userWarehouseCredentialsUuid: undefined,
                 });
-            });
-
-            test('uses personal credentials with an organization connection', async () => {
-                findPersonalCredentials.mockResolvedValue(personalCredentials);
-
-                expect(await getCredentials(true, 'org-credentials')).toEqual(
-                    expect.objectContaining({
-                        keyfileContents: {
-                            ...personalCredentials.credentials.keyfileContents,
-                            client_secret: 'oauth-secret',
-                        },
-                        userWarehouseCredentialsUuid: personalCredentials.uuid,
-                    }),
-                );
             });
 
             test('requires personal credentials when the project requires them', async () => {
@@ -12424,7 +12275,6 @@ describe('ProjectService', () => {
                 credentials,
             );
             projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
@@ -12502,7 +12352,6 @@ describe('ProjectService', () => {
                 credentials,
             );
             projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
@@ -15739,7 +15588,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             .mockReset()
             .mockResolvedValue(warehouseClientMock.credentials);
         projectModel.getProjectWarehouseConfig.mockResolvedValue({
-            organizationWarehouseCredentialsUuid: null,
             queryTimezone: null,
         });
         projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
@@ -18542,7 +18390,6 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 (
                     projectModel.getProjectWarehouseConfig as import('vitest').Mock
                 ).mockResolvedValueOnce({
-                    organizationWarehouseCredentialsUuid: null,
                     queryTimezone: null,
                 });
 
@@ -18592,7 +18439,6 @@ describe('Snowflake credential pins (SPK-2336)', () => {
             (
                 projectModel.getProjectWarehouseConfig as import('vitest').Mock
             ).mockResolvedValueOnce({
-                organizationWarehouseCredentialsUuid: null,
                 queryTimezone: null,
             });
 
@@ -18670,7 +18516,6 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
         (
             projectModel.getProjectWarehouseConfig as import('vitest').Mock
         ).mockResolvedValueOnce({
-            organizationWarehouseCredentialsUuid: null,
             queryTimezone: null,
         });
     };
@@ -19262,9 +19107,7 @@ describe('preview BigQuery SSO credentials', () => {
     };
     const model = {
         ...singleRouteProjectModelMethods,
-        getProjectWarehouseConfig: vi.fn(async () => ({
-            organizationWarehouseCredentialsUuid: null,
-        })),
+        getProjectWarehouseConfig: vi.fn(async () => ({})),
         getWarehouseCredentialsForProject: vi.fn(async (projectUuid: string) =>
             stored.get(projectUuid),
         ),
@@ -19745,7 +19588,6 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: credentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
@@ -19798,7 +19640,6 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: cliCredentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
 
         await service.reconnectSharedSignIn(
@@ -20009,7 +19850,6 @@ describe('ProjectService.getSharedSignInStatus', () => {
         projectModel.getWithSensitiveFields.mockResolvedValue({
             ...projectWithSensitiveFields,
             warehouseConnection: credentials,
-            organizationWarehouseCredentialsUuid: undefined,
         } as never);
         model.getSharedSignInSubjectForToken = vi.fn(async () => ({
             provider: PersonSignInProvider.GOOGLE,
@@ -20662,7 +20502,6 @@ describe('AI principal credential routing', () => {
                 })),
                 getExtraCredentialSource: vi.fn(async () => ({
                     credentials,
-                    organizationWarehouseCredentialsUuid: null,
                 })),
             });
             const legacy = await resolveCredentials(configured, querySurface);
@@ -20706,7 +20545,7 @@ describe('AI principal credential routing', () => {
         },
     );
 
-    test('the scoped original path keeps preloaded organization configuration and avoids a new summary read for an ordinary query', async () => {
+    test('the scoped original path avoids a new summary read for an ordinary query', async () => {
         const configured = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         );
@@ -20722,7 +20561,6 @@ describe('AI principal credential routing', () => {
                 kind: 'binding',
                 projectUuid,
                 binding: { kind: 'original' },
-                preloadedOrgWarehouseCredentialsUuid: null,
             },
             connectionContextFromUser(
                 { userUuid: user.userUuid, isRegisteredUser: true },
@@ -20992,11 +20830,11 @@ describe('AI principal credential routing', () => {
                 vi.spyOn(
                     configured.projectModel,
                     'getProjectWarehouseConfig',
-                ).mockResolvedValueOnce({
-                    organizationWarehouseCredentialsUuid: 'organization-creds',
-                } as Awaited<
-                    ReturnType<ProjectModel['getProjectWarehouseConfig']>
-                >);
+                ).mockResolvedValueOnce(
+                    {} as Awaited<
+                        ReturnType<ProjectModel['getProjectWarehouseConfig']>
+                    >,
+                );
             const refresh = vi
                 .spyOn(
                     configured as unknown as {
@@ -21032,8 +20870,6 @@ describe('AI principal credential routing', () => {
                     })),
                     getExtraCredentialSource: vi.fn(async () => ({
                         credentials: baseCredentials,
-                        organizationWarehouseCredentialsUuid:
-                            'organization-creds',
                     })),
                 });
             }
@@ -21508,14 +21344,9 @@ describe.each([
 ])('Databricks %s rotation sinks', (authenticationType) => {
     test.each(
         [false, true].flatMap((enabled) =>
-            (
-                [
-                    'project',
-                    'organization',
-                    'user',
-                    'warehouseConnection',
-                ] as const
-            ).map((kind) => ({ enabled, kind })),
+            (['project', 'user', 'warehouseConnection'] as const).map(
+                (kind) => ({ enabled, kind }),
+            ),
         ),
     )(
         'writes the exact $kind row with lock $enabled',
@@ -21537,7 +21368,6 @@ describe.each([
             };
             const stored = new Map([
                 ['project-row', 'project-old'],
-                ['organization-row', 'organization-old'],
                 ['user-row', 'user-old'],
                 ['warehouseConnection-row', 'warehouseConnection-old'],
             ]);
@@ -21551,7 +21381,6 @@ describe.each([
                 return true;
             };
             const rotateProject = vi.fn(rotate);
-            const rotateOrganization = vi.fn(rotate);
             const rotateUser = vi.fn(rotate);
             const project = {
                 projectUuid: 'project-row',
@@ -21559,10 +21388,6 @@ describe.each([
                 connectionMode: 'multi' as const,
             };
             const readProject = vi.fn().mockResolvedValue(connection);
-            const readOrganization = vi.fn().mockResolvedValue({
-                organizationUuid: 'org',
-                credentials: connection,
-            });
             const readUser = vi
                 .fn()
                 .mockResolvedValue({ credentials: connection });
@@ -21583,10 +21408,6 @@ describe.each([
                     getOwnWarehouseCredentialsForProject: readProject,
                     rotateRefreshToken: rotateProject,
                 },
-                organizationWarehouseCredentialsModel: {
-                    getByUuidWithSensitiveData: readOrganization,
-                    rotateRefreshToken: rotateOrganization,
-                },
                 userWarehouseCredentialsModel: {
                     getByUuidWithSecrets: readUser,
                     rotateRefreshToken: rotateUser,
@@ -21599,10 +21420,6 @@ describe.each([
             } as unknown as ProjectServiceArguments);
             const sources = {
                 project: { kind: 'project', projectUuid: 'project-row' },
-                organization: {
-                    kind: 'organization',
-                    organizationWarehouseCredentialsUuid: 'organization-row',
-                },
                 user: {
                     kind: 'user',
                     userWarehouseCredentialsUuid: 'user-row',
@@ -21657,7 +21474,6 @@ describe.each([
             );
             const sinks = {
                 project: rotateProject,
-                organization: rotateOrganization,
                 user: rotateUser,
                 warehouseConnection: rotateConnection,
             };
@@ -21685,10 +21501,6 @@ describe.each([
             expect(Object.fromEntries(stored)).toEqual({
                 'project-row':
                     kind === 'project' ? 'project-rotated' : 'project-old',
-                'organization-row':
-                    kind === 'organization'
-                        ? 'organization-rotated'
-                        : 'organization-old',
                 'user-row': kind === 'user' ? 'user-rotated' : 'user-old',
                 'warehouseConnection-row':
                     kind === 'warehouseConnection'
@@ -21698,7 +21510,6 @@ describe.each([
             if (enabled) {
                 const reader = {
                     project: readProject,
-                    organization: readOrganization,
                     user: readUser,
                     warehouseConnection: readConnection,
                 }[kind];
@@ -21808,7 +21619,6 @@ describe('strict personal overlay (agent-identity on)', () => {
             const connectionModel = new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel: {} as never,
             });
             Object.assign(f.model, {
                 findForProjectWithSecrets:
@@ -21837,7 +21647,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                                   organizationUuid: 'resource-org',
                                   connectionRoute: null,
                                   warehouseConnectionUuid: 'extra',
-                                  organizationWarehouseCredentialsUuid: null,
                                   project: {
                                       projectUuid: 'project',
                                       organizationUuid: 'resource-org',
@@ -22066,7 +21875,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                     organizationUuid: 'resource-org',
                     connectionRoute: null,
                     warehouseConnectionUuid: 'extra',
-                    organizationWarehouseCredentialsUuid: null,
                     project: {
                         projectUuid: 'project',
                         organizationUuid: 'resource-org',
@@ -22252,7 +22060,6 @@ describe('strict personal overlay (agent-identity on)', () => {
                         organizationUuid: 'resource-org',
                         connectionRoute: null,
                         warehouseConnectionUuid: 'extra',
-                        organizationWarehouseCredentialsUuid: null,
                         project: {
                             projectUuid: 'project',
                             organizationUuid: 'resource-org',

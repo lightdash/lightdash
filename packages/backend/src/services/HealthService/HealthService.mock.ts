@@ -134,7 +134,6 @@ export const BaseResponse: HealthState = {
     },
     hasBrandfetch: false,
     isServiceAccountEnabled: false,
-    isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,
     isSaveCredentialsFormEnabled: false,
     isCustomRolesEnabled: false,

@@ -735,10 +735,6 @@ program
         '--no-warehouse-credentials',
         'Create preview without warehouse credentials. Copies credentials from upstream project.',
     )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
-    )
     .option('--no-batched-deploy', 'Use the legacy single-request deploy')
     .option(
         '--use-batched-deploy',
@@ -1588,10 +1584,6 @@ program
     .option(
         '--no-warehouse-credentials',
         'Create project without warehouse credentials. Skips dbt compile + warehouse catalog',
-    )
-    .option(
-        '--organization-credentials <name>',
-        'Use organization warehouse credentials with the specified name (Enterprise Edition feature)',
     )
     .option(
         '--disable-timestamp-conversion [true|false]',

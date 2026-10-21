@@ -1300,22 +1300,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'OrganizationSsoController.upsertOneLoginConfig': [
         AgentCapability.Administration,
     ],
-    'OrganizationWarehouseCredentialsController.create': [
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.delete': [
-        AgentCapability.Delete,
-        AgentCapability.Administration,
-    ],
-    'OrganizationWarehouseCredentialsController.get': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.getAll': [
-        AgentCapability.ReadDiscover,
-    ],
-    'OrganizationWarehouseCredentialsController.update': [
-        AgentCapability.Administration,
-    ],
     'ParametersController.getParameters': [AgentCapability.ReadDiscover],
     'ParametersController.getParametersList': [AgentCapability.ReadDiscover],
     'ParametersController.replaceParameters': [AgentCapability.Administration],

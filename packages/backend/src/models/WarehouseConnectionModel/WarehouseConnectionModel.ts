@@ -19,7 +19,6 @@ import {
     withNewWarehouseCredentialVersion,
     withWarehouseCredentialVersion,
 } from '../../utils/warehouseCredentialVersion';
-import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import type { PersonalCredentialPersistencePolicy } from '../UserWarehouseCredentials/UserWarehouseCredentialsModel';
 
@@ -60,13 +59,13 @@ export type WarehouseConnectionBoundContent = {
     inFlightQueries: number;
 };
 
-export type WarehouseConnectionCredentialSource =
-    | { kind: 'project'; credentials: CreateWarehouseCredentials }
-    | { kind: 'organization'; organizationWarehouseCredentialsUuid: string };
+export type WarehouseConnectionCredentialSource = {
+    kind: 'project';
+    credentials: CreateWarehouseCredentials;
+};
 
 export type ExtraConnectionCredentialSource = {
     credentials: CreateWarehouseCredentials;
-    organizationWarehouseCredentialsUuid: string | null;
 };
 
 export type UserCredentialsForConnection = {
@@ -100,7 +99,6 @@ export type WarehouseConnectionEvent = {
 type WarehouseConnectionModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
-    organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 };
 
 export class WarehouseConnectionModel {
@@ -108,13 +106,9 @@ export class WarehouseConnectionModel {
 
     private readonly encryptionUtil: EncryptionUtil;
 
-    private readonly organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
-
     constructor(args: WarehouseConnectionModelArguments) {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
-        this.organizationWarehouseCredentialsModel =
-            args.organizationWarehouseCredentialsModel;
     }
 
     async transaction<T>(
@@ -125,8 +119,6 @@ export class WarehouseConnectionModel {
                 new WarehouseConnectionModel({
                     database: transaction,
                     encryptionUtil: this.encryptionUtil,
-                    organizationWarehouseCredentialsModel:
-                        this.organizationWarehouseCredentialsModel,
                 }),
             ),
         );
@@ -204,8 +196,7 @@ export class WarehouseConnectionModel {
             name: row.name,
             isOriginal: row.is_original,
             warehouseType,
-            organizationWarehouseCredentialsUuid:
-                row.organization_warehouse_credentials_uuid,
+            organizationWarehouseCredentialsUuid: null,
             listAllDatabases: row.list_all_databases,
             additionalDatabases: row.additional_databases,
             createdAt: row.created_at,
@@ -256,22 +247,6 @@ export class WarehouseConnectionModel {
             await this.getRow(project.projectUuid, warehouseConnectionUuid),
             project.originalWarehouseType,
         );
-    }
-
-    async loadOrganizationCredentials(
-        organizationUuid: string,
-        organizationWarehouseCredentialsUuid: string,
-    ): Promise<CreateWarehouseCredentials> {
-        const organizationCredentials =
-            await this.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
-                organizationWarehouseCredentialsUuid,
-            );
-        if (organizationCredentials.organizationUuid !== organizationUuid) {
-            throw new NotFoundError(
-                'Organization warehouse credentials not found',
-            );
-        }
-        return organizationCredentials.credentials;
     }
 
     async getOwnCredentials(
@@ -332,14 +307,9 @@ export class WarehouseConnectionModel {
             );
         }
         if (row.organization_warehouse_credentials_uuid !== null) {
-            return {
-                credentials: await this.loadOrganizationCredentials(
-                    project.organizationUuid,
-                    row.organization_warehouse_credentials_uuid,
-                ),
-                organizationWarehouseCredentialsUuid:
-                    row.organization_warehouse_credentials_uuid,
-            };
+            throw new ParameterError(
+                'Organization warehouse credentials are no longer supported. Update this connection with warehouse credentials.',
+            );
         }
         if (row.encrypted_credentials === null) {
             throw new UnexpectedServerError(
@@ -358,7 +328,6 @@ export class WarehouseConnectionModel {
                     ),
                     `connection:${row.warehouse_connection_uuid}`,
                 ),
-                organizationWarehouseCredentialsUuid: null,
             };
         } catch {
             throw new UnexpectedServerError(
@@ -371,23 +340,16 @@ export class WarehouseConnectionModel {
         source: WarehouseConnectionCredentialSource,
         stored: CreateWarehouseCredentials | null = null,
     ) {
-        return source.kind === 'project'
-            ? {
-                  encrypted_credentials: this.encryptionUtil.encrypt(
-                      JSON.stringify(
-                          withNewWarehouseCredentialVersion(
-                              normalizeWarehouseCredentials(source.credentials),
-                              stored,
-                          ),
-                      ),
-                  ),
-                  organization_warehouse_credentials_uuid: null,
-              }
-            : {
-                  encrypted_credentials: null,
-                  organization_warehouse_credentials_uuid:
-                      source.organizationWarehouseCredentialsUuid,
-              };
+        return {
+            encrypted_credentials: this.encryptionUtil.encrypt(
+                JSON.stringify(
+                    withNewWarehouseCredentialVersion(
+                        normalizeWarehouseCredentials(source.credentials),
+                        stored,
+                    ),
+                ),
+            ),
+        };
     }
 
     async createExtra(
@@ -395,32 +357,6 @@ export class WarehouseConnectionModel {
         input: CreateExtraWarehouseConnection,
     ): Promise<WarehouseConnection> {
         return this.database.transaction(async (transaction) => {
-            if (input.source.kind === 'organization') {
-                const credential = await transaction(
-                    'organization_warehouse_credentials',
-                )
-                    .select('warehouse_type', 'organization_uuid')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        input.source.organizationWarehouseCredentialsUuid,
-                    )
-                    .forUpdate()
-                    .first();
-                if (
-                    !credential ||
-                    credential.organization_uuid !== project.organizationUuid
-                ) {
-                    throw new NotFoundError(
-                        'Organization warehouse credentials not found',
-                    );
-                }
-                if (credential.warehouse_type !== input.warehouseType) {
-                    throw new ParameterError(
-                        'These organization warehouse credentials no longer match the connection warehouse type.',
-                    );
-                }
-            }
-
             const [row] = await transaction<DbWarehouseConnection>(
                 WAREHOUSE_CONNECTIONS_TABLE,
             )
@@ -455,30 +391,7 @@ export class WarehouseConnectionModel {
                 .forUpdate()
                 .first();
             if (!existing) return;
-            let warehouseType: string;
-            if (source.kind === 'project') {
-                warehouseType = source.credentials.type;
-            } else {
-                const credential = await transaction(
-                    'organization_warehouse_credentials',
-                )
-                    .select('warehouse_type', 'organization_uuid')
-                    .where(
-                        'organization_warehouse_credentials_uuid',
-                        source.organizationWarehouseCredentialsUuid,
-                    )
-                    .forUpdate()
-                    .first();
-                if (
-                    !credential ||
-                    credential.organization_uuid !== project.organizationUuid
-                ) {
-                    throw new NotFoundError(
-                        'Organization warehouse credentials not found',
-                    );
-                }
-                warehouseType = credential.warehouse_type;
-            }
+            const warehouseType = source.credentials.type;
             if (warehouseType !== existing.warehouse_type) {
                 throw new ParameterError(
                     "A connection's warehouse type cannot be changed. Add a new connection instead.",
@@ -503,17 +416,10 @@ export class WarehouseConnectionModel {
                     );
                 }
             }
-            const changed =
-                source.kind === 'project'
-                    ? existing.organization_warehouse_credentials_uuid !=
-                          null ||
-                      !warehouseCredentialsEqual(
-                          current,
-                          normalizeWarehouseCredentials(source.credentials),
-                      )
-                    : existing.encrypted_credentials != null ||
-                      existing.organization_warehouse_credentials_uuid !==
-                          source.organizationWarehouseCredentialsUuid;
+            const changed = !warehouseCredentialsEqual(
+                current,
+                normalizeWarehouseCredentials(source.credentials),
+            );
             await transaction(WAREHOUSE_CONNECTIONS_TABLE)
                 .where('project_uuid', project.projectUuid)
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)

@@ -719,25 +719,14 @@ describe('Multi runtime identity on the real schema', () => {
             expect(preview.connection_mode).toBe('multi');
         });
 
-        test('copies the organization credential link and the listing settings of each extra', async () => {
+        test('copies credentials and listing settings of each extra', async () => {
             const upstream = await createMultiProject();
-            const [orgCredential] = await database(
-                'organization_warehouse_credentials',
-            )
-                .insert({
-                    organization_uuid: upstream.organizationUuid,
-                    name: `Shared ${randomUUID()}`,
-                    warehouse_type: 'postgres',
-                    warehouse_connection: Buffer.from('org-ciphertext'),
-                } as never)
-                .returning('organization_warehouse_credentials_uuid');
             await database('warehouse_connections').insert({
                 project_uuid: upstream.projectUuid,
                 is_original: false,
                 name: 'Shared warehouse',
                 warehouse_type: 'postgres',
-                organization_warehouse_credentials_uuid:
-                    orgCredential.organization_warehouse_credentials_uuid,
+                encrypted_credentials: Buffer.from('detached-ciphertext'),
                 list_all_databases: true,
                 additional_databases: ['finance', 'ledger'],
             });
@@ -762,7 +751,6 @@ describe('Multi runtime identity on the real schema', () => {
                     .select(
                         'name',
                         'encrypted_credentials',
-                        'organization_warehouse_credentials_uuid',
                         'list_all_databases',
                         'additional_databases',
                     );
@@ -771,15 +759,12 @@ describe('Multi runtime identity on the real schema', () => {
             expect(copied).toEqual([
                 expect.objectContaining({
                     name: 'Shared warehouse',
-                    encrypted_credentials: null,
-                    organization_warehouse_credentials_uuid:
-                        orgCredential.organization_warehouse_credentials_uuid,
+                    encrypted_credentials: Buffer.from('detached-ciphertext'),
                     list_all_databases: true,
                     additional_databases: ['finance', 'ledger'],
                 }),
                 expect.objectContaining({
                     name: 'Warehouse B',
-                    organization_warehouse_credentials_uuid: null,
                     list_all_databases: false,
                     additional_databases: ['archive'],
                 }),

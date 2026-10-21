@@ -48,10 +48,7 @@ export class AgentSignInResolverHarness {
                 getOwnWarehouseCredentialsForProject: vi.fn(),
                 rotateRefreshToken: vi.fn(),
             },
-            organizationWarehouseCredentialsModel: {
-                getByUuidWithSensitiveData: vi.fn(),
-                rotateRefreshToken: vi.fn(),
-            },
+
             warehouseConnectionModel: {
                 getProject: vi.fn(),
                 getOwnCredentials: vi.fn(),

@@ -727,7 +727,6 @@ export type HealthState = {
     hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
-    isOrganizationWarehouseCredentialsEnabled: boolean;
     isAthenaWarehouseIamRoleAuthEnabled: boolean;
     isSaveCredentialsFormEnabled: boolean;
     latest: {

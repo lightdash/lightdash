@@ -413,9 +413,6 @@ export const lightdashConfigMock: LightdashConfig = {
     serviceAccount: {
         enabled: false,
     },
-    organizationWarehouseCredentials: {
-        enabled: false,
-    },
     athenaWarehouseIamRoleAuth: {
         enabled: false,
     },

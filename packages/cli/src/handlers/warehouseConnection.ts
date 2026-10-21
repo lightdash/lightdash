@@ -7,21 +7,11 @@ import {
 import { lightdashApi } from './dbt/apiClient';
 import { getFinalJobState } from './dbt/refresh';
 
-type WarehouseCredentialsSource =
-    | { source: 'profiles' }
-    | { source: 'organization'; name: string }
-    | { source: 'none' };
+type WarehouseCredentialsSource = { source: 'profiles' } | { source: 'none' };
 
 export const getWarehouseCredentialsSource = (options: {
-    organizationCredentials?: string;
     warehouseCredentials?: boolean;
 }): WarehouseCredentialsSource => {
-    if (options.organizationCredentials) {
-        return {
-            source: 'organization',
-            name: options.organizationCredentials,
-        };
-    }
     if (options.warehouseCredentials === false) {
         return { source: 'none' };
     }

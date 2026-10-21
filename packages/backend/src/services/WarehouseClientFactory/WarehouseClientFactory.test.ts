@@ -276,7 +276,6 @@ const buildFixture = (
         projectUuid: 'project-uuid',
         credentials,
         organizationUuid: 'org-uuid',
-        organizationWarehouseCredentialsUuid: null,
         warehouseConnectionUuid: null,
         connectionRoute: {
             route: 'single',
@@ -1253,7 +1252,11 @@ describe('WarehouseClientFactory', () => {
     test('final analytics credentials skip the AI and personal steps', async () => {
         const { factory, credentialSource, aiAccessService, base } =
             buildFixture();
-        credentialSource.loadBase.mockResolvedValue({ ...base, kind: 'final' });
+        credentialSource.loadBase.mockResolvedValue({
+            ...base,
+            kind: 'final',
+            warehouseConnectionUuid: null,
+        });
         await factory.withWarehouseClient(
             bindingRef,
             contextFor(QueryExecutionContext.AI),
@@ -5366,7 +5369,7 @@ describe('prepared OAuth credentials', () => {
                         contextFor(),
                         'project-uuid',
                         null,
-                        { owner: { kind: 'organization', uuid } },
+                        { owner: { kind: 'project', uuid } },
                     );
                     await factory.withWarehouseClient(
                         {
@@ -5381,16 +5384,16 @@ describe('prepared OAuth credentials', () => {
                         async () => {},
                     );
                 };
-                await acquire('org-row-a');
-                await acquire('org-row-b');
-                await acquire('org-row-a');
+                await acquire('project-row-a');
+                await acquire('project-row-b');
+                await acquire('project-row-a');
                 expect(
                     projectModel.getWarehouseClientFromCredentials,
                 ).toHaveBeenCalledTimes(2);
                 const keys = Object.keys(factory.warehouseClients);
                 expect(keys).toHaveLength(2);
-                expect(keys[0]).toContain('org-row-a');
-                expect(keys[1]).toContain('org-row-b');
+                expect(keys[0]).toContain('project-row-a');
+                expect(keys[1]).toContain('project-row-b');
                 expect(keys.join()).not.toContain('secret');
             } finally {
                 resolve.mockRestore();

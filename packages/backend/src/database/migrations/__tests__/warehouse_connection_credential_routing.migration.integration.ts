@@ -9,7 +9,6 @@ import { type Knex } from 'knex';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -374,11 +373,6 @@ describe('Credential reads by connection binding on the real schema', () => {
                 },
             },
         } as never);
-        const organizationWarehouseCredentialsModel =
-            new OrganizationWarehouseCredentialsModel({
-                database,
-                encryptionUtil,
-            });
         projectModel = new ProjectModel({
             database,
             lightdashConfig: lightdashConfigMock,
@@ -394,11 +388,9 @@ describe('Credential reads by connection binding on the real schema', () => {
                 database,
                 encryptionUtil,
             }),
-            organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
                 database,
                 encryptionUtil,
-                organizationWarehouseCredentialsModel,
             }),
         } as never) as unknown as RoutedCredentials;
     }, 600000);
