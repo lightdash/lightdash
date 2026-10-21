@@ -1345,6 +1345,12 @@ importers:
       ai:
         specifier: 7.0.106
         version: 7.0.106(zod@4.4.3)
+      ajv:
+        specifier: 8.18.0
+        version: 8.18.0
+      ajv-formats:
+        specifier: 2.1.1
+        version: 2.1.1
       canvas-confetti:
         specifier: 1.6.0
         version: 1.6.0

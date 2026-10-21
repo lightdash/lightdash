@@ -1,0 +1,47 @@
+.dropzone {
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-xl);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.dragging {
+    border-color: var(--mantine-color-text);
+    background: var(--mantine-color-default-hover);
+}
+
+.disabled {
+    opacity: 0.6;
+}
+
+.compact {
+    padding: var(--mantine-spacing-md);
+}
+
+.compact .content {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.compact .copy {
+    flex: 1;
+    align-items: flex-start;
+    min-width: 180px;
+}
+
+.compact .copy p {
+    text-align: left;
+}
+
+.icon {
+    display: flex;
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-dimmed);
+}
+
+.input {
+    display: none;
+}
