@@ -485,7 +485,7 @@ const runCell = async (
             );
             await fs.writeFile(
                 path.join(cwd, 'lightdash.config.yml'),
-                'warehouse:\n  type: postgres\nspotlight:\n  default_visibility: show\ndefaults: {}\ntable_groups: {}\n',
+                'warehouse:\n  type: postgres\nspotlight:\n  default_visibility: show\nparameters: {}\ndefaults: {}\ntable_groups: {}\n',
             );
         }
         const env: NodeJS.ProcessEnv = {

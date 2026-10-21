@@ -98,7 +98,6 @@ const deployOptions = {
 
 const prefix = [
     request('PUT', '/api/v1/projects/project-uuid/tags/yaml', '[]'),
-    request('PUT', '/api/v2/projects/project-uuid/parameters', '{}'),
 ];
 const start = request('POST', '/api/v2/projects/project-uuid/deploy', '{}');
 const batch = request(
@@ -146,7 +145,10 @@ const verify = async (
     expect(await fs.readFile(file, 'utf8')).toBe(before);
     expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
     expect(vi.mocked(console.error).mock.calls).toEqual(
-        output.map((line) => [line]),
+        [
+            'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+            ...output,
+        ].map((line) => [line]),
     );
     expect(console.log).not.toHaveBeenCalled();
     expect(process.exit).not.toHaveBeenCalled();
@@ -204,12 +206,12 @@ it.each([false, true])(
         );
         await [500, 1000, 2000].reduce(async (previous, delay, index) => {
             await previous;
-            await server.waitForRequest(4 + index);
+            await server.waitForRequest(prefix.length + 2 + index);
             await backoffs[index].ready;
             expect(vi.getTimerCount()).toBe(1);
             expect(Date.now() - began).toBe([0, 500, 1500][index]);
             await vi.advanceTimersByTimeAsync(delay - 1);
-            expect(server.requests.length).toBe(4 + index);
+            expect(server.requests.length).toBe(prefix.length + 2 + index);
             await vi.advanceTimersByTimeAsync(1);
         }, Promise.resolve());
         const error = await result;
