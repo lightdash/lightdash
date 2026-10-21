@@ -4,25 +4,28 @@ export type CachedExploreSource = {
     packageName: string | null;
 };
 
-export type CachedSourcePackage = {
+export type CachedSourceCatalog = {
     sourceUuid: string;
     packageName: string;
+    nodePackageNames: string[];
 };
 
 export const cachedExploreNamesForSources = (
     explores: CachedExploreSource[],
-    packages: CachedSourcePackage[],
+    catalogs: CachedSourceCatalog[],
     currentSourceUuids: string[],
     requestedSourceUuids: string[],
 ): string[] => {
     const currentSources = new Set(currentSourceUuids);
     const requestedSources = new Set(requestedSourceUuids);
     const packageOwners = new Map<string, Set<string>>();
-    for (const { sourceUuid, packageName } of packages) {
+    for (const { sourceUuid, packageName, nodePackageNames } of catalogs) {
         if (currentSources.has(sourceUuid)) {
-            const owners = packageOwners.get(packageName) ?? new Set<string>();
-            owners.add(sourceUuid);
-            packageOwners.set(packageName, owners);
+            for (const name of [packageName, ...nodePackageNames]) {
+                const owners = packageOwners.get(name) ?? new Set<string>();
+                owners.add(sourceUuid);
+                packageOwners.set(name, owners);
+            }
         }
     }
     return explores.flatMap(({ sourceUuid: stamp, packageName, name }) => {

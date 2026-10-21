@@ -1798,6 +1798,147 @@ describe('Multi-connection compile on the real schema', () => {
                 },
             );
 
+            test('a legacy batched deploy keeps installed-package explores across repeated failed-source refreshes', async () => {
+                const fixture = await createProject();
+                await bind(fixture, 'finance', null);
+                await routeSingle(fixture.projectUuid);
+                await database('warehouse_connections')
+                    .where(
+                        'warehouse_connection_uuid',
+                        fixture.extraConnectionUuid,
+                    )
+                    .delete();
+                sourceManifests.marketing = dbtManifest('marketing', [
+                    {
+                        name: 'campaigns',
+                        database: ORIGINAL_DB,
+                        table: 'campaigns',
+                    },
+                    {
+                        name: 'settlements',
+                        database: ORIGINAL_DB,
+                        table: 'campaigns',
+                    },
+                ]);
+                Object.assign(
+                    sourceManifests.marketing.nodes,
+                    dbtManifest('synthetic_vendor', [
+                        {
+                            name: 'vendor_receipt',
+                            database: ORIGINAL_DB,
+                            table: 'campaigns',
+                        },
+                    ]).nodes,
+                );
+                const external = dbtManifest('reference_only', [
+                    {
+                        name: 'external_stub',
+                        database: ORIGINAL_DB,
+                        table: 'campaigns',
+                    },
+                ]);
+                Object.assign(
+                    sourceManifests.marketing.nodes,
+                    Object.fromEntries(
+                        Object.entries(external.nodes).map(([id, node]) => [
+                            id,
+                            { ...node, path: '', original_file_path: '' },
+                        ]),
+                    ),
+                );
+                await compile(
+                    fixture,
+                    primaryModels,
+                    postgresWarehouse(ORIGINAL_DB),
+                    true,
+                    { sources: [], phase: 'prepare', crossSourceRefs: true },
+                );
+                const sourceCatalog = await database('dbt_source_ref_catalogs')
+                    .where({
+                        project_uuid: fixture.projectUuid,
+                        dbt_source_uuid: fixture.sourceUuids.marketing,
+                    })
+                    .first();
+                expect(sourceCatalog?.project_name).toBe('marketing');
+                expect(
+                    sourceCatalog?.nodes.map((node) => node.package_name),
+                ).toEqual(
+                    expect.arrayContaining(['marketing', 'synthetic_vendor']),
+                );
+                expect(
+                    sourceCatalog?.nodes.map((node) => node.package_name),
+                ).not.toContain('reference_only');
+                const names = ['campaigns', 'settlements', 'vendor_receipt'];
+                const deployed = (await cachedExplores(fixture.projectUuid))
+                    .filter((row) => names.includes(row.name))
+                    .map((row) => row.explore as Explore);
+                for (const legacy of deployed) {
+                    for (const table of Object.values(legacy.tables))
+                        delete table.dbtSourceUuid;
+                }
+                const user = await compilingUser(fixture.projectUuid);
+                const service = deployService(fixture.projectUuid);
+                const { deploySessionUuid } = await service.startDeploySession(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                );
+                await service.addDeployBatch(
+                    user,
+                    fixture.projectUuid,
+                    deploySessionUuid,
+                    deployed,
+                    0,
+                    true,
+                );
+                await service.finalizeDeploy(
+                    user,
+                    fixture.projectUuid,
+                    deploySessionUuid,
+                    'legacy-cli',
+                    undefined,
+                    NO_SOURCE,
+                );
+                const before = await database('cached_explore')
+                    .where('project_uuid', fixture.projectUuid)
+                    .whereIn('name', names)
+                    .orderBy('name');
+                expect(before).toHaveLength(3);
+                for (const { explore: saved } of before) {
+                    expect(
+                        saved.tables?.[saved.baseTable ?? saved.name],
+                    ).not.toHaveProperty('dbtSourceUuid');
+                }
+                const refresh = async (label: string) => {
+                    const result = await compile(
+                        fixture,
+                        primaryModels.map((model) => ({ ...model, label })),
+                        postgresWarehouse(ORIGINAL_DB),
+                        true,
+                        {
+                            sources: ['marketing'],
+                            phase: 'prepare',
+                            crossSourceRefs: true,
+                        },
+                    );
+                    expect(
+                        await database('cached_explore')
+                            .where('project_uuid', fixture.projectUuid)
+                            .whereIn('name', names)
+                            .orderBy('name'),
+                    ).toEqual(before);
+                    expect(result.warnings).toContainEqual(
+                        expect.stringContaining('kept its 3 explores'),
+                    );
+                    expect(
+                        (await cachedExplores(fixture.projectUuid)).find(
+                            (row) => row.name === 'orders',
+                        )?.explore.label,
+                    ).toBe(label);
+                };
+                await refresh('First refresh');
+                await refresh('Second refresh');
+            });
+
             test('a batched CLI deploy with a mismatched target fails the session and saves nothing (D3)', async () => {
                 const fixture = await createProject();
                 await compile(fixture);

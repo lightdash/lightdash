@@ -261,7 +261,7 @@ import {
 import {
     cachedExploreNamesForSources,
     type CachedExploreSource,
-    type CachedSourcePackage,
+    type CachedSourceCatalog,
 } from './cachedExploreSource';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
@@ -3773,10 +3773,16 @@ export class ProjectModel {
                 .select('project_dbt_source_uuid')
                 .where('project_uuid', projectUuid),
             database(DbtSourceRefCatalogsTableName)
-                .select<CachedSourcePackage[]>({
-                    sourceUuid: 'dbt_source_uuid',
-                    packageName: 'project_name',
-                })
+                .select<CachedSourceCatalog[]>(
+                    {
+                        sourceUuid: 'dbt_source_uuid',
+                        packageName: 'project_name',
+                    },
+                    database.raw(
+                        "ARRAY(SELECT DISTINCT node->>'package_name' FROM jsonb_array_elements(??) AS node WHERE node->>'package_name' IS NOT NULL) AS ??",
+                        ['nodes', 'nodePackageNames'],
+                    ),
+                )
                 .where('project_uuid', projectUuid),
             database(CachedExploreTableName)
                 .select<CachedExploreSource[]>(
