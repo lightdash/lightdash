@@ -1388,11 +1388,8 @@ const DashboardHeader = memo(
                                             )}
                                             {canUploadContentAsCode && (
                                                 <Tooltip
-                                                    label="Save or discard your dashboard changes before uploading content."
-                                                    disabled={
-                                                        !hasDashboardChanged ||
-                                                        !isEditMode
-                                                    }
+                                                    label="Exit edit mode before uploading content."
+                                                    disabled={!isEditMode}
                                                 >
                                                     <Box>
                                                         <Menu.Item
@@ -1407,7 +1404,6 @@ const DashboardHeader = memo(
                                                                 uploadModalHandlers.open
                                                             }
                                                             disabled={
-                                                                hasDashboardChanged &&
                                                                 isEditMode
                                                             }
                                                         >

@@ -10,6 +10,6 @@ export const useCanUploadContentAsCode = (projectUuid: string | undefined) => {
     return (
         authoringEnabled &&
         !!project &&
-        ability.can('create', subject('ContentAsCode', project))
+        ability.can('create', subject('ContentAsCode', { ...project }))
     );
 };

@@ -504,8 +504,8 @@ const ChartActionsMenu: FC<Props> = ({
                             )}
                             {canUploadContentAsCode && (
                                 <Tooltip
-                                    label="Save or discard your chart changes before uploading content."
-                                    disabled={!hasUnsavedChanges || !isEditMode}
+                                    label="Exit edit mode before uploading content."
+                                    disabled={!isEditMode}
                                 >
                                     <Box>
                                         <Menu.Item
@@ -515,9 +515,7 @@ const ChartActionsMenu: FC<Props> = ({
                                                 />
                                             }
                                             onClick={uploadModalHandlers.open}
-                                            disabled={
-                                                hasUnsavedChanges && isEditMode
-                                            }
+                                            disabled={isEditMode}
                                         >
                                             Upload content
                                         </Menu.Item>

@@ -4,7 +4,9 @@ import {
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useRef, type FC } from 'react';
+import { useContextSelector } from 'use-context-selector';
 import { invalidateContent } from '../../../hooks/useContent';
+import DashboardContext from '../../../providers/Dashboard/context';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { type UploadContent } from '../importContent';
 import { uploadContentAsCode } from '../uploadContent';
@@ -28,6 +30,10 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
 }) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
+    const refreshDashboardVersion = useContextSelector(
+        DashboardContext,
+        (context) => context?.refreshDashboardVersion,
+    );
     const attemptedUpload = useRef(false);
     const advisory = useQuery<
         ApiContentAsCodeUploadAdvisoryResponse['results'],
@@ -52,10 +58,7 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
         [lightdashApi, projectUuid],
     );
 
-    const close = () => {
-        onClose();
-        if (!attemptedUpload.current) return;
-        // Refresh after closing so updating the current resource cannot interrupt the batch.
+    const refreshQueries = () => {
         void invalidateContent(queryClient, projectUuid);
         for (const key of [
             'saved_query',
@@ -64,9 +67,22 @@ const ProjectContentAsCodeUploadModal: FC<Props> = ({
             'dashboard-as-code',
             'chart_history',
             'dashboard_history',
+            'dashboard_chart_ready_query',
+            'savedSqlChartResults',
         ]) {
             void queryClient.invalidateQueries([key]);
         }
+    };
+
+    const close = () => {
+        onClose();
+        if (!attemptedUpload.current) return;
+        // Refresh local dashboard tiles/tabs before invalidating the saved version.
+        // Do this after the batch so a current-resource update cannot interrupt uploads.
+        void (refreshDashboardVersion?.() ?? Promise.resolve()).then(
+            refreshQueries,
+            refreshQueries,
+        );
     };
 
     return (

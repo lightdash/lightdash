@@ -22,6 +22,7 @@ const chart: ChartAsCode = {
     name: 'Revenue',
     slug: 'revenue',
     spaceSlug: 'sales',
+    dashboardSlug: undefined,
     tableName: 'orders',
     chartConfig: { type: ChartType.TABLE },
     metricQuery: {
@@ -67,7 +68,10 @@ describe('uploadContentAsCode', () => {
     });
 
     it('applies chart edits even when the exported timestamp is unchanged', async () => {
-        const content = { ...chart, updatedAt: '2026-10-01T00:00:00Z' };
+        const content = {
+            ...chart,
+            updatedAt: new Date('2026-10-01T00:00:00Z'),
+        };
         const api = vi.fn().mockResolvedValue({
             charts: [{ action: PromotionAction.UPDATE, data: content }],
             spaces: [],

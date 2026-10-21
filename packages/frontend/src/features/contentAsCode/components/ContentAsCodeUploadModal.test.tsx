@@ -26,7 +26,9 @@ const spaceEntry = (slug: string): ImportEntry => ({
     warnings: [],
 });
 
-beforeEach(() => mockedLightdashApi.mockReset());
+beforeEach(() => {
+    mockedLightdashApi.mockReset();
+});
 
 describe('content-as-code upload integration', () => {
     it('waits for validation and explicit upload, then shows and retries backend errors', async () => {

@@ -1,4 +1,4 @@
-import { Ability } from '@casl/ability';
+import { Ability, subject } from '@casl/ability';
 import { type PossibleAbilities } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -31,6 +31,17 @@ beforeEach(() => {
 });
 
 describe('upload availability', () => {
+    it('does not recast a project object shared with other permission checks', () => {
+        subject('Project', state.project);
+        ability = new Ability<PossibleAbilities>([
+            { action: 'create', subject: 'ContentAsCode' },
+        ]);
+        expect(
+            renderHook(() => useCanUploadContentAsCode('project')).result
+                .current,
+        ).toBe(true);
+        expect(() => subject('Project', state.project)).not.toThrow();
+    });
     it('does not offer uploads with only a content-as-code view grant', () => {
         ability = new Ability<PossibleAbilities>([
             { action: 'view', subject: 'ContentAsCode' },
