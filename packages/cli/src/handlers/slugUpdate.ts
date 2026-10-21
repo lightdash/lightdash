@@ -8,7 +8,7 @@ import {
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
-import { parseDocument } from 'yaml';
+import { parseDocument, type Document } from 'yaml';
 import { getConfig } from '../config';
 import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
@@ -102,6 +102,39 @@ const assertMovesAreSafe = async (
     }
 };
 
+type ContentDocument = {
+    slug?: unknown;
+    contentType?: unknown;
+    metricQuery?: unknown;
+    tiles?: Array<{
+        type?: unknown;
+        properties?: { chartSlug?: unknown };
+    }>;
+    resource?: { type?: unknown; slug?: unknown };
+};
+
+// Comment-only or scalar YAML (e.g. chart-type context files) parses to null or a primitive
+const isYamlMapping = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const readYamlDocuments = async (root: string) => {
+    const documents: Array<{ filePath: string; document: Document }> = [];
+    for (const filePath of await getYamlFiles(root)) {
+        // eslint-disable-next-line no-await-in-loop
+        const source = await fs.readFile(filePath, 'utf8');
+        const document = parseDocument(source);
+        if (document.errors.length > 0) {
+            throw new ParameterError(
+                `Could not parse "${filePath}": ${document.errors
+                    .map(({ message }) => message)
+                    .join('; ')}`,
+            );
+        }
+        documents.push({ filePath, document });
+    }
+    return documents;
+};
+
 export const planLocalSlugUpdate = async (
     customPath: string | undefined,
     from: string,
@@ -135,29 +168,17 @@ export const planLocalSlugUpdate = async (
         };
     }
 
-    for (const filePath of await getYamlFiles(root)) {
-        // eslint-disable-next-line no-await-in-loop
-        const source = await fs.readFile(filePath, 'utf8');
-        const document = parseDocument(source);
-        if (document.errors.length > 0) {
-            throw new ParameterError(
-                `Could not parse "${filePath}": ${document.errors
-                    .map(({ message }) => message)
-                    .join('; ')}`,
-            );
-        }
+    const contentDocuments = (await readYamlDocuments(root)).flatMap(
+        ({ filePath, document }) => {
+            const contents: unknown = document.toJS();
+            return isYamlMapping(contents)
+                ? [{ filePath, document, parsed: contents as ContentDocument }]
+                : [];
+        },
+    );
 
+    for (const { filePath, document, parsed } of contentDocuments) {
         let changed = false;
-        const parsed = document.toJS() as {
-            slug?: unknown;
-            contentType?: unknown;
-            metricQuery?: unknown;
-            tiles?: Array<{
-                type?: unknown;
-                properties?: { chartSlug?: unknown };
-            }>;
-            resource?: { type?: unknown; slug?: unknown };
-        };
 
         const isChart =
             parsed.contentType === ContentType.CHART ||

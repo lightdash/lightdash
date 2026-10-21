@@ -153,6 +153,53 @@ describe('local dashboard slug updates', () => {
 });
 
 describe('local chart slug updates', () => {
+    test('skips YAML files that do not contain a mapping', async () => {
+        const root = await createTemporaryContent();
+        const chartFile = path.join(root, 'charts', 'my-chart.yml');
+        const contextDirectory = path.join(
+            root,
+            'chart-types',
+            'funnel',
+            '.lightdash',
+            'context',
+        );
+        await fs.mkdir(contextDirectory, { recursive: true });
+        await Promise.all([
+            fs.writeFile(
+                chartFile,
+                'contentType: chart\nslug: my-chart\nname: My chart\nmetricQuery: {}\n',
+            ),
+            fs.writeFile(
+                path.join(contextDirectory, 'semantic-layer.yml'),
+                '# The semantic layer is sharded across one YAML file per model.\n',
+            ),
+            fs.writeFile(path.join(root, 'empty.yml'), ''),
+            fs.writeFile(path.join(root, 'scalar.yml'), 'just a string\n'),
+            fs.writeFile(path.join(root, 'list.yaml'), '- one\n- two\n'),
+        ]);
+
+        const chartPlan = await planLocalSlugUpdate(
+            root,
+            'my-chart',
+            'my-chart-renamed',
+        );
+        expect(chartPlan.referencesUpdated).toBe(1);
+        expect(getLocalSlugUpdateFileChanges(chartPlan, root)).toEqual([
+            {
+                source: path.join('charts', 'my-chart.yml'),
+                target: path.join('charts', 'my-chart-renamed.yml'),
+            },
+        ]);
+
+        const dashboardPlan = await planLocalSlugUpdate(
+            root,
+            'missing',
+            'renamed',
+            ContentType.DASHBOARD,
+        );
+        expect(dashboardPlan.referencesUpdated).toBe(0);
+    });
+
     test('updates chart files, language maps, references, filenames, and metadata', async () => {
         const root = await createTemporaryContent();
         const chartFile = path.join(root, 'charts', 'copy-of-orders.yml');
