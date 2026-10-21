@@ -319,11 +319,14 @@ vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
     const { Outlet, useParams } = await import('react-router');
     const { default: useIsEmbedded } =
         await import('../src/ee/providers/Embed/useIsEmbedded');
+    const { useEmitEmbedAgentContentEvents } =
+        await import('../src/ee/features/aiCopilot/hooks/useEmitEmbedAgentContentEvents');
 
     return {
         default: function MockAgentPage() {
-            const { agentUuid } = useParams();
+            const { agentUuid, projectUuid } = useParams();
             const isEmbedded = useIsEmbedded();
+            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
             return (
                 <div
                     data-testid="agent-page"
@@ -388,6 +391,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { type LightdashApi } from '../src/api';
+import { store as aiAgentStore } from '../src/ee/features/aiCopilot/store';
+import {
+    setParts,
+    startStreaming,
+    type StreamPart,
+} from '../src/ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 import { parseEmbedHash } from '../src/ee/providers/Embed/embedAiAgentThreadSetup';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { EMBED_KEY, type InMemoryEmbed } from '../src/ee/providers/Embed/types';
@@ -1259,6 +1268,70 @@ describe('SDK AI agent', () => {
             });
         });
     });
+
+    it('relays content events from the agent iframe to onEvent', async () => {
+        const onEvent = vi.fn();
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onEvent={onEvent}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.searchParams.get('targetOrigin')).toBe(
+            window.location.origin,
+        );
+
+        const postFromAgent = (origin: string, data: unknown) =>
+            window.dispatchEvent(new MessageEvent('message', { origin, data }));
+
+        await waitFor(() => {
+            postFromAgent(mockInstanceUrl, {
+                type: 'lightdash:dashboardSaved',
+                payload: {
+                    dashboardUuid: 'test-dashboard-uuid',
+                    action: 'updated',
+                },
+                timestamp: Date.now(),
+            });
+            expect(onEvent).toHaveBeenCalled();
+        });
+        onEvent.mockClear();
+
+        postFromAgent('https://evil.example.com', {
+            type: 'lightdash:dashboardSaved',
+            payload: {
+                dashboardUuid: 'test-dashboard-uuid',
+                action: 'updated',
+            },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:dashboardSaved',
+            payload: { dashboardUuid: 'test-dashboard-uuid' },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'deleted' },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'created' },
+        });
+
+        expect(onEvent).toHaveBeenCalledTimes(1);
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'created' },
+        });
+    });
 });
 
 describe('SDK native AI agent', () => {
@@ -1349,6 +1422,81 @@ describe('SDK native AI agent', () => {
 
         const newThread = await findByTestId('agent-new-thread');
         expect(newThread).toHaveAttribute('data-thread-setup', 'null');
+    });
+
+    it('reports agent dashboard edits to onEvent once', async () => {
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onEvent={onEvent}
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-page');
+
+        const dashboardEdit = {
+            type: 'toolCall',
+            toolCallId: 'native-dashboard-edit',
+            toolName: 'editContent',
+            isPreliminary: false,
+            toolArgs: { type: 'dashboard', slug: 'jaffle', patch: [] },
+            toolResult: {
+                result: '{}',
+                metadata: {
+                    status: 'success',
+                    slug: 'jaffle',
+                    name: 'Jaffle',
+                    uuid: 'test-dashboard-uuid',
+                    href: '/projects/test-project-uuid/dashboards/jaffle',
+                    warnings: [],
+                    versionUuids: { before: null, after: null },
+                },
+            },
+        } as unknown as StreamPart;
+
+        act(() => {
+            aiAgentStore.dispatch(
+                startStreaming({
+                    threadUuid: 'native-thread',
+                    messageUuid: 'native-message',
+                    projectUuid: 'test-project-uuid',
+                    agentUuid: 'test-agent-uuid',
+                    autoApproveSql: false,
+                }),
+            );
+            aiAgentStore.dispatch(
+                setParts({
+                    threadUuid: 'native-thread',
+                    parts: [dashboardEdit],
+                }),
+            );
+        });
+        act(() => {
+            aiAgentStore.dispatch(
+                setParts({
+                    threadUuid: 'native-thread',
+                    parts: [dashboardEdit, { type: 'text', text: 'Done' }],
+                }),
+            );
+        });
+
+        await waitFor(() => {
+            expect(onEvent).toHaveBeenCalledWith({
+                type: 'dashboardSaved',
+                payload: {
+                    dashboardUuid: 'test-dashboard-uuid',
+                    action: 'updated',
+                },
+            });
+        });
+        expect(
+            onEvent.mock.calls.filter(
+                ([event]) => event.type === 'dashboardSaved',
+            ),
+        ).toHaveLength(1);
     });
 
     it('reports thread changes to onThreadChange', async () => {

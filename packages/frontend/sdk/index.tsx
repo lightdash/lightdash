@@ -45,6 +45,7 @@ import { AiAgentsCoreProvider } from '../src/ee/features/aiCopilot/components/La
 import { AgentContainerWidthContext } from '../src/ee/features/aiCopilot/hooks/useAgentMaxWidth';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
+    LightdashEventType,
     type LightdashEvent,
     type LightdashEventHandler,
 } from '../src/ee/features/embed/events/types';
@@ -149,7 +150,7 @@ type ChartProps = Omit<BaseProps, 'filters'> & {
 
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore' | 'onEvent'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -415,6 +416,50 @@ const isAiAgentThreadChangedMessage = (
     typeof data.payload.projectUuid === 'string' &&
     'threadUuid' in data.payload &&
     typeof data.payload.threadUuid === 'string';
+
+const toAiAgentContentEvent = (data: unknown): LightdashEvent | null => {
+    if (
+        typeof data !== 'object' ||
+        data === null ||
+        !('type' in data) ||
+        !('payload' in data) ||
+        typeof data.payload !== 'object' ||
+        data.payload === null
+    ) {
+        return null;
+    }
+    const { type, payload } = data;
+    if (
+        !('action' in payload) ||
+        (payload.action !== 'created' && payload.action !== 'updated')
+    ) {
+        return null;
+    }
+    if (
+        type === `lightdash:${LightdashEventType.ChartSaved}` &&
+        'chartUuid' in payload &&
+        typeof payload.chartUuid === 'string'
+    ) {
+        return {
+            type: LightdashEventType.ChartSaved,
+            payload: { chartUuid: payload.chartUuid, action: payload.action },
+        };
+    }
+    if (
+        type === `lightdash:${LightdashEventType.DashboardSaved}` &&
+        'dashboardUuid' in payload &&
+        typeof payload.dashboardUuid === 'string'
+    ) {
+        return {
+            type: LightdashEventType.DashboardSaved,
+            payload: {
+                dashboardUuid: payload.dashboardUuid,
+                action: payload.action,
+            },
+        };
+    }
+    return null;
+};
 
 // Distinguishes this copy of the bundle from another one on the same page, so
 // instance ids never collide.
@@ -1037,6 +1082,7 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     binding,
     instanceUrl,
     onError,
+    onEvent,
     onThreadChange,
     styles,
     theme,
@@ -1051,9 +1097,28 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     );
     const instanceOrigin = new URL(instanceUrl).origin;
     const targetOrigin =
-        typeof window !== 'undefined' && onThreadChange
+        typeof window !== 'undefined' && (onThreadChange || onEvent)
             ? window.location.origin
             : undefined;
+
+    useEffect(() => {
+        if (!tokenContext || !onEvent) {
+            return undefined;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== instanceOrigin) {
+                return;
+            }
+            const contentEvent = toAiAgentContentEvent(event.data);
+            if (contentEvent) {
+                onEvent(contentEvent);
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [instanceOrigin, onEvent, tokenContext]);
 
     useEffect(() => {
         if (!tokenContext || !onThreadChange) {
@@ -1145,6 +1210,7 @@ const NativeAiAgentLayout: FC<{
     embedToken: string;
     threadSetup: EmbedAiAgentThreadSetup | null;
     hasThread: boolean;
+    onEvent: AiAgentProps['onEvent'];
     onThreadChange: AiAgentProps['onThreadChange'];
     path: string;
     projectUuid: string;
@@ -1152,6 +1218,7 @@ const NativeAiAgentLayout: FC<{
     agentUuid,
     embedToken,
     hasThread,
+    onEvent,
     onThreadChange,
     path,
     projectUuid,
@@ -1186,6 +1253,7 @@ const NativeAiAgentLayout: FC<{
             customSqlProvenanceChartUuid={customSqlProvenanceChartUuid}
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}
+            onEvent={onEvent}
             onAiAgentThreadChange={handleThreadChange}
             aiAgentThreadSetup={threadSetup}
         >
@@ -1202,6 +1270,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     binding,
     instanceUrl,
     onError,
+    onEvent,
     onThreadChange,
     styles,
     theme,
@@ -1266,6 +1335,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                                     agentUuid={agentUuid}
                                     embedToken={tokenContext.token}
                                     hasThread={threadUuid !== undefined}
+                                    onEvent={onEvent}
                                     onThreadChange={onThreadChange}
                                     path={path}
                                     projectUuid={tokenContext.projectUuid}

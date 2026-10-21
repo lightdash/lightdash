@@ -498,6 +498,7 @@ const EmbedDashboard: FC<{
             setIsEditMode(false);
             dispatchEmbedEvent(LightdashEventType.DashboardSaved, {
                 dashboardUuid: updatedDashboard.uuid,
+                action: 'updated',
             });
         },
         [

@@ -32,6 +32,7 @@ import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRoutin
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useEmitEmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -54,6 +55,7 @@ const AgentPage = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const isEmbed = useIsEmbedded();
+    useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
