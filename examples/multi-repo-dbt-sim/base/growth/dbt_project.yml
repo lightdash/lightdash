@@ -1,0 +1,14 @@
+name: growth
+version: '1.0.0'
+config-version: 2
+profile: multi_repo_sim
+require-dbt-version: ['>=1.9.0']
+model-paths: [models]
+seed-paths: [seeds]
+models:
+    growth:
+        +materialized: table
+        +schema: growth
+seeds:
+    growth:
+        +schema: growth

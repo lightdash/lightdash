@@ -1,0 +1,4 @@
+id,label,amount,active,event_date
+1,payments_sample_1,61,true,2026-01-01
+2,payments_sample_2,62,true,2026-01-02
+3,payments_sample_3,63,true,2026-01-03

@@ -1,0 +1,229 @@
+[
+  {
+    "scenario": "baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "names": [
+      "finance_base",
+      "ledger",
+      "merchant",
+      "payments",
+      "settlement"
+    ],
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "merchant_query": {
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "saved-chart-baseline",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "created": true,
+    "query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "unreadable",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ],
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "unreadable-repeat",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ],
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "unreadable-recovery",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "recovered_definition": true,
+    "warnings": {
+      "job": [],
+      "jobResults": [],
+      "report": [],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  },
+  {
+    "scenario": "bad-branch",
+    "commit": "dcf6e9eafb7e955959ffc804d9bb9faec1917cc6",
+    "success": true,
+    "expected_success": true,
+    "carried_equal": {
+      "merchant": true,
+      "settlement": true
+    },
+    "healthy_updated": true,
+    "cache_count": 5,
+    "warnings": {
+      "job": [],
+      "jobResults": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report": [
+        "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      ],
+      "report_keys": [
+        "metricsCount",
+        "baseTableNames",
+        "dimensionsCount",
+        "connectionWarnings",
+        "errorExploresCount",
+        "exploresWithErrors",
+        "totalExploresCount",
+        "successfulExploresCount"
+      ]
+    },
+    "warning_safety": true,
+    "steps": [
+      {
+        "type": "COMPILING",
+        "status": "DONE",
+        "error": "Source \"merchants\" failed: could not load the repository or install dbt packages; kept its 2 explores from the last successful refresh."
+      }
+    ],
+    "chart_query": {
+      "saved_explore_name": "merchant",
+      "resolves": true,
+      "row_count": 3,
+      "labels": [
+        "merchants_sample_1",
+        "merchants_sample_2",
+        "merchants_sample_3"
+      ]
+    }
+  }
+]

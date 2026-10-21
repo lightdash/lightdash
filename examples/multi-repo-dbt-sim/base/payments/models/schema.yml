@@ -1,0 +1,136 @@
+version: 2
+models:
+    - name: payments
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+              groups: [commerce]
+              joins:
+                  - join: merchant
+                    sql_on: ${payments.merchant_id} = ${merchant.id}
+                    relationship: many-to-one
+      columns:
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+          - name: label
+            data_type: text
+            meta:
+                dimension:
+                    type: string
+          - name: amount
+            data_type: numeric
+            meta:
+                dimension:
+                    type: number
+          - name: active
+            data_type: boolean
+            meta:
+                dimension:
+                    type: boolean
+          - name: event_date
+            data_type: date
+            meta:
+                dimension:
+                    type: date
+          - name: merchant_id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+    - name: settlement
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: &typed_columns
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
+          - name: label
+            data_type: text
+            meta:
+                dimension:
+                    type: string
+          - name: amount
+            data_type: numeric
+            meta:
+                dimension:
+                    type: number
+          - name: active
+            data_type: boolean
+            meta:
+                dimension:
+                    type: boolean
+          - name: event_date
+            data_type: date
+            meta:
+                dimension:
+                    type: date
+    - name: ledger
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+              joins:
+                  - join: merchant
+                    sql_on: ${ledger.id} = ${merchant.id}
+                    relationship: one-to-one
+      columns: *typed_columns
+    - name: rate_v1_usage
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+    - name: rate_v2_usage
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+    - name: rate_latest_usage
+      access: public
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns
+seeds:
+    - name: payments_seed
+      config:
+          meta:
+              primary_key: id
+              metrics:
+                  total_amount:
+                      type: sum
+                      sql: ${TABLE}.amount
+      columns: *typed_columns

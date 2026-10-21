@@ -1,0 +1,9 @@
+spotlight:
+    default_visibility: show
+    categories:
+        merchants:
+            label: Merchants
+            color: green
+table_groups:
+    commerce:
+        label: Commerce

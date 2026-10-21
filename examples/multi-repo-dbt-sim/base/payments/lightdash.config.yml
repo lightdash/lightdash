@@ -1,0 +1,25 @@
+spotlight:
+    default_visibility: show
+    categories:
+        payments:
+            label: Payments
+            color: blue
+parameters:
+    minimum_amount:
+        label: Minimum amount
+        type: number
+        default: 0
+        allow_custom_values: true
+custom_granularities:
+    sim_year:
+        label: Simulation year
+        type: date
+        sql: DATE_TRUNC('year', ${COLUMN})
+defaults:
+    case_sensitive: false
+    column_totals: true
+table_groups:
+    commerce:
+        label: Commerce
+    operations:
+        label: Operations
