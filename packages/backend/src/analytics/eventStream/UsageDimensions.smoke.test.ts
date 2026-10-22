@@ -35,6 +35,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 searchPath: [schema],
                 pool: { min: 0, max: 1 },
             });
+            const fixture = (table: string) => db(table);
             const org = randomUUID();
             const project = randomUUID();
             const secondProject = randomUUID();
@@ -53,12 +54,12 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE UNIQUE INDEX ON saved_queries(project_uuid, slug);
                     CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamptz);
                 `);
-                await db('projects').insert([
+                await fixture('projects').insert([
                     { project_uuid: project, organization_id: 1 },
                     { project_uuid: secondProject, organization_id: 1 },
                     { project_uuid: otherProject, organization_id: 2 },
                 ]);
-                await db('spaces').insert([
+                await fixture('spaces').insert([
                     { space_id: 1, space_uuid: space, name: 'First space' },
                     {
                         space_id: 2,
@@ -72,7 +73,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         deleted_at: new Date(),
                     },
                 ]);
-                await db('dashboards').insert([
+                await fixture('dashboards').insert([
                     { dashboard_uuid: dashboard, space_id: 1 },
                     {
                         dashboard_uuid: deletedDashboard,
@@ -96,22 +97,22 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     FROM generate_series(1, 1006) n`,
                     [otherProject],
                 );
-                await db('saved_queries')
+                await fixture('saved_queries')
                     .where('saved_query_id', 2)
                     .update({ space_id: null, dashboard_uuid: dashboard });
-                await db('saved_queries')
+                await fixture('saved_queries')
                     .where('saved_query_id', 4)
                     .update({ deleted_at: new Date() });
-                await db('saved_queries')
+                await fixture('saved_queries')
                     .where('saved_query_id', 6)
                     .update({ space_id: 3 });
-                await db('saved_queries')
+                await fixture('saved_queries')
                     .where('saved_query_id', 8)
                     .update({
                         space_id: null,
                         dashboard_uuid: deletedDashboard,
                     });
-                await db('saved_sql').insert([
+                await fixture('saved_sql').insert([
                     {
                         saved_sql_uuid: sqlChart,
                         project_uuid: project,
