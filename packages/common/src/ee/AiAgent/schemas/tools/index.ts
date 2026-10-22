@@ -68,4 +68,3 @@ export * from './toolSearchFieldValuesArgs';
 export * from './toolSearchSemanticLayerArgs';
 export * from './composerChartVizConfigSchema';
 export * from './toolVisualizeArgs';
-export * from './stampToolArgsVersion';

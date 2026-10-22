@@ -23,7 +23,6 @@ import {
     appliedParametersSchema,
     parameterValueSchema,
 } from './toolRunQueryArgs';
-import { defaultPersistedToolArgsVersion } from './persistedToolArgsVersion';
 
 /** The composer query tool's name, and the name calls persisted before the rename carry. */
 export const COMPOSER_QUERY_TOOL_NAMES = [
@@ -284,7 +283,6 @@ export const createToolComposerQueriesArgsSchema =
 
 export const toolComposerQueriesArgsSchema =
     createToolComposerQueriesArgsSchema();
-export const TOOL_COMPOSER_QUERIES_ARGS_VERSION = 1;
 
 // Calls persisted before node filters became expressions carry free-form
 // filters; parse those nodes unfiltered rather than dropping the call.
@@ -309,19 +307,15 @@ const dropLegacyComposerNodeFilters = (input: unknown): unknown => {
     };
 };
 
-// Stored args carry the version stamped at save; never advertised. Additive
-// field: nullish with a default, no bump. Restructure: add V(N), point the
-// advertised export and TOOL_COMPOSER_QUERIES_ARGS_VERSION at it, add a union
-// member whose older members transform to V(N).
+// Wide contract for parsing persisted args, never advertised. Same evolution
+// rules as toolRunQueryArgsSchemaPersisted: additive fields are nullish with a
+// default; a restructure adds V(N) and this alias keeps parsing every version.
 export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
-    (input) =>
-        defaultPersistedToolArgsVersion(dropLegacyComposerNodeFilters(input)),
-    z.discriminatedUnion('version', [
-        createToolComposerQueriesArgsSchemaV1({
-            enablePythonNodes: true,
-            maxLimit: Number.MAX_SAFE_INTEGER,
-        }).extend({ version: z.literal(1) }),
-    ]),
+    dropLegacyComposerNodeFilters,
+    createToolComposerQueriesArgsSchemaV1({
+        enablePythonNodes: true,
+        maxLimit: Number.MAX_SAFE_INTEGER,
+    }),
 );
 
 export type ToolComposerQueryNode = z.infer<
