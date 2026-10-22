@@ -343,37 +343,6 @@ export class AiOrganizationSettingsModel {
         return row?.mcp_enabled ?? null;
     }
 
-    async upsertWithMcpEnabled(
-        organizationUuid: string,
-        data: UpdateAiOrganizationSettings,
-    ): Promise<{ previous: boolean; settings: StoredAiOrganizationSettings }> {
-        return this.database.transaction(async (trx) => {
-            // Create the row before locking so first-ever writes serialize too.
-            await trx<AiOrganizationSettingsTable>(
-                AiOrganizationSettingsTableName,
-            )
-                .insert({ organization_uuid: organizationUuid })
-                .onConflict('organization_uuid')
-                .ignore();
-            const previous = await trx<AiOrganizationSettingsTable>(
-                AiOrganizationSettingsTableName,
-            )
-                .select('mcp_enabled')
-                .where('organization_uuid', organizationUuid)
-                .forUpdate()
-                .first();
-            if (!previous) {
-                throw new NotFoundError(
-                    `AI organization settings not found for organization ${organizationUuid}`,
-                );
-            }
-            return {
-                previous: previous.mcp_enabled,
-                settings: await this.update(organizationUuid, data, trx),
-            };
-        });
-    }
-
     async getByOrganizationUuid(
         organizationUuid: string,
         database: Knex = this.database,

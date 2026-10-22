@@ -167,7 +167,7 @@ test('AI settings administrators can disable and restore MCP through the existin
             resource: {
                 type: 'OrganizationSettings',
                 organizationUuid: first.organization_uuid,
-                metadata: { mcpEnabled: { from: true, to: false } },
+                metadata: { mcpEnabled: false },
             },
             status: 'allowed',
             timestamp: expect.any(String),
@@ -183,7 +183,7 @@ test('AI settings administrators can disable and restore MCP through the existin
             resource: {
                 type: 'OrganizationSettings',
                 organizationUuid: first.organization_uuid,
-                metadata: { mcpEnabled: { from: false, to: true } },
+                metadata: { mcpEnabled: true },
             },
         }),
     );
@@ -192,9 +192,9 @@ test('AI settings administrators can disable and restore MCP through the existin
             ([event]) => event.resource.type === 'OrganizationSettings',
         ).length;
     expect(countMcpUpdates()).toBe(2);
-    vi.spyOn(model, 'upsertWithMcpEnabled').mockRejectedValueOnce(
-        new Error('Write failed'),
-    );
+    await service.upsertSettings(admin, { aiAgentsVisible: false });
+    expect(countMcpUpdates()).toBe(2);
+    vi.spyOn(model, 'upsert').mockRejectedValueOnce(new Error('Write failed'));
     await expect(
         service.upsertSettings(admin, { mcpEnabled: false }),
     ).rejects.toThrow('Write failed');
@@ -211,81 +211,6 @@ test('AI settings administrators can disable and restore MCP through the existin
     });
     expect(await model.findMcpEnabled(first.organization_uuid)).toBe(true);
 });
-
-test.each([false, true])(
-    'audits the committed MCP transition after a concurrent save when a settings row exists: %s',
-    async (settingsRowExists) => {
-        const audit = vi
-            .spyOn(auditLogger, 'logAuditEvent')
-            .mockImplementation(() => undefined);
-        const { database } = migrated;
-        const [organization] = await database('organizations')
-            .insert({ organization_name: 'MCP concurrent settings test' })
-            .returning('organization_uuid');
-        const organizationUuid = organization.organization_uuid;
-        const { model, service } = createService({ copilotEnabled: true });
-        if (settingsRowExists)
-            await model.upsert(organizationUuid, { mcpEnabled: true });
-        const holder = await database.transaction();
-        let saving:
-            | ReturnType<AiOrganizationSettingsService['upsertSettings']>
-            | undefined;
-        try {
-            const backend = await holder.raw<{ rows: { pid: number }[] }>(
-                'select pg_backend_pid() as pid',
-            );
-            const holderPid = backend.rows[0].pid;
-            if (settingsRowExists) {
-                await holder('ai_organization_settings')
-                    .where('organization_uuid', organizationUuid)
-                    .forUpdate()
-                    .first();
-            } else {
-                await holder('ai_organization_settings').insert({
-                    organization_uuid: organizationUuid,
-                    mcp_enabled: false,
-                });
-            }
-            saving = service.upsertSettings(
-                accountFor(organizationUuid, { ai: true }),
-                { mcpEnabled: true },
-            );
-            void saving.catch(() => undefined);
-            await vi.waitFor(
-                async () => {
-                    const blockers = await database.raw<{
-                        rows: { pid: number }[];
-                    }>(
-                        'select pid from pg_stat_activity where ? = ANY(pg_blocking_pids(pid)) and datname = current_database()',
-                        [holderPid],
-                    );
-                    expect(blockers.rows).toHaveLength(1);
-                },
-                { timeout: 5000 },
-            );
-            if (settingsRowExists) {
-                await holder('ai_organization_settings')
-                    .where('organization_uuid', organizationUuid)
-                    .update({ mcp_enabled: false });
-            }
-            await holder.commit();
-            await expect(saving).resolves.toMatchObject({ mcpEnabled: true });
-            expect(audit).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    resource: {
-                        type: 'OrganizationSettings',
-                        organizationUuid,
-                        metadata: { mcpEnabled: { from: false, to: true } },
-                    },
-                }),
-            );
-            expect(await model.findMcpEnabled(organizationUuid)).toBe(true);
-        } finally {
-            if (!holder.isCompleted()) await holder.rollback();
-            await saving?.catch(() => undefined);
-        }
-    },
-);
 
 test('materializing an AI settings row for MCP preserves every other effective default', async () => {
     const [organization] = await migrated

@@ -43,10 +43,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
-import {
-    AiOrganizationSettingsModel,
-    type StoredAiOrganizationSettings,
-} from '../models/AiOrganizationSettingsModel';
+import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
     filterModelsForOrg,
@@ -976,19 +973,11 @@ export class AiOrganizationSettingsService extends BaseService {
                       ...aiSettingsUpdate,
                       defaultAiAgentModelConfig: reconciledDefaultModelConfig,
                   };
-        let settings: StoredAiOrganizationSettings;
-        if (update.mcpEnabled === undefined) {
-            settings = await this.aiOrganizationSettingsModel.upsert(
-                organizationUuid,
-                update,
-            );
-        } else {
-            const saved =
-                await this.aiOrganizationSettingsModel.upsertWithMcpEnabled(
-                    organizationUuid,
-                    update,
-                );
-            settings = saved.settings;
+        const settings = await this.aiOrganizationSettingsModel.upsert(
+            organizationUuid,
+            update,
+        );
+        if (update.mcpEnabled !== undefined) {
             try {
                 logAuditEvent(
                     createAuditLogEvent(
@@ -998,10 +987,7 @@ export class AiOrganizationSettingsService extends BaseService {
                             type: 'OrganizationSettings',
                             organizationUuid,
                             metadata: {
-                                mcpEnabled: {
-                                    from: saved.previous,
-                                    to: settings.mcpEnabled,
-                                },
+                                mcpEnabled: settings.mcpEnabled,
                             },
                         },
                         {
