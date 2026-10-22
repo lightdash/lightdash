@@ -43,6 +43,7 @@ const QUERY_TOOLS = new Set([
 
 const RENDER_TOOLS = new Set([
     'generateVisualization',
+    'visualize',
     'generateDashboardV2',
     'generateDataApp',
     'iterateDataApp',

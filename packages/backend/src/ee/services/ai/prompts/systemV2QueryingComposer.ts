@@ -46,7 +46,7 @@ export const getQueryingComposerSection = ({
             ? []
             : [
                   '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.',
-                  '- Visualize a second node only when it adds a distinct view. To show an earlier result again, or as another chart, visualize its node again rather than rerunning query.',
+                  '- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.',
               ]),
         '',
         '## Field usage',

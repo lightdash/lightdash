@@ -530,7 +530,7 @@ export const getRunComposerQueries = ({
                     ),
                     isSlack
                         ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
-                        : `Not shown to the user yet. To show it, call visualize with nodeId "${resolvedTerminalNodeId}".`,
+                        : `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');

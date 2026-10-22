@@ -188,6 +188,21 @@ describe('visualize', () => {
         });
     });
 
+    it('writes the card without hints when the hint run fails', async () => {
+        const { visualize, versions, runComposerQueries } = makeTool();
+        runComposerQueries.mockRejectedValueOnce(new Error('warehouse down'));
+
+        const output = await visualize({
+            vizConfig: { ...barConfig, type: 'pie', x: 'orders_status' },
+        });
+
+        expect(output.structuredContent).toEqual({
+            nodeId: 'orders',
+            hints: [],
+        });
+        expect(versions).toHaveLength(1);
+    });
+
     it('writes one version per call, so two calls show two cards', async () => {
         const { visualize, versions } = makeTool();
 

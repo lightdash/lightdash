@@ -8,7 +8,8 @@ import {
 import { tool } from 'ai';
 import {
     composerChartQualityHints,
-    hasComposerChartQualityHints,
+    composerChartQualityHintsNeedRows,
+    formatChartReadabilityNotes,
 } from '../decisions/chartQuality';
 import type {
     CreateOrUpdateArtifactFn,
@@ -88,17 +89,16 @@ export const getVisualize = ({
                     threadNodes,
                 });
 
-                await updateProgress('Building chart...');
-                // Hints read the node's rows; the run is usually a results cache hit.
-                const hints = hasComposerChartQualityHints(vizConfig)
-                    ? composerChartQualityHints(
-                          vizConfig,
-                          (
-                              await runComposerQueries({
-                                  queries,
-                                  terminalNodeId: nodeId,
-                              })
-                          ).terminal,
+                await updateProgress('Visualizing result...');
+                // Hints read the node's rows, usually a results cache hit; a failed run only drops them.
+                const hints = composerChartQualityHintsNeedRows(vizConfig)
+                    ? await runComposerQueries({
+                          queries,
+                          terminalNodeId: nodeId,
+                      }).then(
+                          ({ terminal }) =>
+                              composerChartQualityHints(vizConfig, terminal),
+                          () => [],
                       )
                     : [];
 
@@ -116,13 +116,11 @@ export const getVisualize = ({
 
                 return {
                     result: [
-                        `Showed node "${nodeId}" to the user as a ${vizConfig.type} card.`,
-                        ...(hints.length > 0
-                            ? [
-                                  `Chart readability: ${hints.join(' ')} Do not remove requested categories or change query scope merely to simplify the chart.`,
-                              ]
-                            : []),
-                    ].join(' '),
+                        `Visualized node "${nodeId}" for the user as a ${vizConfig.type} card.`,
+                        formatChartReadabilityNotes(hints),
+                    ]
+                        .filter(Boolean)
+                        .join(' '),
                     metadata: {
                         status: 'success',
                         nodeId,

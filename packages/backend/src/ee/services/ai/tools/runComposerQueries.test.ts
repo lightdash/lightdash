@@ -368,7 +368,7 @@ describe('getRunComposerQueries', () => {
             description: null,
         });
         expect(output.result).toContain(
-            'Not shown to the user yet. To show it, call visualize with nodeId "joined".',
+            'Not visualized yet. To present it to the user, call visualize with nodeId "joined".',
         );
         expect(output.result).toContain(
             [

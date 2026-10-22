@@ -466,7 +466,7 @@ describe('getSystemPromptV2 composer queries', () => {
             'After query, call visualize on the node your answer rests on',
         );
         expect(content).toContain(
-            'visualize its node again rather than rerunning query',
+            'call visualize on its node rather than rerunning query',
         );
         expect(content).not.toMatch(/\bpresent the result|<show/i);
     });

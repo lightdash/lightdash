@@ -27,6 +27,11 @@ const seriesNote = (rows: Rows, groups: string[]): string | null => {
         : null;
 };
 
+export const formatChartReadabilityNotes = (notes: string[]): string =>
+    notes.length === 0
+        ? ''
+        : `Chart readability: ${notes.join(' ')} Do not remove requested categories or change query scope merely to simplify the chart.`;
+
 export const chartQualityHints = (
     query: ToolRunQueryArgsTransformed,
     rows: Rows,
@@ -45,9 +50,7 @@ export const chartQualityHints = (
             : null,
         chart.groupBy?.length ? seriesNote(rows, chart.groupBy) : null,
     ].filter((note): note is string => note !== null);
-    return notes.length === 0
-        ? ''
-        : ` Chart readability: ${notes.join(' ')} Do not remove requested categories or change query scope merely to simplify the chart.`;
+    return notes.length === 0 ? '' : ` ${formatChartReadabilityNotes(notes)}`;
 };
 
 const SERIES_SPLIT_TYPES: ComposerBuiltinChartVizConfig['type'][] = [
@@ -62,8 +65,8 @@ const getSeriesSplit = (vizConfig: ComposerBuiltinChartVizConfig) =>
         ? (vizConfig.groupBy ?? [])
         : [];
 
-/** Whether composerChartQualityHints can note anything, so a run is worth it. */
-export const hasComposerChartQualityHints = (
+/** Whether composerChartQualityHints may note anything, so reading rows is worth it. */
+export const composerChartQualityHintsNeedRows = (
     vizConfig: ComposerBuiltinChartVizConfig,
 ): boolean => vizConfig.type === 'pie' || getSeriesSplit(vizConfig).length > 0;
 

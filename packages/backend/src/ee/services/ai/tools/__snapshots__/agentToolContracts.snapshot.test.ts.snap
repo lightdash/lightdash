@@ -677,7 +677,7 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
-- Visualize a second node only when it adds a distinct view. To show an earlier result again, or as another chart, visualize its node again rather than rerunning query.
+- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.
 
 ## Field usage
 
@@ -22027,9 +22027,9 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
     },
   },
   {
-    "description": "Show a node's result to the user as a chart or table. Each call adds one card to the thread; nothing is shown until you call it.
+    "description": "Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 
-nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be shown again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
+nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
 Pie and series-split charts return readability notes when they have many slices or series.",
     "inputSchema": {
@@ -22075,7 +22075,7 @@ Pie and series-split charts return readability notes when they have many slices 
           ],
         },
         "nodeId": {
-          "description": "The node whose result to show, by node id.",
+          "description": "The node to visualize, by node id.",
           "type": "string",
         },
         "title": {
@@ -22264,7 +22264,7 @@ Pie and series-split charts return readability notes when they have many slices 
                   "type": "array",
                 },
                 "nodeId": {
-                  "description": "The node shown.",
+                  "description": "The node visualized.",
                   "type": "string",
                 },
               },
