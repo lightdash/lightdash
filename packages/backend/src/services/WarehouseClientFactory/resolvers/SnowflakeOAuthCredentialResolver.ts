@@ -1,6 +1,8 @@
 import {
     assertUnreachable,
     ForbiddenError,
+    getPersonSignIn,
+    getWarehouseSignInRejection,
     LightdashError,
     OpenIdIdentityIssuerType,
     SnowflakeAuthenticationType,
@@ -22,6 +24,13 @@ import {
     type RefreshTokenRotation,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
+import {
+    capturePersonalSignIn,
+    isPersonalSignInExpiryEnabled,
+    markPersonalSignInRejection,
+    type PersonalSignInDependencies,
+} from '../../../utils/personalSignIn';
+import { withPersonalSignInExpiry } from '../../../utils/sharedSignInExpiry';
 import {
     OAuthCredentialRefresher,
     OAuthRefreshExchangeError,
@@ -46,16 +55,17 @@ import { prepareWarehouseOAuthCredentials } from '../preparedOAuthCredentials';
 
 type SnowflakeSelection = CredentialSelection<CreateSnowflakeCredentials>;
 
-type Dependencies = OAuthCredentialRefreshSourceDependencies & {
-    refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
-    userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
-    logger: Pick<typeof Logger, 'debug' | 'error'>;
-    attributeSharedSignInExpiry: (
-        projectUuid: string,
-        credentials: CreateSnowflakeCredentials,
-        error: unknown,
-    ) => Promise<never>;
-};
+type Dependencies = OAuthCredentialRefreshSourceDependencies &
+    PersonalSignInDependencies & {
+        refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
+        userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
+        logger: Pick<typeof Logger, 'debug' | 'error'>;
+        attributeSharedSignInExpiry: (
+            projectUuid: string,
+            credentials: CreateSnowflakeCredentials,
+            error: unknown,
+        ) => Promise<never>;
+    };
 
 const cacheKeyIdentity = (
     owner: CredentialOwner | null,
@@ -182,6 +192,15 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 'Snowflake agent credentials must be minted before use',
             );
         }
+        const personal =
+            policy.errorPolicy === 'standard' && !input.aiPlan
+                ? await capturePersonalSignIn(
+                      this.deps,
+                      owner,
+                      input.connection,
+                      input.context.organizationUuid,
+                  )
+                : null;
         try {
             if (!input.connection.refreshToken) {
                 throw new Error(
@@ -266,7 +285,40 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 throw new RefreshTokenLockTimeoutError();
             }
             if (policy.errorPolicy === 'raw') throw error;
-            const mapped = this.mapError(error);
+            const isPersonal =
+                personal !== null &&
+                (await isPersonalSignInExpiryEnabled(
+                    this.deps.featureFlagModel,
+                    {
+                        userUuid: personal.snapshot.userUuid,
+                        organizationUuid: personal.organizationUuid,
+                    },
+                ));
+            const mapped = isPersonal
+                ? this.mapPersonalError(error)
+                : this.mapError(error);
+            const personalEnabled = await markPersonalSignInRejection(
+                this.deps,
+                personal,
+                mapped,
+                caught instanceof OAuthRefreshExchangeError
+                    ? caught.refreshToken
+                    : undefined,
+            );
+            const signIn = getPersonSignIn(input.connection);
+            if (
+                personalEnabled &&
+                personal &&
+                signIn &&
+                input.projectUuid !== null &&
+                mapped instanceof SnowflakeTokenError
+            ) {
+                throw withPersonalSignInExpiry(mapped, {
+                    projectUuid: input.projectUuid,
+                    provider: signIn.provider,
+                    userWarehouseCredentialsUuid: personal.snapshot.uuid,
+                });
+            }
             if (owner?.kind === 'project') {
                 return this.deps.attributeSharedSignInExpiry(
                     owner.uuid,
@@ -304,6 +356,48 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
             message = 'Error refreshing snowflake token';
         }
         return new SnowflakeTokenError(message);
+    }
+
+    private mapPersonalError(error: unknown): LightdashError {
+        if (error instanceof LightdashError) return error;
+        const refreshError =
+            error instanceof RefreshTokenRowMissingError
+                ? new Error(
+                      'No refresh token available for Snowflake SSO authentication',
+                  )
+                : error;
+        this.deps.logger.warn('Could not refresh warehouse sign-in');
+        let rejection;
+        if (
+            refreshError !== null &&
+            typeof refreshError === 'object' &&
+            'statusCode' in refreshError &&
+            (refreshError.statusCode === 400 ||
+                refreshError.statusCode === 401) &&
+            'data' in refreshError &&
+            typeof refreshError.data === 'string'
+        ) {
+            try {
+                const body: unknown = JSON.parse(refreshError.data);
+                if (
+                    body !== null &&
+                    typeof body === 'object' &&
+                    'error' in body
+                )
+                    rejection = getWarehouseSignInRejection(
+                        body.error,
+                        'error_subtype' in body
+                            ? body.error_subtype
+                            : undefined,
+                    );
+            } catch {
+                rejection = undefined;
+            }
+        }
+        return new SnowflakeTokenError(
+            'Error refreshing snowflake token',
+            rejection ? { rejection } : {},
+        );
     }
 
     cacheKeyIdentity(input: SnowflakeSelection): readonly (string | null)[] {

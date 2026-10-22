@@ -484,6 +484,7 @@ import {
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
+import { isPersonalSignInExpiryEnabled } from '../../utils/personalSignIn';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -1114,6 +1115,7 @@ export class ProjectService
                 this.databricksOAuthCredentialResolver,
         });
         this.warehouseClientFactory = new WarehouseClientFactory({
+            userWarehouseCredentialsModel,
             credentialResolvers,
             lightdashConfig,
             projectModel,
@@ -17973,6 +17975,7 @@ export class ProjectService
         return this.userWarehouseCredentialsModel.getAllByUserUuidForProject(
             user.userUuid,
             projectUuid,
+            await isPersonalSignInExpiryEnabled(this.featureFlagModel, user),
         );
     }
 

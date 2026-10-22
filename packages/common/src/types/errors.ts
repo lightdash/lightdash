@@ -9,7 +9,7 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
-import type { SharedSignInExpiry } from './sharedSignIn';
+import type { PersonalSignInExpiry, SharedSignInExpiry } from './sharedSignIn';
 
 type LightdashErrorData = {
     /**
@@ -910,7 +910,32 @@ export class AiAgentValidatorError extends LightdashError {
     }
 }
 
-export type WarehouseTokenErrorData = { sharedSignIn?: SharedSignInExpiry };
+export enum WarehouseSignInRejection {
+    INVALID_GRANT = 'invalid_grant',
+    INVALID_RAPT = 'invalid_rapt',
+    RAPT_REQUIRED = 'rapt_required',
+}
+
+export const getWarehouseSignInRejection = (
+    error: unknown,
+    subtype: unknown = undefined,
+): WarehouseSignInRejection | undefined => {
+    if (error === 'invalid_rapt') return WarehouseSignInRejection.INVALID_RAPT;
+    if (error === 'rapt_required')
+        return WarehouseSignInRejection.RAPT_REQUIRED;
+    if (error !== 'invalid_grant') return undefined;
+    if (subtype === 'invalid_rapt')
+        return WarehouseSignInRejection.INVALID_RAPT;
+    if (subtype === 'rapt_required')
+        return WarehouseSignInRejection.RAPT_REQUIRED;
+    return WarehouseSignInRejection.INVALID_GRANT;
+};
+
+export type WarehouseTokenErrorData = {
+    sharedSignIn?: SharedSignInExpiry;
+    personalSignIn?: PersonalSignInExpiry;
+    rejection?: WarehouseSignInRejection;
+};
 
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI

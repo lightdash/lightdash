@@ -13,6 +13,7 @@ import {
     setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseSignInRejection,
     type BigqueryProject,
     type CreateBigqueryCredentials,
     type WarehouseNestedColumnShape,
@@ -853,6 +854,49 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
             'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
         );
     });
+
+    test.each([
+        ['invalid_grant', undefined, WarehouseSignInRejection.INVALID_GRANT],
+        [
+            'invalid_grant',
+            'invalid_rapt',
+            WarehouseSignInRejection.INVALID_RAPT,
+        ],
+        [
+            'invalid_grant',
+            'rapt_required',
+            WarehouseSignInRejection.RAPT_REQUIRED,
+        ],
+        ['invalid_rapt', undefined, WarehouseSignInRejection.INVALID_RAPT],
+        ['rapt_required', undefined, WarehouseSignInRejection.RAPT_REQUIRED],
+    ])(
+        'classifies the structured rejection %s / %s',
+        async (error, subtype, rejection) => {
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                createGaxiosError({ error: error!, error_subtype: subtype }),
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toMatchObject({
+                data: { rejection },
+            });
+        },
+    );
+
+    test.each([500, 503])(
+        'does not classify a provider %s response',
+        async (status) => {
+            const original = createGaxiosError(
+                { error: 'invalid_grant' },
+                'unavailable',
+                status,
+            );
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                original,
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+        },
+    );
 
     it('translates an invalid_grant rejection of a service account keyfile into a connection error', async () => {
         const warehouse = createWarehouseRejectingQueries(

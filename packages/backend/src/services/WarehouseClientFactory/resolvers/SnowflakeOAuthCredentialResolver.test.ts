@@ -5,6 +5,7 @@ import {
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     UserWarehouseCredentialPurpose,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateSnowflakeCredentials,
@@ -99,6 +100,8 @@ const setup = (enabled = true) => {
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
         userWarehouseCredentialsModel: {
+            getSignInSnapshot: vi.fn().mockResolvedValue(null),
+            markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
             getByUuidWithSecrets: vi.fn().mockResolvedValue({ credentials }),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
@@ -110,7 +113,7 @@ const setup = (enabled = true) => {
         userOAuthGrantsModel: {
             getRefreshToken: vi.fn().mockResolvedValue('grant-refresh'),
         },
-        logger: { debug: vi.fn(), error: vi.fn() },
+        logger: { debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
         attributeSharedSignInExpiry: vi.fn(
             async (
                 _uuid: string,
@@ -711,5 +714,157 @@ describe('Snowflake OAuth refresh concurrency', () => {
             ['new-refresh', OAUTH_REQUEST_TIMEOUT_MS],
         ]);
         expect(f.transaction).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('personal provider rejection attribution', () => {
+    const personalInput = () => {
+        const input = selection();
+        const connection = {
+            ...input.connection,
+            refreshToken: 'personal_token_a',
+        };
+        return {
+            ...input,
+            connection,
+            stored: connection,
+            owner: {
+                kind: 'user',
+                uuid: 'credential_a',
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            } as const,
+            refreshSource: {
+                credentials: connection,
+                fallback: connection,
+                personalCredentialPolicy: { strictPersonalOverlay: false },
+            },
+        };
+    };
+    const personalSnapshot = {
+        uuid: 'credential_a',
+        userUuid: 'user_a',
+        encryptedCredentials: Buffer.from('incarnation_a'),
+        refreshToken: 'personal_token_a',
+    };
+    test.each([
+        [false, false],
+        [false, true],
+        [true, false],
+        [true, true],
+    ])(
+        'keeps the original error when the flag is off or fails (lock=%s, failure=%s)',
+        async (locked, flagFails) => {
+            const f = setup(locked);
+            const input = personalInput();
+            f.deps.featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }) => {
+                    if (
+                        featureFlagId === FeatureFlags.SharedSignInExpiryMessage
+                    ) {
+                        if (flagFails) throw new Error('policy_unavailable');
+                        return { enabled: false };
+                    }
+                    return { enabled: locked };
+                },
+            );
+            f.deps.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+                personalSnapshot,
+            );
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: input.connection },
+            );
+            const rejected = {
+                statusCode: 400,
+                data: JSON.stringify({
+                    error: 'invalid_grant',
+                    message: 'provider_detail_a',
+                }),
+            };
+            f.exchange.mockRejectedValue(rejected);
+
+            const error = await f.resolver
+                .resolve(input)
+                .catch((caught: unknown) => caught);
+            expect(error).toMatchObject({
+                name: 'SnowflakeTokenError',
+                message: 'Error refreshing snowflake token: provider_detail_a',
+                data: {},
+            });
+            expect(error).toHaveProperty('data', {});
+            expect(f.deps.logger.error).toHaveBeenCalledExactlyOnceWith(
+                `Error refreshing snowflake token: ${JSON.stringify(rejected)}`,
+            );
+            expect(f.deps.logger.warn).not.toHaveBeenCalled();
+            expect(
+                f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).not.toHaveBeenCalled();
+            expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([true, false])(
+        'marks structured rejection with the refresh lock %s',
+        async (locked) => {
+            const f = setup(locked);
+            const input = personalInput();
+            f.deps.featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.SharedSignInExpiryMessage || locked,
+                }),
+            );
+            f.deps.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+                personalSnapshot,
+            );
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: input.connection },
+            );
+            f.exchange.mockRejectedValue({
+                statusCode: 400,
+                data: JSON.stringify({
+                    error: 'invalid_grant',
+                    error_description: 'private_provider_detail',
+                }),
+            });
+            await expect(f.resolver.resolve(input)).rejects.toMatchObject({
+                data: { rejection: WarehouseSignInRejection.INVALID_GRANT },
+            });
+            expect(
+                f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).toHaveBeenCalledExactlyOnceWith(
+                personalSnapshot,
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
+            expect(f.deps.logger.warn).toHaveBeenCalledWith(
+                'Could not refresh warehouse sign-in',
+            );
+        },
+    );
+
+    test.each([
+        { statusCode: 503, data: JSON.stringify({ error: 'invalid_grant' }) },
+        { statusCode: 400, data: JSON.stringify({ message: 'invalid_grant' }) },
+        new Error('network'),
+    ])('does not mark an unconfirmed provider error %j', async (error) => {
+        const f = setup(false);
+        const input = personalInput();
+        f.deps.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.SharedSignInExpiryMessage,
+            }),
+        );
+        f.deps.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+            personalSnapshot,
+        );
+        f.exchange.mockRejectedValue(error);
+        await expect(f.resolver.resolve(input)).rejects.toBeInstanceOf(
+            SnowflakeTokenError,
+        );
+        expect(
+            f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
     });
 });

@@ -10,6 +10,7 @@ import {
     DatabricksTokenError,
     DeactivatedAccountError,
     getBigqueryKeyfileError,
+    getPersonSignIn,
     LightdashError,
     NotFoundError,
     ParameterError,
@@ -28,6 +29,7 @@ import {
     UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
+    WarehouseSignInRejection,
     WarehouseTypes,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
@@ -55,6 +57,13 @@ import {
     withNewWarehouseCredentialVersion,
     withWarehouseCredentialVersion,
 } from '../../utils/warehouseCredentialVersion';
+
+export type PersonalSignInSnapshot = {
+    uuid: string;
+    userUuid: string;
+    encryptedCredentials: Buffer;
+    refreshToken: string;
+};
 
 export type PersonalCredentialPersistencePolicy = {
     strictPersonalOverlay: boolean;
@@ -159,6 +168,7 @@ export class UserWarehouseCredentialsModel {
 
     private convertToUserWarehouseCredentials(
         data: DbUserWarehouseCredentialsWithProject,
+        includeSignInStatus = false,
     ): UserWarehouseCredentials {
         let credentials: UserWarehouseCredentials['credentials'];
         try {
@@ -241,6 +251,18 @@ export class UserWarehouseCredentialsModel {
             updatedAt: data.updated_at,
             credentials,
             project,
+            ...(includeSignInStatus &&
+            data.purpose === UserWarehouseCredentialPurpose.DEFAULT
+                ? {
+                      needsSignIn:
+                          data.needs_sign_in_at && data.needs_sign_in_reason
+                              ? {
+                                    since: data.needs_sign_in_at,
+                                    reason: data.needs_sign_in_reason,
+                                }
+                              : null,
+                  }
+                : {}),
         };
     }
 
@@ -258,8 +280,57 @@ export class UserWarehouseCredentialsModel {
             );
     }
 
+    async getSignInSnapshot(
+        uuid: string,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<PersonalSignInSnapshot | null> {
+        const signIn = getPersonSignIn(credentials);
+        if (!signIn) return null;
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .where({
+                user_warehouse_credentials_uuid: uuid,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            })
+            .first();
+        if (!row || row.warehouse_type !== credentials.type) return null;
+        const stored = getPersonSignIn(
+            this.decryptCredentials(row) as CreateWarehouseCredentials,
+        );
+        if (
+            !stored ||
+            stored.provider !== signIn.provider ||
+            stored.refreshToken !== signIn.refreshToken
+        )
+            return null;
+        return {
+            uuid,
+            userUuid: row.user_uuid,
+            encryptedCredentials: row.encrypted_credentials,
+            refreshToken: stored.refreshToken,
+        };
+    }
+
+    async markNeedsSignIn(
+        snapshot: PersonalSignInSnapshot,
+        reason: WarehouseSignInRejection,
+    ): Promise<void> {
+        await this.database(UserWarehouseCredentialsTableName)
+            .where({
+                user_warehouse_credentials_uuid: snapshot.uuid,
+                user_uuid: snapshot.userUuid,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                encrypted_credentials: snapshot.encryptedCredentials,
+            })
+            .whereNull('needs_sign_in_at')
+            .update({
+                needs_sign_in_at: new Date(),
+                needs_sign_in_reason: reason,
+            });
+    }
+
     async getAllByUserUuid(
         userUuid: string,
+        includeSignInStatus = false,
     ): Promise<UserWarehouseCredentials[]> {
         const rows = await this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
@@ -269,7 +340,9 @@ export class UserWarehouseCredentialsModel {
             )
             .orderBy(`${UserWarehouseCredentialsTableName}.created_at`);
 
-        return rows.map((r) => this.convertToUserWarehouseCredentials(r));
+        return rows.map((r) =>
+            this.convertToUserWarehouseCredentials(r, includeSignInStatus),
+        );
     }
 
     async getAiCredentialsByUserUuid(userUuid: string): Promise<
@@ -465,6 +538,7 @@ export class UserWarehouseCredentialsModel {
     async getAllByUserUuidForProject(
         userUuid: string,
         projectUuid: string,
+        includeSignInStatus = false,
     ): Promise<UserWarehouseCredentials[]> {
         const rows = await this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
@@ -482,10 +556,15 @@ export class UserWarehouseCredentialsModel {
             })
             .orderBy(`${UserWarehouseCredentialsTableName}.created_at`);
 
-        return rows.map((r) => this.convertToUserWarehouseCredentials(r));
+        return rows.map((r) =>
+            this.convertToUserWarehouseCredentials(r, includeSignInStatus),
+        );
     }
 
-    async getByUuid(uuid: string): Promise<UserWarehouseCredentials> {
+    async getByUuid(
+        uuid: string,
+        includeSignInStatus = false,
+    ): Promise<UserWarehouseCredentials> {
         const result = await this.baseSelectWithProject()
             .where(
                 `${UserWarehouseCredentialsTableName}.purpose`,
@@ -500,7 +579,10 @@ export class UserWarehouseCredentialsModel {
         if (!result) {
             throw new NotFoundError('Warehouse credentials not found');
         }
-        return this.convertToUserWarehouseCredentials(result);
+        return this.convertToUserWarehouseCredentials(
+            result,
+            includeSignInStatus,
+        );
     }
 
     async getByUuidWithSecrets(
@@ -1130,6 +1212,7 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
         policy: PersonalCredentialPersistencePolicy,
+        clearSignInStatus = false,
     ): Promise<string> {
         const storedRow = await this.database(UserWarehouseCredentialsTableName)
             .where(
@@ -1209,6 +1292,9 @@ export class UserWarehouseCredentialsModel {
                 warehouse_type: normalized.credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 updated_at: new Date(),
+                ...(clearSignInStatus
+                    ? { needs_sign_in_at: null, needs_sign_in_reason: null }
+                    : {}),
             })
             .where(
                 'user_warehouse_credentials_uuid',

@@ -7,6 +7,7 @@ import {
     NotFoundError,
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type CreateDatabricksCredentials,
 } from '@lightdash/common';
@@ -107,6 +108,8 @@ const setup = (
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
         userWarehouseCredentialsModel: {
+            getSignInSnapshot: vi.fn().mockResolvedValue(null),
+            markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
             getByUuidWithSecrets: vi
                 .fn()
                 .mockResolvedValue({ credentials: current }),
@@ -122,7 +125,7 @@ const setup = (
             getOwnCredentials: vi.fn().mockResolvedValue(current),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
-        logger: { error: vi.fn() },
+        logger: { error: vi.fn(), warn: vi.fn() },
         attributeSharedSignInExpiry: vi.fn(
             async (
                 _uuid: string,
@@ -1023,4 +1026,151 @@ describe('strict personal overlay (agent-identity on)', () => {
             }
         },
     );
+});
+
+describe('personal provider rejection attribution', () => {
+    const personalInput = () => {
+        const input = selection();
+        const connection = {
+            ...input.connection,
+            refreshToken: 'personal_token_a',
+        };
+        return {
+            ...input,
+            connection,
+            stored: connection,
+            owner: {
+                kind: 'user',
+                uuid: 'credential_a',
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            } as const,
+            refreshSource: {
+                credentials: connection,
+                fallback: connection,
+                personalCredentialPolicy: { strictPersonalOverlay: false },
+            },
+        };
+    };
+    const personalSnapshot = {
+        uuid: 'credential_a',
+        userUuid: 'user_a',
+        encryptedCredentials: Buffer.from('incarnation_a'),
+        refreshToken: 'personal_token_a',
+    };
+    test.each([
+        [false, false],
+        [false, true],
+        [true, false],
+        [true, true],
+    ])(
+        'keeps the original error when the flag is off or fails (lock=%s, failure=%s)',
+        async (locked, flagFails) => {
+            const f = setup(locked);
+            const input = personalInput();
+            f.deps.featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }) => {
+                    if (
+                        featureFlagId === FeatureFlags.SharedSignInExpiryMessage
+                    ) {
+                        if (flagFails) throw new Error('policy_unavailable');
+                        return { enabled: false };
+                    }
+                    return { enabled: locked };
+                },
+            );
+            f.deps.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+                personalSnapshot,
+            );
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: input.connection },
+            );
+            const rejected = new warehouses.DatabricksOAuthRefreshError(
+                'provider_detail_a',
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            f.exchange.mockRejectedValue(rejected);
+            f.lockedExchange.mockRejectedValue(rejected);
+            const error = await f.resolver
+                .resolve(input)
+                .catch((caught: unknown) => caught);
+            expect(error).toMatchObject({
+                name: 'DatabricksTokenError',
+                message:
+                    'Error refreshing databricks U2M OAuth token: provider_detail_a',
+                data: {},
+            });
+            expect(error).toHaveProperty('data', {});
+            expect(f.deps.logger.error).toHaveBeenCalledExactlyOnceWith(
+                'Error refreshing databricks U2M OAuth token: provider_detail_a',
+            );
+            expect(f.deps.logger.warn).not.toHaveBeenCalled();
+            expect(
+                f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).not.toHaveBeenCalled();
+            expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([true, false])(
+        'marks typed U2M rejection with the refresh lock %s',
+        async (locked) => {
+            const f = setup(locked);
+            const input = personalInput();
+            f.deps.featureFlagModel.get.mockImplementation(
+                async ({ featureFlagId }) => ({
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.SharedSignInExpiryMessage || locked,
+                }),
+            );
+            f.deps.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+                personalSnapshot,
+            );
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: input.connection },
+            );
+            const rejected = new warehouses.DatabricksOAuthRefreshError(
+                'provider_detail_a',
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            f.exchange.mockRejectedValue(rejected);
+            f.lockedExchange.mockRejectedValue(rejected);
+            await expect(f.resolver.resolve(input)).rejects.toMatchObject({
+                data: {
+                    rejection: WarehouseSignInRejection.INVALID_GRANT,
+                    personalSignIn: {
+                        userWarehouseCredentialsUuid: 'credential_a',
+                    },
+                },
+            });
+            expect(
+                f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).toHaveBeenCalledExactlyOnceWith(
+                personalSnapshot,
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
+        },
+    );
+
+    test('does not mark an M2M owner even if a typed error reaches the catch path', async () => {
+        const f = setup(false, DatabricksAuthenticationType.OAUTH_M2M);
+        const input = personalInput();
+        input.connection.authenticationType =
+            DatabricksAuthenticationType.OAUTH_M2M;
+        f.exchange.mockRejectedValue(
+            new DatabricksTokenError('reconnect', {
+                rejection: WarehouseSignInRejection.INVALID_GRANT,
+            }),
+        );
+        await expect(f.resolver.resolve(input)).rejects.toBeInstanceOf(
+            DatabricksTokenError,
+        );
+        expect(
+            f.deps.userWarehouseCredentialsModel.getSignInSnapshot,
+        ).not.toHaveBeenCalled();
+        expect(
+            f.deps.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
+    });
 });

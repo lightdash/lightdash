@@ -13,6 +13,7 @@ import {
     DucklakeDataPathType,
     FeatureFlags,
     getAgentClientLabel,
+    PersonSignInProvider,
     ProjectMemberRole,
     QueryExecutionContext,
     QuerySurface,
@@ -21,8 +22,10 @@ import {
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type AiExecutionPlan,
+    type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     type CreateDuckdbDucklakeCredentials,
     type CreatePostgresCredentials,
@@ -299,7 +302,12 @@ const buildFixture = (
     const sshKeyPairModel = {
         find: vi.fn<SshKeyPairModel['find']>().mockResolvedValue(null),
     };
+    const userWarehouseCredentialsModel = {
+        getSignInSnapshot: vi.fn().mockResolvedValue(null),
+        markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
+    };
     const factory = new WarehouseClientFactory({
+        userWarehouseCredentialsModel,
         credentialResolvers: createCredentialResolverRegistry({
             databricksOAuthCredentialResolver:
                 new DatabricksOAuthCredentialResolver({
@@ -328,6 +336,7 @@ const buildFixture = (
         logger: logger as unknown as typeof Logger,
     });
     return {
+        userWarehouseCredentialsModel,
         analytics,
         sshKeyPairModel,
         factory,
@@ -6404,4 +6413,295 @@ test('connection discovery resolves agent identity for SQL runner without changi
         ),
     );
     expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+});
+
+describe('personal warehouse sign-in marks', () => {
+    const personalCredentials: CreateBigqueryCredentials & {
+        userWarehouseCredentialsUuid: string;
+    } = {
+        type: WarehouseTypes.BIGQUERY,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        project: 'project_a',
+        dataset: 'dataset_a',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            refresh_token: 'personal_token_a',
+        },
+        userWarehouseCredentialsUuid: 'credential_a',
+    };
+    const ref = {
+        kind: 'binding',
+        projectUuid: 'project_a',
+        binding: { kind: 'original' },
+    } as const;
+    const context = () =>
+        connectionContextFromUser(
+            { userUuid: 'user_a' },
+            { organizationUuid: 'organization_a', queryContext: null },
+        );
+    const error = () =>
+        new BigqueryTokenError('reconnect', {
+            rejection: WarehouseSignInRejection.INVALID_GRANT,
+        });
+    const setupPersonal = () => {
+        const f = buildFixture();
+        f.featureFlagModel.get = vi.fn().mockResolvedValue({ enabled: true });
+        f.base.projectUuid = 'project_a';
+        f.base.organizationUuid = 'organization_a';
+        f.base.credentials = {
+            ...personalCredentials,
+            keyfileContents: {
+                type: 'authorized_user',
+                refresh_token: 'project_token_a',
+            },
+        };
+        f.projectModel.getSummary.mockResolvedValue({
+            organizationUuid: 'organization_a',
+        } as never);
+        f.credentialSource.finish.mockResolvedValue(personalCredentials);
+        const snapshot = {
+            uuid: 'credential_a',
+            userUuid: 'user_a',
+            encryptedCredentials: Buffer.from('incarnation_a'),
+            refreshToken: 'personal_token_a',
+        };
+        f.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+            snapshot,
+        );
+        const runQuery = vi.fn().mockRejectedValue(error());
+        f.projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery,
+            }),
+        );
+        return { ...f, snapshot, runQuery };
+    };
+
+    test.each(['new', 'cached', 'derived'] as const)(
+        'marks a rejected %s client and keeps the personal error',
+        async (kind) => {
+            const f = setupPersonal();
+            if (kind === 'cached')
+                await f.factory.withWarehouseClient(
+                    ref,
+                    context(),
+                    async () => {},
+                );
+            const rejected = error();
+            f.runQuery.mockRejectedValue(rejected);
+            await expect(
+                f.factory.withWarehouseClient(ref, context(), async (scope) => {
+                    const client =
+                        kind === 'derived'
+                            ? scope.deriveClient(scope.connectionCredentials)
+                            : scope.warehouseClient;
+                    return client.runQuery('SELECT 1', {});
+                }),
+            ).rejects.toMatchObject({
+                message:
+                    'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
+                data: {
+                    personalSignIn: {
+                        projectUuid: 'project_a',
+                        provider: PersonSignInProvider.GOOGLE,
+                        userWarehouseCredentialsUuid: 'credential_a',
+                    },
+                },
+            });
+            expect(
+                f.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).toHaveBeenCalledWith(
+                f.snapshot,
+                WarehouseSignInRejection.INVALID_GRANT,
+            );
+            expect(
+                f.projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(kind === 'derived' ? 2 : 1);
+            const sent =
+                f.projectModel.getWarehouseClientFromCredentials.mock
+                    .calls[0][0];
+            expect(Object.getOwnPropertySymbols(sent)).toHaveLength(0);
+            expect(sent).toHaveProperty(
+                'keyfileContents.refresh_token',
+                'personal_token_a',
+            );
+        },
+    );
+
+    test('marks an extra binding with the same personal owner', async () => {
+        const f = setupPersonal();
+        await expect(
+            f.factory.withWarehouseClient(
+                {
+                    ...ref,
+                    binding: {
+                        kind: 'connection',
+                        warehouseConnectionUuid: 'connection_a',
+                    },
+                },
+                context(),
+                ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toBeInstanceOf(BigqueryTokenError);
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).toHaveBeenCalledOnce();
+    });
+
+    test('does not mark a derived client that uses a different token', async () => {
+        const f = setupPersonal();
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                ({ deriveClient, connectionCredentials }) =>
+                    deriveClient({
+                        ...connectionCredentials,
+                        keyfileContents: {
+                            type: 'authorized_user',
+                            refresh_token: 'personal_token_b',
+                        },
+                    } as CreateWarehouseCredentials).runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toBeInstanceOf(BigqueryTokenError);
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
+    });
+
+    test.each([new Error('network'), new BigqueryTokenError('reconnect')])(
+        'does not mark an unconfirmed error %j',
+        async (rejected) => {
+            const f = setupPersonal();
+            f.runQuery.mockRejectedValue(rejected);
+            await expect(
+                f.factory.withWarehouseClient(
+                    ref,
+                    context(),
+                    ({ warehouseClient }) =>
+                        warehouseClient.runQuery('SELECT 1', {}),
+                ),
+            ).rejects.toBe(rejected);
+            expect(
+                f.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    test('does not mark with the kill switch off', async () => {
+        const f = setupPersonal();
+        vi.mocked(f.featureFlagModel.get).mockResolvedValue({
+            id: FeatureFlags.SharedSignInExpiryMessage,
+            enabled: false,
+        });
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toBeInstanceOf(BigqueryTokenError);
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('a fulfilled local method does not clear an earlier rejection', async () => {
+        const f = setupPersonal();
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                async ({ warehouseClient }) => {
+                    await expect(
+                        warehouseClient.runQuery('SELECT 1', {}),
+                    ).rejects.toBeInstanceOf(BigqueryTokenError);
+                    f.runQuery.mockResolvedValue({ rows: [], fields: {} });
+                    await warehouseClient.runQuery('SELECT 1', {});
+                },
+            ),
+        ).resolves.toBeUndefined();
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).toHaveBeenCalledOnce();
+    });
+
+    test('does not fall back to project attribution when the personal snapshot is unavailable', async () => {
+        const f = setupPersonal();
+        f.userWarehouseCredentialsModel.getSignInSnapshot.mockResolvedValue(
+            null,
+        );
+        const shared = vi.spyOn(f.factory, 'attributeSharedSignInExpiry');
+        const lookup = vi.fn();
+        Object.assign(f.projectModel, {
+            getSharedSignInSubjectForToken: lookup,
+        });
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toBeInstanceOf(BigqueryTokenError);
+        expect(shared).toHaveBeenCalledWith(
+            'project_a',
+            expect.anything(),
+            expect.any(BigqueryTokenError),
+            null,
+        );
+        expect(lookup).not.toHaveBeenCalled();
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('keeps shared sign-in attribution without marking a personal token that happens to match', async () => {
+        const f = setupPersonal();
+        f.credentialSource.finish.mockResolvedValue({
+            ...personalCredentials,
+            userWarehouseCredentialsUuid: undefined,
+        });
+        const shared = vi.spyOn(f.factory, 'attributeSharedSignInExpiry');
+        const lookup = vi.fn().mockResolvedValue({
+            provider: PersonSignInProvider.GOOGLE,
+            subject: { userUuid: 'user_a', name: 'user_a' },
+            basis: null,
+        });
+        Object.assign(f.projectModel, {
+            getSharedSignInSubjectForToken: lookup,
+        });
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toMatchObject({
+            data: {
+                sharedSignIn: {
+                    projectUuid: 'project_a',
+                    subjectUserUuid: 'user_a',
+                },
+            },
+        });
+        expect(shared).toHaveBeenCalledOnce();
+        expect(lookup).toHaveBeenCalledWith('project_a', 'personal_token_a');
+        expect(
+            f.userWarehouseCredentialsModel.getSignInSnapshot,
+        ).not.toHaveBeenCalled();
+        expect(
+            f.userWarehouseCredentialsModel.markNeedsSignIn,
+        ).not.toHaveBeenCalled();
+    });
 });

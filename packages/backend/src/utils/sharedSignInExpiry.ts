@@ -2,11 +2,13 @@ import {
     BigqueryTokenError,
     DatabricksTokenError,
     FeatureFlags,
+    getExpiredPersonalSignInMessage,
     getExpiredSharedSignInMessage,
     getPersonSignIn,
     PersonSignInProvider,
     SnowflakeTokenError,
     type Account,
+    type PersonalSignInExpiry,
     type SharedSignInExpiry,
 } from '@lightdash/common';
 import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -37,6 +39,22 @@ export const withSharedSignInExpiry = (
         return new SnowflakeTokenError(message, { sharedSignIn });
     }
     return new DatabricksTokenError(message, { sharedSignIn });
+};
+
+export const withPersonalSignInExpiry = (
+    error: WarehouseTokenError,
+    personalSignIn: PersonalSignInExpiry,
+): WarehouseTokenError => {
+    const message = getExpiredPersonalSignInMessage(personalSignIn);
+    const data = {
+        personalSignIn,
+        ...(error.data.rejection ? { rejection: error.data.rejection } : {}),
+    };
+    if (error instanceof BigqueryTokenError)
+        return new BigqueryTokenError(message, data);
+    if (error instanceof SnowflakeTokenError)
+        return new SnowflakeTokenError(message, data);
+    return new DatabricksTokenError(message, data);
 };
 
 export const personaliseSharedSignInError = <T>(

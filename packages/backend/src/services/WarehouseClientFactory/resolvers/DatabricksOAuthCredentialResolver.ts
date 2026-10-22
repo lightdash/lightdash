@@ -4,14 +4,17 @@ import {
     DatabricksTokenError,
     ForbiddenError,
     getErrorMessage,
+    getPersonSignIn,
     LightdashError,
     NotFoundError,
     UnexpectedServerError,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type CreateDatabricksCredentials,
 } from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
+    DatabricksOAuthRefreshError,
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
 } from '@lightdash/warehouses';
@@ -27,6 +30,13 @@ import {
     type RefreshTokenRotation,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    capturePersonalSignIn,
+    isPersonalSignInExpiryEnabled,
+    markPersonalSignInRejection,
+    type PersonalSignInDependencies,
+} from '../../../utils/personalSignIn';
+import { withPersonalSignInExpiry } from '../../../utils/sharedSignInExpiry';
 import {
     OAuthCredentialRefresher,
     OAuthRefreshExchangeError,
@@ -54,20 +64,21 @@ type DatabricksSource = Extract<
     OAuthRefreshSourceCredentials,
     { type: WarehouseTypes.DATABRICKS }
 >;
-type Dependencies = OAuthCredentialRefreshSourceDependencies & {
-    lightdashConfig: LightdashConfig;
-    refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
-    userWarehouseCredentialsModel: OAuthCredentialRefreshSourceDependencies['userWarehouseCredentialsModel'] &
-        Pick<
-            UserWarehouseCredentialsModel,
-            'findDatabricksOauthU2mForHostWithSecrets'
-        >;
-    attributeSharedSignInExpiry: (
-        projectUuid: string,
-        credentials: CreateDatabricksCredentials,
-        error: unknown,
-    ) => Promise<never>;
-};
+type Dependencies = OAuthCredentialRefreshSourceDependencies &
+    PersonalSignInDependencies & {
+        lightdashConfig: LightdashConfig;
+        refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
+        userWarehouseCredentialsModel: OAuthCredentialRefreshSourceDependencies['userWarehouseCredentialsModel'] &
+            Pick<
+                UserWarehouseCredentialsModel,
+                'findDatabricksOauthU2mForHostWithSecrets'
+            >;
+        attributeSharedSignInExpiry: (
+            projectUuid: string,
+            credentials: CreateDatabricksCredentials,
+            error: unknown,
+        ) => Promise<never>;
+    };
 
 export class DatabricksOAuthCredentialResolver implements CredentialResolver<CreateDatabricksCredentials> {
     private readonly refresher: OAuthCredentialRefresher;
@@ -253,6 +264,15 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
         const isU2m =
             connection.authenticationType ===
             DatabricksAuthenticationType.OAUTH_U2M;
+        const personal =
+            policy.errorPolicy === 'standard' && !input.aiPlan && isU2m
+                ? await capturePersonalSignIn(
+                      this.deps,
+                      owner,
+                      connection,
+                      input.context.organizationUuid,
+                  )
+                : null;
         try {
             const { clientId, clientSecret } = this.selectClient(connection);
             if (
@@ -368,7 +388,40 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
             if (error instanceof OAuthRequestTimeoutError)
                 throw new RefreshTokenLockTimeoutError();
             if (policy.errorPolicy === 'raw') throw error;
-            const mapped = this.mapError(error, isU2m);
+            const isPersonal =
+                personal !== null &&
+                (await isPersonalSignInExpiryEnabled(
+                    this.deps.featureFlagModel,
+                    {
+                        userUuid: personal.snapshot.userUuid,
+                        organizationUuid: personal.organizationUuid,
+                    },
+                ));
+            const mapped = isPersonal
+                ? this.mapPersonalError(error, isU2m)
+                : this.mapError(error, isU2m);
+            const personalEnabled = await markPersonalSignInRejection(
+                this.deps,
+                personal,
+                mapped,
+                caught instanceof OAuthRefreshExchangeError
+                    ? caught.refreshToken
+                    : undefined,
+            );
+            const signIn = getPersonSignIn(input.connection);
+            if (
+                personalEnabled &&
+                personal &&
+                signIn &&
+                input.projectUuid !== null &&
+                mapped instanceof DatabricksTokenError
+            ) {
+                throw withPersonalSignInExpiry(mapped, {
+                    projectUuid: input.projectUuid,
+                    provider: signIn.provider,
+                    userWarehouseCredentialsUuid: personal.snapshot.uuid,
+                });
+            }
             if (owner?.kind === 'project') {
                 return this.deps.attributeSharedSignInExpiry(
                     owner.uuid,
@@ -396,6 +449,20 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
         this.deps.logger.error(message);
         return isU2m
             ? new DatabricksTokenError(message)
+            : new UnexpectedServerError('Error refreshing databricks token');
+    }
+
+    private mapPersonalError(error: unknown, isU2m: boolean): LightdashError {
+        if (error instanceof LightdashError) return error;
+        this.deps.logger.warn('Could not refresh warehouse sign-in');
+        return isU2m
+            ? new DatabricksTokenError(
+                  'Error refreshing databricks U2M OAuth token',
+                  error instanceof DatabricksOAuthRefreshError &&
+                      error.rejection
+                      ? { rejection: error.rejection }
+                      : {},
+              )
             : new UnexpectedServerError('Error refreshing databricks token');
     }
 

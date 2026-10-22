@@ -13,6 +13,7 @@ import {
     DimensionType,
     getDatabricksUnnestSql,
     getErrorMessage,
+    getWarehouseSignInRejection,
     getWarehouseTableType,
     Metric,
     MetricType,
@@ -28,6 +29,7 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type ResultNumericKind,
     type TimestampDomain,
@@ -992,6 +994,15 @@ export const exchangeDatabricksOAuthCredentials = async (
     };
 };
 
+export class DatabricksOAuthRefreshError extends Error {
+    constructor(
+        message: string,
+        readonly rejection?: WarehouseSignInRejection,
+    ) {
+        super(message);
+    }
+}
+
 /**
  * Refresh Databricks OAuth U2M access token using refresh token
  */
@@ -1028,8 +1039,29 @@ export const refreshDatabricksOAuthToken = async (
 
     if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
+        let rejection: WarehouseSignInRejection | undefined;
+        if (response.status === 400 || response.status === 401) {
+            try {
+                const parsed: unknown = JSON.parse(errorText);
+                if (
+                    parsed !== null &&
+                    typeof parsed === 'object' &&
+                    'error' in parsed
+                ) {
+                    rejection = getWarehouseSignInRejection(
+                        parsed.error,
+                        'error_subtype' in parsed
+                            ? parsed.error_subtype
+                            : undefined,
+                    );
+                }
+            } catch {
+                rejection = undefined;
+            }
+        }
+        throw new DatabricksOAuthRefreshError(
             `Failed to refresh Databricks OAuth token: ${response.status} ${errorText}`,
+            rejection,
         );
     }
 
