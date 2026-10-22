@@ -80,6 +80,23 @@ export const parseCredentialConfig = (
     return parsed.success ? parsed.data : null;
 };
 
+// Request-boundary validation: a schema failure is the caller's bad input,
+// never a server error.
+export const validateCredentialConfig = (
+    value: unknown,
+): AiProviderCredentialConfig => {
+    const parsed = credentialConfigSchema.safeParse(value);
+    if (!parsed.success) {
+        const messages = parsed.error.issues.map(
+            (issue) => `${issue.path.join('.')}: ${issue.message}`,
+        );
+        throw new ParameterError(
+            `Invalid credential configuration — ${messages.join('; ')}`,
+        );
+    }
+    return parsed.data;
+};
+
 /**
  * A credential row whose ciphertext could not be read. Reported rather than
  * swallowed so callers fail closed instead of silently falling back to another
@@ -392,7 +409,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
@@ -473,7 +490,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey?.trim() ?? existing.config.apiKey,
             region: data.region ?? existing.config.region,
             allowedModels: data.allowedModels ?? existing.config.allowedModels,
@@ -518,7 +535,7 @@ export class AiOrganizationProviderCredentialModel {
         if (label.length === 0) {
             throw new ParameterError('Credential label cannot be empty');
         }
-        const config = credentialConfigSchema.parse({
+        const config = validateCredentialConfig({
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
