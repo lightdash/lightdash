@@ -389,7 +389,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
             init: 1,
             dispose: 0,
             setOption: 3,
-            listeners: 5,
+            listeners: 6,
             chartData: 3,
             alive: 1,
         });
@@ -686,7 +686,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
                 false,
             ),
         );
-        expect(snapshot()).toMatchObject({ alive: 1, listeners: 5, init: 1 });
+        expect(snapshot()).toMatchObject({ alive: 1, listeners: 6, init: 1 });
         expect(refs.at(-1)).toBe(refs[0]);
         expect(
             (
@@ -706,7 +706,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
             );
             expect(snapshot().alive).toBe(0);
             view.rerender(wrap(<Chart results={makeResults(3)} />, strict));
-            expect(snapshot()).toMatchObject({ alive: 1, listeners: 5 });
+            expect(snapshot()).toMatchObject({ alive: 1, listeners: 6 });
             const beforeUnmount = snapshot();
             view.unmount();
             // echarts-for-react is the only owner that disposes
@@ -731,7 +731,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         );
         expect(snapshot().alive).toBe(2);
         view.rerender(wrap(<Chart results={first} isDashboard />, false));
-        expect(snapshot()).toMatchObject({ alive: 1, listeners: 5 });
+        expect(snapshot()).toMatchObject({ alive: 1, listeners: 6 });
     });
 });
 
