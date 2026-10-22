@@ -46,9 +46,16 @@ export const useBindDbtSource = (projectUuid: string) => {
         {
             mutationKey: ['bind_dbt_source', projectUuid],
             onSuccess: async () => {
-                await queryClient.invalidateQueries(
-                    bindingsQueryKey(projectUuid),
-                );
+                await Promise.all([
+                    queryClient.invalidateQueries(
+                        bindingsQueryKey(projectUuid),
+                    ),
+                    queryClient.invalidateQueries([
+                        'project_dbt_sources',
+                        projectUuid,
+                        'peers',
+                    ]),
+                ]);
             },
         },
     );

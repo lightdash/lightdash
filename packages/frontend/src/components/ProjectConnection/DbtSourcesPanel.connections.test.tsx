@@ -1,4 +1,4 @@
-import { DbtProjectType } from '@lightdash/common';
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
@@ -16,7 +16,9 @@ const jobObserver = vi.hoisted(() => ({
 vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+    useServerFeatureFlag: (flag: FeatureFlags) => ({
+        data: { enabled: flag === FeatureFlags.MultiDbtSources },
+    }),
 }));
 
 vi.mock('../../hooks/useRefreshServer', () => ({

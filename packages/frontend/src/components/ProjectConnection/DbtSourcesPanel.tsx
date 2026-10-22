@@ -6,8 +6,10 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
+    type DbtSourceBindings,
     type Project,
     type ProjectDbtSourceSummary,
+    type PeerDbtSourceSummary,
     type WarehouseLocation,
 } from '@lightdash/common';
 import {
@@ -36,6 +38,7 @@ import {
 import { useState, type FC, type ReactNode } from 'react';
 import { useDbtSourceBindings } from '../../hooks/useDbtSourceBindings';
 import { useMixedWarehouseConnectionsEnabled } from '../../hooks/useExploreWarehouseConnection';
+import { usePeerDbtSourceAccess } from '../../hooks/usePeerDbtSources';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -57,6 +60,11 @@ import {
 } from './DbtSourceConnection';
 import classes from './DbtSourcesPanel.module.css';
 import { FormProvider, useForm, type Form } from './formContext';
+import {
+    AddSharedDbtSourceModal,
+    PeerDbtSourceMetadata,
+    PeerDbtSourceSettingsModal,
+} from './PeerDbtSourceSettings';
 import DbtLogo from './ProjectConnectFlow/Assets/dbt.svg';
 import { ProjectFormProvider } from './ProjectFormProvider';
 
@@ -114,7 +122,20 @@ const DbtSourceRow: FC<{
     onEdit: (source: ProjectDbtSourceSummary) => void;
     onRemove?: (source: ProjectDbtSourceSummary) => void;
     connection?: ReactNode;
-}> = ({ source, onEdit, onRemove, connection }) => (
+    peerSource?: PeerDbtSourceSummary;
+    onPeerSettings?: (source: PeerDbtSourceSummary) => void;
+    canEdit?: boolean;
+    canManage?: boolean;
+}> = ({
+    source,
+    onEdit,
+    onRemove,
+    connection,
+    peerSource,
+    onPeerSettings,
+    canEdit = true,
+    canManage = true,
+}) => (
     <div className={classes.row}>
         <img className={classes.mark} src={DbtLogo} alt="" />
         <div className={classes.info}>
@@ -138,6 +159,7 @@ const DbtSourceRow: FC<{
             <Text className={classes.meta} c="dimmed" truncate>
                 {sourceIdentity(source)}
             </Text>
+            {peerSource && <PeerDbtSourceMetadata peer={peerSource.peer} />}
         </div>
         {connection}
         <Menu position="bottom-end">
@@ -147,17 +169,26 @@ const DbtSourceRow: FC<{
                 </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => onEdit(source)}
-                >
-                    Edit
-                </Menu.Item>
+                {canEdit && (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={() => onEdit(source)}
+                        disabled={!canManage}
+                    >
+                        Edit
+                    </Menu.Item>
+                )}
+                {peerSource && onPeerSettings && (
+                    <Menu.Item onClick={() => onPeerSettings(peerSource)}>
+                        dbt settings
+                    </Menu.Item>
+                )}
                 {onRemove && (
                     <Menu.Item
                         color="red"
                         leftSection={<MantineIcon icon={IconTrash} />}
                         onClick={() => onRemove(source)}
+                        disabled={!canManage}
                     >
                         Remove
                     </Menu.Item>
@@ -166,6 +197,178 @@ const DbtSourceRow: FC<{
         </Menu>
     </div>
 );
+
+const AdditionalDbtSourceRows: FC<{
+    sources: ProjectDbtSourceSummary[];
+    projectUuid: string;
+    peerAccess: ReturnType<typeof usePeerDbtSourceAccess>;
+    bindings: DbtSourceBindings | undefined;
+    onEdit: (source: ProjectDbtSourceSummary) => void;
+    onRemove: (source: ProjectDbtSourceSummary) => void;
+    onPeerSettings: (source: PeerDbtSourceSummary) => void;
+    onRebound: (rebound: ReboundDbtSource) => void;
+}> = ({
+    sources,
+    projectUuid,
+    peerAccess,
+    bindings,
+    onEdit,
+    onRemove,
+    onPeerSettings,
+    onRebound,
+}) => {
+    const {
+        enabled: peerEnabled,
+        peersByUuid,
+        isError: peerError,
+        canManage,
+    } = peerAccess;
+    return sources.length > 0 ? (
+        <div className={classes.rows}>
+            {sources.map((source) => {
+                const peerSource = peersByUuid.get(source.projectDbtSourceUuid);
+                const hasLocalCredentials =
+                    peerSource !== undefined &&
+                    !peerSource.peer.usesSharedCredentials;
+                return (
+                    <DbtSourceRow
+                        key={source.projectDbtSourceUuid}
+                        source={source}
+                        onEdit={onEdit}
+                        onRemove={onRemove}
+                        canManage={canManage}
+                        peerSource={peerSource}
+                        onPeerSettings={onPeerSettings}
+                        canEdit={
+                            !peerEnabled || (!peerError && hasLocalCredentials)
+                        }
+                        connection={
+                            bindings && (
+                                <DbtSourceConnectionSelect
+                                    projectUuid={projectUuid}
+                                    source={source}
+                                    bindings={bindings}
+                                    onRebound={onRebound}
+                                    disabled={!canManage}
+                                />
+                            )
+                        }
+                    />
+                );
+            })}
+        </div>
+    ) : (
+        <Text size="sm" c="dimmed">
+            No additional sources yet. Add one to combine models from another
+            dbt project.
+        </Text>
+    );
+};
+
+const DbtSourceRows: FC<{
+    sources: ProjectDbtSourceSummary[] | undefined;
+    isInitialLoading: boolean;
+    isError: boolean;
+    projectUuid: string;
+    peerAccess: ReturnType<typeof usePeerDbtSourceAccess>;
+    bindings: DbtSourceBindings | undefined;
+    onRenamePrimary: (source: ProjectDbtSourceSummary) => void;
+    onEdit: (source: ProjectDbtSourceSummary) => void;
+    onRemove: (source: ProjectDbtSourceSummary) => void;
+    onPeerSettings: (source: PeerDbtSourceSummary) => void;
+    onRebound: (rebound: ReboundDbtSource) => void;
+}> = ({
+    sources,
+    isInitialLoading,
+    isError,
+    projectUuid,
+    peerAccess,
+    bindings,
+    onRenamePrimary,
+    onEdit,
+    onRemove,
+    onPeerSettings,
+    onRebound,
+}) => {
+    const {
+        enabled: peerEnabled,
+        peersByUuid,
+        isError: peerError,
+        canManage,
+    } = peerAccess;
+    const primarySource = sources?.find((source) => source.isPrimary);
+    const additionalSources = (sources ?? []).filter(
+        (source) => !source.isPrimary,
+    );
+    return (
+        <>
+            {isInitialLoading && (
+                <Group justify="center" py="md">
+                    <Loader size="sm" />
+                </Group>
+            )}
+
+            {isError && (
+                <Text size="sm" c="red">
+                    Failed to load dbt sources.
+                </Text>
+            )}
+
+            {peerEnabled && peerError && (
+                <Text size="sm" c="red">
+                    Failed to load dbt source settings.
+                </Text>
+            )}
+
+            {!isInitialLoading && !isError && primarySource && (
+                <Stack gap={4}>
+                    <Text size="sm" fw={600}>
+                        Source name
+                    </Text>
+                    <div className={classes.rows}>
+                        <DbtSourceRow
+                            source={primarySource}
+                            onEdit={onRenamePrimary}
+                            canManage={canManage}
+                            peerSource={
+                                additionalSources.length > 0
+                                    ? peersByUuid.get(
+                                          primarySource.projectDbtSourceUuid,
+                                      )
+                                    : undefined
+                            }
+                            onPeerSettings={onPeerSettings}
+                            connection={
+                                bindings && (
+                                    <PrimaryDbtSourceConnection
+                                        bindings={bindings}
+                                    />
+                                )
+                            }
+                        />
+                    </div>
+                </Stack>
+            )}
+
+            <Text size="sm" fw={600}>
+                Additional dbt sources
+            </Text>
+
+            {!isInitialLoading && !isError && (
+                <AdditionalDbtSourceRows
+                    sources={additionalSources}
+                    projectUuid={projectUuid}
+                    peerAccess={peerAccess}
+                    bindings={bindings}
+                    onEdit={onEdit}
+                    onRemove={onRemove}
+                    onPeerSettings={onPeerSettings}
+                    onRebound={onRebound}
+                />
+            )}
+        </>
+    );
+};
 
 /**
  * The shared body for the add/edit modals: a name field plus the full dbt
@@ -203,7 +406,8 @@ const AddDbtSourceModal: FC<{
     projectUuid: string;
     opened: boolean;
     onClose: () => void;
-}> = ({ projectUuid, opened, onClose }) => {
+    onAddShared?: () => void;
+}> = ({ projectUuid, opened, onClose, onAddShared }) => {
     const form = useForm({
         initialValues: {
             name: '',
@@ -255,6 +459,11 @@ const AddDbtSourceModal: FC<{
             confirmLoading={createMutation.isLoading}
             cancelDisabled={createMutation.isLoading}
         >
+            {onAddShared && (
+                <Button variant="subtle" onClick={onAddShared}>
+                    Add a shared source instead
+                </Button>
+            )}
             <DbtSourceFields
                 form={form}
                 projectUuid={projectUuid}
@@ -446,6 +655,11 @@ const DbtSourcesPanel: FC<{
 }> = ({ project }) => {
     const { projectUuid } = project;
     const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
+    const peerAccess = usePeerDbtSourceAccess(
+        projectUuid,
+        flag?.enabled === true,
+    );
+    const { enabled: peerEnabled, peersByUuid, canManage } = peerAccess;
     const { data: bindings } = useDbtSourceBindings(
         projectUuid,
         flag?.enabled === true && project.connectionRoute === 'multi',
@@ -464,16 +678,15 @@ const DbtSourcesPanel: FC<{
     const [primarySourceToRename, setPrimarySourceToRename] =
         useState<ProjectDbtSourceSummary | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [isAddSharedOpen, setIsAddSharedOpen] = useState(false);
+    const [peerToEdit, setPeerToEdit] = useState<PeerDbtSourceSummary | null>(
+        null,
+    );
 
     // Only show the panel when the feature is on.
     if (!flag?.enabled) {
         return null;
     }
-
-    const primarySource = sources?.find((source) => source.isPrimary);
-    const additionalSources = (sources ?? []).filter(
-        (source) => !source.isPrimary,
-    );
 
     return (
         <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
@@ -494,72 +707,19 @@ const DbtSourcesPanel: FC<{
                     </Tooltip>
                 </Group>
 
-                {isInitialLoading && (
-                    <Group justify="center" py="md">
-                        <Loader size="sm" />
-                    </Group>
-                )}
-
-                {isError && (
-                    <Text size="sm" c="red">
-                        Failed to load dbt sources.
-                    </Text>
-                )}
-
-                {!isInitialLoading && !isError && primarySource && (
-                    <Stack gap={4}>
-                        <Text size="sm" fw={600}>
-                            Source name
-                        </Text>
-                        <div className={classes.rows}>
-                            <DbtSourceRow
-                                source={primarySource}
-                                onEdit={setPrimarySourceToRename}
-                                connection={
-                                    bindings && (
-                                        <PrimaryDbtSourceConnection
-                                            bindings={bindings}
-                                        />
-                                    )
-                                }
-                            />
-                        </div>
-                    </Stack>
-                )}
-
-                <Text size="sm" fw={600}>
-                    Additional dbt sources
-                </Text>
-
-                {!isInitialLoading &&
-                    !isError &&
-                    (additionalSources.length > 0 ? (
-                        <div className={classes.rows}>
-                            {additionalSources.map((source) => (
-                                <DbtSourceRow
-                                    key={source.projectDbtSourceUuid}
-                                    source={source}
-                                    onEdit={setSourceToEdit}
-                                    onRemove={setSourceToRemove}
-                                    connection={
-                                        bindings && (
-                                            <DbtSourceConnectionSelect
-                                                projectUuid={projectUuid}
-                                                source={source}
-                                                bindings={bindings}
-                                                onRebound={setRebound}
-                                            />
-                                        )
-                                    }
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <Text size="sm" c="dimmed">
-                            No additional sources yet. Add one to combine models
-                            from another dbt project.
-                        </Text>
-                    ))}
+                <DbtSourceRows
+                    sources={sources}
+                    isInitialLoading={isInitialLoading}
+                    isError={isError}
+                    projectUuid={projectUuid}
+                    peerAccess={peerAccess}
+                    bindings={bindings}
+                    onRenamePrimary={setPrimarySourceToRename}
+                    onEdit={setSourceToEdit}
+                    onRemove={setSourceToRemove}
+                    onPeerSettings={setPeerToEdit}
+                    onRebound={setRebound}
+                />
 
                 {rebound && (
                     <DbtSourceReboundNote
@@ -573,6 +733,7 @@ const DbtSourcesPanel: FC<{
                         variant="default"
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={() => setIsAddOpen(true)}
+                        disabled={!canManage}
                     >
                         Add source
                     </Button>
@@ -583,7 +744,36 @@ const DbtSourcesPanel: FC<{
                 projectUuid={projectUuid}
                 opened={isAddOpen}
                 onClose={() => setIsAddOpen(false)}
+                onAddShared={
+                    peerEnabled && canManage
+                        ? () => {
+                              setIsAddOpen(false);
+                              setIsAddSharedOpen(true);
+                          }
+                        : undefined
+                }
             />
+
+            {peerEnabled && canManage && isAddSharedOpen && (
+                <AddSharedDbtSourceModal
+                    projectUuid={projectUuid}
+                    bindings={bindings}
+                    onClose={() => setIsAddSharedOpen(false)}
+                />
+            )}
+
+            {peerEnabled && peerToEdit && (
+                <PeerDbtSourceSettingsModal
+                    key={peerToEdit.projectDbtSourceUuid}
+                    projectUuid={projectUuid}
+                    source={
+                        peersByUuid.get(peerToEdit.projectDbtSourceUuid) ??
+                        peerToEdit
+                    }
+                    canManage={canManage}
+                    onClose={() => setPeerToEdit(null)}
+                />
+            )}
 
             <EditDbtSourceModal
                 projectUuid={projectUuid}

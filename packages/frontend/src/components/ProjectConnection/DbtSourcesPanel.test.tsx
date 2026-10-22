@@ -1,4 +1,4 @@
-import { DbtProjectType } from '@lightdash/common';
+import { DbtProjectType, FeatureFlags } from '@lightdash/common';
 import { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -18,7 +18,9 @@ import DbtSourcesPanel from './DbtSourcesPanel';
 vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+    useServerFeatureFlag: (flag: FeatureFlags) => ({
+        data: { enabled: flag === FeatureFlags.MultiDbtSources },
+    }),
 }));
 
 const mockApi = sharedLightdashApi as unknown as Mock;

@@ -130,6 +130,24 @@
         "ai-agent-thread-binding-chart": {
             "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
             "requiredStop": false
+        },
+        "peer-dbt-sources-settings-preview": {
+            "reason": "Peer source settings endpoints serve the new settings panel behind peer-dbt-sources. The flag is off by default on Cloud and self-hosted installations. Existing source endpoints keep their response shape.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "peer-dbt-sources",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/projects/{projectUuid}/dbt-sources/peers",
+                        "PATCH /api/v1/projects/{projectUuid}/dbt-sources/peers/{sourceUuid}",
+                        "GET /api/v1/projects/{projectUuid}/dbt-sources/shared",
+                        "POST /api/v1/projects/{projectUuid}/dbt-sources/shared",
+                        "PATCH /api/v1/projects/{projectUuid}/dbt-sources/repositories/{repositoryUuid}"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }

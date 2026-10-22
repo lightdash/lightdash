@@ -31,7 +31,8 @@ export const DbtSourceConnectionSelect: FC<{
     source: ProjectDbtSourceSummary;
     bindings: DbtSourceBindings;
     onRebound: (rebound: ReboundDbtSource) => void;
-}> = ({ projectUuid, source, bindings, onRebound }) => {
+    disabled?: boolean;
+}> = ({ projectUuid, source, bindings, onRebound, disabled = false }) => {
     const bindMutation = useBindDbtSource(projectUuid);
     const boundConnectionUuid =
         bindings.sources.find(
@@ -84,7 +85,7 @@ export const DbtSourceConnectionSelect: FC<{
                 value={selectedConnectionUuid}
                 onChange={handleChange}
                 allowDeselect={false}
-                disabled={bindMutation.isLoading}
+                disabled={disabled || bindMutation.isLoading}
             />
             {bindMutation.error && (
                 <Text size="xs" c="red" w={200}>
