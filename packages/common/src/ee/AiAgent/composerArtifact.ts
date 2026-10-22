@@ -1,4 +1,5 @@
 import { ParameterError } from '../../types/errors';
+import { type DimensionType } from '../../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
@@ -11,6 +12,8 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type ResultColumns } from '../../types/results';
+import { type TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
@@ -144,6 +147,36 @@ export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
 
 /** A node a thread defined through a successful composer query. */
 export type ThreadComposerQueryNode = ComposerPipelineNode;
+
+/** One result column of a node, stored beside its definition. Never holds a query uuid. */
+export type ComposerNodeColumn = {
+    reference: string;
+    type: DimensionType;
+    label: string | null;
+    format: string | null;
+    timeInterval: TimeFrames | null;
+    provenance: { fieldId: string } | null;
+};
+
+/** A node registered in a scope with the result columns of the run that registered it. */
+export type RegisteredComposerQueryNode = {
+    definition: ThreadComposerQueryNode;
+    columns: ComposerNodeColumn[] | null;
+};
+
+export const toComposerNodeColumns = (
+    columns: ResultColumns,
+): ComposerNodeColumn[] =>
+    Object.values(columns).map((column) => ({
+        reference: column.reference,
+        type: column.type,
+        label: column.label ?? null,
+        format: column.format ?? null,
+        timeInterval: column.timeInterval ?? null,
+        provenance: column.provenance
+            ? { fieldId: column.provenance.fieldId }
+            : null,
+    }));
 
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;

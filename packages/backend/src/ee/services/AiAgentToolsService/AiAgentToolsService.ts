@@ -72,7 +72,9 @@ import {
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type ResultColumns,
     type SchedulerAiAugmentation,
+    type SourceQuerySubmission,
     type SqlChart,
     type SqlChartAsCode,
 } from '@lightdash/common';
@@ -4810,6 +4812,54 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    // Best effort: an unreadable or unfinished node gets null, never failing the run.
+    private async getComposerNodeColumns({
+        context,
+        submissions,
+        terminalNodeId,
+        terminalColumns,
+    }: {
+        context: AiAgentToolsRuntimeContext;
+        submissions: SourceQuerySubmission[];
+        terminalNodeId: string;
+        terminalColumns: ResultColumns;
+    }): Promise<Record<string, ResultColumns | null>> {
+        const entries = await Promise.all(
+            submissions.map(
+                async (submission): Promise<[string, ResultColumns | null]> => {
+                    if (submission.nodeId === terminalNodeId) {
+                        return [submission.nodeId, terminalColumns];
+                    }
+                    try {
+                        const results =
+                            await this.asyncQueryService.getAsyncQueryResults({
+                                account: context.account,
+                                reader: buildResultReader(
+                                    context.account,
+                                    context.defaultQueryExecutionContext,
+                                    context.querySurface ?? null,
+                                ),
+                                projectUuid: context.projectUuid,
+                                queryUuid: submission.queryUuid,
+                                page: 1,
+                                aiAccessOnly: true,
+                                pageSize: 1,
+                            });
+                        return [
+                            submission.nodeId,
+                            results.status === QueryHistoryStatus.READY
+                                ? results.columns
+                                : null,
+                        ];
+                    } catch {
+                        return [submission.nodeId, null];
+                    }
+                },
+            ),
+        );
+        return Object.fromEntries(entries);
+    }
+
     private async pollComposerTerminal({
         context,
         submissions,
@@ -4888,6 +4938,13 @@ export class AiAgentToolsService extends BaseService {
                         rows,
                         rowCount: rows.length,
                     },
+                    // eslint-disable-next-line no-await-in-loop
+                    nodeColumns: await this.getComposerNodeColumns({
+                        context,
+                        submissions,
+                        terminalNodeId: terminalSubmission.nodeId,
+                        terminalColumns: queryResults.columns,
+                    }),
                 };
             }
 

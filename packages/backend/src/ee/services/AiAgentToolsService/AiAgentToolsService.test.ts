@@ -3659,6 +3659,51 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it("returns every node's result columns, null for a node whose results cannot be read", async () => {
+        const ordersColumns = {
+            orders_status: {
+                reference: 'orders_status',
+                type: DimensionType.STRING,
+            },
+        };
+        const getAsyncQueryResults = vi.fn(
+            async ({ queryUuid }: { queryUuid: string }) => {
+                if (queryUuid === 'query-1')
+                    return { ...readyResults, columns: ordersColumns };
+                if (queryUuid === 'query-2') return readyResults;
+                throw new Error('results expired');
+            },
+        );
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi.fn().mockResolvedValue({
+                    queries: [
+                        ...submissions,
+                        {
+                            nodeId: 'other',
+                            sourceType: QuerySourceType.SQL,
+                            queryUuid: 'query-3',
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(result.nodeColumns).toEqual({
+            orders: ordersColumns,
+            joined: readyResults.columns,
+            other: null,
+        });
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()

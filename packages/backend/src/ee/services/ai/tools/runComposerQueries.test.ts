@@ -6,6 +6,8 @@ import {
     QuerySourceType,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
+    type ComposerNodeColumn,
+    type RegisteredComposerQueryNode,
     type SlackPrompt,
     type SourceQuery,
     type SubmittedSourceQuery,
@@ -63,18 +65,24 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
     const byThread = new Map<string, ThreadComposerQueryNode[]>([
         ['thread-uuid', [...initial]],
     ]);
+    const columnsByThread = new Map<
+        string,
+        Record<string, ComposerNodeColumn[] | null>
+    >();
     const list = (threadUuid: string) => byThread.get(threadUuid) ?? [];
     return {
         nodes: list,
+        columns: (threadUuid: string) => columnsByThread.get(threadUuid) ?? {},
         listThreadComposerQueryNodes: async (threadUuid: string) =>
             list(threadUuid),
         registerThreadComposerQueryNodes: async ({
             threadUuid,
-            nodes,
+            nodes: entries,
         }: {
             threadUuid: string;
-            nodes: ThreadComposerQueryNode[];
+            nodes: RegisteredComposerQueryNode[];
         }) => {
+            const nodes = entries.map((entry) => entry.definition);
             const registered = list(threadUuid);
             nodes.forEach((node) => {
                 const existing = registered.find(
@@ -92,6 +100,12 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
                     (node) => !registered.some((r) => r.nodeId === node.nodeId),
                 ),
             ]);
+            const columns = columnsByThread.get(threadUuid) ?? {};
+            entries.forEach(({ definition, columns: nodeColumns }) => {
+                columns[definition.nodeId] =
+                    nodeColumns ?? columns[definition.nodeId] ?? null;
+            });
+            columnsByThread.set(threadUuid, columns);
         },
     };
 };
@@ -248,6 +262,7 @@ const makeTool = ({
                 rows: [{ month: '2026-01', signups: 12 }],
                 rowCount: 1,
             },
+            nodeColumns: {},
         }),
         getPrompt: vi.fn().mockResolvedValue(prompt),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
@@ -577,6 +592,91 @@ describe('getRunComposerQueries', () => {
         ]);
     });
 
+    it('registers every node of the run with its result columns, without query ids', async () => {
+        const { tool, dependencies, registry } = makeTool({
+            autoApproveSql: true,
+        });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            submissions: [],
+            terminal: {
+                queryUuid: 'query-3',
+                columns: {},
+                rows: [],
+                rowCount: 0,
+            },
+            nodeColumns: {
+                revenue: {
+                    payments_month: {
+                        reference: 'payments_month',
+                        type: 'date',
+                        label: 'Payments Month',
+                        timeInterval: 'MONTH',
+                        provenance: {
+                            fieldId: 'payments_month',
+                            sourceQueryUuid: 'query-1',
+                        },
+                    },
+                    payments_total_revenue: {
+                        reference: 'payments_total_revenue',
+                        type: 'number',
+                        label: 'Total revenue',
+                        format: '$#,##0.00',
+                        numericKind: { kind: 'float' },
+                    },
+                },
+                signups: {
+                    signups: { reference: 'signups', type: 'number' },
+                },
+                joined: {
+                    month: { reference: 'month', type: 'date' },
+                },
+            },
+        });
+
+        await executeTool(tool, makeArgs());
+
+        expect(registry.columns('thread-uuid')).toEqual({
+            revenue: [
+                {
+                    reference: 'payments_month',
+                    type: 'date',
+                    label: 'Payments Month',
+                    format: null,
+                    timeInterval: 'MONTH',
+                    provenance: { fieldId: 'payments_month' },
+                },
+                {
+                    reference: 'payments_total_revenue',
+                    type: 'number',
+                    label: 'Total revenue',
+                    format: '$#,##0.00',
+                    timeInterval: null,
+                    provenance: null,
+                },
+            ],
+            signups: [
+                {
+                    reference: 'signups',
+                    type: 'number',
+                    label: null,
+                    format: null,
+                    timeInterval: null,
+                    provenance: null,
+                },
+            ],
+            joined: [
+                {
+                    reference: 'month',
+                    type: 'date',
+                    label: null,
+                    format: null,
+                    timeInterval: null,
+                    provenance: null,
+                },
+            ],
+        });
+    });
+
     it.each([
         ['rejected', 'rejected'],
         ['times out', 'timeout'],
@@ -770,6 +870,7 @@ describe('getRunComposerQueries', () => {
                         rows: [],
                         rowCount: 0,
                     },
+                    nodeColumns: {},
                 };
             },
         );
@@ -903,6 +1004,7 @@ const runReuse = async ({
                 rows: [{ total: 3 }],
                 rowCount: 1,
             },
+            nodeColumns: {},
         }),
     );
 
@@ -1143,6 +1245,7 @@ describe('composer query review', () => {
                 rows: [],
                 rowCount: 0,
             },
+            nodeColumns: {},
         });
         const output = await executeTool(tool, makeArgs());
         expect(output.result).toContain('Preserve the user’s scope');

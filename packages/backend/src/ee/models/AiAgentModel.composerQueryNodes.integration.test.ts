@@ -1,7 +1,10 @@
 import {
+    DimensionType,
     QuerySourceType,
     SEED_ORG_1,
     SEED_PROJECT,
+    type ComposerNodeColumn,
+    type RegisteredComposerQueryNode,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -31,6 +34,33 @@ const totals: ThreadComposerQueryNode = {
     references: { orders: 'orders' },
     limit: 500,
 };
+
+const withoutColumns = (
+    nodes: ThreadComposerQueryNode[],
+): RegisteredComposerQueryNode[] =>
+    nodes.map((definition) => ({ definition, columns: null }));
+
+const ordersColumns: ComposerNodeColumn[] = [
+    {
+        reference: 'orders_status',
+        type: DimensionType.STRING,
+        label: 'Status',
+        format: null,
+        timeInterval: null,
+        provenance: { fieldId: 'orders_status' },
+    },
+];
+
+const totalsColumns: ComposerNodeColumn[] = [
+    {
+        reference: 'count',
+        type: DimensionType.NUMBER,
+        label: null,
+        format: null,
+        timeInterval: null,
+        provenance: null,
+    },
+];
 
 describe('AiAgentModel thread composer query nodes', () => {
     let database: Knex;
@@ -69,11 +99,11 @@ describe('AiAgentModel thread composer query nodes', () => {
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders],
+            nodes: withoutColumns([orders]),
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders, totals],
+            nodes: withoutColumns([orders, totals]),
         });
 
         expect(
@@ -83,16 +113,70 @@ describe('AiAgentModel thread composer query nodes', () => {
         ).toEqual([orders, totals]);
     });
 
-    it('accepts an identical definition, whatever the references form', async () => {
+    it('stores each node’s result columns beside its definition', async () => {
+        const threadUuid = await createThread();
+
+        await model.registerComposerQueryNodes({
+            scope: threadComposerQueryScope(threadUuid),
+            nodes: [
+                { definition: orders, columns: ordersColumns },
+                { definition: totals, columns: totalsColumns },
+            ],
+        });
+
+        expect(
+            await model.listRegisteredComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ).toEqual([
+            { definition: orders, columns: ordersColumns },
+            { definition: totals, columns: totalsColumns },
+        ]);
+        expect(
+            await model.listComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ).toEqual([orders, totals]);
+    });
+
+    it('fills columns on a node registered without them, and keeps stored columns when a run has none', async () => {
         const threadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders, totals],
+            nodes: [
+                { definition: orders, columns: null },
+                { definition: totals, columns: totalsColumns },
+            ],
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [{ ...totals, references: ['orders'] }],
+            nodes: [
+                { definition: orders, columns: ordersColumns },
+                { definition: totals, columns: null },
+            ],
+        });
+
+        expect(
+            await model.listRegisteredComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ).toEqual([
+            { definition: orders, columns: ordersColumns },
+            { definition: totals, columns: totalsColumns },
+        ]);
+    });
+
+    it('accepts an identical definition, whatever the references form', async () => {
+        const threadUuid = await createThread();
+        await model.registerComposerQueryNodes({
+            scope: threadComposerQueryScope(threadUuid),
+            nodes: withoutColumns([orders, totals]),
+        });
+
+        await model.registerComposerQueryNodes({
+            scope: threadComposerQueryScope(threadUuid),
+            nodes: withoutColumns([{ ...totals, references: ['orders'] }]),
         });
 
         expect(
@@ -106,13 +190,13 @@ describe('AiAgentModel thread composer query nodes', () => {
         const threadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders],
+            nodes: withoutColumns([orders]),
         });
 
         await expect(
             model.registerComposerQueryNodes({
                 scope: threadComposerQueryScope(threadUuid),
-                nodes: [totals, { ...orders, limit: 10 }],
+                nodes: withoutColumns([totals, { ...orders, limit: 10 }]),
             }),
         ).rejects.toThrow(
             'Node id "orders" already names a different node in this thread ("Orders"). To reuse it, read "orders" without resubmitting it; to define a new node, give it a different node id.',
@@ -129,12 +213,12 @@ describe('AiAgentModel thread composer query nodes', () => {
         const threadB = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadA),
-            nodes: [orders],
+            nodes: withoutColumns([orders]),
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadB),
-            nodes: [{ ...orders, limit: 10 }],
+            nodes: withoutColumns([{ ...orders, limit: 10 }]),
         });
 
         expect(
@@ -154,11 +238,11 @@ describe('AiAgentModel thread composer query nodes', () => {
         const otherThreadUuid = await createThread();
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders],
+            nodes: withoutColumns([orders]),
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(otherThreadUuid),
-            nodes: [orders],
+            nodes: withoutColumns([orders]),
         });
 
         await model.deleteThread({
@@ -189,7 +273,10 @@ describe('AiAgentModel thread composer query nodes', () => {
             .returning('*');
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
-            nodes: [orders, totals],
+            nodes: [
+                { definition: orders, columns: ordersColumns },
+                { definition: totals, columns: null },
+            ],
         });
 
         const clonedThreadUuid = await model.cloneThread({
@@ -200,9 +287,12 @@ describe('AiAgentModel thread composer query nodes', () => {
         threadUuids.push(clonedThreadUuid);
 
         expect(
-            await model.listComposerQueryNodes(
+            await model.listRegisteredComposerQueryNodes(
                 threadComposerQueryScope(clonedThreadUuid),
             ),
-        ).toEqual([orders, totals]);
+        ).toEqual([
+            { definition: orders, columns: ordersColumns },
+            { definition: totals, columns: null },
+        ]);
     });
 });

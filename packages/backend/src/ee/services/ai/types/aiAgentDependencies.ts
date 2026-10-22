@@ -41,6 +41,7 @@ import {
     ProjectType,
     QueryExecutionContext,
     ReadContentType,
+    RegisteredComposerQueryNode,
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
@@ -697,7 +698,7 @@ export type ListThreadComposerQueryNodesFn = (
 /** Throws on a different definition under a registered node id. */
 export type RegisterThreadComposerQueryNodesFn = (args: {
     threadUuid: string;
-    nodes: ThreadComposerQueryNode[];
+    nodes: RegisteredComposerQueryNode[];
 }) => Promise<void>;
 
 type RecordedPromptDecisionField =
@@ -767,6 +768,8 @@ export type RunComposerQueriesFn = (args: {
         rows: Record<string, AnyType>[];
         rowCount: number;
     };
+    /** Result columns by node id; null for a node that had not finished. */
+    nodeColumns: Record<string, ResultColumns | null>;
 }>;
 
 export type ListWarehouseTablesFn = (

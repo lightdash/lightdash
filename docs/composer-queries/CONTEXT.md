@@ -97,6 +97,14 @@ can be displayed and visualized the same way. Results are creator-scoped and
 expire.
 _Avoid_: intermediate result, step output, preview
 
+**Node columns**:
+The result columns of a node (reference, type, label, format, time interval,
+and the semantic field behind it when there is one), stored beside the node's
+definition in the thread composer query nodes by the run that registered it.
+Every node of a run gets them, not only the terminal one. They hold no query
+id; a node registered before columns were stored has none.
+_Avoid_: schema, node fields, result metadata
+
 **Displayed node**:
 The node whose result is on screen in the composer artifact. The presented
 node by default; picking a node in the pipeline panel displays it, and a new

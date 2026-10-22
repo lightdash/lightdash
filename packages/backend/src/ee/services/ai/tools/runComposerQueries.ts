@@ -7,6 +7,7 @@ import {
     isSlackPrompt,
     QuerySourceType,
     runComposerQueriesToolDefinition,
+    toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type SourceQuery,
@@ -312,7 +313,7 @@ export const getRunComposerQueries = ({
 
                 await updateProgress('Running composer queries...');
 
-                const [{ terminal }, review] = await Promise.all([
+                const [{ terminal, nodeColumns }, review] = await Promise.all([
                     runComposerQueries({
                         queries,
                         terminalNodeId: resolvedTerminalNodeId,
@@ -477,7 +478,17 @@ export const getRunComposerQueries = ({
                 // Last fallible step: a failure anywhere above registers nothing.
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
-                    nodes: queries,
+                    nodes: queries.map((definition) => {
+                        const resultColumns =
+                            nodeColumns[definition.nodeId] ?? null;
+                        return {
+                            definition,
+                            columns:
+                                resultColumns === null
+                                    ? null
+                                    : toComposerNodeColumns(resultColumns),
+                        };
+                    }),
                 });
 
                 return await persistIfResumed(output);
