@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     FeatureFlags,
     getItemId,
+    interpolateUiString,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
@@ -20,10 +21,11 @@ import {
 } from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { memo, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -121,7 +123,11 @@ const getFieldTarget = (
 
 // The shipped wording for a mapped field that is gone, on a tile
 const MissingFieldWarning: FC<{ fieldId: string }> = ({ fieldId }) => {
-    const label = `The selected field '${fieldId}' is not available in this tile`;
+    const getUiString = useUiStrings();
+    const label = interpolateUiString(
+        getUiString('filters.config.fieldNotAvailableInChart'),
+        { field: fieldId },
+    );
     return (
         <Tooltip fz="xs" label={label}>
             <Box role="img" aria-label={label} lh={0} flex="0 0 auto">
@@ -194,15 +200,6 @@ const TileOverlay = memo<TileOverlayProps>(
             scrollFieldId,
             scrollFieldId !== null,
         );
-        // The same symbol as the sidebar: a field's type
-        const renderOptionIcon = useCallback(
-            (value: string) => {
-                const field = fieldsMap[value];
-                return field ? <FieldIcon item={field} size={14} /> : null;
-            },
-            [fieldsMap],
-        );
-
         // A tile the control cannot reach recedes, with nothing on top of it
         if (!isReachable) {
             return (
@@ -317,9 +314,7 @@ const TileOverlay = memo<TileOverlayProps>(
                                         : 'Select a field'
                                 }
                                 clearLabel="Stop filtering this tile"
-                                renderOptionIcon={
-                                    isSqlTile ? null : renderOptionIcon
-                                }
+                                fieldsMap={isSqlTile ? null : fieldsMap}
                                 groups={[firstGroup, secondGroup]}
                                 searchable={
                                     secondGroup.items.length > 0 ||

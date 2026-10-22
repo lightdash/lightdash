@@ -17,9 +17,16 @@ export const ControlsBar: FC<Props> = (props) => {
             filterArea={
                 props.isEditMode ? (
                     <>
-                        <AddControl />
-                        <FilterPills activeTabUuid={props.activeTabUuid} />
-                        {!isSidebarOpen && <FilterRequirementsButton />}
+                        {/* The open editor holds the filters and "Add filter" */}
+                        {!isSidebarOpen && (
+                            <>
+                                <AddControl isVisibilityToggleHidden={false} />
+                                <FilterPills
+                                    activeTabUuid={props.activeTabUuid}
+                                />
+                                <FilterRequirementsButton />
+                            </>
+                        )}
                     </>
                 ) : undefined
             }

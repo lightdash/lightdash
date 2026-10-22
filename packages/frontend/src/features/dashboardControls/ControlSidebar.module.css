@@ -1,18 +1,53 @@
-/* The page scrolls as a whole, so the panel is pinned to stay in view. */
+/* A card next to the grid, stuck under the tabs and filter bar
+   (`--controls-rail-top`, from `useRailTop`). Paper gives the surface,
+   border and radius */
 .root {
     --controls-ease: ease-in-out;
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
     --controls-duration-hover: 0.12s;
+    --controls-rail-offset: calc(
+        var(--controls-rail-top, var(--dashboard-header-height)) +
+            var(--mantine-spacing-xs)
+    );
 
-    position: fixed;
-    top: var(--pinned-sidebar-top, var(--navbar-height));
-    bottom: 0;
+    position: sticky;
+    top: var(--controls-rail-offset);
+    align-self: flex-start;
     display: flex;
     flex-direction: column;
-    width: var(--sidebar-width);
-    background-color: var(--mantine-color-body);
-    border-right: 1px solid var(--mantine-color-default-border);
+    max-height: calc(
+        100dvh - var(--controls-rail-offset) - var(--mantine-spacing-md)
+    );
+    overflow: hidden;
+}
+
+/* The dashboard grid's row while the rail can open (`CONTROLS_RAIL_LAYOUT`).
+   Mantine's grow splits the row in equal parts, so the widths are set here */
+.layout[data-grow] {
+    flex-wrap: nowrap;
+}
+
+.layout[data-grow] > * {
+    max-width: none;
+    min-width: 0;
+}
+
+.layout[data-grow] > .root {
+    flex: 0 0 300px;
+}
+
+/* Narrow: the rail goes full width above the grid, in the flow */
+@media (width < $mantine-breakpoint-sm) {
+    .layout[data-grow] {
+        flex-wrap: wrap;
+    }
+
+    .layout[data-grow] > .root {
+        flex-basis: 100%;
+        position: static;
+        max-height: none;
+    }
 }
 
 /* The content arrives, not the panel: a fading surface would show the page
@@ -22,10 +57,125 @@
         var(--controls-ease-arrive);
 }
 
+.header {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
 .body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+}
+
+/* Doubled so the border outranks the group button's reset */
+.row.row {
+    width: 100%;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    transition: background-color var(--controls-duration-hover)
+        var(--controls-ease);
+}
+
+.row:hover:not(:disabled) {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.row:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.rowIcon {
+    flex: 0 0 auto;
+    margin-top: 3px;
+}
+
+.required {
+    color: var(--mantine-color-yellow-text);
+}
+
+.edited {
+    background-color: var(--mantine-color-ldGray-1);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.editedHead {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
+        var(--mantine-spacing-md);
+}
+
+.editedBody {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
+}
+
+.nameInput {
+    flex: 1;
+    min-width: 0;
+}
+
+/* The name is typed in place: a border shows only on hover and focus */
+.nameInputField {
+    font-weight: 600;
+    border-color: transparent;
+    background-color: transparent;
+    transition: border-color var(--controls-duration-hover) var(--controls-ease);
+}
+
+.nameInputField:hover {
+    border-color: var(--mantine-color-default-border);
+}
+
+.nameInputField:focus {
+    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-body);
+}
+
+.disclosures {
+    margin: var(--mantine-spacing-xs) calc(-1 * var(--mantine-spacing-md))
+        calc(-1 * var(--mantine-spacing-md));
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.disclosure {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    min-height: 40px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
+        var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    transition: background-color var(--controls-duration-hover)
+        var(--controls-ease);
+}
+
+.disclosure:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.disclosure + .disclosure,
+.panel + .disclosure {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.disclosureSummary {
+    margin-left: auto;
+    min-width: 0;
+    text-align: right;
+}
+
+.chevron {
+    flex: 0 0 auto;
+    transition: transform var(--controls-duration-hover) var(--controls-ease);
+}
+
+.disclosure[aria-expanded='true'] .chevron {
+    transform: rotate(90deg);
+}
+
+.panel {
+    padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
 }
 
 .footer {
@@ -44,19 +194,6 @@
 
 .footer .done:active {
     transform: scale(0.97);
-}
-
-.title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.changedDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--mantine-primary-color-filled);
 }
 
 @keyframes editorEnter {
@@ -87,7 +224,11 @@
         animation: none;
     }
 
-    .done {
+    .done,
+    .nameInputField,
+    .row,
+    .disclosure,
+    .chevron {
         transition: none;
     }
 }

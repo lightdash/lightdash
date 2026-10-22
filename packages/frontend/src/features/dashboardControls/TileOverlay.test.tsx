@@ -144,6 +144,11 @@ const rule = (
 const updateFilter = vi.fn();
 const addFirstFieldOnTile = vi.fn();
 
+const groupLabels = () =>
+    screen
+        .getAllByRole('group', { hidden: true })
+        .map((group) => group.firstChild?.textContent);
+
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
         editingRule: rule(),
@@ -285,7 +290,7 @@ describe('TileOverlays', () => {
                 screen
                     .getAllByRole('option', { hidden: true })
                     .map((option) => option.textContent),
-            ).toEqual(['Status', 'Region']);
+            ).toEqual(['Region', 'Status']);
         },
     );
 
@@ -328,7 +333,7 @@ describe('TileOverlays', () => {
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
-        ).toEqual(['Status', 'Region']);
+        ).toEqual(['Region', 'Status']);
     });
 
     it('marks a SQL chart tile as available, and as mapped once it is on a column', () => {
@@ -548,7 +553,7 @@ describe('TileOverlays', () => {
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
-        ).toEqual(['Status', 'Region']);
+        ).toEqual(['Region', 'Status']);
         await userEvent.click(clearButton(both.uuid)!);
 
         expect(updateFilter).toHaveBeenCalledTimes(1);
@@ -703,21 +708,12 @@ describe('TileOverlays', () => {
     });
 
     describe('adding a field from a tile', () => {
-        const addGroup = () =>
-            screen.getByRole('group', {
-                name: 'Other fields on this tile',
-                hidden: true,
-            });
-        const groupOptions = () =>
-            within(addGroup())
-                .getAllByRole('option', { hidden: true })
-                .map((option) => option.textContent);
         const allOptions = () =>
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent);
 
-        it('lists the other fields of the kind the tile offers in a second group', async () => {
+        it('lists the other fields of the kind the tile offers too', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -734,39 +730,28 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
 
-            // The filter's own field first, then what the tile could add;
-            // Amount is another kind
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(groupOptions()).toEqual(['Region']);
-            expect(
-                within(
-                    screen.getByRole('group', {
-                        name: 'In this filter',
-                        hidden: true,
-                    }),
-                )
-                    .getAllByRole('option', { hidden: true })
-                    .map((option) => option.textContent),
-            ).toEqual(['Status']);
+            // The filter's own field and what the tile could add, grouped by
+            // table as the shipped field select does; Amount is another kind
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('has no second group on a tile that offers nothing else', async () => {
+        it('lists only its own field on a tile that offers nothing else', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(statusOnly.uuid));
 
             expect(allOptions()).toEqual(['Status']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('In this filter'),
             ).not.toBeInTheDocument();
-            // Short and ungrouped: it stays a plain select
+            // Short: it is not searchable
             expect(select(statusOnly.uuid)).toHaveAttribute('readonly');
         });
 
-        it('maps only this tile to the field chosen from the second group', async () => {
+        it('maps only this tile to another field chosen from it', async () => {
             const third = tile('tile-third', 'tab-1');
             const element = document.createElement('div');
             document.body.appendChild(element);
@@ -784,7 +769,7 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
             await userEvent.click(
-                within(addGroup()).getByRole('option', {
+                screen.getByRole('option', {
                     name: 'Region',
                     hidden: true,
                 }),
@@ -849,10 +834,6 @@ describe('TileOverlays', () => {
                     'Created week',
                     'Created month',
                 ]);
-                expect(groupOptions()).toEqual([
-                    'Created week',
-                    'Created month',
-                ]);
             });
 
             it('writes the chosen grain to this tile', async () => {
@@ -876,7 +857,7 @@ describe('TileOverlays', () => {
             });
         });
 
-        it('lists a field that joined the filter in the first group of the other tiles', async () => {
+        it('lists a field that joined the filter on the other tiles', async () => {
             const third = tile('tile-third', 'tab-1');
             const element = document.createElement('div');
             document.body.appendChild(element);
@@ -903,25 +884,23 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(third.uuid));
 
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('does not repeat a waiting field in the second group', async () => {
+        it('does not repeat a waiting field', async () => {
             setSidebar({ waitingFieldIds: ['orders_region'] });
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
 
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('shows the table label on an entry that would read like another one', async () => {
+        it('tells apart entries that read the same by their table group', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -941,7 +920,8 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
 
-            expect(groupOptions()).toEqual(['Customers Status', 'Region']);
+            expect(allOptions()).toEqual(['Status', 'Region', 'Status']);
+            expect(groupLabels()).toEqual(['Customers', 'Orders']);
         });
 
         it('has no second group on a SQL chart tile', async () => {
@@ -996,9 +976,8 @@ describe('TileOverlays', () => {
 
             // One group only: a plain list with no label, still searchable
             expect(allOptions()).toEqual(['Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('Other fields on this tile'),
             ).not.toBeInTheDocument();
@@ -1271,7 +1250,7 @@ describe('TileOverlays', () => {
             expect(overlay(sql.uuid)).toBeEmptyDOMElement();
         });
 
-        it('lists the fields of every kind, each grain of a date included, as one plain list', async () => {
+        it('lists the fields of every kind, each grain of a date included', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
@@ -1283,30 +1262,28 @@ describe('TileOverlays', () => {
                 'Region',
                 'Status',
             ]);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(select(both.uuid)).toHaveAttribute(
                 'placeholder',
                 'Select a field',
             );
         });
 
-        it('shows no group label on a tile with fields only', async () => {
+        it("shows none of the rail's own group labels", async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(statusOnly.uuid));
 
             expect(allOptions()).toEqual(['Status']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('Fields on this tile'),
             ).not.toBeInTheDocument();
         });
 
-        it('shows the table label where two fields would read the same', async () => {
+        it('tells apart two fields that read the same by their table group', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -1321,7 +1298,8 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(statusOnly.uuid));
 
-            expect(allOptions()).toEqual(['Customers Status', 'Orders Status']);
+            expect(allOptions()).toEqual(['Status', 'Status']);
+            expect(groupLabels()).toEqual(['Customers', 'Orders']);
         });
 
         it('starts the filter from the chosen grain on this tile', async () => {
@@ -2410,7 +2388,7 @@ describe('TileOverlays', () => {
     describe('a tile mapped to a field it no longer has', () => {
         const GONE = { fieldId: 'orders_gone', tableName: 'orders' };
         const WARNING =
-            "The selected field 'orders_gone' is not available in this tile";
+            "The selected field 'orders_gone' is not available in this chart";
 
         beforeEach(() => {
             setSidebar({

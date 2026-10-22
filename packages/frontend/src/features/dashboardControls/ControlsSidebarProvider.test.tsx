@@ -33,6 +33,10 @@ import {
     type DashboardStore,
 } from '../dashboard/store';
 import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
+import {
+    getFilterRuleWithDisabledState,
+    getFilterRuleWithRequired,
+} from '../dashboardFilters/FilterConfiguration/utils';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import {
     getFieldCount,
@@ -40,7 +44,6 @@ import {
     setTileField,
     type FieldsByTile,
 } from './peers';
-import { clearRuleRequired, setRuleRequired } from './requirements';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -252,13 +255,24 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
     });
 
+    it('opens every filter with Tiles and Rules closed', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        expect(result.current.activeSection).toBeNull();
+        act(() => result.current.setActiveSection('tiles'));
+        expect(result.current.activeSection).toBe('tiles');
+
+        act(() => result.current.open('b'));
+        expect(result.current.activeSection).toBeNull();
+    });
+
     it('Add opens a placeholder that stays out of the dashboard filters', () => {
         const { result } = setup();
         act(() => result.current.openNew());
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editingRule?.target.fieldId).toBe('');
-        expect(result.current.activeSection).toBe('fields');
+        expect(result.current.activeSection).toBeNull();
         expect(latest.filters).toEqual(initialFilters);
         expect(latest.changed).toBe(false);
     });
@@ -576,7 +590,7 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
-        act(() => result.current.setActiveSection('settings'));
+        act(() => result.current.setActiveSection('rules'));
         act(() => result.current.setHighlightedFieldId('orders_a'));
         act(() => result.current.setHoveredFieldId('orders_a'));
 
@@ -584,7 +598,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe('a');
-        expect(result.current.activeSection).toBe('fields');
+        expect(result.current.activeSection).toBeNull();
         expect(result.current.activeFieldId).toBeNull();
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
 
@@ -1056,14 +1070,14 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
-        act(() => result.current.setActiveSection('settings'));
+        act(() => result.current.setActiveSection('rules'));
         act(() => result.current.addWaitingField('orders_region'));
 
         act(() => result.current.open('a'));
 
         // Same snapshot, so the edit can still be discarded
         expect(result.current.isDirty).toBe(true);
-        expect(result.current.activeSection).toBe('settings');
+        expect(result.current.activeSection).toBe('rules');
         expect(result.current.waitingFieldIds).toEqual(['orders_region']);
         act(() => result.current.discard());
         expect(latest.filters).toEqual(initialFilters);
@@ -1734,7 +1748,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => current().setHoveredFieldId('orders_a'));
         act(() => current().setHighlightedFieldId('orders_a'));
         act(() => current().updateFilter({ ...rule('a', ['1']), label: 'A' }));
-        act(() => current().setActiveSection('settings'));
+        act(() => current().setActiveSection('rules'));
 
         expect(renders.sliced).toBe(afterOpen.sliced);
         expect(renders.whole).toBe(afterOpen.whole + 4);
@@ -1874,19 +1888,31 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
+        // The shipped "Required" switch, with the shipped disabled rule
+        const switchRequired = (
+            from: DashboardFilterRule,
+            savedRule: DashboardFilterRule,
+            checked: boolean,
+        ) =>
+            getFilterRuleWithDisabledState(
+                getFilterRuleWithRequired(
+                    FilterType.STRING,
+                    statusField,
+                    from,
+                    savedRule,
+                    checked,
+                ),
+                true,
+            );
+
         it('leaves nothing changed after "Required" is switched on and off', () => {
             saved.filters = asSaved({
                 ...initialFilters,
                 dimensions: [{ ...rule('a', []), disabled: true }],
             });
             const savedA = saved.filters.dimensions[0];
-            const required = setRuleRequired(savedA, null);
-            const notRequired = clearRuleRequired(
-                required,
-                savedA,
-                FilterType.STRING,
-                statusField,
-            );
+            const required = switchRequired(savedA, savedA, true);
+            const notRequired = switchRequired(required, savedA, false);
             expect(notRequired.required).toBe(false);
 
             const { result } = setup();
@@ -1899,32 +1925,7 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
-        it('leaves a rule saved without "required" or "disabled" unchanged after "Required" is switched on and off', () => {
-            saved.filters = asSaved({
-                ...initialFilters,
-                dimensions: [rule('a', ['completed'])],
-            });
-            const savedA = saved.filters.dimensions[0];
-            expect('disabled' in savedA).toBe(false);
-            const required = setRuleRequired(savedA, savedA);
-            const notRequired = clearRuleRequired(
-                required,
-                savedA,
-                FilterType.STRING,
-                statusField,
-            );
-
-            const { result } = setup();
-            act(() => result.current.open('a'));
-            act(() => result.current.updateFilter(required));
-            act(() => result.current.updateFilter(notRequired));
-            expect(result.current.isDirty).toBe(false);
-
-            act(() => result.current.close());
-            expect(latest.changed).toBe(false);
-        });
-
-        it('keeps the default value after "Required" is switched on and off', () => {
+        it('drops the default value when "Required" is switched off, as the shipped form does', () => {
             saved.filters = asSaved({
                 ...initialFilters,
                 dimensions: [
@@ -1932,23 +1933,16 @@ describe('ControlsSidebarProvider', () => {
                 ],
             });
             const savedA = saved.filters.dimensions[0];
-            const required = setRuleRequired(savedA, savedA);
-            const notRequired = clearRuleRequired(
-                required,
-                savedA,
-                FilterType.STRING,
-                statusField,
-            );
-            expect(notRequired.values).toEqual(['credit_card']);
+            const required = switchRequired(savedA, savedA, true);
+            expect(required.values).toEqual(['credit_card']);
+            const notRequired = switchRequired(required, savedA, false);
+            expect(notRequired.values).toEqual([]);
 
             const { result } = setup();
             act(() => result.current.open('a'));
             act(() => result.current.updateFilter(required));
             act(() => result.current.updateFilter(notRequired));
-            expect(result.current.isDirty).toBe(false);
-
-            act(() => result.current.close());
-            expect(latest.changed).toBe(false);
+            expect(result.current.isDirty).toBe(true);
         });
 
         // Tabs apply a rule with no tile targets everywhere, but one with empty

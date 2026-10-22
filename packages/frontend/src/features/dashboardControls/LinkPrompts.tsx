@@ -1,20 +1,21 @@
 import {
+    getItemId,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
-import { Button, Group, Paper, Select, Stack, Text } from '@mantine/core';
+import { Button, Group, Paper, Stack, Text } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
+import FieldSelect from '../../components/common/FieldSelect';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
-import { getCandidateOptions } from './fieldCandidates';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
@@ -34,8 +35,6 @@ type FieldsMap = Record<string, DashboardFilterableField>;
 // A rule id present with null was cleared; absent means the default choice
 type Picks = Record<string, string | null>;
 
-const NO_LABELS: string[] = [];
-
 // A single candidate is the choice without a pick
 const getDefaultChoice = ({ candidates }: Prompt): string | null =>
     candidates.length === 1 ? candidates[0].fieldId : null;
@@ -48,6 +47,24 @@ const getChoice = (prompt: Prompt, picks: Picks): string | null => {
     return prompt.candidates.some((candidate) => candidate.fieldId === picked)
         ? picked
         : getDefaultChoice(prompt);
+};
+
+const getCandidateFields = (
+    { candidates }: Prompt,
+    fieldsMap: FieldsMap,
+): DashboardFilterableField[] =>
+    candidates.flatMap((candidate) => {
+        const field = fieldsMap[candidate.fieldId];
+        return field ? [field] : [];
+    });
+
+const getChoiceField = (
+    prompt: Prompt,
+    picks: Picks,
+    fieldsMap: FieldsMap,
+): DashboardFilterableField | undefined => {
+    const choice = getChoice(prompt, picks);
+    return choice === null ? undefined : fieldsMap[choice];
 };
 
 const plural = (count: number, one: string, many: string) =>
@@ -149,26 +166,26 @@ const LinkCard: FC<CardProps> = ({
                         <Text fz="sm" fw={600}>
                             {filterLabel}
                         </Text>
-                        <Select
+                        <FieldSelect
                             size="xs"
+                            miw={0}
+                            hasGrouping
                             aria-label={`Field for ${filterLabel} on this tile`}
                             placeholder="Not filtered"
                             clearable
+                            // Picking the chosen field again clears it
+                            allowDeselect
                             comboboxProps={{ withinPortal: true }}
-                            value={getChoice(row, picks)}
-                            onChange={(value) =>
+                            item={getChoiceField(row, picks, fieldsMap)}
+                            items={getCandidateFields(row, fieldsMap)}
+                            onChange={(field) =>
                                 setPicks((current) => ({
                                     ...current,
-                                    [row.rule.id]: value,
+                                    [row.rule.id]: field
+                                        ? getItemId(field)
+                                        : null,
                                 }))
                             }
-                            data={getCandidateOptions(
-                                row.candidates.map(
-                                    (candidate) => candidate.fieldId,
-                                ),
-                                NO_LABELS,
-                                fieldsMap,
-                            )}
                         />
                     </Stack>
                 );

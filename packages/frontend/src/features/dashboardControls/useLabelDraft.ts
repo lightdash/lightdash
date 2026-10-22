@@ -35,6 +35,9 @@ const LABEL_SELECTOR = '[data-controls-label]';
 export const focusLabelInput = () =>
     document.querySelector<HTMLInputElement>(LABEL_SELECTOR)?.focus();
 
+// A new filter has no label yet: its field search takes the focus instead
+const START_SELECTOR = '[data-controls-start] input';
+
 // The sidebar fades in from `display: none`, where focus cannot land, so the
 // editor keeps handing focus to its label for a few frames after it mounts.
 // It stops as soon as the label has it, or the author moved into the editor
@@ -44,7 +47,8 @@ export const useFocusLabelOnMount = () => {
         let tries = 0;
         const attempt = () => {
             const input =
-                document.querySelector<HTMLInputElement>(LABEL_SELECTOR);
+                document.querySelector<HTMLInputElement>(LABEL_SELECTOR) ??
+                document.querySelector<HTMLInputElement>(START_SELECTOR);
             if (input === null) return;
             if (document.activeElement?.closest('[data-controls-editor]'))
                 return;

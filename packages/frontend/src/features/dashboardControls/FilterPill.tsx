@@ -3,30 +3,16 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
-import {
-    IconCircleCheck,
-    IconCircleDashed,
-    IconGripVertical,
-    IconLock,
-    IconLockOpen,
-    IconX,
-} from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import { Box, Tooltip } from '@mantine/core';
+import { memo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
-import { getFieldColor } from '../../utils/fieldColors';
-import pillClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
-import { showsComposedFilterValue } from '../dashboardFilters/ActiveFilters/filterLabels';
 import {
     getFilterLockKey,
     getFilterLockLabel,
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
-import { FilterRuleLabel } from '../dashboardFilters/ActiveFilters/FilterRuleLabel';
-import { getTruncatedValuesDisplay } from '../dashboardFilters/ActiveFilters/utils';
-import { useFilterChipRequirementState } from '../dashboardFilters/FilterRequirements/useFilterChipRequirementState';
+import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -74,29 +60,12 @@ export const FilterPill: FC<Props> = memo(
         const setHaveFiltersChanged = useDashboardContext(
             (c) => c.setHaveFiltersChanged,
         );
-        const { showRequirementIcon, isRequirementUnmet, requirementTooltip } =
-            useFilterChipRequirementState(filter);
-
-        const truncated = useMemo(
-            () =>
-                getTruncatedValuesDisplay(
-                    filter.values,
-                    showsComposedFilterValue(
-                        field?.type,
-                        filter.target.fallbackType,
-                    ),
-                    filter.operator,
-                ),
-            [filter, field],
-        );
-
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
             hasTabs,
             activeTabUuid,
             dashboardUuid,
         });
-        const lockLabel = getFilterLockLabel(isLocked, hasTabs);
 
         const toggleLock = () => {
             const toggle = getFilterLockToggle(filter, {
@@ -113,8 +82,6 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
-        const isDraggable = !isSidebarOpen;
-
         return (
             <Tooltip
                 fz="xs"
@@ -123,119 +90,44 @@ export const FilterPill: FC<Props> = memo(
                 label={orphanedTooltip}
             >
                 <Box className={classes.pill}>
-                    <Button
-                        size="xs"
-                        variant="default"
+                    <FilterPillButton
+                        field={field}
+                        filterRule={filter}
+                        isOrphaned={isOrphaned}
+                        isTemporary={false}
+                        isDraggable={!isSidebarOpen}
+                        isLocked={isLocked}
+                        lockLabel={
+                            !isSidebarOpen && lockKey
+                                ? getFilterLockLabel(isLocked, hasTabs)
+                                : null
+                        }
+                        onLockToggle={(e) => {
+                            e.stopPropagation();
+                            toggleLock();
+                        }}
+                        readOnlyLockLabel={null}
+                        onRemove={
+                            isSidebarOpen
+                                ? null
+                                : (e) => {
+                                      e.stopPropagation();
+                                      removeFilterById(filter.id);
+                                  }
+                        }
+                        removeLabel="Remove filter"
+                        isTablesTooltipDisabled={isSelected}
                         aria-pressed={isSelected}
-                        data-requirement-unmet={isRequirementUnmet || undefined}
+                        data-controls-pill={filter.id}
                         disabled={isDisabled}
-                        classNames={{ label: pillClasses.label }}
                         className={[
-                            pillClasses.button,
-                            isOrphaned ? pillClasses.inactiveFilter : '',
                             isSelected ? classes.selectedPill : '',
                             isDraft ? classes.draftPill : '',
-                        ].join(' ')}
-                        pr={truncated.hasMore ? 6 : undefined}
-                        leftSection={
-                            (isDraggable || showRequirementIcon) && (
-                                <Group gap={2} wrap="nowrap">
-                                    {isDraggable && (
-                                        <MantineIcon
-                                            icon={IconGripVertical}
-                                            cursor="grab"
-                                            size="sm"
-                                        />
-                                    )}
-                                    {showRequirementIcon && (
-                                        <Tooltip
-                                            fz="xs"
-                                            label={requirementTooltip}
-                                            disabled={!isRequirementUnmet}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    isRequirementUnmet
-                                                        ? IconCircleDashed
-                                                        : IconCircleCheck
-                                                }
-                                                size="sm"
-                                                color={
-                                                    isRequirementUnmet
-                                                        ? 'yellow.7'
-                                                        : field
-                                                          ? getFieldColor(field)
-                                                          : 'dimmed'
-                                                }
-                                            />
-                                        </Tooltip>
-                                    )}
-                                </Group>
-                            )
-                        }
-                        rightSection={
-                            !isSidebarOpen && (
-                                <Group gap={2} wrap="nowrap">
-                                    {lockKey && (
-                                        <Box
-                                            component="span"
-                                            className={
-                                                isLocked
-                                                    ? pillClasses.lockSlotActive
-                                                    : pillClasses.lockSlot
-                                            }
-                                        >
-                                            <Tooltip fz="xs" label={lockLabel}>
-                                                <ActionIcon
-                                                    size="xs"
-                                                    radius="xl"
-                                                    aria-label={lockLabel}
-                                                    aria-pressed={isLocked}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleLock();
-                                                    }}
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            isLocked
-                                                                ? IconLock
-                                                                : IconLockOpen
-                                                        }
-                                                        size="sm"
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        </Box>
-                                    )}
-                                    <Tooltip fz="xs" label="Remove filter">
-                                        <ActionIcon
-                                            size="xs"
-                                            radius="xl"
-                                            aria-label="Remove filter"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                removeFilterById(filter.id);
-                                            }}
-                                        >
-                                            <MantineIcon
-                                                icon={IconX}
-                                                size="sm"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
-                            )
-                        }
+                        ]
+                            .filter(Boolean)
+                            .join(' ')}
                         onClick={() => (isSelected ? close() : open(filter.id))}
-                    >
-                        <FilterRuleLabel
-                            filterRule={filter}
-                            field={field}
-                            truncatedValuesDisplay={truncated}
-                            isTablesTooltipDisabled={isSelected}
-                        />
-                    </Button>
+                    />
                 </Box>
             </Tooltip>
         );

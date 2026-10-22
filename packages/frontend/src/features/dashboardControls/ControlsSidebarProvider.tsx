@@ -21,6 +21,7 @@ import {
     type Dispatch,
     type FC,
     type PropsWithChildren,
+    type RefObject,
     type SetStateAction,
 } from 'react';
 import { useParams } from 'react-router';
@@ -37,6 +38,7 @@ import {
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
+import { isLockedRequiredMissingValue } from '../dashboardFilters/FilterConfiguration/utils';
 import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
@@ -47,7 +49,6 @@ import {
     setTileField,
     withoutDefaultTileTargets,
 } from './peers';
-import { isLockedRequiredMissingValue } from './requirements';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -64,26 +65,45 @@ import {
 } from './sidebarState';
 import {
     ControlsSidebarContext,
+    useControlsSidebarSelector,
     type ControlsSidebarContextValue,
     type ControlsSidebarSection,
 } from './useControlsSidebar';
-import { EDITOR_ATTRIBUTE, useEditorDismiss } from './useEditorDismiss';
+import { useEditorDismiss } from './useEditorDismiss';
 
-// The bar's "Add", and the pill of the control being edited: the pressed
-// button nearest to "Add" that is not in the editor or on a tile
+// The bar's "Add", and the pills, which carry their filter id. The pills are
+// off the bar while the editor is open, so the pill is found once it is back
 const ADD_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
-const EDITED_PILL_SELECTOR = 'button[aria-pressed="true"]';
-const NOT_A_PILL_SELECTOR = `[${EDITOR_ATTRIBUTE}], [data-tile-uuid]`;
+// `FilterPill` sets it
+const PILL_ATTRIBUTE = 'data-controls-pill';
 
-const findEditedPill = (
-    scope: Element | null = document.querySelector(ADD_SELECTOR),
-): HTMLElement | null => {
-    if (scope === null) return null;
-    const pill = [
-        ...scope.querySelectorAll<HTMLElement>(EDITED_PILL_SELECTOR),
-    ].find((button) => button.closest(NOT_A_PILL_SELECTOR) === null);
-    return pill ?? findEditedPill(scope.parentElement);
+const findPill = (filterId: string): HTMLElement | null =>
+    [...document.querySelectorAll<HTMLElement>(`[${PILL_ATTRIBUTE}]`)].find(
+        (pill) => pill.getAttribute(PILL_ATTRIBUTE) === filterId,
+    ) ?? null;
+
+type FocusTarget = { filterId: string | null };
+
+// Focus is a DOM matter: it moves once the editor has left the page and the
+// bar has its pills again. The bar reads the context through selectors, which
+// update after the provider's own effects, so this is a reader too
+const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
+    target,
+}) => {
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    useEffect(() => {
+        if (isSidebarOpen || target.current === null) return;
+        const { filterId } = target.current;
+        target.current = null;
+        const pill = filterId === null ? null : findPill(filterId);
+        // A pill disabled by a refetch cannot take it
+        (pill !== null && !pill.hasAttribute('disabled')
+            ? pill
+            : document.querySelector<HTMLElement>(ADD_SELECTOR)
+        )?.focus();
+    }, [isSidebarOpen, target]);
+    return null;
 };
 
 type FilterGroup = 'dimensions' | 'metrics';
@@ -210,7 +230,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         null,
     );
     const [activeSection, setActiveSection] =
-        useState<ControlsSidebarSection>('fields');
+        useState<ControlsSidebarSection | null>(null);
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
         null,
     );
@@ -321,7 +341,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const reset = useCallback(() => {
         writeState(null);
         writePlaceholder(null);
-        setActiveSection('fields');
+        setActiveSection(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
@@ -336,13 +356,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHoveredFieldId((hovered) => (hovered === clicked ? null : hovered));
     }, []);
 
-    // Where focus goes once the editor is gone: the pill when it is still
-    // there, else "Add". Null while nothing asked for it
-    const focusReturn = useRef<{ pill: HTMLElement | null } | null>(null);
+    // Where focus goes once the editor is gone: the control's pill when it
+    // is back on the bar, else "Add". Null while nothing asked for it
+    const focusReturn = useRef<FocusTarget | null>(null);
     const rememberFocusReturn = useCallback(() => {
+        const { placeholder: rule, state: editingState } = latest.current;
         // A control with no field yet was never on the bar
         focusReturn.current = {
-            pill: latest.current.placeholder === null ? findEditedPill() : null,
+            filterId: rule === null ? (editingState?.filterId ?? null) : null,
         };
     }, []);
 
@@ -355,7 +376,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             focusReturn.current = null;
             ownRaise.current = null;
             writePlaceholder(null);
-            setActiveSection('fields');
+            setActiveSection(null);
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             setWaiting(null);
@@ -379,7 +400,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         focusReturn.current = null;
         ownRaise.current = null;
         writePlaceholder(rule);
-        setActiveSection('fields');
+        setActiveSection(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
@@ -572,7 +593,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 required: rule.required,
                 requiredGroupId: rule.requiredGroupId,
             });
-            setActiveSection('fields');
+            setActiveSection(null);
             current.highlightedFieldId = null;
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
@@ -801,18 +822,6 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         close,
     });
 
-    // Focus is a DOM matter: it moves once the editor has left the page
-    useEffect(() => {
-        if (isSidebarOpen || focusReturn.current === null) return;
-        const { pill } = focusReturn.current;
-        focusReturn.current = null;
-        // A pill disabled by a refetch cannot take it
-        (pill?.isConnected && !pill.hasAttribute('disabled')
-            ? pill
-            : document.querySelector<HTMLElement>(ADD_SELECTOR)
-        )?.focus();
-    }, [isSidebarOpen]);
-
     // Its own memo so a hover does not hand selectors a new object
     const editingFilterId = state?.filterId ?? null;
     const editing = useMemo(
@@ -906,6 +915,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     return (
         <ControlsSidebarContext.Provider value={value}>
             {children}
+            <FocusReturn target={focusReturn} />
         </ControlsSidebarContext.Provider>
     );
 };

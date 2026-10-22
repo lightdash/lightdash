@@ -15,7 +15,8 @@ fields. User-facing copy says *tile*, never *chart*.
 ## Gated lines in shipped files
 
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
-  `DashboardFiltersBar`.
+  `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
+  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
 - `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and wraps
   the header in `DashboardHeaderGuard` (inert while the sidebar is open).
 
@@ -24,16 +25,39 @@ fields. User-facing copy says *tile*, never *chart*.
 Each is a pure move or an optional prop that defaults to today's behaviour.
 All are in `features/dashboardFilters/`.
 
+- `AddFilterButton`: `isVisibilityToggleHidden` (default false), which leaves out the eye in
+  the rail's footer.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today).
 - `ActiveFilters/`: `FilterRuleLabel`, `TemporaryFilters`, `UnresolvedFilter`,
   `useFilterTabPlacement`, `filterLabels`, `filterLock` and `filterOrder`,
-  moved out of `index.tsx` and `Filter.tsx`.
+  moved out of `index.tsx` and `Filter.tsx`. `FilterPillButton` is the
+  shipped pill's trigger button, moved out of `Filter.tsx`: field icon and
+  lock tinted by status, requirement icon, lock action, read-only lock and
+  X, each passed or left out by the caller. `removeLabel` (default none)
+  names the X and gives it a tooltip.
+- `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
+  (default: the other filter is written to the dashboard filters, and this
+  one too), `disabledReason` (default none: the switch is enabled) and
+  `isListInPortal` (default false; passed to `FilterSelect`'s new
+  `withinPortal`, since the rail's scrolling body clips the list). The
+  group member conversion is `getRequiredGroupMemberUpdates` in `utils`.
 
 In `FilterConfiguration/`:
 
-- `FilterSettings`: `hideLabel`, `hideRequiredCard` (both default false).
-- `FilterFieldSelect`: `defaultOpened` (default false).
+- `FilterSettings`: its value part (value label, operator with the single or
+  multiple values toggle, value input, the required filter note and the
+  "Provide default value" switch) is `FilterValueSection`, moved out and
+  rendered by both. Its operator change, default switch and "Required"
+  switch are `getFilterRuleWithOperator`,
+  `getFilterRuleWithDefaultValueEnabled` and `getFilterRuleWithRequired` in
+  `utils`.
+- `index.tsx`: the Apply guard is `isLockedRequiredMissingValue` and the
+  filter type is `getFilterRuleFilterType`, both in `utils`.
+- `FilterFieldSelect`: `defaultOpened` (default false), `withLabel` (default
+  true: "Select a field to filter" above the input) and `placeholder`
+  (default: the shipped open and closed placeholders) and `withinPortal`
+  (default false; the rail sets it, since its scrolling body clips the list).
 - `SqlColumnSelect`: the "Select a column to filter" select, moved out of
   `index.tsx`.
 - `utils`: `getDefaultField`, `getUniqueSqlColumns`,
@@ -42,42 +66,57 @@ In `FilterConfiguration/`:
 
 ## Bar and page
 
-- `ControlsSidebarPage` is a drop-in for `components/common/Page/Page`. It always
-  passes `ControlSidebar` as the left sidebar and toggles only `isSidebarOpen`,
-  so the dashboard grid never remounts.
-- The sidebar is pinned under whatever is fixed above it
-  (`usePinnedSidebarTop`): the navbar until it has
-  scrolled away, plus the banner, which never scrolls. Whether there is a
-  banner is the navbar's own answer, read from `data-has-banner` on
-  `#navbar-header` and watched, since it can arrive after the page.
-  Fullscreen is not handled: its toggle only exists in view mode, and the
-  editor only opens in edit mode.
+- `ControlsSidebarPage` is a drop-in for `components/common/Page/Page`: the
+  shipped page, unchanged, inside the provider, plus the tile overlays, tab
+  counts, link prompts and field bar. It passes no sidebar.
+- The rail is a card in the dashboard content, left of the grid: the gated
+  slot in `dashboardTabs/index.tsx` renders `ControlSidebar` as the first
+  child of the grid's row (Mantine `Group grow`). The slot is always there
+  under the flag and `ControlSidebar` renders null when closed, so the grid's
+  wrapper keeps its place among the row's children and never remounts.
+  `CONTROLS_RAIL_LAYOUT` (`.layout` in `ControlSidebar.module.css`) undoes
+  the equal split of `grow`: no wrap, the rail `300px`, the grid the rest.
+  Below the `sm` breakpoint the row wraps and the rail goes full width above
+  the grid, in the flow. Opening the rail only narrows the grid, as the page
+  sidebar did.
+- The rail is sticky under the dashboard's tabs and filter bar, which stick
+  under the header. `useRailTop` measures where that bar ends once stuck (its
+  computed `top`, which carries the header and banner, plus its height,
+  watched with a `ResizeObserver` since the bar wraps) and writes
+  `--controls-rail-top` on the rail; the stylesheet falls back to
+  `--dashboard-header-height`. The bar is found by its
+  `[data-has-header-above][data-is-stuck]`. The rail's `max-height` keeps
+  "Done" in view: its body scrolls. Fullscreen is not handled: its toggle
+  only exists in view mode, and the editor only opens in edit mode.
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its one opening,
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
   button. In edit mode it holds `AddControl`, `FilterPills` and the shipped
-  requirements button (hidden while the sidebar is open); in view mode nothing
-  is passed, so the bar is the shipped one. Separators, parameters, date zoom,
+  requirements button. While the sidebar is open all three fold away: the
+  rail lists the filters and its footer has "Add filter". In view mode
+  nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.
 - `AddControl` is the shipped `AddFilterButton` in edit mode: the dashed
-  button with its disabled and loading states and the eye that hides
-  "Add filter" from viewers (usable while the sidebar is open). It is never
+  button with its disabled and loading states and, on the bar, the eye that
+  hides "Add filter" from viewers. The rail's footer renders it without the
+  eye (`isVisibilityToggleHidden`). It is never
   given a popover id to open on, so a click only calls `onPopoverOpen`, which
   is `openNew`. It tracks nothing; `ADD_FILTER_CLICKED` stays with the
-  provider. The provider returns focus to it by
-  `[data-filter-actions] > button[data-dashboard-filter-control]`.
-- `FilterPills`: click opens the control (on the pill being edited it is
-  `close()`, as "Done"), the X removes it and is hidden while
-  the sidebar is open. A pill is disabled until the filterable fields exist
+  provider. The provider returns focus to the bar's one by
+  `[data-filter-actions] > button[data-dashboard-filter-control]`, from
+  `FocusReturn`, once the bar has it again; the rail's is gone by then.
+- `FilterPills`: click opens the control, the X ("Remove filter") removes it. The pills are
+  only on the bar while the sidebar is closed. A pill is disabled until the filterable fields exist
   (`allFilterableFields`), as the shipped pill is; a SQL column filter waits
   for none. Dimension rules and metric rules are two dnd-kit
   contexts, reordered within their own list (the shipped `moveFilterRule`);
   dragging and the grip are off while the sidebar is open.
 - One saved rule is one `FilterPill` (memoised; pass it primitives, the rule
-  and the field). Only its button is the feature's (click opens the editor,
-  `aria-pressed`, the selected and draft looks). Everything else is extracted
-  from the shipped pill, in `dashboardFilters/ActiveFilters`, and called from
-  both sides:
+  and the field). Its button is the shipped `FilterPillButton`; the feature
+  passes only the click (opens the editor), `aria-pressed`, `disabled`, the
+  selected and draft looks and its lock and X handlers. Everything else is
+  extracted from the shipped pill, in `dashboardFilters/ActiveFilters`, and
+  called from both sides:
   - `FilterRuleLabel`: name, "is any value", two values then "+N", the tables
     tooltip (off on the pill being edited).
   - `useFilterTabPlacement` and `isFilterHiddenOnTab`: the tabs a rule is on,
@@ -196,10 +235,13 @@ In `FilterConfiguration/`:
   the waiting fields. The first three send focus back to the bar once the
   editor has left the page: to the control's pill when it is still there and
   not disabled (a fields refetch disables it), else to "Add". The provider finds
-  them in the DOM, as the pressed button nearest to "Add"
-  (`aria-pressed="true"`) and as the shipped "Add filter" button
-  (`[data-filter-actions] > button[data-dashboard-filter-control]`); keep both
-  on the bar.
+  them in the DOM, as the pill carrying the control's id
+  (`data-controls-pill`, set by `FilterPill`) and as the shipped "Add filter"
+  button (`[data-filter-actions] > button[data-dashboard-filter-control]`);
+  keep both on the bar. The pills are back only once the bar has read the
+  closed state, which selectors do after the provider's own effects, so the
+  move is made by `FocusReturn`, a selector reader the provider renders after
+  its children.
 - `setHighlightedFieldId(id)` clicks a field; `clearHighlightedField()`
   unclicks it and drops that field's hover with it, so the tiles show
   everything again while the pointer is still on the row. Use it for every way
@@ -223,19 +265,33 @@ In `FilterConfiguration/`:
 
 ## Editor
 
-- `EditorShell` is the one chrome for the sidebar: title, subtitle, More actions
-  menu, a Close X, an `aboveTabs` slot for the label, a tab strip (shown when
-  there is more than one tab), body and a footer. The X and "Done" both call
-  `close`; the quiet discard action ("Discard filter" for a new one, "Discard
-  changes" once an existing one has changed) calls `discard`. The footer status
-  says what closing would drop. Add chrome there.
-- `ControlSidebar` edits the control from `useControlsSidebar`. A placeholder is
-  titled "New filter" and cannot be kept until it has a field. Any other
-  control is titled by its label, or by its field's name while it has none.
-- The label is a local draft (`useLabelDraft`): the title follows the draft,
-  and the control gets it after 300ms without typing, on blur, on Enter and
-  from a suggestion chip, which hands focus to the label input since the chip
-  leaves the page. Enter commits and the editor stays open. Outer spaces are
+- The editor is a rail: `EditorShell` is a `Paper` (the theme's bordered,
+  flat surface) holding the header ("Filters" and a Close X), the body and
+  the footer. Controls are `xs`, names `fz="sm"`, secondary lines `fz="xs"`. The footer has "Add filter" (`AddControl`
+  with no eye, `openNew`) and "Done" (`close`); while the edited filter has no field it
+  has only a status, "Select a field to keep this filter", and "Cancel"
+  (`discard`). A footer status says what closing would drop.
+- `ControlSidebar` lists every dashboard filter, dimensions then metrics, as
+  a closed `FilterRow` (a `PolymorphicGroupButton`: type icon, name, one
+  line: the pill's value, then the shipped lock wording on this tab
+  (`filters.filterIsLockedOnTab`, `filters.filterIsLocked` without tabs) and
+  "Required" in yellow; a required filter with no value reads the shipped
+  `filters.required.setValueTooltip`). The edited filter is open in its
+  place, a placeholder last. A row opens with `open`. Strings are in
+  `railSummaries.ts`.
+- The open row sits on the muted fill (`ldGray-1`). Type icon, the label
+  input in place (placeholder: the field's name), borderless until hovered
+  or focused, the shipped `ConfirmDeleteButton` ("Remove filter", a second
+  click removes) on an existing filter, and a More actions menu while there
+  is something to discard ("Discard filter" for a new one, "Discard changes"
+  once dirty). A new filter with no field shows "New filter", the field
+  search and neither.
+  Under the value, two disclosures (`activeSection`, one at a time, both
+  closed whenever a filter opens): "Tiles" (`FieldsAndTiles`, "N tiles · M
+  fields") and "Rules" (`ViewerControls`, the lock and requirement summary,
+  "None" when neither).
+- The label is a local draft (`useLabelDraft`): the control gets it after
+  300ms without typing, on blur and on Enter. Enter commits and the editor stays open. Outer spaces are
   trimmed when the label is written, and a label of spaces is written as no
   label: the rule then goes back to exactly what it was when the control was
   opened, with no `label` key if it had none (`withFilterRuleLabel`), so
@@ -245,7 +301,8 @@ In `FilterConfiguration/`:
   the control id as `key`, so the draft restarts and a pending commit is
   dropped when another control opens.
 - Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
-  editor mounts (from a pill, from "Add", on a switch). The first field of a
+  editor mounts (from a pill or a row); a new filter's field search takes it
+  instead. The first field of a
   filter keeps the same editor mounted: the id is the placeholder's. So the
   pick calls `focusLabelInput()`, from the sidebar and from a tile card.
 - The edited filter's field is resolved as the shipped bar does
@@ -253,9 +310,8 @@ In `FilterConfiguration/`:
   dimensions and metrics, with the labels of the tile it is mapped on). A SQL
   column filter (`target.isSqlColumn`) has no field: it goes by its column
   name, and its type is the column's as a tile reports it, else the target's
-  `fallbackType` (the shipped `getSqlColumnFilterType`, through
-  `useFilterRuleSqlColumnType`). `FilterSettings` passes that type down
-  (`getFilterRuleType`).
+  `fallbackType`. `FilterSettings` reads the type as the shipped popover
+  does (`getFilterRuleFilterType`) and passes it down.
 - `useSqlColumnsByTile` offers every filter every column of every SQL chart
   tile, whatever the types, as the shipped popover does
   (`TileFilterConfiguration`). A placeholder gets none.
@@ -263,7 +319,8 @@ In `FilterConfiguration/`:
   every time grain is a field, fields of the current tab come first, grouped
   by table. `FieldsAndTiles` feeds it what the shipped "Add filter" does:
   dimensions, plus metrics under `FeatureFlags.MetricDashboardFilters`.
-  - A placeholder shows it inline. When no tile has fields it shows the
+  - A placeholder shows it inline as a search: no label, "Search fields",
+    then the hint in dimmed text. When no tile has fields it shows the
     shipped "Select a column to filter" select instead (`SqlColumnSelect`).
   - "Add another field" mounts it open (`defaultOpened`) and focuses it
     (`AddFieldSearch`) with the fields of exactly the target's type
@@ -286,20 +343,19 @@ In `FilterConfiguration/`:
 
 ## Settings
 
-- `FilterSettings` renders two cards: "Default value" (`FilterValueSettings`)
-  and "Viewer access" (`ViewerControls`).
+- `FilterSettings` renders the value (`FilterValueSettings`), then the
+  "Tiles" and "Rules" disclosures.
 - This layer only exposes what a dashboard can already save: the operator,
   `singleValue`, `disabled` and the rule's values as the default, `required`
   and `requiredGroupId`, and `lockedTabUuids` (the dashboard uuid is the key
   when there are no tabs).
-- Settings is disabled for a placeholder ("Select a field first"). The tab id
-  stays `settings`.
-- `FilterValueSettings` renders the shipped settings form
-  (`dashboardFilters/FilterConfiguration/FilterSettings.tsx`) in edit mode,
-  with `hideLabel` and `hideRequiredCard`. It adds two lines of its own under
-  it: the hint while the default has no value, and the "No default" note while
-  the default is off. Operator, value input and default switch are the
-  shipped form's; change them there.
+- `FilterValueSettings` renders the shipped `FilterValueSection` in edit
+  mode: the operator with the shipped "Multiple values" / "Single value"
+  toggle in its right section, the shipped value input and placeholders (the
+  disabled "any value" input while the default is off), the shipped note on
+  a required filter's temporary value, and the shipped "Provide default
+  value" switch under it (none on a required filter). Under it: the hint
+  while the default has no value.
 - There is no Apply: every edit the form emits is written at once, through
   the shipped popover's rule (`getFilterRuleWithDisabledState`, edit mode): a
   rule that has a value (`hasFilterValueSet`) is never `disabled`, and a
@@ -308,32 +364,26 @@ In `FilterConfiguration/`:
   (dates), which switches the default on as shipped.
 - Requirement rules are over dimension and metric filters only, as in the
   shipped card; a table calculation filter is never offered as an alternative.
-- "Required" in `ViewerControls` follows the shipped form
-  (`handleToggleRequired`, `RequiredFilterCard`, the "Filter rules" popover)
-  through `requirements.ts`. The shipped card is not rendered: its switch
-  cannot be disabled or carry a tooltip.
-  - On: a filter saved in a shared rule goes back into it (`requiredGroupId`
-    of the rule in `dashboard.filters`), valueless; any other becomes required
-    on its own. A default value does not block it: it stays as a temporary
-    value, removed on dashboard save.
-  - Off: only this filter changes. A filter saved as required loses its
-    values and settings (`getFilterRuleWithDefaultValue(..., null)`), since
-    they were only a temporary value, as in the shipped form. Any other
-    filter keeps its default value, so switching "Required" on and off is no
-    change. The rest of its rule keeps its `requiredGroupId`, even a rule left
-    with one member.
-  - Both writes go through the shipped disabled rule, like every edit of
-    `FilterValueSettings`.
-  - "Or one of these instead" gives the shipped reasons
-    (`getRequirementIneligibilityReason`). Unchecking takes that filter out
-    and leaves the others.
+- "Required" in `ViewerControls` is the shipped `RequiredFilterCard`: its
+  switch, "Viewers must set this filter to load the dashboard.", "Add an
+  alternative filter", the badges of a shared rule and "Edit rule →". There
+  is no way to take an alternative out here, as in the shipped card.
+  - The switch is the shipped `getFilterRuleWithRequired`: on, a filter
+    saved in a shared rule goes back into it, valueless, any other becomes
+    required on its own and keeps its value as a temporary one; off, the
+    filter leaves its rule and loses its values, as in the shipped form.
+  - Every write goes through the shipped disabled rule, like every edit of
+    `FilterValueSettings`. The other filter an alternative adds goes through
+    `onChangeOtherFilterRule`, which is the provider's `updateOtherFilters`,
+    so Discard puts it back.
   - A locked, required filter with no value cannot be satisfied by a viewer
-    (`isLockedRequiredMissingValue`, the shipped Apply guard restated: locked
-    on any tab, `required`, no value). The editor has no Apply, so the toggle
-    that would reach that state is disabled with the shipped message as its
-    tooltip: "Required" on a locked filter, each lock switch on a required
-    one. Switching either off is always allowed.
-  - "Edit rule" shows for a filter that shares a rule, when
+    (the shipped Apply guard `isLockedRequiredMissingValue`: locked on any
+    tab, `required`, no value). The editor has no Apply, so the toggle that
+    would reach that state is disabled with a line under it: "Give it a
+    default value before locking it." on the lock switch, "A locked filter
+    needs a default value to be required." on "Required" (the card's
+    `disabledReason`). Switching either off is always allowed.
+  - "Edit rule →" shows for a filter that shares a rule, when
     `useFilterBarPopovers()` is there. It closes the editor, then opens the
     bar's "Filter rules", whose button is hidden while the editor is open.
 - One edit is refused: the one that would leave a locked, required filter
@@ -353,11 +403,20 @@ In `FilterConfiguration/`:
   the default is left off, and `close()` writes `disabled: true`. Incomplete
   is the shipped reading, never our own: enabled and `!hasFilterValueSet(rule)`,
   so "(null)" alone is a value and half a range is not.
-- A lock changed in `ViewerControls` goes through the pill's
-  `getFilterLockToggle` (`filterLock.ts`) and tracks its event, one per tab
-  whose lock changes.
-- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
-  hidden while the sidebar is open.
+- Lock in `ViewerControls`: the Lock heading (open or closed lock), the
+  switch and its description. The switch locks what the pill's lock would,
+  the tab in view (the dashboard uuid without tabs); off unlocks every tab.
+  Once locked on a dashboard with tabs, a `SegmentedControl` says where:
+  "This tab", "All tabs", "Some tabs". The segment is derived from
+  `lockedTabUuids` (exactly the tab in view, every tab, anything else); the
+  only state is that "Some tabs" was picked, which keeps the locked tabs and
+  shows a `MultiSelect` of the tabs by name, the one in view marked "this
+  tab". Every change goes through the pill's `getFilterLockToggle`
+  (`filterLock.ts`), one tab at a time, and tracks its event, one per tab
+  whose lock changes. A segment or tab that would lock more is disabled
+  while that would leave a locked, required filter with no value.
+  Tab-less dashboards have the switch alone.
+- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`).
 
 ## Fields and tiles
 
@@ -403,22 +462,24 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `removeLastField(fieldLabel)`: the control stays open on "pick a field" with its
   label, the fields that were waiting go too, and it leaves the bar until a
   field is picked. Closing it there drops it; "Discard changes" brings it
-  back as it was opened. An existing control keeps its title: the provider
+  back as it was opened. An existing control keeps its name: the provider
   keeps the lost field's name in `emptiedAt` (`emptiedFieldLabel` in the
-  context) until the control has a field again, and an unlabelled control is
-  titled by it. A field that was not known has no name (null), so the title
-  stays "Filter". A new control goes back to "New filter".
+  context) until the control has a field again, and it is the label input's
+  placeholder. A field that was not known has no name (null), so the
+  placeholder is "Filter name". A new control goes back to "New filter".
 - Focus after the trash can, whose button leaves with its card: the card
   that took its place, else the last card, else "Add another field"; the
   field search when the control was emptied. `FieldsAndTiles` notes the
   pressed card in a ref and moves focus in a layout effect once the card is
   gone. No timer.
-- A card (`FieldRow`) is a legend: icon, name and a trash can on the first
-  line, "<table> · x of N tiles" over every tab on the second. A click
-  anywhere on it toggles the selection (the name button's `::after` covers the
-  card, `aria-pressed`). There is no eye and no menu on it.
+- A row (`FieldRow`) is one line: icon, name, the tiles it is on over every
+  tab ("3 tiles") on the right, and a trash can. The count's tooltip reads
+  "<table> · x of N tiles". A click anywhere on the row toggles the selection
+  (the name button's `::after` covers the row, `aria-pressed`). There is no
+  eye and no menu on it. Under the rows, "Add another field" (subtle) and the
+  hint "Change a tile's field on the tile itself."
 - The trash can ("Remove field", `aria-label` "Remove field <label>") sits
-  above the click area. It is hidden with `visibility` until the card is
+  above the click area. It is hidden with `visibility` until the row is
   hovered, holds focus (`:focus-within`) or is selected, and is never
   unmounted: focus on the name shows it, so the keyboard reaches it.
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
@@ -540,8 +601,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   the grey outline is `.overlay::after`; all three only change `opacity`. The
   veil (`.overlay::before`) paints out the tile's own dashed edit border on
   every veiled tile, so the only line on a tile is one of these three. The
-  highlighted sidebar row (blue border over `default-hover`)
-  and the pill being edited use the same blue. No
+  highlighted field row (blue border over `default-hover`) uses the same
+  blue. No
   ink: `--mantine-primary-color-filled` reads too heavy here.
 - Tiles are marked at rest too, so the marks alone never scroll, and neither
   does hover. Only a click on a row scrolls. The list passes `scrollFieldId`
@@ -562,40 +623,30 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   Keep it that way: an object built per render, or the rule itself, as a prop
   re-renders every tile on every edit.
 - The select on a card is `LazySelect`: a button that looks like the closed
-  select (same `aria-label`, `aria-haspopup="listbox"`) and mounts the Mantine
-  `Select`, focused and open, on click, Enter, Space or an arrow key. Focus
+  select (same `aria-label`, `aria-haspopup="listbox"`) and mounts the
+  shipped `FieldSelect` (a plain Mantine `Select` of columns on a SQL chart
+  tile), focused and open, on click, Enter, Space or an arrow key. Focus
   alone never opens the list (`openOnFocus={false}`), so clearing from the
   keyboard leaves it closed. The page scrolls as a whole, so Mantine's
   `hideDetached` never fires for a tile under the pinned bar: while its list
   is open, the select closes it on scroll once something else covers it.
-- A card's dropdown has up to two groups: first the control's own fields that
-  the tile offers, then the others the tile offers.
-
-  | Situation | First group | Second group |
-  | -- | -- | -- |
-  | Filter control | "In this filter" | "Other fields on this tile" |
-  | New control (placeholder) | "Fields on this tile" | none |
-
-  `LazySelect` takes `groups` and drops the empty ones. Labels show only
-  when two groups have entries: Mantine labels a lone group too, so one group
-  is passed as a plain list with no label. The second group of a filter control is every other field the
-  tile offers that the filter could take
-  (`fieldCandidates.ts`, the rule "Add another field" in the sidebar uses: same
-  kind, not already a row; the table label added where two entries read the
-  same). Every time grain is an entry under its own label, as in the shipped
-  field selects: another grain of a date the filter is on is offered. Entries
-  are sorted by table, then by base date or field name, the grains of one
-  date together in `sortTimeFrames` order with the base field first. Choosing one is the
+- A card's dropdown lists the control's own fields that the tile offers and
+  the other fields the tile offers that the filter could take
+  (`fieldCandidates.ts`, the rule "Add another field" in the sidebar uses:
+  same kind, not already a row). `FieldSelect` groups them by table, with
+  field icons, sorted as the shipped field selects sort; there is no group of
+  the filter's own fields. Every time grain is an entry under its own label:
+  another grain of a date the filter is on is offered. Choosing one is the
   same write as any other choice, `setTileField` for this tile only, and by
-  the model that is what adds the field to the filter. SQL chart tiles have no
-  second group. The dropdown is searchable when the second group has entries
-  or the first has more than 8.
+  the model that is what adds the field to the filter. SQL chart tiles list
+  their columns only. The dropdown is searchable when the tile offers other
+  fields or more than 8 of its own.
 - A placeholder shows the cards too, so a new control can start from a tile.
   A tile is reachable when it offers a filterable field; SQL chart tiles are
   not. A reachable tile is `available` with "This tile is not filtered" and an empty
   select ("Select a field"); none is `mapped` or `other`. The list is the
   tile's fields of every kind (`getTileStarterFieldIds`: every grain an
-  entry, sorted and labelled like the candidates), as one plain list.
+  entry), in the same `FieldSelect`.
   `TileOverlays` builds these per tile
   in one `useMemo` keyed on the dashboard, and names the select "New filter
   on <tile>", so typing the label re-renders no card.
@@ -673,13 +724,14 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   A tile with the target field links on its own, SQL chart tiles never
   prompt, and neither does a SQL column filter.
 - One card per tile, one row per filter that could link: the filter's name
-  and a clearable select ("Not filtered"). A filter with a single candidate
+  and a clearable shipped `FieldSelect` ("Not filtered"; picking the chosen
+  field again clears it too). A filter with a single candidate
   has it chosen, in plain sight, so the pairing is never hidden.
 - The card keeps the user's picks per rule: a rule present with `null` was
   cleared and is not linked, absent means the default (the single candidate).
   A pick that is no longer offered is dropped. Choices are derived on render,
-  never synced in an effect. Candidates that read the same carry their table
-  label (`getCandidateOptions`).
+  never synced in an effect. Candidates that read the same are told apart by
+  their table group.
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
   and scrolls.
 - One "Apply" answers the whole card: "Apply all N" or "Apply X, skip Y",
