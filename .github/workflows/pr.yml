@@ -450,7 +450,7 @@ jobs:
     needs: files-changed
     if: needs.files-changed.outputs.preview == 'true'
     outputs:
-      url: ${{ steps.deploy.outputs.url }}
+      url: ${{ steps.deploy.outputs.url || steps.deploy_retry.outputs.url }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -473,6 +473,9 @@ jobs:
 
       - name: Deploy preview environment
         id: deploy
+        # A failed first attempt doesn't fail the job: diagnostics run, the
+        # environment is destroyed, and one clean retry decides the outcome.
+        continue-on-error: true
         uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -485,7 +488,7 @@ jobs:
           variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
       - name: Collect failed preview diagnostics
-        if: ${{ failure() && steps.deploy.outcome == 'failure' }}
+        if: ${{ steps.deploy.outcome == 'failure' }}
         continue-on-error: true
         timeout-minutes: 3
         env:
@@ -531,6 +534,38 @@ jobs:
               --all-containers=true --previous --tail=300 --timestamps || true
             echo "::endgroup::"
           done <<< "$preview_pods"
+
+      # A wedged environment (crash-looping pod, stale volume) often deploys
+      # cleanly after a destroy; this replaces the manual Okteto ritual.
+      - name: Destroy failed preview before retry
+        if: ${{ steps.deploy.outcome == 'failure' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          OKTETO_CONTEXT: ${{ secrets.OKTETO_CONTEXT }}
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+        run: |
+          curl -sSfL -o okteto https://github.com/okteto/okteto/releases/download/3.21.0/okteto-Linux-x86_64
+          echo "f1fc644e2c2d2285a557577eafc6d4494410dce17b36bac6c3c269fc04c573ef  okteto" | sha256sum --check
+          chmod +x okteto
+          sudo mv okteto /usr/local/bin/okteto
+
+          okteto context use "$OKTETO_CONTEXT" --token "$OKTETO_TOKEN"
+          okteto preview destroy "pr-${{ github.event.number }}" --wait || true
+
+      - name: Retry preview deploy on a clean environment
+        id: deploy_retry
+        if: ${{ steps.deploy.outcome == 'failure' }}
+        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: pr-${{ github.event.number }}
+          # The destroyed environment redeploys from the snapshot volume, so
+          # one bounded attempt is enough; a second timeout means a real break.
+          timeout: 30m
+          file: okteto.preview.yaml
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,DB_DIVERT=${{ needs.files-changed.outputs.db_divert }},TURBO_TEAM=${{ vars.TURBO_TEAM }},TURBO_TOKEN=${{ secrets.TURBO_TOKEN }}
 
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"

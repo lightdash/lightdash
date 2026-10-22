@@ -42,9 +42,16 @@ for _ in $(seq 1 60); do
     sleep 2
 done
 
+# npm, not pnpm: pnpm -F resolves the whole workspace and rewrites
+# pnpm-lock.yaml when a committed lockfile has drifted — /usr/app is
+# read-only at runtime, so that crash-loops the pod before boot.
+run_backend() {
+    (cd /usr/app/packages/backend && npm run "$1")
+}
+
 if is_seeded; then
     echo "Database diverted from snapshot: applying delta migrations only"
-    pnpm -F backend migrate-production
+    run_backend migrate-production
 else
     echo "Database not pre-seeded: running full dbt + migrate + seed"
 
@@ -60,9 +67,9 @@ else
     "$seed_dbt_command" run --project-dir /usr/app/dbt --profiles-dir /usr/app/profiles --full-refresh
 
     # Rollback all migrations and seed
-    pnpm -F backend rollback-all-production
-    pnpm -F backend migrate-production
-    pnpm -F backend seed-production
+    run_backend rollback-all-production
+    run_backend migrate-production
+    run_backend seed-production
 
     # Mark the whole pipeline complete as the very last step. The snapshot
     # builder (scripts/preview-db-snapshot.sh) gates on this row so it never
