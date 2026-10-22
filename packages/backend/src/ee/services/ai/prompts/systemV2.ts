@@ -112,7 +112,6 @@ const getCapabilitySections = (
                   warehouseConnections: args.warehouseConnections ?? [],
                   sqlScope: args.sqlScope ?? null,
                   viaComposerQueries: composer,
-                  canRunQuery,
               })
             : '',
         contentTools: sections.has('contentTools')

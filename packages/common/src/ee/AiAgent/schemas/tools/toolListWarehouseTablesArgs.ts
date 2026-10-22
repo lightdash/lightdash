@@ -1,46 +1,27 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
 import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = ({
-    toolName,
-}: ToolDescriptionContext): string => `Tool: ${toolName}
+export const TOOL_LIST_WAREHOUSE_TABLES_DESCRIPTION = `List the physical tables in the connected data warehouse as qualified database.schema.table names. Use it before writing raw SQL to find a raw, staging or seed table that no explore exposes, and its exact schema, so the first query names the table correctly. It reads a cached catalog, so it is fast and needs no approval.
 
-Purpose:
-List physical tables available in the connected data warehouse. Use this BEFORE writing a runSql call when you need to discover the correct schema or table name for a table that isn't already exposed via an explore.
-
-Returns a list of fully-qualified tables (database, schema, table). Results come from a cached metadata catalog, so this is fast and does NOT require user approval.
-
-When to use:
-- You want to write raw SQL and need the qualified table name (database.schema.table) on the first try.
-- You're looking for a raw / staging / seed table that no explore exposes.
-- You're trying to confirm a schema name before writing SQL.
-
-Do NOT use:
-- For field discovery in explores — use grepFields instead; for a raw table's columns, use describeWarehouseTable.
-- To run ad-hoc queries — use runSql.
-
-Parameters:
-- schema: Optional. Filter results to a specific schema name (e.g. "jaffle", "public", "raw").
-- search: Optional. Case-insensitive substring filter on table name (e.g. "work_order").
-- limit: Optional. Maximum number of tables to return. Defaults to 100.
-`;
+For explore-backed tables use grepFields; for a raw table's columns use describeWarehouseTable.`;
 
 export const toolListWarehouseTablesArgsSchema = createToolSchema()
     .extend({
         schema: z
             .string()
             .optional()
-            .describe('Optional schema name to filter results.'),
+            .describe(
+                'Schema to list, e.g. "jaffle", "public" or "raw". Omit to list every schema.',
+            ),
         search: z
             .string()
             .optional()
             .describe(
-                'Optional case-insensitive substring filter on table name.',
+                'Case-insensitive substring of the table name, e.g. "work_order".',
             ),
         limit: z.coerce
             .number()

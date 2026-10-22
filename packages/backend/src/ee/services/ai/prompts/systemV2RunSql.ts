@@ -22,44 +22,37 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
 };
 
 type SqlWords = {
-    intro: string;
+    heading: string;
     preferSemanticLayer: string;
     semanticQuery: string;
     approvalCost: string;
     useSql: string;
     sqlUnit: string;
     sqlUnits: string;
-    resultArtifactRule: string;
 };
 
-const getRunSqlWords = (canRunQuery: boolean): SqlWords => ({
-    intro: `**Raw SQL (runSql tool):**
-runSql executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity, and your final answer explains the result.`,
-    preferSemanticLayer: canRunQuery
-        ? 'Use the semantic layer when an explore covers the question: runQuery for answers, generateVisualization for charts. Both are governed and reusable.'
-        : 'Use generateVisualization (semantic layer) when an explore covers the question; it is governed, charted and reusable.',
-    semanticQuery: 'generateVisualization',
-    approvalCost: 'Every `runSql` call costs the user an approval click.',
+const RUN_SQL_WORDS: SqlWords = {
+    heading: '**Raw SQL (runSql tool):**',
+    preferSemanticLayer:
+        'Use the semantic layer when an explore covers the question: it is governed and reusable.',
+    semanticQuery: 'the semantic layer',
+    approvalCost: 'Every `runSql` call costs the user an approval click',
     useSql: 'runSql',
     sqlUnit: '`runSql` call',
     sqlUnits: '`runSql` calls',
-    resultArtifactRule:
-        '- Every `runSql` result is rendered as its own artifact with a "Continue exploring in SQL Runner" action scoped to that exact query, so link to SQL Runner only through it: a standalone link in your text cannot be scoped and points at the wrong query when a turn makes more than one `runSql` call.\n',
-});
+};
 
 // Composer runs raw SQL as `sql` nodes; the node schema states their limits.
 const COMPOSER_SQL_WORDS: SqlWords = {
-    intro: `**Raw SQL (runComposerQueries \`sql\` nodes):**
-Raw SELECT queries against the warehouse run as \`sql\` nodes in runComposerQueries. The chat UI shows the SQL in the tool activity, and your final answer explains the result.`,
+    heading: '**Raw SQL (runComposerQueries `sql` nodes):**',
     preferSemanticLayer:
         'Use semanticLayer nodes when an explore covers the question: they are governed and reusable.',
     semanticQuery: 'a semanticLayer node',
     approvalCost:
-        'Every submission with `sql` nodes costs the user an approval click.',
+        'Every submission with `sql` nodes costs the user an approval click',
     useSql: '`sql` nodes',
     sqlUnit: '`sql` node',
     sqlUnits: '`sql` nodes',
-    resultArtifactRule: '',
 };
 
 export const getRunSqlSection = ({
@@ -68,7 +61,6 @@ export const getRunSqlSection = ({
     warehouseConnections = [],
     sqlScope,
     viaComposerQueries = false,
-    canRunQuery = false,
 }: {
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
@@ -80,7 +72,6 @@ export const getRunSqlSection = ({
     }[];
     sqlScope?: AgentSqlScope | null;
     viaComposerQueries?: boolean;
-    canRunQuery?: boolean;
 }) => {
     const warehouseLine = warehouseType
         ? `Warehouse: ${warehouseType}. ${WAREHOUSE_HINTS[warehouseType] ?? ''}`
@@ -122,7 +113,7 @@ export const getRunSqlSection = ({
     const connectionLines = warehouseConnections
         .map(
             (connection) =>
-                `- ${JSON.stringify(connection.name)} (${connection.warehouseConnectionUuid ?? 'original'}): ${connection.warehouseType}. ${WAREHOUSE_HINTS[connection.warehouseType]}${connection.isOriginal ? ' This is the original connection used by raw SQL and warehouse discovery tools.' : ' Use semantic queries bound to this connection; raw SQL tools cannot target it.'}`,
+                `- ${JSON.stringify(connection.name)} (${connection.warehouseConnectionUuid ?? 'original'}): ${connection.warehouseType}. ${WAREHOUSE_HINTS[connection.warehouseType]}${connection.isOriginal ? ' This is the original connection.' : ''}`,
         )
         .join('\n');
 
@@ -130,12 +121,10 @@ export const getRunSqlSection = ({
         ? `The default schema for this project is \`${warehouseSchema}\`. Qualify every table with it (e.g. \`${warehouseSchema}.fm_work_orders\`): bare table names fail.`
         : 'The warehouse schema is unknown: discover it with listWarehouseTables before writing SQL.';
 
-    const words = viaComposerQueries
-        ? COMPOSER_SQL_WORDS
-        : getRunSqlWords(canRunQuery);
+    const words = viaComposerQueries ? COMPOSER_SQL_WORDS : RUN_SQL_WORDS;
 
     return `
-${words.intro}
+${words.heading}
 ${
     warehouseConnections.length > 1
         ? `
@@ -146,28 +135,23 @@ ${connectionLines}
 }
 **When to use it:**
 - ${words.preferSemanticLayer}
-- Use ${words.useSql} when the semantic layer cannot answer the question:
+- Use ${words.useSql} for these four cases:
   - joins across tables not modelled in any explore
   - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that ${words.semanticQuery} cannot produce
   - lookups in raw tables that are not part of any explore
   - the user explicitly asks for raw SQL
 
-${words.approvalCost} The user reads the SQL and approves it before it runs.
+${words.approvalCost}: the user reads the SQL and approves it before it runs.
 
-- Discover schema with the discovery tools, not with SQL: listWarehouseTables for table names, describeWarehouseTable for the columns and types of a raw table, grepFields for explore-backed tables. The server rejects any SQL that reads \`information_schema\`. When no discovery tool returns what you need, ask the user.
-- Build the real query from the columns and types discovery returned, instead of sampling rows with \`SELECT *\` to see the data. To inspect specific values (e.g. enum cardinality), select those columns with \`DISTINCT\` and a tight limit.
-- Compose multi-step logic into one query with CTEs and joins (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Add another ${words.sqlUnit} only when you need real warehouse values to recover or validate. When several ${words.sqlUnits} lead to the answer, make the final ${words.sqlUnit} the composed query and rest the answer on it, unless the final result genuinely came from an intermediate table.
-- After a "column does not exist" or "relation not found" error, read the real columns with describeWarehouseTable and rewrite the SQL once, rather than guessing column names across ${words.sqlUnits}. When the relationship you need does not exist (e.g. no foreign key, no junction table), stop and tell the user what you found, for example:
-
-   > "I expected \`X\` but \`raw_parts\` actually has columns \`[...]\` — there's no \`work_order_id\`. The relationship you're asking about isn't modelled here. Would you like \`<alternative>\` as a proxy, or can you point me to the right table?"
-
+- Discover tables and columns with listWarehouseTables and describeWarehouseTable, not with SQL: the server rejects any SQL that reads \`information_schema\`. When they do not return what you need, ask the user.
+- Build the query from the columns and types discovery returned rather than sampling rows with \`SELECT *\`. To inspect specific values (e.g. enum cardinality), select those columns with \`DISTINCT\` and a tight limit.
+- Compose multi-step logic into one query with CTEs and joins. Add another ${words.sqlUnit} only when you need real warehouse values to recover or validate. When several ${words.sqlUnits} lead to the answer, make the final one the composed query and rest the answer on it, unless the final result genuinely came from an intermediate table.
 - ${scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine}
 - When you are unsure whether to proceed (e.g. chart this SQL or rebuild it in the semantic layer), state the tradeoff once and end with a single closing question.
 
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
-- Prefer a concise text summary of the SQL result; include a small table when it helps the answer.
-- Paste the SQL into your final answer only when the user asks to see it, in a fenced \`\`\`sql code block (the one exception to the no-code-blocks format rule).
-${words.resultArtifactRule}- ${warehouseLine}
+- The user sees the SQL in the tool activity, so paste it into your final answer only when they ask to see it, in a fenced \`\`\`sql code block (the one exception to the no-code-blocks format rule).
+- ${warehouseLine}
 `;
 };

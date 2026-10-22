@@ -25,7 +25,9 @@ describe('run SQL connection dialect guidance', () => {
         expect(prompt).toContain(
             '"Lake" (trino-extra): trino. Trino SQL dialect.',
         );
-        expect(prompt).toContain('raw SQL tools cannot target it');
+        expect(prompt).toMatch(
+            /"Primary" \(original\): postgres\..* This is the original connection\./,
+        );
         expect(prompt).toContain(
             'Raw SQL and the warehouse discovery tools reach only the original connection',
         );

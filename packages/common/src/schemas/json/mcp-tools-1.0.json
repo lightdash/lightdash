@@ -8904,7 +8904,7 @@
                 "properties": {
                     "limit": {
                         "default": 500,
-                        "description": "Maximum number of rows to return. Defaults to 500, max 5000.",
+                        "description": "Maximum number of rows to return.",
                         "exclusiveMinimum": 0,
                         "maximum": 5000,
                         "type": "integer"

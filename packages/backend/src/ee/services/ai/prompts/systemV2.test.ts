@@ -461,7 +461,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'Raw SELECT queries against the warehouse run as `sql` nodes in runComposerQueries.',
+            '**Raw SQL (runComposerQueries `sql` nodes):**',
         );
         expect(content).toContain(
             'answer questions with runComposerQueries using a sql node',
@@ -1295,9 +1295,6 @@ describe('getSystemPromptV2 deferred capability sections', () => {
         const content = promptText(capabilities);
         expect(content).toContain(
             'Use runQuery to answer a data question and generateVisualization for an ad hoc chart.',
-        );
-        expect(content).toContain(
-            'runQuery for answers, generateVisualization for charts',
         );
         expect(content).not.toContain(
             "Use generateVisualization when the user's intent is to answer a data question",

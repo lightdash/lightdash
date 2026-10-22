@@ -22,13 +22,11 @@ export const getRunSqlDefaultLimit = (maxLimit: number): number =>
 export const buildAgentRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,
-) => `Execute a read-only SQL query against the project's data warehouse. Prefer the semantic layer when it can answer the question; use SQL for ad-hoc analysis or queries the semantic layer cannot express.
-
-Use a valid SELECT statement in the connected warehouse's SQL dialect.
-The tool handles execution and returns a row/column summary, plus a CSV preview when data access is enabled. Empty results report zero rows. Correct validation or execution errors before retrying.
+) => `Execute a read-only SQL query against the project's data warehouse.
 
 The row limit defaults to ${defaultLimit}, max ${maxLimit}.
-Do not invent SQL Runner links.`;
+
+Each result renders as its own artifact with a "Continue exploring in SQL Runner" action scoped to that query, so link to SQL Runner only through it: a link in your text cannot be scoped and points at the wrong query when a turn runs more than one.`;
 
 export const buildRunSqlDescription = (
     defaultLimit: number,
@@ -66,9 +64,7 @@ export const createToolRunSqlArgsSchema = ({
                 .positive()
                 .max(maxLimit)
                 .default(defaultLimit)
-                .describe(
-                    `Maximum number of rows to return. Defaults to ${defaultLimit}, max ${maxLimit}.`,
-                ),
+                .describe('Maximum number of rows to return.'),
         })
         .build();
 

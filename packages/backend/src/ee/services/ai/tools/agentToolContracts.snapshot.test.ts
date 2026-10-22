@@ -290,17 +290,20 @@ describe('AI agent tool contracts', () => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
             );
+            const runQueryDescription =
+                agentToolDefinitionsByName.runQuery.for('agent').description;
             for (const description of [
                 generateVisualization.description,
                 runSql.description,
-                agentToolDefinitionsByName.runQuery.for('agent').description,
+                runQueryDescription,
                 agentToolDefinitionsByName.runSql.for('agent').description,
             ]) {
-                expect(description).toContain('execution');
                 expect(description).not.toMatch(
                     /get_query_result|render_chart|structuredContent|nextPollAfterMs|heartbeatAt|~50s/,
                 );
             }
+            expect(generateVisualization.description).toContain('execution');
+            expect(runQueryDescription).toContain('execution');
             expect(generateVisualization.description).toContain(
                 'queryConfig.parameters',
             );
