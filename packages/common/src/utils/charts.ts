@@ -127,6 +127,10 @@ export function getColumnOrderFromVizTableConfig(
  * Defaults for a chart being created from scratch (UI, API, content as code,
  * agents). Saved, duplicated and promoted charts keep their config untouched,
  * so a setting absent from older content keeps its original behaviour.
+ *
+ * TODO(2026-12-22): showIncompletePeriod shipped 2026-10-22. If nobody has
+ * complained, treat a missing value as on for all charts (render default in
+ * visualization's incomplete period check) and drop it from here.
  */
 export const applyNewChartDefaults = (
     chartConfig: ChartConfig,
