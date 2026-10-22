@@ -1,3 +1,10 @@
+## [3.26.1](https://github.com/lightdash/lightdash/compare/3.26.0...3.26.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** carry dashboard parameter values into drill into and explore from here ([#31402](https://github.com/lightdash/lightdash/issues/31402)) ([6362b01](https://github.com/lightdash/lightdash/commit/6362b01570bf12f502faa8478ce2f2417bbd67f6))
+
 # [3.26.0](https://github.com/lightdash/lightdash/compare/3.25.2...3.26.0) (2026-10-22)
 
 
