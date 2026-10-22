@@ -2,6 +2,11 @@ import { getMissingRequiredParameters, type FieldId } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
+import {
+    useWarehouseSignInExecution,
+    captureWarehouseSignInExecution,
+    isWarehouseSignInExecutionCurrent,
+} from '../components/NavBar/warehouseSignInPreflight';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     explorerActions,
@@ -120,6 +125,13 @@ export const useExplorerQueryManager = ({
         },
     );
 
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        explore?.warehouseConnection?.warehouseConnectionUuid,
+        true,
+        1,
+    );
+
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
     // Compute active fields and query validity
@@ -228,8 +240,12 @@ export const useExplorerQueryManager = ({
 
     const runQuery = useCallback((): boolean => {
         const mainQueryArgs = currentQueryArgs;
-        if (!mainQueryArgs) return false;
+        if (!mainQueryArgs || !signInReady) return false;
 
+        const execution = captureWarehouseSignInExecution(
+            projectUuid,
+            explore?.warehouseConnection?.warehouseConnectionUuid ?? null,
+        );
         const estimateBody =
             confirmEstimatedBytesAbove !== null
                 ? getMetricQueryEstimateBody(mainQueryArgs)
@@ -250,7 +266,11 @@ export const useExplorerQueryManager = ({
             estimateBody,
         )
             .then((estimate) => {
-                if (costCheck !== latestCostCheck.current) return;
+                if (
+                    costCheck !== latestCostCheck.current ||
+                    !isWarehouseSignInExecutionCurrent(execution)
+                )
+                    return;
                 if (
                     estimate.status === 'estimated' &&
                     estimate.requiresConfirmation &&
@@ -269,11 +289,18 @@ export const useExplorerQueryManager = ({
                 dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
             })
             .catch(() => {
-                if (costCheck !== latestCostCheck.current) return;
+                if (
+                    costCheck !== latestCostCheck.current ||
+                    !isWarehouseSignInExecutionCurrent(execution)
+                )
+                    return;
                 dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
             });
         return true;
     }, [
+        signInReady,
+        projectUuid,
+        explore?.warehouseConnection?.warehouseConnectionUuid,
         currentQueryArgs,
         confirmEstimatedBytesAbove,
         queryClient,

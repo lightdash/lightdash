@@ -186,3 +186,70 @@ it('refuses bound refresh sync before queuing work, while keeping compile-only r
         false,
     );
 });
+
+describe('ProjectController bound sign-in status', () => {
+    test('keeps authentication middleware on the existing GET and POST', () => {
+        for (const handler of [
+            ProjectController.prototype.getSharedSignInStatus,
+            ProjectController.prototype.reconnectSharedSignIn,
+        ])
+            expect(fetchMiddlewares(handler)).toEqual([
+                [allowApiKeyAuthentication, isAuthenticated],
+            ]);
+    });
+    test.each([undefined, 'connection_a'])(
+        'passes an optional connection binding only to GET: %s',
+        async (binding) => {
+            const getSharedSignInStatus = vi.fn(async () => null);
+            const reconnectSharedSignIn = vi.fn(async () => undefined);
+            const controller = new ProjectController({
+                getProjectService: () => ({
+                    getSharedSignInStatus,
+                    reconnectSharedSignIn,
+                }),
+            } as unknown as ServiceRepository);
+            const account = buildAccount();
+            const request = { account } as express.Request;
+            await expect(
+                controller.getSharedSignInStatus(
+                    'project_a',
+                    request,
+                    true,
+                    binding,
+                ),
+            ).resolves.toEqual({ status: 'ok', results: null });
+            expect(getSharedSignInStatus).toHaveBeenCalledWith(
+                account,
+                'project_a',
+                true,
+                binding,
+            );
+            await controller.reconnectSharedSignIn('project_a', request);
+            expect(reconnectSharedSignIn).toHaveBeenCalledWith(
+                account,
+                'project_a',
+            );
+        },
+    );
+    test('rejects an anonymous account before calling the status service', async () => {
+        const getSharedSignInStatus = vi.fn();
+        const controller = new ProjectController({
+            getProjectService: () => ({ getSharedSignInStatus }),
+        } as unknown as ServiceRepository);
+        const request = {
+            account: buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            }),
+        } as express.Request;
+        await expect(
+            controller.getSharedSignInStatus(
+                'project_a',
+                request,
+                true,
+                'connection_a',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(getSharedSignInStatus).not.toHaveBeenCalled();
+    });
+});

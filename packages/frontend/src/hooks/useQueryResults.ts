@@ -32,6 +32,7 @@ import { type LightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
+import { useExploreSignInExecution } from './useExploreSignInExecution';
 import useQueryError from './useQueryError';
 
 export type QueryResultsProps = {
@@ -286,8 +287,13 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
+    const signInReady = useExploreSignInExecution(
+        data?.projectUuid,
+        data?.tableId,
+        isEnabled,
+    );
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
-        enabled: isEnabled,
+        enabled: isEnabled && signInReady,
         queryKey: ['create-query', data, missingRequiredParameters],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         staleTime: Infinity,

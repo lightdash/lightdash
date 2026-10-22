@@ -151,6 +151,7 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
         @Query() includePersonal?: boolean,
+        @Query() warehouseConnectionUuid?: UUID,
     ): Promise<ApiSuccess<SharedSignInStatus | null>> {
         assertRegisteredAccount(req.account);
         return {
@@ -161,6 +162,7 @@ export class ProjectController extends BaseController {
                     req.account,
                     projectUuid,
                     includePersonal,
+                    warehouseConnectionUuid,
                 ),
         };
     }

@@ -72,6 +72,25 @@ export const googleStrategyVerify = async (
         );
         const userService = req.services.getUserService();
 
+        const hasPersonal = Object.prototype.hasOwnProperty.call(
+            req.session.oauth ?? {},
+            'googlePersonalReconnect',
+        );
+        const personal = req.session.oauth?.googlePersonalReconnect;
+        if (
+            hasPersonal &&
+            (!personal ||
+                !req.user ||
+                intent !== 'link' ||
+                typeof personal.credentialUuid !== 'string' ||
+                personal.userUuid !== req.user.userUuid ||
+                req.session.oauth?.googleReconnect?.userUuid !==
+                    req.user.userUuid)
+        ) {
+            throw new AuthorizationError(
+                'Sign in again to restore this connection.',
+            );
+        }
         if (intent === 'link') {
             if (!req.user) {
                 throw new AuthorizationError(
@@ -79,7 +98,6 @@ export const googleStrategyVerify = async (
                 );
             }
 
-            const personal = req.session.oauth?.googlePersonalReconnect;
             if (personal && personal.userUuid !== req.user.userUuid)
                 throw new AuthorizationError(
                     'Sign in again to restore this connection.',
@@ -95,14 +113,19 @@ export const googleStrategyVerify = async (
                     'Sign in with the Google account used for this connection.',
                 );
             }
-            if (reconnect && !refreshToken) {
-                if (reconnect.consentAttempted) {
-                    throw new AuthorizationError(
-                        'Google did not return a refresh token. Try signing in again.',
-                    );
-                }
-                reconnect.retryWithConsent = true;
-                return done(null, req.user);
+            if (
+                (reconnect || hasPersonal) &&
+                (!refreshToken || !hasBigqueryScope)
+            ) {
+                throw new AuthorizationError(
+                    'Google did not return a refresh token. Try signing in again.',
+                );
+            }
+            if (personal) {
+                await userService.validatePersonalBigqueryReconnect(
+                    req.user,
+                    personal.credentialUuid,
+                );
             }
             await userService.storeOAuthGrant(
                 req.user,

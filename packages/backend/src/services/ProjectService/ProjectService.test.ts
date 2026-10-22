@@ -133,6 +133,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
+import { GoogleAuth } from 'google-auth-library';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
@@ -350,6 +351,9 @@ vi.mock('worker_threads', async () => {
 });
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    getGoogleOauthTokenError: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).getGoogleOauthTokenError,
     canConnectToPostgresDatabaseName: (
         await importOriginal<typeof import('@lightdash/warehouses')>()
     ).canConnectToPostgresDatabaseName,
@@ -20384,6 +20388,132 @@ describe('ProjectService.getSharedSignInStatus', () => {
             ),
         ).resolves.toBeNull();
     });
+    describe('main shared Google probe contract', () => {
+        afterEach(() => vi.restoreAllMocks());
+        const failures = [
+            { response: { status: 400, data: { error: 'invalid_grant' } } },
+            {
+                response: {
+                    status: 400,
+                    data: {
+                        error: 'invalid_grant',
+                        error_subtype: 'invalid_rapt',
+                    },
+                },
+            },
+            {
+                response: {
+                    status: 400,
+                    data: {
+                        error: 'invalid_grant',
+                        error_subtype: 'rapt_required',
+                    },
+                },
+            },
+        ];
+        test.each(
+            [false, true].flatMap((includePersonal) =>
+                [
+                    [false, true],
+                    [true, false],
+                ].map((sequence) => ({ includePersonal, sequence })),
+            ),
+        )(
+            'calls Google on consecutive viewers with opt-in $includePersonal and sequence $sequence',
+            async ({ includePersonal, sequence }) => {
+                const access = vi.spyOn(GoogleAuth.prototype, 'getAccessToken');
+                const flags = {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: FeatureFlags;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.SharedSignInReconnect,
+                        }),
+                    ),
+                };
+                const realService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    { featureFlagModel: flags as unknown as FeatureFlagModel },
+                );
+                access.mockReset();
+                for (const rejected of sequence) {
+                    if (rejected) access.mockRejectedValueOnce(failures[0]);
+                    else access.mockResolvedValueOnce('access_a');
+                }
+                const results = [
+                    await realService.getSharedSignInStatus(
+                        developerAccount,
+                        projectSummary.projectUuid,
+                        includePersonal,
+                    ),
+                    await realService.getSharedSignInStatus(
+                        adminAccount,
+                        projectSummary.projectUuid,
+                        includePersonal,
+                    ),
+                ];
+                expect(results.map((result) => result?.expired)).toEqual(
+                    sequence,
+                );
+                expect(
+                    results.every(
+                        (result) =>
+                            !Object.prototype.hasOwnProperty.call(
+                                result,
+                                'statusUnknown',
+                            ),
+                    ),
+                ).toBe(true);
+                expect(access).toHaveBeenCalledTimes(2);
+                const auth = access.mock.contexts[0] as GoogleAuth;
+                expect(auth.jsonContent).toEqual({
+                    type: 'authorized_user',
+                    refresh_token: 'expired-token',
+                });
+                expect(auth).toHaveProperty('scopes', [
+                    'https://www.googleapis.com/auth/bigquery',
+                ]);
+                expect(auth).toHaveProperty('clientOptions', {});
+                expect(access.mock.contexts[0]).not.toBe(
+                    access.mock.contexts[1],
+                );
+            },
+        );
+        test.each([
+            ...failures.map((error) => ({ error, expired: true })),
+            ...[
+                new Error('network'),
+                { response: { status: 503, data: { error: 'invalid_grant' } } },
+                { response: { status: 400, data: { error: 'invalid_rapt' } } },
+                { response: { status: 400, data: { error: 'rapt_required' } } },
+                { response: { status: 400, data: 'invalid_grant' } },
+                { response: { status: 400, data: { error: null } } },
+            ].map((error) => ({ error, expired: false })),
+        ])(
+            'keeps main false-on-unknown and invalid_grant boundary %#',
+            async ({ error, expired }) => {
+                vi.spyOn(
+                    GoogleAuth.prototype,
+                    'getAccessToken',
+                ).mockRejectedValue(error);
+                const realService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    { featureFlagModel: flag as unknown as FeatureFlagModel },
+                );
+                const result = await realService.getSharedSignInStatus(
+                    developerAccount,
+                    projectSummary.projectUuid,
+                );
+                expect(result?.expired).toBe(expired);
+                expect(result).not.toHaveProperty('statusUnknown');
+            },
+        );
+    });
     describe('personal status opt-in', () => {
         const setupPersonal = (
             options: {
@@ -20409,6 +20539,16 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 warehouseConnection: projectCredentials,
                 organizationWarehouseCredentialsUuid: undefined,
             } as never);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValue(
+                projectCredentials,
+            );
+            Object.assign(projectModel, {
+                resolveWarehouseCredentialReadWithRoute: vi.fn(async () => ({
+                    route: 'single',
+                    target: { kind: 'original' },
+                    originalWarehouseConnectionUuid: null,
+                })),
+            });
             const personal = {
                 uuid: 'credential_a',
                 expiresAt: null,

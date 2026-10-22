@@ -1,12 +1,15 @@
 import {
     WarehouseTableType,
+    PersonSignInProvider,
     WarehouseTypes,
     type SqlChart,
     type SqlRunnerWarehouseConnection,
 } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useLayoutEffect } from 'react';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router';
 import {
     afterEach,
     beforeEach,
@@ -17,6 +20,12 @@ import {
     type Mock,
 } from 'vitest';
 import { sharedLightdashApi } from '../../../../api';
+import { useSharedSignInStatusListener } from '../../../../components/NavBar/useSharedSignInStatusListener';
+import {
+    activateWarehouseSignInPreflight,
+    WarehouseSignInPreflight,
+    WarehouseSignInPreflightContext,
+} from '../../../../components/NavBar/warehouseSignInPreflight';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { executeSqlQuery } from '../../../queryRunner/executeQuery';
 import { SqlEditor, SqlEditorView } from '../../components/SqlEditor';
@@ -32,7 +41,7 @@ import {
     setSql,
     setState,
 } from '../../store/sqlRunnerSlice';
-import { runSqlQuery } from '../../store/thunks';
+import { prepareAndFetchChartData, runSqlQuery } from '../../store/thunks';
 import { SqlRunnerConnectionScope } from './SqlRunnerConnectionScope';
 import { SqlRunnerSidebar } from './SqlRunnerSidebar';
 
@@ -547,3 +556,126 @@ describe('SqlRunnerConnectionScope', () => {
         );
     });
 });
+
+const BoundStatusListener = ({
+    preflight,
+}: {
+    preflight: WarehouseSignInPreflight;
+}) => {
+    useLayoutEffect(
+        () => activateWarehouseSignInPreflight(preflight),
+        [preflight],
+    );
+    useSharedSignInStatusListener({
+        reconnectEnabled: true,
+        flagsLoading: false,
+    });
+    return null;
+};
+
+test.each([false, true])(
+    'real SQL scope discovers an extra connection before status and gates on-load, manual and pivot execution with expired=%s',
+    async (expired) => {
+        vi.clearAllMocks();
+        window.localStorage.clear();
+        store.dispatch(resetState());
+        store.dispatch(setProjectUuid(projectUuid));
+        store.dispatch(setSql('select 1'));
+        store.dispatch(
+            setFetchResultsOnLoad({
+                shouldFetch: true,
+                shouldOpenChartOnLoad: false,
+            }),
+        );
+        serveApi('multi');
+        const metadata = mockApi.getMockImplementation()!;
+        const catalogue =
+            Promise.withResolvers<SqlRunnerWarehouseConnection[]>();
+        const status = Promise.withResolvers<unknown>();
+        mockApi.mockImplementation((request: { url: string }) => {
+            if (request.url === connectionsUrl) return catalogue.promise;
+            if (request.url.includes('shared-sign-in')) return status.promise;
+            return metadata(request);
+        });
+        const preflight = new WarehouseSignInPreflight(
+            { projectUuid, userUuid: 'user_a', pageGeneration: 'page_a' },
+            true,
+            false,
+        );
+        renderWithProviders(
+            <Provider store={store}>
+                <MemoryRouter>
+                    <WarehouseSignInPreflightContext.Provider value={preflight}>
+                        <BoundStatusListener preflight={preflight} />
+                        <SqlRunnerConnectionScope
+                            isEditingSavedChart={false}
+                            connectionHint="finance-uuid"
+                        >
+                            <SharedQueryRunner />
+                        </SqlRunnerConnectionScope>
+                    </WarehouseSignInPreflightContext.Provider>
+                </MemoryRouter>
+            </Provider>,
+        );
+        await waitFor(() => expect(requestedUrls()).toContain(connectionsUrl));
+        expect(preflight.checks.size).toBe(0);
+        expect(
+            requestedUrls().some((url) => url.includes('shared-sign-in')),
+        ).toBe(false);
+        expect(executeSqlQuery).not.toHaveBeenCalled();
+        await act(async () => catalogue.resolve(connections));
+        await waitFor(() =>
+            expect(
+                requestedUrls().filter((url) => url.includes('shared-sign-in')),
+            ).toEqual([
+                `/projects/${projectUuid}/warehouse-credentials/shared-sign-in?includePersonal=true&warehouseConnectionUuid=finance-uuid`,
+            ]),
+        );
+        expect(preflight.checks.has('original')).toBe(false);
+        const manual = await store.dispatch(
+            runSqlQuery({
+                sql: 'select 1',
+                limit: 10,
+                projectUuid,
+                parameterValues: {},
+            }),
+        );
+        const pivot = await store.dispatch(
+            prepareAndFetchChartData({ forceRefresh: true }),
+        );
+        expect(
+            runSqlQuery.rejected.match(manual) && manual.meta.condition,
+        ).toBe(true);
+        expect(
+            prepareAndFetchChartData.rejected.match(pivot) &&
+                pivot.meta.condition,
+        ).toBe(true);
+        expect(executeSqlQuery).not.toHaveBeenCalled();
+        await act(async () =>
+            status.resolve({
+                personalSelection: { warehouseConnectionUuid: 'finance-uuid' },
+                provider: PersonSignInProvider.GOOGLE,
+                subject: null,
+                subjectBasis: null,
+                expired: false,
+                canReconnect: false,
+                personalSignIn: {
+                    projectUuid,
+                    provider: PersonSignInProvider.GOOGLE,
+                    userWarehouseCredentialsUuid: 'credential_extra',
+                    expired,
+                    canReconnect: true,
+                },
+            }),
+        );
+        if (expired) {
+            await waitFor(() => expect(preflight.modalOpen).toBe(true));
+            expect(executeSqlQuery).not.toHaveBeenCalled();
+            act(() => preflight.dismiss(preflight.target!));
+        }
+        await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledOnce());
+        expect(vi.mocked(executeSqlQuery).mock.calls[0][6]).toBe(
+            'finance-uuid',
+        );
+    },
+);

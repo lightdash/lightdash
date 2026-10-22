@@ -16,13 +16,17 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { isWarehouseSignInExecutionReady } from '../../../components/NavBar/warehouseSignInPreflight';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import {
     cancelAsyncQuery,
     executeSqlQuery,
 } from '../../queryRunner/executeQuery';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
-import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
+import {
+    selectConnectionRequest,
+    selectSqlRunnerResultsRunner,
+} from './sqlRunnerSlice';
 
 /**
  * Run a sql query and return the results
@@ -112,6 +116,18 @@ export const runSqlQuery = createAsyncThunk<
             });
         }
     },
+    {
+        condition: (args, { getState }) => {
+            const state = getState() as RootState;
+            const request = selectConnectionRequest(state);
+            return isWarehouseSignInExecutionReady(
+                args.projectUuid,
+                request.ready
+                    ? (request.field.warehouseConnectionUuid ?? null)
+                    : undefined,
+            );
+        },
+    },
 );
 
 /**
@@ -179,5 +195,17 @@ export const prepareAndFetchChartData = createAsyncThunk(
         };
 
         return info;
+    },
+    {
+        condition: (_args, { getState }) => {
+            const state = getState() as RootState;
+            const request = selectConnectionRequest(state);
+            return isWarehouseSignInExecutionReady(
+                state.sqlRunner.projectUuid,
+                request.ready
+                    ? (request.field.warehouseConnectionUuid ?? null)
+                    : undefined,
+            );
+        },
     },
 );

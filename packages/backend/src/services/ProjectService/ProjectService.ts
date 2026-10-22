@@ -99,6 +99,7 @@ import {
     getAccountUserTimezone,
     getAiExecutionCredentialUuid,
     getAvailableParametersFromTables,
+    getBigqueryKeyfileCredentials,
     getColumnTimezone,
     getCompiledModels,
     getCustomSqlFieldKey,
@@ -266,7 +267,6 @@ import {
     UserAttributeValueMap,
     UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
-    UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
     validateMergeQuery,
     VizAggregationOptions,
@@ -308,11 +308,13 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
+    getGoogleOauthTokenError,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
 import * as fs from 'fs';
+import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
 import { type Knex } from 'knex';
 import { isEqual, uniq } from 'lodash';
@@ -320,7 +322,7 @@ import fetch from 'node-fetch';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { promisify } from 'util';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isUuid, v4 as uuidv4 } from 'uuid';
 import v8 from 'v8';
 import { Worker } from 'worker_threads';
 import { gzip } from 'zlib';
@@ -406,7 +408,6 @@ import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
-import type { PersonalCredentialPersistencePolicy } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -564,7 +565,10 @@ import { resolvePersonalCredentialPolicy } from '../WarehouseClientFactory/perso
 import { prepareWarehouseOAuthCredentials } from '../WarehouseClientFactory/preparedOAuthCredentials';
 import { DatabricksOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/DatabricksOAuthCredentialResolver';
 import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
-import { selectDefaultPersonalCredentials } from '../WarehouseClientFactory/selectDefaultPersonalCredentials';
+import {
+    composeSelectedPersonalCredentials,
+    selectDefaultPersonalCredentials,
+} from '../WarehouseClientFactory/selectDefaultPersonalCredentials';
 import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
@@ -598,7 +602,6 @@ import {
 } from './connectionSqlRunner';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
-import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
 import {
     reconcilePlaygroundBundles,
     type ReconcilePlaygroundBundlesResult,
@@ -2164,67 +2167,6 @@ export class ProjectService
         );
     }
 
-    private async findUserCredentialsForExtraConnection({
-        projectUuid,
-        warehouseConnectionUuid,
-        userUuid,
-        warehouseType,
-        requireUserCredentials,
-        policy,
-    }: {
-        projectUuid: string;
-        warehouseConnectionUuid: string;
-        userUuid: string;
-        warehouseType: WarehouseTypes;
-        requireUserCredentials: boolean;
-        policy: PersonalCredentialPersistencePolicy;
-    }): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
-        const lookup = {
-            userUuid,
-            projectUuid,
-            warehouseConnectionUuid,
-            warehouseType,
-        };
-        let userWarehouseCredentialsUuid =
-            await this.warehouseConnectionModel.findPreferredUserCredentialsUuid(
-                lookup,
-                policy,
-            );
-        if (userWarehouseCredentialsUuid === null && requireUserCredentials) {
-            userWarehouseCredentialsUuid =
-                await this.warehouseConnectionModel.findSoleUnclaimedUserCredentialsUuid(
-                    lookup,
-                );
-            if (userWarehouseCredentialsUuid !== null) {
-                await this.warehouseConnectionModel.upsertUserCredentialsPreference(
-                    {
-                        userUuid,
-                        warehouseConnectionUuid,
-                        userWarehouseCredentialsUuid,
-                    },
-                );
-            }
-        }
-        if (userWarehouseCredentialsUuid === null) {
-            return undefined;
-        }
-        const userWarehouseCredentials =
-            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                userWarehouseCredentialsUuid,
-                undefined,
-                policy,
-            );
-        if (policy.strictPersonalOverlay) return userWarehouseCredentials;
-        const validationError =
-            UserWarehouseCredentialsModel.getQueryTimeValidationError(
-                userWarehouseCredentials.credentials,
-            );
-        if (validationError) {
-            throw validationError;
-        }
-        return userWarehouseCredentials;
-    }
-
     async getWarehouseSqlBuilderSettings(
         projectUuid: string,
         binding: ConnectionBinding,
@@ -2448,48 +2390,40 @@ export class ProjectService
             );
         }
 
-        const shouldFetchUserCredentials =
-            credentials.requireUserCredentials ||
-            allowsOptionalUserCredentials(credentials);
-
         if (isRegisteredUser) {
-            const policy = shouldFetchUserCredentials
-                ? await resolvePersonalCredentialPolicy(this.featureFlagModel, {
-                      organizationUuid: project.organizationUuid,
-                      userUuid: userId,
-                  })
-                : { strictPersonalOverlay: false };
-            const userWarehouseCredentials = shouldFetchUserCredentials
-                ? await this.findUserCredentialsForExtraConnection({
-                      projectUuid,
-                      warehouseConnectionUuid,
-                      userUuid: userId,
-                      warehouseType: credentials.type,
-                      requireUserCredentials:
-                          credentials.requireUserCredentials === true,
-                      policy,
-                  })
-                : undefined;
-
-            const userCredHost =
-                !policy.strictPersonalOverlay &&
-                userWarehouseCredentials?.credentials.type ===
-                    WarehouseTypes.DATABRICKS &&
-                'serverHostName' in userWarehouseCredentials.credentials
-                    ? normalizeDatabricksHostLenient(
-                          userWarehouseCredentials.credentials.serverHostName,
-                      )
-                    : undefined;
-            const projectHost =
-                !policy.strictPersonalOverlay &&
-                credentials.type === WarehouseTypes.DATABRICKS
-                    ? normalizeDatabricksHostLenient(credentials.serverHostName)
-                    : undefined;
-            const hostMismatch =
-                !policy.strictPersonalOverlay &&
-                userCredHost &&
-                projectHost &&
-                userCredHost !== projectHost;
+            const {
+                policy,
+                userWarehouseCredentials,
+                hostMismatch,
+                claimPreference,
+            } = await selectDefaultPersonalCredentials(
+                {
+                    featureFlagModel: this.featureFlagModel,
+                    userWarehouseCredentialsModel:
+                        this.userWarehouseCredentialsModel,
+                },
+                credentials,
+                projectUuid,
+                {
+                    organizationUuid: project.organizationUuid,
+                    userUuid: userId,
+                },
+                {
+                    kind: 'extra',
+                    warehouseConnectionUuid,
+                    model: this.warehouseConnectionModel,
+                },
+            );
+            if (claimPreference && userWarehouseCredentials) {
+                await this.warehouseConnectionModel.upsertUserCredentialsPreference(
+                    {
+                        userUuid: userId,
+                        warehouseConnectionUuid,
+                        userWarehouseCredentialsUuid:
+                            userWarehouseCredentials.uuid,
+                    },
+                );
+            }
 
             if (userWarehouseCredentials && !hostMismatch) {
                 const refreshSource = {
@@ -2497,17 +2431,11 @@ export class ProjectService
                     fallback: credentials,
                     personalCredentialPolicy: policy,
                 };
-                credentials = policy.strictPersonalOverlay
-                    ? composePersonalWarehouseCredentials(
-                          credentials,
-                          projectPersonalWarehouseCredentials(
-                              userWarehouseCredentials.credentials,
-                          ),
-                      )
-                    : mergePersonalWarehouseCredentials(
-                          credentials,
-                          userWarehouseCredentials,
-                      );
+                credentials = composeSelectedPersonalCredentials(
+                    credentials,
+                    userWarehouseCredentials,
+                    policy,
+                );
                 credentials = await this.materializeSelectedCredentials(
                     base,
                     context,
@@ -3492,17 +3420,11 @@ export class ProjectService
                     fallback: credentials,
                     personalCredentialPolicy: policy,
                 };
-                credentials = policy.strictPersonalOverlay
-                    ? composePersonalWarehouseCredentials(
-                          credentials,
-                          projectPersonalWarehouseCredentials(
-                              userWarehouseCredentials.credentials,
-                          ),
-                      )
-                    : mergePersonalWarehouseCredentials(
-                          credentials,
-                          userWarehouseCredentials,
-                      );
+                credentials = composeSelectedPersonalCredentials(
+                    credentials,
+                    userWarehouseCredentials,
+                    policy,
+                );
 
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
@@ -3582,38 +3504,62 @@ export class ProjectService
         account: Account,
         projectUuid: string,
         includePersonal = false,
+        warehouseConnectionUuid?: string,
     ): Promise<SharedSignInStatus | null> {
         assertIsAccountWithOrg(account);
+        assertRegisteredAccount(account);
         const summary = await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(account);
-        const resource = subject('Project', {
-            ...summary,
-        });
+        const resource = subject('Project', { ...summary });
         if (ability.cannot('view', resource)) throw new ForbiddenError();
-        const project =
-            await this.projectModel.getWithSensitiveFields(projectUuid);
-        const sharedResource = subject('Project', {
-            organizationUuid: project.organizationUuid,
-            projectUuid: project.projectUuid,
-            upstreamProjectUuid: project.upstreamProjectUuid,
-            type: project.type,
-            createdByUserUuid: project.createdByUserUuid,
-        });
-        if (ability.cannot('view', sharedResource)) throw new ForbiddenError();
+        if (
+            warehouseConnectionUuid !== undefined &&
+            (!includePersonal || !isUuid(warehouseConnectionUuid))
+        ) {
+            throw new ParameterError(
+                'A connection status requires a valid connection and personal selection.',
+            );
+        }
         const flag = await this.featureFlagModel.get({
-            user: { organizationUuid: project.organizationUuid },
+            user: { organizationUuid: summary.organizationUuid },
             featureFlagId: FeatureFlags.SharedSignInReconnect,
         });
         if (!flag.enabled) return null;
-        const credentials = project.warehouseConnection;
+        let personalSelection: SharedSignInStatus['personalSelection'];
         if (
             includePersonal &&
-            credentials &&
             (await isPersonalSignInExpiryEnabled(this.featureFlagModel, {
                 userUuid: account.user.id,
-                organizationUuid: project.organizationUuid,
+                organizationUuid: summary.organizationUuid,
             }))
         ) {
+            const { target } =
+                await this.projectModel.resolveWarehouseCredentialReadWithRoute(
+                    projectUuid,
+                    warehouseConnectionUuid === undefined
+                        ? { kind: 'original' }
+                        : { kind: 'connection', warehouseConnectionUuid },
+                );
+            const credentials =
+                target.kind === 'extra'
+                    ? (
+                          await this.loadExtraConnectionCredentialBase({
+                              projectUuid,
+                              warehouseConnectionUuid:
+                                  target.warehouseConnectionUuid,
+                              userId: account.user.id,
+                              isRegisteredUser: true,
+                          })
+                      ).credentials
+                    : await this.projectModel.getWarehouseCredentialsForProject(
+                          projectUuid,
+                      );
+            personalSelection = {
+                warehouseConnectionUuid:
+                    target.kind === 'extra'
+                        ? target.warehouseConnectionUuid
+                        : null,
+            };
             const { policy, userWarehouseCredentials: personal } =
                 await selectDefaultPersonalCredentials(
                     {
@@ -3625,20 +3571,25 @@ export class ProjectService
                     projectUuid,
                     {
                         userUuid: account.user.id,
-                        organizationUuid: project.organizationUuid,
+                        organizationUuid: summary.organizationUuid,
                     },
+                    target.kind === 'extra'
+                        ? { ...target, model: this.warehouseConnectionModel }
+                        : target,
                 );
             if (personal) {
-                const selected = policy.strictPersonalOverlay
-                    ? composePersonalWarehouseCredentials(
-                          credentials,
-                          projectPersonalWarehouseCredentials(
-                              personal.credentials,
-                          ),
-                      )
-                    : mergePersonalWarehouseCredentials(credentials, personal);
+                const selected = composeSelectedPersonalCredentials(
+                    credentials,
+                    personal,
+                    policy,
+                );
                 const personalSignIn = getPersonSignIn(selected);
-                if (!personalSignIn) return null;
+                if (
+                    !personalSignIn ||
+                    selected.type !== WarehouseTypes.BIGQUERY ||
+                    personalSignIn.provider !== PersonSignInProvider.GOOGLE
+                )
+                    return null;
                 const snapshot =
                     await this.userWarehouseCredentialsModel.getSignInSnapshot(
                         personal.uuid,
@@ -3646,47 +3597,52 @@ export class ProjectService
                     );
                 if (!snapshot || snapshot.userUuid !== account.user.id)
                     return null;
-                let expired = snapshot.needsSignIn === true;
-                let statusUnknown = false;
-                if (
-                    selected.type === WarehouseTypes.BIGQUERY &&
-                    personalSignIn.provider === PersonSignInProvider.GOOGLE
-                ) {
-                    const result = await this.googleSignInProbe.check(
-                        selected.keyfileContents,
-                        snapshot.encryptedCredentials,
-                    );
-                    if (result.expired !== undefined) expired = result.expired;
-                    statusUnknown = result.expired === undefined;
-                    if (result.rejection)
-                        await this.userWarehouseCredentialsModel
-                            .markNeedsSignIn(snapshot, result.rejection)
-                            .catch(() => {
-                                this.logger.warn(
-                                    'Could not mark personal warehouse sign-in status',
-                                );
-                            });
-                }
+                const result = await this.googleSignInProbe.check(
+                    selected.keyfileContents,
+                    snapshot.encryptedCredentials,
+                );
+                if (result.rejection)
+                    await this.userWarehouseCredentialsModel
+                        .markNeedsSignIn(snapshot, result.rejection)
+                        .catch(() => {
+                            this.logger.warn(
+                                'Could not mark personal warehouse sign-in status',
+                            );
+                        });
                 return {
+                    personalSelection,
                     provider: personalSignIn.provider,
                     subject: null,
                     subjectBasis: null,
                     expired: false,
                     canReconnect: false,
-                    ...(statusUnknown ? { statusUnknown: true } : {}),
+                    ...(result.expired === undefined
+                        ? { statusUnknown: true }
+                        : {}),
                     personalSignIn: {
                         projectUuid,
                         provider: personalSignIn.provider,
                         userWarehouseCredentialsUuid: personal.uuid,
-                        expired,
-                        canReconnect:
-                            personalSignIn.provider ===
-                            PersonSignInProvider.GOOGLE,
+                        expired:
+                            result.expired ?? snapshot.needsSignIn === true,
+                        canReconnect: true,
                     },
                 };
             }
-            if (credentials.requireUserCredentials) return null;
-        }
+            if (credentials.requireUserCredentials || target.kind === 'extra')
+                return null;
+        } else if (warehouseConnectionUuid !== undefined) return null;
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        const sharedResource = subject('Project', {
+            organizationUuid: project.organizationUuid,
+            projectUuid: project.projectUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+        });
+        if (ability.cannot('view', sharedResource)) throw new ForbiddenError();
+        const credentials = project.warehouseConnection;
         if (project.organizationWarehouseCredentialsUuid) return null;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!signIn) return null;
@@ -3710,9 +3666,7 @@ export class ProjectService
             subject: owner,
             subjectBasis: basis,
             expired: expired === true,
-            ...(includePersonal && expired === undefined
-                ? { statusUnknown: true }
-                : {}),
+            ...(personalSelection ? { personalSelection } : {}),
             canReconnect:
                 provider === PersonSignInProvider.GOOGLE &&
                 ability.can('update', resource) &&
@@ -3733,9 +3687,16 @@ export class ProjectService
 
     private async isGoogleSharedSignInExpired(
         keyfileContents: Record<string, string>,
-    ): Promise<boolean | undefined> {
-        return (await this.googleSignInProbe.check(keyfileContents, 'shared'))
-            .expired;
+    ): Promise<boolean> {
+        try {
+            await new GoogleAuth({
+                credentials: getBigqueryKeyfileCredentials(keyfileContents),
+                scopes: ['https://www.googleapis.com/auth/bigquery'],
+            }).getAccessToken();
+            return false;
+        } catch (error) {
+            return getGoogleOauthTokenError(error)?.error === 'invalid_grant';
+        }
     }
 
     async reconnectSharedSignIn(

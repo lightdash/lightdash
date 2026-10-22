@@ -1,12 +1,21 @@
 import { FeatureFlags } from '@lightdash/common';
-import { type FC, type PropsWithChildren } from 'react';
+import {
+    useLayoutEffect,
+    useMemo,
+    type FC,
+    type PropsWithChildren,
+} from 'react';
 import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
-import PageSpinner from '../PageSpinner';
 import { isWarehouseQueryPage } from './sharedSignInListenerDecision';
-import { useWarehouseSignInPreflight } from './warehouseSignInBannerState';
+import {
+    activateWarehouseSignInPreflight,
+    WarehouseSignInPreflight,
+    WarehouseSignInPreflightContext,
+    WarehouseSignInStatusCache,
+} from './warehouseSignInPreflight';
 
 export const SharedSignInQueryBoundary: FC<PropsWithChildren> = ({
     children,
@@ -16,16 +25,36 @@ export const SharedSignInQueryBoundary: FC<PropsWithChildren> = ({
     const { user } = useApp();
     const reconnect = useServerFeatureFlag(FeatureFlags.SharedSignInReconnect);
     const expiry = useServerFeatureFlag(FeatureFlags.SharedSignInExpiryMessage);
-    const preflight = useWarehouseSignInPreflight();
-    const pending =
-        isWarehouseQueryPage(pathname) &&
-        user.data?.userUuid &&
-        (reconnect.isLoading ||
-            expiry.isLoading ||
-            (reconnect.data?.enabled &&
-                expiry.data?.enabled &&
-                (!activeProjectUuid ||
-                    preflight?.projectUuid !== activeProjectUuid ||
-                    preflight.userUuid !== user.data.userUuid)));
-    return pending ? <PageSpinner /> : children;
+    const userUuid = user.data?.userUuid;
+    const enabled = !!reconnect.data?.enabled && !!expiry.data?.enabled;
+    const loading = reconnect.isLoading || expiry.isLoading;
+    const statusCache = useMemo(
+        () => new WarehouseSignInStatusCache(userUuid),
+        [userUuid],
+    );
+    const store = useMemo(
+        () =>
+            activeProjectUuid && userUuid && isWarehouseQueryPage(pathname)
+                ? new WarehouseSignInPreflight(
+                      {
+                          projectUuid: activeProjectUuid,
+                          userUuid,
+                          pageGeneration: crypto.randomUUID(),
+                      },
+                      enabled,
+                      loading,
+                      statusCache,
+                  )
+                : null,
+        [activeProjectUuid, userUuid, pathname, enabled, loading, statusCache],
+    );
+    useLayoutEffect(
+        () => (store ? activateWarehouseSignInPreflight(store) : undefined),
+        [store],
+    );
+    return (
+        <WarehouseSignInPreflightContext.Provider value={store}>
+            {children}
+        </WarehouseSignInPreflightContext.Provider>
+    );
 };

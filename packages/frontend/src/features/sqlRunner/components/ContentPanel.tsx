@@ -64,6 +64,12 @@ import {
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
+import {
+    isWarehouseSignInExecutionReady,
+    captureWarehouseSignInExecution,
+    isWarehouseSignInExecutionCurrent,
+    type WarehouseSignInExecutionIdentity,
+} from '../../../components/NavBar/warehouseSignInPreflight';
 import { QueryCostConfirmModal } from '../../../components/QueryCostEstimate/QueryCostConfirmModal';
 import { QueryCostEstimateBadge } from '../../../components/QueryCostEstimate/QueryCostEstimateBadge';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
@@ -80,6 +86,7 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
+import { useSqlRunnerSignInReady } from '../hooks/useSqlRunnerSignInReady';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startAppListening } from '../store/listenerMiddleware';
 import { addAutomaticPivotFailureListener } from '../store/sqlRunnerListeners';
@@ -334,9 +341,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
+    const signInReady = useSqlRunnerSignInReady();
     const queryClient = useQueryClient();
     const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
     const [pendingCostConfirmation, setPendingCostConfirmation] = useState<{
+        execution: WarehouseSignInExecutionIdentity | null;
         sql: string;
         totalBytesProcessed: number;
         confirmEstimatedBytesAbove: number;
@@ -357,12 +366,21 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const costEstimate = useSqlQueryCostEstimate(
         projectUuid,
         costEstimateBody,
-        costEstimateSettings !== null,
+        signInReady && costEstimateSettings !== null,
     );
 
     const executeRunQuery = useCallback(
         async (sqlToUse: string) => {
-            if (!sqlToUse || !limit) return;
+            if (
+                !sqlToUse ||
+                !limit ||
+                !signInReady ||
+                !isWarehouseSignInExecutionReady(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                )
+            )
+                return;
 
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -409,6 +427,8 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             }
         },
         [
+            signInReady,
+            warehouseConnectionUuid,
             activeEditorTab,
             dispatch,
             projectUuid,
@@ -422,7 +442,20 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     // estimate never blocks, since maximum bytes billed is the backstop.
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
-            if (!sqlToUse || !limit) return;
+            if (
+                !sqlToUse ||
+                !limit ||
+                !signInReady ||
+                !isWarehouseSignInExecutionReady(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                )
+            )
+                return;
+            const execution = captureWarehouseSignInExecution(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            );
             if (costEstimateSettings?.confirmEstimatedBytesAbove) {
                 try {
                     const estimate = await fetchSqlQueryCostEstimate(
@@ -437,12 +470,14 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                 warehouseConnectionUuid ?? undefined,
                         },
                     );
+                    if (!isWarehouseSignInExecutionCurrent(execution)) return;
                     if (
                         estimate.status === 'estimated' &&
                         estimate.requiresConfirmation &&
                         estimate.confirmEstimatedBytesAbove !== null
                     ) {
                         setPendingCostConfirmation({
+                            execution,
                             sql: sqlToUse,
                             totalBytesProcessed: estimate.totalBytesProcessed,
                             confirmEstimatedBytesAbove:
@@ -454,9 +489,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     // Fall through and run the query.
                 }
             }
-            await executeRunQuery(sqlToUse);
+            if (isWarehouseSignInExecutionCurrent(execution))
+                await executeRunQuery(sqlToUse);
         },
         [
+            signInReady,
             costEstimateSettings,
             executeRunQuery,
             limit,
@@ -751,7 +788,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     }
                     onConfirm={() => {
                         setPendingCostConfirmation(null);
-                        void executeRunQuery(pendingCostConfirmation.sql);
+                        if (
+                            isWarehouseSignInExecutionCurrent(
+                                pendingCostConfirmation.execution,
+                            )
+                        )
+                            void executeRunQuery(pendingCostConfirmation.sql);
                     }}
                     onClose={() => setPendingCostConfirmation(null)}
                 />

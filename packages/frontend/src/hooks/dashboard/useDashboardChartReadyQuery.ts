@@ -16,6 +16,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
+import { useWarehouseSignInExecution } from '../../components/NavBar/warehouseSignInPreflight';
 import {
     selectControlGranularities,
     selectDateZoomGranularity,
@@ -162,6 +163,12 @@ export const useDashboardChartReadyQuery = (
 
     const { data: explore, error: exploreError } = useExplore(
         chartQuery.data?.metricQuery?.exploreName,
+    );
+
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        explore?.warehouseConnection?.warehouseConnectionUuid,
+        !!chartUuid && !!dashboardUuid && !!chartQuery.data,
     );
 
     const addAvailableCustomGranularities = useDashboardTileStatusContext(
@@ -381,7 +388,11 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid && dashboardUuid && chartQuery.data && explore,
+            signInReady &&
+            chartUuid &&
+            dashboardUuid &&
+            chartQuery.data &&
+            explore,
         ),
         ...retryConfig,
         refetchOnMount: false,
