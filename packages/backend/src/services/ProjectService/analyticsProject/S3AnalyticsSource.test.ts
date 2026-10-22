@@ -98,6 +98,9 @@ describe('signed analytics file manifests', () => {
         expect(source.emptyTables?.map(({ name }) => name)).toContain(
             'user_activity',
         );
+        expect(source.emptyTables?.map(({ name }) => name)).toContain(
+            'lightdash_projects',
+        );
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
             noDataMessage,
         );
@@ -428,6 +431,7 @@ describe('signed analytics file manifests', () => {
         ]);
         expect(source.emptyTables?.map(({ name }) => name)).toEqual([
             'lightdash_dashboards',
+            'lightdash_projects',
             'lightdash_content',
             'lightdash_people',
             'ai_usage',
