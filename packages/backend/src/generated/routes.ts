@@ -11290,6 +11290,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ServiceAccountWithToken: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ServiceAccount' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        token: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ServiceAccount.expiresAt-or-description_': {
         dataType: 'refAlias',
         type: {
@@ -11410,23 +11427,6 @@ const models: TsoaRoute.Models = {
     ApiUpdateServiceAccountRequest: {
         dataType: 'refAlias',
         type: { ref: 'UpdateServiceAccount', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ServiceAccountWithToken: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ServiceAccount' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        token: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ScimSchemaType.LIST_RESPONSE': {
@@ -28590,15 +28590,31 @@ const models: TsoaRoute.Models = {
     AiThreadBinding: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dashboardUuid: { dataType: 'string', required: true },
-                type: {
-                    dataType: 'enum',
-                    enums: ['dashboard'],
-                    required: true,
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['dashboard'],
+                            required: true,
+                        },
+                    },
                 },
-            },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['chart'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },
@@ -31539,6 +31555,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['query'] },
                 { dataType: 'enum', enums: ['generateDashboard'] },
                 { dataType: 'enum', enums: ['generateVisualization'] },
                 { dataType: 'enum', enums: ['runSql'] },
@@ -42196,11 +42213,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentComposerArtifactChartStage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        queryUuid: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['ok'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        message: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['error'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiAgentComposerArtifactVizQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartStage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiAiAgentComposerArtifactChartStage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 metadata: { ref: 'AiVizMetadata', required: true },
                 nodeQueryUuids: {
                     ref: 'Record_QueryNodeId.string_',
@@ -49179,6 +49236,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                setAsDefault: { dataType: 'boolean' },
                 inferenceGeography: { ref: 'BedrockInferenceGeography' },
                 apiKey: { dataType: 'string', required: true },
                 allowedModels: {
@@ -49297,6 +49355,7 @@ const models: TsoaRoute.Models = {
                 aiAgentReviewsEnabled: { dataType: 'boolean', required: true },
                 aiAgentMemoryEnabled: { dataType: 'boolean', required: true },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
+                mcpEnabled: { dataType: 'boolean' },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
             },
@@ -55074,6 +55133,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -55328,6 +55388,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
@@ -82945,7 +83006,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
@@ -83067,7 +83128,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);
@@ -83128,7 +83189,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);

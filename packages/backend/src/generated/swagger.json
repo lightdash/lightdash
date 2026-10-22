@@ -11489,7 +11489,8 @@
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Expiration timestamp, or null for a token that does not expire."
                     },
                     "createdAt": {
                         "type": "string",
@@ -11595,6 +11596,23 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ServiceAccountWithToken": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ServiceAccount"
+                    },
+                    {
+                        "properties": {
+                            "token": {
+                                "type": "string",
+                                "description": "Bearer token returned only when creating or rotating the service account."
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    }
+                ]
+            },
             "Pick_ServiceAccount.expiresAt-or-description_": {
                 "properties": {
                     "description": {
@@ -11603,7 +11621,8 @@
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Expiration timestamp, or null for a token that does not expire."
                     }
                 },
                 "required": ["description", "expiresAt"],
@@ -11613,10 +11632,12 @@
             "ServiceAccountProjectAccessInput": {
                 "properties": {
                     "roleUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Custom project role belonging to this organization."
                     },
                     "role": {
-                        "$ref": "#/components/schemas/ProjectMemberRole"
+                        "$ref": "#/components/schemas/ProjectMemberRole",
+                        "description": "Predefined project role. Provide exactly one of role or roleUuid."
                     },
                     "projectUuid": {
                         "type": "string"
@@ -11637,17 +11658,20 @@
                                 "items": {
                                     "$ref": "#/components/schemas/ServiceAccountProjectAccessInput"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Project grants. Requires scopes = [\"system:member\"]."
                             },
                             "roleUuid": {
                                 "type": "string",
-                                "nullable": true
+                                "nullable": true,
+                                "description": "Custom organization role UUID, instead of scopes."
                             },
                             "scopes": {
                                 "items": {
                                     "$ref": "#/components/schemas/ServiceAccountScope"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Organization role scopes. Provide either scopes or roleUuid, not both."
                             }
                         },
                         "type": "object"
@@ -11675,17 +11699,20 @@
                                 "items": {
                                     "$ref": "#/components/schemas/ServiceAccountProjectAccessInput"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Replace all project grants. Must contain at least one project."
                             },
                             "roleUuid": {
                                 "type": "string",
-                                "nullable": true
+                                "nullable": true,
+                                "description": "Replace the organization custom role, instead of scopes."
                             },
                             "scopes": {
                                 "items": {
                                     "$ref": "#/components/schemas/ServiceAccountScope"
                                 },
-                                "type": "array"
+                                "type": "array",
+                                "description": "Replace the organization role scopes. Omit to preserve existing permissions."
                             }
                         },
                         "type": "object"
@@ -11695,22 +11722,6 @@
             },
             "ApiUpdateServiceAccountRequest": {
                 "$ref": "#/components/schemas/UpdateServiceAccount"
-            },
-            "ServiceAccountWithToken": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ServiceAccount"
-                    },
-                    {
-                        "properties": {
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["token"],
-                        "type": "object"
-                    }
-                ]
             },
             "ScimSchemaType.LIST_RESPONSE": {
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
@@ -30150,18 +30161,36 @@
                 "type": "object"
             },
             "AiThreadBinding": {
-                "properties": {
-                    "dashboardUuid": {
-                        "type": "string"
+                "anyOf": [
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
                     },
-                    "type": {
-                        "type": "string",
-                        "enum": ["dashboard"],
-                        "nullable": false
+                    {
+                        "properties": {
+                            "chartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chartUuid", "type"],
+                        "type": "object"
                     }
-                },
-                "required": ["dashboardUuid", "type"],
-                "type": "object",
+                ],
                 "description": "Resource a thread is bound to for its whole life. Same shape as the matching pinned context item."
             },
             "AiThreadBindingSummary": {
@@ -33089,6 +33118,7 @@
             "Exclude_ToolName.never_": {
                 "type": "string",
                 "enum": [
+                    "query",
                     "generateDashboard",
                     "generateVisualization",
                     "runSql",
@@ -37274,8 +37304,49 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ApiAiAgentComposerArtifactChartStage": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "queryUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ok"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["queryUuid", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiAiAgentComposerArtifactVizQuery": {
                 "properties": {
+                    "chartStage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiAiAgentComposerArtifactChartStage"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "v2 series split only: the pivot stage run over the terminal node; null without one."
+                    },
                     "metadata": {
                         "$ref": "#/components/schemas/AiVizMetadata"
                     },
@@ -37292,6 +37363,7 @@
                     }
                 },
                 "required": [
+                    "chartStage",
                     "metadata",
                     "nodeQueryUuids",
                     "terminalNodeId",
@@ -44151,6 +44223,10 @@
             },
             "CreateAiProviderCredential": {
                 "properties": {
+                    "setAsDefault": {
+                        "type": "boolean",
+                        "description": "Whether this credential becomes the organization default on creation.\nOmitted: the first credential becomes the default, later ones do not\n(legacy behavior). `true`: takes over as the default. `false`: stored\nwithout serving any AI traffic until explicitly made the default."
+                    },
                     "inferenceGeography": {
                         "$ref": "#/components/schemas/BedrockInferenceGeography"
                     },
@@ -44282,6 +44358,9 @@
                         "type": "boolean"
                     },
                     "aiAgentsVisible": {
+                        "type": "boolean"
+                    },
+                    "mcpEnabled": {
                         "type": "boolean"
                     },
                     "isTrial": {
@@ -49732,6 +49811,9 @@
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
+                    "mcpEnabled": {
+                        "type": "boolean"
+                    },
                     "deepResearchRawSqlEnabled": {
                         "type": "boolean"
                     },
@@ -49996,6 +50078,9 @@
                         "type": "boolean"
                     },
                     "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "mcpEnabled": {
                         "type": "boolean"
                     },
                     "deepResearchRawSqlEnabled": {
@@ -73733,14 +73818,14 @@
                 "type": "apiKey",
                 "in": "header",
                 "name": "Authorization",
-                "description": "Value should be 'ApiKey <your key>'"
+                "description": "Value should be 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'"
             }
         }
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.22.0",
-        "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
+        "version": "3.35.0",
+        "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
         },
@@ -77262,6 +77347,317 @@
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/service-accounts": {
+            "get": {
+                "operationId": "getServiceAccounts",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/ServiceAccountWithProjectAccessCount"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the organization's service accounts, excluding SCIM-only tokens.\nRequires organization administration permission. Tokens are never returned.",
+                "summary": "List service accounts",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": []
+            },
+            "post": {
+                "operationId": "CreateServiceAccount",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ServiceAccountWithToken"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a service account using an admin session, personal access token,\nor service account token. Requires organization administration permission.\nSpecify either organization scopes or an organization custom role UUID.\nFor project access, use scopes [\"system:member\"] and projectAccess grants.\nThe returned token is only available on creation; store it securely.",
+                "summary": "Create service account",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "service account details",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateServiceAccountRequest",
+                                "description": "service account details"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/service-accounts/{serviceAccountUuid}/projects": {
+            "get": {
+                "operationId": "GetServiceAccountProjectGrants",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiServiceAccountProjectGrantsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List a service account's project grants. Requires organization\nadministration permission in the account's organization.",
+                "summary": "List service-account project grants",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "serviceAccountUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/service-accounts/{tokenUuid}": {
+            "delete": {
+                "operationId": "DeleteServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Revoke a service account by UUID. Requires organization administration\npermission in the account's organization. Its token immediately stops working.",
+                "summary": "Delete service account",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "UUID of the access token to delete",
+                        "in": "path",
+                        "name": "tokenUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "UpdateServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ServiceAccount"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a service account's name and permissions in place by UUID,\nwithout rotating its token. Requires organization administration permission.\nProviding projectAccess replaces all project grants. Omit all permission\nfields to preserve existing permissions. Grants are limited to the caller's\norganization permissions.",
+                "summary": "Update service account",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "tokenUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateServiceAccountRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/service-accounts/{tokenUuid}/rotate": {
+            "patch": {
+                "operationId": "RotateServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ServiceAccountWithToken"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rotate an expiring service account's token. Requires organization\nadministration permission. The old token is immediately revoked and the\nreplacement is returned once. Rotation is limited to once per hour.",
+                "summary": "Rotate service account",
+                "tags": ["Service Accounts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "tokenUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "expiresAt": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                },
+                                "required": ["expiresAt"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/scim/v2/Users": {
@@ -118087,6 +118483,10 @@
             "externalDocs": {
                 "url": "https://docs.lightdash.com/references/roles"
             }
+        },
+        {
+            "name": "Service Accounts",
+            "description": "Create and manage machine credentials for your organization. Requires organization administration permission. Use predefined organization scopes, a custom organization role, or grants to selected projects. Credentials cannot grant more access than the caller holds."
         },
         {
             "name": "Query",
