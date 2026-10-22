@@ -9,6 +9,7 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
@@ -537,6 +538,9 @@ export type UseAppSdkBridgeParams = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     /** The app subscribed to analysis: it renders `useInsights`/`useAiPrompt`. */
     onInsightsInUse?: () => void;
+    /** Author guidance for the analysis model declared in app code, or null
+     *  when the running bundle declares none. */
+    onInsightInstructionsChange?: (instructions: string | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
@@ -578,6 +582,7 @@ export function useAppSdkBridge({
     insights = null,
     onInsightAction,
     onInsightsInUse,
+    onInsightInstructionsChange,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
     const lightdashApi = useLightdashApi();
@@ -751,9 +756,25 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
-                if ((data as { inUse?: unknown }).inUse === true) {
+                const { inUse, instructions } = data as {
+                    inUse?: unknown;
+                    instructions?: unknown;
+                };
+                if (inUse === true) {
                     onInsightsInUse?.();
                 }
+                // App code is untrusted: cap the author guidance here so a
+                // runaway string never reaches the analysis request.
+                onInsightInstructionsChange?.(
+                    typeof instructions === 'string'
+                        ? instructions
+                              .trim()
+                              .slice(
+                                  0,
+                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+                              ) || null
+                        : null,
+                );
                 pushInsights();
                 return;
             }
@@ -1611,6 +1632,7 @@ export function useAppSdkBridge({
             pushInsights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
             onMountedQueriesChange,
             lightdashApi,
         ],

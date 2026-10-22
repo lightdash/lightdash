@@ -97,6 +97,55 @@ describe('useDataAppAnalysis', () => {
         expect(detectDataAppAnomalies).toHaveBeenCalledTimes(1);
     });
 
+    it('sends instructions with lookup and detect, and re-looks-up when they change', async () => {
+        const { result, rerender } = renderHook(
+            ({ instructions }: { instructions: string | null }) =>
+                useDataAppAnalysis({
+                    projectUuid: 'proj-1',
+                    appUuid: 'app-a',
+                    queries: [readyQuery],
+                    mountedQueryUuids: null,
+                    enabled: true,
+                    instructions,
+                }),
+            { initialProps: { instructions: 'Use British English.' } },
+        );
+        await settle();
+        expect(lookupDataAppAnalysis).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions: 'Use British English.',
+            }),
+        );
+        await act(async () => {
+            await result.current.analyse();
+        });
+        expect(detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions: 'Use British English.',
+            }),
+        );
+        expect(result.current.state.status).toBe('ready');
+        if (result.current.state.status === 'ready') {
+            expect(result.current.state.stale).toBe(false);
+        }
+
+        // Changed instructions: a stored analysis of identical rows under the
+        // old guidance must not be reused — the view is stale and looked up anew.
+        rerender({ instructions: 'Amounts are EUR.' });
+        expect(result.current.state.status).toBe('ready');
+        if (result.current.state.status === 'ready') {
+            expect(result.current.state.stale).toBe(true);
+        }
+        await settle();
+        expect(lookupDataAppAnalysis).toHaveBeenLastCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions: 'Amounts are EUR.' }),
+        );
+        expect(lookupDataAppAnalysis).toHaveBeenCalledTimes(2);
+    });
+
     it('drops a lookup response that arrives after the view changed', async () => {
         const resolvers: ((v: unknown) => void)[] = [];
         vi.mocked(lookupDataAppAnalysis).mockImplementation(
