@@ -13,7 +13,7 @@ type SettingsQuery = {
     data:
         | Pick<
               ApiAiOrganizationSettingsResponse['results'],
-              'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
+              'mcpEnabled' | 'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -26,6 +26,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         const settingsQuery: { current: SettingsQuery } = {
             current: {
                 data: {
+                    mcpEnabled: true,
                     mcpAgentsEnabled: true,
                     mcpContentWritesEnabled: false,
                 },
@@ -65,6 +66,7 @@ describe('McpGeneralSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
             data: {
+                mcpEnabled: true,
                 mcpAgentsEnabled: true,
                 mcpContentWritesEnabled: false,
             },
@@ -125,6 +127,52 @@ describe('McpGeneralSettingsPage', () => {
                 name: 'Allow content changes via MCP',
             }),
         ).toBeDisabled();
+    });
+
+    it('disables tool preferences while MCP is off and restores their saved values when enabled', async () => {
+        settingsQuery.current.data = {
+            mcpEnabled: false,
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: false,
+        };
+        const view = renderPage();
+        const agents = screen.getByRole('switch', {
+            name: 'Enable agents over MCP',
+        });
+        const writes = screen.getByRole('switch', {
+            name: 'Allow content changes via MCP',
+        });
+        expect(agents).toBeDisabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeDisabled();
+        expect(writes).not.toBeChecked();
+        const user = userEvent.setup();
+        await user.click(agents);
+        await user.click(writes);
+        expect(updateSettings).not.toHaveBeenCalled();
+        expect(screen.getByText('MCP access is disabled')).toBeInTheDocument();
+
+        settingsQuery.current.data = {
+            mcpEnabled: true,
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: false,
+        };
+        view.rerender(
+            <MemoryRouter>
+                <McpGeneralSettingsPage showAgentsPageLink={false} />
+            </MemoryRouter>,
+        );
+        expect(agents).toBeEnabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeEnabled();
+        expect(writes).not.toBeChecked();
+    });
+
+    it('does not offer controls until AI settings have loaded', () => {
+        settingsQuery.current.data = undefined;
+        settingsQuery.current.isInitialLoading = true;
+        renderPage();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     });
 
     it('shows a settings query error and allows retrying', async () => {

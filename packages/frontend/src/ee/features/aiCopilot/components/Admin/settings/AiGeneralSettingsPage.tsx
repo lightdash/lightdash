@@ -116,7 +116,7 @@ export const AiGeneralSettingsPage = () => {
 
     const anySurface = settings
         ? settings.aiAgentsVisible ||
-          settings.mcpAgentsEnabled ||
+          (settings.mcpAgentsEnabled && settings.mcpEnabled !== false) ||
           slackAgentsEnabled
         : false;
 
@@ -189,6 +189,7 @@ export const AiGeneralSettingsPage = () => {
                                         </Text>
                                     </Box>
                                     <Switch
+                                        aria-label="AI Router"
                                         size="md"
                                         checked={isRouterEnabled}
                                         disabled={

@@ -31,9 +31,33 @@ vi.mock('@sentry/node', () => ({
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-const createService = () =>
+const createService = ({
+    mcpEnabled = true,
+    organizationMcpEnabled = null,
+    aiCopilotEnabled = false,
+    trialEligible = false,
+}: {
+    mcpEnabled?: boolean;
+    organizationMcpEnabled?: boolean | null;
+    aiCopilotEnabled?: boolean;
+    trialEligible?: boolean;
+} = {}) =>
     Object.assign(Object.create(McpService.prototype), {
-        lightdashConfig: { mcp: { enabled: true } },
+        lightdashConfig: { mcp: { enabled: mcpEnabled } },
+        featureFlagService: {
+            get: vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled: aiCopilotEnabled,
+                }),
+            ),
+        },
+        aiOrganizationSettingsService: {
+            isMcpEnabled: vi
+                .fn()
+                .mockResolvedValue(organizationMcpEnabled ?? true),
+            isEligibleForTrial: vi.fn().mockResolvedValue(trialEligible),
+        },
     }) as McpService;
 
 const createAccount = ({
@@ -50,6 +74,99 @@ const createAccount = ({
         },
         isOauthUser: () => isOauthUser,
     }) as unknown as Account;
+
+describe('McpService organization MCP availability', () => {
+    it('checks the organization setting before instance, copilot and trial enablement', async () => {
+        const service = createService({
+            organizationMcpEnabled: false,
+            aiCopilotEnabled: true,
+            trialEligible: true,
+        });
+
+        await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(
+            false,
+        );
+        expect(
+            service['aiOrganizationSettingsService'].isMcpEnabled,
+        ).toHaveBeenCalledExactlyOnceWith(defaultSessionUser.organizationUuid);
+        expect(service['featureFlagService'].get).not.toHaveBeenCalled();
+        expect(
+            service['aiOrganizationSettingsService'].isEligibleForTrial,
+        ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            mcpEnabled: true,
+            aiCopilotEnabled: false,
+            trialEligible: false,
+            expected: true,
+        },
+        {
+            mcpEnabled: false,
+            aiCopilotEnabled: true,
+            trialEligible: false,
+            expected: true,
+        },
+        {
+            mcpEnabled: false,
+            aiCopilotEnabled: false,
+            trialEligible: true,
+            expected: true,
+        },
+        {
+            mcpEnabled: false,
+            aiCopilotEnabled: false,
+            trialEligible: false,
+            expected: false,
+        },
+    ])(
+        'preserves normal availability: %j',
+        async ({ expected, ...options }) => {
+            const service = createService(options);
+            await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(
+                expected,
+            );
+        },
+    );
+
+    it('rechecks the setting on the same running service', async () => {
+        const service = createService();
+        vi.mocked(service['aiOrganizationSettingsService'].isMcpEnabled)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true);
+
+        await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(true);
+        await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(
+            false,
+        );
+        await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(true);
+    });
+
+    it('refuses to proceed when the organization settings cannot be read', async () => {
+        const service = createService();
+        vi.mocked(
+            service['aiOrganizationSettingsService'].isMcpEnabled,
+        ).mockRejectedValueOnce(new Error('Settings unavailable'));
+        await expect(service.isEnabled(defaultSessionUser)).rejects.toThrow(
+            'Settings unavailable',
+        );
+    });
+
+    it('requires an organization even when the instance enables MCP', async () => {
+        const service = createService({ organizationMcpEnabled: false });
+        await expect(
+            service.isEnabled({
+                ...defaultSessionUser,
+                organizationUuid: undefined,
+            }),
+        ).resolves.toBe(false);
+        expect(
+            service['aiOrganizationSettingsService'].isMcpEnabled,
+        ).not.toHaveBeenCalled();
+    });
+});
 
 describe('McpService MCP scope authorization', () => {
     it.each([

@@ -5624,10 +5624,22 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
+    // Organization disablement takes precedence over every MCP enablement path.
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (!user.organizationUuid) {
+            return false;
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isMcpEnabled(
+                user.organizationUuid,
+            ))
+        ) {
+            return false;
+        }
+
+        // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
@@ -5639,10 +5651,6 @@ export class McpService extends BaseService {
 
         if (aiCopilotFlag.enabled) {
             return true;
-        }
-
-        if (!user.organizationUuid) {
-            return false;
         }
 
         return this.aiOrganizationSettingsService.isEligibleForTrial(

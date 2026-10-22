@@ -621,6 +621,8 @@ export type AiOrganizationSettings = {
     aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
+    // Optional for clients talking to an older server; defaults to true.
+    mcpEnabled?: boolean;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
     // Customer consent for data apps to call AI at runtime (analysis, insights).
@@ -663,6 +665,7 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
+    mcpEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
@@ -684,6 +687,8 @@ export type ApiAiOrganizationSettingsResponse = ApiSuccess<
 export type AiOrganizationRuntimeSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
+    // Available to all members so client setup reflects organization consent.
+    mcpEnabled?: boolean;
     aiAgentsVisible: boolean;
     aiAgentMemoryEnabled: boolean;
     aiAgentReviewsEnabled: boolean;

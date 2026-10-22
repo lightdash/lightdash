@@ -731,6 +731,10 @@ export const useSettingsNavigation = (
                     ],
                     pageSections: [
                         {
+                            title: 'Allow MCP access',
+                            keywords: ['access', 'disable', 'organization'],
+                        },
+                        {
                             title: 'Enable agents over MCP',
                             keywords: ['tools', 'context', 'access'],
                         },
