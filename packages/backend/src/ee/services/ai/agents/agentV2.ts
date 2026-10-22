@@ -2189,8 +2189,12 @@ export const getAgentTools = (
             getRunComposerQueries({
                 agentContext,
                 reviewQuery,
-                decisions: args.decisions,
-                searchFieldValues: dependencies.searchFieldValues,
+                filterValueHints: args.decisions
+                    ? {
+                          decisions: args.decisions,
+                          searchFieldValues: dependencies.searchFieldValues,
+                      }
+                    : null,
                 updateProgress: dependencies.updateProgress,
                 runComposerQueries: queryDependencies.runComposerQueries,
                 getPrompt: dependencies.getPrompt,

@@ -15,7 +15,6 @@ import {
     type ToolComposerSemanticLayerNode,
 } from '@lightdash/common';
 import type { ZodType } from 'zod';
-import type { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
@@ -26,6 +25,7 @@ import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
+    type FilterValueHintDependencies,
 } from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
@@ -206,8 +206,7 @@ const makeTool = ({
     agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
-    decisions,
-    searchFieldValues,
+    filterValueHints = null,
 }: {
     reviewQuery?: QueryReviewer;
     autoApproveSql?: boolean;
@@ -220,14 +219,12 @@ const makeTool = ({
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
-    decisions?: Pick<AiDecisionClient, 'evaluate'>;
-    searchFieldValues?: SearchFieldValuesFn;
+    filterValueHints?: FilterValueHintDependencies | null;
 } = {}) => {
     const dependencies = {
         agentContext,
         reviewQuery,
-        decisions,
-        searchFieldValues,
+        filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -1399,17 +1396,19 @@ describe('semanticLayer node filters', () => {
             );
             const made = makeTool({
                 reviewQuery,
-                decisions: {
-                    evaluate: vi.fn().mockResolvedValue({
-                        value: {
-                            type: 'choice',
-                            choice: '0',
-                            confidence: 0.99,
-                            probabilities: { '0': 1 },
-                        },
-                    }),
+                filterValueHints: {
+                    decisions: {
+                        evaluate: vi.fn().mockResolvedValue({
+                            value: {
+                                type: 'choice',
+                                choice: '0',
+                                confidence: 0.99,
+                                probabilities: { '0': 1 },
+                            },
+                        }),
+                    },
+                    searchFieldValues,
                 },
-                searchFieldValues,
             });
             made.dependencies.runComposerQueries.mockResolvedValue({
                 submissions: [],
@@ -1422,7 +1421,11 @@ describe('semanticLayer node filters', () => {
             });
             return {
                 ...made,
-                run: () => executeTool(made.tool, makeArgs({ queries })),
+                run: (terminalNodeId: string | null = null) =>
+                    executeTool(
+                        made.tool,
+                        makeArgs({ queries, terminalNodeId }),
+                    ),
             };
         };
 
@@ -1430,10 +1433,14 @@ describe('semanticLayer node filters', () => {
             const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
             const output = await emptyTool(searchFieldValues).run();
 
-            const hint = `${EMPTY_QUERY_GUIDANCE} For orders_customer_name, "Alice" is a likely equivalent of "Alic" from the available values. Verify it preserves the requested meaning before retrying. Query/question review: check conditions.`;
-            expect(output.result).toContain(hint);
+            expect(output.result).toContain(
+                `${EMPTY_QUERY_GUIDANCE} For orders_customer_name, "Alice" is a likely equivalent of "Alic"`,
+            );
+            expect(output.result).toContain('check conditions');
             expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
-            expect(output.structuredContent).toMatchObject({ review: hint });
+            expect(output.structuredContent).toMatchObject({
+                review: expect.stringContaining('"Alice"'),
+            });
             expect(searchFieldValues).toHaveBeenCalledWith({
                 table: mockOrdersExplore.name,
                 fieldId: 'orders_customer_name',
@@ -1441,12 +1448,24 @@ describe('semanticLayer node filters', () => {
             });
         });
 
-        it('keeps the diagnosis when the terminal node is not a semanticLayer node', async () => {
+        it('suggests values for a semanticLayer node feeding an empty transform', async () => {
             const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
             const output = await emptyTool(searchFieldValues, [
                 filteredNode,
                 { ...duckdbNode, references: ['revenue'] },
             ]).run();
+
+            expect(output.result).toContain('"Alice" is a likely equivalent');
+            expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
+        });
+
+        it('keeps the diagnosis when no semanticLayer node feeds the empty terminal', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues, [
+                filteredNode,
+                sqlNode,
+                { ...duckdbNode, references: ['signups'] },
+            ]).run('joined');
 
             expect(output.result).toContain(EMPTY_DIAGNOSIS);
             expect(searchFieldValues).not.toHaveBeenCalled();

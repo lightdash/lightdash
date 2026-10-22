@@ -22,6 +22,18 @@ import type { QueryReviewPlan } from './queryReview';
 export const EMPTY_QUERY_GUIDANCE =
     'The query returned no rows. Zero rows alone do not establish the cause. Check the executed filters, date range, parameters and source against the request. Preserve the user’s scope; do not broaden filters merely to obtain rows. If no concrete mismatch is found, report the empty result.';
 
+/** Equivalent filter values take precedence over the empty-result diagnosis. */
+export const preferFilterValueHints = ({
+    diagnosis,
+    valueHints,
+    review,
+}: {
+    diagnosis: string;
+    valueHints: string;
+    review: string;
+}): string =>
+    valueHints ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${review}` : diagnosis;
+
 const CAUSES = {
     filter_value:
         'An executed non-date filter literal or operator contradicts an explicit requested condition. A zero-row result or an unfamiliar value alone is not evidence.',
