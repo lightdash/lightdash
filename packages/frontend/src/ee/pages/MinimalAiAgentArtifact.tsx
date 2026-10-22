@@ -248,9 +248,9 @@ const MinimalComposerArtifact: FC<{
                     </Center>
                 ) : queryUuid && config.vizConfig ? (
                     <AiComposerRunQueryVisualization
-                        projectUuid={projectUuid}
-                        nodeQueryUuid={queryUuid}
+                        {...artifactRef}
                         nodeResults={nodeResults}
+                        chartStage={run?.chartStage ?? null}
                         vizConfig={config.vizConfig}
                         metadata={metadata}
                         onScreenshotReady={handleReady}

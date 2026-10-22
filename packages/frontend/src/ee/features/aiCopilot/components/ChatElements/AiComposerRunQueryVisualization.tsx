@@ -1,19 +1,15 @@
 import {
     ECHARTS_DEFAULT_COLORS,
-    getComposerChartStage,
+    FeatureFlags,
     getComposerRunQueryChart,
-    isApiError,
     toComposerResultRows,
-    type ApiExecuteSourceQueriesResults,
+    type ApiAiAgentComposerArtifactChartStage,
     type ChartConfig,
     type ComposerCustomChartTypeSlot,
     type ComposerRunQueryChart,
     type ComposerStoredChartVizConfig,
-    type DuckdbSourceQuery,
-    type ExecuteSourceQueriesRequestParams,
 } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine/core';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
@@ -24,52 +20,24 @@ import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
 } from '../../../../../hooks/useQueryResults';
-import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 
 const DATA_APP_VIZ_RENDER_TARGET = {
     isEmbedded: false,
     savedChartUuid: undefined,
 };
 
-/** Runs the series split's chart stage over the stored node result on the compose engine. */
-const useChartStageQueryUuid = (
-    projectUuid: string,
-    stage: DuckdbSourceQuery | null,
-) => {
-    const lightdashApi = useLightdashApi();
-    return useQuery<string, Error>({
-        queryKey: ['composerChartStage', projectUuid, stage],
-        queryFn: async () => {
-            if (!stage) throw new Error('No chart stage');
-            const body = {
-                queries: [stage],
-            } satisfies ExecuteSourceQueriesRequestParams;
-            const { queries } =
-                await lightdashApi<ApiExecuteSourceQueriesResults>({
-                    url: `/projects/${projectUuid}/query-sources/queries`,
-                    version: 'v2',
-                    method: 'POST',
-                    body: JSON.stringify(body),
-                }).catch((error: unknown) => {
-                    if (!isApiError(error)) throw error;
-                    throw new Error(error.error.message);
-                });
-            const submission = queries[0];
-            if (!submission) throw new Error('Chart query was not submitted');
-            return submission.queryUuid;
-        },
-        enabled: stage !== null,
-        staleTime: Infinity,
-        retry: false,
-    });
-};
-
 type Props = {
     projectUuid: string;
-    /** The presented node's result in this run. */
-    nodeQueryUuid: string;
-    /** That result, every row fetched; its columns type the chart. */
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    /** The presented node's result in this run; its columns type the chart. */
     nodeResults: InfiniteQueryResults;
+    /** The series split stage the server ran over that result; null without a split. */
+    chartStage: ApiAiAgentComposerArtifactChartStage | null;
     vizConfig: ComposerStoredChartVizConfig;
     metadata: { title: string; description: string };
     headerContent?: ReactNode;
@@ -80,8 +48,11 @@ type Props = {
 // A composer node result drawn by the runQuery chart builders, read-only.
 export const AiComposerRunQueryVisualization: FC<Props> = ({
     projectUuid,
-    nodeQueryUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
     nodeResults,
+    chartStage,
     vizConfig,
     metadata,
     headerContent,
@@ -110,39 +81,46 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
         [renderMetadata],
     );
 
-    const chart = useMemo(():
-        | { chart: ComposerRunQueryChart; stage: DuckdbSourceQuery | null }
-        | Error
-        | null => {
+    const chart = useMemo((): ComposerRunQueryChart | Error | null => {
         if (columns.length === 0) return null;
         if (customChartType && slots === null) return null;
         try {
-            return {
-                chart: getComposerRunQueryChart({
-                    columns,
-                    vizConfig,
-                    metadata,
-                    customChartTypeSlots: slots ?? [],
-                }),
-                stage: getComposerChartStage({
-                    vizConfig,
-                    customChartTypeSlots: slots ?? [],
-                    nodeId: 'chart_stage',
-                    source: nodeQueryUuid,
-                }),
-            };
+            return getComposerRunQueryChart({
+                columns,
+                vizConfig,
+                metadata,
+                customChartTypeSlots: slots ?? [],
+            });
         } catch (error) {
             return error instanceof Error ? error : new Error(String(error));
         }
-    }, [columns, customChartType, slots, vizConfig, metadata, nodeQueryUuid]);
-    const readyChart = chart instanceof Error ? null : (chart?.chart ?? null);
-    const stage = chart instanceof Error ? null : (chart?.stage ?? null);
+    }, [columns, customChartType, slots, vizConfig, metadata]);
+    const readyChart = chart instanceof Error ? null : chart;
+    const stage = chartStage !== null;
     // The provider expands pivoted series; fed back so series colors resolve.
     const [expandedChartConfig, setExpandedChartConfig] =
         useState<ChartConfig | null>(null);
 
-    const stageQuery = useChartStageQueryUuid(projectUuid, stage);
-    const stageResults = useInfiniteQueryResults(projectUuid, stageQuery.data);
+    const isEmbed = useIsEmbedded();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
+    const stageQueryUuid =
+        chartStage?.status === 'ok' ? chartStage.queryUuid : undefined;
+    const stageResults = useInfiniteQueryResults(
+        projectUuid,
+        isEmbed || !identityFlag.isLoading ? stageQueryUuid : undefined,
+        undefined,
+        identityEnabled && !isEmbed && stageQueryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+                  queryUuid: stageQueryUuid,
+                  cached: false,
+              })
+            : null,
+    );
     // Without a split the chart reads the node result, renamed in memory.
     const results = stage ? stageResults : nodeResults;
 
@@ -153,13 +131,13 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
     }, [results]);
 
     const errorMessage =
-        chart instanceof Error
-            ? chart.message
-            : renderMetadata?.state === 'unavailable'
-              ? 'Custom chart type bundle is unavailable'
-              : ((stage ? stageQuery.error?.message : undefined) ??
-                results.error?.error.message ??
-                null);
+        chartStage?.status === 'error'
+            ? chartStage.message
+            : chart instanceof Error
+              ? chart.message
+              : renderMetadata?.state === 'unavailable'
+                ? 'Custom chart type bundle is unavailable'
+                : (results.error?.error.message ?? null);
     useEffect(() => {
         if (errorMessage) onScreenshotError?.();
     }, [errorMessage, onScreenshotError]);
