@@ -4,9 +4,43 @@ import { baseTableCalcSchema } from './tableCalcBaseSchemas';
 // Names must exist in @lightdash/formula's catalog; common cannot depend on
 // that (private) package, so a backend test guards this list against drift.
 export const FORMULA_SCHEMA_FUNCTION_NAMES = {
-    general: ['IF', 'COALESCE', 'ROUND', 'ABS', 'CONCAT'],
-    date: ['YEAR', 'DATE_TRUNC', 'DATE_DIFF', 'DATE_ADD'],
-    aggregate: ['SUM', 'AVG', 'MIN', 'MAX', 'COUNT', 'SUMIF'],
+    general: ['IF', 'COALESCE', 'ISNULL', 'ROUND', 'ABS', 'CEIL', 'FLOOR'],
+    string: [
+        'CONCAT',
+        'LEN',
+        'TRIM',
+        'LOWER',
+        'UPPER',
+        'LEFT',
+        'RIGHT',
+        'REPLACE',
+        'SUBSTRING',
+        'SPLIT_PART',
+        'STRPOS',
+        'STARTS_WITH',
+    ],
+    date: [
+        'TODAY',
+        'NOW',
+        'YEAR',
+        'MONTH',
+        'DAY',
+        'LAST_DAY',
+        'DATE_TRUNC',
+        'DATE_ADD',
+        'DATE_SUB',
+        'DATE_DIFF',
+    ],
+    aggregate: [
+        'SUM',
+        'AVG',
+        'MIN',
+        'MAX',
+        'COUNT',
+        'SUMIF',
+        'AVERAGEIF',
+        'COUNTIF',
+    ],
     window: [
         'RUNNING_TOTAL',
         'MOVING_SUM',
@@ -16,6 +50,7 @@ export const FORMULA_SCHEMA_FUNCTION_NAMES = {
         'RANK',
         'DENSE_RANK',
         'ROW_NUMBER',
+        'NTILE',
         'FIRST',
         'LAST',
     ],
@@ -26,15 +61,16 @@ const formulaDescription = [
     'Reference fields by their field id directly, e.g. `orders_total_revenue / orders_order_count`. No prefix, no braces, no leading `=`.',
     'Any selected dimension, metric, custom metric (`<table>_<name>`), or another table calculation name can be referenced.',
     'Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.',
-    `Functions include ${FORMULA_SCHEMA_FUNCTION_NAMES.general.join(
+    `Functions: ${FORMULA_SCHEMA_FUNCTION_NAMES.general.join(
         ', ',
-    )}, date functions (${FORMULA_SCHEMA_FUNCTION_NAMES.date.join(
+    )}; string (${FORMULA_SCHEMA_FUNCTION_NAMES.string.join(
         ', ',
-    )}), aggregates over the whole result (${FORMULA_SCHEMA_FUNCTION_NAMES.aggregate.join(
+    )}); date (${FORMULA_SCHEMA_FUNCTION_NAMES.date.join(
         ', ',
-    )}), and window functions (${FORMULA_SCHEMA_FUNCTION_NAMES.window.join(
+    )}); aggregates over the whole result (${FORMULA_SCHEMA_FUNCTION_NAMES.aggregate.join(
         ', ',
-    )}).`,
+    )}); window (${FORMULA_SCHEMA_FUNCTION_NAMES.window.join(', ')}).`,
+    'String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": `DATE_TRUNC("month", d)`, `DATE_ADD(d, 3, "month")`, and `DATE_DIFF(a, b, "month")`, which is positive when b is after a.',
     'Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. `LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)`.',
     'MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is `MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)`.',
     'All branches of an IF must return the same type.',
@@ -59,7 +95,7 @@ export const tableCalcFormulaSchema = baseTableCalcSchema.extend({
         .enum(['number', 'string', 'date', 'timestamp', 'boolean'])
         .nullable()
         .describe(
-            'Data type the formula evaluates to. null defaults to "number".',
+            'Data type the formula evaluates to, e.g. "boolean" for `date_a < date_b` or "string" for `IF(m > 1000, "high", "low")`. null defaults to "number".',
         ),
 });
 

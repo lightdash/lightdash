@@ -11,13 +11,7 @@ import {
 
 export const STRUCTURED_FILTER_GUIDANCE_SECTION = `## Time-based filtering
 
-When the user mentions a time window ("last 3 months", "this quarter", "past year", "since March"), add an explicit filter on a date dimension in \`filters.dimensions\`. Describing the window in the response, or sorting and limiting, is not a substitute: on sparse data it produces wrong results.
-
-- Use \`inThePast\` for relative windows, \`inBetween\` for explicit ranges.
-- A date field from a joined table filters exactly like a base-table date field, so filter on a joined-table date rather than leaving the window unfiltered.
-- For several non-contiguous periods (e.g. "Mar or May 2025"), use a single \`equals\` rule on the date field at the requested granularity with one value per period (e.g. a month-grain field with values \`2025-03-01\` and \`2025-05-01\`), which keeps every filter under AND.
-- Set the dimension filter \`type\` to \`or\` only when the date ranges are the sole dimension filters and no granularity-aligned \`equals\` rule fits (e.g. arbitrary day ranges like "Mar 1–6 vs Apr 1–6"), with one \`inBetween\` per range. \`or\` applies across all dimension filters in the group, so with a categorical (or any non-date) filter present it makes that filter optional and silently drops it.
-- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests.`;
+When the user mentions a time window ("last 3 months", "this quarter", "past year", "since March"), add an explicit filter on a date dimension in \`filters.dimensions\`; a joined table's date field filters like a base-table one. Describing the window in the response, or sorting and limiting, is not a substitute: on sparse data it produces wrong results. For several periods, the \`filters\` parameter says when \`or\` is safe.`;
 
 const placementExamples = {
     dimensions: [

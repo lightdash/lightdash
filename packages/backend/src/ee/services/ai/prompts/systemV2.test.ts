@@ -404,9 +404,7 @@ describe('getSystemPromptV2 merge queries', () => {
         ({ args, markdownTables }) => {
             const content = promptText({ availableExplores: [], ...args });
             expect(
-                content.includes(
-                    'Markdown tables with a header, separator and data rows',
-                ),
+                content.includes('Markdown tables with their data in the rows'),
             ).toBe(markdownTables);
             expect(content.includes('code blocks, Markdown tables')).toBe(
                 !markdownTables,
@@ -1219,7 +1217,9 @@ describe('getSystemPromptV2 Slack links only', () => {
             slackLinksOnly: true,
         });
         expect(content).toContain(noDataInSlackRule);
-        expect(content).toContain('Do not summarize them');
+        expect(content).toContain(
+            'Use them only to check that the query answers the question',
+        );
         expect(content).not.toContain('call out trends');
     });
 

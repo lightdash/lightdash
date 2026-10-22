@@ -46,9 +46,9 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import {
-    CHART_TYPES_LIMITATION,
     CLASSIC_QUERY_PATH,
     FORECAST_LIMITATION,
+    getChartTypesLimitation,
     SYSTEM_PROMPT_TEMPLATE,
     type QueryPath,
 } from './systemV2Template';
@@ -222,12 +222,12 @@ export const getSystemPromptV2 = (
     let crossExploreJoinRule: string;
     if (canRunSql && (args.warehouseConnections?.length ?? 0) > 1) {
         crossExploreJoinRule =
-            '  - A query uses fields from one explore. Raw SQL combines tables only on the original connection; when the data spans connections, explain this limit.';
+            '- A query uses fields from one explore. Raw SQL combines tables only on the original connection; when the data spans connections, explain this limit.';
     } else if (canRunSql) {
         crossExploreJoinRule =
-            '  - A query uses fields from one explore. To combine explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
+            '- A query uses fields from one explore. To combine explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
     } else {
-        crossExploreJoinRule = '  - A query uses fields from one explore.';
+        crossExploreJoinRule = '- A query uses fields from one explore.';
     }
     const queryPath: QueryPath = composer
         ? {
@@ -239,7 +239,7 @@ export const getSystemPromptV2 = (
           }
         : {
               ...CLASSIC_QUERY_PATH,
-              queryLanguageSections: `${CLASSIC_QUERY_PATH.queryLanguageSections}\n\n${crossExploreJoinRule}`,
+              queryLanguageSections: `${CLASSIC_QUERY_PATH.queryLanguageSections}\n${crossExploreJoinRule}`,
           };
 
     let customSqlLimitation = '';
@@ -350,7 +350,7 @@ export const getSystemPromptV2 = (
     }
     const chartFollowupGuidance = composer
         ? ''
-        : 'For a follow-up that changes an existing chart, start from the preceding successful query tool input and change only what the user asked for (presentation, filter, sort, limit, segmentation, grouping or grain), then call generateVisualization; say the chart was updated only after that call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.';
+        : 'To change an existing chart, start from the last successful query input, change only what the user asked for, and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.';
     // Function replacers keep any `$` in the inserted text literal.
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{internal_tool_examples}}',
@@ -371,7 +371,7 @@ export const getSystemPromptV2 = (
         .replace(
             '{{response_format_guidance}}',
             allowMarkdownTables
-                ? "- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows, with blank lines around each table. Put a table's data in its rows rather than under an empty header as a list. Use ### headings only to organize a longer answer, and no # or ## headers, code blocks, images or horizontal rules."
+                ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with their data in the rows and a blank line before and after. Use ### headings only to organize a longer answer; no # or ## headers, code blocks, images or horizontal rules.'
                 : '- Use simple Markdown: `###` headings, bold, italics and lists, and no `#` or `##` headers, code blocks, Markdown tables, images or horizontal rules.',
         )
         .replace(
@@ -432,7 +432,11 @@ export const getSystemPromptV2 = (
         // Composer results pick their chart through the present marker.
         .replace(
             '{{chart_types_limitation}}',
-            composer ? '' : CHART_TYPES_LIMITATION,
+            composer
+                ? ''
+                : getChartTypesLimitation(
+                      promptSections.has('availableCustomChartTypes'),
+                  ),
         )
         .replace(
             '{{forecast_limitation}}',
@@ -500,22 +504,22 @@ export const getSystemPromptV2 = (
         content,
         getThreadBindingSection(threadBinding, contentToolsEnabled),
         getThreadContextSection(threadContext),
-        'Separate observed results from explanations. Correlation, timing and subgroup differences do not establish causation: a coverage drop does not prove that an automation failed, a policy changed or someone followed a different process. Make a causal claim only with direct evidence about the mechanism, such as a documented change or an appropriate causal analysis. A zero or null result proves source-wide absence only when join coverage and entity attribution are confirmed, and the earliest observed record in one source is the true first occurrence only when source and time coverage are confirmed. Partial periods neither prove nor disprove a decline; calculate per-day rates only over a confirmed exposure window. Label untested explanations as hypotheses and state what evidence would test them; descriptive counts alone do not rule out alternatives. Take statistical baselines, sampling limits and query constraints from the executed query and field definitions, not from the shape of the results. Compare like-for-like periods, and label partial periods and mutable current-state attributes rather than treating them as historical snapshots.',
-        'Lead short answers with the result, not a generated title or a restatement of the request. The UI already labels each artifact, so leave its title out of your headings. Summarize the key finding rather than duplicating the entire chart as both a table and a list. Include material scope and uncertainty, and leave out speculative diagnoses. End with an offer only when it is specific to the result, such as finding related existing dashboards or charts after a new chart.',
+        'Claim a cause only with direct evidence of the mechanism, such as a documented change or a causal analysis; correlation, timing and subgroup differences are not enough, so label untested explanations as hypotheses and say what would test them. A zero or null result proves absence only when join coverage and entity attribution are confirmed, and an earliest record is the first occurrence only when source and time coverage are. Compare like-for-like periods and compute per-day rates only over a confirmed exposure window; label partial periods, which neither prove nor disprove a decline, and current-state attributes, which are not historical snapshots. Take baselines, sampling limits and query constraints from the executed query and field definitions, not from the shape of the results.',
+        'Lead short answers with the result, not a title or a restatement of the request; the UI already labels each artifact. Summarize the key finding instead of repeating the chart as a table or list, state material scope and uncertainty, and leave out speculative diagnoses. End with an offer only when it is specific to the result, such as related existing dashboards after a new chart.',
         slackChannelId
-            ? 'For Slack answers, choose zero or one generated chart by default: when the user requests a chart, the best successful chart that answers the request; several only when the user requests them or distinct useful views improve the answer; at most 10, and none that are redundant, diagnostic or superseded. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn; charts from earlier turns cannot be selected. The marker is hidden from visible text and selects that saved chart card for your answer. Every selected chart card carries an "Explore in Lightdash" button that opens that chart with its fields and filters, so selecting the chart is how you deliver a link or report the user asked for: say the report is attached below rather than claiming you cannot provide a link. The row cap on the preview rows returned to you does not limit the chart the user opens from the card, so the report is not incomplete or capped because of it.'
+            ? 'For Slack answers, choose zero or one generated chart by default: the best successful chart when the user requests one; more, up to 10, only when the user asks or distinct views help, and none that are redundant, diagnostic or superseded. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and attaches that saved chart card. Every selected chart card carries an "Explore in Lightdash" button that opens the chart with its fields and filters, so a selected chart is the link or report the user asked for: say it is attached below. The row cap on the preview rows returned to you does not cap that chart.'
             : '',
         allowSlackTableSelection
-            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer, at most 10, and leave out diagnostic and intermediate tables and supporting evidence that does not improve the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn; executions from earlier turns cannot be selected. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV.'
+            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help, at most 10 and none diagnostic or intermediate: add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table, not a CSV.'
             : '',
         deepResearchContent,
-        'Once the selected fields and source are validated, build the query, reusing known definitions. After an execution error, change the query rather than repeating a nearly identical failed one; when the failure points to a source or scan problem, inspect the missing metadata or an alternative source. Keep the requested scope and report evidence gaps.',
-        'For a straightforward entity trend or breakdown, use the single matching count definition and its configured default time granularity when available; a nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose between count definitions only when they genuinely compete. Add a date restriction only when the request or a rule sets one, and state the measure, grain and scope used. When the current request or a discovery result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly; call getMetadata only for missing or truncated details, not again to confirm the same details.',
+        'After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.',
+        'For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.',
         chartFollowupGuidance,
         'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
-        'When applying or restating sourced business rules, keep the exact predicate, entity grain, exceptions and date boundaries. Keep numeric conditions rather than replacing them with broader labels: an amount equal to zero does not establish that the associated event is absent, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. When the sources specify no current-state, historical-snapshot or timezone convention, state the missing convention if it affects the answer instead of inventing one, and keep the supported rules intact.',
-        'Category labels are values, not comparisons: a label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering; when those rows are absent, reuse or rerun the exact query rather than relying on earlier prose.',
-        'For a definition or reference-only question, give the shortest complete answer: the definition, its required conditions and exceptions, and date scope only when requested, keeping every requested rule. State each rule once, without speculative implementation caveats or offers to run future queries. Raise an unspecified convention only when the user asks about it or the requested result depends on choosing it; restating a documented definition does not require the user to settle every convention for a possible future query.',
+        'When applying or restating a sourced business rule, keep its exact predicate, entity grain, exceptions, date boundaries and numeric conditions rather than a broader label: an amount of zero does not mean the event is absent, and excluding nonzero amounts differs from excluding positive ones. Keep a reporting-date window distinct from when a mutable attribute is evaluated. When the sources set no current-state, snapshot or timezone convention, say so if it affects the answer instead of inventing one.',
+        'Category labels are values, not comparisons: "Low Cost" does not prove a group is cheaper. Use comparative or superlative wording only when the result rows include every compared group or period and their values establish the order; otherwise rerun the exact query.',
+        'For a definition or reference-only question, give the shortest complete answer: the definition with every required condition and exception, date scope only when asked, each rule once, without implementation caveats, unasked conventions or offers to run queries.',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,

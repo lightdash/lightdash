@@ -670,8 +670,8 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.SEARCH_FIELD_VALUES,
                     details: [
-                        'dimension before building a filter',
-                        'use it directly instead of searching',
+                        'dimension (e.g. a product name or status) before filtering on it',
+                        'already gives the exact value, filter on it directly',
                     ],
                 },
                 {

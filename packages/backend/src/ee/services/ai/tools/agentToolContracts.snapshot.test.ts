@@ -2,6 +2,7 @@ import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
     AI_DEFAULT_MAX_QUERY_LIMIT,
+    queryConfigBaseSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
@@ -304,9 +305,9 @@ describe('AI agent tool contracts', () => {
             }
             expect(generateVisualization.description).toContain('execution');
             expect(runQueryDescription).toContain('execution');
-            expect(generateVisualization.description).toContain(
-                'queryConfig.parameters',
-            );
+            expect(
+                queryConfigBaseSchema.shape.parameters.description,
+            ).toContain('requires parameters');
             expect(runSql.description).toContain(
                 `max ${AI_DEFAULT_MAX_QUERY_LIMIT}`,
             );
