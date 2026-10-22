@@ -148,28 +148,17 @@ const defaultLayoutFor = (
     return x ? { ...layout, x: xOf(x) } : null;
 };
 
-/**
- * The panel's value: the stored viz config when every referenced column is
- * still in the result, else the column-type default as a viz config. The only
- * place a default is invented.
- */
+/** The panel's value: the stored viz config when every referenced column is still in the result, else the table. */
 export const getComposerVizPanelValue = ({
     vizConfig,
-    ...result
-}: ResultShape & {
+    columns,
+}: {
     vizConfig: AllVizChartConfig | null;
-}): AllVizChartConfig => {
-    if (vizConfig && composerVizConfigFitsColumns(vizConfig, result.columns))
-        return vizConfig;
-    const plan = getComposerVizPlan({ ...result, vizConfig: null });
-    if (plan.defaultKind === 'table') return tableConfig();
-    const axes = plan.axes[plan.defaultKind];
-    if (!axes) return tableConfig();
-    return buildComposerVizConfig({
-        kind: plan.defaultKind,
-        fieldConfig: getComposerFieldConfig(axes, plan.defaultKind),
-    });
-};
+    columns: ResultColumn[];
+}): AllVizChartConfig =>
+    vizConfig && composerVizConfigFitsColumns(vizConfig, columns)
+        ? vizConfig
+        : tableConfig();
 
 export type ComposerVizPanelOptions = {
     kinds: ComposerVizKind[];

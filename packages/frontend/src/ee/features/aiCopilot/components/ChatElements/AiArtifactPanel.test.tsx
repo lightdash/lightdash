@@ -476,19 +476,23 @@ describe('composer viz config panel', () => {
         ],
     );
 
-    it('opens a string + number result as a bar chart offering table, bar, line and pie', async () => {
+    it('opens a string + number result as a table offering table, bar, line and pie', async () => {
         renderComposer(statusCounts);
-        expect(chartBar()).toHaveTextContent('Bar · status × n');
+        expect(chartBar()).toHaveTextContent('Table');
         await openChart();
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
-        expect(selectedKind()).toBe('bar');
+        expect(selectedKind()).toBe('table');
+        expect(
+            screen.getByRole('columnheader', { name: 'status' }),
+        ).toBeInTheDocument();
+        chooseKind('bar');
+        expect(chartBar()).toHaveTextContent('Bar · status × n');
         expect(
             screen.getByTestId('chart-view-vertical_bar'),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
 
-    it('opens a date + number result as a line chart', async () => {
+    it('opens a date + number result as a table and can switch to a line chart', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -502,13 +506,15 @@ describe('composer viz config panel', () => {
             ),
         );
         await openChart();
-        expect(selectedKind()).toBe('line');
+        expect(selectedKind()).toBe('table');
+        chooseKind('line');
         expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
     });
 
-    it('switches to the table from the same fetched rows', async () => {
+    it('switches back to the table from the same fetched rows', async () => {
         renderComposer(statusCounts);
         await openChart();
+        chooseKind('bar');
         chooseKind('table');
         expect(
             screen.getByRole('columnheader', { name: 'status' }),
@@ -544,7 +550,7 @@ describe('composer viz config panel', () => {
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
     });
 
-    it('opens a one-row, one-number result as a big number', async () => {
+    it('opens a one-row, one-number result as a table and can switch to a big number', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -555,7 +561,8 @@ describe('composer viz config panel', () => {
             ),
         );
         await openChart();
-        expect(selectedKind()).toBe('big_number');
+        expect(selectedKind()).toBe('table');
+        chooseKind('big_number');
         expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
     });
 
@@ -610,8 +617,8 @@ describe('composer viz config panel', () => {
         });
         const { unmount } = renderComposer(statusCounts);
         await openChart();
-        expect(xAxisSelect()).toBeDisabled();
         chooseKind('line');
+        expect(xAxisSelect()).toBeDisabled();
         expect(chartBar()).toHaveTextContent('Line · status × n');
         unmount();
         expect(mocks.saveVizConfig).not.toHaveBeenCalled();
@@ -691,8 +698,9 @@ describe('composer displayed node', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Display Average amount' }),
         );
-        // A one-row, one-number node result opens as a big number.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'avg_amount' }),
+        ).toBeInTheDocument();
         // Header and pipeline row both name the node.
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
         expect(screen.queryByText('Orders vs amounts')).not.toBeInTheDocument();
@@ -715,8 +723,9 @@ describe('composer displayed node', () => {
         expandPipeline();
         fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
         fireEvent.click(screen.getByLabelText('Display Orders by status'));
-        // A one-row node result charts on its own merits.
-        expect(screen.getByTestId('chart-view-big_number')).toBeInTheDocument();
+        expect(
+            screen.getByRole('columnheader', { name: 'status' }),
+        ).toBeInTheDocument();
         expect(
             screen.getByLabelText('Display Orders by status'),
         ).toHaveAttribute('data-displayed', 'true');
@@ -888,11 +897,10 @@ describe('composer per-node viz switcher', () => {
         fireEvent.click(
             screen.getByRole('button', { name: `Display ${title}` }),
         );
-    it('gives a displayed node its own default and remembers each choice', async () => {
+    it('opens each displayed node as a table and remembers each choice', async () => {
         renderComposer();
         await openChart();
-        expect(selectedKind()).toBe('line');
-        chooseKind('table');
+        expect(selectedKind()).toBe('table');
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
 
         // Other nodes get the switcher alone in the bar, no expand.
@@ -900,7 +908,7 @@ describe('composer per-node viz switcher', () => {
         expect(
             screen.queryByRole('button', { name: /^chart/i }),
         ).not.toBeInTheDocument();
-        expect(selectedKind()).toBe('bar');
+        expect(selectedKind()).toBe('table');
         chooseKind('line');
         expect(selectedKind()).toBe('line');
 

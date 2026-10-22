@@ -114,14 +114,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         ? (config.vizConfig ?? null)
         : null;
     const derivedValue = useMemo(
-        () =>
-            getComposerVizPanelValue({
-                columns,
-                rows,
-                node: displayedNode,
-                vizConfig: storedVizConfig,
-            }),
-        [columns, rows, displayedNode, storedVizConfig],
+        () => getComposerVizPanelValue({ columns, vizConfig: storedVizConfig }),
+        [columns, storedVizConfig],
     );
 
     // Edits on screen: the terminal node's are written back, other nodes' are ephemeral.
