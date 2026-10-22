@@ -26,6 +26,13 @@ export type FieldApply = {
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
+    /**
+     * Outside edit mode: the editor writes the viewer's own temporary
+     * filters, and a saved filter only changes its value.
+     */
+    isViewer: boolean;
+    /** A viewer is changing a saved filter's value: no tiles, no remove. */
+    isSavedValue: boolean;
     /** The edited control was started with Add in this sidebar session. */
     isNew: boolean;
     /** The edited control has no mapping yet, so it cannot be kept. */

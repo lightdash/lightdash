@@ -30,6 +30,8 @@ import {
     dashboardFiltersActions,
     selectDashboardFilters,
     selectHaveFiltersChanged,
+    selectRawTemporaryFilters,
+    selectSavedFilterOverrides,
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
@@ -121,9 +123,11 @@ const revenueField: DashboardFilterableField = {
 
 const latest: {
     filters: DashboardFilters;
+    temporaryFilters: DashboardFilters;
     changed: boolean;
 } = {
     filters: initialFilters,
+    temporaryFilters: NO_TEMPORARY_FILTERS,
     changed: false,
 };
 
@@ -148,6 +152,34 @@ const storeSetters = (store: DashboardStore) => ({
                     : value,
             ),
         ),
+    setDashboardTemporaryFilters: (value: SetStateAction<DashboardFilters>) =>
+        store.dispatch(
+            dashboardFiltersActions.setTemporaryFilters(
+                typeof value === 'function'
+                    ? value(selectRawTemporaryFilters(store.getState()))
+                    : value,
+            ),
+        ),
+    // As the dashboard provider writes a saved rule, from the saved dashboard
+    updateDimensionDashboardFilter: (
+        filter: DashboardFilterRule,
+        index: number,
+        isTemporary: boolean,
+        isInEditMode: boolean,
+    ) =>
+        store.dispatch(
+            dashboardFiltersActions.updateFilter({
+                filter,
+                index,
+                isTemporary,
+                isInEditMode,
+                isFilterSaved: saved.filters.dimensions.some(
+                    ({ id }) => id === filter.id,
+                ),
+                originalFilter: saved.filters.dimensions[index],
+                category: 'dimensions',
+            }),
+        ),
 });
 
 const DashboardState: FC<
@@ -155,12 +187,14 @@ const DashboardState: FC<
 > = ({ setters, children }) => {
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
+    const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
         dashboard: { tiles: mockTiles.saved },
     };
     latest.filters = dashboardFilters;
+    latest.temporaryFilters = temporaryFilters;
     latest.changed = haveFiltersChanged;
     return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
 };
@@ -210,6 +244,7 @@ describe('ControlsSidebarProvider', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
         latest.filters = initialFilters;
+        latest.temporaryFilters = NO_TEMPORARY_FILTERS;
         latest.changed = false;
         mockParams.current = { mode: 'edit' };
         mockTiles.current = [{ uuid: 't1' }];
@@ -2574,5 +2609,139 @@ describe('ControlsSidebarProvider', () => {
             rerender();
             expect(result.current.dismissedLinks).toEqual([]);
         });
+    });
+});
+
+describe('ControlsSidebarProvider in view mode', () => {
+    beforeEach(() => {
+        saved.filters = initialFilters;
+        latest.filters = initialFilters;
+        latest.temporaryFilters = NO_TEMPORARY_FILTERS;
+        latest.changed = false;
+        mockParams.current = { mode: 'view' };
+        mockTiles.current = [{ uuid: 't1' }];
+        mockFieldsByTile.current = {};
+        mockTrack.mockClear();
+    });
+
+    it("adds a viewer's filter to the temporary filters, never the saved ones", () => {
+        const { result } = setup();
+        expect(result.current.isViewer).toBe(true);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        const added = latest.temporaryFilters.dimensions[0];
+        expect(added.target.fieldId).toBe('orders_status');
+        // No value yet: "any value", as the shipped popover writes it
+        expect(added.disabled).toBe(true);
+        expect(result.current.editingRule?.id).toBe(added.id);
+        expect(result.current.isSavedValue).toBe(false);
+
+        act(() => result.current.close());
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        expect(mockTrack).toHaveBeenCalledWith({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: { mode: 'viewer' },
+        });
+    });
+
+    it("discarding a viewer's new filter leaves nothing behind", () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        expect(latest.changed).toBe(true);
+
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+        expect(latest.changed).toBe(false);
+        expect(result.current.isRailOpen).toBe(true);
+        expect(mockTrack).not.toHaveBeenCalled();
+    });
+
+    it("edits, puts back and removes a viewer's own filter", () => {
+        const own = rule('own', ['x']);
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: [own],
+                }),
+            );
+        });
+        act(() => result.current.open('own'));
+        expect(result.current.isSavedValue).toBe(false);
+        act(() => result.current.updateFilter(rule('own', ['y'])));
+        expect(latest.temporaryFilters.dimensions[0].values).toEqual(['y']);
+        expect(result.current.isDirty).toBe(true);
+
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions[0].values).toEqual(['x']);
+
+        act(() => result.current.open('own'));
+        act(() => result.current.removeFilter());
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it('removes a pill of their own by id', () => {
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: [rule('own', ['x'])],
+                }),
+            );
+        });
+        act(() => result.current.removeFilterById('own'));
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it("changes only a saved filter's value, kept as a URL override", () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        expect(result.current.isSavedValue).toBe(true);
+        expect(result.current.editingRule?.id).toBe('a');
+        expect(result.current.isSidebarOpen).toBe(true);
+
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+        expect(latest.filters.dimensions[0].values).toEqual(['9']);
+        expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+        expect(
+            selectSavedFilterOverrides(currentStore.getState()).dimensions.map(
+                (override) => override.id,
+            ),
+        ).toEqual(['a']);
+        expect(result.current.isDirty).toBe(false);
+
+        // Nothing to discard or remove on a saved filter
+        act(() => result.current.discard());
+        act(() => result.current.removeFilter());
+        expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['a', 'b']);
+        expect(result.current.isSidebarOpen).toBe(true);
+
+        // Back to the saved value: the override goes
+        act(() => result.current.updateFilter(rule('a', ['1'])));
+        expect(
+            selectSavedFilterOverrides(currentStore.getState()).dimensions,
+        ).toEqual([]);
+
+        act(() => result.current.close());
+        expect(result.current.isRailOpen).toBe(false);
+        expect(mockTrack).not.toHaveBeenCalled();
+    });
+
+    it('closes the rail when the dashboard enters edit mode', () => {
+        const { result, rerender } = setup();
+        act(() => result.current.openNew());
+        expect(result.current.isRailOpen).toBe(true);
+        mockParams.current = { mode: 'edit' };
+        rerender();
+        expect(result.current.isRailOpen).toBe(false);
+        expect(result.current.isViewer).toBe(false);
     });
 });

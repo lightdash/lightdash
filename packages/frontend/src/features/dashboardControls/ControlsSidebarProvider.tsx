@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { type DashboardContextType } from '../../providers/Dashboard/types';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
@@ -36,10 +37,14 @@ import {
     selectDashboardFilters,
     selectDashboardTiles,
     selectHaveFiltersChanged,
+    selectRawTemporaryFilters,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
-import { isLockedRequiredMissingValue } from '../dashboardFilters/FilterConfiguration/utils';
+import {
+    getFilterRuleWithDisabledState,
+    isLockedRequiredMissingValue,
+} from '../dashboardFilters/FilterConfiguration/utils';
 import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
@@ -129,6 +134,9 @@ const NO_FIELD_IDS: string[] = [];
 type SidebarState = {
     filterId: string;
     isNew: boolean;
+    // A viewer changing a saved filter's value: the rule is the dashboard's,
+    // written as the shipped popover writes it, never kept in the snapshot
+    isSavedValue: boolean;
     snapshot: ControlsSidebarSnapshot;
     // Where the control sat before its last field was removed, else null
     emptiedAt: {
@@ -157,14 +165,22 @@ type Latest = {
     state: SidebarState | null;
     isRailOpen: boolean;
     placeholder: DashboardFilterRule | null;
+    // The filters the editor writes: the dashboard's in edit mode, the
+    // viewer's own temporary ones in view mode
     dashboardFilters: DashboardFilters;
-    dashboardTemporaryFilters: DashboardFilters;
+    // The other set, which shipped code writes: the temporary filters in edit
+    // mode, the saved ones in view mode
+    otherFilters: DashboardFilters;
+    savedFilters: DashboardFilters;
+    isViewer: boolean;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     dashboardTiles: Dashboard['tiles'] | undefined;
     highlightedFieldId: string | null;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
+    updateDimensionDashboardFilter: DashboardContextType['updateDimensionDashboardFilter'];
+    updateMetricDashboardFilter: DashboardContextType['updateMetricDashboardFilter'];
     track: TrackingContextType['track'];
     undo: ApplyUndo | null;
     waiting: Waiting | null;
@@ -203,11 +219,13 @@ const getEditingRule = ({
     state,
     placeholder,
     dashboardFilters,
+    savedFilters,
 }: Pick<
     Latest,
-    'state' | 'placeholder' | 'dashboardFilters'
+    'state' | 'placeholder' | 'dashboardFilters' | 'savedFilters'
 >): DashboardFilterRule | null => {
     if (state === null) return null;
+    if (state.isSavedValue) return findFilterRule(savedFilters, state.filterId);
     return placeholder ?? findFilterRule(dashboardFilters, state.filterId);
 };
 
@@ -238,28 +256,56 @@ const adoptPlaceholder = (
         : adopted;
 };
 
+// A viewer's filter with no value reads "any value", as the shipped popover
+// writes it in view mode
+const asWritten = (rule: DashboardFilterRule, isViewer: boolean) =>
+    isViewer ? getFilterRuleWithDisabledState(rule, false) : rule;
+
 const getFirstFieldRule = (
     placeholder: DashboardFilterRule,
     field: DashboardFilterableField,
     filterableFieldsByTileUuid: Latest['filterableFieldsByTileUuid'],
+    isViewer: boolean,
 ): DashboardFilterRule =>
-    adoptPlaceholder(
-        placeholder,
-        createDashboardFilterRuleFromField({
-            field,
-            availableTileFilters: filterableFieldsByTileUuid ?? {},
-            isTemporary: false,
-        }),
+    asWritten(
+        adoptPlaceholder(
+            placeholder,
+            createDashboardFilterRuleFromField({
+                field,
+                availableTileFilters: filterableFieldsByTileUuid ?? {},
+                isTemporary: isViewer,
+            }),
+        ),
+        isViewer,
     );
 
 export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     children,
 }) => {
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const setDashboardFilters = useDashboardContext(
-        (c) => c.setDashboardFilters,
+    // The dashboard's own Save or Cancel ends the edit; nothing is restored.
+    // Outside edit mode the editor is a viewer's: it writes temporary filters
+    const { mode } = useParams<{ mode?: string }>();
+    const isEditMode = mode === 'edit';
+    const isViewer = !isEditMode;
+    const isEmbedded = useIsEmbedded();
+    const savedFilters = useDashboardSelector(selectDashboardFilters);
+    const rawTemporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
+    const setSavedFilters = useDashboardContext((c) => c.setDashboardFilters);
+    const setTemporaryFilters = useDashboardContext(
+        (c) => c.setDashboardTemporaryFilters,
+    );
+    const updateDimensionDashboardFilter = useDashboardContext(
+        (c) => c.updateDimensionDashboardFilter,
+    );
+    const updateMetricDashboardFilter = useDashboardContext(
+        (c) => c.updateMetricDashboardFilter,
     );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
+    const dashboardFilters = isViewer ? rawTemporaryFilters : savedFilters;
+    const setDashboardFilters = isViewer
+        ? setTemporaryFilters
+        : setSavedFilters;
+    const otherFilters = isViewer ? savedFilters : dashboardTemporaryFilters;
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
@@ -300,13 +346,17 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         isRailOpen,
         placeholder,
         dashboardFilters,
-        dashboardTemporaryFilters,
+        otherFilters,
+        savedFilters,
+        isViewer,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
         dashboardTiles,
         highlightedFieldId,
         setDashboardFilters,
         setHaveFiltersChanged,
+        updateDimensionDashboardFilter,
+        updateMetricDashboardFilter,
         track,
         undo,
         waiting,
@@ -348,16 +398,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     // What the editor may lower again: only a flag it raised itself, with the
-    // temporary filters as they were (shipped code raises it for those too)
-    const ownRaise = useRef<{ temporaryFilters: DashboardFilters } | null>(
-        null,
-    );
+    // other filters as they were (shipped code raises it for those too)
+    const ownRaise = useRef<{ otherFilters: DashboardFilters } | null>(null);
     const writeFiltersChanged = useCallback((changed: boolean) => {
         const current = latest.current;
         if (changed && !current.haveFiltersChanged && current.state !== null) {
-            ownRaise.current = {
-                temporaryFilters: current.dashboardTemporaryFilters,
-            };
+            ownRaise.current = { otherFilters: current.otherFilters };
         }
         current.haveFiltersChanged = changed;
         current.setHaveFiltersChanged(changed);
@@ -386,10 +432,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             }
             if (
                 ownRaise.current !== null &&
-                isEqual(
-                    ownRaise.current.temporaryFilters,
-                    current.dashboardTemporaryFilters,
-                )
+                isEqual(ownRaise.current.otherFilters, current.otherFilters)
             ) {
                 writeFiltersChanged(false);
             }
@@ -462,9 +505,17 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             focusReturn.current = { filterIds: [], inRail };
             return;
         }
-        const ids = [...filters.dimensions, ...filters.metrics].map(
-            (filter) => filter.id,
-        );
+        // The rail's rows: a viewer's saved filters come before their own
+        const ids = [
+            ...(latest.current.isViewer
+                ? [
+                      ...latest.current.savedFilters.dimensions,
+                      ...latest.current.savedFilters.metrics,
+                  ]
+                : []),
+            ...filters.dimensions,
+            ...filters.metrics,
+        ].map((filter) => filter.id);
         const index = ids.indexOf(filterId);
         focusReturn.current = {
             filterIds:
@@ -498,6 +549,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             writeState({
                 filterId,
                 isNew: false,
+                // A viewer's own filters are the ones the editor writes
+                isSavedValue:
+                    current.isViewer &&
+                    findFilterRule(current.dashboardFilters, filterId) === null,
                 emptiedAt: null,
                 snapshot: {
                     dashboardFilters: current.dashboardFilters,
@@ -525,6 +580,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         writeState({
             filterId: rule.id,
             isNew: true,
+            isSavedValue: false,
             emptiedAt: null,
             snapshot: {
                 dashboardFilters: current.dashboardFilters,
@@ -567,6 +623,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                     current.placeholder,
                     field,
                     current.filterableFieldsByTileUuid,
+                    current.isViewer,
                 ),
                 isMetric(field) ? 'metrics' : 'dimensions',
             );
@@ -583,13 +640,16 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const current = latest.current;
             if (current.placeholder === null) return;
             writeFirstRule(
-                adoptPlaceholder(
-                    current.placeholder,
-                    createDashboardFilterRuleFromSqlColumn({
-                        column,
-                        availableTileColumns,
-                        isTemporary: false,
-                    }),
+                asWritten(
+                    adoptPlaceholder(
+                        current.placeholder,
+                        createDashboardFilterRuleFromSqlColumn({
+                            column,
+                            availableTileColumns,
+                            isTemporary: current.isViewer,
+                        }),
+                    ),
+                    current.isViewer,
                 ),
                 'dimensions',
             );
@@ -608,6 +668,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 current.placeholder,
                 field,
                 fieldsByTile,
+                current.isViewer,
             );
             // Every tile the rule would filter is left out, except the clicked
             // one, which is put on the field when the default does not do it
@@ -635,6 +696,34 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 current.placeholder.id === next.id
             ) {
                 writePlaceholder(next);
+                return;
+            }
+            // A viewer's change to a saved filter is the shipped popover's
+            // write, so the URL keeps it as an override of the saved value
+            if (
+                current.state?.isSavedValue &&
+                current.state.filterId === next.id
+            ) {
+                const isMetricRule = current.savedFilters.metrics.some(
+                    (rule) => rule.id === next.id,
+                );
+                const group = isMetricRule ? 'metrics' : 'dimensions';
+                const index = current.savedFilters[group].findIndex(
+                    (rule) => rule.id === next.id,
+                );
+                if (index === -1) return;
+                current.savedFilters = replaceFilterRule(
+                    current.savedFilters,
+                    next,
+                );
+                (isMetricRule
+                    ? current.updateMetricDashboardFilter
+                    : current.updateDimensionDashboardFilter)(
+                    next,
+                    index,
+                    false,
+                    false,
+                );
                 return;
             }
             const tiles = current.dashboardTiles;
@@ -872,7 +961,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const removeEdited = useCallback(
         (keepRail: boolean) => {
             const { state: editingState } = latest.current;
-            if (editingState === null) return;
+            if (editingState === null || editingState.isSavedValue) return;
             rememberFocusReturn(keepRail);
             const { snapshot, filterId, touchedFilterIds } = editingState;
             writeFilters((filters) =>
@@ -902,7 +991,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const discardEdited = useCallback(
         (keepRail: boolean) => {
             const { state: editingState } = latest.current;
-            if (editingState === null) return;
+            if (editingState === null || editingState.isSavedValue) return;
             rememberFocusReturn(keepRail);
             const { snapshot, filterId, touchedFilterIds } = editingState;
             writeFilters((filters) =>
@@ -931,15 +1020,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const discard = useCallback(() => discardEdited(true), [discardEdited]);
 
     const isPlaceholder = state !== null && placeholder !== null;
+    // The shipped bar's modes for ADD_FILTER_CLICKED
+    const trackingMode = isEditMode ? 'edit' : isEmbedded ? 'embed' : 'viewer';
 
-    // The dashboard's own Save or Cancel ends the edit; nothing is restored
-    const { mode } = useParams<{ mode?: string }>();
-    const isEditMode = mode === 'edit';
+    // Entering or leaving edit mode ends whatever was edited: the editor
+    // writes another set of filters on each side
     useEffect(() => {
-        if (!isEditMode) {
-            reset();
-            setDismissedLinks([]);
-        }
+        reset();
+        if (!isEditMode) setDismissedLinks([]);
     }, [isEditMode, reset]);
 
     const newTileUuids = useMemo(() => {
@@ -960,8 +1048,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
 
     const editingRule = useMemo(
-        () => getEditingRule({ state, placeholder, dashboardFilters }),
-        [state, placeholder, dashboardFilters],
+        () =>
+            getEditingRule({
+                state,
+                placeholder,
+                dashboardFilters,
+                savedFilters,
+            }),
+        [state, placeholder, dashboardFilters, savedFilters],
     );
 
     const waitingFieldIds = useMemo(() => {
@@ -988,6 +1082,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 }
                 return;
             }
+            if (current.state.isSavedValue) {
+                // Each change was written as it was made
+                rememberFocusReturn(keepRail);
+                if (keepRail) resetEdit();
+                else reset();
+                return;
+            }
             const { snapshot } = current.state;
             const rule = getEditingRule(current);
             // Something outside took the rule away: that write is kept, and
@@ -1008,7 +1109,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             if (current.state.isNew) {
                 current.track({
                     name: EventName.ADD_FILTER_CLICKED,
-                    properties: { mode: 'edit' },
+                    properties: { mode: trackingMode },
                 });
             }
             if (isDefaultValueIncomplete(rule)) {
@@ -1029,6 +1130,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             writeFilters,
             settleFiltersChanged,
             rememberFocusReturn,
+            trackingMode,
         ],
     );
     const close = useCallback(() => closeEdited(false), [closeEdited]);
@@ -1119,6 +1221,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
             editing,
+            isViewer,
+            isSavedValue: state?.isSavedValue ?? false,
             isNew: state?.isNew ?? false,
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
@@ -1160,6 +1264,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             collapse,
             isDirty:
                 state !== null &&
+                !state.isSavedValue &&
                 (isPlaceholder ||
                     isFilterRuleDirty(
                         state.snapshot.dashboardFilters,
@@ -1176,6 +1281,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         }),
         [
             state,
+            isViewer,
             isSidebarOpen,
             isRailOpen,
             hoveredFilterId,

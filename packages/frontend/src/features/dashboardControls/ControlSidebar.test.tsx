@@ -102,6 +102,8 @@ const makeRule = (
 const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     const value: ControlsSidebarContextValue = {
         editing: { filterId: 'filter-1' },
+        isViewer: false,
+        isSavedValue: false,
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),

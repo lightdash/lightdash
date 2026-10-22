@@ -170,6 +170,19 @@ In `FilterConfiguration/`:
   callback reads `latest.current`, never render state, and writes through the
   helpers.
 - `open(id)` snapshots the dashboard filters and edits a saved filter control.
+- Outside edit mode the editor is a viewer's (`isViewer`): everything below
+  writes the dashboard's temporary filters (`setDashboardTemporaryFilters`,
+  the raw set), never the saved ones, so the URL's `tempFilters` carries a
+  viewer's filter with its tile picks. New rules are made with `isTemporary`
+  and through the view-mode disabled rule (`getFilterRuleWithDisabledState(
+  rule, false)`): no value reads "any value". `open(id)` on a saved filter
+  edits its value only (`isSavedValue`): `updateFilter` is the shipped
+  `update*DashboardFilter(rule, index, false, false)`, which keeps the
+  `filters` URL override and drops it once the value is the saved one again;
+  `discard()`, `removeFilter()` and the snapshot do nothing for it, and
+  `close()` and `collapse()` only end the edit. The "other" filters that
+  `haveFiltersChanged` is lowered against are the saved ones then. Entering
+  or leaving edit mode resets the editor.
 - `openNew()` opens a placeholder with no mapping; it cannot be kept and
   never reaches the bar. `addFirstField(field)` turns it into a filter control
   on every tile that offers the field (a metric makes a rule in
@@ -177,7 +190,8 @@ In `FilterConfiguration/`:
   it into a filter on a SQL column, on every SQL chart tile that has it, with
   the shipped `createDashboardFilterRuleFromSqlColumn`. Both are the
   sidebar's.
-- `ADD_FILTER_CLICKED` (`mode: 'edit'`, the shipped payload) is tracked when
+- `ADD_FILTER_CLICKED` (`mode: 'edit'`, `'viewer'` or, in an embed,
+  `'embed'`: the shipped payloads) is tracked when
   a new filter is kept: `close()` on a new control that has a field (Done,
   the X, its pill, or opening another control). Opening a placeholder,
   picking a field, `discard()` and `removeFilter()` track nothing.
