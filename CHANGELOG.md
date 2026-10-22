@@ -1,3 +1,10 @@
+# [3.36.0](https://github.com/lightdash/lightdash/compare/3.35.2...3.36.0) (2026-10-22)
+
+
+### Features
+
+* **charts:** highlight the incomplete current period on time-series charts ([#31403](https://github.com/lightdash/lightdash/issues/31403)) ([51c321d](https://github.com/lightdash/lightdash/commit/51c321da22b3c9dd5d90af80a1832450ad423bd6))
+
 ## [3.35.2](https://github.com/lightdash/lightdash/compare/3.35.1...3.35.2) (2026-10-22)
 
 

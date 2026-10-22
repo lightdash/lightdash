@@ -4131,6 +4131,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                showIncompletePeriod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
