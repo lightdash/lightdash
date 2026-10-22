@@ -1,3 +1,11 @@
+# [3.24.0](https://github.com/lightdash/lightdash/compare/3.23.1...3.24.0) (2026-10-22)
+
+
+### Features
+
+* **ai-agents:** bind AI agent threads to a saved chart ([#31345](https://github.com/lightdash/lightdash/issues/31345)) ([df5502a](https://github.com/lightdash/lightdash/commit/df5502ab36483e24b0e1c46474dd9c0e071226d4))
+* **ai-agents:** gate instance decisions per organization with a default-on flag ([#31383](https://github.com/lightdash/lightdash/issues/31383)) ([78671e0](https://github.com/lightdash/lightdash/commit/78671e0cba5d153bd75fa2786c9cae25f7e16119))
+
 ## [3.23.1](https://github.com/lightdash/lightdash/compare/3.23.0...3.23.1) (2026-10-22)
 
 

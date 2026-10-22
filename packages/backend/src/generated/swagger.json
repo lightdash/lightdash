@@ -30161,18 +30161,36 @@
                 "type": "object"
             },
             "AiThreadBinding": {
-                "properties": {
-                    "dashboardUuid": {
-                        "type": "string"
+                "anyOf": [
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "type"],
+                        "type": "object"
                     },
-                    "type": {
-                        "type": "string",
-                        "enum": ["dashboard"],
-                        "nullable": false
+                    {
+                        "properties": {
+                            "chartUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["chartUuid", "type"],
+                        "type": "object"
                     }
-                },
-                "required": ["dashboardUuid", "type"],
-                "type": "object",
+                ],
                 "description": "Resource a thread is bound to for its whole life. Same shape as the matching pinned context item."
             },
             "AiThreadBindingSummary": {
@@ -73750,7 +73768,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.23.1",
+        "version": "3.24.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
