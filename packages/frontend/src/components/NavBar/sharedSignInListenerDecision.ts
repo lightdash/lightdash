@@ -36,3 +36,11 @@ export const shouldUseSharedSignInStatus = (
 ): boolean =>
     requestedProjectUuid === activeProjectUuid &&
     !dismissedProjects.has(requestedProjectUuid);
+
+export const isWarehouseQueryPage = (pathname: string): boolean =>
+    !/^\/projects\/[^/]+\/(?:dashboards|saved)\/[^/]+\/history(?:\/|$)/.test(
+        pathname,
+    ) &&
+    /^\/projects\/[^/]+\/(?:dashboards\/[^/]+|saved\/[^/]+|tables\/[^/]+|explore(?:\/|$)|sql-runner(?:\/|$))/.test(
+        pathname,
+    );

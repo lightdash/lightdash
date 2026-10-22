@@ -1,13 +1,15 @@
 import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
-import { memo } from 'react';
+import { memo, useEffect } from 'react';
+import { useLocation } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useImpersonation } from '../../hooks/user/useImpersonation';
+import useApp from '../../providers/App/useApp';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
 import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
@@ -18,7 +20,13 @@ import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
+import { isWarehouseQueryPage } from './sharedSignInListenerDecision';
 import { TrialWarningBanner } from './TrialWarningBanner';
+import { WarehouseSignInBanner } from './WarehouseSignInBanner';
+import {
+    setWarehouseSignInBannerVisibility,
+    useWarehouseSignInBanner,
+} from './warehouseSignInBannerState';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -105,10 +113,30 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             organizationAccess?.status ===
                 OrganizationAccessStatus.TRIAL_EXPIRED);
 
+    const warehouseBanner = useWarehouseSignInBanner();
+    const { user } = useApp();
+    const { pathname } = useLocation();
+    const showWarehouseBanner =
+        !!warehouseBanner &&
+        warehouseBanner.projectUuid === activeProjectUuid &&
+        warehouseBanner.userUuid === user.data?.userUuid &&
+        isWarehouseQueryPage(pathname);
+
+    const warehouseBannerVisible =
+        showWarehouseBanner &&
+        !isImpersonating &&
+        !(isCurrentProjectPreview && !isTrainingCopy) &&
+        !showTrialWarning;
+    useEffect(() => {
+        setWarehouseSignInBannerVisibility(warehouseBannerVisible);
+        return () => setWarehouseSignInBannerVisibility(false);
+    }, [warehouseBannerVisible]);
+
     const hasBanner =
         isImpersonating ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
-        showTrialWarning;
+        showTrialWarning ||
+        showWarehouseBanner;
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -145,11 +173,15 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                                 : null
                         }
                     />
-                ) : (
-                    organizationAccess && (
-                        <TrialWarningBanner access={organizationAccess} />
-                    )
-                )}
+                ) : showTrialWarning && organizationAccess ? (
+                    <TrialWarningBanner access={organizationAccess} />
+                ) : showWarehouseBanner && warehouseBanner ? (
+                    <WarehouseSignInBanner
+                        status={warehouseBanner.status}
+                        userUuid={warehouseBanner.userUuid}
+                        reconnect={warehouseBanner.reconnect}
+                    />
+                ) : null}
                 <Box
                     component="header"
                     h={NAVBAR_HEIGHT}

@@ -150,13 +150,18 @@ export class ProjectController extends BaseController {
     async getSharedSignInStatus(
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
+        @Query() includePersonal?: boolean,
     ): Promise<ApiSuccess<SharedSignInStatus | null>> {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getSharedSignInStatus(req.account, projectUuid),
+                .getSharedSignInStatus(
+                    req.account,
+                    projectUuid,
+                    includePersonal,
+                ),
         };
     }
 

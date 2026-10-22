@@ -12,6 +12,14 @@ import {
 } from 'react-router';
 import ProjectLayout from '.';
 
+vi.mock('../../NavBar/SharedSignInExpiryListener', () => ({
+    SharedSignInExpiryListener: () => null,
+}));
+vi.mock('../../NavBar/SharedSignInQueryBoundary', () => ({
+    SharedSignInQueryBoundary: ({ children }: { children: ReactNode }) =>
+        children,
+}));
+
 vi.mock('../../../features/scopeTours/ScopeTourHost', () => ({
     default: () => null,
 }));

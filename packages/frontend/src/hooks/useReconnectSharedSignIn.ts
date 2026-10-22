@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ApiSuccessEmpty,
     type SharedSignInStatus,
+    type PersonalSignInExpiry,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../api';
@@ -26,21 +27,52 @@ export const getSharedSignInStatus = (
     projectUuid: string,
 ) =>
     lightdashApi<SharedSignInStatus | null>({
-        url: `/projects/${projectUuid}/warehouse-credentials/shared-sign-in`,
+        url: `/projects/${projectUuid}/warehouse-credentials/shared-sign-in?includePersonal=true`,
         method: 'GET',
         body: undefined,
     });
 
-export const useReconnectSharedSignIn = (projectUuid: string) => {
+export const useReconnectSharedSignIn = (
+    projectUuid: string,
+    personal?: PersonalSignInExpiry,
+) => {
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<ApiSuccessEmpty, ApiError>({
-        mutationFn: () =>
-            lightdashApi<ApiSuccessEmpty>({
+        mutationFn: async () => {
+            if (personal) {
+                const status = await getSharedSignInStatus(
+                    lightdashApi,
+                    projectUuid,
+                );
+                const restored = status?.personalSignIn;
+                if (
+                    !restored ||
+                    restored.userWarehouseCredentialsUuid !==
+                        personal.userWarehouseCredentialsUuid ||
+                    restored.expired ||
+                    status.statusUnknown
+                ) {
+                    const error: ApiError = {
+                        status: 'error',
+                        error: {
+                            name: 'ParameterError',
+                            data: {},
+                            statusCode: 400,
+                            message:
+                                'Sign in with Google did not finish. Try again.',
+                        },
+                    };
+                    throw error;
+                }
+                return { status: 'ok', results: undefined } as ApiSuccessEmpty;
+            }
+            return lightdashApi<ApiSuccessEmpty>({
                 url: `/projects/${projectUuid}/warehouse-credentials/shared-sign-in`,
                 method: 'POST',
                 body: undefined,
-            }),
+            });
+        },
         onSuccess: async () => {
             queryClient.removeQueries({
                 queryKey: ['shared-sign-in-status', projectUuid],

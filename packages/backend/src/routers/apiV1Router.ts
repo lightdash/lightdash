@@ -27,6 +27,10 @@ import {
     storeAgentConnectAttempt,
 } from '../controllers/authentication/agentConnectAnalytics';
 import { storeAgentConnectRedirect } from '../controllers/authentication/agentConnectRedirect';
+import {
+    authenticateBigquery,
+    retryGoogleReconnect,
+} from '../controllers/authentication/googleReconnect';
 import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
@@ -744,13 +748,7 @@ apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
     storeOIDCLinkIntent,
-    passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
-        accessType: 'offline',
-        prompt: 'consent',
-        session: false,
-        includeGrantedScopes: true,
-    }),
+    authenticateBigquery,
 );
 
 // path to start the OAuth flow
@@ -837,6 +835,13 @@ apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
             (error, user) => {
                 if (error) {
                     next(error);
+                    return;
+                }
+                if (
+                    user &&
+                    req.session.oauth?.googleReconnect?.retryWithConsent
+                ) {
+                    retryGoogleReconnect(req, res, next);
                     return;
                 }
                 res.redirect(getOidcRedirectURL(Boolean(user))(req));

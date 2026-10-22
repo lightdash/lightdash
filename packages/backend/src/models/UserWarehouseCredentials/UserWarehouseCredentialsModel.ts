@@ -62,6 +62,7 @@ export type PersonalSignInSnapshot = {
     uuid: string;
     userUuid: string;
     encryptedCredentials: Buffer;
+    needsSignIn?: boolean;
     refreshToken: string;
 };
 
@@ -306,6 +307,9 @@ export class UserWarehouseCredentialsModel {
             uuid,
             userUuid: row.user_uuid,
             encryptedCredentials: row.encrypted_credentials,
+            ...(row.needs_sign_in_at && row.needs_sign_in_reason
+                ? { needsSignIn: true }
+                : {}),
             refreshToken: stored.refreshToken,
         };
     }

@@ -5,6 +5,8 @@ import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import SourceCodeDrawer from '../../../features/sourceCodeEditor/components/SourceCodeDrawer';
 import NavBar from '../../NavBar';
+import { SharedSignInExpiryListener } from '../../NavBar/SharedSignInExpiryListener';
+import { SharedSignInQueryBoundary } from '../../NavBar/SharedSignInQueryBoundary';
 import PageSpinner from '../../PageSpinner';
 import { ContentAuthoringRoute } from './ContentAuthoringRoute';
 import classes from './ProjectLayout.module.css';
@@ -38,6 +40,7 @@ const ProjectLayout: FC = () => {
     return (
         <>
             <NavBar isFixed={isNavBarFixed || isNavigating} />
+            <SharedSignInExpiryListener />
             <Sentry.ErrorBoundary fallback={<></>}>
                 <SourceCodeDrawer />
             </Sentry.ErrorBoundary>
@@ -46,9 +49,11 @@ const ProjectLayout: FC = () => {
             </Sentry.ErrorBoundary>
             {/* Keep the current page mounted so cancelled navigation preserves edits. */}
             <Box display="contents" inert={isNavigating}>
-                <ContentAuthoringRoute>
-                    <Outlet />
-                </ContentAuthoringRoute>
+                <SharedSignInQueryBoundary>
+                    <ContentAuthoringRoute>
+                        <Outlet />
+                    </ContentAuthoringRoute>
+                </SharedSignInQueryBoundary>
             </Box>
             {isNavigating && (
                 <Box className={classes.loading} role="status">

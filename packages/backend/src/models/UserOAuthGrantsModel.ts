@@ -61,6 +61,18 @@ export class UserOAuthGrantsModel {
             });
     }
 
+    async getIdentitySummary(
+        userUuid: string,
+        provider: UserOAuthGrantProvider,
+    ): Promise<{ subject: string; email: string } | undefined> {
+        const row = await this.database(UserOAuthGrantsTableName)
+            .where({ user_uuid: userUuid, provider })
+            .first('provider_subject', 'provider_email');
+        return row
+            ? { subject: row.provider_subject, email: row.provider_email }
+            : undefined;
+    }
+
     async getRefreshToken(
         userUuid: string,
         provider: UserOAuthGrantProvider,

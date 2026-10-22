@@ -32,6 +32,11 @@ export type SharedSignInStatus = {
     subjectBasis: SignInSubjectBasis | null;
     expired: boolean;
     canReconnect: boolean;
+    statusUnknown?: boolean;
+    personalSignIn?: PersonalSignInExpiry & {
+        expired: boolean;
+        canReconnect: boolean;
+    };
 };
 
 export type PersonSignIn = {

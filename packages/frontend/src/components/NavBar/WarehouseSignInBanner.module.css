@@ -1,0 +1,16 @@
+.banner {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: var(--banner-height);
+    padding-inline: var(--mantine-spacing-md);
+    justify-content: center;
+    background-color: var(--mantine-color-yellow-7);
+    color: var(--mantine-color-gray-9);
+    z-index: var(--mantine-z-index-app);
+}
+.action {
+    flex-shrink: 0;
+    color: inherit;
+    text-decoration: underline;
+}

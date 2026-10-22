@@ -25,7 +25,6 @@ import { NotificationsMenu } from './NotificationsMenu';
 import ProjectCredentialsSwitcher from './ProjectCredentialsSwitcher';
 import ProjectSwitcher from './ProjectSwitcher';
 import SettingsMenu from './SettingsMenu';
-import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { useCompactNavigation } from './useCompactNavigation';
 import UserMenu from './UserMenu';
 
@@ -177,7 +176,6 @@ export const MainNavBarContent: FC<Props> = ({
                     )}
 
                     <ProjectCredentialsSwitcher />
-                    <SharedSignInExpiryListener />
                 </NavGroup>
 
                 <UserMenu withLabel={compact} />
