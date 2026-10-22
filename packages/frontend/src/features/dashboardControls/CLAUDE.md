@@ -172,9 +172,10 @@ In `FilterConfiguration/`:
 - "Changed" always compares rules as they would save: keys holding
   `undefined` (JSON has none) and field entries that say what the tile does
   by default (`withoutDefaultTileTargets`) leave no trace. `required: false`
-  reads as no `required`, and `lockedTabUuids` as a set (re-locking a tab
-  appends it). A field entry is the default only when its field id and table
-  both match (queries read the entry's table). Two things are never
+  reads as no `required`, `disabled: false` as no `disabled`, and
+  `lockedTabUuids` as a set (re-locking a tab appends it). A field entry is
+  the default only when its field id and table both match (queries read the
+  entry's table). Two things are never
   normalised away, since shipped code reads them: an exclusion (`false`),
   which a duplicated tile copies and which keeps applying if the tile gains
   the field, and whether `tileTargets` is there at all, since the tab gating

@@ -1899,6 +1899,31 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
+        it('leaves a rule saved without "required" or "disabled" unchanged after "Required" is switched on and off', () => {
+            saved.filters = asSaved({
+                ...initialFilters,
+                dimensions: [rule('a', ['completed'])],
+            });
+            const savedA = saved.filters.dimensions[0];
+            expect('disabled' in savedA).toBe(false);
+            const required = setRuleRequired(savedA, savedA);
+            const notRequired = clearRuleRequired(
+                required,
+                savedA,
+                FilterType.STRING,
+                statusField,
+            );
+
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(required));
+            act(() => result.current.updateFilter(notRequired));
+            expect(result.current.isDirty).toBe(false);
+
+            act(() => result.current.close());
+            expect(latest.changed).toBe(false);
+        });
+
         it('keeps the default value after "Required" is switched on and off', () => {
             saved.filters = asSaved({
                 ...initialFilters,
