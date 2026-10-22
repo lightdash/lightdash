@@ -135,8 +135,7 @@ const UsageLegend: FC<{ series: LabelledSeries[] }> = ({ series }) => (
     </Group>
 );
 
-/** Billable credits per day this period, by feature. Finer break-downs live in the analytics project. */
-export const AiCreditsUsageBreakdown: FC = () => {
+export const AiCreditsDailyUsage: FC = () => {
     const {
         data: usage,
         isInitialLoading,

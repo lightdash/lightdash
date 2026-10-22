@@ -1,4 +1,7 @@
-import { ANALYTICS_AI_USAGE_DASHBOARD_SLUG } from '@lightdash/common';
+import {
+    ANALYTICS_AI_USAGE_DASHBOARD_SLUG,
+    type AnalyticsProjectStatus,
+} from '@lightdash/common';
 import { Anchor, Group, Paper, Stack, Text } from '@mantine/core';
 import { IconArrowRight } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -6,21 +9,56 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAnalyticsProject } from '../../../hooks/organization/useAnalyticsProject';
 
-const getDashboardPath = (project: {
-    projectUuid: string;
-    slug: string | null;
-}) =>
+type AnalyticsProject = NonNullable<AnalyticsProjectStatus['project']>;
+
+const getDashboardPath = (project: AnalyticsProject) =>
     `/projects/${project.slug ?? project.projectUuid}/dashboards/${ANALYTICS_AI_USAGE_DASHBOARD_SLUG}/view`;
 
-/**
- * Points admins at the analytics project for anything beyond the current period.
- * The status request fails when the analytics feature is off for the organization,
- * which reads the same as having no project yet.
- */
+const ANALYTICS_SETTINGS_PATH = '/generalSettings/mcp/analytics';
+
+const DETAIL =
+    'token usage over past periods, by feature, user, project and agent';
+
+const ArrowLink: FC<{ to: string; children: string }> = ({ to, children }) => (
+    <Group gap={4} wrap="nowrap">
+        <Anchor component={Link} to={to} fz="sm">
+            {children}
+        </Anchor>
+        <MantineIcon icon={IconArrowRight} color="dimmed" />
+    </Group>
+);
+
+const AnalyticsProjectPointer: FC<{ project: AnalyticsProject | null }> = ({
+    project,
+}) => {
+    if (project === null) {
+        return (
+            <Text fz="sm" c="dimmed">
+                Explore {DETAIL} in your organization&apos;s analytics project
+                once it is set up.
+            </Text>
+        );
+    }
+    // A project set up before this dashboard existed only gets it when the managed content is synced.
+    if (project.hasContentUpdates) {
+        return (
+            <ArrowLink to={ANALYTICS_SETTINGS_PATH}>
+                Sync your analytics project to get the AI usage dashboard
+            </ArrowLink>
+        );
+    }
+    return (
+        <ArrowLink to={getDashboardPath(project)}>
+            {`Explore ${DETAIL}`}
+        </ArrowLink>
+    );
+};
+
+/** Points admins at the analytics project for anything beyond the current period. */
 export const AiCreditsAnalyticsLink: FC = () => {
-    const { data, isInitialLoading } = useAnalyticsProject();
-    if (isInitialLoading) return null;
-    const project = data?.project ?? null;
+    const { data, isLoading, isError } = useAnalyticsProject();
+    // The status request is refused when analytics is off for the organization, so there is nothing to point at.
+    if (isLoading || isError) return null;
 
     return (
         <Paper p="md">
@@ -28,25 +66,7 @@ export const AiCreditsAnalyticsLink: FC = () => {
                 <Text fz="sm" fw={500}>
                     Looking for more detail?
                 </Text>
-                {project === null ? (
-                    <Text fz="sm" c="dimmed">
-                        Usage over past periods, by user, model and channel, is
-                        available in your organization&apos;s analytics project
-                        once it is set up.
-                    </Text>
-                ) : (
-                    <Group gap={4} wrap="nowrap">
-                        <Anchor
-                            component={Link}
-                            to={getDashboardPath(project)}
-                            fz="sm"
-                        >
-                            Explore usage over past periods, by user, model and
-                            channel
-                        </Anchor>
-                        <MantineIcon icon={IconArrowRight} color="dimmed" />
-                    </Group>
-                )}
+                <AnalyticsProjectPointer project={data?.project ?? null} />
             </Stack>
         </Paper>
     );
