@@ -219,7 +219,14 @@ export class UsageDimensionsModel {
             }
             case 'charts': {
                 const charts = this.database('saved_queries as c')
-                    .join('projects as p', 'p.project_uuid', 'c.project_uuid')
+                    // Resolve the tenant's projects once so ordered pages can
+                    // use the project index instead of scanning every tenant.
+                    .whereRaw('?? = ANY(ARRAY ?)', [
+                        'c.project_uuid',
+                        this.database('projects')
+                            .select('project_uuid')
+                            .where('organization_id', orgId),
+                    ])
                     .leftJoin(
                         'dashboards as d',
                         'd.dashboard_uuid',
@@ -230,7 +237,6 @@ export class UsageDimensionsModel {
                         's.space_id',
                         this.database.raw('COALESCE(c.space_id, d.space_id)'),
                     )
-                    .where('p.organization_id', orgId)
                     .select(
                         this.database.raw(
                             `json_build_object(

@@ -20,6 +20,178 @@ import { UsageEventsCompactor } from './UsageEventsCompactor';
 describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
     'Postgres usage dimensions to local S3 and joined explores',
     () => {
+        it('pages chart dimensions across tenant projects without including interleaved tenants', async () => {
+            vi.unstubAllGlobals();
+            const schema = `usage_chart_pages_${randomUUID().replaceAll('-', '')}`;
+            const db = knex({
+                client: 'pg',
+                connection: {
+                    host: 'localhost',
+                    port: Number(process.env.USAGE_DIMENSIONS_SMOKE_PGPORT),
+                    user: process.env.PGUSER ?? 'postgres',
+                    password: process.env.PGPASSWORD ?? 'password',
+                    database: process.env.PGDATABASE ?? 'postgres',
+                },
+                searchPath: [schema],
+                pool: { min: 0, max: 1 },
+            });
+            const org = randomUUID();
+            const project = randomUUID();
+            const secondProject = randomUUID();
+            const otherProject = randomUUID();
+            const dashboard = randomUUID();
+            const deletedDashboard = randomUUID();
+            const space = randomUUID();
+            const sqlChart = randomUUID();
+            try {
+                await db.raw('CREATE SCHEMA ??', [schema]);
+                await db.raw(`
+                    CREATE TABLE projects (project_uuid uuid PRIMARY KEY, organization_id integer);
+                    CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, name text, deleted_at timestamptz);
+                    CREATE TABLE dashboards (dashboard_uuid uuid PRIMARY KEY, space_id integer, deleted_at timestamptz);
+                    CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamptz);
+                    CREATE UNIQUE INDEX ON saved_queries(project_uuid, slug);
+                    CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamptz);
+                `);
+                await db('projects').insert([
+                    { project_uuid: project, organization_id: 1 },
+                    { project_uuid: secondProject, organization_id: 1 },
+                    { project_uuid: otherProject, organization_id: 2 },
+                ]);
+                await db('spaces').insert([
+                    { space_id: 1, space_uuid: space, name: 'First space' },
+                    {
+                        space_id: 2,
+                        space_uuid: randomUUID(),
+                        name: 'Second space',
+                    },
+                    {
+                        space_id: 3,
+                        space_uuid: randomUUID(),
+                        name: 'Deleted space',
+                        deleted_at: new Date(),
+                    },
+                ]);
+                await db('dashboards').insert([
+                    { dashboard_uuid: dashboard, space_id: 1 },
+                    {
+                        dashboard_uuid: deletedDashboard,
+                        space_id: 2,
+                        deleted_at: new Date(),
+                    },
+                ]);
+                await db.raw(
+                    `INSERT INTO saved_queries (saved_query_id, saved_query_uuid, project_uuid, space_id, name, slug, last_version_chart_kind)
+                    SELECT n * 2, md5('tenant-chart-' || n)::uuid,
+                        CASE WHEN n % 2 = 0 THEN ?::uuid ELSE ?::uuid END,
+                        CASE WHEN n % 2 = 0 THEN 2 ELSE 1 END,
+                        'Tenant chart ' || n, 'tenant-chart-' || n, 'table'
+                    FROM generate_series(1, 1005) n`,
+                    [secondProject, project],
+                );
+                await db.raw(
+                    `INSERT INTO saved_queries (saved_query_id, saved_query_uuid, project_uuid, name, slug, last_version_chart_kind)
+                    SELECT n * 2 - 1, md5('other-chart-' || n)::uuid, ?::uuid,
+                        'Other chart ' || n, 'other-chart-' || n, 'table'
+                    FROM generate_series(1, 1006) n`,
+                    [otherProject],
+                );
+                await db('saved_queries')
+                    .where('saved_query_id', 2)
+                    .update({ space_id: null, dashboard_uuid: dashboard });
+                await db('saved_queries')
+                    .where('saved_query_id', 4)
+                    .update({ deleted_at: new Date() });
+                await db('saved_queries')
+                    .where('saved_query_id', 6)
+                    .update({ space_id: 3 });
+                await db('saved_queries')
+                    .where('saved_query_id', 8)
+                    .update({
+                        space_id: null,
+                        dashboard_uuid: deletedDashboard,
+                    });
+                await db('saved_sql').insert([
+                    {
+                        saved_sql_uuid: sqlChart,
+                        project_uuid: project,
+                        space_uuid: space,
+                        name: 'Tenant SQL chart',
+                        slug: 'tenant-sql-chart',
+                        last_version_chart_kind: 'table',
+                    },
+                    {
+                        saved_sql_uuid: randomUUID(),
+                        project_uuid: otherProject,
+                        name: 'Other SQL chart',
+                        slug: 'other-sql-chart',
+                    },
+                ]);
+                const result: Record<string, unknown>[] = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'charts',
+                )) {
+                    result.push(JSON.parse(line));
+                }
+                expect(result).toHaveLength(1006);
+                expect(new Set(result.map((row) => row.chart_id)).size).toBe(
+                    1006,
+                );
+                expect(result.every((row) => row.org_id === org)).toBe(true);
+                expect(result.slice(0, 1005).map((row) => row.name)).toEqual(
+                    Array.from(
+                        { length: 1005 },
+                        (_, n) => `Tenant chart ${n + 1}`,
+                    ),
+                );
+                expect(result[0]).toEqual({
+                    org_id: org,
+                    chart_id: expect.any(String),
+                    name: 'Tenant chart 1',
+                    slug: 'tenant-chart-1',
+                    url: `https://lightdash.example.com/projects/${project}/saved/${result[0].chart_id}/view`,
+                    chart_kind: 'table',
+                    space_name: 'First space',
+                    is_deleted: false,
+                });
+                expect(result.slice(1, 4).map((row) => row.is_deleted)).toEqual(
+                    [true, true, true],
+                );
+                expect(result[999].url).toContain(
+                    `/projects/${secondProject}/`,
+                );
+                expect(result[1000].url).toContain(`/projects/${project}/`);
+                expect(result[1005]).toEqual({
+                    org_id: org,
+                    chart_id: sqlChart,
+                    name: 'Tenant SQL chart',
+                    slug: 'tenant-sql-chart',
+                    url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                    chart_kind: 'table',
+                    space_name: 'First space',
+                    is_deleted: false,
+                });
+                const emptyResult = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com',
+                ).getJsonLines(
+                    { organization_id: 3, organization_uuid: randomUUID() },
+                    'charts',
+                )) {
+                    emptyResult.push(line);
+                }
+                expect(emptyResult).toEqual([]);
+            } finally {
+                await db.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
+                await db.destroy();
+            }
+        });
+
         it('refreshes batched snapshots and joins current names without losing events', async () => {
             vi.unstubAllGlobals();
             const endpoint = process.env.USAGE_EVENTS_S3_ENDPOINT ?? '';
