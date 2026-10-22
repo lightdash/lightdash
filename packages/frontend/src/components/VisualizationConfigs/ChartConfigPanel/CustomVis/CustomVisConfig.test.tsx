@@ -204,11 +204,11 @@ describe('CustomVisConfig', () => {
         const dismissedKey =
             'chart-studio-vega-nudge-dismissed-b264d83a-9000-426a-85ec-3f9c20f368ce';
 
-        it('remembers the dismissal for the user after continuing with Vega', async () => {
+        it('remembers the dismissal for the user after closing the card', async () => {
             renderWithProviders(<ConfigTabs />, cloudMocks);
             await screen.findByText('Try Chart Studio for custom charts');
 
-            fireEvent.click(screen.getByText('Continue with Vega'));
+            fireEvent.click(screen.getByLabelText('Dismiss'));
 
             expect(
                 screen.queryByText('Try Chart Studio for custom charts'),
@@ -270,19 +270,28 @@ describe('CustomVisConfig', () => {
             expect(navigate).toHaveBeenCalledWith(
                 '/projects/project-1/chart-studio',
             );
-            expect(screen.queryByText('Setup guide')).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Read the docs on Chart Studio here'),
+            ).not.toBeInTheDocument();
         });
 
-        it('links to the setup guide when Chart Studio cannot run here', async () => {
+        it('links to the docs when Chart Studio cannot run here', async () => {
             vi.mocked(useChartStudioAvailable).mockReturnValue(false);
             renderWithProviders(<ConfigTabs />, {
                 health: { mode: LightdashMode.DEFAULT },
             });
 
-            expect(await screen.findByText(infoText)).toBeInTheDocument();
-            expect(screen.getByText('Setup guide')).toHaveAttribute(
+            expect(
+                await screen.findByText(
+                    /Want to build more complete custom charts/,
+                ),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(infoText)).not.toBeInTheDocument();
+            expect(
+                screen.getByText('Read the docs on Chart Studio here'),
+            ).toHaveAttribute(
                 'href',
-                'https://docs.lightdash.com/guides/data-apps/self-hosting',
+                'https://docs.lightdash.com/guides/data-apps/visualizations',
             );
             expect(
                 screen.queryByText('Open Chart Studio'),
@@ -300,7 +309,7 @@ describe('CustomVisConfig', () => {
             await screen.findByText('Try Chart Studio for custom charts');
             expect(screen.queryByText(infoText)).not.toBeInTheDocument();
 
-            fireEvent.click(screen.getByText('Continue with Vega'));
+            fireEvent.click(screen.getByLabelText('Dismiss'));
             expect(screen.getByText(infoText)).toBeInTheDocument();
         });
 

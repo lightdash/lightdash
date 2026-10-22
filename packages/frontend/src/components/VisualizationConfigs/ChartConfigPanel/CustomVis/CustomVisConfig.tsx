@@ -334,6 +334,15 @@ export const ConfigTabs: React.FC = memo(() => {
                     />
                 )}
 
+                {/* The dismissable card already makes the pitch. */}
+                {!isNudgeVisible && (
+                    <ChartStudioInfoCallout
+                        onOpenChartStudio={
+                            chartStudioAvailable ? openChartStudioGallery : null
+                        }
+                    />
+                )}
+
                 {chartTypesEnabled && !isInsideChartGallery && (
                     <CustomChartTypeSection
                         projectUuid={projectUuid ?? ''}
@@ -405,15 +414,6 @@ export const ConfigTabs: React.FC = memo(() => {
                         </Config.Group>
                     </Config.Section>
                 </Config>
-
-                {/* The dismissable card above already makes the pitch. */}
-                {!isNudgeVisible && (
-                    <ChartStudioInfoCallout
-                        onOpenChartStudio={
-                            chartStudioAvailable ? openChartStudioGallery : null
-                        }
-                    />
-                )}
             </Stack>
             <Group
                 h="calc(100vh - 300px)"
