@@ -40,9 +40,8 @@ export class OnboardingModel {
     async runInPlaygroundProvisioningLock<T>(
         organizationUuid: string,
         callback: (trx: Knex.Transaction) => Promise<T>,
-        transaction?: Knex.Transaction,
     ): Promise<T> {
-        const runInTransaction = async (trx: Knex.Transaction): Promise<T> => {
+        return this.database.transaction(async (trx) => {
             const organization = await trx(OrganizationTableName)
                 .where('organization_uuid', organizationUuid)
                 .select('organization_id')
@@ -56,10 +55,7 @@ export class OnboardingModel {
                 organization.organization_id,
             ]);
             return callback(trx);
-        };
-        return transaction
-            ? runInTransaction(transaction)
-            : this.database.transaction(runInTransaction);
+        });
     }
 
     /**

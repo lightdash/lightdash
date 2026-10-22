@@ -172,6 +172,12 @@ it.each(
             resourceResolver: resolver,
         });
         const deploy = new DeployService({
+            featureFlagModel: {
+                get: async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: false,
+                }),
+            },
             deploySessionModel: model as never,
             projectModel: {} as never,
             projectService: {} as never,

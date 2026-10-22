@@ -51,6 +51,41 @@ test.each([
     { type: 'gitlab', repository: 'Group//Repo' },
     { host_domain: '.' },
     { repository: 'Repo' },
+    { repository: null },
+    { repository: 42 },
+    { repository: {} },
+    { host_domain: 42 },
+    { type: 'none' },
+    { type: 'manual' },
+    { type: 'azure_devops', organization: null, project: 'Project' },
+    { type: 'azure_devops', organization: 'Org', project: {} },
+    { type: 'azure_devops', organization: 'Org/Other', project: 'Project' },
 ])('ignores malformed repository identity %j', (fields) => {
     expect(identity(fields)).toBeNull();
+});
+
+test.each([null, undefined, [], true, 'repository'])(
+    'ignores malformed stored connection %j',
+    (connection) => {
+        expect(
+            dbtRepositoryIdentity(connection as unknown as DbtProjectConfig),
+        ).toBeNull();
+    },
+);
+
+test('normalizes a missing branch without making up a default', () => {
+    expect(identity({ branch: undefined })).toMatchObject({
+        defaultBranch: null,
+    });
+});
+
+test('retains valid spaces in Azure project coordinates', () => {
+    expect(
+        identity({
+            type: 'azure_devops',
+            repository: 'Repo.git',
+            organization: 'Organization',
+            project: 'My Project',
+        }),
+    ).toMatchObject({ owner: 'organization/my project', name: 'repo' });
 });

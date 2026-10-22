@@ -7,7 +7,11 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { type DbPeerDbtSource } from '../PeerDbtSourcesModel';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
+import {
+    PeerDbtSourcesModel,
+    type DbPeerDbtSource,
+} from '../PeerDbtSourcesModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const MANIFESTS_TABLE = 'warehouse_connection_manifests';
@@ -94,6 +98,7 @@ export class WarehouseConnectionCompileModel {
         const [connections, sources] = await Promise.all([
             this.getCompileConnections(projectUuid),
             this.database<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
+                .where('role', 'extra')
                 .select('project_dbt_source_uuid', 'warehouse_connection_uuid')
                 .where('project_uuid', projectUuid)
                 .orderBy('precedence'),
@@ -199,6 +204,7 @@ export class WarehouseConnectionCompileModel {
     ): Promise<void> {
         await this.database
             .transaction(async (trx) => {
+                await trx.raw("SET LOCAL lock_timeout = '2s'");
                 const project = await trx('projects')
                     .select<{ connection_mode: string }[]>('connection_mode')
                     .where('project_uuid', projectUuid)
@@ -223,7 +229,15 @@ export class WarehouseConnectionCompileModel {
                     ).isOriginal
                         ? null
                         : warehouseConnectionUuid;
+                if (getPeerDbtSourcesEnabled())
+                    await PeerDbtSourcesModel.assertBindingIsUnique(
+                        trx,
+                        projectUuid,
+                        projectDbtSourceUuid,
+                        binding,
+                    );
                 const updated = await trx<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
+                    .where('role', 'extra')
                     .where('project_uuid', projectUuid)
                     .where('project_dbt_source_uuid', projectDbtSourceUuid)
                     .update({
@@ -247,6 +261,7 @@ export class WarehouseConnectionCompileModel {
                 const source = await this.database<DbPeerDbtSource>(
                     'project_dbt_sources',
                 )
+                    .where('role', 'extra')
                     .where({
                         project_uuid: projectUuid,
                         project_dbt_source_uuid: projectDbtSourceUuid,
@@ -263,6 +278,7 @@ export class WarehouseConnectionCompileModel {
                 const conflict = await this.database<DbPeerDbtSource>(
                     'project_dbt_sources',
                 )
+                    .where('role', 'extra')
                     .where({
                         project_uuid: projectUuid,
                         dbt_project_name: source?.dbt_project_name,

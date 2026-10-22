@@ -215,6 +215,7 @@ describe('ProjectModel', () => {
                 tracker.on
                     .select(
                         queryMatcher('project_dbt_sources', [
+                            'extra',
                             projectUuid,
                             sourceUuid,
                             1,
@@ -258,6 +259,7 @@ describe('ProjectModel', () => {
             tracker.on
                 .select(
                     queryMatcher('project_dbt_sources', [
+                        'extra',
                         projectUuid,
                         'unknown-source',
                         1,
@@ -286,6 +288,7 @@ describe('ProjectModel', () => {
                 tracker.on
                     .select(
                         queryMatcher('project_dbt_sources', [
+                            'extra',
                             projectUuid,
                             sourceUuid,
                             1,

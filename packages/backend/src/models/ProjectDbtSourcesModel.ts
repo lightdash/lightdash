@@ -17,7 +17,7 @@ import {
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
-import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
+import { getPeerDbtSourcesEnabled } from '../utils/peerDbtSourcesOperation';
 import {
     PeerDbtSourcesModel,
     type DbPeerDbtSource,
@@ -42,7 +42,7 @@ type DbBoundProjectDbtSource = DbProjectDbtSource & {
 type ProjectDbtSourcesModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
-    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    peerDbtSourcesEnabled?: boolean;
 };
 
 /**
@@ -59,13 +59,17 @@ export class ProjectDbtSourcesModel {
 
     private readonly encryptionUtil: EncryptionUtil;
 
-    private readonly featureFlagModel: ProjectDbtSourcesModelArguments['featureFlagModel'];
+    private readonly peerDbtSourcesEnabled: boolean | undefined;
 
     constructor(args: ProjectDbtSourcesModelArguments) {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
-        this.featureFlagModel = args.featureFlagModel;
+        this.peerDbtSourcesEnabled = args.peerDbtSourcesEnabled;
         this.peers = new PeerDbtSourcesModel(args);
+    }
+
+    private get peersEnabled(): boolean {
+        return this.peerDbtSourcesEnabled ?? getPeerDbtSourcesEnabled();
     }
 
     /**
@@ -132,26 +136,45 @@ export class ProjectDbtSourcesModel {
         };
     }
 
-    private async convertRows(
+    private async refreshEnabledRows(
         projectUuid: string,
         rows: DbProjectDbtSource[],
-    ): Promise<ProjectDbtSource[]> {
+    ): Promise<DbPeerDbtSource[]> {
         await this.peers.ensureRepositories(projectUuid);
+        return this.database<DbPeerDbtSource>(ProjectDbtSourcesTableName)
+            .where('project_uuid', projectUuid)
+            .where('role', 'extra')
+            .whereIn(
+                'project_dbt_source_uuid',
+                rows.map((row) => row.project_dbt_source_uuid),
+            )
+            .orderBy('precedence', 'asc')
+            .orderBy('name', 'asc');
+    }
+
+    private convertEnabledRow(row: DbPeerDbtSource): ProjectDbtSource {
+        if (row.repository_fill_state === 'cannot_decrypt')
+            return {
+                ...this.convertRow({ ...row, dbt_connection: null }),
+                hasCredentialError: true,
+            };
+        return this.convertRow(row);
+    }
+
+    private async convertEnabledRows(
+        projectUuid: string,
+        rows: DbPeerDbtSource[],
+    ): Promise<ProjectDbtSource[]> {
         return Promise.all(
             rows.map(async (row) => {
-                const source = this.convertRow(row);
-                const repositoryUuid = (
-                    row as DbProjectDbtSource & {
-                        dbt_repository_uuid: string | null;
-                    }
-                ).dbt_repository_uuid;
-                if (!row.dbt_connection && repositoryUuid) {
+                const source = this.convertEnabledRow(row);
+                if (!row.dbt_connection && row.dbt_repository_uuid) {
                     try {
                         return {
                             ...source,
                             dbtConnection: await this.peers.resolveConnection(
                                 projectUuid,
-                                repositoryUuid,
+                                row.dbt_repository_uuid,
                             ),
                         };
                     } catch {
@@ -163,6 +186,16 @@ export class ProjectDbtSourcesModel {
         );
     }
 
+    private async convertRows(
+        projectUuid: string,
+        rows: DbProjectDbtSource[],
+    ): Promise<ProjectDbtSource[]> {
+        return this.convertEnabledRows(
+            projectUuid,
+            await this.refreshEnabledRows(projectUuid, rows),
+        );
+    }
+
     /**
      * All additional sources for a project, ordered by precedence then name
      * (the same order the merge fold uses). Empty when the project has none.
@@ -170,9 +203,10 @@ export class ProjectDbtSourcesModel {
     async getSources(projectUuid: string): Promise<ProjectDbtSource[]> {
         const rows = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
+            .where('role', 'extra')
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
-        if (rows.length === 0 || !(await this.peers.isEnabled(projectUuid)))
+        if (rows.length === 0 || !this.peersEnabled)
             return rows.map((row) => this.convertRow(row));
         return this.convertRows(projectUuid, rows);
     }
@@ -188,14 +222,16 @@ export class ProjectDbtSourcesModel {
             ProjectDbtSourcesTableName,
         )
             .where('project_uuid', projectUuid)
+            .where('role', 'extra')
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
-        if (rows.length === 0 || !(await this.peers.isEnabled(projectUuid)))
+        if (rows.length === 0 || !this.peersEnabled)
             return rows.map((row) => this.convertRow(row));
+        const currentRows = await this.refreshEnabledRows(projectUuid, rows);
         const settings = await this.peers.getSettings(projectUuid);
-        return rows.map((row) => {
+        return currentRows.map((row) => {
             const source = {
-                ...this.convertRow(row),
+                ...this.convertEnabledRow(row),
                 sanitizeRepository: true,
             };
             if (row.dbt_connection === null && row.dbt_repository_uuid) {
@@ -213,6 +249,7 @@ export class ProjectDbtSourcesModel {
     async hasSources(projectUuid: string): Promise<boolean> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
+            .where('role', 'extra')
             .first();
         return row !== undefined;
     }
@@ -225,7 +262,7 @@ export class ProjectDbtSourcesModel {
                 new ProjectDbtSourcesModel({
                     database,
                     encryptionUtil: this.encryptionUtil,
-                    featureFlagModel: this.featureFlagModel,
+                    peerDbtSourcesEnabled: this.peerDbtSourcesEnabled,
                 }),
             ),
         );
@@ -235,6 +272,7 @@ export class ProjectDbtSourcesModel {
         sourceProjectUuid: string,
         targetProjectUuid: string,
     ): Promise<void> {
+        await this.database.raw("SET LOCAL lock_timeout = '2s'");
         await this.database('projects')
             .whereIn('project_uuid', [sourceProjectUuid, targetProjectUuid])
             .orderBy('project_uuid')
@@ -245,7 +283,7 @@ export class ProjectDbtSourcesModel {
         sourceProjectUuid: string,
         targetProjectUuid: string,
     ): Promise<void> {
-        const peersEnabled = await this.peers.isEnabled(sourceProjectUuid);
+        const { peersEnabled } = this;
         if (peersEnabled && !this.database.isTransaction)
             return this.inTransaction((model) =>
                 model.copySources(sourceProjectUuid, targetProjectUuid),
@@ -275,7 +313,8 @@ export class ProjectDbtSourcesModel {
                       ]
                     : [],
             )
-            .where('project_uuid', sourceProjectUuid);
+            .where('project_uuid', sourceProjectUuid)
+            .where('role', 'extra');
 
         if (sources.length === 0) {
             return;
@@ -325,15 +364,20 @@ export class ProjectDbtSourcesModel {
     async getSource(projectDbtSourceUuid: string): Promise<ProjectDbtSource> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
             .first();
         if (!row) {
             throw new NotFoundError(
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
         }
-        if (!(await this.peers.isEnabled(row.project_uuid)))
-            return this.convertRow(row);
-        return (await this.convertRows(row.project_uuid, [row]))[0];
+        if (!this.peersEnabled) return this.convertRow(row);
+        const [current] = await this.convertRows(row.project_uuid, [row]);
+        if (!current)
+            throw new NotFoundError(
+                `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+            );
+        return current;
     }
 
     async getSourceForApi(
@@ -341,12 +385,21 @@ export class ProjectDbtSourcesModel {
     ): Promise<ProjectDbtSource> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
             .first();
         if (!row)
             throw new NotFoundError(
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
-        return this.convertRow(row);
+        if (!this.peersEnabled) return this.convertRow(row);
+        const [current] = await this.refreshEnabledRows(row.project_uuid, [
+            row,
+        ]);
+        if (!current)
+            throw new NotFoundError(
+                `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+            );
+        return this.convertEnabledRow(current);
     }
 
     async createSource(
@@ -354,10 +407,21 @@ export class ProjectDbtSourcesModel {
         data: CreateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
         try {
-            if (await this.peers.isEnabled(projectUuid))
+            if (this.peersEnabled) {
+                if (!this.database.isTransaction)
+                    return await this.inTransaction((model) =>
+                        model.createSource(projectUuid, data),
+                    );
+                await this.database.raw("SET LOCAL lock_timeout = '2s'");
+                await this.database('projects')
+                    .where('project_uuid', projectUuid)
+                    .forUpdate()
+                    .first();
+                await this.peers.initializeProjectNames(projectUuid);
                 return this.convertRow(
                     await this.peers.createSource(projectUuid, data),
                 );
+            }
             const [row] = await this.database(ProjectDbtSourcesTableName)
                 .insert({
                     project_uuid: projectUuid,
@@ -389,17 +453,20 @@ export class ProjectDbtSourcesModel {
         data: UpdateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
         const stored = await this.getSourceForApi(projectDbtSourceUuid);
-        const peersEnabled = await this.peers.isEnabled(stored.projectUuid);
+        const { peersEnabled } = this;
         if (peersEnabled && !this.database.isTransaction)
             return this.inTransaction((model) =>
                 model.updateSource(projectDbtSourceUuid, data),
             );
-        if (peersEnabled)
+        if (peersEnabled) {
+            await this.database.raw("SET LOCAL lock_timeout = '2s'");
             await this.database('projects')
                 .where('project_uuid', stored.projectUuid)
                 .forUpdate()
                 .first();
-        if (data.dbtConnection !== undefined) {
+            await this.peers.initializeProjectNames(stored.projectUuid);
+        }
+        if (peersEnabled && data.dbtConnection !== undefined) {
             const existing = await this.getSource(projectDbtSourceUuid);
             if (
                 await this.peers.isSharedConsumer(
@@ -420,6 +487,7 @@ export class ProjectDbtSourcesModel {
         try {
             [row] = await this.database(ProjectDbtSourcesTableName)
                 .where('project_dbt_source_uuid', projectDbtSourceUuid)
+                .where('role', 'extra')
                 .update({
                     ...(data.name !== undefined ? { name: data.name } : {}),
                     ...(data.precedence !== undefined
@@ -432,6 +500,8 @@ export class ProjectDbtSourcesModel {
                               dbt_connection: this.encryptConnection(
                                   data.dbtConnection,
                               ),
+                              repository_fill_state: 'pending',
+                              repository_fill_attempted_at: null,
                           }
                         : {}),
                     ...(data.warehouseLocation !== undefined
@@ -461,7 +531,7 @@ export class ProjectDbtSourcesModel {
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
         }
-        if (data.dbtConnection !== undefined)
+        if (peersEnabled && data.dbtConnection !== undefined)
             await this.peers.registerSource(
                 row.project_uuid,
                 row.project_dbt_source_uuid,
@@ -477,29 +547,36 @@ export class ProjectDbtSourcesModel {
                 'Cannot delete the primary dbt source of a project',
             );
         }
-        if (await this.peers.isEnabled(source.projectUuid))
+        if (this.peersEnabled)
             return this.peers.deleteSource(
                 source.projectUuid,
                 projectDbtSourceUuid,
             );
         await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
             .delete();
     }
 
     async getSourcesWithBindings(
         projectUuid: string,
     ): Promise<BoundProjectDbtSource[]> {
-        const rows = await this.database<DbBoundProjectDbtSource>(
-            ProjectDbtSourcesTableName,
-        )
-            .where('project_uuid', projectUuid)
-            .orderBy('precedence', 'asc')
-            .orderBy('name', 'asc');
-        const sources =
-            rows.length > 0 && (await this.peers.isEnabled(projectUuid))
-                ? await this.convertRows(projectUuid, rows)
-                : rows.map((row) => this.convertRow(row));
+        let rows: DbBoundProjectDbtSource[] =
+            await this.database<DbBoundProjectDbtSource>(
+                ProjectDbtSourcesTableName,
+            )
+                .where('project_uuid', projectUuid)
+                .where('role', 'extra')
+                .orderBy('precedence', 'asc')
+                .orderBy('name', 'asc');
+        if (rows.length > 0 && this.peersEnabled)
+            rows = await this.refreshEnabledRows(projectUuid, rows);
+        const sources = this.peersEnabled
+            ? await this.convertEnabledRows(
+                  projectUuid,
+                  rows as DbPeerDbtSource[],
+              )
+            : rows.map((row) => this.convertRow(row));
         return sources.map((source, index) => ({
             ...source,
             warehouseConnectionUuid: rows[index].warehouse_connection_uuid,
@@ -511,7 +588,7 @@ export class ProjectDbtSourcesModel {
         targetProjectUuid: string,
         warehouseConnectionUuidMap: ReadonlyMap<string, string>,
     ): Promise<void> {
-        const peersEnabled = await this.peers.isEnabled(sourceProjectUuid);
+        const { peersEnabled } = this;
         if (peersEnabled && !this.database.isTransaction)
             return this.inTransaction((model) =>
                 model.copySourcesWithConnectionMap(
@@ -546,7 +623,8 @@ export class ProjectDbtSourcesModel {
                       ]
                     : [],
             )
-            .where('project_uuid', sourceProjectUuid);
+            .where('project_uuid', sourceProjectUuid)
+            .where('role', 'extra');
         if (sources.length === 0) {
             return;
         }

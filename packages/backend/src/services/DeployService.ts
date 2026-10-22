@@ -5,6 +5,7 @@ import {
     DeploySessionStatus,
     Explore,
     ExploreError,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ProjectType,
@@ -15,9 +16,14 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
+import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
+import {
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
 import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
@@ -77,6 +83,7 @@ type ProjectServiceInterface = {
 type DeployServiceArguments = {
     deploySessionModel: DeploySessionModel;
     projectModel: ProjectModel;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     projectService: ProjectServiceInterface;
     schedulerClient: SchedulerClient;
     exploreEnhancer?: DeployExploreEnhancer;
@@ -86,6 +93,8 @@ export class DeployService extends BaseService {
     private readonly deploySessionModel: DeploySessionModel;
 
     private readonly projectModel: ProjectModel;
+
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 
     private readonly projectService: ProjectServiceInterface;
 
@@ -97,6 +106,7 @@ export class DeployService extends BaseService {
         super({ serviceName: 'DeployService' });
         this.deploySessionModel = args.deploySessionModel;
         this.projectModel = args.projectModel;
+        this.featureFlagModel = args.featureFlagModel;
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
         this.exploreEnhancer = args.exploreEnhancer ?? (async (e) => e);
@@ -311,101 +321,110 @@ export class DeployService extends BaseService {
                 data.explores,
             );
         }
-        try {
-            // Update status to finalizing
-            await this.deploySessionModel.updateStatus(
-                sessionUuid,
-                DeploySessionStatus.FINALIZING,
-            );
-
-            const project =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
-
-            // Get all explores from the session and enhance them
-            // (e.g., EE generates virtual pre-aggregate explores from attached defs)
-            const deployData =
-                await this.deploySessionModel.getDeployData(sessionUuid);
-            const uploadedExplores = deployData.explores;
-            const startOfWeekByExplore =
-                await this.projectService.getDeployStartOfWeekByExplore({
-                    userUuid: user.userUuid,
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                    explores: uploadedExplores,
-                    sourceUuid: cliDeploy.sourceUuid,
-                });
-            const explores = await this.exploreEnhancer(uploadedExplores, {
-                organizationUuid: project.organizationUuid,
-                startOfWeek: project.warehouseConnection?.startOfWeek ?? null,
-                startOfWeekByExplore,
-            });
-
-            this.logger.info(
-                `Finalizing deploy session ${sessionUuid} with ${explores.length} explores`,
-            );
-
-            // Use the existing saveExploresToCache method from ProjectService
-            // This ensures we maintain the same validation and caching logic
-            await this.projectService.saveDeployExplores({
-                userUuid: user.userUuid,
-                projectUuid,
-                explores,
-                compilationSource: 'cli_deploy',
-                jobUuid: null,
-                requestMethod: 'cli',
-                cliVersion,
-                complete: deployData.complete,
-                dbtModelNames,
-                cliDeploy,
-            });
-
-            // Schedule validation (same as in original finalizeDeploy)
-            if (agentExecutionContext.getStore()?.agentConnectionExecution)
-                await this.projectService.assertAgentConnectionEffect(
-                    projectUuid,
-                    'validateProject',
+        const finalize = async () => {
+            try {
+                // Update status to finalizing
+                await this.deploySessionModel.updateStatus(
+                    sessionUuid,
+                    DeploySessionStatus.FINALIZING,
                 );
-            await this.schedulerClient.generateValidation({
-                ...captureAgentConnectionTask('validateProject', {
-                    userUuid: user.userUuid,
+
+                const project =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
+
+                // Get all explores from the session and enhance them
+                // (e.g., EE generates virtual pre-aggregate explores from attached defs)
+                const deployData =
+                    await this.deploySessionModel.getDeployData(sessionUuid);
+                const uploadedExplores = deployData.explores;
+                const startOfWeekByExplore =
+                    await this.projectService.getDeployStartOfWeekByExplore({
+                        userUuid: user.userUuid,
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        explores: uploadedExplores,
+                        sourceUuid: cliDeploy.sourceUuid,
+                    });
+                const explores = await this.exploreEnhancer(uploadedExplores, {
                     organizationUuid: project.organizationUuid,
-                }),
-                userUuid: user.userUuid,
-                projectUuid,
-                context: 'cli',
-                organizationUuid: project.organizationUuid,
-            });
+                    startOfWeek:
+                        project.warehouseConnection?.startOfWeek ?? null,
+                    startOfWeekByExplore,
+                });
 
-            // Mark as completed
-            await this.deploySessionModel.updateStatus(
-                sessionUuid,
-                DeploySessionStatus.COMPLETED,
-            );
+                this.logger.info(
+                    `Finalizing deploy session ${sessionUuid} with ${explores.length} explores`,
+                );
 
-            // Cleanup session data
-            await this.deploySessionModel.deleteSession(sessionUuid);
+                // Use the existing saveExploresToCache method from ProjectService
+                // This ensures we maintain the same validation and caching logic
+                await this.projectService.saveDeployExplores({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores,
+                    compilationSource: 'cli_deploy',
+                    jobUuid: null,
+                    requestMethod: 'cli',
+                    cliVersion,
+                    complete: deployData.complete,
+                    dbtModelNames,
+                    cliDeploy,
+                });
 
-            await this.trackCliSourceDeploy(deployAnalytics, {
-                status: 'success',
-            });
+                // Schedule validation (same as in original finalizeDeploy)
+                if (agentExecutionContext.getStore()?.agentConnectionExecution)
+                    await this.projectService.assertAgentConnectionEffect(
+                        projectUuid,
+                        'validateProject',
+                    );
+                await this.schedulerClient.generateValidation({
+                    ...captureAgentConnectionTask('validateProject', {
+                        userUuid: user.userUuid,
+                        organizationUuid: project.organizationUuid,
+                    }),
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    context: 'cli',
+                    organizationUuid: project.organizationUuid,
+                });
 
-            return {
-                exploreCount: explores.length,
-                warnings: calculateExploreWarningReport({ explores }),
-                status: DeploySessionStatus.COMPLETED,
-            };
-        } catch (error) {
-            await this.trackCliSourceDeploy(deployAnalytics, {
-                status: 'error',
-                error,
-            });
-            // Mark as failed on error
-            await this.deploySessionModel.updateStatus(
-                sessionUuid,
-                DeploySessionStatus.FAILED,
-            );
-            throw error;
-        }
+                // Mark as completed
+                await this.deploySessionModel.updateStatus(
+                    sessionUuid,
+                    DeploySessionStatus.COMPLETED,
+                );
+
+                // Cleanup session data
+                await this.deploySessionModel.deleteSession(sessionUuid);
+
+                await this.trackCliSourceDeploy(deployAnalytics, {
+                    status: 'success',
+                });
+
+                return {
+                    exploreCount: explores.length,
+                    warnings: calculateExploreWarningReport({ explores }),
+                    status: DeploySessionStatus.COMPLETED,
+                };
+            } catch (error) {
+                await this.trackCliSourceDeploy(deployAnalytics, {
+                    status: 'error',
+                    error,
+                });
+                // Mark as failed on error
+                await this.deploySessionModel.updateStatus(
+                    sessionUuid,
+                    DeploySessionStatus.FAILED,
+                );
+                throw error;
+            }
+        };
+        if (hasPeerDbtSourcesOperation()) return finalize();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: permissionProject.organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, finalize);
     }
 
     async cleanupOldSessions(): Promise<void> {

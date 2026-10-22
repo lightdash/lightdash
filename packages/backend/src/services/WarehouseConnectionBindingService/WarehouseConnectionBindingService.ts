@@ -15,6 +15,10 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { logCrossSourceCacheError } from '../../projectAdapters/crossSourceCatalogCache';
+import {
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../../utils/peerDbtSourcesOperation';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/WarehouseConnectionService';
@@ -66,6 +70,18 @@ export class WarehouseConnectionBindingService extends BaseService {
         this.analytics = args.analytics;
         this.dbtSourceRefCatalogModel = args.dbtSourceRefCatalogModel;
         this.featureFlagService = args.featureFlagService;
+    }
+
+    private async withPeerOperation<T>(
+        user: { organizationUuid: string; userUuid: string },
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        if (hasPeerDbtSourcesOperation()) return callback();
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, callback);
     }
 
     private async getBindingsForAnalytics(
@@ -194,10 +210,17 @@ export class WarehouseConnectionBindingService extends BaseService {
             this.getBindingsForAnalytics(projectUuid),
             this.getWarehouseTypeForAnalytics(projectUuid),
         ]);
-        await this.warehouseConnectionCompileModel.bindDbtSource(
-            projectUuid,
-            projectDbtSourceUuid,
-            warehouseConnectionUuid,
+        await this.withPeerOperation(
+            {
+                organizationUuid: summary.organizationUuid,
+                userUuid: account.user.id,
+            },
+            () =>
+                this.warehouseConnectionCompileModel.bindDbtSource(
+                    projectUuid,
+                    projectDbtSourceUuid,
+                    warehouseConnectionUuid,
+                ),
         );
         const { enabled } = await this.featureFlagService.get({
             user: {

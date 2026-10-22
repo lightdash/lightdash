@@ -206,7 +206,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
         projectDbtSourcesModel: {
             getSources: vi.fn().mockResolvedValue([]),
         } as AnyType,
-        featureFlagModel: { get: vi.fn() } as AnyType,
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
         githubAppService: {
             getValidUserToken: vi.fn().mockResolvedValue(undefined),
@@ -1878,7 +1880,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid: ORG },
+                featureFlagId: FeatureFlags.PeerDbtSources,
+            });
             expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
             expect(
@@ -2203,7 +2208,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 loadRequest: vi.fn().mockResolvedValue({}),
                 assertOperationWithRequest: vi.fn(),
             };
-            const featureFlagModel = { get: vi.fn() };
+            const featureFlagModel = {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            };
             const featureFlagService = {
                 get: vi.fn().mockResolvedValue({ enabled: false }),
             };
@@ -2303,7 +2310,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             expect(
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid: ORG },
+                featureFlagId: FeatureFlags.PeerDbtSources,
+            });
             expect(featureFlagService.get).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(

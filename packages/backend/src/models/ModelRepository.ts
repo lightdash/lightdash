@@ -870,7 +870,6 @@ export class ModelRepository
                 new ProjectDbtSourcesModel({
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
-                    featureFlagModel: this.getFeatureFlagModel(),
                 }),
         );
     }

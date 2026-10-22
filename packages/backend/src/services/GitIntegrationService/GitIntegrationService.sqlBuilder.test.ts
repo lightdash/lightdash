@@ -128,6 +128,9 @@ describe('GitIntegrationService SQL builder without warehouse network access', (
     const getWarehouseConnectionForBinding =
         vi.fn<ProjectModel['getWarehouseConnectionForBinding']>();
     const service = new GitIntegrationService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {

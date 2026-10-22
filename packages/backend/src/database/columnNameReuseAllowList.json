@@ -38,5 +38,9 @@
     {
         "column": "document_versions.agent_identity",
         "reason": "Existing version queries do not join query_history or select agent_identity without a table qualifier. This nullable field preserves writes from previous releases."
+    },
+    {
+        "column": "project_dbt_sources.role",
+        "reason": "Previous releases read source rows alone or join projects and warehouse connections, which have no role column. Existing source joins do not join membership or role tables, so this defaulted column does not make their reads ambiguous."
     }
 ]

@@ -32,6 +32,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type CompileGroupPlan } from '../../projectAdapters/CompileGroup';
 import * as crossSourceRefs from '../../projectAdapters/crossSourceRefs';
 import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
+import { withPeerDbtSourcesOperation } from '../../utils/peerDbtSourcesOperation';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import {
     connectionContextFromUser,
@@ -88,144 +89,172 @@ const manifest: DbtManifest = {
 };
 
 describe('multi-source compilation diagnostics', () => {
-    it('reports a safe warning and completes the job when an additional source fails', async () => {
-        const log: DbtLog = {
-            code: 'E001',
-            info: {
-                category: 'dbt',
+    it.each([true, false])(
+        'reports a safe warning and gates peer name learning with enabled=%s',
+        async (enabled) => {
+            const learnProjectName = vi.fn(async () => undefined);
+            const log: DbtLog = {
                 code: 'E001',
-                extra: {},
-                invocation_id: 'run-uuid',
-                level: 'error',
-                log_version: 2,
-                msg: 'Compilation Error: macro missing_macro is undefined',
-                name: 'CompilationError',
-                pid: 1,
-                thread_name: 'MainThread',
-                ts: '2026-10-07T00:00:00Z',
-                type: 'log_line',
-            },
-        };
-        const compiler = new MultiConnectionCompiler({
-            dbtSourceRefCatalogModel: {} as never,
-            projectModel: {
-                countCachedExploresForDbtSource: vi.fn(async () => 2),
-                getDbtSourceIdentity: vi.fn().mockResolvedValue({
-                    dbtSourceName: 'primary',
-                    dbtSourceUuid: 'primary-source-uuid',
-                }),
-            },
-            projectDbtSourcesModel: {},
-            warehouseConnectionCompileModel: {},
-        } as unknown as ConstructorParameters<
-            typeof MultiConnectionCompiler
-        >[0]);
-        vi.spyOn(compiler, 'planGroups').mockResolvedValue([
-            {
-                warehouseConnectionUuid: null,
-                connectionName: 'Primary warehouse',
-                listedDatabases: {
-                    listAllDatabases: false,
-                    additionalDatabases: [],
+                info: {
+                    category: 'dbt',
+                    code: 'E001',
+                    extra: {},
+                    invocation_id: 'run-uuid',
+                    level: 'error',
+                    log_version: 2,
+                    msg: 'Compilation Error: macro missing_macro is undefined',
+                    name: 'CompilationError',
+                    pid: 1,
+                    thread_name: 'MainThread',
+                    ts: '2026-10-07T00:00:00Z',
+                    type: 'log_line',
                 },
-                sources: [
-                    {
-                        name: 'finance',
-                        projectDbtSourceUuid: 'finance-source-uuid',
-                        precedence: 1,
-                        dbtConnection: { type: DbtProjectType.NONE },
+            };
+            const compiler = new MultiConnectionCompiler({
+                dbtSourceRefCatalogModel: {} as never,
+                projectModel: {
+                    countCachedExploresForDbtSource: vi.fn(async () => 2),
+                    getDbtSourceIdentity: vi.fn().mockResolvedValue({
+                        dbtSourceName: 'primary',
+                        dbtSourceUuid: 'primary-source-uuid',
+                    }),
+                },
+                projectDbtSourcesModel: { peers: { learnProjectName } },
+                warehouseConnectionCompileModel: {},
+            } as unknown as ConstructorParameters<
+                typeof MultiConnectionCompiler
+            >[0]);
+            vi.spyOn(compiler, 'planGroups').mockResolvedValue([
+                {
+                    warehouseConnectionUuid: null,
+                    connectionName: 'Primary warehouse',
+                    listedDatabases: {
+                        listAllDatabases: false,
+                        additionalDatabases: [],
                     },
-                ],
-            } as unknown as CompileGroupPlan,
-        ]);
-        const jobModel = new JobModel({
-            database: knex({ client: MockClient, dialect: 'pg' }),
-        });
-        vi.spyOn(jobModel, 'startJobStep').mockResolvedValue();
-        const updateStep = vi
-            .spyOn(jobModel, 'updateJobStep')
-            .mockResolvedValue();
-        vi.spyOn(jobModel, 'update').mockResolvedValue();
-
-        const warning = vi.fn(async (_message: string) => undefined);
-        vi.spyOn(
-            DbtManifestProjectAdapter.prototype,
-            'prepareExploreStream',
-        ).mockResolvedValue(
-            (async function* stream() {
-                yield* [];
-            })(),
-        );
-        await expect(
-            jobModel.tryJobStep('job-uuid', JobStepType.COMPILING, () =>
-                compiler.compile({
-                    concurrency: 1,
-                    onSourceWarning: warning,
-                    projectUuid: 'project-uuid',
-                    context: connectionContextFromUser(
-                        { userUuid: 'user-uuid' },
+                    sources: [
                         {
-                            organizationUuid: 'org-uuid',
-                            queryContext: null,
-                            purpose: 'compile',
+                            name: 'finance',
+                            projectDbtSourceUuid: 'finance-source-uuid',
+                            precedence: 1,
+                            dbtConnection: { type: DbtProjectType.NONE },
                         },
-                    ),
-                    primary: {
-                        fetchManifest: async () => ({
-                            manifest,
-                            timings: {
-                                gitRefreshMs: null,
-                                depsMs: null,
-                                manifestMs: 0,
-                            },
-                        }),
-                        connection: {
-                            warehouseClient: warehouseClientMock,
-                            connectionCredentials:
-                                warehouseClientMock.credentials,
-                            warehouseCredentials:
-                                warehouseClientMock.credentials,
-                            deriveClient: vi.fn(() => warehouseClientMock),
-                            aiPlan: null,
-                            warehouseConnectionUuid: null,
-                            connectionRoute: null,
-                            credentialKind: WarehouseCredentialKind.COMPILE,
-                            tunnelConnectMs: null,
-                        },
-                        dbtProjectDir: undefined,
-                        warehouseCredentials: warehouseClientMock.credentials,
-                        cachedWarehouse: {
-                            warehouseCatalog: undefined,
-                            onWarehouseCatalogChange: vi.fn(),
-                        },
-                    },
-                    dbtVersion: SupportedDbtVersions.V1_7,
-                    includeUnboundSources: true,
-                    crossSourceRefsEnabled: false,
-                    mixedWarehouseConnectionsEnabled: false,
-                    fetchSourceManifest: async () => {
-                        throw new DbtError('Failed to run dbt ls', [log]);
-                    },
-                    loadExtraCredentials: vi.fn(),
-                }),
-            ),
-        ).resolves.toMatchObject({
-            carry: {
-                kind: 'connections',
-                dbtSourceUuids: ['finance-source-uuid'],
-            },
-        });
-        expect(warning).toHaveBeenCalledWith(
-            expect.stringContaining('Source "finance" failed'),
-        );
-        expect(warning.mock.calls.flat().join(' ')).not.toContain(log.info.msg);
+                    ],
+                } as unknown as CompileGroupPlan,
+            ]);
+            const jobModel = new JobModel({
+                database: knex({ client: MockClient, dialect: 'pg' }),
+            });
+            vi.spyOn(jobModel, 'startJobStep').mockResolvedValue();
+            const updateStep = vi
+                .spyOn(jobModel, 'updateJobStep')
+                .mockResolvedValue();
+            vi.spyOn(jobModel, 'update').mockResolvedValue();
 
-        expect(updateStep).toHaveBeenCalledWith(
-            'job-uuid',
-            JobStepStatusType.DONE,
-            JobStepType.COMPILING,
-        );
-    });
+            const warning = vi.fn(async (_message: string) => undefined);
+            vi.spyOn(
+                DbtManifestProjectAdapter.prototype,
+                'prepareExploreStream',
+            ).mockResolvedValue(
+                (async function* stream() {
+                    yield* [];
+                })(),
+            );
+            await expect(
+                withPeerDbtSourcesOperation(enabled, () =>
+                    jobModel.tryJobStep('job-uuid', JobStepType.COMPILING, () =>
+                        compiler.compile({
+                            concurrency: 1,
+                            onSourceWarning: warning,
+                            projectUuid: 'project-uuid',
+                            context: connectionContextFromUser(
+                                { userUuid: 'user-uuid' },
+                                {
+                                    organizationUuid: 'org-uuid',
+                                    queryContext: null,
+                                    purpose: 'compile',
+                                },
+                            ),
+                            primary: {
+                                fetchManifest: async () => ({
+                                    manifest: {
+                                        ...manifest,
+                                        metadata: {
+                                            ...manifest.metadata,
+                                            project_name: 'primary_project',
+                                        },
+                                    },
+                                    timings: {
+                                        gitRefreshMs: null,
+                                        depsMs: null,
+                                        manifestMs: 0,
+                                    },
+                                }),
+                                connection: {
+                                    warehouseClient: warehouseClientMock,
+                                    connectionCredentials:
+                                        warehouseClientMock.credentials,
+                                    warehouseCredentials:
+                                        warehouseClientMock.credentials,
+                                    deriveClient: vi.fn(
+                                        () => warehouseClientMock,
+                                    ),
+                                    aiPlan: null,
+                                    warehouseConnectionUuid: null,
+                                    connectionRoute: null,
+                                    credentialKind:
+                                        WarehouseCredentialKind.COMPILE,
+                                    tunnelConnectMs: null,
+                                },
+                                dbtProjectDir: undefined,
+                                warehouseCredentials:
+                                    warehouseClientMock.credentials,
+                                cachedWarehouse: {
+                                    warehouseCatalog: undefined,
+                                    onWarehouseCatalogChange: vi.fn(),
+                                },
+                            },
+                            dbtVersion: SupportedDbtVersions.V1_7,
+                            includeUnboundSources: true,
+                            crossSourceRefsEnabled: false,
+                            mixedWarehouseConnectionsEnabled: false,
+                            fetchSourceManifest: async () => {
+                                throw new DbtError('Failed to run dbt ls', [
+                                    log,
+                                ]);
+                            },
+                            loadExtraCredentials: vi.fn(),
+                        }),
+                    ),
+                ),
+            ).resolves.toMatchObject({
+                carry: {
+                    kind: 'connections',
+                    dbtSourceUuids: ['finance-source-uuid'],
+                },
+            });
+            expect(warning).toHaveBeenCalledWith(
+                expect.stringContaining('Source "finance" failed'),
+            );
+            expect(warning.mock.calls.flat().join(' ')).not.toContain(
+                log.info.msg,
+            );
+
+            if (enabled)
+                expect(learnProjectName).toHaveBeenCalledExactlyOnceWith(
+                    'project-uuid',
+                    'primary-source-uuid',
+                    'primary_project',
+                );
+            else expect(learnProjectName).not.toHaveBeenCalled();
+
+            expect(updateStep).toHaveBeenCalledWith(
+                'job-uuid',
+                JobStepStatusType.DONE,
+                JobStepType.COMPILING,
+            );
+        },
+    );
 });
 
 describe('cross-source compilation', () => {

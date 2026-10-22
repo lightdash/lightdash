@@ -309,6 +309,7 @@ export const queueEvidenceFixture = async (
     } as never);
     const sessions = new DeploySessionModel(database);
     const deploy = new DeployService({
+        featureFlagModel,
         deploySessionModel: sessions,
         projectModel: f.projects,
         projectService: service,

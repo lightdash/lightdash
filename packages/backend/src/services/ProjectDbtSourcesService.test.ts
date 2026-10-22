@@ -14,6 +14,10 @@ import {
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
 import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../projectAdapters/githubAuthorization';
+import {
+    getPeerDbtSourcesEnabled,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { warehouseConnectionCredentials } from './WarehouseConnectionService/warehouseConnectionFixtures.mock';
 
@@ -89,6 +93,7 @@ const projectDbtSourcesModel = {
     createSource: vi.fn(),
     updateSource: vi.fn(),
     deleteSource: vi.fn(),
+    peers: { isSharedConsumer: vi.fn(async () => false) },
 };
 
 const githubAppInstallationsModel = {
@@ -113,6 +118,13 @@ const featureFlagService = {
     })),
 };
 
+const featureFlagModel = {
+    get: vi.fn(async () => ({
+        id: FeatureFlags.PeerDbtSources,
+        enabled: false,
+    })),
+};
+
 const getService = () =>
     new ProjectDbtSourcesService({
         dbtSourceRefCatalogModel: dbtSourceRefCatalogModel as never,
@@ -122,11 +134,16 @@ const getService = () =>
         projectDbtSourcesModel: projectDbtSourcesModel as never,
         githubAppInstallationsModel: githubAppInstallationsModel as never,
         featureFlagService,
+        featureFlagModel,
     });
 
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        featureFlagModel.get.mockResolvedValue({
+            id: FeatureFlags.PeerDbtSources,
+            enabled: false,
+        });
         mixedWarehouseConnections.enabled = false;
         crossSourceRefs.enabled = false;
         projectModel.getSummary.mockResolvedValue({
@@ -151,6 +168,112 @@ describe('ProjectDbtSourcesService', () => {
         githubAppInstallationsModel.findInstallationId.mockResolvedValue(
             undefined,
         );
+    });
+
+    describe('peer operation snapshot', () => {
+        const extraSource = {
+            projectUuid,
+            projectDbtSourceUuid: sourceUuid,
+            name: 'additional',
+            precedence: 1,
+            isPrimary: false,
+            dbtConnection: githubConnection,
+            warehouseLocation: EMPTY_WAREHOUSE_LOCATION,
+            hasCredentialError: false,
+        };
+
+        it.each([true, false])(
+            'reads the flag once while creating with enabled=%s',
+            async (enabled) => {
+                const service = getService();
+                featureFlagModel.get.mockResolvedValueOnce({
+                    id: FeatureFlags.PeerDbtSources,
+                    enabled,
+                });
+                projectDbtSourcesModel.getSources.mockImplementationOnce(
+                    async () => {
+                        expect(getPeerDbtSourcesEnabled()).toBe(enabled);
+                        featureFlagModel.get.mockResolvedValue({
+                            id: FeatureFlags.PeerDbtSources,
+                            enabled: !enabled,
+                        });
+                        return [];
+                    },
+                );
+                projectDbtSourcesModel.createSource.mockImplementationOnce(
+                    async () => {
+                        expect(getPeerDbtSourcesEnabled()).toBe(enabled);
+                        return extraSource;
+                    },
+                );
+                await service.createProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    {
+                        name: 'additional',
+                        dbtConnection: githubConnection,
+                    },
+                );
+                expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                    user: { organizationUuid: 'org-uuid' },
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                });
+                expect(getPeerDbtSourcesEnabled()).toBe(false);
+            },
+        );
+
+        it('resolves a fresh flag value for each operation', async () => {
+            const service = getService();
+            const observed: boolean[] = [];
+            projectDbtSourcesModel.getSources.mockImplementation(async () => {
+                observed.push(getPeerDbtSourcesEnabled());
+                return [];
+            });
+            await [true, false, true].reduce(async (previous, enabled) => {
+                await previous;
+                featureFlagModel.get.mockResolvedValueOnce({
+                    id: FeatureFlags.PeerDbtSources,
+                    enabled,
+                });
+                await service.getProjectDbtSources(adminAccount, projectUuid);
+            }, Promise.resolve());
+            expect(observed).toEqual([true, false, true]);
+            expect(featureFlagModel.get).toHaveBeenCalledTimes(3);
+            projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        });
+
+        it('reuses a disabled parent snapshot without resolving again', async () => {
+            featureFlagModel.get.mockResolvedValue({
+                id: FeatureFlags.PeerDbtSources,
+                enabled: true,
+            });
+            await withPeerDbtSourcesOperation(false, () =>
+                getService().getProjectDbtSources(adminAccount, projectUuid),
+            );
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+        });
+
+        it('keeps credential edits on the legacy path while disabled', async () => {
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValueOnce(
+                extraSource,
+            );
+            projectDbtSourcesModel.updateSource.mockImplementationOnce(
+                async () => {
+                    expect(getPeerDbtSourcesEnabled()).toBe(false);
+                    return extraSource;
+                },
+            );
+            await getService().updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                { dbtConnection: githubConnection },
+            );
+            expect(
+                projectDbtSourcesModel.peers.isSharedConsumer,
+            ).not.toHaveBeenCalled();
+            expect(featureFlagModel.get).toHaveBeenCalledOnce();
+        });
     });
 
     describe('getProjectDbtSources', () => {

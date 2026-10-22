@@ -71,6 +71,7 @@ import {
     type DbtManifestFetchOptions,
     type TrackingParams,
 } from '../../types';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
@@ -251,6 +252,19 @@ export class MultiConnectionCompiler {
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.warehouseConnectionCompileModel =
             args.warehouseConnectionCompileModel;
+    }
+
+    private async learnProjectName(
+        projectUuid: string,
+        sourceUuid: string,
+        name: string,
+    ): Promise<void> {
+        if (!getPeerDbtSourcesEnabled()) return;
+        await this.projectDbtSourcesModel.peers?.learnProjectName(
+            projectUuid,
+            sourceUuid,
+            name,
+        );
     }
 
     async planGroups(
@@ -607,7 +621,7 @@ export class MultiConnectionCompiler {
                         warnings,
                         resolutionOptions,
                         (sourceUuid, name) =>
-                            this.projectDbtSourcesModel.peers?.learnProjectName(
+                            this.learnProjectName(
                                 projectUuid,
                                 sourceUuid,
                                 name,
@@ -1117,7 +1131,7 @@ export class MultiConnectionCompiler {
                                 const result =
                                     await primary.fetchManifest(options);
                                 if (result.manifest.metadata.project_name)
-                                    await this.projectDbtSourcesModel.peers?.learnProjectName(
+                                    await this.learnProjectName(
                                         projectUuid,
                                         identity.dbtSourceUuid,
                                         result.manifest.metadata.project_name,
@@ -1135,11 +1149,7 @@ export class MultiConnectionCompiler {
                     warnings,
                     resolutionOptions(originalPlan),
                     (sourceUuid, name) =>
-                        this.projectDbtSourcesModel.peers?.learnProjectName(
-                            projectUuid,
-                            sourceUuid,
-                            name,
-                        ),
+                        this.learnProjectName(projectUuid, sourceUuid, name),
                 );
             compileSignal?.throwIfAborted();
             const originalMerged = mergeCompileGroupManifests(originalSources);

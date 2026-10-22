@@ -551,6 +551,7 @@ export class ServiceRepository
             'deployService',
             () =>
                 new DeployService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     deploySessionModel: this.models.getDeploySessionModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
@@ -586,6 +587,7 @@ export class ServiceRepository
                         this.models.getGithubAppInstallationsModel(),
                     githubAppService: this.getGithubAppService(),
                     pullRequestsModel: this.models.getPullRequestsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );
@@ -2382,6 +2384,7 @@ export class ServiceRepository
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
                     featureFlagService: this.getFeatureFlagService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

@@ -17,20 +17,28 @@ import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { AiWritebackService } from '../../../ee/services/AiWritebackService/AiWritebackService';
+import Logger from '../../../logging/logger';
 import {
     PeerDbtSourcesModel,
     type DbPeerDbtSource,
 } from '../../../models/PeerDbtSourcesModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
-import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { GitIntegrationService } from '../../../services/GitIntegrationService/GitIntegrationService';
+import {
+    CUSTOM_DIMENSION,
+    CUSTOM_METRIC,
+} from '../../../services/GitIntegrationService/GitIntegrationService.mock';
 import { PeerDbtSourcesService } from '../../../services/PeerDbtSourcesService';
 import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
+import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import * as peerOperation from '../../../utils/peerDbtSourcesOperation';
 
 const secret = 'peer-model-synthetic-encryption-secret';
 const encryptionUtil = new EncryptionUtil({
@@ -49,6 +57,12 @@ const connection: DbtProjectConfig = {
     environment: [{ key: 'FIXTURE_ENV', value: 'synthetic-environment-value' }],
 };
 const featureFlagModel = { get: vi.fn(async () => ({ enabled: true })) };
+const setPeerEnabled = (enabled: boolean) => {
+    featureFlagModel.get.mockResolvedValue({ enabled });
+    vi.spyOn(peerOperation, 'getPeerDbtSourcesEnabled').mockReturnValue(
+        enabled,
+    );
+};
 let migrated: MigratedDatabase;
 let database: Knex;
 let model: PeerDbtSourcesModel;
@@ -96,10 +110,10 @@ const createWarehouse = async (projectUuid = projectA, isOriginal = false) => {
         .insert({
             project_uuid: projectUuid,
             name: `connection_${randomUUID()}`,
-            warehouse_type: 'postgres',
-            encrypted_credentials: Buffer.from(
-                'synthetic-warehouse-credentials',
-            ),
+            warehouse_type: isOriginal ? null : 'postgres',
+            encrypted_credentials: isOriginal
+                ? null
+                : Buffer.from('synthetic-warehouse-credentials'),
             is_original: isOriginal,
         })
         .returning('warehouse_connection_uuid');
@@ -192,6 +206,44 @@ const sourceRow = (uuid: string) =>
 const repositoryRow = (uuid: string) =>
     database('dbt_repositories').where('dbt_repository_uuid', uuid).first();
 
+const pendingSource = async (
+    projectUuid = projectA,
+    overrides: Partial<DbPeerDbtSource> = {},
+): Promise<string> => {
+    const uuid = randomUUID();
+    await database<DbPeerDbtSource>('project_dbt_sources').insert({
+        project_dbt_source_uuid: uuid,
+        project_uuid: projectUuid,
+        name: `source_${uuid}`,
+        is_primary: false,
+        precedence: 1,
+        dbt_connection_type: connection.type,
+        dbt_connection: encryptionUtil.encrypt(JSON.stringify(connection)),
+        warehouse_database: null,
+        warehouse_schema: null,
+        ...overrides,
+    });
+    return uuid;
+};
+
+const nameEvidence = (
+    projectUuid: string,
+    sourceUuid: string,
+    name: string,
+    group = 'original',
+) =>
+    database('dbt_source_ref_catalogs').insert({
+        project_uuid: projectUuid,
+        dbt_source_uuid: sourceUuid,
+        project_name: name,
+        connection_group: group,
+        dbt_version: 'v1.9',
+        status: 'confirmed',
+        nodes: '[]',
+        nodes_digest: 'synthetic-digest',
+        compile_job_uuid: null,
+    });
+
 const expectNameConflict = async (
     operation: Promise<unknown>,
     sourceName = 'source_a',
@@ -208,16 +260,15 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-    featureFlagModel.get.mockReset().mockResolvedValue({ enabled: true });
+    featureFlagModel.get.mockReset();
+    setPeerEnabled(true);
     model = new PeerDbtSourcesModel({
         database,
         encryptionUtil,
-        featureFlagModel: featureFlagModel as never,
     });
     sources = new ProjectDbtSourcesModel({
         database,
         encryptionUtil,
-        featureFlagModel: featureFlagModel as never,
     });
     const [organization] = await database('organizations')
         .insert({ organization_name: 'organization_a' })
@@ -236,6 +287,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+    vi.restoreAllMocks();
     await database('organizations')
         .whereIn('organization_uuid', [organizationUuid, otherOrganizationUuid])
         .delete();
@@ -262,10 +314,7 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
             dbt_project_name: 'actual_a',
             is_primary: false,
         });
-        expect(featureFlagModel.get).toHaveBeenCalledWith({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.PeerDbtSources,
-        });
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
     });
 
     test('createSource rejects a known repository actual-name collision and leaves no partial source', async () => {
@@ -399,9 +448,10 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
         },
     );
 
-    test('does not learn names with the flag disabled and uses the compile organization-only flag scope', async () => {
+    test('does not learn names with the frozen operation flag disabled', async () => {
         const source = await createSource(projectA);
-        featureFlagModel.get.mockClear().mockResolvedValue({ enabled: false });
+        featureFlagModel.get.mockClear();
+        setPeerEnabled(false);
         await model.learnProjectName(
             projectA,
             source.projectDbtSourceUuid,
@@ -410,10 +460,7 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
         expect(
             (await sourceRow(source.projectDbtSourceUuid)).dbt_project_name,
         ).toBeNull();
-        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.PeerDbtSources,
-        });
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
     });
 
     test('rejects renaming a source from another project and preserves both rows', async () => {
@@ -602,6 +649,7 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
                 })),
             } as never,
             projectDbtSourcesModel: sources,
+            featureFlagModel: featureFlagModel as never,
             dbtSourceRefCatalogModel: { deleteForSource: vi.fn() } as never,
             githubAppInstallationsModel: {
                 findInstallationId: vi.fn(async () => '123'),
@@ -646,7 +694,7 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
                 await database('project_dbt_sources')
                     .where('project_dbt_source_uuid', sourceUuid)
                     .delete();
-                featureFlagModel.get.mockResolvedValue({ enabled: false });
+                setPeerEnabled(false);
                 return stored;
             });
         try {
@@ -849,7 +897,6 @@ describe('PeerDbtSourcesModel on the migrated schema', () => {
             const heldModel = new PeerDbtSourcesModel({
                 database: holding,
                 encryptionUtil,
-                featureFlagModel: featureFlagModel as never,
             });
             let pending:
                 | Promise<{ error: unknown } | { result: unknown }>
@@ -1036,7 +1083,7 @@ test('keeps registry consumers on the registered repository when the owner edits
 });
 
 test('initializes registry metadata for sources added while the flag is off', async () => {
-    featureFlagModel.get.mockResolvedValue({ enabled: false });
+    setPeerEnabled(false);
     const git = await createSource(projectA);
     const cli = await sources.createSource(projectA, {
         name: 'source_cli',
@@ -1048,142 +1095,18 @@ test('initializes registry metadata for sources added while the flag is off', as
     expect(
         (await sourceRow(git.projectDbtSourceUuid)).dbt_repository_uuid,
     ).toBeNull();
-    featureFlagModel.get.mockResolvedValue({ enabled: true });
+    setPeerEnabled(true);
     const settings = await model.getSettings(projectA);
     expect(
         settings.get(git.projectDbtSourceUuid)?.dbtRepositoryUuid,
     ).not.toBeNull();
     expect(settings.get(git.projectDbtSourceUuid)?.refreshPolicy).toBe(
-        'git_refresh',
+        'ci_managed',
     );
     expect(settings.get(cli.projectDbtSourceUuid)?.refreshPolicy).toBe(
         'ci_managed',
     );
 });
-
-test.each(['batched', 'transaction'] as const)(
-    'refuses %s project deletion before deleting content when another project consumes its credentials',
-    async (mode) => {
-        const owner = await createSource(projectA);
-        const repository = await createRepository({
-            credentialSourceUuid: owner.projectDbtSourceUuid,
-        });
-        await model.addShared(
-            organizationUuid,
-            projectB,
-            sharedInput(repository),
-        );
-        const project = await database('projects')
-            .where('project_uuid', projectA)
-            .first();
-        const [space] = await database('spaces')
-            .insert({
-                project_id: project!.project_id,
-                name: 'space_a',
-                slug: 'space-a',
-                parent_space_uuid: null,
-                path: 'space_a',
-                inherit_parent_permissions: true,
-                is_default_user_space: false,
-            })
-            .returning('space_uuid');
-        const projectModel = new ProjectModel({
-            database,
-            lightdashConfig: lightdashConfigMock,
-            encryptionUtil,
-            featureFlagModel: featureFlagModel as never,
-        });
-        const contentDelete = vi.spyOn(projectModel, 'deleteContentInBatches');
-        await expect(projectModel.assertCanDelete(projectA)).rejects.toThrow(
-            /1 other project/,
-        );
-        const deletion =
-            mode === 'transaction'
-                ? database.transaction((trx) =>
-                      projectModel.delete(projectA, trx),
-                  )
-                : projectModel.delete(projectA);
-        await expect(deletion).rejects.toThrow(ConflictError);
-        expect(contentDelete).not.toHaveBeenCalled();
-        expect(
-            await database('spaces')
-                .where('space_uuid', space.space_uuid)
-                .first(),
-        ).toBeDefined();
-        expect(await repositoryRow(repository)).toMatchObject({
-            credential_source_uuid: owner.projectDbtSourceUuid,
-            is_shared: true,
-        });
-        expect(await model.resolveConnection(projectB, repository)).toEqual(
-            connection,
-        );
-    },
-);
-
-test.each(['source', 'project'] as const)(
-    'reclaims the retained registry after deleting its credential %s and resolves the replacement credentials',
-    async (kind) => {
-        const owner = await createSource(projectA);
-        const repository = await createRepository({
-            credentialSourceUuid: owner.projectDbtSourceUuid,
-        });
-        if (kind === 'source') {
-            await sources.deleteSource(owner.projectDbtSourceUuid);
-        } else {
-            await new ProjectModel({
-                database,
-                lightdashConfig: lightdashConfigMock,
-                encryptionUtil,
-                featureFlagModel: featureFlagModel as never,
-            }).delete(projectA);
-        }
-        expect(await repositoryRow(repository)).toMatchObject({
-            credential_source_uuid: null,
-            credential_project_uuid: null,
-            is_shared: false,
-        });
-        const replacement = await createSource(projectB);
-        expect(await sourceRow(replacement.projectDbtSourceUuid)).toMatchObject(
-            {
-                dbt_repository_uuid: repository,
-                dbt_project_name: 'actual_a',
-            },
-        );
-        expect(await repositoryRow(repository)).toMatchObject({
-            credential_source_uuid: replacement.projectDbtSourceUuid,
-            created_by_project_uuid: projectB,
-            provider: 'github',
-            host: 'github.com',
-            owner: 'fixture',
-            name: 'repository_a',
-        });
-        const organization = await database('organizations')
-            .where('organization_uuid', organizationUuid)
-            .first();
-        const consumerProject = await createProject(
-            organization!.organization_id,
-            'project_d',
-        );
-        await model.setShared(organizationUuid, projectB, repository, true);
-        await model.addShared(
-            organizationUuid,
-            consumerProject,
-            sharedInput(repository),
-        );
-        expect(
-            await model.resolveConnection(consumerProject, repository),
-        ).toEqual(connection);
-        expect(
-            await database('dbt_repositories').where({
-                organization_uuid: organizationUuid,
-                provider: 'github',
-                host: 'github.com',
-                owner: 'fixture',
-                name: 'repository_a',
-            }),
-        ).toHaveLength(1);
-    },
-);
 
 test('retains the live credential owner when another project registers the same normalized repository', async () => {
     const owner = await createSource(projectA);
@@ -1223,7 +1146,7 @@ test('allows a legacy flag-off repository edit but refuses mismatched shared cre
         projectB,
         sharedInput(repository),
     );
-    featureFlagModel.get.mockResolvedValue({ enabled: false });
+    setPeerEnabled(false);
     const queries: string[] = [];
     const capture = (query: { sql: string }) => queries.push(query.sql);
     database.on('query', capture);
@@ -1243,7 +1166,7 @@ test('allows a legacy flag-off repository edit but refuses mismatched shared cre
     expect(
         (await sourceRow(owner.projectDbtSourceUuid)).dbt_repository_uuid,
     ).toBe(repository);
-    featureFlagModel.get.mockResolvedValue({ enabled: true });
+    setPeerEnabled(true);
     await expect(model.resolveConnection(projectB, repository)).rejects.toThrow(
         ParameterError,
     );
@@ -1336,7 +1259,7 @@ test.each([true, false])(
             .mockRejectedValue(
                 new Error('API must not resolve owner credentials'),
             );
-        featureFlagModel.get.mockResolvedValue({ enabled });
+        setPeerEnabled(enabled);
         const detail = await sources.getSourceForApi(consumer);
         expect(detail.dbtConnection).toBeNull();
         expect(hydrate).not.toHaveBeenCalled();
@@ -1383,12 +1306,10 @@ test.each(['copy_first', 'remove_first'] as const)(
         const heldSources = new ProjectDbtSourcesModel({
             database: holding,
             encryptionUtil,
-            featureFlagModel: featureFlagModel as never,
         });
         const heldPeers = new PeerDbtSourcesModel({
             database: holding,
             encryptionUtil,
-            featureFlagModel: featureFlagModel as never,
         });
         let pending: Promise<{ error?: unknown }> | undefined;
         try {
@@ -1460,13 +1381,16 @@ test('reports a known-name conflict for a source added while disabled without br
     const owner = await createSource(projectA, 'source_owner', {
         dbtProjectName: 'actual_a',
     });
-    featureFlagModel.get.mockResolvedValue({ enabled: false });
+    setPeerEnabled(false);
     const later = await createSource(projectA, 'source_later');
-    featureFlagModel.get.mockResolvedValue({ enabled: true });
+    await nameEvidence(projectA, later.projectDbtSourceUuid, 'actual_a');
+    setPeerEnabled(true);
     const settings = await model.getSettings(projectA);
-    expect(settings.get(owner.projectDbtSourceUuid)?.dbtProjectName).toBe(
-        'actual_a',
-    );
+    expect(settings.get(owner.projectDbtSourceUuid)).toMatchObject({
+        dbtProjectName: null,
+        dbtProjectNameConflict: 'actual_a',
+        dbtProjectNameState: 'conflict',
+    });
     expect(settings.get(later.projectDbtSourceUuid)).toMatchObject({
         dbtProjectName: null,
         dbtProjectNameConflict: 'actual_a',
@@ -1527,6 +1451,7 @@ test('source and peer lists expose canonical repository coordinates without owne
         analytics: { track: vi.fn() } as never,
         projectModel: projectModel as never,
         projectDbtSourcesModel: sources,
+        featureFlagModel: featureFlagModel as never,
         dbtSourceRefCatalogModel: { deleteForSource: vi.fn() } as never,
         githubAppInstallationsModel: {} as never,
         featureFlagService: { get: featureFlagModel.get } as never,
@@ -1569,89 +1494,1082 @@ test('source and peer lists expose canonical repository coordinates without owne
     expect(resolve).not.toHaveBeenCalled();
 });
 
-test.each(['delete', 'rollback'] as const)(
-    'holds registry locks during cleanup until %s completes',
-    async (mode) => {
-        const owner = await createSource(projectA);
-        const repository = await createRepository({
-            credentialSourceUuid: owner.projectDbtSourceUuid,
-        });
-        const projectModel = new ProjectModel({
-            database,
-            lightdashConfig: lightdashConfigMock,
-            encryptionUtil,
-            featureFlagModel: featureFlagModel as never,
-        });
-        let releaseCleanup!: () => void;
-        const release = new Promise<void>((resolve) => {
-            releaseCleanup = resolve;
-        });
-        let started!: (pid: number) => void;
-        const entered = new Promise<number>((resolve) => {
-            started = resolve;
-        });
-        const deletion = projectModel
-            .withDeletionLock([projectA], async (trx) => {
-                if (!trx) throw new Error('Missing peer deletion transaction');
-                const {
-                    rows: [{ pid }],
-                } = await trx.raw<{ rows: { pid: number }[] }>(
-                    'SELECT pg_backend_pid() AS pid',
-                );
-                started(pid);
-                await release;
-                if (mode === 'rollback')
-                    throw new Error('Synthetic cleanup failed');
-                await projectModel.delete(projectA, trx, [projectA]);
-            })
-            .then(
-                () => ({}),
-                (error: unknown) => ({ error }),
+describe('runtime repository fill', () => {
+    test.each([
+        [
+            'registered',
+            (): Buffer => encryptionUtil.encrypt(JSON.stringify(connection)),
+        ],
+        [
+            'cannot_decrypt',
+            (): Buffer => Buffer.from('synthetic-invalid-ciphertext'),
+        ],
+        ['cannot_parse', (): Buffer => encryptionUtil.encrypt('{invalid-json')],
+        ['cannot_parse', (): Buffer => encryptionUtil.encrypt('null')],
+        [
+            'cannot_parse',
+            (): Buffer =>
+                encryptionUtil.encrypt(
+                    JSON.stringify({ ...connection, repository: 42 }),
+                ),
+        ],
+        [
+            'not_git',
+            (): Buffer =>
+                encryptionUtil.encrypt(
+                    JSON.stringify({ type: DbtProjectType.NONE }),
+                ),
+        ],
+        ['not_git', (): null => null],
+    ] as const)(
+        'persists %s as a terminal row outcome',
+        async (outcome, ciphertext) => {
+            const uuid = await pendingSource(projectA, {
+                dbt_connection: ciphertext(),
+            });
+            await expect(
+                model.ensureRepositories(projectA),
+            ).resolves.toBeUndefined();
+            const first = await sourceRow(uuid);
+            expect(first).toMatchObject({
+                repository_fill_state: outcome,
+                repository_fill_attempted_at: expect.any(Date),
+                refresh_policy: 'ci_managed',
+            });
+            expect(first.dbt_repository_uuid !== null).toBe(
+                outcome === 'registered',
             );
-        let pending: Promise<{ result?: string; error?: unknown }> | undefined;
+            await model.ensureRepositories(projectA);
+            expect(
+                (await sourceRow(uuid)).repository_fill_attempted_at,
+            ).toEqual(first.repository_fill_attempted_at);
+            if (outcome === 'not_git' || outcome === 'cannot_parse') {
+                const decrypt = vi.spyOn(encryptionUtil, 'decrypt');
+                await model.ensureRepositories(projectA, { retry: true });
+                expect(decrypt.mock.calls.length).toBe(0);
+                expect(
+                    (await sourceRow(uuid)).repository_fill_attempted_at,
+                ).toEqual(first.repository_fill_attempted_at);
+            }
+        },
+    );
+
+    test('enabled getters return healthy local credentials and mark corrupt credentials without exposing them', async () => {
+        const healthy = await pendingSource();
+        const corrupt = await pendingSource(projectA, {
+            dbt_connection: Buffer.from('synthetic-invalid-ciphertext'),
+        });
+        const listed = await sources.getSources(projectA);
+        expect(
+            listed.find((source) => source.projectDbtSourceUuid === healthy),
+        ).toMatchObject({
+            dbtConnection: connection,
+            hasCredentialError: false,
+        });
+        expect(
+            listed.find((source) => source.projectDbtSourceUuid === corrupt),
+        ).toMatchObject({
+            dbtConnection: null,
+            hasCredentialError: true,
+        });
+        expect(await sources.getSource(healthy)).toMatchObject({
+            dbtConnection: connection,
+            hasCredentialError: false,
+        });
+        const detail = await sources.getSourceForApi(corrupt);
+        expect(detail).toMatchObject({
+            dbtConnection: null,
+            hasCredentialError: true,
+        });
+        expect(JSON.stringify(detail)).not.toContain(
+            'synthetic-invalid-ciphertext',
+        );
+        const settings = await model.getSettings(projectA);
+        expect(settings.has(corrupt)).toBe(true);
+        expect(settings.get(corrupt)).toMatchObject({
+            dbtRepositoryUuid: null,
+            dbtProjectNameState: 'unknown',
+        });
+        expect(await sourceRow(corrupt)).toMatchObject({
+            repository_fill_state: 'cannot_decrypt',
+        });
+    });
+
+    test('keeps decoded local credentials when only repository identity cannot be parsed', async () => {
+        const local = {
+            ...connection,
+            repository: 'ssh://git@git.example.test/fixture/repository_a.git',
+        };
+        const uuid = await pendingSource(projectA, {
+            dbt_connection: encryptionUtil.encrypt(JSON.stringify(local)),
+        });
+        const listed = await sources.getSources(projectA);
+        expect(listed).toEqual([
+            expect.objectContaining({
+                projectDbtSourceUuid: uuid,
+                dbtConnection: local,
+                hasCredentialError: false,
+            }),
+        ]);
+        expect(await sources.getSource(uuid)).toMatchObject({
+            dbtConnection: local,
+            hasCredentialError: false,
+        });
+        expect(await sourceRow(uuid)).toMatchObject({
+            repository_fill_state: 'cannot_parse',
+            dbt_repository_uuid: null,
+        });
+    });
+
+    test('rolls registry writes back when a row fill fails and keeps healthy local reads available', async () => {
+        const uuid = await pendingSource();
+        await database.raw(
+            "CREATE FUNCTION reject_peer_fill_fixture() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Synthetic fill failure'; END; $$",
+        );
+        await database.raw(
+            'CREATE TRIGGER reject_peer_fill_fixture BEFORE UPDATE OF dbt_repository_uuid ON project_dbt_sources FOR EACH ROW EXECUTE FUNCTION reject_peer_fill_fixture()',
+        );
         try {
-            const pid = await Promise.race([
-                entered,
-                deletion.then(() => {
-                    throw new Error('Deletion ended before cleanup');
+            const listed = await sources.getSources(projectA);
+            expect(listed).toEqual([
+                expect.objectContaining({
+                    projectDbtSourceUuid: uuid,
+                    dbtConnection: connection,
+                    hasCredentialError: false,
                 }),
             ]);
-            pending = model
-                .addShared(organizationUuid, projectB, sharedInput(repository))
-                .then(
-                    (result) => ({ result }),
-                    (error: unknown) => ({ error }),
-                );
+            const first = await sourceRow(uuid);
+            expect(first).toMatchObject({
+                repository_fill_state: 'failed',
+                dbt_repository_uuid: null,
+            });
+            expect(
+                await database('dbt_repositories').where(
+                    'organization_uuid',
+                    organizationUuid,
+                ),
+            ).toHaveLength(0);
+            await model.ensureRepositories(projectA);
+            expect(
+                (await sourceRow(uuid)).repository_fill_attempted_at,
+            ).toEqual(first.repository_fill_attempted_at);
+        } finally {
+            await database.raw(
+                'DROP TRIGGER reject_peer_fill_fixture ON project_dbt_sources',
+            );
+            await database.raw('DROP FUNCTION reject_peer_fill_fixture()');
+        }
+        await model.ensureRepositories(projectA, { retry: true });
+        expect(await sourceRow(uuid)).toMatchObject({
+            repository_fill_state: 'registered',
+            dbt_repository_uuid: expect.any(String),
+        });
+    });
+
+    test('does not retry a terminal decrypt failure until explicitly requested', async () => {
+        const uuid = await pendingSource();
+        const decrypt = vi
+            .spyOn(encryptionUtil, 'decrypt')
+            .mockImplementationOnce(() => {
+                throw new Error('Synthetic unavailable key');
+            });
+        try {
+            await model.ensureRepositories(projectA);
+            expect(await sourceRow(uuid)).toMatchObject({
+                repository_fill_state: 'cannot_decrypt',
+            });
+            expect(decrypt).toHaveBeenCalledTimes(1);
+            await model.ensureRepositories(projectA);
+            expect(decrypt).toHaveBeenCalledTimes(1);
+            await model.ensureRepositories(projectA, { retry: true });
+            expect(decrypt).toHaveBeenCalledTimes(2);
+            expect(await sourceRow(uuid)).toMatchObject({
+                repository_fill_state: 'registered',
+            });
+        } finally {
+            decrypt.mockRestore();
+        }
+    });
+
+    test('retries a terminal failure after a connection update and preserves an admin policy', async () => {
+        const uuid = await pendingSource(projectA, {
+            dbt_connection: Buffer.from('synthetic-invalid-ciphertext'),
+        });
+        await model.ensureRepositories(projectA);
+        await model.updatePeer(projectA, uuid, { refreshPolicy: 'ci_managed' });
+        await sources.updateSource(uuid, { dbtConnection: connection });
+        expect(await sourceRow(uuid)).toMatchObject({
+            repository_fill_state: 'registered',
+            refresh_policy: 'ci_managed',
+            dbt_repository_uuid: expect.any(String),
+        });
+    });
+
+    test('concurrent ensures fill one source only once', async () => {
+        const uuid = await pendingSource();
+        const info = vi.spyOn(Logger, 'info');
+        const queries: string[] = [];
+        const capture = (query: { sql: string }) => queries.push(query.sql);
+        database.on('query', capture);
+        try {
+            await Promise.all([
+                model.ensureRepositories(projectA),
+                model.ensureRepositories(projectA),
+            ]);
+        } finally {
+            database.removeListener('query', capture);
+        }
+        expect(info).toHaveBeenCalledWith('peer_dbt_source_repository_fill', {
+            projectUuid: projectA,
+            sourceUuid: uuid,
+            outcome: 'registered',
+            stateRecorded: true,
+        });
+        expect(info).toHaveBeenCalledWith(
+            'peer_dbt_source_repository_fill_summary',
+            {
+                projectUuid: projectA,
+                counts: { registered: 1 },
+                unrecordedFailures: 0,
+            },
+        );
+        expect(JSON.stringify(info.mock.calls)).not.toContain(
+            'synthetic-owner-token',
+        );
+        expect(await sourceRow(uuid)).toMatchObject({
+            repository_fill_state: 'registered',
+        });
+        expect(
+            queries.filter((sql) =>
+                sql.startsWith('insert into "dbt_repositories"'),
+            ),
+        ).toHaveLength(1);
+        expect(
+            await database('dbt_repositories').where(
+                'organization_uuid',
+                organizationUuid,
+            ),
+        ).toHaveLength(1);
+    });
+
+    test('concurrent first registrations use conflict-ignore and keep one repository owner', async () => {
+        const first = await pendingSource(projectA);
+        const second = await pendingSource(projectB);
+        const queries: string[] = [];
+        const capture = (query: { sql: string }) => queries.push(query.sql);
+        database.on('query', capture);
+        try {
+            await Promise.all([
+                model.ensureRepositories(projectA),
+                model.ensureRepositories(projectB),
+            ]);
+        } finally {
+            database.removeListener('query', capture);
+        }
+        const inserts = queries.filter((sql) =>
+            sql.startsWith('insert into "dbt_repositories"'),
+        );
+        expect(inserts).toHaveLength(2);
+        inserts.forEach((sql) => {
+            expect(sql).toContain('do nothing');
+            expect(sql).not.toContain('do update');
+        });
+        const a = await sourceRow(first);
+        const b = await sourceRow(second);
+        expect(a.dbt_repository_uuid).toBe(b.dbt_repository_uuid);
+        const repository = await repositoryRow(a.dbt_repository_uuid!);
+        expect([first, second]).toContain(repository.credential_source_uuid);
+        expect(repository.created_by_project_uuid).toBe(
+            repository.credential_source_uuid === first ? projectA : projectB,
+        );
+        const initialOwner = repository.credential_source_uuid;
+        await Promise.all([
+            model.ensureRepositories(projectA, { retry: true }),
+            model.ensureRepositories(projectB, { retry: true }),
+        ]);
+        expect(
+            await repositoryRow(repository.dbt_repository_uuid),
+        ).toMatchObject({
+            credential_source_uuid: initialOwner,
+            created_by_project_uuid: repository.created_by_project_uuid,
+        });
+    });
+
+    test('does not take ownership of a retained registry on retry', async () => {
+        const owner = await pendingSource(projectA);
+        await model.ensureRepositories(projectA);
+        const repository = (await sourceRow(owner)).dbt_repository_uuid!;
+        await database('dbt_repositories')
+            .where('dbt_repository_uuid', repository)
+            .update({ credential_source_uuid: null });
+        const other = await pendingSource(projectB);
+        await model.ensureRepositories(projectB);
+        await model.ensureRepositories(projectB, { retry: true });
+        expect((await sourceRow(other)).dbt_repository_uuid).toBe(repository);
+        expect(await repositoryRow(repository)).toMatchObject({
+            credential_source_uuid: null,
+            created_by_project_uuid: projectA,
+        });
+    });
+
+    test('uses current ciphertext after waiting for the project lock', async () => {
+        const uuid = await pendingSource();
+        const holding = await database.transaction();
+        let pending: Promise<void> | undefined;
+        try {
+            await holding('projects')
+                .where('project_uuid', projectA)
+                .forUpdate()
+                .first();
+            const {
+                rows: [{ pid }],
+            } = await holding.raw<{ rows: { pid: number }[] }>(
+                'SELECT pg_backend_pid() AS pid',
+            );
+            pending = model.ensureRepositories(projectA);
             await expect
                 .poll(
                     async () => {
-                        const blocked = await database.raw<{
+                        const result = await database.raw<{
                             rows: { count: string }[];
                         }>(
                             'SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND ?::int = ANY(pg_blocking_pids(pid)) AND wait_event_type = ?',
                             [pid, 'Lock'],
                         );
-                        return Number(blocked.rows[0].count);
+                        return Number(result.rows[0].count);
                     },
-                    { timeout: 5000 },
+                    { timeout: 1500 },
                 )
                 .toBe(1);
-            releaseCleanup();
-            await deletion;
-            const outcome = await pending;
-            if (mode === 'delete') {
-                expect(outcome.error).toBeInstanceOf(NotFoundError);
-                expect(await sources.getSources(projectB)).toHaveLength(0);
-            } else {
-                expect(outcome.result).toEqual(expect.any(String));
-                expect(
-                    await model.resolveConnection(projectB, repository),
-                ).toEqual(connection);
-            }
+            await holding('project_dbt_sources')
+                .where('project_dbt_source_uuid', uuid)
+                .update({
+                    dbt_connection: encryptionUtil.encrypt(
+                        JSON.stringify({
+                            ...connection,
+                            repository: 'fixture/current_repository',
+                        }),
+                    ),
+                });
+            await holding.commit();
+            await pending;
+            const source = await sourceRow(uuid);
+            expect(
+                await repositoryRow(source.dbt_repository_uuid!),
+            ).toMatchObject({ name: 'current_repository' });
         } finally {
-            releaseCleanup();
-            await deletion;
+            if (!holding.isCompleted()) await holding.rollback();
             await pending;
         }
-    },
-);
+    });
+
+    test('a finite project lock wait does not fail source reads', async () => {
+        const uuid = await pendingSource();
+        const holding = await database.transaction();
+        try {
+            await holding('projects')
+                .where('project_uuid', projectA)
+                .forUpdate()
+                .first();
+            await expect(sources.getSources(projectA)).resolves.toEqual([
+                expect.objectContaining({
+                    projectDbtSourceUuid: uuid,
+                    dbtConnection: connection,
+                    hasCredentialError: false,
+                }),
+            ]);
+            expect((await sourceRow(uuid)).repository_fill_state).toBe(
+                'failed',
+            );
+        } finally {
+            await holding.rollback();
+        }
+        await model.ensureRepositories(projectA);
+        expect((await sourceRow(uuid)).repository_fill_state).toBe('failed');
+        await model.ensureRepositories(projectA, { retry: true });
+        expect((await sourceRow(uuid)).repository_fill_state).toBe(
+            'registered',
+        );
+    });
+
+    test('a failed fill and project-name lock timeout keep local manifest metadata learning available', async () => {
+        const uuid = await pendingSource();
+        const info = vi.spyOn(Logger, 'info');
+        const holding = await database.transaction();
+        try {
+            await holding('projects')
+                .where('project_uuid', projectA)
+                .forUpdate()
+                .first();
+            await expect(sources.getSources(projectA)).resolves.toEqual([
+                expect.objectContaining({
+                    projectDbtSourceUuid: uuid,
+                    dbtConnection: connection,
+                    hasCredentialError: false,
+                }),
+            ]);
+            await expect(
+                model.learnProjectName(projectA, uuid, 'manifest_project'),
+            ).resolves.toBeUndefined();
+            expect(await sourceRow(uuid)).toMatchObject({
+                dbt_project_name: null,
+                repository_fill_state: 'failed',
+            });
+            expect(info).toHaveBeenCalledWith(
+                'peer_dbt_source_project_name_learning',
+                {
+                    projectUuid: projectA,
+                    sourceUuid: uuid,
+                    outcome: 'metadata_unavailable',
+                },
+            );
+            expect(JSON.stringify(info.mock.calls)).not.toContain(
+                'manifest_project',
+            );
+        } finally {
+            await holding.rollback();
+        }
+        await model.learnProjectName(projectA, uuid, 'manifest_project');
+        expect((await sourceRow(uuid)).dbt_project_name).toBe(
+            'manifest_project',
+        );
+    }, 30_000);
+
+    test('manifest name learning retains validation and conflict errors after a failed fill', async () => {
+        const existing = await pendingSource(projectA, {
+            dbt_project_name: 'reserved_name',
+            dbt_project_name_initialized_at: new Date(),
+        });
+        const target = await pendingSource(projectA, {
+            repository_fill_state: 'failed',
+        });
+        await expect(
+            model.learnProjectName(projectA, target, 'invalid-name!'),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            model.learnProjectName(projectA, target, ' RESERVED_NAME '),
+        ).rejects.toBeInstanceOf(ConflictError);
+        expect((await sourceRow(existing)).dbt_project_name).toBe(
+            'reserved_name',
+        );
+        expect((await sourceRow(target)).dbt_project_name).toBeNull();
+    });
+
+    test('a failure-state lock error stays isolated and a changed connection can fill later', async () => {
+        const uuid = await pendingSource();
+        const info = vi.spyOn(Logger, 'info');
+        const holding = await database.transaction();
+        try {
+            await holding('projects')
+                .where('project_uuid', projectA)
+                .forUpdate()
+                .first();
+            await holding('project_dbt_sources')
+                .where('project_dbt_source_uuid', uuid)
+                .update({
+                    dbt_connection: encryptionUtil.encrypt(
+                        JSON.stringify({
+                            ...connection,
+                            repository: 'fixture/changed_after_failure',
+                        }),
+                    ),
+                });
+            await expect(sources.getSources(projectA)).resolves.toEqual([
+                expect.objectContaining({
+                    projectDbtSourceUuid: uuid,
+                    dbtConnection: connection,
+                    hasCredentialError: false,
+                }),
+            ]);
+            expect(info).toHaveBeenCalledWith(
+                'peer_dbt_source_repository_fill',
+                {
+                    projectUuid: projectA,
+                    sourceUuid: uuid,
+                    outcome: 'failed',
+                    stateRecorded: false,
+                },
+            );
+            expect(info).toHaveBeenCalledWith(
+                'peer_dbt_source_repository_fill_summary',
+                {
+                    projectUuid: projectA,
+                    counts: { failed: 1 },
+                    unrecordedFailures: 1,
+                },
+            );
+            expect((await sourceRow(uuid)).repository_fill_state).toBe(
+                'pending',
+            );
+            await holding.commit();
+        } finally {
+            if (!holding.isCompleted()) await holding.rollback();
+        }
+        await model.ensureRepositories(projectA);
+        const row = await sourceRow(uuid);
+        expect(row.repository_fill_state).toBe('registered');
+        expect(await repositoryRow(row.dbt_repository_uuid!)).toMatchObject({
+            name: 'changed_after_failure',
+        });
+    });
+
+    test.each(['source', 'project'] as const)(
+        'rejects cross-organization credential %s pointers on write and resolve',
+        async (kind) => {
+            const foreign = await pendingSource(otherProject);
+            const repository = await createRepository();
+            await database('projects')
+                .where('project_uuid', otherProject)
+                .update({
+                    dbt_connection: encryptionUtil.encrypt(
+                        JSON.stringify(connection),
+                    ),
+                    dbt_connection_type: connection.type,
+                });
+            await database('dbt_repositories')
+                .where('dbt_repository_uuid', repository)
+                .update({
+                    credential_source_uuid: kind === 'source' ? foreign : null,
+                    credential_project_uuid:
+                        kind === 'project' ? otherProject : null,
+                });
+            await expect(
+                model.resolveConnection(projectB, repository),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            await expect(
+                model.addShared(
+                    organizationUuid,
+                    projectB,
+                    sharedInput(repository),
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            await expect(
+                model.setShared(organizationUuid, projectA, repository, true),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(await sources.getSources(projectB)).toHaveLength(0);
+        },
+    );
+
+    test('a foreign credential source cannot be accepted during registration', async () => {
+        const uuid = await pendingSource(projectA);
+        await model.ensureRepositories(projectA);
+        const repository = (await sourceRow(uuid)).dbt_repository_uuid!;
+        const foreign = await pendingSource(otherProject);
+        await database('dbt_repositories')
+            .where('dbt_repository_uuid', repository)
+            .update({ credential_source_uuid: foreign });
+        await model.ensureRepositories(projectA, { retry: true });
+        expect((await sourceRow(uuid)).repository_fill_state).toBe('failed');
+        await expect(
+            model.registerSource(projectA, uuid, connection),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+    });
+
+    test('an unshared repository with no consumers permits an identity edit', async () => {
+        const source = await createSource(projectA);
+        const original = (await sourceRow(source.projectDbtSourceUuid))
+            .dbt_repository_uuid!;
+        await sources.updateSource(source.projectDbtSourceUuid, {
+            dbtConnection: {
+                ...connection,
+                repository: 'fixture/repository_b',
+            },
+        });
+        const updated = await sourceRow(source.projectDbtSourceUuid);
+        expect(updated.dbt_repository_uuid).not.toBe(original);
+        expect(await repositoryRow(updated.dbt_repository_uuid!)).toMatchObject(
+            { name: 'repository_b' },
+        );
+        expect(await repositoryRow(original)).toMatchObject({
+            created_by_project_uuid: projectA,
+        });
+    });
+
+    test.each([true, false])(
+        'excludes main rows from extra-source reads when enabled=%s',
+        async (enabled) => {
+            const main = await pendingSource(projectA, { role: 'main' });
+            setPeerEnabled(enabled);
+            expect(await model.getSettings(projectA)).toEqual(new Map());
+            expect(await model.isSharedConsumer(projectA, main)).toBe(false);
+            expect((await sourceRow(main)).repository_fill_state).toBe(
+                'pending',
+            );
+            await expect(
+                model.updatePeer(projectA, main, {
+                    dbtProjectName: 'main_name',
+                }),
+            ).rejects.toBeInstanceOf(NotFoundError);
+        },
+    );
+});
+
+describe('project name initialization barrier', () => {
+    test('marks every duplicate before assignment and keeps missing and ambiguous evidence unknown', async () => {
+        const warning = vi.spyOn(Logger, 'warn');
+        const a = await pendingSource();
+        const b = await pendingSource();
+        const unknown = await pendingSource();
+        const ambiguous = await pendingSource();
+        await nameEvidence(projectA, a, '  Actual_A ');
+        await nameEvidence(projectA, b, 'actual_a');
+        await nameEvidence(projectA, ambiguous, 'choice_a');
+        await nameEvidence(projectA, ambiguous, 'choice_b', 'other_group');
+        await model.initializeProjectNames(projectA);
+        await Promise.all(
+            [a, b].map(async (uuid) => {
+                expect(await sourceRow(uuid)).toMatchObject({
+                    dbt_project_name: null,
+                    dbt_project_name_conflict: 'actual_a',
+                    dbt_project_name_initialized_at: expect.any(Date),
+                });
+            }),
+        );
+        await Promise.all(
+            [unknown, ambiguous].map(async (uuid) => {
+                expect(await sourceRow(uuid)).toMatchObject({
+                    dbt_project_name: null,
+                    dbt_project_name_conflict: null,
+                    dbt_project_name_initialized_at: expect.any(Date),
+                });
+            }),
+        );
+        expect(warning).toHaveBeenCalledWith(
+            'peer_dbt_source_project_name_conflicts',
+            {
+                projectUuid: projectA,
+                count: 2,
+                sourceUuids: expect.arrayContaining([a, b]),
+            },
+        );
+        expect(JSON.stringify(warning.mock.calls)).not.toContain('actual_a');
+        const settings = await model.getSettings(projectA);
+        expect(settings.get(a)?.dbtProjectNameState).toBe('conflict');
+        expect(settings.get(b)?.dbtProjectNameState).toBe('conflict');
+        expect(settings.get(unknown)?.dbtProjectNameState).toBe('unknown');
+        expect(settings.get(ambiguous)?.dbtProjectNameState).toBe('unknown');
+    });
+
+    test('uses only the project and source base-table evidence and preserves names on other connections', async () => {
+        const a = await pendingSource();
+        const b = await pendingSource(projectA, {
+            warehouse_connection_uuid: await createWarehouse(),
+        });
+        const unknown = await pendingSource();
+        const foreign = await pendingSource(otherProject);
+        await nameEvidence(projectA, a, 'actual_a');
+        await nameEvidence(projectA, b, 'actual_a');
+        await nameEvidence(otherProject, unknown, 'foreign_name');
+        await nameEvidence(otherProject, foreign, 'actual_a');
+        await database('cached_explore').insert({
+            project_uuid: projectA,
+            name: 'orders',
+            table_names: ['orders'],
+            explore: {
+                baseTable: 'orders',
+                tables: {
+                    orders: { dbtSourceUuid: b, dbtPackageName: 'actual_a' },
+                    joined: {
+                        dbtSourceUuid: unknown,
+                        dbtPackageName: 'joined_dependency',
+                    },
+                },
+            },
+        });
+        await model.initializeProjectNames(projectA);
+        await Promise.all(
+            [a, b].map(async (uuid) => {
+                expect(await sourceRow(uuid)).toMatchObject({
+                    dbt_project_name: 'actual_a',
+                    dbt_project_name_conflict: null,
+                });
+            }),
+        );
+        expect(await sourceRow(unknown)).toMatchObject({
+            dbt_project_name: null,
+            dbt_project_name_conflict: null,
+        });
+        expect(
+            (await sourceRow(foreign)).dbt_project_name_initialized_at,
+        ).toBeNull();
+    });
+
+    test.each(['create', 'update', 'addShared'] as const)(
+        'initializes all legacy candidates before a name-dependent %s',
+        async (method) => {
+            const legacy = await pendingSource();
+            await nameEvidence(projectA, legacy, 'reserved_name');
+            if (method === 'create') {
+                await expect(
+                    model.createSource(projectA, {
+                        name: 'new_source',
+                        isPrimary: false,
+                        precedence: 2,
+                        dbtConnection: connection,
+                        warehouseLocation: { database: null, schema: null },
+                        dbtProjectName: 'reserved_name',
+                    }),
+                ).rejects.toBeInstanceOf(ConflictError);
+            } else if (method === 'update') {
+                const target = await pendingSource();
+                await expect(
+                    model.updatePeer(projectA, target, {
+                        dbtProjectName: 'reserved_name',
+                    }),
+                ).rejects.toBeInstanceOf(ConflictError);
+            } else {
+                const repository = await createRepository({
+                    ownerProjectUuid: projectB,
+                    actualName: 'reserved_name',
+                });
+                await expect(
+                    model.addShared(
+                        organizationUuid,
+                        projectA,
+                        sharedInput(repository),
+                    ),
+                ).rejects.toBeInstanceOf(ConflictError);
+            }
+            expect(
+                await database<DbPeerDbtSource>('project_dbt_sources').where({
+                    project_uuid: projectA,
+                    dbt_project_name: 'reserved_name',
+                }),
+            ).toHaveLength(0);
+            await model.initializeProjectNames(projectA);
+            expect((await sourceRow(legacy)).dbt_project_name).toBe(
+                'reserved_name',
+            );
+        },
+    );
+
+    test.each(['explicit', 'null', 'original'] as const)(
+        'rejects a rebind to the %s connection before changing a binding when legacy evidence reserves the name',
+        async (destination) => {
+            const destinationUuid =
+                destination === 'null'
+                    ? null
+                    : await createWarehouse(
+                          projectA,
+                          destination === 'original',
+                      );
+            const binding = destination === 'explicit' ? destinationUuid : null;
+            const sourceConnection = await createWarehouse();
+            const source = await pendingSource(projectA, {
+                dbt_project_name: 'reserved_name',
+                dbt_project_name_initialized_at: new Date(),
+                warehouse_connection_uuid: sourceConnection,
+            });
+            const legacy = await pendingSource(projectA, {
+                warehouse_connection_uuid: binding,
+            });
+            await nameEvidence(projectA, legacy, ' RESERVED_NAME ');
+            const before = await sourceRow(source);
+            await expect(
+                new WarehouseConnectionCompileModel({ database }).bindDbtSource(
+                    projectA,
+                    source,
+                    destinationUuid,
+                ),
+            ).rejects.toBeInstanceOf(ConflictError);
+            expect(await sourceRow(source)).toEqual(before);
+            expect(await sourceRow(legacy)).toMatchObject({
+                dbt_project_name: null,
+                dbt_project_name_initialized_at: null,
+                warehouse_connection_uuid: binding,
+            });
+            await model.initializeProjectNames(projectA);
+            expect((await sourceRow(legacy)).dbt_project_name).toBe(
+                'reserved_name',
+            );
+        },
+    );
+
+    test.each([true, false])(
+        'a public rebind resolves and freezes the peer flag when enabled=%s',
+        async (enabled) => {
+            const warehouse = await createWarehouse();
+            const source = await pendingSource(projectA, {
+                dbt_project_name: 'reserved_name',
+                dbt_project_name_initialized_at: new Date(),
+            });
+            const legacy = await pendingSource(projectA, {
+                warehouse_connection_uuid: warehouse,
+            });
+            await nameEvidence(projectA, legacy, 'reserved_name');
+            const user = {
+                ...defaultSessionUser,
+                organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                roleUuid: undefined,
+            };
+            const account = fromSession(
+                { ...user, ability: defineUserAbility(user, []) },
+                'synthetic-session',
+            );
+            const getFlag = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.PeerDbtSources &&
+                        enabled,
+                }),
+            );
+            const bindings = new WarehouseConnectionCompileModel({ database });
+            const bind = bindings.bindDbtSource.bind(bindings);
+            const observed: boolean[] = [];
+            vi.spyOn(bindings, 'bindDbtSource').mockImplementation(
+                async (...args) => {
+                    observed.push(peerOperation.getPeerDbtSourcesEnabled());
+                    return bind(...args);
+                },
+            );
+            const service = new WarehouseConnectionBindingService({
+                projectModel: {
+                    getSummary: vi.fn(async () => ({
+                        organizationUuid,
+                        name: 'project_a',
+                    })),
+                    getDbtSourceIdentity: vi.fn(async () => ({
+                        dbtSourceUuid: randomUUID(),
+                    })),
+                } as never,
+                warehouseConnectionCompileModel: bindings,
+                warehouseConnectionModel: {
+                    getProject: vi.fn(async () => ({
+                        originalWarehouseType: 'postgres',
+                    })),
+                } as never,
+                credentialPolicy: {
+                    assertCanWriteWarehouseConnection: vi.fn(),
+                },
+                analytics: { track: vi.fn() },
+                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
+                featureFlagService: { get: getFlag } as never,
+            });
+            vi.mocked(peerOperation.getPeerDbtSourcesEnabled).mockRestore();
+            const operation = service.bindDbtSource(
+                account,
+                projectA,
+                source,
+                warehouse,
+            );
+            if (enabled) {
+                await expect(operation).rejects.toBeInstanceOf(ConflictError);
+                expect(
+                    (await sourceRow(source)).warehouse_connection_uuid,
+                ).toBeNull();
+            } else {
+                await expect(operation).resolves.toBeUndefined();
+                expect(
+                    (await sourceRow(source)).warehouse_connection_uuid,
+                ).toBe(warehouse);
+                expect(
+                    (await sourceRow(legacy)).dbt_project_name_initialized_at,
+                ).toBeNull();
+            }
+            expect(observed).toEqual([enabled]);
+            expect(
+                getFlag.mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId === FeatureFlags.PeerDbtSources,
+                ),
+            ).toEqual([
+                [
+                    {
+                        user: { organizationUuid, userUuid: user.userUuid },
+                        featureFlagId: FeatureFlags.PeerDbtSources,
+                    },
+                ],
+            ]);
+            expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        },
+    );
+
+    test('keeps the flag-off binding path independent of name initialization', async () => {
+        const warehouse = await createWarehouse();
+        const source = await pendingSource();
+        const legacy = await pendingSource(projectA, {
+            warehouse_connection_uuid: warehouse,
+        });
+        await nameEvidence(projectA, source, 'same_name');
+        await nameEvidence(projectA, legacy, 'same_name');
+        setPeerEnabled(false);
+        await new WarehouseConnectionCompileModel({ database }).bindDbtSource(
+            projectA,
+            source,
+            warehouse,
+        );
+        expect(await sourceRow(source)).toMatchObject({
+            warehouse_connection_uuid: warehouse,
+            dbt_project_name_initialized_at: null,
+        });
+        expect(
+            (await sourceRow(legacy)).dbt_project_name_initialized_at,
+        ).toBeNull();
+    });
+
+    test('concurrent name-dependent writes cannot win ahead of legacy name evidence', async () => {
+        const legacy = await pendingSource();
+        const a = await pendingSource();
+        const b = await pendingSource();
+        await nameEvidence(projectA, legacy, 'reserved_name');
+        const results = await Promise.allSettled([
+            model.updatePeer(projectA, a, { dbtProjectName: 'reserved_name' }),
+            model.updatePeer(projectA, b, { dbtProjectName: 'reserved_name' }),
+        ]);
+        expect(results).toEqual([
+            { status: 'rejected', reason: expect.any(ConflictError) },
+            { status: 'rejected', reason: expect.any(ConflictError) },
+        ]);
+        await model.initializeProjectNames(projectA);
+        expect((await sourceRow(legacy)).dbt_project_name).toBe(
+            'reserved_name',
+        );
+    });
+});
+
+describe('writeback peer operation snapshots', () => {
+    const prepareWriteback = async () => {
+        const repository = await createRepository();
+        const consumer = await model.addShared(
+            organizationUuid,
+            projectB,
+            sharedInput(repository),
+        );
+        const primarySourceUuid = randomUUID();
+        const project = {
+            projectUuid: projectB,
+            organizationUuid,
+            name: 'writeback_project',
+            dbtConnection: {
+                ...connection,
+                repository: 'fixture/primary_repository',
+            },
+        };
+        const projectModel = {
+            get: vi.fn(async () => project),
+            getDbtSourceIdentity: vi.fn(async () => ({
+                dbtSourceUuid: primarySourceUuid,
+                dbtSourceName: 'primary_source',
+            })),
+        };
+        const user = {
+            ...defaultSessionUser,
+            organizationUuid,
+            role: OrganizationMemberRole.ADMIN,
+            roleUuid: undefined,
+        };
+        const session = { ...user, ability: defineUserAbility(user, []) };
+        vi.mocked(peerOperation.getPeerDbtSourcesEnabled).mockRestore();
+        featureFlagModel.get.mockReset().mockResolvedValue({ enabled: true });
+        return { consumer, projectModel, session };
+    };
+
+    test('an unscoped AI run includes a shared consumer instead of choosing the primary', async () => {
+        const { consumer, projectModel, session } = await prepareWriteback();
+        const service = new AiWritebackService({
+            lightdashConfig: lightdashConfigMock,
+            projectModel: projectModel as never,
+            projectDbtSourcesModel: sources,
+            featureFlagModel: featureFlagModel as never,
+            orgAiCopilotConfigResolver: {
+                isOrgBedrockRouted: vi.fn(async () => false),
+                getDecisionClient: vi.fn(async () => null),
+            },
+        } as never);
+        const read = sources.getSources.bind(sources);
+        const observed: boolean[] = [];
+        vi.spyOn(sources, 'getSources').mockImplementation(async (uuid) => {
+            observed.push(peerOperation.getPeerDbtSourcesEnabled());
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            return read(uuid);
+        });
+        await expect(
+            service.run({
+                user: session,
+                projectUuid: projectB,
+                prompt: 'make a change',
+                source: 'admin_review',
+                agentPermissionsApply: false,
+            }),
+        ).resolves.toMatchObject({
+            needsDbtSourceSelection: true,
+            prUrl: null,
+            dbtSourceOptions: expect.arrayContaining([
+                expect.objectContaining({ projectDbtSourceUuid: consumer }),
+                expect.objectContaining({ isPrimary: true }),
+            ]),
+        });
+        expect(observed).toEqual([true]);
+        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        expect(peerOperation.getPeerDbtSourcesEnabled()).toBe(false);
+    });
+
+    test.each(['preview', 'create'] as const)(
+        'an unscoped Git %s refuses a shared consumer before using the primary repository',
+        async (method) => {
+            const { projectModel, session } = await prepareWriteback();
+            const service = new GitIntegrationService({
+                projectModel: projectModel as never,
+                projectDbtSourcesModel: sources,
+                featureFlagModel,
+            } as never);
+            await expect(
+                method === 'preview'
+                    ? service.previewCustomDimensions(
+                          fromSession(session, 'synthetic-session'),
+                          projectB,
+                          [CUSTOM_DIMENSION],
+                          '"',
+                      )
+                    : service.createPullRequest(session, projectB, '"', {
+                          type: 'customMetrics',
+                          fields: [CUSTOM_METRIC],
+                      }),
+            ).rejects.toThrow(
+                'Explore write-back cannot determine which dbt source',
+            );
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.PeerDbtSources,
+            });
+            expect(projectModel.get).not.toHaveBeenCalled();
+            expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        },
+    );
+
+    test.each([true, false])(
+        'a parent snapshot of %s bypasses the flag resolver for Git writeback',
+        async (enabled) => {
+            const { projectModel, session } = await prepareWriteback();
+            const service = new GitIntegrationService({
+                projectModel: projectModel as never,
+                projectDbtSourcesModel: sources,
+                featureFlagModel,
+            } as never);
+            const stopped = new Error('stopped after source selection');
+            projectModel.get.mockRejectedValue(stopped);
+            await peerOperation.withPeerDbtSourcesOperation(
+                enabled,
+                async () => {
+                    await expect(
+                        service.createPullRequest(session, projectB, '"', {
+                            type: 'customMetrics',
+                            fields: [CUSTOM_METRIC],
+                        }),
+                    ).rejects.toThrow(
+                        enabled
+                            ? 'Explore write-back cannot determine which dbt source'
+                            : stopped.message,
+                    );
+                },
+            );
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+        },
+    );
+});

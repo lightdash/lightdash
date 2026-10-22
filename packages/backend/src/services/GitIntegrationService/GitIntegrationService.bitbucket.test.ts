@@ -120,6 +120,9 @@ const setup = () => {
     const sources = { getSources: vi.fn().mockResolvedValue([]) };
     const pullRequests = { create: vi.fn().mockResolvedValue(undefined) };
     const service = new GitIntegrationService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         savedChartModel: {} as SavedChartModel,

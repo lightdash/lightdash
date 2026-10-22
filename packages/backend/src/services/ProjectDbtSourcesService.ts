@@ -26,6 +26,7 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { dbtRepositoryIdentity } from '../models/dbtRepositoryIdentity';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
+import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from '../models/GithubAppInstallations/GithubAppInstallationsModel';
 import {
     ProjectDbtSourcesModel,
@@ -35,6 +36,11 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { logCrossSourceCacheError } from '../projectAdapters/crossSourceCatalogCache';
 import { assertGithubInstallationResolved } from '../projectAdapters/githubAuthorization';
 import { omitDbtEnvironment } from '../utils/dbtProjectConfig';
+import {
+    getPeerDbtSourcesEnabled,
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
 import { BaseService } from './BaseService';
 import { type FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { applyCurrentGithubInstallationId } from './ProjectService/resolveGithubInstallationId';
@@ -47,6 +53,7 @@ type ProjectDbtSourcesServiceArguments = {
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
 
 const assertProjectDbtSourceName = (name: string): void => {
@@ -74,6 +81,8 @@ export class ProjectDbtSourcesService extends BaseService {
 
     private readonly featureFlagService: Pick<FeatureFlagService, 'get'>;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: ProjectDbtSourcesServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -83,6 +92,19 @@ export class ProjectDbtSourcesService extends BaseService {
         this.projectDbtSourcesModel = args.projectDbtSourcesModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
         this.featureFlagService = args.featureFlagService;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async withPeerOperation<T>(
+        organizationUuid: string,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        if (hasPeerDbtSourcesOperation()) return callback();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, callback);
     }
 
     private async assertSupportedSourceType(
@@ -293,27 +315,36 @@ export class ProjectDbtSourcesService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<ProjectDbtSourceSummary[]> {
-        await this.checkProjectAccess(account, projectUuid, 'view');
-        const [project, identity, sources] = await Promise.all([
-            this.projectModel.get(projectUuid),
-            this.projectModel.getDbtSourceIdentity(projectUuid),
-            this.projectDbtSourcesModel.getSourcesForApi(projectUuid),
-        ]);
-        // The primary source is the project's own dbt_connection (precedence 0),
-        // synthesised here rather than stored as a row.
-        const primary: ProjectDbtSourceSummary = {
-            projectDbtSourceUuid: identity.dbtSourceUuid,
-            name: identity.dbtSourceName,
-            isPrimary: true,
-            precedence: 0,
-            type: project.dbtConnection.type,
-            warehouseLocation: project.warehouseConnection
-                ? getWarehouseLocation(project.warehouseConnection)
-                : EMPTY_WAREHOUSE_LOCATION,
-            hasCredentialError: false,
-            ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
-        };
-        return [primary, ...sources.map(ProjectDbtSourcesService.toSummary)];
+        const organizationUuid = await this.checkProjectAccess(
+            account,
+            projectUuid,
+            'view',
+        );
+        return this.withPeerOperation(organizationUuid, async () => {
+            const [project, identity, sources] = await Promise.all([
+                this.projectModel.get(projectUuid),
+                this.projectModel.getDbtSourceIdentity(projectUuid),
+                this.projectDbtSourcesModel.getSourcesForApi(projectUuid),
+            ]);
+            // The primary source is the project's own dbt_connection (precedence 0),
+            // synthesised here rather than stored as a row.
+            const primary: ProjectDbtSourceSummary = {
+                projectDbtSourceUuid: identity.dbtSourceUuid,
+                name: identity.dbtSourceName,
+                isPrimary: true,
+                precedence: 0,
+                type: project.dbtConnection.type,
+                warehouseLocation: project.warehouseConnection
+                    ? getWarehouseLocation(project.warehouseConnection)
+                    : EMPTY_WAREHOUSE_LOCATION,
+                hasCredentialError: false,
+                ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
+            };
+            return [
+                primary,
+                ...sources.map(ProjectDbtSourcesService.toSummary),
+            ];
+        });
     }
 
     async createProjectDbtSource(
@@ -326,66 +357,68 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        assertProjectDbtSourceName(data.name);
-        await this.assertSupportedSourceType(
-            account,
-            organizationUuid,
-            data.dbtConnection.type,
-        );
-        ProjectDbtSourcesService.validateGithubPersonalAccessToken(
-            data.dbtConnection,
-        );
-        ProjectDbtSourcesService.validateDbtEnvironmentVariables(
-            data.dbtConnection,
-        );
-        const dbtConnection = await this.resolveGithubInstallationForSave(
-            data.dbtConnection,
-            organizationUuid,
-        );
-        const warehouseLocation = await this.resolveWarehouseLocation(
-            projectUuid,
-            data.warehouseLocation,
-            null,
-        );
-        const identity =
-            await this.projectModel.getDbtSourceIdentity(projectUuid);
-        if (data.name === identity.dbtSourceName) {
-            throw new AlreadyExistsError(
-                `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+        return this.withPeerOperation(organizationUuid, async () => {
+            assertProjectDbtSourceName(data.name);
+            await this.assertSupportedSourceType(
+                account,
+                organizationUuid,
+                data.dbtConnection.type,
             );
-        }
-        const existing =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
-        // Append after the highest existing precedence (primary is 0).
-        const precedence =
-            existing.reduce(
-                (max, source) => Math.max(max, source.precedence),
-                0,
-            ) + 1;
-        const created = await this.projectDbtSourcesModel.createSource(
-            projectUuid,
-            {
-                name: data.name,
-                isPrimary: false,
-                precedence,
-                dbtConnection,
-                warehouseLocation:
-                    warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
-                ...(data.dbtProjectName !== undefined
-                    ? { dbtProjectName: data.dbtProjectName }
-                    : {}),
-            },
-        );
-        this.analytics.track({
-            event: 'dbt_source_added',
-            userId: account.user?.id,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                dbtSourceCount: existing.length + 2,
-            },
+            ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+                data.dbtConnection,
+            );
+            ProjectDbtSourcesService.validateDbtEnvironmentVariables(
+                data.dbtConnection,
+            );
+            const dbtConnection = await this.resolveGithubInstallationForSave(
+                data.dbtConnection,
+                organizationUuid,
+            );
+            const warehouseLocation = await this.resolveWarehouseLocation(
+                projectUuid,
+                data.warehouseLocation,
+                null,
+            );
+            const identity =
+                await this.projectModel.getDbtSourceIdentity(projectUuid);
+            if (data.name === identity.dbtSourceName) {
+                throw new AlreadyExistsError(
+                    `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+                );
+            }
+            const existing =
+                await this.projectDbtSourcesModel.getSources(projectUuid);
+            // Append after the highest existing precedence (primary is 0).
+            const precedence =
+                existing.reduce(
+                    (max, source) => Math.max(max, source.precedence),
+                    0,
+                ) + 1;
+            const created = await this.projectDbtSourcesModel.createSource(
+                projectUuid,
+                {
+                    name: data.name,
+                    isPrimary: false,
+                    precedence,
+                    dbtConnection,
+                    warehouseLocation:
+                        warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
+                    ...(data.dbtProjectName !== undefined
+                        ? { dbtProjectName: data.dbtProjectName }
+                        : {}),
+                },
+            );
+            this.analytics.track({
+                event: 'dbt_source_added',
+                userId: account.user?.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    dbtSourceCount: existing.length + 2,
+                },
+            });
+            return ProjectDbtSourcesService.toSummary(created);
         });
-        return ProjectDbtSourcesService.toSummary(created);
     }
 
     async getProjectDbtSource(
@@ -398,38 +431,40 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'view',
         );
-        const canManageProject = this.createAuditedAbility(account).can(
-            'manage',
-            subject('Project', { organizationUuid, projectUuid }),
-        );
-        const source =
-            await this.projectDbtSourcesModel.getSourceForApi(
-                projectDbtSourceUuid,
+        return this.withPeerOperation(organizationUuid, async () => {
+            const canManageProject = this.createAuditedAbility(account).can(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
             );
-        if (source.projectUuid !== projectUuid) {
-            throw new ForbiddenError(
-                'This dbt source does not belong to the project',
+            const source =
+                await this.projectDbtSourcesModel.getSourceForApi(
+                    projectDbtSourceUuid,
+                );
+            if (source.projectUuid !== projectUuid) {
+                throw new ForbiddenError(
+                    'This dbt source does not belong to the project',
+                );
+            }
+            // Listing tolerates a credential error (other sources still load), but
+            // fetching this one source for editing genuinely cannot proceed without
+            // its connection — fail clearly, naming the source, instead of
+            // returning an unusable blank form.
+            if (source.hasCredentialError) {
+                throw new UnexpectedServerError(
+                    `Could not load credentials for dbt source "${source.name}" — remove it and add it again with a fresh connection.`,
+                );
+            }
+            const dbtConnection = ProjectDbtSourcesService.stripDbtSecrets(
+                source.dbtConnection,
             );
-        }
-        // Listing tolerates a credential error (other sources still load), but
-        // fetching this one source for editing genuinely cannot proceed without
-        // its connection — fail clearly, naming the source, instead of
-        // returning an unusable blank form.
-        if (source.hasCredentialError) {
-            throw new UnexpectedServerError(
-                `Could not load credentials for dbt source "${source.name}" — remove it and add it again with a fresh connection.`,
-            );
-        }
-        const dbtConnection = ProjectDbtSourcesService.stripDbtSecrets(
-            source.dbtConnection,
-        );
-        return {
-            ...ProjectDbtSourcesService.toSummary(source),
-            dbtConnection:
-                canManageProject || !dbtConnection
-                    ? dbtConnection
-                    : omitDbtEnvironment(dbtConnection),
-        };
+            return {
+                ...ProjectDbtSourcesService.toSummary(source),
+                dbtConnection:
+                    canManageProject || !dbtConnection
+                        ? dbtConnection
+                        : omitDbtEnvironment(dbtConnection),
+            };
+        });
     }
 
     async updateProjectDbtSource(
@@ -443,134 +478,146 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        const identity =
-            await this.projectModel.getDbtSourceIdentity(projectUuid);
-        if (projectDbtSourceUuid === identity.dbtSourceUuid) {
+        return this.withPeerOperation(organizationUuid, async () => {
+            const identity =
+                await this.projectModel.getDbtSourceIdentity(projectUuid);
+            if (projectDbtSourceUuid === identity.dbtSourceUuid) {
+                if (
+                    data.name === undefined ||
+                    data.dbtConnection !== undefined ||
+                    data.warehouseLocation !== undefined
+                ) {
+                    throw new ParameterError(
+                        'Only the primary dbt source name can be updated here',
+                    );
+                }
+                assertProjectDbtSourceName(data.name);
+                const [project, additionalSources] = await Promise.all([
+                    this.projectModel.get(projectUuid),
+                    this.projectDbtSourcesModel.getSources(projectUuid),
+                ]);
+                if (
+                    additionalSources.some(
+                        (source) => source.name === data.name,
+                    )
+                ) {
+                    throw new AlreadyExistsError(
+                        `A dbt source named "${data.name}" already exists on this project`,
+                    );
+                }
+                await this.projectModel.updateDbtSourceName(
+                    projectUuid,
+                    data.name,
+                );
+                return {
+                    projectDbtSourceUuid: identity.dbtSourceUuid,
+                    name: data.name,
+                    isPrimary: true,
+                    precedence: 0,
+                    type: project.dbtConnection.type,
+                    warehouseLocation: project.warehouseConnection
+                        ? getWarehouseLocation(project.warehouseConnection)
+                        : EMPTY_WAREHOUSE_LOCATION,
+                    hasCredentialError: false,
+                    ...ProjectDbtSourcesService.gitIdentity(
+                        project.dbtConnection,
+                    ),
+                };
+            }
+            const existing =
+                await this.projectDbtSourcesModel.getSourceForApi(
+                    projectDbtSourceUuid,
+                );
+            if (existing.projectUuid !== projectUuid) {
+                throw new ForbiddenError(
+                    'This dbt source does not belong to the project',
+                );
+            }
             if (
-                data.name === undefined ||
+                getPeerDbtSourcesEnabled() &&
+                data.dbtConnection !== undefined &&
+                (await this.projectDbtSourcesModel.peers?.isSharedConsumer(
+                    projectUuid,
+                    projectDbtSourceUuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    'Edit shared repository credentials in the owning project',
+                );
+            }
+            if (data.name !== undefined) {
+                assertProjectDbtSourceName(data.name);
+                if (data.name === identity.dbtSourceName) {
+                    throw new AlreadyExistsError(
+                        `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
+                    );
+                }
+            }
+            if (data.dbtConnection) {
+                await this.assertSupportedSourceType(
+                    account,
+                    organizationUuid,
+                    data.dbtConnection.type,
+                );
+            }
+            if (data.dbtConnection) {
+                ProjectDbtSourcesService.validateGithubPersonalAccessToken(
+                    data.dbtConnection,
+                );
+                ProjectDbtSourcesService.validateDbtEnvironmentVariables(
+                    data.dbtConnection,
+                );
+            }
+            const boundSource = data.warehouseLocation
+                ? (
+                      await this.projectDbtSourcesModel.getSourcesWithBindings(
+                          projectUuid,
+                      )
+                  ).find(
+                      (source) =>
+                          source.projectDbtSourceUuid === projectDbtSourceUuid,
+                  )
+                : null;
+            const warehouseLocation = await this.resolveWarehouseLocation(
+                projectUuid,
+                data.warehouseLocation,
+                boundSource?.warehouseConnectionUuid ?? null,
+            );
+            // The edit form receives the connection with secrets stripped; restore
+            // any the user did not re-enter from the stored connection.
+            const mergedDbtConnection =
+                data.dbtConnection && existing.dbtConnection
+                    ? ProjectModel.mergeMissingDbtConfigSecrets(
+                          data.dbtConnection,
+                          existing.dbtConnection,
+                      )
+                    : data.dbtConnection;
+            const dbtConnection = mergedDbtConnection
+                ? await this.resolveGithubInstallationForSave(
+                      mergedDbtConnection,
+                      organizationUuid,
+                  )
+                : mergedDbtConnection;
+            const updated = await this.projectDbtSourcesModel.updateSource(
+                projectDbtSourceUuid,
+                {
+                    name: data.name,
+                    dbtConnection,
+                    warehouseLocation,
+                },
+            );
+            if (
                 data.dbtConnection !== undefined ||
                 data.warehouseLocation !== undefined
-            ) {
-                throw new ParameterError(
-                    'Only the primary dbt source name can be updated here',
+            )
+                await this.invalidateCatalog(
+                    account,
+                    organizationUuid,
+                    projectUuid,
+                    projectDbtSourceUuid,
                 );
-            }
-            assertProjectDbtSourceName(data.name);
-            const [project, additionalSources] = await Promise.all([
-                this.projectModel.get(projectUuid),
-                this.projectDbtSourcesModel.getSources(projectUuid),
-            ]);
-            if (additionalSources.some((source) => source.name === data.name)) {
-                throw new AlreadyExistsError(
-                    `A dbt source named "${data.name}" already exists on this project`,
-                );
-            }
-            await this.projectModel.updateDbtSourceName(projectUuid, data.name);
-            return {
-                projectDbtSourceUuid: identity.dbtSourceUuid,
-                name: data.name,
-                isPrimary: true,
-                precedence: 0,
-                type: project.dbtConnection.type,
-                warehouseLocation: project.warehouseConnection
-                    ? getWarehouseLocation(project.warehouseConnection)
-                    : EMPTY_WAREHOUSE_LOCATION,
-                hasCredentialError: false,
-                ...ProjectDbtSourcesService.gitIdentity(project.dbtConnection),
-            };
-        }
-        const existing =
-            await this.projectDbtSourcesModel.getSourceForApi(
-                projectDbtSourceUuid,
-            );
-        if (existing.projectUuid !== projectUuid) {
-            throw new ForbiddenError(
-                'This dbt source does not belong to the project',
-            );
-        }
-        if (
-            data.dbtConnection !== undefined &&
-            (await this.projectDbtSourcesModel.peers?.isSharedConsumer(
-                projectUuid,
-                projectDbtSourceUuid,
-            ))
-        ) {
-            throw new ForbiddenError(
-                'Edit shared repository credentials in the owning project',
-            );
-        }
-        if (data.name !== undefined) {
-            assertProjectDbtSourceName(data.name);
-            if (data.name === identity.dbtSourceName) {
-                throw new AlreadyExistsError(
-                    `A dbt source named "${identity.dbtSourceName}" already exists on this project`,
-                );
-            }
-        }
-        if (data.dbtConnection) {
-            await this.assertSupportedSourceType(
-                account,
-                organizationUuid,
-                data.dbtConnection.type,
-            );
-        }
-        if (data.dbtConnection) {
-            ProjectDbtSourcesService.validateGithubPersonalAccessToken(
-                data.dbtConnection,
-            );
-            ProjectDbtSourcesService.validateDbtEnvironmentVariables(
-                data.dbtConnection,
-            );
-        }
-        const boundSource = data.warehouseLocation
-            ? (
-                  await this.projectDbtSourcesModel.getSourcesWithBindings(
-                      projectUuid,
-                  )
-              ).find(
-                  (source) =>
-                      source.projectDbtSourceUuid === projectDbtSourceUuid,
-              )
-            : null;
-        const warehouseLocation = await this.resolveWarehouseLocation(
-            projectUuid,
-            data.warehouseLocation,
-            boundSource?.warehouseConnectionUuid ?? null,
-        );
-        // The edit form receives the connection with secrets stripped; restore
-        // any the user did not re-enter from the stored connection.
-        const mergedDbtConnection =
-            data.dbtConnection && existing.dbtConnection
-                ? ProjectModel.mergeMissingDbtConfigSecrets(
-                      data.dbtConnection,
-                      existing.dbtConnection,
-                  )
-                : data.dbtConnection;
-        const dbtConnection = mergedDbtConnection
-            ? await this.resolveGithubInstallationForSave(
-                  mergedDbtConnection,
-                  organizationUuid,
-              )
-            : mergedDbtConnection;
-        const updated = await this.projectDbtSourcesModel.updateSource(
-            projectDbtSourceUuid,
-            {
-                name: data.name,
-                dbtConnection,
-                warehouseLocation,
-            },
-        );
-        if (
-            data.dbtConnection !== undefined ||
-            data.warehouseLocation !== undefined
-        )
-            await this.invalidateCatalog(
-                account,
-                organizationUuid,
-                projectUuid,
-                projectDbtSourceUuid,
-            );
-        return ProjectDbtSourcesService.toSummary(updated);
+            return ProjectDbtSourcesService.toSummary(updated);
+        });
     }
 
     private async invalidateCatalog(
@@ -604,32 +651,36 @@ export class ProjectDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        const source =
-            await this.projectDbtSourcesModel.getSourceForApi(
+        return this.withPeerOperation(organizationUuid, async () => {
+            const source =
+                await this.projectDbtSourcesModel.getSourceForApi(
+                    projectDbtSourceUuid,
+                );
+            if (source.projectUuid !== projectUuid) {
+                throw new ForbiddenError(
+                    'This dbt source does not belong to the project',
+                );
+            }
+            const sources =
+                await this.projectDbtSourcesModel.getSources(projectUuid);
+            await this.projectDbtSourcesModel.deleteSource(
                 projectDbtSourceUuid,
             );
-        if (source.projectUuid !== projectUuid) {
-            throw new ForbiddenError(
-                'This dbt source does not belong to the project',
+            await this.invalidateCatalog(
+                account,
+                organizationUuid,
+                projectUuid,
+                projectDbtSourceUuid,
             );
-        }
-        const sources =
-            await this.projectDbtSourcesModel.getSources(projectUuid);
-        await this.projectDbtSourcesModel.deleteSource(projectDbtSourceUuid);
-        await this.invalidateCatalog(
-            account,
-            organizationUuid,
-            projectUuid,
-            projectDbtSourceUuid,
-        );
-        this.analytics.track({
-            event: 'dbt_source_removed',
-            userId: account.user?.id,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                dbtSourceCount: sources.length,
-            },
+            this.analytics.track({
+                event: 'dbt_source_removed',
+                userId: account.user?.id,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    dbtSourceCount: sources.length,
+                },
+            });
         });
     }
 }

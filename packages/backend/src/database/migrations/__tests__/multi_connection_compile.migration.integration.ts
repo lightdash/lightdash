@@ -3693,6 +3693,12 @@ Sources in this project: Core models, marketing, finance.`;
 
             const deployService = (projectUuid: string) =>
                 new DeployService({
+                    featureFlagModel: {
+                        get: async ({ featureFlagId }) => ({
+                            id: featureFlagId,
+                            enabled: false,
+                        }),
+                    },
                     deploySessionModel: new DeploySessionModel(database),
                     projectModel,
                     projectService: compileService(projectUuid).service,
@@ -8400,6 +8406,12 @@ Sources in this project: Core models, marketing, finance.`;
 
         const dbtSourcesService = () =>
             new ProjectDbtSourcesService({
+                featureFlagModel: {
+                    get: async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    }),
+                },
                 dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
                     database,
                 }),

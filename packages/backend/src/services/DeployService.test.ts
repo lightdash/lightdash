@@ -1,11 +1,22 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     DeploySessionStatus,
+    FeatureFlags,
     ProjectType,
     type MemberAbility,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { toSessionUser } from '../auth/account';
+import {
+    getPeerDbtSourcesEnabled,
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from './AiAccessService/agentExecutionContext';
 import { DeployService } from './DeployService';
 
 const projectSummary = {
@@ -61,6 +72,13 @@ const buildAccount = (ability: MemberAbility): RegisteredAccount =>
         isSessionUser: () => false,
     }) as RegisteredAccount;
 
+const getFeatureFlagModel = () => ({
+    get: vi.fn(async () => ({
+        id: FeatureFlags.PeerDbtSources,
+        enabled: false,
+    })),
+});
+
 describe('DeployService', () => {
     it('allows starting a deploy session for an own preview from a granted upstream project', async () => {
         const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -71,6 +89,7 @@ describe('DeployService', () => {
         });
 
         const service = new DeployService({
+            featureFlagModel: getFeatureFlagModel(),
             deploySessionModel: {
                 createSession: vi.fn().mockResolvedValue('deploy-session-uuid'),
             },
@@ -140,6 +159,7 @@ describe('DeployService', () => {
                 generateValidation: vi.fn().mockResolvedValue(undefined),
             };
             const service = new DeployService({
+                featureFlagModel: getFeatureFlagModel(),
                 deploySessionModel,
                 projectModel: {
                     requireSingleConnectionRoute: vi
@@ -202,6 +222,7 @@ describe('DeployService', () => {
             ),
         );
         const service = new DeployService({
+            featureFlagModel: getFeatureFlagModel(),
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
                     deploySessionUuid: 'deploy-session-uuid',
@@ -302,6 +323,7 @@ describe('DeployService', () => {
             ),
         );
         const service = new DeployService({
+            featureFlagModel: getFeatureFlagModel(),
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
                     deploySessionUuid: 'deploy-session-uuid',
@@ -387,6 +409,7 @@ describe('DeployService', () => {
             ),
         );
         const service = new DeployService({
+            featureFlagModel: getFeatureFlagModel(),
             deploySessionModel: {
                 getSession: vi.fn().mockResolvedValue({
                     deploySessionUuid: 'deploy-session-uuid',
@@ -431,5 +454,248 @@ describe('DeployService', () => {
         ).toBeLessThan(
             vi.mocked(getWithSensitiveFields).mock.invocationCallOrder[0],
         );
+    });
+    describe('peer flag operation snapshot', () => {
+        const fixture = () => {
+            const account = buildAccount(
+                new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'DeployProject',
+                        conditions: { projectUuid: 'project-uuid' },
+                    },
+                ]),
+            );
+            const user = toSessionUser(account);
+            const featureFlagModel = getFeatureFlagModel();
+            const deploySessionModel = {
+                getSession: vi.fn(async () => ({
+                    projectUuid: 'project-uuid',
+                    userUuid: user.userUuid,
+                    status: DeploySessionStatus.UPLOADING,
+                })),
+                getDeployData: vi.fn(async () => ({
+                    explores: [],
+                    complete: true,
+                })),
+                updateStatus: vi.fn(async () => undefined),
+                deleteSession: vi.fn(async () => undefined),
+            };
+            const projectModel = {
+                getSummary: vi.fn(async () => projectSummary),
+                getWithSensitiveFields: vi.fn(async () => ({
+                    organizationUuid: 'org-uuid',
+                    warehouseConnection: null,
+                })),
+            };
+            const projectService = {
+                assertConnectionPreAggregateRefresh: vi.fn(
+                    async () => undefined,
+                ),
+                assertAgentConnectionEffect: vi.fn(async () => undefined),
+                getDeployStartOfWeekByExplore: vi.fn(async () => new Map()),
+                saveDeployExplores: vi.fn(async () => 'index-job-uuid'),
+                trackCliSourceDeploy: vi.fn(async () => undefined),
+            };
+            const schedulerClient = {
+                generateValidation: vi.fn(async () => undefined),
+            };
+            const service = new DeployService({
+                featureFlagModel,
+                deploySessionModel,
+                projectModel,
+                projectService,
+                schedulerClient,
+            } as never);
+            const run = () =>
+                service.finalizeDeploy(user, 'project-uuid', 'session-uuid');
+            return {
+                service,
+                run,
+                account,
+                user,
+                featureFlagModel,
+                deploySessionModel,
+                projectModel,
+                projectService,
+                schedulerClient,
+            };
+        };
+
+        it.each([
+            { enabled: true, fails: false },
+            { enabled: false, fails: false },
+            { enabled: true, fails: true },
+            { enabled: false, fails: true },
+        ])(
+            'shares one snapshot between save and analytics with enabled=$enabled and fails=$fails',
+            async ({ enabled, fails }) => {
+                const f = fixture();
+                const failure = new Error('save failed');
+                f.featureFlagModel.get.mockResolvedValueOnce({
+                    id: FeatureFlags.PeerDbtSources,
+                    enabled,
+                });
+                const observed: boolean[] = [];
+                f.projectService.saveDeployExplores.mockImplementation(
+                    async () => {
+                        observed.push(getPeerDbtSourcesEnabled());
+                        f.featureFlagModel.get.mockResolvedValue({
+                            id: FeatureFlags.PeerDbtSources,
+                            enabled: !enabled,
+                        });
+                        if (fails) throw failure;
+                        return 'index-job-uuid';
+                    },
+                );
+                f.projectService.trackCliSourceDeploy.mockImplementation(
+                    async () => {
+                        observed.push(getPeerDbtSourcesEnabled());
+                    },
+                );
+                if (fails) await expect(f.run()).rejects.toBe(failure);
+                else
+                    await expect(f.run()).resolves.toMatchObject({
+                        status: DeploySessionStatus.COMPLETED,
+                    });
+                expect(observed).toEqual([enabled, enabled]);
+                expect(f.featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                    user: { organizationUuid: 'org-uuid' },
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                });
+                expect(f.projectModel.getSummary).toHaveBeenCalledOnce();
+                expect(
+                    f.deploySessionModel.getSession.mock.invocationCallOrder[0],
+                ).toBeLessThan(
+                    f.projectModel.getSummary.mock.invocationCallOrder[0],
+                );
+                expect(
+                    f.projectModel.getSummary.mock.invocationCallOrder[0],
+                ).toBeLessThan(
+                    f.featureFlagModel.get.mock.invocationCallOrder[0],
+                );
+                expect(
+                    f.featureFlagModel.get.mock.invocationCallOrder[0],
+                ).toBeLessThan(
+                    f.deploySessionModel.updateStatus.mock
+                        .invocationCallOrder[0],
+                );
+                expect(hasPeerDbtSourcesOperation()).toBe(false);
+            },
+        );
+
+        it.each([true, false])(
+            'reuses a nested snapshot of %s without a flag read',
+            async (enabled) => {
+                const f = fixture();
+                f.projectService.saveDeployExplores.mockImplementation(
+                    async () => {
+                        expect(getPeerDbtSourcesEnabled()).toBe(enabled);
+                        return 'index-job-uuid';
+                    },
+                );
+                f.projectService.trackCliSourceDeploy.mockImplementation(
+                    async () => {
+                        expect(getPeerDbtSourcesEnabled()).toBe(enabled);
+                    },
+                );
+                await withPeerDbtSourcesOperation(enabled, f.run);
+                expect(f.featureFlagModel.get).not.toHaveBeenCalled();
+            },
+        );
+
+        it('resolves again for each separate deployment', async () => {
+            const f = fixture();
+            const observed: boolean[] = [];
+            f.projectService.saveDeployExplores.mockImplementation(async () => {
+                observed.push(getPeerDbtSourcesEnabled());
+                return 'index-job-uuid';
+            });
+            await [true, false, true].reduce(async (previous, enabled) => {
+                await previous;
+                f.featureFlagModel.get.mockResolvedValueOnce({
+                    id: FeatureFlags.PeerDbtSources,
+                    enabled,
+                });
+                await f.run();
+            }, Promise.resolve());
+            expect(observed).toEqual([true, false, true]);
+            expect(f.featureFlagModel.get).toHaveBeenCalledTimes(3);
+        });
+
+        it.each(['project', 'user', 'status', 'permission'] as const)(
+            'preserves the %s refusal before flag resolution',
+            async (gate) => {
+                const f = fixture();
+                if (gate === 'project')
+                    f.deploySessionModel.getSession.mockResolvedValueOnce({
+                        projectUuid: 'other-project',
+                        userUuid: f.user.userUuid,
+                        status: DeploySessionStatus.UPLOADING,
+                    });
+                if (gate === 'user')
+                    f.deploySessionModel.getSession.mockResolvedValueOnce({
+                        projectUuid: 'project-uuid',
+                        userUuid: 'other-user',
+                        status: DeploySessionStatus.UPLOADING,
+                    });
+                if (gate === 'status')
+                    f.deploySessionModel.getSession.mockResolvedValueOnce({
+                        projectUuid: 'project-uuid',
+                        userUuid: f.user.userUuid,
+                        status: DeploySessionStatus.COMPLETED,
+                    });
+                if (gate === 'permission') f.user.ability = new Ability([]);
+                await expect(f.run()).rejects.toThrow();
+                expect(f.featureFlagModel.get).not.toHaveBeenCalled();
+                expect(
+                    f.deploySessionModel.updateStatus,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.projectModel.getWithSensitiveFields,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.projectService.saveDeployExplores,
+                ).not.toHaveBeenCalled();
+            },
+        );
+
+        it('keeps the agent credential guard before flag resolution and session writes', async () => {
+            const f = fixture();
+            const failure = new Error('agent credential refused');
+            f.projectService.assertConnectionPreAggregateRefresh.mockRejectedValue(
+                failure,
+            );
+            const context = createAgentExecutionContext({
+                account: f.account,
+                surface: AgentActorSurface.CLI,
+                clientId: 'client-uuid',
+                agentUuid: null,
+                agentIdentityEnabled: true,
+                agentConnectionExecution: {
+                    grantUuid: 'grant-uuid',
+                    revision: 1,
+                    subjectUserUuid: f.user.userUuid,
+                    organizationUuid: 'org-uuid',
+                    clientId: 'client-uuid',
+                    resource: 'https://example.test/api',
+                    refreshFamilyUuid: 'refresh-uuid',
+                    scopes: ['write'],
+                    operation: {
+                        kind: 'rest',
+                        key: 'DeployController.finalizeDeploy',
+                    },
+                },
+            });
+            await expect(
+                agentExecutionContext.run(context, f.run),
+            ).rejects.toBe(failure);
+            expect(
+                f.projectService.assertConnectionPreAggregateRefresh,
+            ).toHaveBeenCalledOnce();
+            expect(f.featureFlagModel.get).not.toHaveBeenCalled();
+            expect(f.deploySessionModel.updateStatus).not.toHaveBeenCalled();
+            expect(f.projectService.saveDeployExplores).not.toHaveBeenCalled();
+        });
     });
 });

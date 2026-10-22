@@ -133,7 +133,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
-import knex, { type Knex } from 'knex';
+import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
 import { createHash } from 'node:crypto';
@@ -217,6 +217,10 @@ import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    getPeerDbtSourcesEnabled,
+    withPeerDbtSourcesOperation,
+} from '../../utils/peerDbtSourcesOperation';
 import {
     METRIC_QUERY,
     warehouseClientMock,
@@ -508,16 +512,8 @@ const projectModel = {
         async () => 'created-preview-project-uuid',
     ),
     update: vi.fn(async () => undefined),
-    delete: vi.fn<ProjectModel['delete']>(async () => undefined),
-    withDeletionLock: vi.fn(
-        async <T>(
-            _projectUuids: string[],
-            callback: (trx?: Knex.Transaction) => Promise<T>,
-        ): Promise<T> => callback(undefined),
-    ),
-    deleteContentInBatches: vi.fn<ProjectModel['deleteContentInBatches']>(
-        async () => undefined,
-    ),
+    delete: vi.fn(async () => undefined),
+    deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({ cacheTtlSeconds: null }),
     ),
@@ -580,8 +576,7 @@ const onboardingModel = {
         async (
             _organizationUuid: string,
             callback: (transaction: object) => Promise<unknown>,
-            transaction?: object,
-        ) => callback(transaction ?? {}),
+        ) => callback({}),
     ),
     runInTrainingCopyLock: vi.fn(
         async (
@@ -3769,83 +3764,6 @@ describe('ProjectService', () => {
             expect(projectModel.delete).toHaveBeenNthCalledWith(2, 'copy-2');
         });
 
-        test('holds the deletion transaction until preview app-file cleanup and deletion finish', async () => {
-            const transaction = {} as Knex.Transaction;
-            let locked = false;
-            let finishFiles!: () => void;
-            const files = new Promise<void>((resolve) => {
-                finishFiles = resolve;
-            });
-            getExpiredPreviewProjects.mockResolvedValueOnce([
-                { projectUuid: 'copy-1', organizationUuid: 'org' },
-            ]);
-            projectModel.withDeletionLock.mockImplementationOnce(
-                async (uuids, callback) => {
-                    expect(uuids).toEqual(['copy-1']);
-                    locked = true;
-                    try {
-                        return await callback(transaction);
-                    } finally {
-                        locked = false;
-                    }
-                },
-            );
-            deleteProjectAppFiles.mockImplementationOnce(async () => {
-                expect(locked).toBe(true);
-                await files;
-                expect(locked).toBe(true);
-            });
-            projectModel.delete.mockImplementationOnce(async (uuid, trx) => {
-                expect(uuid).toBe('copy-1');
-                expect(trx).toBe(transaction);
-                expect(locked).toBe(true);
-            });
-            const deletion = sweepService().deleteExpiredPreviewProjects();
-            await vi.waitFor(() =>
-                expect(deleteProjectAppFiles).toHaveBeenCalled(),
-            );
-            expect(locked).toBe(true);
-            expect(projectModel.delete).not.toHaveBeenCalled();
-            finishFiles();
-            await expect(deletion).resolves.toBe(1);
-            expect(locked).toBe(false);
-        });
-
-        test('keeps legacy preview cleanup order without a peer transaction', async () => {
-            let finishFiles!: () => void;
-            const files = new Promise<void>((resolve) => {
-                finishFiles = resolve;
-            });
-            getExpiredPreviewProjects.mockResolvedValueOnce([
-                { projectUuid: 'copy-1', organizationUuid: 'org' },
-            ]);
-            deleteProjectAppFiles.mockImplementationOnce(async () => files);
-            const deletion = sweepService().deleteExpiredPreviewProjects();
-            await vi.waitFor(() =>
-                expect(deleteProjectAppFiles).toHaveBeenCalledOnce(),
-            );
-            expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
-            expect(projectModel.delete).not.toHaveBeenCalled();
-            finishFiles();
-            await expect(deletion).resolves.toBe(1);
-            expect(projectModel.delete).toHaveBeenCalledWith('copy-1');
-            expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
-        });
-
-        test('leaves preview app files intact when its deletion lock refuses a consumer', async () => {
-            getExpiredPreviewProjects.mockResolvedValueOnce([
-                { projectUuid: 'copy-1', organizationUuid: 'org' },
-            ]);
-            projectModel.withDeletionLock.mockRejectedValueOnce(
-                new ConflictError('Shared source is in use'),
-            );
-            await expect(
-                sweepService().deleteExpiredPreviewProjects(),
-            ).resolves.toBe(0);
-            expect(deleteProjectAppFiles).not.toHaveBeenCalled();
-            expect(projectModel.delete).not.toHaveBeenCalled();
-        });
-
         test('still deletes the project when its app files cannot be removed', async () => {
             deleteProjectAppFiles.mockRejectedValueOnce(
                 new Error('bucket gone'),
@@ -4715,30 +4633,6 @@ describe('ProjectService', () => {
         );
     });
 
-    test('refuses deletion before removing playground content when a shared source is in use', async () => {
-        const deletingUser = {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'delete' },
-            ]),
-        };
-        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
-            ...projectWithSensitiveFields,
-            provisioningSource: 'playground',
-        });
-        projectModel.withDeletionLock.mockRejectedValueOnce(
-            new ConflictError('Shared source is in use'),
-        );
-        await expect(service.delete(projectUuid, deletingUser)).rejects.toThrow(
-            'Shared source is in use',
-        );
-        expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
-        expect(projectModel.delete).not.toHaveBeenCalled();
-        expect(
-            onboardingModel.runInPlaygroundProvisioningLock,
-        ).not.toHaveBeenCalled();
-    });
-
     test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {
         const transaction = {};
         const deletingUser = {
@@ -4762,7 +4656,6 @@ describe('ProjectService', () => {
         ).toHaveBeenCalledWith(
             projectWithSensitiveFields.organizationUuid,
             expect.any(Function),
-            undefined,
         );
         expect(onboardingModel.update).toHaveBeenCalledWith(
             projectWithSensitiveFields.organizationUuid,
@@ -4772,7 +4665,6 @@ describe('ProjectService', () => {
         expect(projectModel.delete).toHaveBeenCalledWith(
             projectUuid,
             transaction,
-            [projectUuid],
         );
         expect(onboardingModel.update.mock.invocationCallOrder[0]).toBeLessThan(
             projectModel.delete.mock.invocationCallOrder[0],
@@ -4786,191 +4678,6 @@ describe('ProjectService', () => {
             onboardingModel.runInPlaygroundProvisioningLock.mock
                 .invocationCallOrder[0],
         );
-    });
-
-    test('holds the deletion transaction through playground content cleanup and its tombstone', async () => {
-        const transaction = {} as Knex.Transaction;
-        let locked = false;
-        let finishBatches!: () => void;
-        const batches = new Promise<void>((resolve) => {
-            finishBatches = resolve;
-        });
-        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
-            ...projectWithSensitiveFields,
-            provisioningSource: 'playground',
-        });
-        projectModel.withDeletionLock.mockImplementationOnce(
-            async (uuids, callback) => {
-                expect(uuids).toEqual([projectUuid]);
-                locked = true;
-                try {
-                    return await callback(transaction);
-                } finally {
-                    locked = false;
-                }
-            },
-        );
-        projectModel.deleteContentInBatches.mockImplementationOnce(async () => {
-            expect(locked).toBe(true);
-            await batches;
-            expect(locked).toBe(true);
-        });
-        projectModel.delete.mockImplementationOnce(async (_uuid, trx) => {
-            expect(locked).toBe(true);
-            expect(trx).toBe(transaction);
-        });
-        const deletion = service.delete(projectUuid, {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'delete' },
-            ]),
-        });
-        await vi.waitFor(() =>
-            expect(projectModel.deleteContentInBatches).toHaveBeenCalled(),
-        );
-        expect(locked).toBe(true);
-        expect(projectModel.delete).not.toHaveBeenCalled();
-        finishBatches();
-        await deletion;
-        expect(locked).toBe(false);
-        expect(
-            onboardingModel.runInPlaygroundProvisioningLock,
-        ).toHaveBeenCalledWith(
-            projectWithSensitiveFields.organizationUuid,
-            expect.any(Function),
-            transaction,
-        );
-        expect(onboardingModel.update).toHaveBeenCalledWith(
-            projectWithSensitiveFields.organizationUuid,
-            { playgroundProjectDeletedAt: expect.any(Date) },
-            transaction,
-        );
-    });
-
-    test('guards every training copy and completes cleanup before final deletes in one transaction', async () => {
-        const transaction = {} as Knex.Transaction;
-        const copies = ['copy-1', 'copy-2'].map((uuid) => ({
-            ...defaultProject,
-            projectUuid: uuid,
-            type: ProjectType.PREVIEW,
-            provisioningSource: 'training',
-            upstreamProjectUuid: projectUuid,
-        }));
-        const deletingProjectUuids = [projectUuid, 'copy-1', 'copy-2'];
-        const events: string[] = [];
-        let locked = false;
-        const deleteProjectAppFiles = vi.fn(async (uuid: string) => {
-            expect(locked).toBe(true);
-            events.push(`files:${uuid}`);
-        });
-        const deletingService = getMockedProjectService(
-            lightdashConfigWithGoogleOAuthMock,
-            {
-                getAppGenerateService: () =>
-                    ({ deleteProjectAppFiles }) as never,
-            },
-        );
-        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
-            ...projectWithSensitiveFields,
-            type: ProjectType.TRAINING,
-        });
-        projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(copies);
-        projectModel.withDeletionLock.mockImplementationOnce(
-            async (uuids, callback) => {
-                expect(uuids).toEqual(deletingProjectUuids);
-                locked = true;
-                try {
-                    return await callback(transaction);
-                } finally {
-                    locked = false;
-                }
-            },
-        );
-        deletingProjectUuids.forEach(() => {
-            projectModel.deleteContentInBatches.mockImplementationOnce(
-                async (uuid) => {
-                    expect(locked).toBe(true);
-                    events.push(`content:${uuid}`);
-                },
-            );
-            projectModel.delete.mockImplementationOnce(
-                async (uuid, trx, deletingUuids) => {
-                    expect(locked).toBe(true);
-                    expect(trx).toBe(transaction);
-                    expect(deletingUuids).toEqual(deletingProjectUuids);
-                    expect(events).toEqual(
-                        expect.arrayContaining([
-                            ...deletingProjectUuids.map(
-                                (id) => `content:${id}`,
-                            ),
-                            'files:copy-1',
-                            'files:copy-2',
-                        ]),
-                    );
-                    events.push(`delete:${uuid}`);
-                },
-            );
-        });
-        await deletingService.delete(projectUuid, {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'delete' },
-                { subject: 'Organization', action: 'manage' },
-            ]),
-        });
-        expect(projectModel.withDeletionLock).toHaveBeenCalledTimes(1);
-        expect(projectModel.delete).toHaveBeenCalledTimes(3);
-        expect(locked).toBe(false);
-    });
-
-    test('keeps legacy training copy cleanup before the parent without a peer transaction', async () => {
-        const copies = ['copy-1', 'copy-2'].map((uuid) => ({
-            ...defaultProject,
-            projectUuid: uuid,
-            type: ProjectType.PREVIEW,
-            provisioningSource: 'training',
-            upstreamProjectUuid: projectUuid,
-        }));
-        const events: string[] = [];
-        const deleteProjectAppFiles = vi.fn(async (uuid: string) => {
-            events.push(`files:${uuid}`);
-        });
-        const deletingService = getMockedProjectService(
-            lightdashConfigWithGoogleOAuthMock,
-            {
-                getAppGenerateService: () =>
-                    ({ deleteProjectAppFiles }) as never,
-            },
-        );
-        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
-            ...projectWithSensitiveFields,
-            type: ProjectType.TRAINING,
-        });
-        projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(copies);
-        [projectUuid, ...copies.map((copy) => copy.projectUuid)].forEach(() => {
-            projectModel.delete.mockImplementationOnce(async (uuid) => {
-                events.push(`delete:${uuid}`);
-            });
-        });
-        await deletingService.delete(projectUuid, {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: 'delete' },
-                { subject: 'Organization', action: 'manage' },
-            ]),
-        });
-        expect(events.at(-1)).toBe(`delete:${projectUuid}`);
-        copies.forEach(({ projectUuid: uuid }) => {
-            expect(events.indexOf(`files:${uuid}`)).toBeLessThan(
-                events.indexOf(`delete:${uuid}`),
-            );
-            expect(projectModel.delete).toHaveBeenCalledWith(uuid);
-        });
-        expect(projectModel.delete).toHaveBeenCalledWith(projectUuid);
-        expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
-        expect(
-            onboardingModel.runInPlaygroundProvisioningLock,
-        ).not.toHaveBeenCalled();
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
@@ -10878,6 +10585,7 @@ describe('ProjectService', () => {
                     }),
                 };
                 const deploy = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -11228,6 +10936,7 @@ describe('ProjectService', () => {
                     }),
                 };
                 const deploy = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -11365,6 +11074,7 @@ describe('ProjectService', () => {
                 };
                 const addBatch = vi.fn();
                 const deployService = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -16314,6 +16024,93 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     };
 
     it.each([
+        { method: 'compileProject', enabled: true },
+        { method: 'compileProject', enabled: false },
+        { method: 'testAndCompileProject', enabled: true },
+        { method: 'testAndCompileProject', enabled: false },
+    ] as const)(
+        '$method freezes one peer flag read with enabled=$enabled',
+        async ({ method, enabled }) => {
+            const configured = buildCompilationBoundaryService();
+            let peerFlagReads = 0;
+            vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => {
+                    if (featureFlagId === FeatureFlags.PeerDbtSources) {
+                        peerFlagReads += 1;
+                        return {
+                            id: featureFlagId,
+                            enabled: peerFlagReads === 1 ? enabled : !enabled,
+                        };
+                    }
+                    return {
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    };
+                },
+            );
+            const observed: boolean[] = [];
+            const sources = (
+                configured as unknown as {
+                    projectDbtSourcesModel: {
+                        getSources: () => Promise<ProjectDbtSource[]>;
+                    };
+                }
+            ).projectDbtSourcesModel;
+            sources.getSources = vi.fn(async () => {
+                observed.push(getPeerDbtSourcesEnabled());
+                return [buildSource('source-b')];
+            });
+            await configured[method](
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            );
+            expect(peerFlagReads).toBe(1);
+            expect(observed.length).toBeGreaterThan(0);
+            expect(observed.every((value) => value === enabled)).toBe(true);
+            expect(
+                vi
+                    .mocked(configured.featureFlagModel.get)
+                    .mock.calls.filter(
+                        ([args]) =>
+                            args.featureFlagId === FeatureFlags.PeerDbtSources,
+                    ),
+            ).toEqual([
+                [
+                    {
+                        user: {
+                            organizationUuid: projectSummary.organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.PeerDbtSources,
+                    },
+                ],
+            ]);
+            expect(getPeerDbtSourcesEnabled()).toBe(false);
+        },
+    );
+
+    it('reuses the compile operation snapshot without another peer flag read', async () => {
+        const configured = buildCompilationBoundaryService();
+        await withPeerDbtSourcesOperation(false, () =>
+            configured.compileProject(
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            ),
+        );
+        expect(
+            vi
+                .mocked(configured.featureFlagModel.get)
+                .mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId === FeatureFlags.PeerDbtSources,
+                ),
+        ).toHaveLength(0);
+    });
+
+    it.each([
         { bound: true, scheduled: true },
         { bound: true, scheduled: false },
         { bound: false, scheduled: false },
@@ -16596,6 +16393,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 });
             }
             const deploy = new DeployService({
+                featureFlagModel: configured.featureFlagModel,
                 projectModel,
                 projectService: configured,
                 schedulerClient:
