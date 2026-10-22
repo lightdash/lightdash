@@ -3,13 +3,13 @@ import type { QueryPath } from './systemV2Template';
 // Query-path text the composer base renders in place of the classic query path.
 export const COMPOSER_QUERY_PATH = {
     internalToolExamples:
-        'grepFields, runComposerQueries, searchFieldValues, findContent, getKnowledgeDocumentContent',
+        'grepFields, query, searchFieldValues, findContent, getKnowledgeDocumentContent',
     dashboardRequestGuidance:
         '- For a dashboard request, plan a concise set of chart titles, build the dashboard with your dashboard tools, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.',
     discoveryOutcomes: `   - **Resolved**: an explore and a filtered list of fields ready to plug into a semanticLayer node.
    - **Ambiguous**: several plausible explores and no knowledge document that resolves the choice. Ask the user which one they mean, list the candidates and wait for their answer before querying.`,
     queryStep:
-        '3. **runComposerQueries** to answer it, as described in "Answering data questions" below.',
+        '3. **query** to answer it, as described in "Answering data questions" below.',
 } satisfies Omit<QueryPath, 'queryLanguageSections'>;
 
 export const getQueryingComposerSection = ({
@@ -29,7 +29,7 @@ export const getQueryingComposerSection = ({
                   '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node.',
               ]
             : []),
-        `- Build an answer that takes several queries, or a computation over their results, as one pipeline in one runComposerQueries call, whose terminal node is ${
+        `- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is ${
             slackChannelId
                 ? 'the table you can share'
                 : 'the result you present'

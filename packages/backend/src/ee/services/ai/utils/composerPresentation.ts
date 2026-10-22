@@ -1,8 +1,8 @@
 import {
     assertUnreachable,
     buildComposerArtifactPipeline,
+    isComposerQueryToolName,
     parseToolComposerQueriesSuccessMetadata,
-    runComposerQueriesToolDefinition,
     toComposerArtifactVersion,
     type AiComposerArtifactVersion,
     type ThreadComposerQueryNode,
@@ -55,7 +55,7 @@ const thisPromptComposerResults = (
     toolResults.flatMap((result) => {
         if (
             result.promptUuid !== promptUuid ||
-            result.toolName !== runComposerQueriesToolDefinition.name
+            !isComposerQueryToolName(result.toolName)
         ) {
             return [];
         }

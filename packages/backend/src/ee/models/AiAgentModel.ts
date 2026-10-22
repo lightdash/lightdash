@@ -69,6 +69,7 @@ import {
     ApiUpdateEvaluationRequest,
     assertUnreachable,
     ChartKind,
+    COMPOSER_QUERY_TOOL_NAMES,
     ContentType,
     CreateLlmAssessment,
     CreateSlackPrompt,
@@ -100,6 +101,7 @@ import {
     parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
+    QuerySourceType,
     servedSkillMetadataSchema,
     SlackPrompt,
     ToolName,
@@ -289,6 +291,14 @@ import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
+
+// Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
+const sqlApprovalToolCallSql = (alias: string): string =>
+    `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
+        (name) => `'${name}'`,
+    ).join(', ')}) AND ${alias}.tool_args @> '${JSON.stringify({
+        queries: [{ sourceType: QuerySourceType.SQL }],
+    })}'::jsonb))`;
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -3608,7 +3618,7 @@ export class AiAgentModel {
                     LEFT JOIN ${AiSqlApprovalTableName} as sql_approval
                         ON sql_approval.tool_call_id = tool_call.tool_call_id
                     WHERE tool_call.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
-                        AND tool_call.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tool_call')}
                     ORDER BY tool_call.created_at DESC
                 ) as run_sql_tool_calls ON true`,
             )
@@ -11681,7 +11691,7 @@ export class AiAgentModel {
      * Shared predicate for retention sweeps: the effective window (LEAST of
      * agent/org values — nulls ignored, so agentless threads inherit the org
      * value) must have elapsed since the last activity, and nothing may be
-     * in flight: an unanswered prompt under 24h old, a runSql call awaiting
+     * in flight: an unanswered prompt under 24h old, a SQL call awaiting
      * human approval at any age, or a non-terminal deep research/writeback
      * run (their stale-run sweepers guarantee eventual termination).
      */
@@ -11729,7 +11739,7 @@ export class AiAgentModel {
                         ON ap.tool_call_id = tc.tool_call_id
                     WHERE p.ai_thread_uuid = t.ai_thread_uuid
                         AND t.sql_auto_approved_at IS NULL
-                        AND tc.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tc')}
                         AND tr.ai_agent_tool_result_uuid IS NULL
                         AND ap.tool_call_id IS NULL
                 )

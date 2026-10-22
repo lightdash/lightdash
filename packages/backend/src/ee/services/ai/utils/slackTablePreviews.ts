@@ -2,6 +2,7 @@ import {
     buildComposerArtifactPipeline,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isComposerQueryToolName,
     parseToolComposerQueriesSuccessMetadata,
     QuerySourceType,
     type AiAgentToolResult,
@@ -152,13 +153,14 @@ export const getSlackTablePreviews = async ({
             ![
                 'runQuery',
                 'generateVisualization',
+                'query',
                 'runComposerQueries',
             ].includes(call.tool_name)
         ) {
             return [];
         }
         const toolMetadata = resultsByCall.get(call.tool_call_id)?.metadata;
-        if (call.tool_name === 'runComposerQueries') {
+        if (isComposerQueryToolName(call.tool_name)) {
             const composer =
                 parseToolComposerQueriesSuccessMetadata(toolMetadata);
             if (!composer) return [];

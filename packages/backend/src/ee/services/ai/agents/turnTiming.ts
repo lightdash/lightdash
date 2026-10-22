@@ -37,6 +37,7 @@ const QUERY_TOOLS = new Set([
     'runSavedChart',
     'runContentQuery',
     'runSql',
+    'query',
     'runComposerQueries',
 ]);
 

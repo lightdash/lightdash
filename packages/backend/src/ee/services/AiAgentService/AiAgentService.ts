@@ -139,6 +139,7 @@ import {
     isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isComposerQueryToolName,
     isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
@@ -170,7 +171,6 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
-    runComposerQueriesToolDefinition,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -4988,6 +4988,7 @@ export class AiAgentService extends BaseService {
         const ability = this.createAuditedAbility(user);
         switch (toolName) {
             case 'runSql':
+            case 'query':
             case 'runComposerQueries':
             case 'runContentQuery':
                 if (
@@ -12181,7 +12182,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             table.tableUuid,
                         ]),
                     );
-                    return `- External source "${item.displayName}" (sourceUuid: ${item.sourceUuid}) exposes ${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${tables}. Query any subset with runComposerQueries using an \`external\` node and the corresponding entries from \`tables: ${JSON.stringify(tableMap)}\`. One external node may read multiple tables from this source; use a downstream \`duckdb\` node to join its result with semantic-layer, warehouse, or other external-source results.`;
+                    return `- External source "${item.displayName}" (sourceUuid: ${item.sourceUuid}) exposes ${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${tables}. Query any subset with the \`query\` tool using an \`external\` node and the corresponding entries from \`tables: ${JSON.stringify(tableMap)}\`. One external node may read multiple tables from this source; use a downstream \`duckdb\` node to join its result with semantic-layer, warehouse, or other external-source results.`;
                 }
                 case 'pull_request': {
                     const number = item.prNumber ? ` #${item.prNumber}` : '';
@@ -18151,8 +18152,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackPrompt: Pick<SlackPrompt, 'promptUuid' | 'threadUuid'>,
         toolCalls: { tool_name: string }[],
     ): Promise<ThreadComposerQueryNode[]> {
-        const hasComposerCall = toolCalls.some(
-            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
+        const hasComposerCall = toolCalls.some((call) =>
+            isComposerQueryToolName(call.tool_name),
         );
         if (!hasComposerCall) return [];
         try {
@@ -19229,6 +19230,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 case 'generateDashboard':
                     return 'Preparing the answer...';
                 case 'runSql':
+                case 'query':
                 case 'runComposerQueries':
                 case 'runContentQuery':
                 case 'runSavedChart':

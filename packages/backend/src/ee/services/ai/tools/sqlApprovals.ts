@@ -25,6 +25,7 @@ type SqlApprovalDecidedProperties =
 // Tools whose Slack runs suspend on the AI SDK's native approval.
 export const NATIVE_SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
+    'query',
     'runComposerQueries',
     'runContentQuery',
     'createContent',
@@ -60,6 +61,7 @@ export const getRejectedOutput = (
                 result: RUN_SQL_REJECTED_RESULT,
                 metadata: { status: 'rejected' },
             };
+        case 'query':
         case 'runComposerQueries':
             return {
                 result: COMPOSER_SQL_REJECTED_RESULT,
@@ -87,6 +89,7 @@ export const getSqlApprovalHeading = (
 ): string => {
     switch (toolName) {
         case 'runSql':
+        case 'query':
         case 'runComposerQueries':
         case 'runContentQuery':
             return 'Awaiting approval to run SQL';

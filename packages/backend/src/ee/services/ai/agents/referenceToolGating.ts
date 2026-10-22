@@ -24,7 +24,7 @@ const REFERENCE_TOOLS = new Set([
 const DATA_ANSWER_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'runQuery',
-    'runComposerQueries',
+    'query',
     'runSavedChart',
     'searchFieldValues',
 ]);
@@ -32,7 +32,7 @@ const DATA_ANSWER_TOOLS = new Set([
 const CHART_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'generateVisualization',
-    'runComposerQueries',
+    'query',
     'exportChartAsCode',
     'findCustomChartTypes',
     'getDashboardCharts',
@@ -67,7 +67,7 @@ const DOCUMENT_WRITE_TOOLS = new Set([
     'runContentQuery',
     'runSavedChart',
     'runQuery',
-    'runComposerQueries',
+    'query',
     'searchFieldValues',
     'exportChartAsCode',
     'getDashboardCharts',

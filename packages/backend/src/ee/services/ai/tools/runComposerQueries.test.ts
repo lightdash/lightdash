@@ -548,7 +548,7 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
             toolCallId: 'tool-call-1',
-            toolName: 'runComposerQueries',
+            toolName: 'query',
             decidedByUserUuid: 'user-uuid',
             source: 'auto_approve',
         });
@@ -647,7 +647,7 @@ describe('getRunComposerQueries', () => {
             dependencies.trackSqlApprovalTimeout,
         ).toHaveBeenCalledExactlyOnceWith({
             toolCallId: 'tool-call-1',
-            toolName: 'runComposerQueries',
+            toolName: 'query',
             promptedUserUuid: 'user-uuid',
             source: 'web',
         });
@@ -700,7 +700,7 @@ describe('getRunComposerQueries', () => {
             expect(dependencies.storeToolResults).toHaveBeenCalledWith([
                 expect.objectContaining({
                     toolCallId: 'tool-call-1',
-                    toolName: 'runComposerQueries',
+                    toolName: 'query',
                     result: output.result,
                 }),
             ]);
@@ -778,19 +778,19 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Running query "revenue"...',
-            'runComposerQueries',
+            'query',
             'tool-call-1:revenue',
             'in_progress',
         );
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Query "revenue" complete',
-            'runComposerQueries',
+            'query',
             'tool-call-1:revenue',
             'complete',
         );
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Query "joined" failed: column not found',
-            'runComposerQueries',
+            'query',
             'tool-call-1:joined',
             'error',
         );

@@ -17,6 +17,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
     'runContentQuery',
     'runSavedChart',
     'runSql',
+    'query',
     'runComposerQueries',
 ]);
 

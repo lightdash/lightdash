@@ -183,7 +183,7 @@ export const getSystemPromptV2 = (
         // Org Slack setting: the answer may not carry query results into Slack.
         slackLinksOnly?: boolean;
         canRunSql?: boolean;
-        // Python nodes in runComposerQueries; only meaningful for the composer base.
+        // Python nodes in query; only meaningful for the composer base.
         enableComposerPythonNodes?: boolean;
         unauthenticatedMcpServerNames?: string[];
         mcpServers?: Array<{ name: string; toolNames: string[] }>;
@@ -302,7 +302,7 @@ export const getSystemPromptV2 = (
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
             ? `No explores are available to this agent yet, but you have direct warehouse access: rather than telling the user there is no data, discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
-                  composer ? 'runComposerQueries using a sql node' : 'runSql'
+                  composer ? 'query using a sql node' : 'runSql'
               }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (

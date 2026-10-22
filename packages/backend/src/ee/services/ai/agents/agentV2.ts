@@ -718,6 +718,7 @@ const withPreGrepCandidates = (
 const QUERY_TOOL_NAMES = new Set([
     'runQuery',
     'generateVisualization',
+    'query',
     'runComposerQueries',
     'runMetricQuery',
     'runSavedChart',
@@ -849,7 +850,7 @@ const prepareCandidateSeed = async (
     );
     let carriedFieldContext: string | null = null;
     if (args.chartMutationContext) {
-        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${loadout.toolNames.has('runComposerQueries') ? 'runComposerQueries' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${loadout.toolNames.has('query') ? 'query' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
     } else if (carriedFields.length > 0) {
         carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
     }
@@ -2184,7 +2185,7 @@ export const getAgentTools = (
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
             }),
-        runComposerQueries: () =>
+        query: () =>
             getRunComposerQueries({
                 agentContext,
                 reviewQuery,

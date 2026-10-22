@@ -96,6 +96,7 @@ export const DISTILL_TOOL_POLICIES = {
     runSavedChart: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runContentQuery: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
+    query: { result: shape() },
     runComposerQueries: { result: shape() },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     exportChartAsCode: { result: omitResult('derived chart configuration') },

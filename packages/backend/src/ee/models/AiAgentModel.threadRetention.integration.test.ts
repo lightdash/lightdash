@@ -112,13 +112,18 @@ describe('AiAgentModel thread retention integration', () => {
         return prompt.ai_prompt_uuid;
     };
 
-    const addRunSqlToolCall = async (promptUuid: string) => {
+    const addRunSqlToolCall = async (
+        promptUuid: string,
+        toolCall: { tool_name: string; tool_args: object } = {
+            tool_name: 'runSql',
+            tool_args: { sql: 'SELECT 1' },
+        },
+    ) => {
         const toolCallId = `retention-test-tool-call-${Date.now()}-${Math.random()}`;
         await database(AiAgentToolCallTableName).insert({
             ai_prompt_uuid: promptUuid,
             tool_call_id: toolCallId,
-            tool_name: 'runSql',
-            tool_args: { sql: 'SELECT 1' },
+            ...toolCall,
             ai_mcp_server_uuid: null,
             parent_tool_call_id: null,
         });
@@ -329,6 +334,43 @@ describe('AiAgentModel thread retention integration', () => {
             .first();
         expect(orphanedApproval).toBeUndefined();
     });
+
+    it.each(['query', 'runComposerQueries'])(
+        'keeps a thread whose %s call waits on approval for a sql node',
+        async (toolName) => {
+            const agentUuid = await createAgent(1);
+            const composerCall = (sourceType: string) => ({
+                tool_name: toolName,
+                tool_args: {
+                    queries: [{ nodeId: 'n', sourceType, sql: 'SELECT 1' }],
+                },
+            });
+            const sqlThread = await createThread(agentUuid, 30);
+            await addRunSqlToolCall(
+                await addPrompt(sqlThread, {
+                    responded: false,
+                    createdHoursAgo: 30,
+                }),
+                composerCall('sql'),
+            );
+            const duckdbThread = await createThread(agentUuid, 30);
+            await addRunSqlToolCall(
+                await addPrompt(duckdbThread, {
+                    responded: false,
+                    createdHoursAgo: 30,
+                }),
+                composerCall('duckdb'),
+            );
+
+            const result = await model.deleteExpiredThreads(
+                SEED_ORG_1.organization_uuid,
+                100,
+            );
+
+            expect(result.deletedThreadUuids).not.toContain(sqlThread);
+            expect(result.deletedThreadUuids).toContain(duckdbThread);
+        },
+    );
 
     it('keeps a thread with a deep research run in a non-terminal state', async () => {
         const agentUuid = await createAgent(1);

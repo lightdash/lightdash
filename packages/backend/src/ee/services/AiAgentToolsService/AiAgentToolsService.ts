@@ -393,7 +393,7 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     runSavedChartQuery: 'runSavedChart',
     runSqlChartQuery: 'runSql',
     runSqlJob: 'runSql',
-    runComposerQueries: 'runComposerQueries',
+    runComposerQueries: 'query',
     listWarehouseTables: 'listWarehouseTables',
     describeWarehouseTable: 'describeWarehouseTable',
     listContent: 'listContent',

@@ -44,7 +44,7 @@ const RUN_SQL_WORDS: SqlWords = {
 
 // Composer runs raw SQL as `sql` nodes; the node schema states their limits.
 const COMPOSER_SQL_WORDS: SqlWords = {
-    heading: '**Raw SQL (runComposerQueries `sql` nodes):**',
+    heading: '**Raw SQL (query `sql` nodes):**',
     preferSemanticLayer:
         'Use semanticLayer nodes when an explore covers the question: they are governed and reusable.',
     semanticQuery: 'a semanticLayer node',
