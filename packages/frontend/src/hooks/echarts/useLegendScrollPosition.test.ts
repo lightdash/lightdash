@@ -1,45 +1,45 @@
 import { renderHook } from '@testing-library/react';
-import type EChartsReact from 'echarts-for-react';
-import type { RefObject } from 'react';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { useLegendScrollPosition } from './useLegendScrollPosition';
 
-const makeChartRef = () => {
-    const instance = {
-        dispatchAction: vi.fn(),
-        isDisposed: () => false,
-    };
-    const chartRef = {
-        current: { getEchartsInstance: () => instance },
-    } as unknown as RefObject<EChartsReact | null>;
-    return { chartRef, instance };
-};
-
 describe('useLegendScrollPosition', () => {
-    test('does nothing until the legend has been scrolled', () => {
-        const { chartRef, instance } = makeChartRef();
-        const { rerender } = renderHook(
-            ({ option }) => useLegendScrollPosition(chartRef, option),
-            { initialProps: { option: {} } },
+    test('returns the option unchanged until the legend has been scrolled', () => {
+        const option = { legend: { type: 'scroll' } };
+        const { result, rerender } = renderHook(
+            ({ value }) => useLegendScrollPosition(value),
+            { initialProps: { value: option } },
         );
-        rerender({ option: {} });
+        expect(result.current.optionWithScrollPosition).toBe(option);
 
-        expect(instance.dispatchAction).not.toHaveBeenCalled();
+        const nextOption = { legend: { type: 'scroll' } };
+        rerender({ value: nextOption });
+        expect(result.current.optionWithScrollPosition).toBe(nextOption);
     });
 
-    test('restores the scroll position after the option changes', () => {
-        const { chartRef, instance } = makeChartRef();
+    test('builds the next option at the scrolled legend page', () => {
         const { result, rerender } = renderHook(
-            ({ option }) => useLegendScrollPosition(chartRef, option),
-            { initialProps: { option: {} } },
+            ({ value }) => useLegendScrollPosition(value),
+            { initialProps: { value: { legend: { type: 'scroll' } } } },
         );
 
         result.current.onLegendScroll({ scrollDataIndex: 12 });
-        rerender({ option: {} });
+        rerender({ value: { legend: { type: 'scroll' } } });
 
-        expect(instance.dispatchAction).toHaveBeenCalledWith({
-            type: 'legendScroll',
-            scrollDataIndex: 12,
+        expect(result.current.optionWithScrollPosition).toEqual({
+            legend: { type: 'scroll', scrollDataIndex: 12 },
         });
+    });
+
+    test('leaves an option without a legend unchanged', () => {
+        const { result, rerender } = renderHook(
+            ({ value }) => useLegendScrollPosition<{ legend?: object }>(value),
+            { initialProps: { value: {} } },
+        );
+
+        result.current.onLegendScroll({ scrollDataIndex: 3 });
+        const nextOption = {};
+        rerender({ value: nextOption });
+
+        expect(result.current.optionWithScrollPosition).toBe(nextOption);
     });
 });

@@ -1,15 +1,13 @@
-import type EChartsReact from 'echarts-for-react';
-import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 type LegendScrollEvent = {
     scrollDataIndex: number;
 };
 
 /** setOption(notMerge) rebuilds the legend model, resetting a scroll legend to
- * its first page. Track the scroll position and restore it after each update. */
-export const useLegendScrollPosition = (
-    chartRef: RefObject<EChartsReact | null>,
-    option: unknown,
+ * its first page. Track the scroll position and build each new option at it. */
+export const useLegendScrollPosition = <T extends { legend?: object }>(
+    option: T | undefined,
 ) => {
     const scrollDataIndexRef = useRef(0);
 
@@ -17,14 +15,13 @@ export const useLegendScrollPosition = (
         scrollDataIndexRef.current = params.scrollDataIndex;
     }, []);
 
-    // Runs after echarts-for-react's componentDidUpdate has applied the option
-    useLayoutEffect(() => {
+    // Read when the option changes, so the new legend renders at the current
+    // page instead of animating there from the first one
+    const optionWithScrollPosition = useMemo(() => {
         const scrollDataIndex = scrollDataIndexRef.current;
-        if (scrollDataIndex === 0) return;
-        const instance = chartRef.current?.getEchartsInstance();
-        if (!instance || instance.isDisposed()) return;
-        instance.dispatchAction({ type: 'legendScroll', scrollDataIndex });
-    }, [chartRef, option]);
+        if (!option?.legend || scrollDataIndex === 0) return option;
+        return { ...option, legend: { ...option.legend, scrollDataIndex } };
+    }, [option]);
 
-    return { onLegendScroll };
+    return { optionWithScrollPosition, onLegendScroll };
 };

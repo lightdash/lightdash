@@ -410,10 +410,8 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             return resolveCssVariablesInOptions(eChartsOptions);
         }, [eChartsOptions, opts.renderer]);
 
-        const { onLegendScroll } = useLegendScrollPosition(
-            chartRef,
-            resolvedEChartsOptions,
-        );
+        const { optionWithScrollPosition, onLegendScroll } =
+            useLegendScrollPosition(resolvedEChartsOptions);
 
         // Keep native axis/legend tooltips and local emphasis. Narrow segment tips
         // before paint. A short grace period bridges gaps without rebuilding options.
@@ -557,7 +555,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 lazyUpdate={props.isInDashboard}
                 {...props}
                 ref={chartRef}
-                option={resolvedEChartsOptions ?? eChartsOptions}
+                option={optionWithScrollPosition ?? eChartsOptions}
                 notMerge
                 opts={opts}
                 onEvents={onEvents}

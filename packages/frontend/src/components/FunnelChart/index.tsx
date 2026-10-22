@@ -66,10 +66,8 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
-        const { onLegendScroll } = useLegendScrollPosition(
-            chartRef,
-            funnelChartOptions,
-        );
+        const { optionWithScrollPosition, onLegendScroll } =
+            useLegendScrollPosition(funnelChartOptions);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,
@@ -177,7 +175,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                               }
                     }
                     opts={EchartOptions}
-                    option={funnelChartOptions}
+                    option={optionWithScrollPosition ?? funnelChartOptions}
                     notMerge
                     {...props}
                     onEvents={onEvents}
