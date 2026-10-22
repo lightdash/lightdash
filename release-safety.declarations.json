@@ -132,11 +132,11 @@
             "requiredStop": false
         },
         "ai-credits-daily-usage-breakdown-removed": {
-            "reason": "GET /api/v1/org/ai-credits/usage/daily no longer accepts the breakdown query parameter and always returns billable credits per day by feature; each series is { feature, credits } instead of the former typed value/other/deleted/embeddedViewers/unattributed shapes. The endpoint is org-admin only behind the ai-credits feature flag, which is off by default on Cloud and on self-hosted. During a rolling update an old AI Credits settings tab still sending breakdown=user gets a validation error on that chart until refresh, which is safe because it is an admin reporting view.",
+            "reason": "GET /api/v1/org/ai-credits/usage/daily no longer accepts the breakdown query parameter, no longer returns the breakdown property, and always returns billable credits per day by feature; each series is { feature, credits } instead of the former typed value/other/deleted/embeddedViewers/unattributed shapes. The endpoint is org-admin only and answers only for organizations with an AI credit contract. During a rolling update an old AI Credits settings tab that still sends breakdown=user gets a validation error on its usage chart until refresh, and an old tab that sends breakdown=feature renders the same by-feature chart from the new response; the summary card above it keeps working either way. This is safe because it is an admin reporting view with no writes.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",
-                "featureFlag": "ai-credits",
+                "firstPartyOnly": "The AI Credits organization settings page is the only client of this operation. During a rolling update an old tab on that page shows an error on its daily usage chart until refresh when it asked for a break-down other than feature, and nothing else on the page is affected.",
                 "covers": {
                     "rest": [
                         "GET /api/v1/org/ai-credits/usage/daily"

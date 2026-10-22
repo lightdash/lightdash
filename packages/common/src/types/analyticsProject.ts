@@ -17,4 +17,5 @@ export type EnsureAnalyticsProjectResult = {
 };
 
 /** Slug of the managed AI usage dashboard installed in every analytics project. */
-export const ANALYTICS_AI_USAGE_DASHBOARD_SLUG = 'lightdash-analytics-ai-tokens';
+export const ANALYTICS_AI_USAGE_DASHBOARD_SLUG =
+    'lightdash-analytics-ai-tokens';
