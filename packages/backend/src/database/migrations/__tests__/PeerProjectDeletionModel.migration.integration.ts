@@ -148,10 +148,12 @@ const createSource = async (
     return source.project_dbt_source_uuid;
 };
 
-const projectRow = async (projectUuid: string) => {
-    const row = await database<ProjectFixture>('projects')
+const findProjectRow = (projectUuid: string) =>
+    database<ProjectFixture>('projects')
         .where('project_uuid', projectUuid)
         .first();
+const projectRow = async (projectUuid: string) => {
+    const row = await findProjectRow(projectUuid);
     if (!row) throw new Error('Missing synthetic project');
     return row;
 };
@@ -331,8 +333,8 @@ describe('PeerProjectDeletionModel on the migrated schema', () => {
                 transactionSpy.mockRestore();
             }
         });
-        expect(await projectRow(owner)).toBeUndefined();
-        expect(await projectRow(previewA)).toBeUndefined();
+        expect(await findProjectRow(owner)).toBeUndefined();
+        expect(await findProjectRow(previewA)).toBeUndefined();
         expect(await repositoryRow(repository)).toMatchObject({
             is_shared: false,
             credential_project_uuid: null,
@@ -359,7 +361,7 @@ describe('PeerProjectDeletionModel on the migrated schema', () => {
         await deletion.withFinalDeletion(owner, (trx) =>
             finalDelete(owner, trx),
         );
-        expect(await projectRow(owner)).toBeUndefined();
+        expect(await findProjectRow(owner)).toBeUndefined();
         expect(await repositoryRow(repository)).toMatchObject({
             is_shared: false,
         });
@@ -510,7 +512,7 @@ describe('PeerProjectDeletionModel on the migrated schema', () => {
                 );
             })();
             await within(operation);
-            expect(await projectRow(previewA)).toBeUndefined();
+            expect(await findProjectRow(previewA)).toBeUndefined();
         } finally {
             await blocker.rollback();
             await operation;
@@ -565,8 +567,8 @@ describe('PeerProjectDeletionModel on the migrated schema', () => {
             await Promise.allSettled(pendingDeletes);
         }
         await operations;
-        expect(await projectRow(previewA)).toBeUndefined();
-        expect(await projectRow(previewB)).toBeUndefined();
+        expect(await findProjectRow(previewA)).toBeUndefined();
+        expect(await findProjectRow(previewB)).toBeUndefined();
         expect(await repositoryRow(repository)).toMatchObject({
             is_shared: true,
         });
