@@ -1077,3 +1077,41 @@ describe('warehouse OAuth refresh lock default-on kill switch', () => {
         ).toBe(false);
     });
 });
+
+describe('ai decisions default-on org switch', () => {
+    test.each([undefined, true, false])(
+        'honours Console override %s',
+        async (enabled) => {
+            const model = buildModel(
+                { previewFeatureFlags: { enabled: false } },
+                buildFakeDatabase({
+                    flag: { default_enabled: null },
+                    orgOverride:
+                        enabled === undefined ? undefined : { enabled },
+                }),
+            );
+            expect(
+                (
+                    await model.get({
+                        user: { organizationUuid: dbUser.organizationUuid },
+                        featureFlagId: FeatureFlags.AiDecisions,
+                    })
+                ).enabled,
+            ).toBe(enabled ?? true);
+        },
+    );
+    test('honours a stored instance default of off', async () => {
+        const model = buildModel(
+            { previewFeatureFlags: { enabled: false } },
+            buildFakeDatabase({ flag: { default_enabled: false } }),
+        );
+        expect(
+            (
+                await model.get({
+                    user: { organizationUuid: dbUser.organizationUuid },
+                    featureFlagId: FeatureFlags.AiDecisions,
+                })
+            ).enabled,
+        ).toBe(false);
+    });
+});

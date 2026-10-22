@@ -42,7 +42,7 @@ const buildService = (promptState: {
     const service = new AiAgentService({
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         orgAiCopilotConfigResolver: {
-            isOrgOnOwnProviderKeys: async () => true,
+            getDecisionClient: async () => undefined,
         },
         lightdashConfig: {
             ai: { copilot: { embeddingEnabled: false } },

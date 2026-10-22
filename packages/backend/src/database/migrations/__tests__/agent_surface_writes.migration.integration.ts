@@ -465,7 +465,7 @@ describe('trusted surface to persisted chart identity', () => {
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
-                isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+                getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 getCopilotConfig: vi
                     .fn()
                     .mockResolvedValue({ defaultProvider: 'openai' }),

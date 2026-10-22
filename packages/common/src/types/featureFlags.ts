@@ -392,8 +392,15 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /** @deprecated No longer read; the deployment decision key is the only switch. */
+    /** @deprecated No longer read; replaced by AiDecisions. */
     AiAgentFastDecisions = 'ai-agent-fast-decisions',
+    /**
+     * Organization-scoped: whether the instance decision provider (Jev) may
+     * run for an organization. On by default wherever a decision key is set,
+     * so a deployment can store a default of off and opt organizations back
+     * in through Console. Never turns decisions on without a key.
+     */
+    AiDecisions = 'ai-decisions',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source

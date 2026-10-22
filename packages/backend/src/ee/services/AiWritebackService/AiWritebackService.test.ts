@@ -50,7 +50,10 @@ import {
     agentActionTestCases,
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
-import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import {
+    AiDecisionClient,
+    resolveAiDecisionClient,
+} from '../ai/decisions/AiDecisionClient';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
@@ -181,7 +184,11 @@ const buildService = (overrides: Record<string, AnyType> = {}) => {
         analytics: { track: vi.fn() } as AnyType,
         orgAiCopilotConfigResolver: {
             isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
-            isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+            getDecisionClient: vi.fn(async () =>
+                resolveAiDecisionClient(
+                    otherOverrides.lightdashConfig?.ai?.decisions,
+                ),
+            ),
         } as AnyType,
         projectModel: {
             get: vi.fn(),

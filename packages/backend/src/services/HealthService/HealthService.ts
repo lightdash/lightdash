@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -75,6 +76,19 @@ export class HealthService extends BaseService {
 
     private isEnterpriseEnabled(): boolean {
         return this.lightdashConfig.license.licenseKey !== undefined;
+    }
+
+    // Instance key first; the org flag can only switch decisions off for a caller's org.
+    private async isAiDecisionsEnabled(
+        user: SessionUser | undefined,
+    ): Promise<boolean> {
+        if (!this.lightdashConfig.ai.decisions.apiKey) return false;
+        if (!user?.organizationUuid) return true;
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid: user.organizationUuid },
+            featureFlagId: FeatureFlags.AiDecisions,
+        });
+        return enabled;
     }
 
     async getHealthState(
@@ -318,8 +332,7 @@ export class HealthService extends BaseService {
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
-                fastDecisionsEnabled:
-                    !!this.lightdashConfig.ai.decisions.apiKey,
+                fastDecisionsEnabled: await this.isAiDecisionsEnabled(user),
             },
             echarts6: {
                 enabled: false,

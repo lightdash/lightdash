@@ -1,5 +1,6 @@
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { MCP_PERMISSION_MESSAGE } from '../ai/utils/mcpErrors';
 import { AiAgentService } from './AiAgentService';
 
@@ -23,17 +24,15 @@ const setup = (
     vi.stubGlobal('fetch', request);
     const featureFlagService = { get: vi.fn().mockResolvedValue({ enabled }) };
     const postMessage = vi.fn().mockResolvedValue({ ok: true });
+    const decisions = {
+        apiKey: enabled ? `test-${error.message}` : null,
+        model: 'test',
+        timeoutMs: 100,
+    };
     const service = new AiAgentService({
         lightdashConfig: {
             ...lightdashConfigMock,
-            ai: {
-                ...lightdashConfigMock.ai,
-                decisions: {
-                    apiKey: enabled ? `test-${error.message}` : null,
-                    model: 'test',
-                    timeoutMs: 100,
-                },
-            },
+            ai: { ...lightdashConfigMock.ai, decisions },
         },
         featureFlagService,
         slackClient: { postMessage },
@@ -50,7 +49,7 @@ const setup = (
             }),
         },
         orgAiCopilotConfigResolver: {
-            isOrgOnOwnProviderKeys: async () => false,
+            getDecisionClient: async () => resolveAiDecisionClient(decisions),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     return { service, request, postMessage };
@@ -166,7 +165,7 @@ describe.each([false, true])(
                     createToolResults,
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgOnOwnProviderKeys: async () => false,
+                    getDecisionClient: async () => undefined,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 

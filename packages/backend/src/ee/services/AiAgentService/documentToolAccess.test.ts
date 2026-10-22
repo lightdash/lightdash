@@ -106,7 +106,7 @@ describe('Document runtime access', () => {
                     isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+                    getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 },
                 slackAuthenticationModel: {
                     getInstallationFromOrganizationUuid: vi

@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     MissingConfigError,
     type AiOrganizationSettings,
     type AiOrgModelVisibility,
@@ -394,6 +395,8 @@ const resolutionFor = (
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
         customProvidersEnabled?: boolean;
+        aiDecisionsEnabled?: boolean;
+        decisionKey?: string | null;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -422,15 +425,28 @@ describe('OrgAiCopilotConfigResolver', () => {
         accessibleModelIds = null,
         instanceConfig = baseConfig,
         customProvidersEnabled = true,
+        aiDecisionsEnabled = true,
+        decisionKey = null,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
-                ai: { copilot: instanceConfig },
+                ai: {
+                    copilot: instanceConfig,
+                    decisions: {
+                        apiKey: decisionKey,
+                        model: 'test',
+                        timeoutMs: 100,
+                    },
+                },
             } as LightdashConfig,
             featureFlagModel: {
-                get: vi
-                    .fn()
-                    .mockResolvedValue({ enabled: customProvidersEnabled }),
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.AiDecisions
+                            ? aiDecisionsEnabled
+                            : customProvidersEnabled,
+                })),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
@@ -987,6 +1003,45 @@ describe('OrgAiCopilotConfigResolver', () => {
                 availableModels: ['claude-sonnet-4-6'],
             }),
         ).toEqual(['claude-sonnet-4-6']);
+    });
+
+    describe('getDecisionClient', () => {
+        it('is undefined without an instance key', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('is undefined for an org on its own provider keys', async () => {
+            expect(
+                await makeResolver({ decisionKey: 'test' }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('is undefined when the org flag is off', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    decisionKey: 'test',
+                    aiDecisionsEnabled: false,
+                }).getDecisionClient('org-uuid', null),
+            ).toBeUndefined();
+        });
+
+        it('returns the client on instance keys with the flag on', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    decisionKey: 'test',
+                }).getDecisionClient('org-uuid', null),
+            ).toBeDefined();
+        });
     });
 
     describe('isOrgOnOwnProviderKeys', () => {

@@ -90,6 +90,8 @@ export class FeatureFlagModel {
             ) => this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.EgressIpNotice]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
+            [FeatureFlags.AiDecisions]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 

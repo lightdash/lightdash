@@ -24,6 +24,10 @@ import {
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
 import {
+    resolveAiDecisionClient,
+    type AiDecisionClient,
+} from './decisions/AiDecisionClient';
+import {
     getAvailableModels,
     getFastModelForAccessibleKey,
     getOrgModelCatalogue,
@@ -772,6 +776,30 @@ export class OrgAiCopilotConfigResolver {
             projectUuid,
         });
         return BYO_AI_PROVIDERS.some((provider) => orgKeys?.[provider]);
+    }
+
+    /**
+     * The instance decision client for an organization, or undefined when
+     * decisions must not run for it: no instance key, the org brings its own
+     * provider keys, or the AiDecisions flag is off for it. The one gate every
+     * decision call site goes through.
+     */
+    async getDecisionClient(
+        organizationUuid: string | null | undefined,
+        projectUuid: string | null,
+    ): Promise<AiDecisionClient | undefined> {
+        const client = resolveAiDecisionClient(
+            this.lightdashConfig.ai?.decisions,
+        );
+        if (!client) return undefined;
+        if (await this.isOrgOnOwnProviderKeys(organizationUuid, projectUuid)) {
+            return undefined;
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: organizationUuid ? { organizationUuid } : undefined,
+            featureFlagId: FeatureFlags.AiDecisions,
+        });
+        return enabled ? client : undefined;
     }
 
     /**
