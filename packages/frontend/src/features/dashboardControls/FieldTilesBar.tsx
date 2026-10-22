@@ -1,17 +1,17 @@
-import { Button, Divider, Group, Paper, Text } from '@mantine/core';
+import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
-import {
-    selectActiveTabUuid,
-    selectDashboardTiles,
-    useDashboardSelector,
-} from '../dashboard/store';
+import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
-import { getFilterFields } from './peers';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import { type FieldScope } from './peers';
 import {
+    useControlsSidebarSelector,
+    type FieldApply,
+} from './useControlsSidebar';
+import {
+    nameReplacedFields,
     useFieldTileActions,
     type FieldTiles,
     type TileScope,
@@ -68,25 +68,74 @@ const useBarHost = (
     return host;
 };
 
-const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
+// The tiles of a scope an apply would change
+const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
+
+// What "Apply to all" would do over a scope: the tiles it ends up on and what
+// it replaces, in the button's name, and that again in a tooltip when it
+// replaces another field. Null: nothing to change
+const getUseOnAll = (
+    fieldTiles: FieldTiles,
+    scope: FieldScope,
+    where: string,
+): { name: string; tooltip: string | null } | null => {
+    if (getChangeCount(scope) === 0) return null;
+    const replaced = nameReplacedFields(
+        scope.replacedFieldIds.map(fieldTiles.labelOf),
+    );
+    const name = `Apply ${fieldTiles.label} to all ${scope.possible} ${pluralizeTiles(scope.possible)}${where}`;
+    return scope.replaced > 0
+        ? {
+              name: `${name}, replacing ${replaced} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`,
+              tooltip: `Replaces ${replaced} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`,
+          }
+        : { name, tooltip: null };
+};
+
+// After the count: what the last apply replaced, or what the last clear took
+const getUndoNote = ({
+    kind,
+    tileCount,
+    replaced,
+    acrossTabs,
+}: FieldApply): string => {
+    const where = acrossTabs ? ' across tabs' : '';
+    if (kind === 'clear') return `, ${tileCount} cleared${where}`;
+    return replaced > 0 ? `, ${replaced} replaced${where}` : '';
+};
+
+const Bar: FC<{
+    fieldTiles: FieldTiles;
+    // The last "Apply to all" on this field, while Undo can take it back
+    undo: FieldApply | null;
+    onUndo: () => void;
+}> = ({ fieldTiles, undo, onUndo }) => {
     const {
         field,
         label,
         thisTabScope,
         everyTabScope,
-        otherTabsUnfiltered,
         canAct,
-        addToUnfiltered,
-        switchFromOthers,
+        applyToAll,
         clear,
     } = fieldTiles;
     // The tab in view, or every tile on a dashboard without tabs
     const hasTabs = thisTabScope !== null;
     const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
-    const { applied, possible, unfiltered, replaced } =
-        thisTabScope ?? everyTabScope;
-    // Ends the count and each `aria-label`
+    const { applied, possible } = thisTabScope ?? everyTabScope;
+    // Ends the count
     const scopeSuffix = hasTabs ? ' on this tab' : '';
+    const useOnScope = getUseOnAll(
+        fieldTiles,
+        thisTabScope ?? everyTabScope,
+        scopeSuffix,
+    );
+    // Only when it would change a tile on another tab
+    const useOnEveryTab =
+        thisTabScope !== null &&
+        getChangeCount(everyTabScope) > getChangeCount(thisTabScope)
+            ? getUseOnAll(fieldTiles, everyTabScope, ' on every tab')
+            : null;
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
     // A pressed button leaves once its action is done: focus stays on the bar
@@ -103,16 +152,6 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         wasPressedRef.current = true;
         action();
     };
-    // Beside a "Switch" button the count alone would be unclear
-    const mainLabel =
-        replaced > 0
-            ? `Filter ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}`
-            : applied > 0
-              ? `Filter the other ${unfiltered}`
-              : `Filter all ${unfiltered}`;
-    // Starts with the words on the button
-    const mainName = `${mainLabel}${replaced > 0 ? '' : ` ${pluralizeTiles(unfiltered)}`}${scopeSuffix} by ${label}`;
-    const switchLabel = `Switch ${replaced} ${pluralizeTiles(replaced)} to this field`;
 
     return (
         <Paper
@@ -143,31 +182,55 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         </Text>
                     ) : (
                         <Text fz="sm" aria-live="polite">
-                            {'on '}
                             <Text span fw={600} className={classes.count}>
                                 {`${applied} of ${possible}`}
                             </Text>
                             {` ${pluralizeTiles(possible)}${scopeSuffix}`}
+                            {undo !== null && getUndoNote(undo)}
                         </Text>
                     )}
-                    {unfiltered > 0 && (
-                        <Button
-                            size="xs"
-                            variant="filled"
-                            aria-label={mainName}
-                            onClick={press(() => addToUnfiltered(tileScope))}
+                    {useOnScope !== null && (
+                        <Tooltip
+                            label={useOnScope.tooltip}
+                            disabled={useOnScope.tooltip === null}
                         >
-                            {mainLabel}
-                        </Button>
+                            <Button
+                                size="xs"
+                                variant="light"
+                                aria-label={useOnScope.name}
+                                onClick={press(() => applyToAll(tileScope))}
+                            >
+                                Apply to all
+                            </Button>
+                        </Tooltip>
                     )}
-                    {replaced > 0 && (
+                    {useOnEveryTab !== null && (
+                        <Tooltip
+                            label={useOnEveryTab.tooltip}
+                            disabled={useOnEveryTab.tooltip === null}
+                        >
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                aria-label={useOnEveryTab.name}
+                                onClick={press(() => applyToAll('every-tab'))}
+                            >
+                                Apply to all tabs
+                            </Button>
+                        </Tooltip>
+                    )}
+                    {undo !== null && (
                         <Button
                             size="xs"
                             variant="subtle"
-                            aria-label={`${switchLabel} (${label})${scopeSuffix}`}
-                            onClick={press(() => switchFromOthers(tileScope))}
+                            aria-label={
+                                undo.kind === 'apply'
+                                    ? `Undo applying ${label} to ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`
+                                    : `Undo clearing ${label} from ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`
+                            }
+                            onClick={press(onUndo)}
                         >
-                            {switchLabel}
+                            Undo
                         </Button>
                     )}
                     {applied > 0 && (
@@ -188,19 +251,6 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         </Button>
                     )}
                 </Group>
-                {otherTabsUnfiltered > 0 && (
-                    <>
-                        <Divider orientation="vertical" />
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            aria-label={`Filter ${otherTabsUnfiltered} on other tabs by ${label}`}
-                            onClick={press(() => addToUnfiltered('other-tabs'))}
-                        >
-                            {`Filter ${otherTabsUnfiltered} on other tabs`}
-                        </Button>
-                    </>
-                )}
             </Group>
         </Paper>
     );
@@ -213,30 +263,25 @@ export const FieldTilesBar: FC = () => {
     const highlightedFieldId = useControlsSidebarSelector(
         (c) => c.highlightedFieldId,
     );
-    const waitingFieldIds = useControlsSidebarSelector(
-        (c) => c.waitingFieldIds,
-    );
+    const fieldUndo = useControlsSidebarSelector((c) => c.fieldUndo);
+    const undoApply = useControlsSidebarSelector((c) => c.undoApply);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
-    const fieldId =
-        editingRule !== null &&
-        highlightedFieldId !== null &&
-        (getFilterFields(editingRule, dashboardTiles).includes(
-            highlightedFieldId,
-        ) ||
-            waitingFieldIds.includes(highlightedFieldId))
-            ? highlightedFieldId
-            : null;
+    // The provider only names a field that still is one
+    const fieldId = editingRule === null ? null : highlightedFieldId;
     const isShown = fieldTileActions !== null && fieldId !== null;
     const host = useBarHost(activeTabUuid, isShown);
 
     if (fieldTileActions === null || fieldId === null || host === null)
         return null;
     return createPortal(
-        <Bar fieldTiles={fieldTileActions.forField(fieldId)} />,
+        <Bar
+            fieldTiles={fieldTileActions.forField(fieldId)}
+            undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
+            onUndo={undoApply}
+        />,
         host,
     );
 };

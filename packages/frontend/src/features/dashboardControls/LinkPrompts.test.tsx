@@ -134,7 +134,7 @@ const dismissLink = vi.fn();
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
-        isSidebarOpen: false,
+        isRailOpen: false,
         newTileUuids: [added.uuid],
         dismissedLinks: [],
         updateFilter,
@@ -485,8 +485,8 @@ describe('LinkPrompts', () => {
         expect(container(saved.uuid)).toBeEmptyDOMElement();
     });
 
-    it('renders nothing while the sidebar is open', () => {
-        setSidebar({ isSidebarOpen: true });
+    it('renders nothing while the rail is open, a filter edited or not', () => {
+        setSidebar({ isRailOpen: true });
         renderWithProviders(<LinkPrompts />);
 
         expect(container(added.uuid)).toBeEmptyDOMElement();

@@ -41,6 +41,10 @@ type Props = {
     /** Its field cannot be resolved, or the fields are not loaded yet. */
     isDisabled: boolean;
     onOpen: (filterId: string) => void;
+    /** The row's filter under the pointer or focus. */
+    onHover: (filterId: string) => void;
+    /** The pointer or focus left the row. */
+    onUnhover: (filterId: string) => void;
 };
 
 // A filter that is not being edited: its name and one line of what it does
@@ -51,6 +55,8 @@ export const FilterRow: FC<Props> = ({
     hasTabs,
     isDisabled,
     onOpen,
+    onHover,
+    onUnhover,
 }) => {
     const getUiString = useUiStrings();
     const sqlChartTilesMetadata = useDashboardSelector(
@@ -79,7 +85,17 @@ export const FilterRow: FC<Props> = ({
             align="flex-start"
             className={classes.row}
             disabled={isDisabled}
+            data-controls-row={rule.id}
+            aria-expanded={false}
             onClick={() => onOpen(rule.id)}
+            onMouseEnter={() => onHover(rule.id)}
+            onMouseLeave={() => onUnhover(rule.id)}
+            // Keyboard focus only: focus handed back after a click lights nothing
+            onFocus={(event) => {
+                if (event.currentTarget.matches(':focus-visible'))
+                    onHover(rule.id);
+            }}
+            onBlur={() => onUnhover(rule.id)}
         >
             <FilterTypeIcon field={field} />
             <Stack gap={0} miw={0}>

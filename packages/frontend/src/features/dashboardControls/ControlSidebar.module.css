@@ -65,6 +65,8 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* The last row's border sits under the footer's, so the two read as one */
+    margin-bottom: -1px;
 }
 
 /* Doubled so the border outranks the group button's reset */
@@ -98,11 +100,18 @@
 .edited {
     background-color: var(--mantine-color-ldGray-1);
     border-bottom: 1px solid var(--mantine-color-default-border);
+
+    /* Dimmed text on this fill is under 4.5:1 in light: one step darker */
+    @mixin light {
+        --mantine-color-dimmed: var(--mantine-color-ldGray-7);
+    }
 }
 
 .editedHead {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
         var(--mantine-spacing-md);
+    /* A click on it collapses the filter */
+    cursor: pointer;
 }
 
 .editedBody {

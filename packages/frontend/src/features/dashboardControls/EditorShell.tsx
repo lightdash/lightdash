@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -8,6 +9,7 @@ import {
     Text,
     Title,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
@@ -17,6 +19,8 @@ import classes from './ControlSidebar.module.css';
 import { useRailTop } from './useRailTop';
 
 type Props = {
+    /** The dashboard's filters, listed in the rail. */
+    filterCount: number;
     onClose: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
@@ -26,6 +30,7 @@ type Props = {
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar
 export const EditorShell: FC<Props> = ({
+    filterCount,
     onClose,
     onCancel,
     footerStatus,
@@ -43,7 +48,13 @@ export const EditorShell: FC<Props> = ({
                 py="xs"
                 className={classes.header}
             >
-                <Title order={5}>Filters</Title>
+                <Group gap="xs" wrap="nowrap">
+                    <Title order={5}>Filters</Title>
+                    <Badge size="sm">
+                        {filterCount}
+                        <VisuallyHidden> filters</VisuallyHidden>
+                    </Badge>
+                </Group>
                 <Tooltip label="Close">
                     <ActionIcon
                         variant="subtle"

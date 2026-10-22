@@ -12,6 +12,17 @@ import {
 /** The disclosure open under the edited filter's default value. */
 export type ControlsSidebarSection = 'tiles' | 'rules';
 
+// An "Apply to all" or a "Clear" that Undo can take back: its field, the
+// tiles it applied the field to or cleared it from, how many an apply took
+// off other fields, and whether it was over every tab of a dashboard with tabs
+export type FieldApply = {
+    kind: 'apply' | 'clear';
+    fieldId: string;
+    tileCount: number;
+    replaced: number;
+    acrossTabs: boolean;
+};
+
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
@@ -20,8 +31,18 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
-    /** False as soon as the edited filter is no longer in the dashboard. */
+    /**
+     * A filter is being edited: false as soon as the edited filter is no
+     * longer in the dashboard. The rail can be open without it.
+     */
     isSidebarOpen: boolean;
+    /** The rail is open, with a filter expanded in it or every filter a row. */
+    isRailOpen: boolean;
+    /** The rail row under the pointer or focus: its tiles are highlighted. */
+    hoveredFilterId: string | null;
+    setHoveredFilterId: (filterId: string | null) => void;
+    /** Clears the hover only while it is this filter's, so leaving one row keeps another's. */
+    clearHoveredFilterId: (filterId: string) => void;
     /** Null when both are closed, as they are each time a filter opens. */
     activeSection: ControlsSidebarSection | null;
     setActiveSection: (section: ControlsSidebarSection | null) => void;
@@ -72,23 +93,36 @@ export type ControlsSidebarContextValue = {
     removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /**
+     * `updateFilter` for an "Apply to all", which `undoApply` can take back
+     * when it changed the rule. A later write, another field clicked, another
+     * control or the editor closing ends it.
+     */
+    applyWithUndo: (next: DashboardFilterRule, apply: FieldApply) => void;
+    /** Puts the rule back as it was before the last apply, while it can. */
+    undoApply: () => void;
+    /** The last apply, while Undo can still take it back; else null. */
+    fieldUndo: FieldApply | null;
+    /**
      * Writes filters other than the edited one on the editor's behalf.
      * Discard and Remove put them back as they were when the control opened.
      */
     updateOtherFilters: (rules: DashboardFilterRule[]) => void;
-    /** Removes the edited filter and closes the sidebar. */
+    /** Removes the edited filter; the rail stays open on the other rows. */
     removeFilter: () => void;
     removeFilterById: (filterId: string) => void;
     /**
      * Puts the edited filter back as it was when it was opened, or removes it
      * when it was new, and undoes the editor's own writes to other filters.
+     * The rail stays open.
      */
     discard: () => void;
     /**
-     * Closes and keeps the edits; saving stays with the dashboard's own Save.
-     * A control with no field is discarded.
+     * Closes the rail and keeps the edits; saving stays with the dashboard's
+     * own Save. A control with no field is discarded.
      */
     close: () => void;
+    /** What `close` does to the edited filter, but the rail stays open. */
+    collapse: () => void;
     isDirty: boolean;
     /** Tiles added since the dashboard was last saved. */
     newTileUuids: string[];

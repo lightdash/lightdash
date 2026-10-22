@@ -12,6 +12,7 @@ import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
+import { useHoveredFilterRule } from './useHoveredFilterRule';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -20,9 +21,19 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
+    const editedRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isEditedPlaceholder = useControlsSidebarSelector(
+        (c) => c.isPlaceholder,
+    );
+    const editedActiveFieldId = useControlsSidebarSelector(
+        (c) => c.activeFieldId,
+    );
+    // A hovered rail row counts its own filter, as a whole, in blue
+    const hoveredRule = useHoveredFilterRule();
+    const isFilterHovered = hoveredRule !== null;
+    const editingRule = hoveredRule ?? editedRule;
+    const isPlaceholder = !isFilterHovered && isEditedPlaceholder;
+    const activeFieldId = isFilterHovered ? null : editedActiveFieldId;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
@@ -93,7 +104,7 @@ export const TabCounts: FC = () => {
                 if (!element || !count || count.total === 0) return null;
                 // Tabs the control, or the active field, reaches stand out
                 const isReached = count.applied > 0;
-                const isFieldActive = activeFieldId !== null;
+                const isFieldActive = activeFieldId !== null || isFilterHovered;
                 return createPortal(
                     <Tooltip
                         fz="xs"
