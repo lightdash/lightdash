@@ -1,5 +1,6 @@
 # MCP Tool Contract Notes
 
+- Before editing a tool description or MCP prompt text, read `docs/ai-agent/prompt-writing-principles.md`.
 - MCP tool names are snake_case.
 - Keep tool descriptions, input schemas, output schemas, and prompt text stable unless the MCP-facing contract is intentionally changing.
 - Run `pnpm -F backend test src/ee/services/McpService/mcpToolContracts.snapshot.test.ts` before and after shared tool-definition refactors.
