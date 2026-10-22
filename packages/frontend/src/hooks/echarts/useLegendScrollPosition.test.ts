@@ -15,7 +15,7 @@ const makeChartRef = () => {
     return { chartRef, instance };
 };
 
-type Option = { animation?: boolean; legend?: { animation?: boolean } };
+type Option = { animation?: boolean; legend?: object };
 
 const renderScrollHook = (initialOption: Option) => {
     const { chartRef, instance } = makeChartRef();
