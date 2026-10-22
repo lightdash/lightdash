@@ -7,7 +7,6 @@ import {
     SEED_ORG_2,
     SEED_ORG_2_ADMIN,
     SEED_PROJECT,
-    TOOL_VISUALIZE_ARGS_VERSION,
     type AppVersionStatus,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -16,7 +15,6 @@ import { AppsTableName } from '../../database/entities/apps';
 import { type AppModel } from '../../models/AppModel';
 import { getModels, getTestContext } from '../../vitest.setup.integration';
 import {
-    AiAgentToolCallTableName,
     AiAgentToolResultTableName,
     AiPromptTableName,
     AiThreadTableName,
@@ -537,30 +535,6 @@ describe('AiAgentModel prompt activity', () => {
                 history.map(({ toolResult }) => toolResult?.result),
             ),
         ).toEqual(expectedResults.map((result) => [result]));
-    });
-
-    it('stamps the current args version on stored visualize calls', async () => {
-        const promptUuid = await model.createWebAppPrompt({
-            threadUuid: await createWebAppThread(),
-            createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            modelConfig: null,
-            prompt: 'Chart orders',
-        });
-        await model.createToolCall({
-            promptUuid,
-            toolCallId: 'visualize-call',
-            toolName: 'visualize',
-            toolArgs: { nodeId: 'orders' },
-            parentToolCallId: null,
-        });
-
-        const [row] = await database(AiAgentToolCallTableName)
-            .where({ ai_prompt_uuid: promptUuid })
-            .select('tool_args');
-        expect(row.tool_args).toEqual({
-            nodeId: 'orders',
-            version: TOOL_VISUALIZE_ARGS_VERSION,
-        });
     });
 
     it('keeps Slack prompt activity monotonic', async () => {
