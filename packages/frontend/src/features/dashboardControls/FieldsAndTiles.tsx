@@ -309,7 +309,7 @@ export const FieldsAndTiles: FC = () => {
                         ref={addButtonRef}
                         variant="subtle"
                         color="gray"
-                        size="compact-xs"
+                        size="xs"
                         leftSection={<MantineIcon icon={IconPlus} size={14} />}
                         // The press puts the open search away (focus leaves
                         // it), so the click that follows must not reopen it

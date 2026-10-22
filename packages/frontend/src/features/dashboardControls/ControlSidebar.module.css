@@ -100,6 +100,11 @@
 .edited {
     background-color: var(--mantine-color-ldGray-1);
     border-bottom: 1px solid var(--mantine-color-default-border);
+
+    /* Dimmed text on this fill is under 4.5:1 in light: one step darker */
+    @mixin light {
+        --mantine-color-dimmed: var(--mantine-color-ldGray-7);
+    }
 }
 
 .editedHead {

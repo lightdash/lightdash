@@ -558,11 +558,15 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   field search when the control was emptied. `FieldsAndTiles` notes the
   pressed card in a ref and moves focus in a layout effect once the card is
   gone. No timer.
+- Inside the open filter (`.edited`, on `ldGray-1`) light mode reads
+  `--mantine-color-dimmed` as `ldGray-7`: the default dimmed is under 4.5:1
+  on that fill. Dark mode keeps the theme's.
 - A row (`FieldRow`) is one line: icon, name, the tiles it is on over every
   tab ("3 tiles") on the right, and a trash can. The count's tooltip reads
   "<table> · x of N tiles". A click anywhere on the row toggles the selection
-  (the name button's `::after` covers the row, `aria-pressed`). There is no
-  eye and no menu on it. Under the rows, "Add another field" (subtle) and the
+  (the name button's `::after` covers the row, `aria-pressed`; the button
+  itself is the row's full height). There is no eye and no menu on it.
+  Under the rows, "Add another field" (subtle, size `xs`, so 28px) and the
   hint "Change a tile's field on the tile itself."
 - The trash can ("Remove field", `aria-label` "Remove field <label>") sits
   above the click area. It is hidden with `visibility` until the row is
@@ -667,7 +671,12 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - Position: that element is `position: sticky; bottom`, `width:
     fit-content` and auto side margins, so it is centred in the dashboard
     content and stays at the bottom of the view while the page scrolls;
-    under the last tile row on a short dashboard. `z-index: 3`: above the
+    under the last tile row on a short dashboard. Its margins are `md` above
+    and below, so at the end of the page the last tile row and its cards
+    clear the bar. Below the `sm` breakpoint it floats above the page's
+    scroll-to-top button (`--controls-scroll-top-clearance`, from
+    `ScrollToTop`'s size and offset) and keeps that much margin below it.
+    `z-index: 3`: above the
     tile overlays (2), below the sticky tabs, menus and modals. It is not in
     `ControlsBar`: that would put it in the sticky filter bar.
   - "Remove field" and `isWaiting` are always whole-dashboard.

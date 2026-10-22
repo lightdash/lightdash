@@ -1,12 +1,27 @@
 /* Sticky after the grid, so it floats at the bottom and never moves a tile.
    Above the tile overlays (z-index 2), below the sticky tabs */
 .host {
+    /* The page's scroll-to-top button (`ScrollToTop`): 40px, 24px up */
+    --controls-scroll-top-clearance: calc(
+        24px + 40px + var(--mantine-spacing-xs)
+    );
+
     position: sticky;
     bottom: var(--mantine-spacing-md);
     z-index: 3;
     width: fit-content;
     max-width: calc(100% - 2 * var(--mantine-spacing-md));
-    margin: var(--mantine-spacing-xs) auto 0;
+    /* In the flow after the grid, with its sticky offset below it, so at
+       the end of the page the bar sits under the last tile row */
+    margin: var(--mantine-spacing-md) auto var(--mantine-spacing-md);
+}
+
+/* Narrow: the bar spans the button's corner, so it floats above it */
+@media (width < $mantine-breakpoint-sm) {
+    .host {
+        bottom: var(--controls-scroll-top-clearance);
+        margin-bottom: var(--controls-scroll-top-clearance);
+    }
 }
 
 .bar {

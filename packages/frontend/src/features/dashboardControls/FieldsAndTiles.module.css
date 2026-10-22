@@ -35,9 +35,13 @@
 }
 
 .rowMain {
-    display: block;
+    display: flex;
+    align-items: center;
     flex: 1;
+    align-self: stretch;
     min-width: 0;
+    /* The full height of the row, its padding included */
+    margin-block: calc(-1 * var(--mantine-spacing-xs) / 2);
     border-radius: var(--mantine-radius-sm);
 }
 
