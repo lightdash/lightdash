@@ -976,6 +976,7 @@ export const updateFile = async ({
     repo,
     fileName,
     content,
+    encoding,
     fileSha,
     branch,
     message,
@@ -986,6 +987,8 @@ export const updateFile = async ({
     repo: string;
     fileName: string;
     content: string;
+    /** `base64` when `content` is the file's bytes encoded, for a binary file; text otherwise. */
+    encoding?: 'base64';
     fileSha: string;
     branch: string;
     message: string;
@@ -1008,7 +1011,10 @@ export const updateFile = async ({
             repo,
             path: fileName,
             message,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             sha: fileSha,
             branch,
             headers,
@@ -1024,6 +1030,7 @@ export const createFile = async ({
     repo,
     fileName,
     content,
+    encoding,
     branch,
     message,
     installationId,
@@ -1033,6 +1040,7 @@ export const createFile = async ({
     repo: string;
     fileName: string;
     content: string;
+    encoding?: 'base64';
     branch: string;
     message: string;
     installationId?: string;
@@ -1052,7 +1060,10 @@ export const createFile = async ({
             repo,
             path: fileName,
             message,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             branch,
             headers,
         });

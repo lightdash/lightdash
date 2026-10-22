@@ -2133,6 +2133,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         content: string,
         sha?: string,
         message?: string,
+        encoding?: 'base64',
     ): Promise<{ sha: string; path: string }> {
         const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
@@ -2173,6 +2174,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 repo: creds.repo,
                 fileName: path,
                 content,
+                encoding,
                 fileSha: sha,
                 branch,
                 message: commitMessage,
@@ -2205,6 +2207,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             repo: creds.repo,
             fileName: path,
             content,
+            encoding,
             branch,
             message: commitMessage,
             installationId: creds.installationId,
