@@ -4,6 +4,8 @@ import {
     QueryHistoryStatus,
     QuerySourceType,
     type AiArtifact,
+    type AiComposerChartArtifactConfig,
+    type ComposerStoredChartVizConfig,
     type QueryHistory,
     type SessionUser,
     type SourceQuery,
@@ -100,14 +102,19 @@ const createNodeRuns = () => {
     return { pollForQueryCompletion, settle, timeOut };
 };
 
-const setup = ({ queries }: { queries: SourceQuery[] }) => {
-    const chartConfig = {
+const setup = ({
+    queries,
+    chartConfig = {
         source: 'composer',
         schemaVersion: 1,
         queries,
         terminalNodeId: 'orders_vs_target',
         vizConfig: null,
-    } as const;
+    },
+}: {
+    queries: SourceQuery[];
+    chartConfig?: AiComposerChartArtifactConfig;
+}) => {
     const artifact: AiArtifact = {
         artifactUuid: 'artifact-uuid',
         threadUuid: 'thread-uuid',
@@ -211,6 +218,7 @@ describe('AiAgentService composer artifact visualization query', () => {
                 orders_vs_target: 'run-orders_vs_target',
             },
             metadata: { title: 'Orders vs target', description: null },
+            chartStage: null,
         });
         expect(querySourceService.submitQueries).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -335,6 +343,107 @@ describe('AiAgentService composer artifact visualization query', () => {
                 orders: 'run-orders',
                 targets: 'run-targets',
                 orders_vs_target: 'run-orders_vs_target',
+            },
+        });
+    });
+});
+
+describe('AiAgentService composer v2 artifact chart stage', () => {
+    const lineViz = (
+        config: Partial<ComposerStoredChartVizConfig>,
+    ): ComposerStoredChartVizConfig => ({
+        type: 'line',
+        x: 'order_month',
+        y: ['order_count'],
+        groupBy: null,
+        stack: null,
+        horizontal: null,
+        y2: null,
+        labels: null,
+        customChartTypeSlug: null,
+        fieldMapping: null,
+        options: null,
+        dataAppVizUuid: null,
+        dataAppVizVersion: null,
+        ...config,
+    });
+    const v2Setup = (vizConfig: ComposerStoredChartVizConfig) =>
+        setup({
+            queries: [semanticNode, transformationNode],
+            chartConfig: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [semanticNode, transformationNode],
+                terminalNodeId: 'orders_vs_target',
+                vizConfig,
+            },
+        });
+
+    it('appends the series split stage to the run and returns its query beside the node results', async () => {
+        const { service, querySourceService } = v2Setup(
+            lineViz({ groupBy: ['status'] }),
+        );
+
+        const result = await service.getArtifactVizQuery(user, options);
+
+        const submitted = querySourceService.submitQueries.mock.calls[0][0]
+            .queries as SourceQuery[];
+        expect(submitted.slice(0, 2)).toEqual([
+            semanticNode,
+            transformationNode,
+        ]);
+        expect(submitted[2]).toMatchObject({
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT "order_month" AS "composer_result_order_month", "status" AS "composer_result_status", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            references: { node_result: 'orders_vs_target' },
+            pivotConfiguration: {
+                indexColumn: [{ reference: 'composer_result_order_month' }],
+                groupByColumns: [{ reference: 'composer_result_status' }],
+                valuesColumns: [{ reference: 'composer_result_order_count' }],
+            },
+        });
+        expect(result).toMatchObject({
+            source: 'composer',
+            nodeQueryUuids: {
+                orders: 'run-orders',
+                orders_vs_target: 'run-orders_vs_target',
+            },
+            chartStage: {
+                status: 'ok',
+                queryUuid: `run-${submitted[2].nodeId}`,
+            },
+        });
+        expect(result.source === 'composer' && result.nodeQueryUuids).toEqual({
+            orders: 'run-orders',
+            orders_vs_target: 'run-orders_vs_target',
+        });
+    });
+
+    it('runs no stage without a series split', async () => {
+        const { service, querySourceService } = v2Setup(lineViz({}));
+
+        const result = await service.getArtifactVizQuery(user, options);
+
+        expect(
+            querySourceService.submitQueries.mock.calls[0][0].queries,
+        ).toEqual([semanticNode, transformationNode]);
+        expect(result).toMatchObject({ chartStage: null });
+    });
+
+    it('returns the chart error and still runs the pipeline when a split lacks explicit x', async () => {
+        const { service, querySourceService } = v2Setup(
+            lineViz({ x: null, groupBy: ['status'] }),
+        );
+
+        const result = await service.getArtifactVizQuery(user, options);
+
+        expect(
+            querySourceService.submitQueries.mock.calls[0][0].queries,
+        ).toEqual([semanticNode, transformationNode]);
+        expect(result).toMatchObject({
+            chartStage: {
+                status: 'error',
+                message: 'A series split needs explicit x and y columns',
             },
         });
     });

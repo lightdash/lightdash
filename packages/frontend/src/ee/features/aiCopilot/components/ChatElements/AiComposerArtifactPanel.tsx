@@ -239,8 +239,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         runQueryVizConfig && queryUuid && !runError && !results.error ? (
             <AiComposerRunQueryVisualization
                 projectUuid={projectUuid}
-                nodeQueryUuid={queryUuid}
+                agentUuid={agentUuid}
+                artifactUuid={artifactUuid}
+                versionUuid={versionUuid}
                 nodeResults={results}
+                chartStage={run?.chartStage ?? null}
                 vizConfig={runQueryVizConfig}
                 metadata={metadata}
                 headerContent={head}

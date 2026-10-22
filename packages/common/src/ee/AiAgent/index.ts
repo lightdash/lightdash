@@ -1071,7 +1071,13 @@ export type ApiAiAgentComposerArtifactVizQuery = {
     terminalNodeId: QueryNodeId;
     nodeQueryUuids: Record<QueryNodeId, string>;
     metadata: AiVizMetadata;
+    /** v2 series split only: the pivot stage run over the terminal node; null without one. */
+    chartStage: ApiAiAgentComposerArtifactChartStage | null;
 };
+
+export type ApiAiAgentComposerArtifactChartStage =
+    | { status: 'ok'; queryUuid: string }
+    | { status: 'error'; message: string };
 
 export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentThreadMessageVizQuery

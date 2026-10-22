@@ -59,6 +59,7 @@ import {
     AnonymousAccount,
     AnyType,
     ApiAiAgentArtifactVizQuery,
+    ApiAiAgentComposerArtifactChartStage,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadDataAppRestoreRequest,
     ApiAiAgentThreadDataAppRestoreResponse,
@@ -111,6 +112,7 @@ import {
     getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
+    getComposerChartStage,
     getDataAppVizChartFromArtifact,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -195,6 +197,7 @@ import {
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiComposerChartArtifactConfigV2,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -209,6 +212,7 @@ import {
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
+    type DuckdbSourceQuery,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
@@ -10086,9 +10090,49 @@ export class AiAgentService extends BaseService {
             () => this.executeArtifactVizQuery(user, options),
             (vizQuery) =>
                 isAiAgentComposerArtifactVizQuery(vizQuery)
-                    ? Object.values(vizQuery.nodeQueryUuids)
+                    ? [
+                          ...Object.values(vizQuery.nodeQueryUuids),
+                          ...(vizQuery.chartStage?.status === 'ok'
+                              ? [vizQuery.chartStage.queryUuid]
+                              : []),
+                      ]
                     : [vizQuery.query.queryUuid],
         );
+    }
+
+    /** The v2 series split stage over the terminal node; a config the stage cannot be derived from is reported, not thrown. */
+    private async getComposerArtifactChartStage(
+        projectUuid: string,
+        config: AiComposerChartArtifactConfigV2,
+    ): Promise<
+        | { status: 'ok'; query: DuckdbSourceQuery }
+        | { status: 'error'; message: string }
+        | null
+    > {
+        const { vizConfig, queries, terminalNodeId } = config;
+        if (!vizConfig) return null;
+        try {
+            const slots =
+                vizConfig.type === 'custom' && vizConfig.dataAppVizUuid
+                    ? await this.getDataAppVizSchemaFields(
+                          projectUuid,
+                          vizConfig.dataAppVizUuid,
+                          vizConfig.dataAppVizVersion ?? undefined,
+                      )
+                    : null;
+            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
+            let nodeId = 'chart_stage';
+            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const query = getComposerChartStage({
+                vizConfig,
+                customChartTypeSlots: slots ?? [],
+                nodeId,
+                source: terminalNodeId,
+            });
+            return query ? { status: 'ok', query } : null;
+        } catch (error) {
+            return { status: 'error', message: getErrorMessage(error) };
+        }
     }
 
     private async executeArtifactVizQuery(
@@ -10246,12 +10290,24 @@ export class AiAgentService extends BaseService {
                 );
             }
 
+            const stage =
+                artifact.chartConfig.schemaVersion === 2
+                    ? await this.getComposerArtifactChartStage(
+                          projectUuid,
+                          artifact.chartConfig,
+                      )
+                    : null;
+            const stageNodeId =
+                stage?.status === 'ok' ? stage.query.nodeId : null;
             const account = fromSession(user);
-            const { queries: submissions } =
+            const { queries: allSubmissions } =
                 await this.querySourceService.submitQueries({
                     account,
                     projectUuid,
-                    queries,
+                    queries:
+                        stage?.status === 'ok'
+                            ? [...queries, stage.query]
+                            : queries,
                     context: QueryExecutionContext.AI,
                     querySurface: await this.getArtifactQuerySurface(
                         artifact.promptUuid,
@@ -10262,9 +10318,26 @@ export class AiAgentService extends BaseService {
                     invalidateCache: false,
                     plans: {},
                 });
+            const submissions = allSubmissions.filter(
+                ({ nodeId }) => nodeId !== stageNodeId,
+            );
             const nodeQueryUuids = Object.fromEntries(
                 submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
             );
+            const chartStage =
+                ((): ApiAiAgentComposerArtifactChartStage | null => {
+                    if (stage === null || stage.status === 'error')
+                        return stage;
+                    const submission = allSubmissions.find(
+                        ({ nodeId }) => nodeId === stageNodeId,
+                    );
+                    if (!submission) {
+                        throw new UnexpectedServerError(
+                            'Composer chart stage was not submitted',
+                        );
+                    }
+                    return { status: 'ok', queryUuid: submission.queryUuid };
+                })();
 
             const durationMs = Date.now() - vizQueryStartedAt;
             // A DuckDB or Python node only learns it was cached when it runs,
@@ -10309,6 +10382,7 @@ export class AiAgentService extends BaseService {
                     title: artifact.title,
                     description: artifact.description,
                 },
+                chartStage,
             };
         }
 
