@@ -360,6 +360,7 @@ describe('AI agent tool contracts', () => {
                     date: '2026-08-27',
                     enableFilterExpressions,
                     canRunQuery: !composer,
+                    canExportChart: !composer,
                     promptSections: new Set<PromptSection>([
                         ...(enableGenerateDataApp
                             ? ([

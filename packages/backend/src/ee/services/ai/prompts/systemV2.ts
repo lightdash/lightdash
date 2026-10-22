@@ -96,6 +96,7 @@ export type CapabilitySectionArgs = {
     }[];
     sqlScope?: AgentSqlScope | null;
     canRunQuery?: boolean;
+    canExportChart?: boolean;
 };
 
 const getCapabilitySections = (
@@ -207,6 +208,7 @@ export const getSystemPromptV2 = (
         slackLinksOnly = false,
         canRunSql = false,
         canRunQuery = false,
+        canExportChart = false,
         enableComposerPythonNodes = false,
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
@@ -516,6 +518,9 @@ export const getSystemPromptV2 = (
         'After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.',
         'For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.',
         chartFollowupGuidance,
+        canExportChart
+            ? 'Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.'
+            : '',
         'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
         'Apply or restate a sourced business rule with its exact predicate, entity grain, exceptions, date boundaries and numeric conditions, not a broader label: a zero amount does not mean the event is absent, and excluding nonzero amounts differs from excluding positive ones. Keep a reporting-date window distinct from when a mutable attribute is evaluated. When the sources set no current-state, snapshot or timezone convention, say so if it affects the answer instead of inventing one.',
         'Category labels are values, not comparisons: "Low Cost" does not prove a group is cheaper. Use comparative or superlative wording only when the result rows include every compared group or period and their values establish the order; otherwise rerun the exact query.',
