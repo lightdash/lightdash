@@ -6,7 +6,6 @@ import {
     type MigratedDatabase,
 } from '../../../../testing/migratedDatabase';
 import { AiAgentModel } from '../../../models/AiAgentModel';
-import { backfillEmbedSpaceUuids } from '../20261021150000_add_embed_space_uuids_to_ai_web_app_thread';
 
 vi.mock('../../../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../../../config/lightdashConfig.mock'))
@@ -219,9 +218,9 @@ describe('embedded AI thread write spaces', () => {
         ).resolves.toBe(true);
         expect(await listThreadUuids([f.spaces.tenantB])).toContain(threadUuid);
 
-        await backfillEmbedSpaceUuids(migrated.database);
-        const row = await readThread(threadUuid);
-        expect(row.embed_space_uuids).toEqual([f.spaces.tenantB]);
+        await expect(
+            model.isWebAppThreadInEmbedSpaces(threadUuid, [f.spaces.shared]),
+        ).resolves.toBe(false);
     });
 
     test('never matches a non-embed thread', async () => {
