@@ -7,6 +7,7 @@ import {
     ParameterError,
     ProjectType,
     RedshiftAuthenticationType,
+    RequestMethod,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreatePostgresCredentials,
@@ -862,5 +863,172 @@ describe('cross-source ref cache invalidation', () => {
         await expect(
             h.service.delete(account, projectUuid, extraUuid),
         ).resolves.toBeUndefined();
+    });
+});
+
+describe('preview extra connection CLI refresh', () => {
+    const tunnel = {
+        useSshTunnel: true,
+        sshTunnelHost: 'extra-bastion',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'extra-user',
+        sshTunnelPublicKey: 'extra-public-key',
+    };
+    const upstream = { ...project, projectUuid: 'upstream' };
+    const parentCredentials = {
+        ...credentials,
+        ...tunnel,
+        password: 'parent-password',
+        sshTunnelPrivateKey: 'must-not-copy-parent-private-key',
+    };
+    const setupRefresh = (
+        saved: CreatePostgresCredentials = { ...credentials, ...tunnel },
+        method = RequestMethod.CLI,
+    ) => {
+        const h = buildService(true);
+        h.projectModel.getSummary.mockResolvedValue({
+            ...summary,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: upstream.projectUuid,
+        });
+        h.model.get.mockResolvedValue(connection(extraUuid, false));
+        h.model.getProject.mockImplementation(async (uuid: string) =>
+            uuid === upstream.projectUuid ? upstream : project,
+        );
+        h.model.list.mockImplementation(async (p: typeof project) =>
+            p.projectUuid === upstream.projectUuid
+                ? [connection('upstream-extra', false)]
+                : [connection(primaryUuid, true), connection(extraUuid, false)],
+        );
+        h.model.getCredentials.mockImplementation(async (p: typeof project) =>
+            p.projectUuid === upstream.projectUuid ? parentCredentials : saved,
+        );
+        return {
+            ...h,
+            refresh: (
+                connectionCredentials = {
+                    ...credentials,
+                    password: 'fresh-password',
+                },
+            ) =>
+                h.service.update(
+                    account,
+                    projectUuid,
+                    extraUuid,
+                    { warehouseConnection: connectionCredentials },
+                    method,
+                ),
+        };
+    };
+    it.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+        '%s preserves the extra connection tunnel',
+        async (method) => {
+            const h = setupRefresh(undefined, method);
+            await h.refresh();
+            expect(h.model.updateExtraCredentials).toHaveBeenCalledWith(
+                project,
+                extraUuid,
+                {
+                    kind: 'project',
+                    credentials: expect.objectContaining({
+                        ...tunnel,
+                        password: 'fresh-password',
+                    }),
+                },
+            );
+        },
+    );
+    it.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+        '%s heals from the matching upstream extra connection',
+        async (method) => {
+            const h = setupRefresh(credentials, method);
+            await h.refresh();
+            expect(h.model.getCredentials).toHaveBeenCalledWith(
+                upstream,
+                'upstream-extra',
+            );
+            expect(
+                h.credentialPolicy.testWarehouseConnectionCredentialsForSave,
+            ).toHaveBeenCalledWith(
+                account,
+                organizationUuid,
+                expect.objectContaining({
+                    ...tunnel,
+                    password: 'fresh-password',
+                }),
+            );
+            const stored =
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials;
+            expect(stored).not.toHaveProperty('sshTunnelPrivateKey');
+        },
+    );
+    it('preserves the preview own tunnel and explicit opt-out', async () => {
+        const custom = {
+            ...tunnel,
+            sshTunnelHost: 'preview-bastion',
+            sshTunnelUser: 'preview-user',
+            sshTunnelPublicKey: 'preview-public-key',
+            useSshTunnel: false,
+        };
+        const h = setupRefresh({ ...credentials, ...custom });
+        await h.refresh();
+        expect(h.model.updateExtraCredentials).toHaveBeenCalledWith(
+            project,
+            extraUuid,
+            { kind: 'project', credentials: expect.objectContaining(custom) },
+        );
+    });
+    it.each([RequestMethod.WEB_APP, RequestMethod.BACKEND])(
+        '%s keeps replacement behaviour',
+        async (method) => {
+            const h = setupRefresh(undefined, method);
+            await h.refresh();
+            expect(h.model.getProject).not.toHaveBeenCalledWith(
+                upstream.projectUuid,
+            );
+            expect(
+                h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+            ).not.toHaveProperty('sshTunnelHost');
+        },
+    );
+    it('does not inherit on a non-preview', async () => {
+        const h = setupRefresh();
+        h.projectModel.getSummary.mockResolvedValue(summary);
+        await h.refresh();
+        expect(
+            h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+        ).not.toHaveProperty('sshTunnelHost');
+    });
+    it('does not fall back to an unrelated upstream connection', async () => {
+        const h = setupRefresh(credentials);
+        h.model.list.mockResolvedValue([
+            { ...connection('other', false), name: 'Other' },
+        ]);
+        await h.refresh();
+        expect(
+            h.model.updateExtraCredentials.mock.calls[0][2].credentials,
+        ).not.toHaveProperty('sshTunnelHost');
+    });
+    it('rejects an upstream from a different organization before reading credentials', async () => {
+        const h = setupRefresh();
+        h.model.getProject.mockImplementation(async (uuid: string) =>
+            uuid === upstream.projectUuid
+                ? { ...upstream, organizationUuid: 'different-org' }
+                : project,
+        );
+        await expect(h.refresh()).rejects.toThrow();
+        expect(h.model.getCredentials).not.toHaveBeenCalledWith(
+            expect.objectContaining({ projectUuid: upstream.projectUuid }),
+            expect.anything(),
+        );
+        expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
+    });
+    it('does not persist if the merged connection fails its test', async () => {
+        const h = setupRefresh(credentials);
+        h.credentialPolicy.testWarehouseConnectionCredentialsForSave.mockRejectedValue(
+            new Error('tunnel unavailable'),
+        );
+        await expect(h.refresh()).rejects.toThrow('tunnel unavailable');
+        expect(h.model.updateExtraCredentials).not.toHaveBeenCalled();
     });
 });
