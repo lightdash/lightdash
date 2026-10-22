@@ -4,7 +4,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -230,6 +230,31 @@ describe('ViewerControls', () => {
             expect(onChange).not.toHaveBeenCalled();
             expect(scope('Some tabs')).toBeChecked();
             expect(tabsField()).toBeInTheDocument();
+        });
+
+        it('forgets "Some tabs" once the filter is unlocked and locked again', () => {
+            const Controlled = () => {
+                const [rule, setRule] = useState(
+                    makeRule('a', { lockedTabUuids: ['t1'] }),
+                );
+                return (
+                    <ViewerControls
+                        rule={rule}
+                        filterType={FilterType.STRING}
+                        field={null}
+                        onChange={setRule}
+                        onChangeOthers={onChangeOthers}
+                        onEditRules={null}
+                    />
+                );
+            };
+            renderWithProviders(<Controlled />);
+            pickScope('Some tabs');
+            toggleTab('Overview');
+            expect(lockSwitch()).not.toBeChecked();
+            fireEvent.click(lockSwitch());
+            expect(scope('This tab')).toBeChecked();
+            expect(screen.queryAllByLabelText('Locked tabs')).toHaveLength(0);
         });
 
         it('marks the tab in view in the tab list', () => {

@@ -163,30 +163,6 @@ describe('AddControl', () => {
         expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
     });
 
-    it('is disabled while a new filter waits for its field', () => {
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            isSidebarOpen: true,
-            isNew: true,
-            isPlaceholder: true,
-        };
-        renderWithProviders(<AddControl isVisibilityToggleHidden={false} />);
-
-        expect(add()).toBeDisabled();
-    });
-
-    it('stays enabled while an existing filter waits for a field', () => {
-        mockSidebar.current = {
-            ...mockSidebar.current,
-            isSidebarOpen: true,
-            isNew: false,
-            isPlaceholder: true,
-        };
-        renderWithProviders(<AddControl isVisibilityToggleHidden={false} />);
-
-        expect(add()).toBeEnabled();
-    });
-
     it('stays enabled without fields when a SQL chart tile reported columns', () => {
         mockDashboardContext.current.allFilterableFields = undefined;
         mockTileStatus.current = {

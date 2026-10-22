@@ -34,8 +34,6 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
-    /** Disables the trigger on top of its own rules (default false). */
-    isDisabled?: boolean;
     /** Leaves out the edit-mode eye that hides "Add filter" from viewers (default false). */
     isVisibilityToggleHidden?: boolean;
 };
@@ -51,7 +49,6 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
-    isDisabled = false,
     isVisibilityToggleHidden = false,
 }) => {
     const popoverId = useId();
@@ -78,11 +75,10 @@ const AddFilterButton: FC<Props> = ({
     );
     const disabled = useMemo(() => {
         return (
-            isDisabled ||
-            (!allFilterableFields &&
-                Object.keys(sqlChartTilesMetadata).length === 0)
+            !allFilterableFields &&
+            Object.keys(sqlChartTilesMetadata).length === 0
         );
-    }, [isDisabled, allFilterableFields, sqlChartTilesMetadata]);
+    }, [allFilterableFields, sqlChartTilesMetadata]);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );

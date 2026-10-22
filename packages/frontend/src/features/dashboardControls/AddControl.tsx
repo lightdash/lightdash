@@ -13,14 +13,9 @@ type Props = {
 // id to open on, so a click only calls `onPopoverOpen`, which opens a new control
 export const AddControl: FC<Props> = ({ isVisibilityToggleHidden }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
-    // openNew does nothing while a new filter waits for its field
-    const isWaitingForField = useControlsSidebarSelector(
-        (c) => c.isNew && c.isPlaceholder,
-    );
     return (
         <AddFilterButton
             isEditMode
-            isDisabled={isWaitingForField}
             isVisibilityToggleHidden={isVisibilityToggleHidden}
             activeTabUuid={undefined}
             openPopoverId={undefined}

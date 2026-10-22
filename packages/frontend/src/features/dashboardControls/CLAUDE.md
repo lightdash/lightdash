@@ -25,9 +25,7 @@ fields. User-facing copy says *tile*, never *chart*.
 Each is a pure move or an optional prop that defaults to today's behaviour.
 All are in `features/dashboardFilters/`.
 
-- `AddFilterButton`: `isDisabled` (default false), set while a new filter
-  waits for its field, since "Add" then does nothing;
-  `isVisibilityToggleHidden` (default false), which leaves out the eye in
+- `AddFilterButton`: `isVisibilityToggleHidden` (default false), which leaves out the eye in
   the rail's footer.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today).

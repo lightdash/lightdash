@@ -188,8 +188,10 @@ export const ViewerControls: FC<Props> = ({
                         }
                         onChange={(e) => {
                             if (!e.currentTarget.checked) unlockEverywhere();
-                            else if (switchLockKey !== undefined)
+                            else if (switchLockKey !== undefined) {
+                                setIsSomeTabsPicked(false);
                                 setLockedKeys([switchLockKey]);
+                            }
                         }}
                     />
                 </Group>
