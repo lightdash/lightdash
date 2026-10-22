@@ -9,6 +9,7 @@ import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import type { DocumentContentResult } from '../types/aiAgentDependencies';
 import type { PreparedChartAsCode } from '../utils/chartAsCode';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import { getCreateContent } from './createContent';
 import { getEditContent } from './editContent';
 import { getReadContent } from './readContent';
@@ -561,29 +562,19 @@ describe('AI Agent Document authoring', () => {
                 ),
             ).toBe(enableDocuments);
             if (enableDocuments) {
-                expect(prompt.content).toContain(
-                    'pass spaceSlug: null to create a personal Document',
-                );
-                expect(prompt.content).toContain(
-                    'keeping every unchanged chart as its <document-chart id="cN"> tag',
-                );
+                expect(prompt.content).toContain('the Document is personal');
                 expect(prompt.content).toContain('<artifact-chart version=');
-                expect(prompt.content).toContain('Use H1 for sections');
-                expect(prompt.content).toContain(
-                    'questions explored, evidence and findings, follow-up questions, and conclusions and limitations',
-                );
-                expect(prompt.content).toContain(
-                    'Explicit user scope and format instructions take precedence',
-                );
-                expect(prompt.content).toContain(
-                    'not private model reasoning or a verbatim transcript',
-                );
-                expect(prompt.content).toContain(
-                    'do not invent findings or research steps',
-                );
             } else {
-                expect(prompt.content).not.toContain('research journey');
+                expect(prompt.content).not.toContain('## Documents');
             }
+            expect(
+                getStaticToolDescription(
+                    getCreateContent({
+                        createContent: vi.fn(),
+                        documentsEnabled: enableDocuments,
+                    }),
+                )?.includes('research journey'),
+            ).toBe(enableDocuments);
         },
     );
 });

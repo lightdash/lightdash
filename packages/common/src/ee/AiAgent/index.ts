@@ -58,7 +58,6 @@ export * from './composerVizPanel';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
-export * from './documentGuidance';
 export * from './documentTypes';
 export * from './skillTypes';
 export * from './threadFileTypes';

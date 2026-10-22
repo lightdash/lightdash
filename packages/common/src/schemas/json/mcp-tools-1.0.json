@@ -9,7 +9,7 @@
                 "readOnlyHint": false,
                 "title": "Create content"
             },
-            "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+            "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -33,7 +33,7 @@
                                     },
                                     "parameters": {},
                                     "slug": {
-                                        "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                                        "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
@@ -122,7 +122,7 @@
                                     "parameters": {},
                                     "pivotConfig": {},
                                     "slug": {
-                                        "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                                        "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
@@ -205,7 +205,7 @@
                                         "type": "string"
                                     },
                                     "slug": {
-                                        "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                                        "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                                         "minLength": 1,
                                         "type": "string"
                                     },
@@ -330,7 +330,7 @@
                 "readOnlyHint": false,
                 "title": "Create scheduled delivery"
             },
-            "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+            "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -372,7 +372,7 @@
                         "type": "object"
                     },
                     "enabled": {
-                        "description": "Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.",
+                        "description": "true only when the user confirmed the delivery should go live; otherwise false creates it paused, for the user to enable from its page.",
                         "type": "boolean"
                     },
                     "format": {
@@ -465,17 +465,17 @@
                 "readOnlyHint": false,
                 "title": "Edit content"
             },
-            "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+            "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "patch": {
-                        "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+                        "description": "RFC6902 operations applied to the current JSON",
                         "items": {},
                         "type": "array"
                     },
                     "slug": {
-                        "description": "Slug of the dashboard or chart to edit",
+                        "description": "Exact slug of the content to edit",
                         "minLength": 1,
                         "type": "string"
                     },
@@ -2773,7 +2773,7 @@
                 "readOnlyHint": true,
                 "title": "List content"
             },
-            "description": "Tool: \"list_content\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, URLs, and space content counts.",
+            "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -2783,7 +2783,7 @@
                         "type": "number"
                     },
                     "spaceSlug": {
-                        "description": "Optional space slug/path to list. Use null to list root-level content.",
+                        "description": "Slug or path of the space to list; null lists the root-level spaces.",
                         "type": "string"
                     }
                 },
@@ -3489,12 +3489,12 @@
                 "readOnlyHint": true,
                 "title": "Read content"
             },
-            "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+            "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "slug": {
-                        "description": "Slug of the dashboard, chart, or data app to read.",
+                        "description": "Slug of the content to read.",
                         "minLength": 1,
                         "type": "string"
                     },

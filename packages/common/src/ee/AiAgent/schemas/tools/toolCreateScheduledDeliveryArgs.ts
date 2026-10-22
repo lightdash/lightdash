@@ -8,10 +8,9 @@ export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
 }: ToolDescriptionContext): string => {
     const createContent = toolNameFor('createContent', runtime);
     return [
-        'Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule.',
-        'IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
-        `Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with ${createContent} first, then schedule the created uuid.`,
-        'On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.',
+        'Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule.',
+        'An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
+        `Content that exists only in this conversation is saved with ${createContent} first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.`,
     ].join(' ');
 };
 
@@ -93,7 +92,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
     enabled: z
         .boolean()
         .describe(
-            'Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.',
+            'true only when the user confirmed the delivery should go live; otherwise false creates it paused, for the user to enable from its page.',
         ),
     aiAugmentationPrompt: z
         .string()

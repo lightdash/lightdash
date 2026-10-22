@@ -379,10 +379,7 @@ describe('MCP tool contracts', () => {
                     ).toBe(documentsEnabled);
                     if (documentsEnabled) {
                         expect(tool.config.description).toContain(
-                            'Explicit user scope and format instructions take precedence',
-                        );
-                        expect(tool.config.description).toContain(
-                            'do not invent findings or research steps',
+                            'rather than inventing findings or steps',
                         );
                     }
                 }
@@ -695,7 +692,7 @@ describe('MCP tool contracts', () => {
                 },
                 {
                     name: McpToolName.LIST_CONTENT,
-                    details: ['direct children and content inside that space'],
+                    details: ['child spaces and content inside one space'],
                 },
                 {
                     name: McpToolName.FIND_CONTENT,

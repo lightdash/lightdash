@@ -22,12 +22,10 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 ## Content tools
 
-- Use runQuery to answer a data question and generateVisualization for an ad hoc chart.
-- When the user's intent is to create or edit saved Lightdash content, use the content tools:
-  - listContent, readContent, createContent, editContent, and runContentQuery.
-  - Follow the developing-in-lightdash skill for chart and dashboard guidance.
-  - readContent also reads data apps (type data_app): a code-free view of what the app shows and its per-explore data references. The content tools cannot create or edit data apps.
-  - Before saving changed charts or presenting the work as complete, check their queries and visualizations with runContentQuery.
+- Use the content tools when the user's intent is to create or edit saved content: charts, dashboards and SQL charts kept in the project. Answers and ad hoc charts come from runQuery and generateVisualization.
+- For chart and dashboard JSON, follow the developing-in-lightdash skill: it holds their shapes and the chart-type references.
+- Before saving a new or changed chart or presenting the work as complete, check its query and visualization with runContentQuery.
+- After creating or editing content, link the user to the href the tool returns.
 
 ## Data apps
 
@@ -40,12 +38,6 @@ A build runs in the background for several minutes while the user follows it in 
 ## Scheduled deliveries
 
 - Use createScheduledDelivery when the user wants a chart or dashboard sent to Slack or email on a recurring schedule.
-- An enabled delivery is live the moment it is created, so before calling the tool, propose the full configuration — name, schedule in plain words, cron expression, timezone, destinations, format, and the AI augmentation prompt if any — and wait for the user's explicit confirmation in the conversation.
-- A delivery needs a saved chart or dashboard. If the content only exists in this conversation, save it first with createContent (in a space you have access to), then schedule the created uuid. For existing content, resolve the uuid with findContent. Propose the combined "save + schedule" plan once and get a single confirmation for both.
-- Cron expressions have 5 parts and hourly minimum frequency; sub-hourly minute patterns (e.g. "*/15") are rejected.
-- Prefer Slack channel IDs over channel names.
-- Set aiAugmentationPrompt when the user wants an AI-written message summarising the delivered data on each send; leave it null for a plain delivery.
-- After creating, report the scheduler uuid and mention the delivery can be managed from the Scheduled deliveries page.
 
 ## Tool workflow
 
@@ -1822,14 +1814,14 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+    "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "definitions": {
         "__schema17": {
           "additionalProperties": {},
-          "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+          "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
           "properties": {
             "dimensions": {
               "items": {},
@@ -1905,7 +1897,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 },
                 "parameters": {},
                 "slug": {
-                  "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                  "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                   "minLength": 1,
                   "type": "string",
                 },
@@ -1971,7 +1963,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                 "parameters": {},
                 "pivotConfig": {},
                 "slug": {
-                  "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                  "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                   "minLength": 1,
                   "type": "string",
                 },
@@ -2044,7 +2036,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                   "type": "string",
                 },
                 "slug": {
-                  "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                  "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                   "minLength": 1,
                   "type": "string",
                 },
@@ -2477,7 +2469,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+    "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with createContent first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -2580,7 +2572,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
           "description": "Only used when format is "csv". null = defaults (formatted, table limit).",
         },
         "enabled": {
-          "description": "Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.",
+          "description": "true only when the user confirmed the delivery should go live; otherwise false creates it paused, for the user to enable from its page.",
           "type": "boolean",
         },
         "format": {
@@ -3139,18 +3131,18 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+    "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as readContent last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "patch": {
-          "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+          "description": "RFC6902 operations applied to the current JSON",
           "items": {},
           "type": "array",
         },
         "slug": {
-          "description": "Slug of the dashboard or chart to edit",
+          "description": "Exact slug of the content to edit",
           "minLength": 1,
           "type": "string",
         },
@@ -5577,24 +5569,16 @@ Output:
     },
   },
   {
-    "description": "
+    "description": "Generate a dashboard of visualizations on one theme in a single call.
 
-Use this tool to generate multiple visualizations for a dashboard based on a specific theme.
-
-Instead of making multiple parallel tool calls for individual visualizations, this tool takes an array of visualization configurations and generates them all at once, ensuring thematic consistency and better performance.
-
-Dashboard Design Philosophy:
-Create "summary" or "executive" level dashboards that provide high-level overviews of specific topics (e.g., Support Dashboard, Revenue Performance, Sales Operations). These dashboards should be designed to monitor trends and key metric performance at a glance.
-
-Recommended Dashboard Structure:
-1. **Summary Metrics at the Top**: Start with key performance indicators (KPIs) as tables showing overall summary metrics
-2. **Time-Series Analysis**: Include time-series charts (line or area charts) to show how metrics trend over time
-3. **Categorical Comparisons**: Use bar or horizontal bar charts to compare metrics across categories
-4. **Proportional Analysis**: Use pie charts to show part-to-whole relationships (e.g., market share, revenue by segment)
-5. **Correlation Analysis**: Use scatter plots to explore relationships between two metrics
-6. **Conversion Flows**: Use funnel charts to visualize sequential conversion processes (e.g., sales funnel, user onboarding)
-7. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
-",
+Design a summary dashboard for monitoring a topic at a glance (e.g. Support, Revenue Performance, Sales Operations), ordering the kinds of visualization that fit the data like this:
+1. KPI tables with the overall summary metrics.
+2. Line or area charts for how metrics trend over time.
+3. Bar or horizontal bar charts comparing metrics across categories.
+4. Pie charts for part-to-whole relationships (e.g. revenue by segment).
+5. Scatter plots for relationships between two metrics.
+6. Funnel charts for sequential conversion (e.g. a sales funnel).
+7. Detail tables with the line items that move the metrics most.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -7046,7 +7030,7 @@ All branches of an IF must return the same type.",
           "type": "string",
         },
         "visualizations": {
-          "description": "Array of visualization configurations to generate for this dashboard. Each should contribute to the overall theme and leverage the available chart types (table, bar, horizontal, line, scatter, pie, funnel).",
+          "description": "Visualizations in generateVisualization's format, each serving the dashboard's theme.",
           "items": {
             "$ref": "#/definitions/__schema0",
           },
@@ -8125,15 +8109,7 @@ All branches of an IF must return the same type.",
     },
   },
   {
-    "description": "Tool: "getDashboardCharts"
-Purpose:
-Retrieves the list of charts within a specific dashboard, with pagination support.
-
-Usage tips:
-- Use this tool after "findContent" to drill into a specific dashboard's charts.
-- Requires a dashboardUuid, which you can get from "findContent" results. Also pass the dashboardName for display purposes.
-- Results are paginated — use the page parameter to get more results if needed.
-- Each chart includes its name, description, type, view count, and the explore it queries (exploreName), so dashboard filters can be targeted per tile without reading each chart.",
+    "description": "List the charts on a dashboard found with findContent: each chart's name, description, type, view count and the explore it queries.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -9301,15 +9277,7 @@ Parameters:
     },
   },
   {
-    "description": "Tool: "listContent"
-Purpose:
-Lists accessible Lightdash content in a project as a browsable hierarchy.
-
-Usage tips:
-- By default, lists root-level spaces.
-- Pass a spaceSlug to list direct children and content inside that space.
-- Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, URLs, and space content counts.",
+    "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -9323,7 +9291,7 @@ Usage tips:
           ],
         },
         "spaceSlug": {
-          "description": "Optional space slug/path to list. Use null to list root-level content.",
+          "description": "Slug or path of the space to list; null lists the root-level spaces.",
           "type": [
             "string",
             "null",
@@ -16675,13 +16643,13 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+    "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "slug": {
-          "description": "Slug of the dashboard, chart, or data app to read.",
+          "description": "Slug of the content to read.",
           "minLength": 1,
           "type": "string",
         },
@@ -17068,15 +17036,13 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Run a chart-as-code metric query or saved chart content and return the rows it produces as CSV.
+    "description": "Run a chart-as-code metric query, a saved chart or SQL and return the rows as CSV.
 
-Use this to verify generated or edited chart content before presenting it as complete.
-
-Input modes:
-- metricQuery: run an unsaved chart-as-code metricQuery with a tableName.
-- chart: run a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
-- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters. chartType works the same.
-- sql: run a raw SELECT to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
+Sources:
+- metricQuery: an unsaved chart-as-code metricQuery with its tableName.
+- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
+- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same.
+- sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -17088,7 +17054,7 @@ Input modes:
               "properties": {
                 "metricQuery": {
                   "additionalProperties": {},
-                  "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                  "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
                   "properties": {
                     "dimensions": {
                       "items": {},

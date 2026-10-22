@@ -290,13 +290,13 @@ describe('getSystemPromptV2 custom chart types', () => {
             enableDocumentCustomCharts: true,
         });
         expect(enabled).toContain(
-            'A chart can use a custom chart type. Run the query with that chart type and place the result with <artifact-chart>',
+            'draw it with that chart type and place it with <artifact-chart>',
         );
-        expect(enabled).not.toContain('custom charts are unsupported');
+        expect(enabled).not.toContain('or custom charts');
 
         const disabled = promptText(documentArgs);
-        expect(disabled).toContain('custom charts are unsupported');
-        expect(disabled).not.toContain('custom chart type. Run the query');
+        expect(disabled).toContain('composer charts or custom charts');
+        expect(disabled).not.toContain('draw it with that chart type');
     });
 
     test('offers and surfaces Documents only with Document nudges', () => {
@@ -322,25 +322,16 @@ describe('getSystemPromptV2 custom chart types', () => {
             'When looking for existing content, include Documents',
         );
         expect(nudged).toContain(
-            'Treat a request for a report, write-up or summary to share as a request for a Document: create a personal Document',
-        );
-        expect(nudged).toContain(
             'accepts your offer to save the analysis as a Document, or asks for a report, write-up or summary to share',
         );
         expect(nudged).not.toContain(
             'Create a Document only when the user explicitly asks for one',
-        );
-        expect(nudged).not.toContain(
-            'This guidance does not authorize creating a Document',
         );
 
         const notNudged = promptText(documentArgs);
         expect(notNudged).not.toContain(offer);
         expect(notNudged).toContain(
             'Create a Document only when the user explicitly asks for one',
-        );
-        expect(notNudged).toContain(
-            'This guidance does not authorize creating a Document',
         );
 
         expect(
@@ -1294,10 +1285,10 @@ describe('getSystemPromptV2 deferred capability sections', () => {
     test('routes data questions to runQuery when it is available', () => {
         const content = promptText(capabilities);
         expect(content).toContain(
-            'Use runQuery to answer a data question and generateVisualization for an ad hoc chart.',
+            'Answers and ad hoc charts come from runQuery and generateVisualization.',
         );
         expect(content).not.toContain(
-            "Use generateVisualization when the user's intent is to answer a data question",
+            'Answer data questions with generateVisualization',
         );
     });
 });
