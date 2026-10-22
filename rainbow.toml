@@ -38,7 +38,7 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # dockerfile-prs's: the API and app tests compile Snowflake, BigQuery,
 # Databricks and Trino projects with dbt1.12 too.
 [runtime]
-system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
+system = ["postgresql-18-pgvector", "python3-venv"]  # Postgres 18 as the product databases (pgvector/pgvector:pg18); catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
   "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
