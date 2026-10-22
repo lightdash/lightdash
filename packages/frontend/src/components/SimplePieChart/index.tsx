@@ -15,6 +15,7 @@ import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useLegendScrollPosition } from '../../hooks/echarts/useLegendScrollPosition';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -63,6 +64,10 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
         const pieChartOptions = useEchartsPieConfig(
             selectedLegends,
             props.isInDashboard,
+        );
+        const { onLegendScroll } = useLegendScrollPosition(
+            chartRef,
+            pieChartOptions,
         );
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
@@ -133,8 +138,14 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                       }
                     : {}),
                 legendselectchanged: onLegendChange,
+                legendscroll: onLegendScroll,
             }),
-            [enableContextMenu, handleOpenContextMenu, onLegendChange],
+            [
+                enableContextMenu,
+                handleOpenContextMenu,
+                onLegendChange,
+                onLegendScroll,
+            ],
         );
 
         if (isLoading) return <LoadingChart />;
