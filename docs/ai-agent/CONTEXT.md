@@ -53,6 +53,13 @@ launcher never pins a different dashboard into a bound thread. Per thread,
 unlike pinned context, which is per prompt.
 _Avoid_: pinned dashboard (for the binding), thread dashboard, scoped dashboard
 
+**Bound chart**:
+The saved chart a thread is tied to for its whole life, set when the thread is
+created through the API. The agent may only edit that chart and schedule its
+deliveries; it cannot create saved content. Shown at the top of the thread as
+the linked chart. Per thread, unlike pinned context, which is per prompt.
+_Avoid_: pinned chart (for the binding), thread chart, scoped chart
+
 **Thread context**:
 Free text given when a thread is created through the API, such as a summary of
 an earlier conversation. The agent reads it on every turn; it never appears as

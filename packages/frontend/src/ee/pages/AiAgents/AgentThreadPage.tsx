@@ -233,7 +233,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [thread?.messages],
     );
 
-    const boundDashboardUuid = thread?.binding?.dashboardUuid ?? null;
+    const boundDashboardUuid =
+        thread?.binding?.type === 'dashboard'
+            ? thread.binding.dashboardUuid
+            : null;
     // Expand the thread's bound or pinned dashboard into tiles, mentionable by tile name.
     const pinnedDashboardUuid = useMemo(() => {
         if (boundDashboardUuid) return boundDashboardUuid;

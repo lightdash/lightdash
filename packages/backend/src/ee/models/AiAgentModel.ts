@@ -504,6 +504,7 @@ type AiThreadSummaryRow = Pick<
         agent_name: string | null;
         agent_image_url: string | null;
         bound_dashboard_name: string | null;
+        bound_chart_name: string | null;
     };
 
 type AiAgentThreadLiveStateRow = {
@@ -3420,6 +3421,19 @@ export class AiAgentModel {
                     )
                     .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where((builder) => {
                 void builder
                     .whereNotNull('first_prompt.ai_prompt_uuid')
@@ -3452,6 +3466,7 @@ export class AiAgentModel {
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
                 `${DashboardsTableName}.name as bound_dashboard_name`,
+                `${SavedChartsTableName}.name as bound_chart_name`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
     }
@@ -3460,8 +3475,10 @@ export class AiAgentModel {
         switch (binding.type) {
             case 'dashboard':
                 return binding.dashboardUuid;
+            case 'chart':
+                return binding.chartUuid;
             default:
-                return assertUnreachable(binding.type, 'Unknown binding type');
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -3473,6 +3490,8 @@ export class AiAgentModel {
         switch (type) {
             case 'dashboard':
                 return { type, dashboardUuid: entityUuid };
+            case 'chart':
+                return { type, chartUuid: entityUuid };
             default:
                 return assertUnreachable(type, 'Unknown binding type');
         }
@@ -3489,8 +3508,10 @@ export class AiAgentModel {
         switch (binding.type) {
             case 'dashboard':
                 return { ...binding, displayName: row.bound_dashboard_name };
+            case 'chart':
+                return { ...binding, displayName: row.bound_chart_name };
             default:
-                return assertUnreachable(binding.type, 'Unknown binding type');
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -7226,6 +7247,19 @@ export class AiAgentModel {
                     )
                     .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first<
                 | {
@@ -7233,6 +7267,8 @@ export class AiAgentModel {
                       thread_context: string | null;
                       dashboard_name: string | null;
                       dashboard_slug: string | null;
+                      chart_name: string | null;
+                      chart_slug: string | null;
                   }
                 | undefined
             >(
@@ -7240,6 +7276,8 @@ export class AiAgentModel {
                 `${AiThreadTableName}.thread_context`,
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${DashboardsTableName}.slug as dashboard_slug`,
+                `${SavedChartsTableName}.name as chart_name`,
+                `${SavedChartsTableName}.slug as chart_slug`,
             );
         if (!row) return { threadBinding: null, threadContext: null };
 
@@ -7257,6 +7295,15 @@ export class AiAgentModel {
                                   name: row.dashboard_name,
                                   slug: row.dashboard_slug,
                               }
+                            : null,
+                };
+                break;
+            case 'chart':
+                threadBinding = {
+                    type: 'chart',
+                    chart:
+                        row.chart_name !== null && row.chart_slug !== null
+                            ? { name: row.chart_name, slug: row.chart_slug }
                             : null,
                 };
                 break;

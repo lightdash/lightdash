@@ -1490,6 +1490,35 @@ describe('getSystemPromptV2 thread binding and context', () => {
         );
     });
 
+    it('describes the bound chart and what can change', () => {
+        const content = promptText({
+            ...base,
+            threadBinding: {
+                type: 'chart',
+                chart: { name: 'Orders', slug: 'orders' },
+            },
+        });
+
+        expect(content).toContain(
+            'This conversation is bound to the chart "Orders" (slug: `orders`).',
+        );
+        expect(content).toContain(
+            'Saved content changes are limited to this chart.',
+        );
+        expect(content).not.toContain('## Bound dashboard');
+    });
+
+    it('says when the bound chart no longer exists', () => {
+        const content = promptText({
+            ...base,
+            threadBinding: { type: 'chart', chart: null },
+        });
+
+        expect(content).toContain(
+            'This conversation is bound to a chart that no longer exists.',
+        );
+    });
+
     it('frames the thread context as escaped user background', () => {
         const content = promptText({
             ...base,
