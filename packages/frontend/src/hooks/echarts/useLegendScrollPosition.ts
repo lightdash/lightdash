@@ -1,12 +1,25 @@
-import { useCallback, useMemo, useRef } from 'react';
+import type EChartsReact from 'echarts-for-react';
+import {
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    type RefObject,
+} from 'react';
 
 type LegendScrollEvent = {
     scrollDataIndex: number;
 };
 
-/** setOption(notMerge) rebuilds the legend model, resetting a scroll legend to
- * its first page. Track the scroll position and build each new option at it. */
-export const useLegendScrollPosition = <T extends { legend?: object }>(
+type OptionWithLegend = {
+    animation?: boolean;
+    legend?: { animation?: boolean };
+};
+
+/** setOption(notMerge) rebuilds the legend, resetting a scroll legend to its
+ * first page. Track the scroll position and build each new option at it. */
+export const useLegendScrollPosition = <T extends OptionWithLegend>(
+    chartRef: RefObject<EChartsReact | null>,
     option: T | undefined,
 ) => {
     const scrollDataIndexRef = useRef(0);
@@ -15,13 +28,28 @@ export const useLegendScrollPosition = <T extends { legend?: object }>(
         scrollDataIndexRef.current = params.scrollDataIndex;
     }, []);
 
-    // Read when the option changes, so the new legend renders at the current
-    // page instead of animating there from the first one
+    // A rebuilt legend slides in from the first page, so build it without
+    // animation and restore the animation once it has rendered
     const optionWithScrollPosition = useMemo(() => {
         const scrollDataIndex = scrollDataIndexRef.current;
         if (!option?.legend || scrollDataIndex === 0) return option;
-        return { ...option, legend: { ...option.legend, scrollDataIndex } };
+        return {
+            ...option,
+            legend: { ...option.legend, scrollDataIndex, animation: false },
+        };
     }, [option]);
+
+    // Runs after echarts-for-react's componentDidUpdate has applied the option
+    useLayoutEffect(() => {
+        if (!option?.legend || optionWithScrollPosition === option) return;
+        const instance = chartRef.current?.getEchartsInstance();
+        if (!instance || instance.isDisposed()) return;
+        instance.setOption({
+            legend: {
+                animation: option.legend.animation ?? option.animation ?? true,
+            },
+        });
+    }, [chartRef, option, optionWithScrollPosition]);
 
     return { optionWithScrollPosition, onLegendScroll };
 };

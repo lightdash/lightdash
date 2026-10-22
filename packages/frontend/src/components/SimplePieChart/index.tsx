@@ -66,7 +66,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
             props.isInDashboard,
         );
         const { optionWithScrollPosition, onLegendScroll } =
-            useLegendScrollPosition(pieChartOptions?.eChartsOption);
+            useLegendScrollPosition(chartRef, pieChartOptions?.eChartsOption);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,

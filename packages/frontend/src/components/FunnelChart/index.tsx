@@ -67,7 +67,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             props.isInDashboard,
         );
         const { optionWithScrollPosition, onLegendScroll } =
-            useLegendScrollPosition(funnelChartOptions);
+            useLegendScrollPosition(chartRef, funnelChartOptions);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,

@@ -411,7 +411,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         }, [eChartsOptions, opts.renderer]);
 
         const { optionWithScrollPosition, onLegendScroll } =
-            useLegendScrollPosition(resolvedEChartsOptions);
+            useLegendScrollPosition(chartRef, resolvedEChartsOptions);
 
         // Keep native axis/legend tooltips and local emphasis. Narrow segment tips
         // before paint. A short grace period bridges gaps without rebuilding options.
