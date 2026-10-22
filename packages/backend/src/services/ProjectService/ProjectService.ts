@@ -3851,18 +3851,22 @@ export class ProjectService
         assertPreAggregateRefresh(stored, explores);
     }
 
-    async capturePeerCompileSlices(
-        projectUuid: string,
-    ): Promise<CompileSlice[] | null> {
+    private async isPeerCompileEnabled(projectUuid: string): Promise<boolean> {
         if (!(await this.projectDbtSourcesModel.hasSources(projectUuid)))
-            return null;
+            return false;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.PeerDbtSources,
             user: { organizationUuid },
         });
-        if (!enabled) return null;
+        return enabled;
+    }
+
+    async capturePeerCompileSlices(
+        projectUuid: string,
+    ): Promise<CompileSlice[] | null> {
+        if (!(await this.isPeerCompileEnabled(projectUuid))) return null;
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) return null;
@@ -3920,8 +3924,17 @@ export class ProjectService
                 (context.writeKind === 'all' &&
                     current.size !== captured.size) ||
                 [...captured].some((uuid) => !current.has(uuid)) ||
+                context.requestedSourceUuids?.some(
+                    (uuid) => !captured.has(uuid),
+                ) ||
                 context.pins.some((pin) => !captured.has(pin.sourceUuid))
             ) {
+                this.logger.warn('compile.publish.conflict', {
+                    event: 'compile.publish.conflict',
+                    projectUuid,
+                    compileJobUuid: context.compileJobUuid,
+                    reason: 'source_membership_changed',
+                });
                 throw new ConflictError(
                     'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
                 );
@@ -4426,10 +4439,14 @@ export class ProjectService
             cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
-        const slices =
-            args.peerCompileSlices === undefined
-                ? await this.capturePeerCompileSlices(args.projectUuid)
-                : args.peerCompileSlices;
+        let slices = args.peerCompileSlices;
+        if (slices === undefined)
+            slices = await this.capturePeerCompileSlices(args.projectUuid);
+        else if (
+            slices !== null &&
+            !(await this.isPeerCompileEnabled(args.projectUuid))
+        )
+            slices = null;
         const context: PeerCompileContext | undefined =
             slices === null
                 ? undefined
@@ -4637,17 +4654,7 @@ export class ProjectService
             else if (projectDbtSourceUuid)
                 writtenSourceUuids = [projectDbtSourceUuid];
             const writtenSources = new Set(writtenSourceUuids);
-            if (
-                [...writtenSources].some(
-                    (uuid) =>
-                        !peerCompile.slices.some(
-                            (slice) => slice.sourceUuid === uuid,
-                        ),
-                )
-            )
-                throw new ConflictError(
-                    'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
-                );
+            peerCompile.requestedSourceUuids = [...writtenSources];
             peerCompile.slices = peerCompile.slices.filter((slice) =>
                 writtenSources.has(slice.sourceUuid),
             );

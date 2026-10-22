@@ -12,6 +12,7 @@ export type PeerCompileContext = {
     compileJobUuid: string;
     slices: CompileSlice[];
     writeKind: 'all' | 'slices';
+    requestedSourceUuids?: string[];
     pins: CompilePin[];
     bindings: CompileBinding[];
     artifacts: ((trx: Knex.Transaction) => Promise<void>)[];

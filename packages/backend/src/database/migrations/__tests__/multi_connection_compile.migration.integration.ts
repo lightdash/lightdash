@@ -4111,6 +4111,97 @@ Sources in this project: Core models, marketing, finance.`;
                 }
             });
 
+            test.each([
+                'enabled',
+                'disabled before finalize',
+                'disabled during prepare',
+            ] as const)(
+                'a deploy of a peer added after its stored snapshot respects the current flag (%s)',
+                async (mode) => {
+                    const fixture = await createProject();
+                    await compile(fixture);
+                    const user = await compilingUser(fixture.projectUuid);
+                    const mutableOptions = options();
+                    const { service, internals } = compileService(
+                        fixture.projectUuid,
+                        mutableOptions,
+                    );
+                    const snapshot = await service.capturePeerCompileSlices(
+                        fixture.projectUuid,
+                    );
+                    expect(snapshot).not.toBeNull();
+                    const added = await projectDbtSourcesModel.createSource(
+                        fixture.projectUuid,
+                        {
+                            name: 'up_new',
+                            isPrimary: false,
+                            precedence: 3,
+                            dbtConnection: githubDbtConnection('org/up_new'),
+                            warehouseLocation: { database: null, schema: null },
+                        },
+                    );
+                    fixture.sourceUuids.up_new = added.projectDbtSourceUuid;
+                    const before = await publicationState(fixture.projectUuid);
+                    const oldBindings = await bindings(fixture.projectUuid);
+                    if (mode === 'disabled before finalize')
+                        mutableOptions.peerDbtSources = false;
+                    if (mode === 'disabled during prepare') {
+                        const prepare =
+                            internals.multiConnectionCompiler.prepareSourceDeploy.bind(
+                                internals.multiConnectionCompiler,
+                            );
+                        vi.spyOn(
+                            internals.multiConnectionCompiler,
+                            'prepareSourceDeploy',
+                        ).mockImplementationOnce(async (...args) => {
+                            const prepared = await prepare(...args);
+                            mutableOptions.peerDbtSources = false;
+                            return prepared;
+                        });
+                    }
+                    const published = deploy(
+                        service,
+                        fixture,
+                        user.userUuid,
+                        'up_new',
+                        'model_new',
+                        snapshot,
+                    );
+                    if (mode === 'enabled') {
+                        await expect(published).rejects.toThrow(
+                            'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+                        );
+                        expect(
+                            await publicationState(fixture.projectUuid),
+                        ).toEqual(before);
+                    } else {
+                        await published;
+                        expect(await bindings(fixture.projectUuid)).toEqual({
+                            ...oldBindings,
+                            model_new: null,
+                        });
+                        const state = await publicationState(
+                            fixture.projectUuid,
+                        );
+                        expect(
+                            state.explores.filter(
+                                ({ name }) => name !== 'model_new',
+                            ),
+                        ).toEqual(before.explores);
+                        const incoming = await projectModel.getExploreFromCache(
+                            fixture.projectUuid,
+                            'model_new',
+                        );
+                        expect(incoming.tables?.model_new.dbtSourceUuid).toBe(
+                            added.projectDbtSourceUuid,
+                        );
+                        expect(state.pins).toEqual([]);
+                        expect(state.slices).toEqual([]);
+                        expect(state.generations).toEqual([]);
+                    }
+                },
+            );
+
             test('adding a peer after a full refresh snapshot rejects publication without partial changes', async () => {
                 const fixture = await createProject();
                 await compile(fixture);

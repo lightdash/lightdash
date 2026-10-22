@@ -534,11 +534,14 @@ limit fails publication instead of truncating the evidence.
 
 The flag is checked at start and again in the publication transaction. Disabling
 it restores last-writer-wins publication and stops new generation/pin writes,
-including for a previously captured upload session. Re-enabling it uses retained
+including for a previously captured upload session. Stored sessions recheck rollout
+eligibility at finalization and retain their original generations when enabled.
+Requested-source validation also runs under the publication-time flag check.
+Re-enabling it uses retained
 generations. Writes made while the flag is off do not advance those generations,
 so keep the flag stable while guarded jobs run; an intervening unguarded write
-cannot be detected after re-enablement. Projects without extra sources skip all new metadata writes with
-either flag value.
+cannot be detected after re-enablement. Projects without extra sources skip all
+new metadata writes with either flag value.
 
 Old workers do not check or advance generations. During a rolling upgrade, an old
 worker can overwrite a guarded publication, and a new worker cannot detect an
