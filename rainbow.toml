@@ -11,6 +11,7 @@ name = "dev"
 command = "pnpm dev"
 ports = [8080, 3000]
 serve_port = 3000
+restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
 # The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
 # docker/docker-compose.preview.yml). Plain node, no deps; it reads only PORT,
@@ -281,11 +282,14 @@ port = 443
 host = "github.com"                 # GitHub OAuth login
 port = 443
 
-# The browser learns its origin from one field of one response, so the ingress
-# corrects it in flight; nothing is re-execed on fork.
+# The app learns its public origin the truthful way: SITE_URL is injected on
+# fork and the dev service re-execs to read it (restart_on_inject above), so
+# every URL the backend emits — invite links, embed and OAuth redirects, the
+# health payload — is the preview's, not localhost. A patch rule here would
+# switch Rainbow to patch mode (one response corrected in flight, no restart)
+# and the E2E suites that read those URLs would fail again.
 [origin]
 vars = ["SITE_URL"]
-patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
 # Names, not values: the platform holds what they resolve to, and every
 # environment of this repo has them from the moment it boots. A name with no

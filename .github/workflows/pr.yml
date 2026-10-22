@@ -578,7 +578,9 @@ jobs:
             esac
           done
           [ "${status#success}" != "$status" ] || { echo "::error::Rainbow preview not ready after 30 minutes"; exit 1; }
-          curl -sSf --retry 5 --retry-delay 5 -o /dev/null "$PREVIEW_URL/api/v1/health"
+          # The dev service re-execs after Rainbow injects SITE_URL, so the first
+          # probes after "success" can hit a backend still booting.
+          curl -sSf --retry 36 --retry-delay 5 --retry-all-errors -o /dev/null "$PREVIEW_URL/api/v1/health"
       - name: Set preview URL output
         id: preview-url
         run: echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
