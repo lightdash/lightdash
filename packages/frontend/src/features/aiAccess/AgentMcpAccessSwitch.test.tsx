@@ -61,6 +61,8 @@ const renderPages = (input: {
                     <AgentIdentitySettingsPage access={access} />
                     {access.mcpPage !== 'hidden' && (
                         <McpGeneralSettingsPage
+                            canManageOrganization={false}
+                            showAiSettings
                             showAgentsPageLink={view === 'link'}
                         />
                     )}

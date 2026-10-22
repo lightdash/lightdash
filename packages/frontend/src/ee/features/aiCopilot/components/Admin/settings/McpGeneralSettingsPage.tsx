@@ -17,8 +17,9 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
+import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
-export const McpGeneralSettingsPage = ({
+const McpToolSettings = ({
     showAgentsPageLink,
 }: {
     showAgentsPageLink: boolean;
@@ -34,10 +35,7 @@ export const McpGeneralSettingsPage = ({
         useUpdateAiOrganizationSettings();
 
     return (
-        <SettingsPage
-            title="General"
-            description="Configure how MCP (Model Context Protocol) clients access Lightdash agents and content."
-        >
+        <>
             {isError ? (
                 <SettingsCard>
                     <Stack align="center">
@@ -141,6 +139,26 @@ export const McpGeneralSettingsPage = ({
                     </SettingsCard>
                 </>
             )}
-        </SettingsPage>
+        </>
     );
 };
+
+export const McpGeneralSettingsPage = ({
+    showAgentsPageLink,
+    canManageOrganization,
+    showAiSettings,
+}: {
+    showAgentsPageLink: boolean;
+    canManageOrganization: boolean;
+    showAiSettings: boolean;
+}) => (
+    <SettingsPage
+        title="General"
+        description="Configure how MCP (Model Context Protocol) clients access Lightdash agents and content."
+    >
+        {canManageOrganization && <McpAccessSettingsCard />}
+        {showAiSettings && (
+            <McpToolSettings showAgentsPageLink={showAgentsPageLink} />
+        )}
+    </SettingsPage>
+);

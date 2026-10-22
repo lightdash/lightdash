@@ -41,6 +41,7 @@ describe('OrganizationSettingsModel', () => {
         test('returns all-null (nothing overridden → inherit) when no row exists', async () => {
             const { model } = createModel(undefined);
             expect(await model.get(ORG)).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -69,6 +70,7 @@ describe('OrganizationSettingsModel', () => {
                 persistent_download_urls_enabled: null,
             });
             expect(await model.get(ORG)).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -94,6 +96,7 @@ describe('OrganizationSettingsModel', () => {
                 support_impersonation_enabled: true,
             });
             expect(await model.get(ORG)).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
@@ -121,6 +124,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduled_delivery_expiration_seconds_slack: 1209600,
             });
             expect(await model.get(ORG)).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -147,6 +151,7 @@ describe('OrganizationSettingsModel', () => {
                 ],
             });
             expect(await model.get(ORG)).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -238,6 +243,7 @@ describe('OrganizationSettingsModel', () => {
 
             // returns the re-read settings
             expect(result).toEqual({
+                mcpEnabled: null,
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,

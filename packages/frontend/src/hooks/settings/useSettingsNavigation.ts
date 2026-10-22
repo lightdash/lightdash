@@ -703,38 +703,65 @@ export const useSettingsNavigation = (
                 exact: true,
             },
         ];
+        if (
+            user?.ability.can('manage', 'Organization') ||
+            (isAiCopilotEnabledOrTrial &&
+                hasAnyAiAgentAccess &&
+                canManageOrgAiAgent)
+        ) {
+            mcpChildren.push({
+                label: 'General',
+                to: '/generalSettings/mcp/general',
+                icon: IconSettings,
+                keywords: [
+                    'mcp',
+                    'settings',
+                    'access',
+                    'disable',
+                    ...(isAiCopilotEnabledOrTrial &&
+                    hasAnyAiAgentAccess &&
+                    canManageOrgAiAgent
+                        ? ['agents', 'content', 'writes']
+                        : []),
+                ],
+                pageSections: [
+                    ...(user?.ability.can('manage', 'Organization')
+                        ? [
+                              {
+                                  title: 'Allow MCP access',
+                                  keywords: [
+                                      'access',
+                                      'disable',
+                                      'organization',
+                                  ],
+                              },
+                          ]
+                        : []),
+                    ...(isAiCopilotEnabledOrTrial &&
+                    hasAnyAiAgentAccess &&
+                    canManageOrgAiAgent
+                        ? [
+                              {
+                                  title: 'Enable agents over MCP',
+                                  keywords: ['tools', 'context', 'access'],
+                              },
+                              {
+                                  title: 'Allow content changes via MCP',
+                                  keywords: [
+                                      'charts',
+                                      'dashboards',
+                                      'create',
+                                      'edit',
+                                  ],
+                              },
+                          ]
+                        : []),
+                ],
+                children: [],
+                exact: true,
+            });
+        }
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
-            if (canManageOrgAiAgent) {
-                mcpChildren.push({
-                    label: 'General',
-                    to: '/generalSettings/mcp/general',
-                    icon: IconSettings,
-                    keywords: [
-                        'mcp',
-                        'settings',
-                        'agents',
-                        'content',
-                        'writes',
-                    ],
-                    pageSections: [
-                        {
-                            title: 'Enable agents over MCP',
-                            keywords: ['tools', 'context', 'access'],
-                        },
-                        {
-                            title: 'Allow content changes via MCP',
-                            keywords: [
-                                'charts',
-                                'dashboards',
-                                'create',
-                                'edit',
-                            ],
-                        },
-                    ],
-                    children: [],
-                    exact: true,
-                });
-            }
             mcpChildren.push({
                 label: 'Analytics',
                 to: '/generalSettings/mcp/analytics',

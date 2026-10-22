@@ -41,6 +41,7 @@ export class OrganizationSettingsModel {
             .where('organization_uuid', organizationUuid)
             .first();
         return {
+            mcpEnabled: row?.mcp_enabled ?? null,
             oidcLinkingEnabled: row?.oidc_linking_enabled ?? null,
             oidcToEmailLinkingEnabled:
                 row?.oidc_to_email_linking_enabled ?? null,
@@ -86,6 +87,7 @@ export class OrganizationSettingsModel {
         patch: UpdateOrganizationSettings,
     ): Promise<OrganizationSettings> {
         const columns: SettingsColumnPatch = {
+            mcp_enabled: patch.mcpEnabled,
             oidc_linking_enabled: patch.oidcLinkingEnabled,
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
             support_impersonation_enabled: patch.supportImpersonationEnabled,

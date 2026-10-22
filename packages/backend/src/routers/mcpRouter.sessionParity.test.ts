@@ -36,6 +36,9 @@ test.each(['off', 'legacy', 'managed'] as const)(
             assertOperationWithRequest: vi.fn(),
         }));
         const service = new McpService({
+            organizationSettingsModel: {
+                get: vi.fn().mockResolvedValue({ mcpEnabled: null }),
+            },
             lightdashConfig: {
                 mcp: { enabled: true, runSqlMaxLimit: 500 },
                 siteUrl: 'https://example.com',

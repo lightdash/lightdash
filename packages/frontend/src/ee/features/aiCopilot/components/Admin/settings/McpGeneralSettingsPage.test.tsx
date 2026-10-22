@@ -57,7 +57,11 @@ vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
 const renderPage = () =>
     renderWithProviders(
         <MemoryRouter>
-            <McpGeneralSettingsPage showAgentsPageLink={false} />
+            <McpGeneralSettingsPage
+                showAgentsPageLink={false}
+                canManageOrganization={false}
+                showAiSettings
+            />
         </MemoryRouter>,
     );
 

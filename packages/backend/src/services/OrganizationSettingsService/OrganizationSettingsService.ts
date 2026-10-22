@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     MAX_INVITE_LINK_EXPIRATION_DAYS,
     OrganizationSettings,
     ParameterError,
@@ -12,6 +13,9 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { BaseService } from '../BaseService';
@@ -192,10 +196,45 @@ export class OrganizationSettingsService extends BaseService {
         const organizationUuid = this.assertCanManageOrganization(account);
         await this.assertCanManageLimits(account, data);
         this.assertValidPatch(data);
+        const previous =
+            data.mcpEnabled !== undefined
+                ? await this.organizationSettingsModel.get(organizationUuid)
+                : undefined;
         const raw = await this.organizationSettingsModel.update(
             organizationUuid,
             data,
         );
+        if (previous) {
+            try {
+                logAuditEvent(
+                    createAuditLogEvent(
+                        createActorFromAccount(account),
+                        'update',
+                        {
+                            type: 'OrganizationSettings',
+                            organizationUuid,
+                            metadata: {
+                                mcpEnabled: {
+                                    from: previous.mcpEnabled ?? true,
+                                    to: raw.mcpEnabled ?? true,
+                                },
+                            },
+                        },
+                        {
+                            ip: account.requestContext?.ip,
+                            userAgent: account.requestContext?.userAgent,
+                            requestId: account.requestContext?.requestId,
+                        },
+                        'allowed',
+                    ),
+                );
+            } catch (error) {
+                this.logger.warn('Failed to log MCP settings audit event', {
+                    error: getErrorMessage(error),
+                    organizationUuid,
+                });
+            }
+        }
         if (data.corsAllowedDomains !== undefined) {
             invalidateCorsPolicyCache();
         }

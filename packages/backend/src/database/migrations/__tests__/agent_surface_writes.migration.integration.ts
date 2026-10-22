@@ -359,6 +359,9 @@ describe('trusted surface to persisted chart identity', () => {
         async (enabled) => {
             const f = await setup(enabled);
             const mcp = new McpService({
+                organizationSettingsModel: {
+                    get: vi.fn().mockResolvedValue({ mcpEnabled: null }),
+                },
                 lightdashConfig: f.config,
                 aiAgentToolsService: f.tools,
                 agentActionLogModel: f.agentActionLogModel,

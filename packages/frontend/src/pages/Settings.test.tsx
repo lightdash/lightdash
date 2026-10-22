@@ -66,6 +66,7 @@ const renderSettings = (
         dbtConnection: { type: DbtProjectType.NONE },
         provisioningSource: isAnalyticsProject ? 'analytics' : null,
     });
+    queryClient.setQueryData(['organization_settings'], { mcpEnabled: true });
     queryClient.setQueryData(['organization'], {
         organizationUuid: 'org',
         name: 'Test organization',
@@ -609,12 +610,104 @@ describe('Agent identity settings routes', () => {
 });
 
 describe('MCP settings route permission parity', () => {
+    const manageOrganization = {
+        action: 'manage',
+        subject: 'Organization',
+        conditions: { organizationUuid: 'org' },
+    } satisfies LightdashUserWithAbilityRules['abilityRules'][number];
     let viewport: ReturnType<typeof mockViewport>;
     beforeEach(() => {
         localStorage.clear();
         viewport = mockViewport(1280);
     });
     afterEach(() => viewport.restore());
+
+    it.each([true, false])(
+        'saves MCP access without AI availability (success=%s)',
+        async (success) => {
+            const adminRead = vi.fn(() => ({
+                status: 'ok',
+                results: agentSettingsMcpMock(),
+            }));
+            nock(BASE_API_URL)
+                .get('/api/v1/aiAgents/admin/settings')
+                .optionally()
+                .reply(200, adminRead);
+            const patch = nock(BASE_API_URL)
+                .patch('/api/v1/org/settings', { mcpEnabled: false })
+                .reply(
+                    success ? 200 : 500,
+                    success
+                        ? { status: 'ok', results: { mcpEnabled: false } }
+                        : {
+                              status: 'error',
+                              error: {
+                                  name: 'Error',
+                                  message: 'Settings could not be saved',
+                                  statusCode: 500,
+                              },
+                          },
+                );
+            const read = nock(BASE_API_URL)
+                .get('/api/v1/org/settings')
+                .optionally(!success)
+                .reply(200, { status: 'ok', results: { mcpEnabled: false } });
+            nock(BASE_API_URL)
+                .get('/api/v1/org')
+                .optionally()
+                .reply(200, {
+                    status: 'ok',
+                    results: {
+                        organizationUuid: 'org',
+                        name: 'Test organization',
+                    },
+                });
+
+            const view = renderSettings(
+                '',
+                [viewProject, manageOrganization],
+                true,
+                '/generalSettings/mcp/general',
+                false,
+                { isCopilotEnabled: false, isTrial: false },
+                false,
+            );
+            const control = await screen.findByRole('switch', {
+                name: 'Allow MCP access',
+            });
+            expect(control).toBeChecked();
+            expect(
+                screen.queryByRole('switch', {
+                    name: 'Enable agents over MCP',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('switch', {
+                    name: 'Allow content changes via MCP',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'General', current: 'page' }),
+            ).toHaveAttribute('href', '/generalSettings/mcp/general');
+            fireEvent.click(control);
+            await waitFor(() => expect(patch.isDone()).toBe(true));
+            await waitFor(() => expect(view.queryClient.isMutating()).toBe(0));
+            expect(control).toBeEnabled();
+            if (success) {
+                expect(read.isDone()).toBe(true);
+                expect(control).not.toBeChecked();
+            } else {
+                expect(control).toBeChecked();
+                expect(
+                    view.queryClient
+                        .getMutationCache()
+                        .getAll()
+                        .some((mutation) => mutation.state.status === 'error'),
+                ).toBe(true);
+            }
+            expect(adminRead).not.toHaveBeenCalled();
+        },
+    );
     it.each([
         { enabled: true, manageOrg: true, manageAi: true },
         { enabled: true, manageOrg: false, manageAi: true },
@@ -758,13 +851,37 @@ describe('MCP settings route permission parity', () => {
                     isTrial: false,
                 },
             );
-            if (!manageAi) {
+            if (!manageAi && !manageOrg) {
                 expect(
                     await screen.findByRole('heading', { name: 'Profile' }),
                 ).toBeInTheDocument();
                 expect(
                     screen.queryByRole('switch', {
                         name: 'Enable agents over MCP',
+                    }),
+                ).not.toBeInTheDocument();
+                return;
+            }
+            if (manageOrg) {
+                expect(
+                    await screen.findByRole('switch', {
+                        name: 'Allow MCP access',
+                    }),
+                ).toBeChecked();
+            } else {
+                expect(
+                    screen.queryByRole('switch', { name: 'Allow MCP access' }),
+                ).not.toBeInTheDocument();
+            }
+            if (!manageAi) {
+                expect(
+                    screen.queryByRole('switch', {
+                        name: 'Enable agents over MCP',
+                    }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByRole('switch', {
+                        name: 'Allow content changes via MCP',
                     }),
                 ).not.toBeInTheDocument();
                 return;

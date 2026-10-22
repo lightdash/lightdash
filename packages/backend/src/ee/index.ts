@@ -1598,6 +1598,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             mcpService: ({ context, repository, models }) =>
                 new McpService({
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,

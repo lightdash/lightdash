@@ -18,6 +18,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
         expect(
             resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS),
         ).toEqual({
+            mcpEnabled: true,
             oidcLinkingEnabled: false,
             oidcToEmailLinkingEnabled: true,
             supportImpersonationEnabled: false,
@@ -35,6 +36,18 @@ describe('resolveEffectiveOrganizationSettings', () => {
             dataAppCapturesEnabled: true,
         });
     });
+
+    test.each([true, false, null, undefined])(
+        'resolves MCP access from %s',
+        (mcpEnabled) => {
+            expect(
+                resolveEffectiveOrganizationSettings(
+                    { mcpEnabled },
+                    INSTANCE_DEFAULTS,
+                ).mcpEnabled,
+            ).toBe(mcpEnabled ?? true);
+        },
+    );
 
     test('automatic data app thumbnails are on until an org turns them off', () => {
         expect(

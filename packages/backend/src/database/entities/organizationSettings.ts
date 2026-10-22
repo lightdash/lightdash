@@ -10,6 +10,8 @@ export const OrganizationSettingsTableName = 'organization_settings';
  */
 export type DbOrganizationSettings = {
     organization_uuid: string;
+    // NULL/absent preserves the organization's existing MCP availability.
+    mcp_enabled: boolean | null;
     // Nullable: NULL means "not set — inherit the instance default".
     oidc_linking_enabled: boolean | null;
     oidc_to_email_linking_enabled: boolean | null;
