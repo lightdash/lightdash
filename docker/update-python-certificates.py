@@ -7,7 +7,11 @@ from pathlib import Path
 
 from pip._vendor.packaging.version import Version
 
-# Bootstrap through the OS bundle and verify the wheel before using its TLS code.
+# pip 26.2.2 updates its own certifi bundle; OS certificate updates alone are insufficient.
+# https://pip.pypa.io/en/stable/news/#v26-2-2
+
+# Python's incident announcement supplies this hash-verified bootstrap for old pip.
+# https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576
 if Version(importlib.metadata.version("pip")) < Version("26.2.2"):
     subprocess.run(
         [
@@ -28,11 +32,14 @@ if Version(importlib.metadata.version("pip")) < Version("26.2.2"):
         check=True,
     )
 
+# certifi removed compromised emSign trust; Python recommends 2026.10.19 for compatibility.
+# https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2
 for python in [
     Path(sys.executable),
     *sorted(Path("/usr/local").glob("dbt*/bin/python")),
 ]:
-    # dbt-snowflake 1.9-1.11 cap certifi below the patched release.
+    # --no-deps bypasses dbt-snowflake 1.9-1.11's certifi<2025.4.26 until fixed releases.
+    # https://github.com/dbt-labs/dbt-adapters/pull/2241
     subprocess.run(
         [
             sys.executable,
@@ -49,6 +56,7 @@ for python in [
         ],
         check=True,
     )
+    # gRPC and botocore ship separate CA files; use the patched OS bundle for both.
     subprocess.run(
         [
             str(python),
