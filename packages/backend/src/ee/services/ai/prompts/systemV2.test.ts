@@ -440,7 +440,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'one semanticLayer node per explore plus a duckdb node',
+            'combine explores that are not joined in the semantic layer with a duckdb node',
         );
     });
 
@@ -467,7 +467,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
         expect(content).toContain('Present the result your answer rests on');
         expect(content).toContain(
-            'the terminal node is the result you present',
+            'whose terminal node is the result you present',
         );
     });
 
@@ -482,7 +482,7 @@ describe('getSystemPromptV2 composer queries', () => {
             'Present the result your answer rests on',
         );
         expect(content).toContain(
-            'the terminal node is the table you can share',
+            'whose terminal node is the table you can share',
         );
     });
 
