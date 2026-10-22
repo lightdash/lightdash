@@ -73,22 +73,6 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: mockTrack }),
 }));
 
-const mockShowToast = vi.hoisted(() => vi.fn());
-vi.mock('../../hooks/toaster/useToaster', () => ({
-    default: () => ({ showToastSuccess: mockShowToast }),
-}));
-const mockHideToast = vi.hoisted(() => vi.fn());
-vi.mock('@mantine/notifications', async (importOriginal) => ({
-    ...(await importOriginal<object>()),
-    notifications: { hide: mockHideToast },
-}));
-// The Undo of the last toast, as its button would run it
-const pressUndo = () => {
-    act(() => {
-        mockShowToast.mock.lastCall?.[0].action.onClick();
-    });
-};
-
 const rule = (id: string, values: string[]): DashboardFilterRule => ({
     id,
     label: undefined,
@@ -1723,10 +1707,12 @@ describe('ControlsSidebarProvider', () => {
         });
 
         describe('with Undo', () => {
-            beforeEach(() => {
-                mockShowToast.mockClear();
-                mockHideToast.mockClear();
-            });
+            const APPLY = {
+                fieldId: 'orders_region',
+                tileCount: 2,
+                replaced: 1,
+                acrossTabs: false,
+            };
             // Status on t2, Region on t1; then Region on both
             const applyRegionToAll = (result: {
                 current: ControlsSidebarContextValue;
@@ -1736,31 +1722,30 @@ describe('ControlsSidebarProvider', () => {
                     result.current.updateFilter(onStatus({ t1: region })),
                 );
                 act(() =>
-                    result.current.updateFilterWithUndo(
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
                         onStatus({ t1: region, t2: region }),
-                        'Region applied to 2 tiles',
+                        APPLY,
                     ),
                 );
             };
 
-            it('puts the rule back as it was, with the field it promoted away', () => {
+            it('puts the rule back as it was, with the field it promoted away, and ends', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
                 expect(result.current.editingRule?.target).toEqual(region);
-                expect(mockShowToast).toHaveBeenCalledTimes(1);
-                expect(mockShowToast.mock.lastCall?.[0]).toMatchObject({
-                    key: 'controls-field-undo',
-                    title: 'Region applied to 2 tiles',
-                    action: { children: 'Undo' },
-                });
+                expect(result.current.fieldUndo).toEqual(APPLY);
 
-                pressUndo();
+                act(() => result.current.undoApply());
                 expect(result.current.editingRule).toEqual(
                     onStatus({ t1: region }),
                 );
+                expect(result.current.fieldUndo).toBeNull();
             });
 
-            it('does nothing once the rule changed after the press', () => {
+            it('ends with any later edit to the rule, and then does nothing', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
                 const edited = {
@@ -1768,47 +1753,69 @@ describe('ControlsSidebarProvider', () => {
                     label: 'Renamed',
                 };
                 act(() => result.current.updateFilter(edited));
+                expect(result.current.fieldUndo).toBeNull();
 
-                pressUndo();
+                act(() => result.current.undoApply());
                 expect(result.current.editingRule).toEqual(edited);
             });
 
-            it('does nothing once another control is open, and the toast goes', () => {
+            it('ends with a write from outside the editor', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                writeOutsideTheEditor((filters) => ({
+                    ...filters,
+                    dimensions: filters.dimensions.map((r) =>
+                        r.id === 'a' ? { ...r, label: 'Outside' } : r,
+                    ),
+                }));
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends when another field is clicked, not when the same one is', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() => result.current.setHighlightedFieldId(null));
+                expect(result.current.fieldUndo).toEqual(APPLY);
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends once another control opens, and Undo does nothing there', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
                 const written = result.current.editingRule;
                 act(() => result.current.open('b'));
-                expect(mockHideToast).toHaveBeenCalledWith(
-                    'controls-field-undo',
-                );
+                expect(result.current.fieldUndo).toBeNull();
 
-                pressUndo();
+                act(() => result.current.undoApply());
                 expect(
                     latest.filters.dimensions.find((r) => r.id === 'a'),
                 ).toEqual(written);
             });
 
-            it('goes when the editor closes', () => {
+            it('ends when the editor closes', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
-                mockHideToast.mockClear();
                 act(() => result.current.close());
-                expect(mockHideToast).toHaveBeenCalledWith(
-                    'controls-field-undo',
-                );
+                expect(result.current.fieldUndo).toBeNull();
             });
 
-            it('shows no toast for a press that changed nothing', () => {
+            it('is not offered for a press that changed nothing', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
-                mockShowToast.mockClear();
+                act(() => result.current.undoApply());
                 act(() =>
-                    result.current.updateFilterWithUndo(
+                    result.current.applyWithUndo(
                         result.current.editingRule as DashboardFilterRule,
-                        'Region applied to 2 tiles',
+                        APPLY,
                     ),
                 );
-                expect(mockShowToast).not.toHaveBeenCalled();
+                expect(result.current.fieldUndo).toBeNull();
             });
         });
 
@@ -1918,7 +1925,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(23);
+        expect(Object.keys(initial)).toHaveLength(24);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');

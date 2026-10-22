@@ -203,16 +203,21 @@ In `FilterConfiguration/`:
   kind). A locked control comes back not `required` when
   the new field brings no value (`isLockedRequiredMissingValue`).
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
-- `updateFilterWithUndo(rule, message)` is `updateFilter`, then, when the
-  edited rule changed, the app toaster's success toast with `message` and an
-  "Undo" action, under one key (`controls-field-undo`), so a new press
-  replaces it. Undo writes the rule as it was just before the press with
-  `updateFilter` (a field promoted away comes back with its tiles), and only
-  while the same control is edited and the rule is still what the press
-  wrote (`isFilterRuleDirty` over the filters right after the write, as
-  "changed" reads it); otherwise it does nothing. The toast is hidden when
-  the edit ends (`resetEdit`) and when another control or a placeholder
-  opens. The bar's and the follow-up's "Apply to all" use it.
+- `applyWithUndo(rule, apply)` is `updateFilter` for an "Apply to all"
+  (`apply`: the field, the tiles it ends on, how many it replaced). When the
+  edited rule changed it keeps provider state `undo`: the rule as it was
+  just before, and the filters as the press left them. There is no toast.
+  `fieldUndo` is derived from it on render: the `apply` while the same
+  control is edited and the rule is still what the press wrote
+  (`isFilterRuleDirty`, as "changed" reads it, so a write from outside the
+  editor ends it too), else null. `undo` is dropped by any `updateFilter`,
+  by clicking another field (`setHighlightedFieldId` with another id;
+  unclicking or clicking the same field keeps it), by opening another
+  control or a placeholder and when the edit ends (`resetEdit`).
+  `undoApply()` writes the rule back with `updateFilter` (a field promoted
+  away comes back with its tiles), which ends the undo, and does nothing
+  once `fieldUndo` would be null. The bar's and the follow-up's "Apply to
+  all" use it; only the bar shows it.
 - The rail and the edit are two states. `isRailOpen` is the rail on screen;
   `isSidebarOpen` is a filter expanded in it. `open`/`openNew` open both.
   `collapse()` does to the edited filter exactly what `close()` does (edits
@@ -585,14 +590,12 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `everyTabScope`), and `applyToAll`, `clear` (each taking a `TileScope`)
   and `remove`.
 - `applyToAll(scope)` is `applyFieldToAllTiles` (`peers.ts`) through
-  `updateFilterWithUndo`: every tile of the scope that offers the field (a
+  `applyWithUndo`: every tile of the scope that offers the field (a
   SQL chart tile that has the column, for a column) ends up on it, whether
   it had no entry, was left out (`false`) or was on another field of the
   filter. A data app tile is never touched, and a tile already on the field
-  is left as it is. Its toast reads "<field> applied to N tiles", N being the
-  scope's `possible`, plus ", replacing <fields> on k" when it moved tiles
-  off other fields (`nameReplacedFields`: one or two by name joined with
-  "and", more as "other fields").
+  is left as it is. It hands the provider the scope's `possible` as the
+  tile count and its `replaced`.
 - Scope: there is no mode. On a dashboard with two tabs or more the scopes
   are `'this-tab'` (the dashboard's active tab, which it follows) and
   `'every-tab'`; with fewer there is only `'every-tab'` and `thisTabScope`
@@ -616,7 +619,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - One line that wraps when narrow: the field's icon and name, a vertical
     `Divider`, then the tab in view (every tile on a dashboard without
     tabs): "**x of N** tiles on this tab" ("x of N tiles" without tabs) and
-    its actions.
+    its actions. While `fieldUndo` is on this field and replaced tiles, the
+    count adds ", k replaced" (", k replaced across tabs" after "Apply to
+    all tabs").
   - Where no tile of the scope offers the field the count reads "No tile on
     this tab has this field" ("No tile has this field" without tabs).
   - Actions, size `xs`, in this order, and never a filled button (the
@@ -625,9 +630,10 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     without tabs), shown while a tile of the scope that offers the field is
     not on it; with two tabs or more "Apply to all tabs" (`subtle`,
     `applyToAll('every-tab')`), shown while any tile on any tab is not on it,
-    on a tab with no tile for the field too; a subtle gray "Clear"
-    (`removeFieldFromAll`, this tab), shown while the field is on a tile of
-    the scope.
+    on a tab with no tile for the field too; a subtle "Undo" (`undoApply`),
+    shown while `fieldUndo` is on this field, whichever scope or tile card
+    the apply came from; a subtle gray "Clear" (`removeFieldFromAll`, this
+    tab), shown while the field is on a tile of the scope.
   - A button that would change nothing is not rendered, never disabled.
   - It is a `region` named "Tiles filtered by <field>"; the count sentence
     is the `aria-live="polite"` element. The apply buttons are named by the
@@ -636,7 +642,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     ("Apply <field> to all 8 tiles" without tabs). "Clear" is named "Clear
     <field> from this tab" ("Clear <field> from tiles" without tabs). An
     apply button has a tooltip only when it would replace another field:
-    "Replaces <fields> on k tiles".
+    "Replaces <fields> on k tiles" (`nameReplacedFields`: one or two by name
+    joined with "and", more as "other fields"). "Undo" is named "Undo
+    applying <field> to N tiles", N being the apply's tile count.
   - A pressed button leaves once its action is done, so focus moves to the
     region itself (`tabIndex={-1}`), from a layout effect and only when
     focus would otherwise be on `<body>`.
@@ -748,7 +756,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - Set to a field (from nothing or from another field): "Apply to the
     other n too", n being the other tiles of the tab that offer it and are
     not on it (`unfiltered + replaced`). It is `applyToAll`, the bar's
-    "Apply to all", with the same override and Undo toast.
+    "Apply to all", with the same override, and the bar offers its Undo
+    when that field is clicked.
   - Left out: "Clear the other k too", k being the other tiles of the tab
     still on that field. It is `clear`, the bar's "Clear".
   - The card is on the tab, so the label never names it; the `aria-label`

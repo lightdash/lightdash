@@ -12,6 +12,15 @@ import {
 /** The disclosure open under the edited filter's default value. */
 export type ControlsSidebarSection = 'tiles' | 'rules';
 
+// An "Apply to all": its field, the tiles it ends on, how many it took off
+// other fields, and whether it was over every tab of a dashboard with tabs
+export type FieldApply = {
+    fieldId: string;
+    tileCount: number;
+    replaced: number;
+    acrossTabs: boolean;
+};
+
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
@@ -82,11 +91,15 @@ export type ControlsSidebarContextValue = {
     removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /**
-     * `updateFilter`, then a toast with `message` and Undo when it changed the
-     * rule. Undo puts the rule back only while the same control is edited and
-     * the rule is still as this wrote it; the toast goes when the edit ends.
+     * `updateFilter` for an "Apply to all", which `undoApply` can take back
+     * when it changed the rule. A later write, another field clicked, another
+     * control or the editor closing ends it.
      */
-    updateFilterWithUndo: (next: DashboardFilterRule, message: string) => void;
+    applyWithUndo: (next: DashboardFilterRule, apply: FieldApply) => void;
+    /** Puts the rule back as it was before the last apply, while it can. */
+    undoApply: () => void;
+    /** The last apply, while Undo can still take it back; else null. */
+    fieldUndo: FieldApply | null;
     /**
      * Writes filters other than the edited one on the editor's behalf.
      * Discard and Remove put them back as they were when the control opened.

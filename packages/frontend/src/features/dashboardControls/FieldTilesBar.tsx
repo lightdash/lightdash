@@ -10,7 +10,10 @@ import {
 import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields, type FieldScope } from './peers';
-import { useControlsSidebarSelector } from './useControlsSidebar';
+import {
+    useControlsSidebarSelector,
+    type FieldApply,
+} from './useControlsSidebar';
 import {
     nameReplacedFields,
     useFieldTileActions,
@@ -89,7 +92,12 @@ const getUseOnAll = (
     };
 };
 
-const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
+const Bar: FC<{
+    fieldTiles: FieldTiles;
+    // The last "Apply to all" on this field, while Undo can take it back
+    undo: FieldApply | null;
+    onUndo: () => void;
+}> = ({ fieldTiles, undo, onUndo }) => {
     const {
         field,
         label,
@@ -163,6 +171,9 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                                 {`${applied} of ${possible}`}
                             </Text>
                             {` ${pluralizeTiles(possible)}${scopeSuffix}`}
+                            {undo !== null &&
+                                undo.replaced > 0 &&
+                                `, ${undo.replaced} replaced${undo.acrossTabs ? ' across tabs' : ''}`}
                         </Text>
                     )}
                     {useOnScope !== null && (
@@ -194,6 +205,16 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                                 Apply to all tabs
                             </Button>
                         </Tooltip>
+                    )}
+                    {undo !== null && (
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            aria-label={`Undo applying ${label} to ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`}
+                            onClick={press(onUndo)}
+                        >
+                            Undo
+                        </Button>
                     )}
                     {applied > 0 && (
                         <Button
@@ -228,6 +249,8 @@ export const FieldTilesBar: FC = () => {
     const waitingFieldIds = useControlsSidebarSelector(
         (c) => c.waitingFieldIds,
     );
+    const fieldUndo = useControlsSidebarSelector((c) => c.fieldUndo);
+    const undoApply = useControlsSidebarSelector((c) => c.undoApply);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -248,7 +271,11 @@ export const FieldTilesBar: FC = () => {
     if (fieldTileActions === null || fieldId === null || host === null)
         return null;
     return createPortal(
-        <Bar fieldTiles={fieldTileActions.forField(fieldId)} />,
+        <Bar
+            fieldTiles={fieldTileActions.forField(fieldId)}
+            undo={fieldUndo?.fieldId === fieldId ? fieldUndo : null}
+            onUndo={undoApply}
+        />,
         host,
     );
 };

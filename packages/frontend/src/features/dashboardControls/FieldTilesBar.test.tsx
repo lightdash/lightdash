@@ -92,7 +92,8 @@ const rule = (
 });
 
 const updateFilter = vi.fn();
-const updateFilterWithUndo = vi.fn();
+const applyWithUndo = vi.fn();
+const undoApply = vi.fn();
 const setHighlightedFieldId = vi.fn();
 const setHoveredFieldId = vi.fn();
 const removeWaitingField = vi.fn();
@@ -106,7 +107,9 @@ const setSidebar = (
         editingRule,
         isPlaceholder: false,
         updateFilter,
-        updateFilterWithUndo,
+        applyWithUndo,
+        undoApply,
+        fieldUndo: null,
         highlightedFieldId: 'orders_status',
         setHighlightedFieldId,
         hoveredFieldId: null,
@@ -150,10 +153,10 @@ const getUpdatedRule = (): DashboardFilterRule => {
 };
 // "Apply to all" writes through the undoable update, with its toast's message
 const getAppliedRule = (): DashboardFilterRule => {
-    expect(updateFilterWithUndo).toHaveBeenCalledTimes(1);
-    return updateFilterWithUndo.mock.calls[0][0];
+    expect(applyWithUndo).toHaveBeenCalledTimes(1);
+    return applyWithUndo.mock.calls[0][0];
 };
-const appliedMessage = (): string => updateFilterWithUndo.mock.calls[0][1];
+const appliedUndo = () => applyWithUndo.mock.calls[0][1];
 
 // Seeds a real dashboard store from the context fixture, again on rerender
 const renderWithProviders = (ui: ReactElement) => {
@@ -309,7 +312,7 @@ describe('FieldTilesBar', () => {
             );
         });
 
-        it('puts every tile on the field, over left out tiles and other fields, with an Undo toast', () => {
+        it('puts every tile on the field, over left out tiles and other fields, for Undo', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 dashboardTiles: [
@@ -335,9 +338,12 @@ describe('FieldTilesBar', () => {
                 }),
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
-            expect(appliedMessage()).toBe(
-                'Status applied to 3 tiles, replacing Region on 1',
-            );
+            expect(appliedUndo()).toEqual({
+                fieldId: 'orders_status',
+                tileCount: 3,
+                replaced: 1,
+                acrossTabs: false,
+            });
             expect(updateFilter).not.toHaveBeenCalled();
         });
 
@@ -375,6 +381,98 @@ describe('FieldTilesBar', () => {
             expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
         });
 
+        describe('after an apply', () => {
+            const APPLIED = {
+                fieldId: 'orders_status',
+                tileCount: 2,
+                replaced: 1,
+                acrossTabs: false,
+            };
+
+            it('says how many it replaced and offers Undo before Clear', async () => {
+                setSidebar(rule('orders_status'), { fieldUndo: APPLIED });
+                renderWithProviders(<Dashboard />);
+
+                expect(countOf()).toHaveTextContent(
+                    /^2 of 2 tiles, 1 replaced$/,
+                );
+                expect(buttonTexts()).toEqual(['Undo', 'Clear']);
+                const undo = screen.getByRole('button', {
+                    name: 'Undo applying Status to 2 tiles',
+                });
+                expect(undo).toHaveAttribute('data-variant', 'subtle');
+                await userEvent.click(undo);
+                expect(undoApply).toHaveBeenCalledTimes(1);
+            });
+
+            it('says the replaced tiles were across tabs after "Apply to all tabs"', () => {
+                mockDashboardContext.current = {
+                    ...mockDashboardContext.current,
+                    dashboardTiles: [
+                        { ...tile('tile-1'), tabUuid: 'tab-1' },
+                        { ...tile('tile-2'), tabUuid: 'tab-2' },
+                    ],
+                    dashboardTabs: [
+                        { uuid: 'tab-1', name: 'One', order: 0 },
+                        { uuid: 'tab-2', name: 'Two', order: 1 },
+                    ],
+                    activeTab: { uuid: 'tab-1', name: 'One', order: 0 },
+                };
+                setSidebar(rule('orders_status'), {
+                    fieldUndo: { ...APPLIED, replaced: 11, acrossTabs: true },
+                });
+                renderWithProviders(
+                    <>
+                        <div data-tab-uuid="tab-1">
+                            <div className="react-grid-layout" />
+                        </div>
+                        <FieldTilesBar />
+                    </>,
+                );
+
+                expect(countOf()).toHaveTextContent(
+                    /^1 of 1 tile on this tab, 11 replaced across tabs$/,
+                );
+            });
+
+            it('names nothing replaced when it replaced nothing', () => {
+                setSidebar(rule('orders_status'), {
+                    fieldUndo: { ...APPLIED, replaced: 0 },
+                });
+                renderWithProviders(<Dashboard />);
+
+                expect(countOf()).toHaveTextContent(/^2 of 2 tiles$/);
+                expect(buttonTexts()).toEqual(['Undo', 'Clear']);
+            });
+
+            it('is not offered on another field', () => {
+                setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+                    highlightedFieldId: 'orders_region',
+                    fieldUndo: APPLIED,
+                });
+                renderWithProviders(<Dashboard />);
+
+                expect(countOf('Region')).toHaveTextContent(/^1 of 1 tile$/);
+                expect(
+                    within(bar('Region')).queryByRole('button', {
+                        name: /^Undo/,
+                    }),
+                ).not.toBeInTheDocument();
+            });
+
+            it('hands focus to the bar once Undo is gone', async () => {
+                setSidebar(rule('orders_status'), { fieldUndo: APPLIED });
+                const { rerender } = renderWithProviders(<Dashboard />);
+
+                await userEvent.click(
+                    screen.getByRole('button', { name: /^Undo applying/ }),
+                );
+                setSidebar(rule('orders_status'));
+                rerender(<Dashboard />);
+                expect(bar()).toHaveFocus();
+            });
+        });
+
         it('clears the field from its tiles', () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<Dashboard />);
@@ -402,9 +500,12 @@ describe('FieldTilesBar', () => {
                 }),
             );
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-1': REGION });
-            expect(appliedMessage()).toBe(
-                'Region applied to 1 tile, replacing Status on 1',
-            );
+            expect(appliedUndo()).toEqual({
+                fieldId: 'orders_region',
+                tileCount: 1,
+                replaced: 1,
+                acrossTabs: false,
+            });
         });
 
         it('never has "Apply to all tabs"', () => {
@@ -546,7 +647,12 @@ describe('FieldTilesBar', () => {
                 'tile-3': false,
                 'tile-4': REGION,
             });
-            expect(appliedMessage()).toBe('Status applied to 2 tiles');
+            expect(appliedUndo()).toEqual({
+                fieldId: 'orders_status',
+                tileCount: 2,
+                replaced: 0,
+                acrossTabs: false,
+            });
         });
 
         it('uses the field on every tab, other fields included, from "Apply to all tabs"', () => {
@@ -561,9 +667,12 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(screen.getByRole('button', { name: EVERY_TAB(4) }));
             expect(getAppliedRule().tileTargets).toBeUndefined();
-            expect(appliedMessage()).toBe(
-                'Status applied to 4 tiles, replacing Region on 1',
-            );
+            expect(appliedUndo()).toEqual({
+                fieldId: 'orders_status',
+                tileCount: 4,
+                replaced: 1,
+                acrossTabs: true,
+            });
         });
 
         it('keeps "Apply to all tabs" on a tab where no tile offers the field', () => {
@@ -698,9 +807,12 @@ describe('FieldTilesBar', () => {
                 fieldId: 'country',
                 isSqlColumn: true,
             });
-            expect(appliedMessage()).toBe(
-                'country applied to 2 tiles, replacing city on 1',
-            );
+            expect(appliedUndo()).toEqual({
+                fieldId: 'country',
+                tileCount: 2,
+                replaced: 1,
+                acrossTabs: false,
+            });
         });
 
         it('clears the column from its tiles', () => {
@@ -811,7 +923,7 @@ describe('FieldTilesBar', () => {
             );
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-3': false });
 
-            updateFilterWithUndo.mockClear();
+            applyWithUndo.mockClear();
             fireEvent.click(
                 screen.getByRole('button', {
                     name: 'Apply Status to all 3 tiles on every tab',

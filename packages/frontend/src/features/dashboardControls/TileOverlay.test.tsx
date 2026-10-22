@@ -144,9 +144,7 @@ const rule = (
 
 const updateFilter = vi.fn();
 // The provider's undoable write ends in its updateFilter
-const updateFilterWithUndo = vi.fn((next: DashboardFilterRule) =>
-    updateFilter(next),
-);
+const applyWithUndo = vi.fn((next: DashboardFilterRule) => updateFilter(next));
 const addFirstFieldOnTile = vi.fn();
 
 const groupLabels = () =>
@@ -162,7 +160,7 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         waitingFieldIds: [],
         highlightedFieldId: null,
         updateFilter,
-        updateFilterWithUndo,
+        applyWithUndo,
         addFirstFieldOnTile,
         ...overrides,
     };
@@ -2082,7 +2080,7 @@ describe('TileOverlays', () => {
             });
         });
 
-        it('applies over the other tiles of the tab that are on another field, with an Undo toast', async () => {
+        it('applies over the other tiles of the tab that are on another field, for the bar to undo', async () => {
             const { rerender } = renderWithProviders(<TileOverlays />);
 
             // The others are on Status
@@ -2094,7 +2092,7 @@ describe('TileOverlays', () => {
             );
             updateFilter.mockClear();
             await userEvent.click(followUp(first.uuid)!);
-            expect(updateFilterWithUndo).toHaveBeenLastCalledWith(
+            expect(applyWithUndo).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     tileTargets: {
                         [first.uuid]: REGION,
@@ -2102,7 +2100,12 @@ describe('TileOverlays', () => {
                         [third.uuid]: REGION,
                     },
                 }),
-                'Region applied to 3 tiles, replacing Status on 2',
+                {
+                    fieldId: 'orders_region',
+                    tileCount: 3,
+                    replaced: 2,
+                    acrossTabs: false,
+                },
             );
             applyLastWrite(rerender);
             expect(anyFollowUp()).not.toBeInTheDocument();

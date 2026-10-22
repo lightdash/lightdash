@@ -9,7 +9,6 @@ import {
     type DashboardFilters,
     type ResultColumn,
 } from '@lightdash/common';
-import { notifications } from '@mantine/notifications';
 import isEqual from 'lodash/isEqual';
 import omitBy from 'lodash/omitBy';
 import {
@@ -27,7 +26,6 @@ import {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
-import useToaster from '../../hooks/toaster/useToaster';
 import { type DashboardContextType } from '../../providers/Dashboard/types';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
@@ -67,6 +65,7 @@ import {
 } from './sidebarState';
 import {
     ControlsSidebarContext,
+    type FieldApply,
     useControlsSidebarSelector,
     type ControlsSidebarContextValue,
     type ControlsSidebarSection,
@@ -166,12 +165,16 @@ type Latest = {
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
-    showToastSuccess: ReturnType<typeof useToaster>['showToastSuccess'];
+    undo: ApplyUndo | null;
 };
 
-// One at a time: a new press replaces it
-const UNDO_TOAST_KEY = 'controls-field-undo';
-const hideUndoToast = () => notifications.hide(UNDO_TOAST_KEY);
+// The last "Apply to all": what Undo puts back, and the filters as the press
+// left them, which tell whether the rule changed since
+type ApplyUndo = FieldApply & {
+    filterId: string;
+    previous: DashboardFilterRule;
+    written: DashboardFilters;
+};
 
 const getEditingRule = ({
     state,
@@ -244,7 +247,6 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const { track } = useTracking();
-    const { showToastSuccess } = useToaster();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
@@ -265,6 +267,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const [highlightedFieldId, setHighlightedFieldId] = useState<string | null>(
         null,
     );
+    const [undo, setUndo] = useState<ApplyUndo | null>(null);
     const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
     // Keyed by filter so a stale entry never leaks into another filter
     const [waiting, setWaiting] = useState<{
@@ -285,7 +288,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setDashboardFilters,
         setHaveFiltersChanged,
         track,
-        showToastSuccess,
+        undo,
     };
     const latest = useRef(rendered);
     useLayoutEffect(() => {
@@ -299,6 +302,17 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 filterableFieldsByTileUuid,
             ),
         [dashboardTiles, filterableFieldsByTileUuid],
+    );
+
+    // As toSavedRule, from the latest tiles: for callbacks that never change
+    const toSavedNow = useCallback(
+        (rule: DashboardFilterRule) =>
+            withoutDefaultTileTargets(
+                rule,
+                latest.current.dashboardTiles,
+                latest.current.filterableFieldsByTileUuid,
+            ),
+        [],
     );
 
     const writeFilters = useCallback(
@@ -376,16 +390,21 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setIsRailOpen(next);
     }, []);
 
+    const writeUndo = useCallback((next: ApplyUndo | null) => {
+        latest.current.undo = next;
+        setUndo(next);
+    }, []);
+
     // Ends the edit; the rail stays open on its rows
     const resetEdit = useCallback(() => {
-        hideUndoToast();
+        writeUndo(null);
         writeState(null);
         writePlaceholder(null);
         setActiveSection(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
-    }, [writeState, writePlaceholder]);
+    }, [writeState, writePlaceholder, writeUndo]);
 
     const reset = useCallback(() => {
         resetEdit();
@@ -442,7 +461,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (filterId: string) => {
             const current = latest.current;
             if (current.state?.filterId === filterId) return;
-            hideUndoToast();
+            writeUndo(null);
             focusReturn.current = null;
             ownRaise.current = null;
             writePlaceholder(null);
@@ -463,13 +482,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 touchedFilterIds: [],
             });
         },
-        [writeState, writePlaceholder, writeRailOpen],
+        [writeState, writePlaceholder, writeRailOpen, writeUndo],
     );
 
     const openPlaceholder = useCallback(() => {
         const current = latest.current;
         const rule = createPlaceholder(uuidv4());
-        hideUndoToast();
+        writeUndo(null);
         focusReturn.current = null;
         ownRaise.current = null;
         writePlaceholder(rule);
@@ -489,7 +508,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             },
             touchedFilterIds: [],
         });
-    }, [writeState, writePlaceholder, writeRailOpen]);
+    }, [writeState, writePlaceholder, writeRailOpen, writeUndo]);
 
     // A control that lost its last field goes back where it was
     const writeFirstRule = useCallback(
@@ -584,6 +603,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const updateFilter = useCallback(
         (next: DashboardFilterRule) => {
+            // Any write ends the undo of the last "Apply to all"
+            writeUndo(null);
             const current = latest.current;
             if (
                 current.placeholder !== null &&
@@ -634,12 +655,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             writeFilters,
             writeFiltersChanged,
             writePlaceholder,
+            writeUndo,
             clearHighlightedField,
         ],
     );
 
-    const updateFilterWithUndo = useCallback(
-        (next: DashboardFilterRule, message: string) => {
+    const applyWithUndo = useCallback(
+        (next: DashboardFilterRule, apply: FieldApply) => {
             const current = latest.current;
             const filterId = current.state?.filterId;
             const previous = getEditingRule(current);
@@ -652,37 +674,37 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const before = current.dashboardFilters;
             updateFilter(next);
             const written = latest.current.dashboardFilters;
-            const toSaved = (rule: DashboardFilterRule) =>
-                withoutDefaultTileTargets(
-                    rule,
-                    latest.current.dashboardTiles,
-                    latest.current.filterableFieldsByTileUuid,
-                );
-            if (!isFilterRuleDirty(before, written, filterId, toSaved)) return;
-            current.showToastSuccess({
-                key: UNDO_TOAST_KEY,
-                title: message,
-                action: {
-                    children: 'Undo',
-                    onClick: () => {
-                        const now = latest.current;
-                        // Stale: another control, or the rule changed since
-                        if (
-                            now.state?.filterId !== filterId ||
-                            isFilterRuleDirty(
-                                written,
-                                now.dashboardFilters,
-                                filterId,
-                                toSaved,
-                            )
-                        )
-                            return;
-                        updateFilter(previous);
-                    },
-                },
-            });
+            if (!isFilterRuleDirty(before, written, filterId, toSavedNow))
+                return;
+            writeUndo({ ...apply, filterId, previous, written });
         },
-        [updateFilter],
+        [updateFilter, writeUndo, toSavedNow],
+    );
+
+    const undoApply = useCallback(() => {
+        const { undo: current, state: editingState } = latest.current;
+        if (
+            current === null ||
+            editingState?.filterId !== current.filterId ||
+            isFilterRuleDirty(
+                current.written,
+                latest.current.dashboardFilters,
+                current.filterId,
+                toSavedNow,
+            )
+        )
+            return;
+        updateFilter(current.previous);
+    }, [updateFilter, toSavedNow]);
+
+    // Clicking another field ends the undo; the same field keeps it
+    const selectField = useCallback(
+        (fieldId: string | null) => {
+            if (fieldId !== null && fieldId !== latest.current.undo?.fieldId)
+                writeUndo(null);
+            setHighlightedFieldId(fieldId);
+        },
+        [writeUndo],
     );
 
     // The control stays open and empty, as a new one starts: same id, label
@@ -981,6 +1003,27 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
+
+    // Derived: only while its control is edited and the rule is as it left it
+    const fieldUndo = useMemo(
+        () =>
+            undo !== null &&
+            state?.filterId === undo.filterId &&
+            !isFilterRuleDirty(
+                undo.written,
+                dashboardFilters,
+                undo.filterId,
+                toSavedRule,
+            )
+                ? {
+                      fieldId: undo.fieldId,
+                      tileCount: undo.tileCount,
+                      replaced: undo.replaced,
+                      acrossTabs: undo.acrossTabs,
+                  }
+                : null,
+        [undo, state, dashboardFilters, toSavedRule],
+    );
     useEditorDismiss({
         isOpen: isRailOpen,
         isFieldClicked: highlightedFieldId !== null,
@@ -1022,13 +1065,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             addWaitingField,
             removeWaitingField,
             highlightedFieldId,
-            setHighlightedFieldId,
+            setHighlightedFieldId: selectField,
             clearHighlightedField,
             hoveredFieldId,
             setHoveredFieldId,
             activeFieldId: hoveredFieldId ?? highlightedFieldId,
             updateFilter,
-            updateFilterWithUndo,
+            applyWithUndo,
+            undoApply,
+            fieldUndo,
             updateOtherFilters,
             removeFilter,
             removeFilterById,
@@ -1074,7 +1119,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             clearHighlightedField,
             hoveredFieldId,
             updateFilter,
-            updateFilterWithUndo,
+            applyWithUndo,
+            undoApply,
+            fieldUndo,
+            selectField,
             updateOtherFilters,
             removeFilter,
             removeFilterById,

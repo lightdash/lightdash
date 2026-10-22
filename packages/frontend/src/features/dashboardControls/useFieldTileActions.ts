@@ -15,7 +15,6 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
-import { pluralizeTiles } from './fieldLabels';
 import {
     applyFieldToAllTiles,
     getFieldCount,
@@ -58,7 +57,7 @@ export type FieldTiles = {
     // The name of another field or column of the filter, as its row reads
     labelOf: (fieldId: string) => string;
     // Every tile of the scope that offers it ends up on it, over other
-    // fields, with an Undo toast
+    // fields; the bar can undo it
     applyToAll: (tileScope: TileScope) => void;
     clear: (tileScope: TileScope) => void;
     remove: () => void;
@@ -149,9 +148,7 @@ export const useFieldTileActions = (
         (c) => c.removeLastField,
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const updateFilterWithUndo = useControlsSidebarSelector(
-        (c) => c.updateFilterWithUndo,
-    );
+    const applyWithUndo = useControlsSidebarSelector((c) => c.applyWithUndo);
     const waitingFieldIds = useControlsSidebarSelector(
         (c) => c.waitingFieldIds,
     );
@@ -237,13 +234,7 @@ export const useFieldTileActions = (
                         tileScope === 'this-tab' && thisTabScope !== null
                             ? thisTabScope
                             : everyTabScope;
-                    const replacing =
-                        scope.replaced > 0
-                            ? `, replacing ${nameReplacedFields(
-                                  scope.replacedFieldIds.map(labelOf),
-                              )} on ${scope.replaced}`
-                            : '';
-                    updateFilterWithUndo(
+                    applyWithUndo(
                         applyFieldToAllTiles(
                             editingRule,
                             fieldTarget,
@@ -251,7 +242,14 @@ export const useFieldTileActions = (
                             fieldsByTile,
                             sqlColumnsByTile,
                         ),
-                        `${labelOf(fieldId)} applied to ${scope.possible} ${pluralizeTiles(scope.possible)}${replacing}`,
+                        {
+                            fieldId,
+                            tileCount: scope.possible,
+                            replaced: scope.replaced,
+                            acrossTabs:
+                                tileScope === 'every-tab' &&
+                                thisTabScope !== null,
+                        },
                     );
                 },
                 clear: (tileScope) => {
@@ -318,7 +316,7 @@ export const useFieldTileActions = (
         sqlColumnsByTile,
         waitingFieldIds,
         updateFilter,
-        updateFilterWithUndo,
+        applyWithUndo,
         removeLastField,
         removeWaitingField,
     ]);
