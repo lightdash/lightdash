@@ -1,3 +1,10 @@
+## [3.21.4](https://github.com/lightdash/lightdash/compare/3.21.3...3.21.4) (2026-10-22)
+
+
+### Bug Fixes
+
+* **previews:** preserve inherited settings during CLI credential refresh ([#31373](https://github.com/lightdash/lightdash/issues/31373)) ([72f96d0](https://github.com/lightdash/lightdash/commit/72f96d092b80f289ea3a1d7b841ce06986bee80c))
+
 ## [3.21.3](https://github.com/lightdash/lightdash/compare/3.21.2...3.21.3) (2026-10-22)
 
 
