@@ -1,3 +1,10 @@
+# [3.26.0](https://github.com/lightdash/lightdash/compare/3.25.2...3.26.0) (2026-10-22)
+
+
+### Features
+
+* add content links to built-in analytics tables ([#31374](https://github.com/lightdash/lightdash/issues/31374)) ([f6a6893](https://github.com/lightdash/lightdash/commit/f6a6893a36743823488b37c944ca864ba70529a5))
+
 ## [3.25.2](https://github.com/lightdash/lightdash/compare/3.25.1...3.25.2) (2026-10-22)
 
 
