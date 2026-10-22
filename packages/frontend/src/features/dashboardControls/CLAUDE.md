@@ -17,8 +17,13 @@ fields. User-facing copy says *tile*, never *chart*.
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
   `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
   grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
-- `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and wraps
-  the header in `DashboardHeaderGuard` (inert while the sidebar is open).
+- `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and
+  renders the header through `DashboardHeaderGuard`: the shipped header with
+  its Save and Cancel wrapped. Save calls `close()` first, as "Done" does, then
+  saves (the save reads the store, so it sees what `close()` wrote); Cancel
+  calls `discard()`, then the shipped Cancel. Both are no-ops on a closed
+  editor. Every other header action stays usable while the editor is open:
+  none of them writes the dashboard filters.
 
 ## Openings in shipped files
 
