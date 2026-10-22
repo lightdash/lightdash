@@ -47,9 +47,7 @@ import {
     selectContinuousDateRange,
     transformStack100ByValueAxis,
 } from './echartsOption';
-import {
-    type LegendLabelTooltipStyle,
-} from './legendTooltip';
+import { type LegendLabelTooltipStyle } from './legendTooltip';
 
 dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
