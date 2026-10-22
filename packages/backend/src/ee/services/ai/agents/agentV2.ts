@@ -2211,6 +2211,7 @@ export const getAgentTools = (
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
+                projectParameterDefinitions,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

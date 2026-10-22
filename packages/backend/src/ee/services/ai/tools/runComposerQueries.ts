@@ -9,6 +9,7 @@ import {
     queryToolDefinition,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
+    type ParameterDefinitions,
     type SourceQuery,
     type SubmittedSourceQuery,
     type ToolComposerQueriesStructuredContent,
@@ -37,7 +38,9 @@ import type {
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { validateQueryParameters } from '../utils/validators';
 import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
+import { getAppliedParameters, renderAppliedParameters } from './runQuery';
 import { validateSelectOnly } from './runSql';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
@@ -71,6 +74,8 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
+    // Project-level parameter definitions; model-level ones come from the explore.
+    projectParameterDefinitions: ParameterDefinitions;
 };
 
 const toolDefinition = queryToolDefinition.for('agent');
@@ -168,6 +173,7 @@ export const getRunComposerQueries = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
+    projectParameterDefinitions,
 }: Dependencies) => {
     const approvalGate = createSqlApprovalGate(
         {
@@ -238,6 +244,32 @@ export const getRunComposerQueries = ({
                         ),
                     );
                 }
+
+                const semanticNodes = queryNodes.filter(
+                    (node) =>
+                        node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+                );
+                semanticNodes.forEach((node) => {
+                    if (node.parameters === null) return;
+                    validateQueryParameters(
+                        node.parameters,
+                        agentContext.getExplore(node.exploreName),
+                        projectParameterDefinitions,
+                    );
+                });
+                const appliedParameters = semanticNodes.flatMap((node) => {
+                    const explore = agentContext
+                        .getAvailableExplores()
+                        .find(({ name }) => name === node.exploreName);
+                    const applied = explore
+                        ? getAppliedParameters(
+                              explore,
+                              projectParameterDefinitions,
+                              node.parameters,
+                          )
+                        : null;
+                    return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
+                });
 
                 const prompt = await getPrompt();
                 // Filters resolve against the explore before anything runs.
@@ -414,6 +446,10 @@ export const getRunComposerQueries = ({
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
+                    ...appliedParameters.map(
+                        ({ nodeId, ...applied }) =>
+                            `Node "${nodeId}":${renderAppliedParameters(applied)}`,
+                    ),
                     isSlack
                         ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
                         : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer, in this message or a later one.`,
@@ -425,6 +461,7 @@ export const getRunComposerQueries = ({
                     rowCount: terminal.rowCount,
                     nodes,
                     columns,
+                    parameters: appliedParameters,
                     review:
                         terminal.rowCount === 0 ? emptyReview : review || null,
                 };

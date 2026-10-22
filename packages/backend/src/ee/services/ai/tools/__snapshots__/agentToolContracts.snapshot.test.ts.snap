@@ -21112,6 +21112,43 @@ Results stay hidden until you present one; each successful result says how.",
                     "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                     "type": "string",
                   },
+                  "parameters": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "items": {
+                                "type": "number",
+                              },
+                              "type": "array",
+                            },
+                          ],
+                        },
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                    "default": null,
+                    "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                  },
                   "sorts": {
                     "anyOf": [
                       {
@@ -21547,6 +21584,92 @@ Results stay hidden until you present one; each successful result says how.",
                   },
                   "type": "array",
                 },
+                "parameters": {
+                  "description": "The parameter state each submitted semanticLayer node ran with; only nodes whose explore references parameters.",
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "applied": {
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "items": {
+                                "type": "number",
+                              },
+                              "type": "array",
+                            },
+                          ],
+                        },
+                        "description": "Parameter values set explicitly in the tool call.",
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "defaulted": {
+                        "additionalProperties": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "number",
+                            },
+                            {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                            {
+                              "items": {
+                                "type": "number",
+                              },
+                              "type": "array",
+                            },
+                          ],
+                        },
+                        "description": "Referenced parameters the tool call left unset, with the default value they resolved to.",
+                        "propertyNames": {
+                          "type": "string",
+                        },
+                        "type": "object",
+                      },
+                      "nodeId": {
+                        "description": "Names this node so other nodes can read its result.",
+                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                        "type": "string",
+                      },
+                      "unset": {
+                        "description": "Referenced parameters with neither a value in the tool call nor a default.",
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "applied",
+                      "defaulted",
+                      "unset",
+                      "nodeId",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
                 "preview": {
                   "anyOf": [
                     {
@@ -21607,6 +21730,7 @@ Results stay hidden until you present one; each successful result says how.",
                 "rowCount",
                 "nodes",
                 "columns",
+                "parameters",
                 "preview",
                 "review",
               ],
