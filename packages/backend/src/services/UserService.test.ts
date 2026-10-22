@@ -6737,52 +6737,25 @@ test('credential APIs succeed when the advisory flag fails after a reconnect wri
     );
 });
 
-describe('Google reconnect service gates', () => {
-    test.each([
-        FeatureFlags.SharedSignInReconnect,
-        FeatureFlags.LightGoogleReconnect,
-    ])('requires %s for light authorization', async (disabled) => {
-        const flags = {
-            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled: featureFlagId !== disabled,
-            })),
-        };
-        const service = createUserService(lightdashConfigMock, {
-            featureFlagModel: flags,
-        });
-        userOAuthGrantsModel.getIdentitySummary.mockClear();
-        await expect(
-            service.getGoogleReconnectContext(sessionUser),
-        ).resolves.toBeUndefined();
-        expect(userOAuthGrantsModel.getIdentitySummary).not.toHaveBeenCalled();
-    });
-    test('reads only the stored account hint when both flags are enabled', async () => {
-        const flags = {
-            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled: true,
-            })),
-        };
+describe('Google reconnect service', () => {
+    test('reads the stored account hint without resolving feature flags', async () => {
+        const flags = { get: vi.fn() };
         const service = createUserService(lightdashConfigMock, {
             featureFlagModel: flags,
         });
         await expect(
             service.getGoogleReconnectContext(sessionUser),
         ).resolves.toEqual({ subject: 'subject_a', email: 'account_a' });
+        expect(flags.get).not.toHaveBeenCalled();
     });
-    test('retains consent when flags cannot be resolved', async () => {
-        const flags = {
-            get: vi
-                .fn<FeatureFlagModel['get']>()
-                .mockRejectedValue(new Error('unavailable')),
-        };
-        const service = createUserService(lightdashConfigMock, {
-            featureFlagModel: flags,
-        });
+    test('does not hide a failed account lookup', async () => {
+        const service = createUserService(lightdashConfigMock);
+        userOAuthGrantsModel.getIdentitySummary.mockRejectedValueOnce(
+            new Error('unavailable'),
+        );
         await expect(
             service.getGoogleReconnectContext(sessionUser),
-        ).resolves.toBeUndefined();
+        ).rejects.toThrow('unavailable');
     });
     test('updates the owned personal credential without creating or deleting others', async () => {
         const flags = {

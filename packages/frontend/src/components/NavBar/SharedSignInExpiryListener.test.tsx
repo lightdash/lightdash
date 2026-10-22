@@ -26,7 +26,6 @@ import {
 const state = vi.hoisted(() => ({
     userUuid: 'user_a' as string | null,
     projectUuid: 'project_a',
-    light: false,
     higherPriority: false,
     reconnect: true,
     expiry: true,
@@ -57,11 +56,9 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
         isLoading: false,
         data: {
             enabled:
-                flag === FeatureFlags.LightGoogleReconnect
-                    ? state.light
-                    : flag === FeatureFlags.SharedSignInReconnect
-                      ? state.reconnect
-                      : state.expiry,
+                flag === FeatureFlags.SharedSignInReconnect
+                    ? state.reconnect
+                    : state.expiry,
         },
     }),
 }));
@@ -185,7 +182,6 @@ beforeEach(() => {
     vi.clearAllMocks();
     state.userUuid = 'user_a';
     state.projectUuid = 'project_a';
-    state.light = false;
     state.higherPriority = false;
     state.reconnect = true;
     state.expiry = true;
@@ -275,6 +271,21 @@ test('shows non-owner copy in the banner without a reconnect action', async () =
     expect(state.warning).not.toHaveBeenCalled();
 });
 
+test('keeps the shared modal permission but hides the banner action from a non-owner', async () => {
+    state.api.mockResolvedValue({
+        ...shared,
+        subject: { userUuid: 'user_b', name: 'user_b' },
+        subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+        canReconnect: true,
+    });
+    mount();
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    expect(state.warning).not.toHaveBeenCalled();
+});
+
 test('does not check on home and hides the banner on unrelated pages', async () => {
     mount('/projects/project_a/home');
     expect(state.api).not.toHaveBeenCalled();
@@ -303,41 +314,37 @@ test('clears the banner and suppression on logout', async () => {
     );
 });
 
-test.each([false, true])(
-    'personal reconnect only verifies personal credentials, with light flag %s',
-    async (light) => {
-        state.light = light;
-        const restored = vi.fn();
-        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
-        state.api.mockResolvedValueOnce(personal).mockResolvedValue({
-            ...personal,
-            personalSignIn: { ...personal.personalSignIn!, expired: false },
-        });
-        mount();
-        await screen.findByRole('dialog');
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Sign in with Google' }),
-        );
-        await waitFor(() => expect(restored).toHaveBeenCalledOnce());
-        expect(state.popup).toHaveBeenCalledWith({
-            light,
-            personalCredentialUuid: 'credential_a',
-        });
-        expect(
-            state.api.mock.calls.some(([request]) => request.method === 'POST'),
-        ).toBe(false);
-        expect(state.api).toHaveBeenCalledWith(
-            expect.objectContaining({
-                method: 'GET',
-                url: '/projects/project_a/warehouse-credentials/shared-sign-in?includePersonal=true',
-            }),
-        );
-        expect(
-            shouldSuppressSharedSignInToast(personalError, 'project_a'),
-        ).toBe(false);
-        window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
-    },
-);
+test('personal reconnect only verifies personal credentials', async () => {
+    const restored = vi.fn();
+    window.addEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+    state.api.mockResolvedValueOnce(personal).mockResolvedValue({
+        ...personal,
+        personalSignIn: { ...personal.personalSignIn!, expired: false },
+    });
+    mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(restored).toHaveBeenCalledOnce());
+    expect(state.popup).toHaveBeenCalledWith({
+        light: true,
+        personalCredentialUuid: 'credential_a',
+    });
+    expect(
+        state.api.mock.calls.some(([request]) => request.method === 'POST'),
+    ).toBe(false);
+    expect(state.api).toHaveBeenCalledWith(
+        expect.objectContaining({
+            method: 'GET',
+            url: '/projects/project_a/warehouse-credentials/shared-sign-in?includePersonal=true',
+        }),
+    );
+    expect(shouldSuppressSharedSignInToast(personalError, 'project_a')).toBe(
+        false,
+    );
+    window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+});
 
 test('shared reconnect retains its project POST', async () => {
     state.api.mockImplementation(async ({ method }: { method: string }) =>
@@ -525,4 +532,58 @@ test('a higher priority banner leaves expiry errors visible after dismissal', as
     expect(shouldSuppressSharedSignInToast(personalError, 'project_a')).toBe(
         false,
     );
+});
+
+test('a status response started before reconnect cannot reopen the modal', async () => {
+    const pending = Promise.withResolvers<SharedSignInStatus>();
+    state.api.mockReturnValue(pending.promise);
+    mount();
+    await act(async () => {
+        window.dispatchEvent(
+            new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                detail: state.projectUuid,
+            }),
+        );
+    });
+    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
+    await act(async () => pending.resolve(personal));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    expect(
+        shouldSuppressSharedSignInToast(personalError, state.projectUuid),
+    ).toBe(false);
+});
+
+test('returning to a query route joins an in-flight preflight check', async () => {
+    const pending = Promise.withResolvers<SharedSignInStatus>();
+    state.api.mockReturnValue(pending.promise);
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Query route' }));
+    expect(state.api).toHaveBeenCalledOnce();
+    await act(async () => pending.resolve(personal));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await act(async () => {
+        window.dispatchEvent(
+            new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
+                detail: {
+                    projectUuid: state.projectUuid,
+                    error: { error: personalError },
+                },
+            }),
+        );
+    });
+    expect(state.api).toHaveBeenCalledOnce();
+});
+
+test('a preflight check that finishes away from query routes permits an immediate check on return', async () => {
+    const pending = Promise.withResolvers<SharedSignInStatus>();
+    state.api.mockReturnValueOnce(pending.promise).mockResolvedValue(personal);
+    mount();
+    await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+    await act(async () => pending.resolve(personal));
+    await userEvent.click(screen.getByRole('button', { name: 'Query route' }));
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(state.api).toHaveBeenCalledTimes(2);
 });

@@ -29,7 +29,8 @@ export const WarehouseSignInBanner = ({
                       userUuid,
                   )}
         </Text>
-        {(status.personalSignIn?.canReconnect ?? status.canReconnect) && (
+        {(status.personalSignIn?.canReconnect ??
+            (status.canReconnect && status.subject?.userUuid === userUuid)) && (
             <Anchor
                 component="button"
                 className={classes.action}

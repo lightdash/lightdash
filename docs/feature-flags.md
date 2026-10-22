@@ -491,25 +491,3 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
-
-## Light Google reconnect
-
-`light-google-reconnect` defaults off on Cloud, self-hosted deployments and
-previews. It only changes a Google flow started from the warehouse reconnect
-modal. It also requires `shared-sign-in-reconnect`. Settings and new account
-links continue to request consent.
-
-Keep this flag off until every callback pod has the updated Google callback.
-An older callback stores an empty refresh token when Google omits it. A new
-consent-free authorization can reach that older pod during a rolling update.
-The updated callback preserves the grant and personal credential, then requests
-consent once. It checks the stored account subject and session user before any
-reconnect write. Personal recovery updates only the selected personal credential.
-
-Enable the flag per organization through Console after the callback rollout.
-The shared resolver also supports user overrides and instance defaults. The
-backend and frontend resolve the flag for the session user and organization. Generic ENV enable
-and disable lists have the precedence described above; no dedicated ENV variable
-is added. ENV changes require a restart. Console changes use the normal flag
-cache refresh. A browser must fetch the updated server flag before it starts a
-light reconnect. No production override is part of this change.

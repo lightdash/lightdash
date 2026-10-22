@@ -226,6 +226,32 @@ describe('Google reconnect callback', () => {
                 'Google did not return a refresh token. Try signing in again.',
         });
     });
+    test('a normal link passes an empty token through guarded grant storage', async () => {
+        const { req, service, currentProfile, done } = setup();
+        delete req.session.oauth!.googleReconnect;
+        delete req.session.oauth!.googlePersonalReconnect;
+        await googleStrategyVerify(req, '', '', params, currentProfile, done);
+        expect(service.storeOAuthGrant).toHaveBeenCalledWith(
+            req.user,
+            OpenIdIdentityIssuerType.GOOGLE,
+            '',
+            expect.any(Array),
+            expect.objectContaining({ subject: currentProfile.id }),
+        );
+        expect(
+            service.createBigqueryWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, req.user);
+    });
+    test('reconnect without a stored identity still retries consent before any write', async () => {
+        const { req, service, currentProfile, done } = setup();
+        req.session.oauth!.googleReconnect!.subject = null;
+        req.session.oauth!.googleReconnect!.email = null;
+        await googleStrategyVerify(req, '', '', params, currentProfile, done);
+        expect(service.storeOAuthGrant).not.toHaveBeenCalled();
+        expect(req.session.oauth!.googleReconnect!.retryWithConsent).toBe(true);
+        expect(done).toHaveBeenCalledWith(null, req.user);
+    });
     test('updates only the selected personal credential', async () => {
         const { req, service, currentProfile, done } = setup();
         await googleStrategyVerify(

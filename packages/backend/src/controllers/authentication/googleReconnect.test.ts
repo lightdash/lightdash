@@ -7,10 +7,10 @@ vi.mock('passport', () => ({
 }));
 const user = { userUuid: 'user_a' };
 const context = { subject: 'subject_a', email: 'account_a' };
-const setup = (query: Record<string, string>, enabled = true) => {
+const setup = (query: Record<string, string>, hasIdentity = true) => {
     const service = {
         getGoogleReconnectContext: vi.fn(async () =>
-            enabled ? context : undefined,
+            hasIdentity ? context : undefined,
         ),
         validatePersonalBigqueryReconnect: vi.fn(async () => undefined),
     };
@@ -35,19 +35,24 @@ const setup = (query: Record<string, string>, enabled = true) => {
 beforeEach(() => vi.clearAllMocks());
 
 test.each([false, true])(
-    'uses light authorization only when enabled: %s',
-    async (enabled) => {
-        const { req, res, next } = setup({ reconnect: 'true' }, enabled);
+    'omits consent for explicit reconnect with identity available: %s',
+    async (hasIdentity) => {
+        const { req, res, next } = setup({ reconnect: 'true' }, hasIdentity);
         await authenticateBigquery(req, res, next);
         const options = vi.mocked(passport.authenticate).mock.calls[0][1];
         expect(options).toMatchObject({
             accessType: 'offline',
             session: false,
         });
-        if (enabled) {
-            expect(options).not.toHaveProperty('prompt');
+        expect(options).not.toHaveProperty('prompt');
+        if (hasIdentity)
             expect(options).toHaveProperty('loginHint', context.email);
-        } else expect(options).toHaveProperty('prompt', 'consent');
+        expect(req.session.oauth?.googleReconnect).toMatchObject({
+            userUuid: user.userUuid,
+            subject: hasIdentity ? context.subject : null,
+            email: hasIdentity ? context.email : null,
+            consentAttempted: false,
+        });
         expect(req.session.oauth).toMatchObject({
             isPopup: true,
             returnTo: '/projects/project_a/sql-runner',

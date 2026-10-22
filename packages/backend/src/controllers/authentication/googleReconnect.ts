@@ -17,15 +17,17 @@ export const authenticateBigquery: RequestHandler = async (req, res, next) => {
                 credentialUuid: req.query.personalCredentialUuid,
             };
         }
+        const isReconnect = req.query.reconnect === 'true' && !!req.user;
         const context =
-            req.query.reconnect === 'true' && req.user
+            isReconnect && req.user
                 ? await req.services
                       .getUserService()
                       .getGoogleReconnectContext(req.user)
                 : undefined;
-        if (context && req.user) {
+        if (isReconnect && req.user) {
             req.session.oauth.googleReconnect = {
-                ...context,
+                subject: context?.subject ?? null,
+                email: context?.email ?? null,
                 userUuid: req.user.userUuid,
                 consentAttempted: false,
             };
@@ -37,8 +39,8 @@ export const authenticateBigquery: RequestHandler = async (req, res, next) => {
                 'https://www.googleapis.com/auth/bigquery',
             ],
             accessType: 'offline',
-            ...(context
-                ? { loginHint: context.email }
+            ...(isReconnect
+                ? { loginHint: context?.email ?? getLoginHint(req) }
                 : { prompt: 'consent', loginHint: getLoginHint(req) }),
             session: false,
             includeGrantedScopes: true,
@@ -57,7 +59,7 @@ export const retryGoogleReconnect: RequestHandler = (req, res, next) => {
     passport.authenticate('google', {
         scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
         accessType: 'offline',
-        loginHint: reconnect.email,
+        loginHint: reconnect.email ?? getLoginHint(req),
         prompt: 'consent',
         session: false,
         includeGrantedScopes: true,

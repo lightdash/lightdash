@@ -3555,30 +3555,10 @@ export class UserService extends BaseService {
     async getGoogleReconnectContext(
         user: SessionUser,
     ): Promise<{ subject: string; email: string } | undefined> {
-        if (!user.organizationUuid) return undefined;
-        try {
-            const flags = await Promise.all(
-                [
-                    FeatureFlags.SharedSignInReconnect,
-                    FeatureFlags.LightGoogleReconnect,
-                ].map((featureFlagId) =>
-                    this.featureFlagModel.get({
-                        user: {
-                            organizationUuid: user.organizationUuid!,
-                            userUuid: user.userUuid,
-                        },
-                        featureFlagId,
-                    }),
-                ),
-            );
-            if (flags.some(({ enabled }) => !enabled)) return undefined;
-            return await this.userOAuthGrantsModel.getIdentitySummary(
-                user.userUuid,
-                OpenIdIdentityIssuerType.GOOGLE,
-            );
-        } catch {
-            return undefined;
-        }
+        return this.userOAuthGrantsModel.getIdentitySummary(
+            user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
     }
 
     /**

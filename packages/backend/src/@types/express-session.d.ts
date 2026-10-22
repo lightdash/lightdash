@@ -20,8 +20,8 @@ declare module 'express-session' {
             };
             googleReconnect?: {
                 userUuid: string;
-                subject: string;
-                email: string;
+                subject: string | null;
+                email: string | null;
                 consentAttempted: boolean;
                 retryWithConsent?: boolean;
             };

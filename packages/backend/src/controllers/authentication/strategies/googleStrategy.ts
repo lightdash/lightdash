@@ -88,7 +88,8 @@ export const googleStrategyVerify = async (
             if (
                 reconnect &&
                 (reconnect.userUuid !== req.user.userUuid ||
-                    reconnect.subject !== subject)
+                    (reconnect.subject !== null &&
+                        reconnect.subject !== subject))
             ) {
                 throw new AuthorizationError(
                     'Sign in with the Google account used for this connection.',
@@ -103,15 +104,13 @@ export const googleStrategyVerify = async (
                 reconnect.retryWithConsent = true;
                 return done(null, req.user);
             }
-            if (refreshToken) {
-                await userService.storeOAuthGrant(
-                    req.user,
-                    OpenIdIdentityIssuerType.GOOGLE,
-                    refreshToken,
-                    scopes,
-                    openIdUser.openId,
-                );
-            }
+            await userService.storeOAuthGrant(
+                req.user,
+                OpenIdIdentityIssuerType.GOOGLE,
+                refreshToken,
+                scopes,
+                openIdUser.openId,
+            );
 
             if (hasBigqueryScope && refreshToken) {
                 Logger.info(
