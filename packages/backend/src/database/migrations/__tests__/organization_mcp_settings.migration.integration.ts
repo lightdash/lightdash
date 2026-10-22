@@ -194,7 +194,8 @@ test.each([false, true])(
             if (settingsRowExists) {
                 await holder('organization_settings')
                     .where('organization_uuid', organizationUuid)
-                    .update({ mcp_enabled: false });
+                    .forUpdate()
+                    .first();
             } else {
                 await holder('organization_settings').insert({
                     organization_uuid: organizationUuid,
@@ -205,6 +206,7 @@ test.each([false, true])(
                 accountFor(organizationUuid, true),
                 { mcpEnabled: true },
             );
+            void saving.catch(() => undefined);
             await vi.waitFor(
                 async () => {
                     const blockers = await database.raw<{
@@ -217,6 +219,11 @@ test.each([false, true])(
                 },
                 { timeout: 5000 },
             );
+            if (settingsRowExists) {
+                await holder('organization_settings')
+                    .where('organization_uuid', organizationUuid)
+                    .update({ mcp_enabled: false });
+            }
             await holder.commit();
             await expect(saving).resolves.toMatchObject({ mcpEnabled: true });
             expect(audit).toHaveBeenCalledWith(
@@ -231,7 +238,7 @@ test.each([false, true])(
             expect((await model.get(organizationUuid)).mcpEnabled).toBe(true);
         } finally {
             if (!holder.isCompleted()) await holder.rollback();
-            await saving;
+            await saving?.catch(() => undefined);
         }
     },
 );

@@ -9,8 +9,8 @@ type Captured = {
 /**
  * Builds an OrganizationSettingsModel backed by a chainable Knex mock. `row`
  * is what `.first()` and `.returning()` resolve to, and `captured` records
- * the args passed to `.insert()`
- * / `.merge()` so we can assert exactly which columns a write touched.
+ * the args passed to `.insert()` / `.merge()` so we can assert exactly which
+ * columns a write touched.
  */
 const createModel = (row: Record<string, unknown> | undefined) => {
     const captured: Captured = {};
