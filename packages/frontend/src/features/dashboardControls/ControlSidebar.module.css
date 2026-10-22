@@ -184,6 +184,11 @@
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
+/* The footer's border closes the list; after .row.row so it wins */
+.body > :last-child {
+    border-bottom-width: 0;
+}
+
 /* Keyed by its text, so it arrives again when the message changes */
 .footerStatus {
     animation: statusEnter var(--controls-duration-arrive)
