@@ -396,8 +396,6 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /** @deprecated No longer read; replaced by AiDecisions. */
-    AiAgentFastDecisions = 'ai-agent-fast-decisions',
     /**
      * Organization-scoped: whether the instance decision provider (Jev) may
      * run for an organization. On by default wherever a decision key is set,
