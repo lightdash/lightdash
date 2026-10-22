@@ -1,10 +1,10 @@
 import {
+    ChartType,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
     type ApiErrorDetail,
     type ChartConfig,
-    type ChartType,
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
@@ -59,6 +59,7 @@ import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
+import { AddVisualizationPlaceholder } from './AddVisualization';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import { useDirtyPivotConfiguration } from './useDirtyPivotConfiguration';
 import { useExplorerChartColorPalette } from './useExplorerChartColorPalette';
@@ -187,6 +188,25 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [dispatch],
     );
 
+    // A new chart stays a table until someone adds a visualization, so the
+    // collapsed card offers that instead of a second table.
+    const showAddVisualization =
+        !savedChart &&
+        isEditMode &&
+        !minimal &&
+        !isFullscreen &&
+        !isOpen &&
+        !chartTypeAuthoring &&
+        unsavedChartVersion.chartConfig.type === ChartType.TABLE;
+    const handleAddVisualization = useCallback(() => {
+        dispatch(
+            explorerActions.toggleExpandedSection(
+                ExplorerSection.VISUALIZATION,
+            ),
+        );
+        dispatch(explorerActions.setChartSidebarStep('choose'));
+        dispatch(explorerActions.openVisualizationConfig());
+    }, [dispatch]);
     const tableCalculationsMetadata = useExplorerSelector(
         selectTableCalculationsMetadata,
     );
@@ -366,150 +386,159 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 isEditMode={isEditMode}
                 invalidateCache={validQueryArgs?.invalidateCache}
             >
-                <CollapsableCard
-                    title="Chart"
-                    isOpen={isOpen}
-                    isVisualizationCard
-                    // Walkthrough look for view:SavedChart: the chart is
-                    // the first thing to read on a saved chart. See
-                    // scripts/scope-tours.
-                    tourProps={{
-                        'data-tour-scope': 'view:SavedChart',
-                        'data-tour-look': '1',
-                        'data-tour-after':
-                            '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
-                        'data-tour-label': 'The chart shows the answer',
-                        'data-tour-docs':
-                            'explore/explore-view.mdx#the-explore-page:li3',
-                    }}
-                    hideHeading={isFullscreen || minimal}
-                    minimal={minimal}
-                    onToggle={toggleSection}
-                    headerElement={
-                        isOpen && (
-                            <>
-                                {sorts.length > 0 && (
-                                    <SortButton
-                                        sorts={sorts}
-                                        isEditMode={isEditMode}
+                {showAddVisualization ? (
+                    <AddVisualizationPlaceholder
+                        onAdd={handleAddVisualization}
+                    />
+                ) : (
+                    <CollapsableCard
+                        title="Chart"
+                        isOpen={isOpen}
+                        isVisualizationCard
+                        // Walkthrough look for view:SavedChart: the chart is
+                        // the first thing to read on a saved chart. See
+                        // scripts/scope-tours.
+                        tourProps={{
+                            'data-tour-scope': 'view:SavedChart',
+                            'data-tour-look': '1',
+                            'data-tour-after':
+                                '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                            'data-tour-label': 'The chart shows the answer',
+                            'data-tour-docs':
+                                'explore/explore-view.mdx#the-explore-page:li3',
+                        }}
+                        hideHeading={isFullscreen || minimal}
+                        minimal={minimal}
+                        onToggle={toggleSection}
+                        headerElement={
+                            isOpen && (
+                                <>
+                                    {sorts.length > 0 && (
+                                        <SortButton
+                                            sorts={sorts}
+                                            isEditMode={isEditMode}
+                                        />
+                                    )}
+                                    <VisualizationWarning
+                                        dirtyPivotConfiguration={
+                                            dirtyPivotConfiguration
+                                        }
+                                        chartConfig={
+                                            unsavedChartVersion.chartConfig
+                                        }
+                                        resultsData={resultsData}
+                                        isLoading={isLoadingQueryResults}
+                                        maxColumnLimit={
+                                            health.data?.pivotTable
+                                                ?.maxColumnLimit
+                                        }
                                     />
-                                )}
-                                <VisualizationWarning
-                                    dirtyPivotConfiguration={
-                                        dirtyPivotConfiguration
-                                    }
-                                    chartConfig={
-                                        unsavedChartVersion.chartConfig
-                                    }
-                                    resultsData={resultsData}
-                                    isLoading={isLoadingQueryResults}
-                                    maxColumnLimit={
-                                        health.data?.pivotTable?.maxColumnLimit
-                                    }
-                                />
-                            </>
-                        )
-                    }
-                    rightHeaderElement={
-                        isOpen && (
-                            <>
-                                <VisualizationTimezone
-                                    resolvedTimezone={
-                                        query.data?.resolvedTimezone
-                                    }
-                                    timezoneSetting={
-                                        query.data?.metricQuery?.timezone
-                                    }
-                                />
-                                {isEditMode ? (
-                                    <Button
-                                        ref={visualizationConfigButtonRef}
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                                        onClick={
-                                            isVisualizationConfigOpen
-                                                ? closeVisualizationConfig
-                                                : openVisualizationConfig
+                                </>
+                            )
+                        }
+                        rightHeaderElement={
+                            isOpen && (
+                                <>
+                                    <VisualizationTimezone
+                                        resolvedTimezone={
+                                            query.data?.resolvedTimezone
                                         }
-                                        rightSection={
-                                            <MantineIcon
-                                                icon={
-                                                    isVisualizationConfigOpen
-                                                        ? IconLayoutSidebarLeftCollapse
-                                                        : IconLayoutSidebarLeftExpand
-                                                }
-                                            />
+                                        timezoneSetting={
+                                            query.data?.metricQuery?.timezone
                                         }
-                                    >
-                                        {isVisualizationConfigOpen
-                                            ? 'Close configure'
-                                            : 'Configure'}
-                                    </Button>
-                                ) : null}
-
-                                {/*
-                                 * NOTE: not using Mantine Portal because this page lacks a MantineProvider
-                                 * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
-                                 */}
-                                {portalTarget &&
-                                    // The modal owns the config while a type
-                                    // is authored; a second mount in the
-                                    // sidebar would echo its state.
-                                    !chartTypeAuthoring &&
-                                    createPortal(
-                                        <ExplorerChartSidebar
-                                            chartType={
-                                                unsavedChartVersion.chartConfig
-                                                    .type
+                                    />
+                                    {isEditMode ? (
+                                        <Button
+                                            ref={visualizationConfigButtonRef}
+                                            {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                            onClick={
+                                                isVisualizationConfigOpen
+                                                    ? closeVisualizationConfig
+                                                    : openVisualizationConfig
                                             }
-                                            onClose={closeVisualizationConfig}
-                                        />,
-                                        portalTarget,
+                                            rightSection={
+                                                <MantineIcon
+                                                    icon={
+                                                        isVisualizationConfigOpen
+                                                            ? IconLayoutSidebarLeftCollapse
+                                                            : IconLayoutSidebarLeftExpand
+                                                    }
+                                                />
+                                            }
+                                        >
+                                            {isVisualizationConfigOpen
+                                                ? 'Close configure'
+                                                : 'Configure'}
+                                        </Button>
+                                    ) : null}
+
+                                    {/*
+                                     * NOTE: not using Mantine Portal because this page lacks a MantineProvider
+                                     * TODO: use Mantine Portal with reuseTargetNode flag to avoid rendering additional divs
+                                     */}
+                                    {portalTarget &&
+                                        // The modal owns the config while a type
+                                        // is authored; a second mount in the
+                                        // sidebar would echo its state.
+                                        !chartTypeAuthoring &&
+                                        createPortal(
+                                            <ExplorerChartSidebar
+                                                chartType={
+                                                    unsavedChartVersion
+                                                        .chartConfig.type
+                                                }
+                                                onClose={
+                                                    closeVisualizationConfig
+                                                }
+                                            />,
+                                            portalTarget,
+                                        )}
+
+                                    {!!projectUuid && (
+                                        <ChartDownloadMenu
+                                            getDownloadQueryUuid={
+                                                mergeResults && merge
+                                                    ? merge.getDownloadQueryUuid
+                                                    : getDownloadQueryUuid
+                                            }
+                                            projectUuid={projectUuid}
+                                            chartName={savedChart?.name}
+                                            getGsheetLink={
+                                                mergeResults
+                                                    ? undefined
+                                                    : getGsheetLink
+                                            }
+                                        />
                                     )}
 
-                                {!!projectUuid && (
-                                    <ChartDownloadMenu
-                                        getDownloadQueryUuid={
-                                            mergeResults && merge
-                                                ? merge.getDownloadQueryUuid
-                                                : getDownloadQueryUuid
-                                        }
-                                        projectUuid={projectUuid}
-                                        chartName={savedChart?.name}
-                                        getGsheetLink={
-                                            mergeResults
-                                                ? undefined
-                                                : getGsheetLink
-                                        }
-                                    />
-                                )}
-
-                                {import.meta.env.DEV && (
-                                    <DevCopyChartDebugData />
-                                )}
+                                    {import.meta.env.DEV && (
+                                        <DevCopyChartDebugData />
+                                    )}
+                                </>
+                            )
+                        }
+                    >
+                        {renderVisualization && (
+                            <>
+                                <LightdashVisualization
+                                    ref={measureRef}
+                                    className="sentry-block ph-no-capture"
+                                    data-testid="visualization"
+                                    onScreenshotReady={onScreenshotReady}
+                                    onScreenshotError={onScreenshotError}
+                                />
+                                <SeriesContextMenu
+                                    echartsSeriesClickEvent={
+                                        echartsClickEvent?.event
+                                    }
+                                    dimensions={echartsClickEvent?.dimensions}
+                                    series={echartsClickEvent?.series}
+                                    explore={explore}
+                                />
                             </>
-                        )
-                    }
-                >
-                    {renderVisualization && (
-                        <>
-                            <LightdashVisualization
-                                ref={measureRef}
-                                className="sentry-block ph-no-capture"
-                                data-testid="visualization"
-                                onScreenshotReady={onScreenshotReady}
-                                onScreenshotError={onScreenshotError}
-                            />
-                            <SeriesContextMenu
-                                echartsSeriesClickEvent={
-                                    echartsClickEvent?.event
-                                }
-                                dimensions={echartsClickEvent?.dimensions}
-                                series={echartsClickEvent?.series}
-                                explore={explore}
-                            />
-                        </>
-                    )}
-                </CollapsableCard>
+                        )}
+                    </CollapsableCard>
+                )}
                 {chartTypeAuthoring && (
                     <Suspense fallback={null}>
                         <ExplorerChartTypeAuthoring
