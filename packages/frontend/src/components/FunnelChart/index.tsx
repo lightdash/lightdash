@@ -16,6 +16,7 @@ import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useLegendScrollPosition } from '../../hooks/echarts/useLegendScrollPosition';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -65,6 +66,8 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
+        const { optionWithScrollPosition, onLegendScroll } =
+            useLegendScrollPosition(chartRef, funnelChartOptions);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,
@@ -140,8 +143,14 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                       }
                     : {}),
                 legendselectchanged: onLegendChange,
+                legendscroll: onLegendScroll,
             }),
-            [enableContextMenu, handleOpenContextMenu, onLegendChange],
+            [
+                enableContextMenu,
+                handleOpenContextMenu,
+                onLegendChange,
+                onLegendScroll,
+            ],
         );
 
         if (isLoading) return <LoadingChart />;
@@ -166,7 +175,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                               }
                     }
                     opts={EchartOptions}
-                    option={funnelChartOptions}
+                    option={optionWithScrollPosition ?? funnelChartOptions}
                     notMerge
                     {...props}
                     onEvents={onEvents}
