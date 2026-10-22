@@ -1505,6 +1505,45 @@ describe('semanticLayer node parameters', () => {
         });
     });
 
+    it('reports the values a reused node was defined with', async () => {
+        const { tool } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+        await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    parameterizedNode({ 'orders.metric': 'active_users' }),
+                ],
+            }),
+            'tool-call-1',
+        );
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    {
+                        ...duckdbNode,
+                        nodeId: 'top',
+                        sql: 'SELECT * FROM orders LIMIT 5',
+                        references: ['orders'],
+                    },
+                ],
+            }),
+            'tool-call-2',
+        );
+
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: { 'orders.metric': 'active_users' },
+                },
+            ],
+        });
+    });
+
     it('rejects an unknown parameter name without running the pipeline', async () => {
         const { tool, dependencies } = makeTool({
             agentContext: new AgentContext([parameterizedExplore]),

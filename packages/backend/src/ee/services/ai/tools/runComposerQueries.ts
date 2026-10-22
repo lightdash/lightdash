@@ -32,6 +32,10 @@ import type {
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { type AgentContext } from '../utils/AgentContext';
+import {
+    getAppliedParameters,
+    renderAppliedParameters,
+} from '../utils/appliedParameters';
 import { serializeData } from '../utils/serializeData';
 import type {
     ExecuteStructuredToolResult,
@@ -40,7 +44,6 @@ import type {
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { validateQueryParameters } from '../utils/validators';
 import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
-import { getAppliedParameters, renderAppliedParameters } from './runQuery';
 import { validateSelectOnly } from './runSql';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
 import { createSqlApprovalGate, type SqlApprovalCopy } from './sqlApprovalGate';
@@ -74,7 +77,7 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
-    // Project-level parameter definitions; model-level ones come from the explore.
+    // Model-level definitions come from the explore.
     projectParameterDefinitions: ParameterDefinitions;
 };
 
@@ -245,30 +248,17 @@ export const getRunComposerQueries = ({
                     );
                 }
 
-                const semanticNodes = queryNodes.filter(
-                    (node) =>
-                        node.sourceType === QuerySourceType.SEMANTIC_LAYER,
-                );
-                semanticNodes.forEach((node) => {
-                    if (node.parameters === null) return;
+                queryNodes.forEach((node) => {
+                    if (
+                        node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
+                        node.parameters === null
+                    )
+                        return;
                     validateQueryParameters(
                         node.parameters,
                         agentContext.getExplore(node.exploreName),
                         projectParameterDefinitions,
                     );
-                });
-                const appliedParameters = semanticNodes.flatMap((node) => {
-                    const explore = agentContext
-                        .getAvailableExplores()
-                        .find(({ name }) => name === node.exploreName);
-                    const applied = explore
-                        ? getAppliedParameters(
-                              explore,
-                              projectParameterDefinitions,
-                              node.parameters,
-                          )
-                        : null;
-                    return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
                 });
 
                 const prompt = await getPrompt();
@@ -286,6 +276,22 @@ export const getRunComposerQueries = ({
                     threadNodes: await listThreadComposerQueryNodes(
                         prompt.threadUuid,
                     ),
+                });
+                // Reused nodes run with the values they were defined with.
+                const appliedParameters = queries.flatMap((node) => {
+                    if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER)
+                        return [];
+                    const explore = agentContext
+                        .getAvailableExplores()
+                        .find(({ name }) => name === node.exploreName);
+                    const applied = explore
+                        ? getAppliedParameters(
+                              explore,
+                              projectParameterDefinitions,
+                              node.parameters ?? null,
+                          )
+                        : null;
+                    return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
                 });
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
                     submitted,

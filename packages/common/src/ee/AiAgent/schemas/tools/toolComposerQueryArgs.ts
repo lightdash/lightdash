@@ -369,7 +369,9 @@ export const toolComposerQueryNodeToSourceQuery = (
                 node.filters ?? undefined;
             const sorts: SortField[] | undefined = node.sorts ?? undefined;
             const parameters: ParametersValuesMap | undefined =
-                node.parameters ?? undefined;
+                node.parameters && Object.keys(node.parameters).length > 0
+                    ? node.parameters
+                    : undefined;
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
@@ -379,7 +381,7 @@ export const toolComposerQueryNodeToSourceQuery = (
                 metrics: node.metrics,
                 filters,
                 sorts,
-                ...(parameters ? { parameters } : {}),
+                parameters,
                 limit: node.limit,
             };
         }
@@ -577,7 +579,7 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     parameters: z
         .array(appliedParametersSchema.extend({ nodeId: nodeIdSchema }))
         .describe(
-            'The parameter state each submitted semanticLayer node ran with; only nodes whose explore references parameters.',
+            'The parameter state each semanticLayer node of the pipeline ran with; only nodes whose explore references parameters.',
         ),
     preview: z
         .object({

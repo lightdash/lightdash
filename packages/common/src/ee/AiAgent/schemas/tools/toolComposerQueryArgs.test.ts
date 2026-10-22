@@ -1,4 +1,5 @@
 import { QuerySourceType } from '../../../../types/querySources';
+import { isSameComposerNodeDefinition } from '../../composerArtifact';
 import {
     createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -479,7 +480,7 @@ describe('semanticLayer node parameters', () => {
         limit: 500,
     };
 
-    it('carries parameter values to the source query, and none when null', () => {
+    it('accepts parameter values on the node', () => {
         const parsed = toolComposerQueriesArgsSchema.parse({
             title: null,
             description: null,
@@ -494,6 +495,9 @@ describe('semanticLayer node parameters', () => {
         expect(parsed.queries[0]).toMatchObject({
             parameters: { 'orders.metric': 'active_users' },
         });
+    });
+
+    it('carries parameter values to the source query, and none when null or empty', () => {
         expect(
             toolComposerQueryNodeToSourceQuery({
                 ...semanticNode,
@@ -505,6 +509,18 @@ describe('semanticLayer node parameters', () => {
                 ...semanticNode,
                 parameters: null,
             }),
-        ).not.toHaveProperty('parameters');
+        ).toMatchObject({ parameters: undefined });
+        expect(
+            isSameComposerNodeDefinition(
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: null,
+                }),
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: {},
+                }),
+            ),
+        ).toBe(true);
     });
 });

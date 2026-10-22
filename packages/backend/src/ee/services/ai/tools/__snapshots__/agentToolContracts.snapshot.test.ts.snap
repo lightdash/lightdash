@@ -21585,7 +21585,7 @@ Results stay hidden until you present one; each successful result says how.",
                   "type": "array",
                 },
                 "parameters": {
-                  "description": "The parameter state each submitted semanticLayer node ran with; only nodes whose explore references parameters.",
+                  "description": "The parameter state each semanticLayer node of the pipeline ran with; only nodes whose explore references parameters.",
                   "items": {
                     "additionalProperties": false,
                     "properties": {
