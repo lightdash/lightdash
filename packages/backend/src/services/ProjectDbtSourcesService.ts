@@ -12,7 +12,6 @@ import {
     getWarehouseLocation,
     normalizeWarehouseLocation,
     ParameterError,
-    ProjectDbtSource,
     ProjectDbtSourceSummary,
     ProjectDbtSourceWithConnection,
     sensitiveDbtCredentialsFieldNames,
@@ -25,9 +24,13 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
+import { dbtRepositoryIdentity } from '../models/dbtRepositoryIdentity';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { GithubAppInstallationsModel } from '../models/GithubAppInstallations/GithubAppInstallationsModel';
-import { ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
+import {
+    ProjectDbtSourcesModel,
+    type ApiProjectDbtSource,
+} from '../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { logCrossSourceCacheError } from '../projectAdapters/crossSourceCatalogCache';
 import { assertGithubInstallationResolved } from '../projectAdapters/githubAuthorization';
@@ -105,7 +108,10 @@ export class ProjectDbtSourcesService extends BaseService {
      * fields are not credentials, so they are safe to expose in summaries. Null
      * for non-git connections (local, dbt cloud, none, manifest).
      */
-    private static gitIdentity(config: DbtProjectConfig | null): {
+    private static gitIdentity(
+        config: DbtProjectConfig | null,
+        sanitizeRepository = false,
+    ): {
         repository: string | null;
         branch: string | null;
         projectSubPath: string | null;
@@ -117,8 +123,16 @@ export class ProjectDbtSourcesService extends BaseService {
                 config.type === DbtProjectType.BITBUCKET ||
                 config.type === DbtProjectType.AZURE_DEVOPS)
         ) {
+            const identity = sanitizeRepository
+                ? dbtRepositoryIdentity(config)
+                : null;
+            const canonicalRepository = identity
+                ? `${identity.owner}/${identity.name}`
+                : null;
             return {
-                repository: config.repository,
+                repository: sanitizeRepository
+                    ? canonicalRepository
+                    : config.repository,
                 branch: config.branch,
                 projectSubPath: config.project_sub_path,
             };
@@ -145,17 +159,28 @@ export class ProjectDbtSourcesService extends BaseService {
     }
 
     private static toSummary(
-        source: ProjectDbtSource,
+        source: ApiProjectDbtSource,
     ): ProjectDbtSourceSummary {
         return {
             projectDbtSourceUuid: source.projectDbtSourceUuid,
             name: source.name,
             isPrimary: source.isPrimary,
             precedence: source.precedence,
-            type: source.dbtConnection?.type ?? null,
+            type: source.sharedRepository
+                ? (source.sharedRepository.provider as DbtProjectType)
+                : (source.dbtConnection?.type ?? null),
             warehouseLocation: source.warehouseLocation,
             hasCredentialError: source.hasCredentialError,
-            ...ProjectDbtSourcesService.gitIdentity(source.dbtConnection),
+            ...(source.sharedRepository
+                ? {
+                      repository: `${source.sharedRepository.owner}/${source.sharedRepository.name}`,
+                      branch: source.sharedRepository.defaultBranch,
+                      projectSubPath: null,
+                  }
+                : ProjectDbtSourcesService.gitIdentity(
+                      source.dbtConnection,
+                      source.sanitizeRepository,
+                  )),
         };
     }
 
@@ -272,7 +297,7 @@ export class ProjectDbtSourcesService extends BaseService {
         const [project, identity, sources] = await Promise.all([
             this.projectModel.get(projectUuid),
             this.projectModel.getDbtSourceIdentity(projectUuid),
-            this.projectDbtSourcesModel.getSources(projectUuid),
+            this.projectDbtSourcesModel.getSourcesForApi(projectUuid),
         ]);
         // The primary source is the project's own dbt_connection (precedence 0),
         // synthesised here rather than stored as a row.

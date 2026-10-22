@@ -79,8 +79,10 @@ const projectModel = {
     updateDbtSourceName: vi.fn(async () => undefined),
 };
 
+const getSources = vi.fn(async () => []);
 const projectDbtSourcesModel = {
-    getSources: vi.fn(async () => []),
+    getSources,
+    getSourcesForApi: getSources,
     getSourcesWithBindings: vi.fn(),
     getSource: vi.fn(),
     getSourceForApi: vi.fn(),
