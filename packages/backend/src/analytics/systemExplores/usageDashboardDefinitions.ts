@@ -1,9 +1,10 @@
+import { ANALYTICS_AI_USAGE_DASHBOARD_SLUG } from '@lightdash/common';
 import { peopleNoActivitySections } from './peopleNoActivityCharts';
 import type { UsageDashboardSpec } from './usageDashboardTypes';
 
 export const usageDashboardSpecs: UsageDashboardSpec[] = [
     {
-        key: 'lightdash-analytics-overview',
+        key: ANALYTICS_AI_USAGE_DASHBOARD_SLUG,
         name: 'Agents & AI',
         description:
             'AI consumption and agent request adoption, outcomes and feedback.',

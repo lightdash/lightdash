@@ -70,27 +70,6 @@ export const toAiCreditChartBuckets = (
     });
 };
 
-/**
- * A row's bar is measured against the allowance, so the rows add up to the
- * main usage bar; without an allowance, against everything used this period.
- */
-export const getAiCreditRowShare = ({
-    credits,
-    allowanceCredits,
-    usedCredits,
-}: {
-    credits: number;
-    allowanceCredits: number | null;
-    usedCredits: number;
-}): number => {
-    const measure =
-        allowanceCredits !== null && allowanceCredits > 0
-            ? allowanceCredits
-            : usedCredits;
-    if (measure <= 0) return 0;
-    return Math.min(Math.max((credits / measure) * 100, 0), 100);
-};
-
 /** The series drawn on top of a stacked bar: the last one with credits that day, or -1 when the day is empty. */
 export const findTopSeriesIndex = (credits: number[]): number =>
     credits.reduce((top, value, index) => (value > 0 ? index : top), -1);

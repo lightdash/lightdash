@@ -44,9 +44,8 @@ const BREAKDOWN_LABELS: Record<AiCreditUsageBreakdown, string> = {
     agent: 'Agent',
 };
 
-export const getAiCreditBreakdownLabel = (
-    breakdown: AiCreditUsageBreakdown,
-): string => BREAKDOWN_LABELS[breakdown];
+const getAiCreditBreakdownLabel = (breakdown: AiCreditUsageBreakdown): string =>
+    BREAKDOWN_LABELS[breakdown];
 
 const getUnattributedLabel = (breakdown: AiCreditUsageBreakdown): string => {
     switch (breakdown) {
