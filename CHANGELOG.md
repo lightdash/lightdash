@@ -1,3 +1,16 @@
+# [3.33.0](https://github.com/lightdash/lightdash/compare/3.32.1...3.33.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** explain why a required filter has no alternative to add ([#31432](https://github.com/lightdash/lightdash/issues/31432)) ([6a5a789](https://github.com/lightdash/lightdash/commit/6a5a789fbd79b1078b29d948f73fdde2446934f4))
+* **dashboards:** save from the filter editor, link tiles by exact field ([#31412](https://github.com/lightdash/lightdash/issues/31412)) ([bfd13d7](https://github.com/lightdash/lightdash/commit/bfd13d77947f02c340efb8013e581ac9e3cee20a))
+
+
+### Features
+
+* **dashboards:** fold the filter editor into a side rail ([#31385](https://github.com/lightdash/lightdash/issues/31385)) ([6537336](https://github.com/lightdash/lightdash/commit/6537336e4c1a32a637ca961eca7def5e366dade0))
+
 ## [3.32.1](https://github.com/lightdash/lightdash/compare/3.32.0...3.32.1) (2026-10-22)
 
 
