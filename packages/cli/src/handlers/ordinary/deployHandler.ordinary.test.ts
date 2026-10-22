@@ -152,7 +152,6 @@ it('deploys timestamp SQL using the named source extra Snowflake connection sett
         ),
         request('GET', `${projectUrl}/warehouse-connections/extra-connection`),
         request('PUT', `${projectUrl}/tags/yaml`, '[]'),
-        request('PUT', `/api/v2/projects/${project}/parameters`, '{}'),
     ];
     server.replies.push(
         { ...trace[0], results: { version: CLI_VERSION } },
@@ -212,7 +211,6 @@ it('deploys timestamp SQL using the named source extra Snowflake connection sett
             results: { exploreCount: 1 },
         },
         { ...trace[5], results: {} },
-        { ...trace[6], results: {} },
     );
 
     await deployHandler({
@@ -334,7 +332,6 @@ it.each([false, true])(
                 JSON.stringify(yamlExplores),
             ),
             request('PUT', `/api/v1/projects/${project}/tags/yaml`, '[]'),
-            request('PUT', `/api/v2/projects/${project}/parameters`, '{}'),
         ];
         trace.push(...deployTrace);
         server.replies.push(
@@ -359,7 +356,7 @@ it.each([false, true])(
         ).resolves.toBeUndefined();
         expect(server.requests).toEqual(trace);
         server.expectComplete();
-        expect(get.mock.calls).toEqual(Array.from({ length: 10 }, () => []));
+        expect(get.mock.calls).toEqual(Array.from({ length: 9 }, () => []));
         expect(await fs.readFile(file, 'utf8')).toBe(
             create
                 ? yaml.dump({
@@ -380,6 +377,9 @@ it.each([false, true])(
             [''],
             ['Compiled 1 explores, SUCCESS=1 ERRORS=0'],
             ...(create ? [[''], ['']] : []),
+            [
+                'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+            ],
             ['Successfully deployed project:'],
             [''],
             [

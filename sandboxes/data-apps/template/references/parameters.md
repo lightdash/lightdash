@@ -52,4 +52,6 @@ export function SelectedKpi() {
 }
 ```
 
+During CLI deploys and server refreshes, a missing `lightdash.config.yml`, an absent `parameters:` section, or an empty YAML value (`parameters:`) leaves existing project parameters unchanged. A non-empty section replaces all project parameters. To clear all project parameters, use `parameters: {}`. Deploys need the updated CLI, and refreshes need the updated server. Older CLI versions still send an empty map when the file or section is absent, so upgrade the CLI to preserve parameters in those cases.
+
 Parameters are independent of `.filters()` — a filter restricts which rows are scanned; a parameter changes the SQL itself. Use a parameter only when the YAML declares one; otherwise reach for `.filters()`.

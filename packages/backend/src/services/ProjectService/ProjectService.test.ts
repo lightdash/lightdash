@@ -132,11 +132,14 @@ import {
     type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import fs from 'fs/promises';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
 import { createHash } from 'node:crypto';
 import { text } from 'node:stream/consumers';
+import os from 'os';
+import nodePath from 'path';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -8945,6 +8948,202 @@ describe('ProjectService', () => {
             expect(result).toEqual([
                 { uuid: 'older-chart', name: 'Revenue chart' },
             ]);
+        });
+    });
+
+    describe.each([
+        'compileProject',
+        'testAndCompileProject',
+        '_create',
+    ] as const)('%s project parameters from config', (method) => {
+        const existingParameters = {
+            retained: {
+                label: 'Retained',
+                default: 'before',
+                allow_custom_values: true,
+            },
+        };
+        const replacementParameters = {
+            replacement: {
+                label: 'Replacement',
+                default: 'after',
+                allow_custom_values: true,
+            },
+        };
+        test.each([
+            {
+                name: 'absent section',
+                yaml: 'spotlight: {}',
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'missing config file',
+                yaml: undefined,
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'YAML null',
+                yaml: 'parameters:',
+                expected: existingParameters,
+                writes: false,
+            },
+            {
+                name: 'explicit empty map',
+                yaml: 'parameters: {}',
+                expected: {},
+                writes: true,
+            },
+            {
+                name: 'non-empty map',
+                yaml: 'parameters:\n  replacement:\n    label: Replacement\n    default: after\n    allow_custom_values: true',
+                expected: replacementParameters,
+                writes: true,
+            },
+        ])('$name', async ({ yaml, expected, writes }) => {
+            const projectDir = await fs.mkdtemp(
+                nodePath.join(os.tmpdir(), 'refresh-parameters-'),
+            );
+            const configAdapter = new DbtBaseProjectAdapter(
+                {} as ConstructorParameters<typeof DbtBaseProjectAdapter>[0],
+                warehouseClientMock,
+                {
+                    warehouseCatalog: undefined,
+                    onWarehouseCatalogChange: vi.fn(),
+                },
+                SupportedDbtVersions.V1_12,
+                projectDir,
+            );
+            const adapter = {
+                compileAllExplores: vi.fn(async () => [validExplore]),
+                prepareExploreStream: vi.fn(async () =>
+                    (async function* stream() {
+                        yield validExplore;
+                    })(),
+                ),
+                getLightdashProjectConfig: () =>
+                    configAdapter.getLightdashProjectConfig(),
+                destroy: vi.fn(async () => undefined),
+            } as unknown as ProjectAdapter;
+            const project = {
+                ...projectWithSensitiveFields,
+                warehouseConnection: warehouseClientMock.credentials,
+            };
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    projectModel: {
+                        ...projectModel,
+                        getWithSensitiveFields: vi.fn(async () => project),
+                        create: vi.fn(async () => projectUuid),
+                        createProjectAccess: vi.fn(async () => undefined),
+                    } as unknown as ProjectModel,
+                },
+            );
+            let storedParameters: LightdashProjectConfig['parameters'] =
+                existingParameters;
+            const replace = vi.fn(
+                async (
+                    _project: string,
+                    parameters: LightdashProjectConfig['parameters'],
+                ) => {
+                    storedParameters = parameters;
+                },
+            );
+            Object.assign(configured, { projectParametersModel: { replace } });
+            const replaceParameters = vi.spyOn(
+                configured,
+                'replaceProjectParameters',
+            );
+            const internals = configured as unknown as {
+                testProjectAdapter: () => Promise<unknown>;
+                getProjectContextFromAdapter: () => Promise<[]>;
+                resolveCompileAdapter: () => Promise<{
+                    adapter: ProjectAdapter;
+                }>;
+                runPostProjectCreationProvisioning: () => Promise<void>;
+                refreshTablesAndProjectConfig: RefreshForTest;
+            };
+            vi.spyOn(internals, 'testProjectAdapter').mockResolvedValue({
+                adapter,
+                lease: { release: vi.fn(async () => undefined) },
+                warehouseCredentials: warehouseClientMock.credentials,
+                cachedWarehouse: {},
+                dbtVersionOption: DefaultSupportedDbtVersion,
+                dbtPartialParse: false,
+                dbtTargetPolicy: { explicitCredentials: false },
+            });
+            vi.spyOn(internals, 'resolveCompileAdapter').mockResolvedValue({
+                adapter,
+            });
+            vi.spyOn(
+                internals,
+                'getProjectContextFromAdapter',
+            ).mockResolvedValue([]);
+            vi.spyOn(
+                internals,
+                'runPostProjectCreationProvisioning',
+            ).mockResolvedValue();
+            vi.spyOn(
+                internals,
+                'refreshTablesAndProjectConfig',
+            ).mockImplementation(
+                async (_user, _project, _method, _job, consume) =>
+                    consume({
+                        exploreStream:
+                            await adapter.prepareExploreStream(undefined),
+                        lightdashProjectConfig:
+                            await adapter.getLightdashProjectConfig(undefined),
+                        projectContext: undefined,
+                    }),
+            );
+            const caller = {
+                ...user,
+                organizationUuid: 'organizationUuid',
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['update', 'view'] },
+                    { subject: 'Job', action: ['create'] },
+                    { subject: 'CompileProject', action: ['manage'] },
+                ]),
+            };
+            const parameterJob = 'parameters-job';
+            try {
+                if (yaml !== undefined)
+                    await fs.writeFile(
+                        nodePath.join(projectDir, 'lightdash.config.yml'),
+                        yaml,
+                    );
+                if (method === '_create')
+                    await configured._create(
+                        caller,
+                        project,
+                        parameterJob,
+                        RequestMethod.WEB_APP,
+                    );
+                else
+                    await configured[method](
+                        caller,
+                        projectUuid,
+                        RequestMethod.WEB_APP,
+                        parameterJob,
+                    );
+                expect(jobModel.update).toHaveBeenCalledWith(
+                    parameterJob,
+                    expect.objectContaining({ jobStatus: JobStatusType.DONE }),
+                );
+                expect(storedParameters).toEqual(expected);
+                expect(replace).toHaveBeenCalledTimes(writes ? 1 : 0);
+                expect(replaceParameters).toHaveBeenCalledTimes(writes ? 1 : 0);
+                if (writes)
+                    expect(replace).toHaveBeenCalledWith(projectUuid, expected);
+            } finally {
+                vi.restoreAllMocks();
+                vi.clearAllMocks();
+                await fs.rm(projectDir, { recursive: true, force: true });
+            }
         });
     });
 

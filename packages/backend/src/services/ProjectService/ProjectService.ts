@@ -5965,11 +5965,13 @@ export class ProjectService
                                 color: category.color ?? 'gray',
                             })),
                         );
-                        await this.replaceProjectParameters({
-                            user,
-                            projectUuid: newProjectUuid,
-                            parameters: lightdashProjectConfig.parameters,
-                        });
+                        if (lightdashProjectConfig.parameters !== undefined) {
+                            await this.replaceProjectParameters({
+                                user,
+                                projectUuid: newProjectUuid,
+                                parameters: lightdashProjectConfig.parameters,
+                            });
+                        }
                         await this.projectModel.setTableGroups(
                             newProjectUuid,
                             lightdashProjectConfig.table_groups,
@@ -7071,11 +7073,16 @@ export class ProjectService
                             );
                             timings.yaml.end = performance.now();
                             timings.parameters.start = performance.now();
-                            await this.replaceProjectParameters({
-                                user,
-                                projectUuid,
-                                parameters: lightdashProjectConfig.parameters,
-                            });
+                            if (
+                                lightdashProjectConfig.parameters !== undefined
+                            ) {
+                                await this.replaceProjectParameters({
+                                    user,
+                                    projectUuid,
+                                    parameters:
+                                        lightdashProjectConfig.parameters,
+                                });
+                            }
                             await this.projectModel.setTableGroups(
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
@@ -14267,12 +14274,17 @@ export class ProjectService
                                         projectUuid,
                                         'compileProject',
                                     );
-                                await this.replaceProjectParameters({
-                                    user,
-                                    projectUuid,
-                                    parameters:
-                                        lightdashProjectConfig.parameters,
-                                });
+                                if (
+                                    lightdashProjectConfig.parameters !==
+                                    undefined
+                                ) {
+                                    await this.replaceProjectParameters({
+                                        user,
+                                        projectUuid,
+                                        parameters:
+                                            lightdashProjectConfig.parameters,
+                                    });
+                                }
                                 if (
                                     agentExecutionContext.getStore()
                                         ?.agentConnectionExecution

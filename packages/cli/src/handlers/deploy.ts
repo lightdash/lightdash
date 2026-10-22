@@ -210,10 +210,16 @@ const replaceProjectParameters = async (
     projectUuid: string,
     lightdashProjectConfig: LightdashProjectConfig,
 ) => {
+    if (lightdashProjectConfig.parameters === undefined) {
+        GlobalState.log(
+            'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+        );
+        return;
+    }
     await lightdashApi<null>({
         method: 'PUT',
         url: `/api/v2/projects/${projectUuid}/parameters`,
-        body: JSON.stringify(lightdashProjectConfig.parameters ?? {}),
+        body: JSON.stringify(lightdashProjectConfig.parameters),
     });
 };
 

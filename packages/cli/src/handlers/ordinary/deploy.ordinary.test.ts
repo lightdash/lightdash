@@ -98,7 +98,6 @@ const deployOptions = {
 
 const configWrites = [
     request('PUT', '/api/v1/projects/project-uuid/tags/yaml', '[]'),
-    request('PUT', '/api/v2/projects/project-uuid/parameters', '{}'),
 ];
 const start = request('POST', '/api/v2/projects/project-uuid/deploy', '{}');
 const batch = request(
@@ -143,7 +142,14 @@ const verify = async (
     expect(await fs.readFile(file, 'utf8')).toBe(before);
     expect(await fs.readdir(path.dirname(file))).toEqual(['config.yaml']);
     expect(vi.mocked(console.error).mock.calls).toEqual(
-        output.map((line) => [line]),
+        [
+            ...output,
+            ...(expected.some((entry) => entry.path.endsWith('/tags/yaml'))
+                ? [
+                      'No parameters section in lightdash.config.yml; project parameters left unchanged (use `parameters: {}` to clear)',
+                  ]
+                : []),
+        ].map((line) => [line]),
     );
     expect(console.log).not.toHaveBeenCalled();
     expect(process.exit).not.toHaveBeenCalled();
