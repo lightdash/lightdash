@@ -1,5 +1,5 @@
-import { ChartType, FeatureFlags } from '@lightdash/common';
-import { act, screen, waitFor } from '@testing-library/react';
+import { ChartType, FeatureFlags, LightdashMode } from '@lightdash/common';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChartStudioAvailable } from '../../../../features/chartTypes/hooks/useChartStudioAvailable';
@@ -17,14 +17,14 @@ type CustomChartTypeSectionProps = {
     onClear: (() => void) | null;
 };
 
-const { locationSearch, navigate, sectionProps, enabledFlags } = vi.hoisted(
-    () => ({
+const { locationSearch, navigate, sectionProps, enabledFlags, savedChart } =
+    vi.hoisted(() => ({
         locationSearch: { current: '' },
         navigate: vi.fn(),
         sectionProps: [] as CustomChartTypeSectionProps[],
         enabledFlags: new Set<string>(),
-    }),
-);
+        savedChart: { current: undefined as { uuid: string } | undefined },
+    }));
 
 vi.mock('../../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('react-router', async (importOriginal) => ({
@@ -53,6 +53,10 @@ vi.mock('../../../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationState: useVisualizationContext,
     };
 });
+vi.mock('../../../../features/explorer/store', () => ({
+    selectSavedChart: () => undefined,
+    useExplorerSelector: () => savedChart.current,
+}));
 vi.mock('../../CustomChartType/CustomChartTypeSection', () => ({
     default: (props: CustomChartTypeSectionProps) => {
         sectionProps.push(props);
@@ -76,6 +80,8 @@ describe('CustomVisConfig', () => {
         navigate.mockClear();
         sectionProps.length = 0;
         enabledFlags.clear();
+        savedChart.current = undefined;
+        window.localStorage.clear();
         vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         vi.mocked(useVisualizationContext).mockReturnValue({
             itemsMap: {},
@@ -139,5 +145,111 @@ describe('CustomVisConfig', () => {
         const props = sectionProps[sectionProps.length - 1];
         expect(props.onCreateNew).toBeNull();
         expect(props.onClear).toBeNull();
+    });
+
+    describe('Chart Studio nudge', () => {
+        const cloudMocks = {
+            health: {
+                mode: LightdashMode.CLOUD_BETA,
+                license: { hasLicenseKey: true, valid: true },
+            },
+        };
+        const selfHostedMocks = {
+            health: {
+                mode: LightdashMode.DEFAULT,
+                license: { hasLicenseKey: true, valid: true },
+            },
+        };
+
+        it('shows the card on Cloud while creating a new chart', async () => {
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+
+            expect(
+                await screen.findByText('Try Chart Studio for custom charts'),
+            ).toBeInTheDocument();
+        });
+
+        it('does not show the card when editing a saved chart', async () => {
+            savedChart.current = { uuid: 'chart-1' };
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+
+            await screen.findByText('Vega-Lite JSON');
+            expect(
+                screen.queryByText('Try Chart Studio for custom charts'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('does not show the card on self-hosted instances', async () => {
+            renderWithProviders(<ConfigTabs />, selfHostedMocks);
+
+            await screen.findByText('Vega-Lite JSON');
+            expect(
+                screen.queryByText('Try Chart Studio for custom charts'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows the card inside the Explorer chart sidebar', async () => {
+            renderWithProviders(
+                <ChartGalleryContext.Provider value={true}>
+                    <ConfigTabs />
+                </ChartGalleryContext.Provider>,
+                cloudMocks,
+            );
+
+            expect(
+                await screen.findByText('Try Chart Studio for custom charts'),
+            ).toBeInTheDocument();
+        });
+
+        const dismissedKey =
+            'chart-studio-vega-nudge-dismissed-b264d83a-9000-426a-85ec-3f9c20f368ce';
+
+        it('remembers the dismissal for the user after continuing with Vega', async () => {
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+            await screen.findByText('Try Chart Studio for custom charts');
+
+            fireEvent.click(screen.getByText('Continue with Vega'));
+
+            expect(
+                screen.queryByText('Try Chart Studio for custom charts'),
+            ).not.toBeInTheDocument();
+            expect(window.localStorage.getItem(dismissedKey)).toBe('true');
+        });
+
+        it('does not show the card again once dismissed', async () => {
+            window.localStorage.setItem(dismissedKey, 'true');
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+
+            await screen.findByText('Vega-Lite JSON');
+            await waitFor(() => expect(sectionProps.length).toBeGreaterThan(0));
+            expect(
+                screen.queryByText('Try Chart Studio for custom charts'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens the chart type builder with the Explorer query', async () => {
+            locationSearch.current = '?create_saved_chart_version=serialized';
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+            await screen.findByText('Try Chart Studio for custom charts');
+
+            fireEvent.click(screen.getByText('Open Chart Studio'));
+
+            expect(navigate).toHaveBeenCalledWith({
+                pathname: '/projects/project-1/chart-studio/new',
+                search: locationSearch.current,
+            });
+        });
+
+        it('opens the gallery when the user cannot author chart types', async () => {
+            vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+            renderWithProviders(<ConfigTabs />, cloudMocks);
+            await screen.findByText('Try Chart Studio for custom charts');
+
+            fireEvent.click(screen.getByText('Open Chart Studio'));
+
+            expect(navigate).toHaveBeenCalledWith(
+                '/projects/project-1/chart-studio',
+            );
+        });
     });
 });
