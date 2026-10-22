@@ -12,6 +12,14 @@ command = "pnpm dev"
 ports = [8080, 3000]
 serve_port = 3000
 
+# The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
+# docker/docker-compose.preview.yml). Plain node, no deps; it reads only PORT,
+# and the recipe's PORT is the backend's, so the stub's is set inline.
+[[app.service]]
+name = "snowflake-ai-stub"
+command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
+port = 3900
+
 # Anyone with the URL can open an environment of this repo.
 [access]
 public = true
@@ -26,12 +34,17 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # and the migrate rung can import them; from then on the `pnpm dev` watchers
 # keep common and warehouses current (no common-build rung below; formula has
 # no watcher, so it is a run rung). The second is the dbt venv the seed's
-# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+# project compile shells out to (`dbt1.12`). Its adapters and pins are
+# dockerfile-prs's: the API and app tests compile Snowflake, BigQuery,
+# Databricks and Trino projects with dbt1.12 too.
 [runtime]
 system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
   "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
-  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+  # The demo dbt project where the Okteto image and the test suites expect it
+  # (the backend's default project_dir is /usr/app/dbt).
+  "ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /usr/app/dbt && ln -sfn /usr/app/examples/full-jaffle-shop-demo/dbt /dbt",
 ]
 
 [datastores]
@@ -62,6 +75,7 @@ PGHOST = "localhost"
 PGPORT = "5432"
 PGUSER = "postgres"
 PGDATABASE = "postgres"
+PGMAXCONNECTIONS = "30"            # as the Okteto preview; the API tests run four workers
 DBT_DEMO_DIR = "/usr/app/examples/full-jaffle-shop-demo"
 DBT_PROJECT_DIR = "/usr/app/examples/full-jaffle-shop-demo/dbt"
 S3_ENDPOINT = "http://localhost:9000"
@@ -122,6 +136,9 @@ PGWIRE_SSL_MODE = "disabled"
 AI_COPILOT_ENABLED = "true"
 AI_COPILOT_REQUIRES_FEATURE_FLAG = "true"
 AI_DEFAULT_PROVIDER = "anthropic"
+# The Snowflake AI test loop: the backend accepts only this exact account
+# origin and dials it itself, so it is the stub service above.
+SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = "http://localhost:3900"
 
 # Two seeds, in the order CONTRIBUTING gives them. First the warehouse the
 # seeded project points at: dbt loads examples/full-jaffle-shop-demo into the
@@ -189,6 +206,7 @@ memory = "12gb"
 name = "api-routes"
 files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
 run = "pnpm -F backend generate-api"   # tsx watch restarts on the regenerated routes.ts
+env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default V8 heap (same as CI)
 
 [[tier]]
 name = "app"
@@ -229,6 +247,36 @@ port = 443
 host = "api.github.com"             # GitHub App: repo access for dbt projects
 port = 443
 
+# BigQuery (the warehouse test suites): the API and the token endpoint.
+[[egress.allow]]
+host = "bigquery.googleapis.com"
+port = 443
+
+[[egress.allow]]
+host = "oauth2.googleapis.com"
+port = 443
+
+[[egress.allow]]
+host = "www.googleapis.com"
+port = 443
+
+# Staging warehouses, by secret (see [secrets]).
+[[egress.allow]]
+host_secret = "WAREHOUSE_POSTGRES_HOST"
+port = 5432
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_SNOWFLAKE_HOST"
+port = 443
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_DATABRICKS_HOST"
+port = 443
+
+[[egress.allow]]
+host_secret = "WAREHOUSE_TRINO_HOST"
+port = 443
+
 [[egress.allow]]
 host = "github.com"                 # GitHub OAuth login
 port = 443
@@ -250,6 +298,13 @@ LIGHTDASH_SECRET = "app-secret"
 PGPASSWORD = "postgres-password"
 LIGHTDASH_LICENSE_KEY = "licence"
 LIGHTDASH_LICENSE_CERTIFICATE = "licence"
+# Staging warehouses the test suites connect projects to. The hosts are
+# secrets so this public file never carries their addresses; the matching
+# [[egress.allow]] rules below name them by secret.
+WAREHOUSE_POSTGRES_HOST = "host"
+WAREHOUSE_SNOWFLAKE_HOST = "host"
+WAREHOUSE_DATABRICKS_HOST = "host"
+WAREHOUSE_TRINO_HOST = "host"
 # Integrations, in the order of the [[egress.allow]] list. Each is optional:
 # with no value stored the variable is absent and the feature stays off.
 ANTHROPIC_API_KEY = "api-key"
