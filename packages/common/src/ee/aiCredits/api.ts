@@ -1,4 +1,5 @@
 import { type ApiSuccess } from '../../types/api/success';
+import { type AiBillableFeature } from './billable';
 import {
     type AiCreditContract,
     type AiCreditHold,
@@ -40,28 +41,11 @@ export type AiCreditUsageSummary = {
 
 export type ApiAiCreditUsageResponse = ApiSuccess<AiCreditUsageSummary>;
 
-export const AI_CREDIT_USAGE_BREAKDOWNS = [
-    'feature',
-    'channel',
-    'user',
-    'project',
-    'agent',
-] as const;
-
-export type AiCreditUsageBreakdown =
-    (typeof AI_CREDIT_USAGE_BREAKDOWNS)[number];
-
-export type AiCreditDailyUsageSeries =
-    // name is null for features and channels, which the app labels itself.
-    | { type: 'value'; key: string; name: string | null; credits: number }
-    // Values outside the largest few, combined.
-    | { type: 'other'; credits: number }
-    // Users, projects or agents that no longer exist.
-    | { type: 'deleted'; credits: number }
-    // Viewers of embedded agents, never listed individually.
-    | { type: 'embeddedViewers'; credits: number }
-    // Calls with no value for the breakdown, e.g. usage outside any project.
-    | { type: 'unattributed'; credits: number };
+// Billable credits for one feature over the period.
+export type AiCreditDailyUsageSeries = {
+    feature: AiBillableFeature;
+    credits: number;
+};
 
 export type AiCreditDailyUsageDay = {
     // UTC calendar date, YYYY-MM-DD.
@@ -72,8 +56,7 @@ export type AiCreditDailyUsageDay = {
 
 export type AiCreditDailyUsage = {
     period: AiCreditPeriod;
-    breakdown: AiCreditUsageBreakdown;
-    // Largest first; any combined series comes last.
+    // Largest first.
     series: AiCreditDailyUsageSeries[];
     // Every day of the period, including days without usage.
     days: AiCreditDailyUsageDay[];

@@ -1,6 +1,6 @@
 import {
+    type AiBillableFeature,
     type AiCreditDailyUsage,
-    type AiCreditDailyUsageSeries,
 } from '@lightdash/common';
 import { Group, Paper, Skeleton, Stack, Text, Title } from '@mantine/core';
 import { type EChartsOption } from 'echarts';
@@ -16,14 +16,13 @@ import {
     toAiCreditChartBuckets,
 } from './dailyUsageChart';
 import { useAiCreditDailyUsage } from './hooks/useAiCreditDailyUsage';
-import { getAiCreditSeriesLabel } from './labels';
+import { AI_CREDIT_FEATURE_LABELS } from './labels';
 
 const CHART_HEIGHT = 200;
 const BAR_TOP_RADIUS: [number, number, number, number] = [4, 4, 0, 0];
 
 type LabelledSeries = {
-    id: string;
-    series: AiCreditDailyUsageSeries;
+    feature: AiBillableFeature;
     label: string;
     color: string;
     credits: number;
@@ -31,10 +30,9 @@ type LabelledSeries = {
 
 const toLabelledSeries = (usage: AiCreditDailyUsage): LabelledSeries[] =>
     usage.series.map((series, index) => ({
-        id: series.type === 'value' ? `value:${series.key}` : series.type,
-        series,
-        label: getAiCreditSeriesLabel(usage.breakdown, series),
-        color: getAiCreditSeriesColor(series, index),
+        feature: series.feature,
+        label: AI_CREDIT_FEATURE_LABELS[series.feature],
+        color: getAiCreditSeriesColor(index),
         credits: series.credits,
     }));
 
@@ -123,18 +121,11 @@ const UsageChart: FC<{
     );
 };
 
-const UsageLegend: FC<{
-    usage: AiCreditDailyUsage;
-    series: LabelledSeries[];
-}> = ({ usage, series }) => (
+const UsageLegend: FC<{ series: LabelledSeries[] }> = ({ series }) => (
     <Group gap="md" role="list" aria-label="Credits by feature this period">
         {series.map((item) => (
-            <Group key={item.id} gap="xs" wrap="nowrap" role="listitem">
-                <AiCreditSeriesIcon
-                    breakdown={usage.breakdown}
-                    series={item.series}
-                    color={item.color}
-                />
+            <Group key={item.feature} gap="xs" wrap="nowrap" role="listitem">
+                <AiCreditSeriesIcon feature={item.feature} color={item.color} />
                 <Text fz="sm">{item.label}</Text>
                 <Text fz="sm" c="dimmed">
                     {formatCredits(item.credits)}
@@ -151,7 +142,7 @@ export const AiCreditsUsageBreakdown: FC = () => {
         isInitialLoading,
         isError,
         refetch,
-    } = useAiCreditDailyUsage('feature');
+    } = useAiCreditDailyUsage();
     const series = useMemo(
         () => (usage === undefined ? [] : toLabelledSeries(usage)),
         [usage],
@@ -177,7 +168,7 @@ export const AiCreditsUsageBreakdown: FC = () => {
                 ) : (
                     <>
                         <UsageChart usage={usage} series={series} />
-                        <UsageLegend usage={usage} series={series} />
+                        <UsageLegend series={series} />
                     </>
                 )}
             </Stack>

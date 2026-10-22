@@ -130,6 +130,20 @@
         "ai-agent-thread-binding-chart": {
             "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
             "requiredStop": false
+        },
+        "ai-credits-daily-usage-breakdown-removed": {
+            "reason": "GET /api/v1/org/ai-credits/usage/daily no longer accepts the breakdown query parameter and always returns billable credits per day by feature; each series is { feature, credits } instead of the former typed value/other/deleted/embeddedViewers/unattributed shapes. The endpoint is org-admin only behind the ai-credits feature flag, which is off by default on Cloud and on self-hosted. During a rolling update an old AI Credits settings tab still sending breakdown=user gets a validation error on that chart until refresh, which is safe because it is an admin reporting view.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "ai-credits",
+                "covers": {
+                    "rest": [
+                        "GET /api/v1/org/ai-credits/usage/daily"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }
