@@ -78,6 +78,9 @@ const buildService = ({
                     modelVisibility: null,
                     keyAccessibleModelIds: null,
                 }),
+                copilotConfig: {
+                    providers: { anthropic: { apiKey: 'test-key' } },
+                },
             })),
         },
         mobilePushNotificationService: {

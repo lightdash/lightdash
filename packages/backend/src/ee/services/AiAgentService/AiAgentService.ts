@@ -489,6 +489,7 @@ import {
     getModel,
     getOrgModelOptions,
     MODEL_PRESETS,
+    reconcileInheritedModelConfig,
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
@@ -1455,20 +1456,26 @@ export class AiAgentService extends BaseService {
         requestedModelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
+        const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
         const modelConfig =
-            requestedModelConfig ??
-            agentModelConfig ??
+            pickedModelConfig ??
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
         if (!modelConfig) return null;
-        const { catalogue } =
+        const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid,
                 credentialUuid,
             });
-        return resolveModelConfigForPrompt(catalogue, modelConfig);
+        const resolved = resolveModelConfigForPrompt(catalogue, modelConfig);
+        // An org-default model inherited into a scope the org default does not
+        // serve (a project pinned to a Bedrock credential) is repointed at the
+        // scoped config's own default; explicit picks fail closed instead.
+        return pickedModelConfig
+            ? resolved
+            : reconcileInheritedModelConfig(copilotConfig, resolved);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -11186,6 +11193,7 @@ export class AiAgentService extends BaseService {
             if (
                 await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                     payload.organizationUuid,
+                    payload.projectUuid,
                 )
             ) {
                 return;
