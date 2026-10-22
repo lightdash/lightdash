@@ -100,7 +100,13 @@ describe('RequiredFilterCard', () => {
 
     it('offers an alternative filter when it is the only rule member and saved', async () => {
         const rule = buildRule({ required: true });
-        setDashboardFilters([rule]);
+        setDashboardFilters([
+            rule,
+            buildRule({
+                id: 'filter-2',
+                target: { fieldId: 'customers_age', tableName: 'customers' },
+            }),
+        ]);
 
         renderWithProviders(
             <RequiredFilterCard
@@ -121,6 +127,28 @@ describe('RequiredFilterCard', () => {
             screen.getByRole('button', { name: 'Add an alternative filter' }),
         );
         expect(screen.getByPlaceholderText('+ Add a filter')).not.toBeNull();
+    });
+
+    it('says another filter is needed when no other filter can be an alternative', () => {
+        const rule = buildRule({ required: true });
+        setDashboardFilters([rule]);
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('button', {
+                name: 'Add an alternative filter',
+            }),
+        ).toBeNull();
+        expect(
+            screen.getByText('Add another filter to use it as an alternative.'),
+        ).not.toBeNull();
     });
 
     it('converts both filters to valueless group members when adding an alternative', async () => {
