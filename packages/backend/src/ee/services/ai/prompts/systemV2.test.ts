@@ -3,7 +3,7 @@ import {
     WarehouseTypes,
     type AiAgentDocumentContext,
 } from '@lightdash/common';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PromptSection } from '../loadout';
 import {
@@ -41,11 +41,15 @@ const extractExpressionFilterSection = (content: string): string =>
         '## String filter case sensitivity',
     );
 
+// Fixtures are byte-compared; UPDATE_PROMPT_FIXTURES=1 rewrites them.
+const expectFixture = (name: string, rendered: Buffer) => {
+    const path = join(__dirname, '__fixtures__', name);
+    if (process.env.UPDATE_PROMPT_FIXTURES) writeFileSync(path, rendered);
+    expect(rendered.equals(readFileSync(path))).toBe(true);
+};
+
 describe('getSystemPromptV2 filter expressions', () => {
     test('keeps the classic prompt byte-identical', () => {
-        const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.classic.txt'),
-        );
         const rendered = Buffer.from(
             promptText({
                 availableExplores: [],
@@ -54,13 +58,10 @@ describe('getSystemPromptV2 filter expressions', () => {
             }),
         );
 
-        expect(rendered.equals(baseline)).toBe(true);
+        expectFixture('systemV2.classic.txt', rendered);
     });
 
     test('keeps the classic prompt with every capability byte-identical', () => {
-        const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.classic-capabilities.txt'),
-        );
         const rendered = Buffer.from(
             promptText({
                 promptSections: new Set<PromptSection>([
@@ -90,7 +91,7 @@ describe('getSystemPromptV2 filter expressions', () => {
             }),
         );
 
-        expect(rendered.equals(baseline)).toBe(true);
+        expectFixture('systemV2.classic-capabilities.txt', rendered);
     });
 
     test('renders expression-only filter guidance', () => {
