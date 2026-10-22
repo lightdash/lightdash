@@ -1,3 +1,10 @@
+# [3.28.0](https://github.com/lightdash/lightdash/compare/3.27.1...3.28.0) (2026-10-22)
+
+
+### Features
+
+* **custom-charts:** point the Vega editor at Chart Studio ([#31399](https://github.com/lightdash/lightdash/issues/31399)) ([52a12de](https://github.com/lightdash/lightdash/commit/52a12de03bee11b3992e8cda7b0b13e412897068))
+
 ## [3.27.1](https://github.com/lightdash/lightdash/compare/3.27.0...3.27.1) (2026-10-22)
 
 
