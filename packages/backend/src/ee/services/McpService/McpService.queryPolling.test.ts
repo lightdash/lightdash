@@ -991,6 +991,7 @@ describe('MCP catalogue audit', () => {
                         ai_mcp_server_uuid: null,
                         result_metadata: {
                             catalogue: {
+                                agentPinned: false,
                                 projectPinned: pinnedProjectUuid !== undefined,
                                 mcpContentWritesEnabled: true,
                                 scheduledDeliveryEnabled: true,

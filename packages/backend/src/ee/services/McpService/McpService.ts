@@ -6,6 +6,7 @@ import {
     AiAccessRefusal,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    AiAgent,
     AiAgentWithContext,
     AiResultType,
     AiWritebackRunStatus,
@@ -197,7 +198,10 @@ import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
 import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
-import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
+import {
+    getMcpAnalystPrompt,
+    getMcpPinnedAgentPrompt,
+} from '../ai/prompts/mcpAnalyst';
 import type {
     BuiltInSkillToolReference,
     BuiltInSkillToolResource,
@@ -567,6 +571,11 @@ type McpServiceArguments = {
     aiWritebackService: AiWritebackService;
 };
 
+export type McpPinnedAgent = Pick<
+    AiAgent,
+    'uuid' | 'name' | 'projectUuid' | 'instruction'
+>;
+
 export type ExtraContext = {
     user: SessionUser;
     account: RegisteredAccount;
@@ -578,6 +587,8 @@ export type ExtraContext = {
     headerUserAttributes?: UserAttributeValueMap;
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
     headerProjectUuid?: string;
+    /** Agent UUID pinned via X-Lightdash-Agent header */
+    headerAgentUuid?: string;
     /** Legacy shared context was injected for a cached pre-migration tool contract. */
     legacyContextInjected?: boolean;
     /** User-Agent of the MCP client request, used to attach client identity to tool calls */
@@ -617,6 +628,7 @@ const extraContextSchema = z.object({
         .optional(),
     headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
     headerProjectUuid: z.string().optional(),
+    headerAgentUuid: z.string().optional(),
     legacyContextInjected: z.boolean().optional(),
     userAgent: z.string().optional(),
     protocolVersion: z.string().optional(),
@@ -654,6 +666,7 @@ const getMcpContext = (
 export type McpServerToolOptions = {
     req: {
         pinnedProjectUuid: string | undefined;
+        pinnedAgent: McpPinnedAgent | null;
         // The caller, so per-organization skill resources can be registered
         // on the request's server instance.
         user: SessionUser | undefined;
@@ -769,6 +782,7 @@ export class McpService extends BaseService {
         this.aiWritebackService = aiWritebackService;
         try {
             this.mcpServer = this.buildMcpServer({
+                pinnedAgent: null,
                 runSqlEnabled: false,
                 runMetricQueryEnabled: true,
                 filterExpressionsEnabled: false,
@@ -783,12 +797,20 @@ export class McpService extends BaseService {
     }
 
     private buildMcpServer(args: {
+        pinnedAgent: McpPinnedAgent | null;
         runSqlEnabled: boolean;
         runMetricQueryEnabled: boolean;
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         agentIdentityEnabled: boolean;
     }): McpServer {
+        const analystPrompt = getMcpAnalystPrompt({
+            runSqlEnabled: args.runSqlEnabled,
+            runMetricQueryEnabled: args.runMetricQueryEnabled,
+            filterExpressionsEnabled: args.filterExpressionsEnabled,
+            documentsEnabled: args.documentsEnabled,
+            agentIdentityEnabled: args.agentIdentityEnabled,
+        });
         return Sentry.wrapMcpServerWithSentry(
             new McpServer(
                 {
@@ -813,13 +835,9 @@ export class McpService extends BaseService {
                     ],
                 },
                 {
-                    instructions: getMcpAnalystPrompt({
-                        runSqlEnabled: args.runSqlEnabled,
-                        runMetricQueryEnabled: args.runMetricQueryEnabled,
-                        filterExpressionsEnabled: args.filterExpressionsEnabled,
-                        documentsEnabled: args.documentsEnabled,
-                        agentIdentityEnabled: args.agentIdentityEnabled,
-                    }),
+                    instructions: args.pinnedAgent
+                        ? `${analystPrompt}\n\n${getMcpPinnedAgentPrompt(args.pinnedAgent)}`
+                        : analystPrompt,
                 },
             ),
         );
@@ -3361,6 +3379,7 @@ export class McpService extends BaseService {
         { req, featureAvailability: options }: McpServerToolOptions = {
             req: {
                 pinnedProjectUuid: undefined,
+                pinnedAgent: null,
                 user: undefined,
                 account: undefined,
             },
@@ -3891,14 +3910,14 @@ export class McpService extends BaseService {
                               project.projectUuid === activeProjectUuid,
                       )
                     : undefined;
-                const activeAgent =
-                    activeProject &&
-                    metadata.projectUuid === activeProjectUuid &&
-                    metadata.agentUuid
-                        ? activeProject.availableAgents.find(
-                              (agent) => agent.agentUuid === metadata.agentUuid,
-                          )
-                        : undefined;
+                const activeAgentUuid =
+                    ctx.authInfo?.extra.headerAgentUuid ??
+                    (metadata.projectUuid === activeProjectUuid
+                        ? metadata.agentUuid
+                        : null);
+                const activeAgent = activeProject?.availableAgents.find(
+                    (agent) => agent.agentUuid === activeAgentUuid,
+                );
                 const structuredContent = {
                     activeProject: activeProject
                         ? {
@@ -3986,13 +4005,19 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const agentList = agents.map((agent) => ({
-                    uuid: agent.uuid,
-                    name: agent.name,
-                    description: agent.description,
-                    tags: agent.tags,
-                    projectUuid: agent.projectUuid,
-                }));
+                const agentList = agents
+                    .filter(
+                        (agent) =>
+                            !ctx.authInfo?.extra.headerAgentUuid ||
+                            agent.uuid === ctx.authInfo.extra.headerAgentUuid,
+                    )
+                    .map((agent) => ({
+                        uuid: agent.uuid,
+                        name: agent.name,
+                        description: agent.description,
+                        tags: agent.tags,
+                        projectUuid: agent.projectUuid,
+                    }));
 
                 return {
                     content: [
@@ -4025,6 +4050,33 @@ export class McpService extends BaseService {
                     ctx,
                     args.projectUuid,
                 );
+
+                const pinnedAgentUuid = ctx.authInfo?.extra.headerAgentUuid;
+                if (pinnedAgentUuid) {
+                    const agent = await this.aiAgentService.getAgent(
+                        user,
+                        pinnedAgentUuid,
+                        projectUuid,
+                        { includeSummaryContext: true },
+                    );
+                    const structuredContent = {
+                        ...McpService.buildAgentContextResponse(agent),
+                        confidence: 'high',
+                        reasoning:
+                            'This MCP connection is pinned to this agent.',
+                        candidates: [
+                            {
+                                agentUuid: agent.uuid,
+                                name: agent.name,
+                                description: agent.description,
+                            },
+                        ],
+                    } satisfies z.infer<typeof mcpRouteAgentTool.outputSchema>;
+                    return mcpRouteAgentTool.result.structured(
+                        JSON.stringify(structuredContent, null, 2),
+                        structuredContent,
+                    );
+                }
 
                 let selection;
                 try {
@@ -4987,9 +5039,34 @@ export class McpService extends BaseService {
         );
     }
 
+    public async getPinnedAgent(
+        user: SessionUser,
+        {
+            agentUuid,
+            projectUuid,
+        }: {
+            agentUuid: string;
+            projectUuid: string | undefined;
+        },
+    ): Promise<McpPinnedAgent> {
+        await this.checkMcpAgentsEnabled(user);
+        const agent = await this.aiAgentService.getAgent(
+            user,
+            agentUuid,
+            projectUuid,
+        );
+        return {
+            uuid: agent.uuid,
+            name: agent.name,
+            projectUuid: agent.projectUuid,
+            instruction: agent.instruction,
+        };
+    }
+
     public async getLegacyToolScope(
         user: SessionUser,
         pinnedProjectUuid?: string,
+        pinnedAgentUuid?: string,
     ): Promise<{ projectUuid: string; agentUuid: string | null } | null> {
         if (!user.organizationUuid) {
             return null;
@@ -5002,6 +5079,10 @@ export class McpService extends BaseService {
             pinnedProjectUuid ?? contextRow?.context.projectUuid;
         if (!projectUuid) {
             return null;
+        }
+
+        if (pinnedAgentUuid) {
+            return { projectUuid, agentUuid: pinnedAgentUuid };
         }
 
         const contextAgentUuid =
@@ -5286,7 +5367,10 @@ export class McpService extends BaseService {
     public async createServer(
         options: McpServerToolOptions,
     ): Promise<McpServer> {
-        const newServer = this.buildMcpServer(options.featureAvailability);
+        const newServer = this.buildMcpServer({
+            ...options.featureAvailability,
+            pinnedAgent: options.req.pinnedAgent,
+        });
         const scopeContext = options.req.user
             ? getOAuthScopeContext(options.req.user.ability)
             : null;
@@ -6083,6 +6167,8 @@ export class McpService extends BaseService {
                     errorMessage: null,
                     resultMetadata: {
                         catalogue: {
+                            agentPinned:
+                                params.catalogue.req.pinnedAgent !== null,
                             projectPinned:
                                 params.catalogue.req.pinnedProjectUuid !==
                                 undefined,
@@ -6214,8 +6300,8 @@ export class McpService extends BaseService {
         const wrapped = async (...cbArgs: AnyType[]) => {
             // ToolCallback is (extra) for tools without an input schema and
             // (args, extra) otherwise
-            const [toolArgs, extra] =
-                cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
+            const extra = cbArgs.length > 1 ? cbArgs[1] : cbArgs[0];
+            let toolArgs = cbArgs.length > 1 ? cbArgs[0] : {};
             const startedAt = Date.now();
             let toolAllowed = false;
             try {
@@ -6223,6 +6309,29 @@ export class McpService extends BaseService {
                 const user = context.authInfo?.extra.user;
                 if (user) {
                     assertOAuthMcpToolAllowed(user.ability, toolName);
+                }
+                const pinnedAgentUuid = context.authInfo?.extra.headerAgentUuid;
+                if (
+                    pinnedAgentUuid &&
+                    cbArgs.length > 1 &&
+                    isProjectScopedMcpTool(toolName)
+                ) {
+                    const scopedArgs = z
+                        .object({
+                            agentUuid: z.string().optional(),
+                        })
+                        .passthrough()
+                        .parse(toolArgs);
+                    if (
+                        scopedArgs.agentUuid !== undefined &&
+                        scopedArgs.agentUuid !== pinnedAgentUuid
+                    ) {
+                        throw new ForbiddenError(
+                            'The requested agent does not match the pinned MCP agent',
+                        );
+                    }
+                    toolArgs = { ...scopedArgs, agentUuid: pinnedAgentUuid };
+                    cbArgs[0] = toolArgs;
                 }
                 await this.assertAgentToolAllowed(context, toolName, toolArgs);
                 toolAllowed = true;

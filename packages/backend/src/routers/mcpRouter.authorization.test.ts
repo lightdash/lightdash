@@ -1,4 +1,9 @@
-import { AgentActorSurface, assertUnreachable } from '@lightdash/common';
+import {
+    AgentActorSurface,
+    assertUnreachable,
+    ForbiddenError,
+    ParameterError,
+} from '@lightdash/common';
 import type { Account } from '@lightdash/common';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
@@ -22,13 +27,18 @@ import {
     getContentWriteAgentIdentity,
 } from '../services/AiAccessService/agentExecutionContext';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
-import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
+import mcpRouter, {
+    extractMcpAgentUuid,
+    extractMcpProjectUuid,
+} from './mcpRouter';
 
 vi.mock('../auth/oauthScopes/scopedAbility', () => ({
     getOAuthScopeContext: vi.fn().mockReturnValue(null),
 }));
 
 const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
+const AGENT_UUID = '3f1c2a9e-7b4d-4c8e-9a1f-2d6b5e8c4a71';
+const AGENT_PROJECT_UUID = '8a2e4f6b-1c3d-4e5f-8a9b-0c1d2e3f4a5b';
 
 const transport = vi.hoisted(() => ({
     handleRequest: vi.fn(),
@@ -102,6 +112,12 @@ const createAccount = (authentication: TestAuthentication): Account => {
 
 const createMcpService = () =>
     Object.assign(Object.create(McpService.prototype), {
+        getPinnedAgent: vi.fn().mockResolvedValue({
+            uuid: AGENT_UUID,
+            projectUuid: AGENT_PROJECT_UUID,
+            name: 'Finance',
+            instruction: 'Use finance metrics.',
+        }),
         createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
         getLegacyToolScope: vi.fn().mockResolvedValue({
             projectUuid: PROJECT_UUID,
@@ -131,17 +147,20 @@ const sendHttpRequest = ({
     port,
     requestBody,
     sessionId,
+    headers,
 }: {
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     port: number;
     requestBody?: Record<string, unknown>;
     sessionId?: string;
+    headers?: Record<string, string>;
 }) =>
     new Promise<McpResponse>((resolve, reject) => {
         const request = httpRequest(
             {
                 headers: {
+                    ...headers,
                     authorization: 'Bearer test-token',
                     'content-type': 'application/json',
                     'x-agent-uuid': 'spoofed-agent',
@@ -182,6 +201,7 @@ const requestMcp = async ({
     method,
     path,
     requestBody,
+    headers,
 }: {
     account: Account;
     agentIdentityEnabled?: boolean;
@@ -189,6 +209,7 @@ const requestMcp = async ({
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     requestBody?: Record<string, unknown>;
+    headers?: Record<string, string>;
 }) => {
     const app = express();
     const mcpService = createMcpService();
@@ -219,6 +240,7 @@ const requestMcp = async ({
         method,
         path,
         port: address.port,
+        headers,
         requestBody,
     });
 
@@ -904,3 +926,156 @@ describe.each([true, false])(
         });
     },
 );
+
+describe('agent-pinned MCP route', () => {
+    const initializeBody = {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'initialize',
+        params: {},
+    };
+
+    it('validates the agent header', () => {
+        expect(extractMcpAgentUuid({ headers: {} })).toBeUndefined();
+        expect(
+            extractMcpAgentUuid({
+                headers: { 'x-lightdash-agent': AGENT_UUID },
+            }),
+        ).toBe(AGENT_UUID);
+        expect(() =>
+            extractMcpAgentUuid({ headers: { 'x-lightdash-agent': 'bad' } }),
+        ).toThrow(ParameterError);
+    });
+
+    it.each([
+        { type: 'pat' },
+        { type: 'service-account' },
+        { type: 'oauth', scopes: ['mcp:read'] },
+    ] satisfies TestAuthentication[])(
+        'pins the agent and its project for $type authentication',
+        async (authentication) => {
+            transport.handleRequest.mockImplementation(
+                async (request, response) => {
+                    expect(request.auth.extra).toMatchObject({
+                        headerAgentUuid: AGENT_UUID,
+                        headerProjectUuid: AGENT_PROJECT_UUID,
+                    });
+                    response.status(200).json({ status: 'ok' });
+                },
+            );
+            const { response, mcpService } = await requestMcp({
+                account: createAccount(authentication),
+                method: 'POST',
+                headers: { 'x-lightdash-agent': AGENT_UUID },
+                requestBody: initializeBody,
+            });
+            expect(response.status).toBe(200);
+            expect(transport.handleRequest).toHaveBeenCalledOnce();
+            expect(mcpService.getPinnedAgent).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-uuid' }),
+                { agentUuid: AGENT_UUID, projectUuid: undefined },
+            );
+            expect(mcpService.createServer).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    req: expect.objectContaining({
+                        pinnedProjectUuid: AGENT_PROJECT_UUID,
+                        pinnedAgent: expect.objectContaining({
+                            uuid: AGENT_UUID,
+                        }),
+                    }),
+                }),
+            );
+            expect(mcpService.isRunSqlEnabled).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'user-uuid' }),
+                AGENT_PROJECT_UUID,
+            );
+        },
+    );
+
+    it('leaves requests without the header unpinned', async () => {
+        transport.handleRequest.mockImplementation(
+            async (request, response) => {
+                expect(request.auth.extra.headerAgentUuid).toBeUndefined();
+                response.status(200).json({ status: 'ok' });
+            },
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            requestBody: initializeBody,
+        });
+        expect(response.status).toBe(200);
+        expect(transport.handleRequest).toHaveBeenCalledOnce();
+        expect(mcpService.getPinnedAgent).not.toHaveBeenCalled();
+        expect(mcpService.createServer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                req: expect.objectContaining({
+                    pinnedAgent: null,
+                    pinnedProjectUuid: undefined,
+                }),
+            }),
+        );
+    });
+
+    it.each([
+        { header: AGENT_UUID, status: 403 },
+        { header: 'bad', status: 400 },
+    ])('fails closed with status $status', async ({ header, status }) => {
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            headers: { 'x-lightdash-agent': header },
+            configureService: (service) => {
+                vi.mocked(service.getPinnedAgent).mockRejectedValue(
+                    new ForbiddenError('Forbidden'),
+                );
+            },
+            requestBody: initializeBody,
+        });
+        expect(response.status).toBe(status);
+        expect(mcpService.createServer).not.toHaveBeenCalled();
+    });
+
+    it('passes the route project to agent authorization', async () => {
+        transport.handleRequest.mockImplementation(async (_request, response) =>
+            response.status(200).json({}),
+        );
+        const { mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            path: `/api/v1/mcp/projects/${PROJECT_UUID}`,
+            headers: { 'x-lightdash-agent': AGENT_UUID },
+            requestBody: initializeBody,
+        });
+        expect(mcpService.getPinnedAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            { agentUuid: AGENT_UUID, projectUuid: PROJECT_UUID },
+        );
+    });
+
+    it('injects the pinned agent into cached project-scoped calls', async () => {
+        transport.handleRequest.mockImplementation(async (_request, response) =>
+            response.status(200).json({ status: 'ok' }),
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'service-account' }),
+            method: 'POST',
+            headers: { 'x-lightdash-agent': AGENT_UUID },
+            requestBody: {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'tools/call',
+                params: {
+                    name: 'read_content',
+                    arguments: { slug: 'orders' },
+                },
+            },
+        });
+        expect(response.status).toBe(200);
+        expect(mcpService.getLegacyToolScope).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            AGENT_PROJECT_UUID,
+            AGENT_UUID,
+        );
+    });
+});
