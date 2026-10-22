@@ -1,109 +1,38 @@
 ---
 name: repository-writeback
-description: Use when changing the dbt project through a pull request (`editDbtProject`) or managing those pull requests, offering to fix or extend the semantic layer, or following up a merged pull request.
+description: Workflow for semantic-layer pull requests (`editDbtProject`), covering when to ask first, descriptions versus AI hints, impact and value checks, splitting work into pull requests, and the content migration after a merge. Load it before changing the dbt project and when a merged pull request needs follow-up.
 availability: [agent]
 ---
 
 # Repository writeback
 
-This project's semantic layer is defined in a dbt repository (YAML files, model definitions, etc.). When the user explicitly asks to **change** something in that repository — for example: rename a metric in YAML, add a new metric to a dbt model, edit a model's SQL, update a dimension's description, fix a typo in a column — use the `editDbtProject` tool.
+`editDbtProject` changes this project's semantic layer through a pull request; its description and parameters cover the call and the `prompt`. This skill covers what to change and what follows.
 
-The `editDbtProject` tool is how _you_ change the semantic layer: it edits the repo in an isolated sandbox, runs `lightdash compile`, and opens a pull request. It's your own tool — when you report back, speak in the first person about what you did ("I've added…", "I've updated…").
+**Ask or act.** When the user's request already asks for the change ("fix it", "open a PR", "clean these up", "update the descriptions"), call `editDbtProject` without asking again. When you suggest a fix the user did not ask for, offer it, naming the fields involved, and wait for a yes. When it is unclear whether a request should land in the repository at all, ask one short question.
 
-**When to use `editDbtProject`:**
+**Read first.** Before `editDbtProject`, read the files you intend to change with `exploreRepo`: confirm the change is needed (when the code already does what was asked, say so instead of opening an empty pull request), name the exact target file in the `prompt`, and match the surrounding conventions.
 
-- The user asks to change, add, remove, rename, or edit something that lives in the dbt project files.
-- The user references the repo, YAML, dbt models, semantic layer files, or asks for a pull request.
+**Descriptions and AI hints.** A field carries two metadata channels:
 
-**When NOT to use `editDbtProject`:**
+- `description` defines what the field is (its grain, its source, what it measures), and people read it in the catalog and the UI.
+- `ai_hint` (model- and field-level) tells the agent when to choose this field over a similar one: routing directives ("use this metric for X; combine with Y to break down by Z"), join recipes, and caveats such as "not suitable for X, use `other_model`".
 
-- The user is asking a question about data (use the query/discovery tools instead).
-- The user wants to edit an existing chart or dashboard inside Lightdash.
-- The request is ambiguous about whether it should land in the repo. Ask one short clarifying question first.
+Put agent steering in `ai_hint` and keep `description` edits to the field's own definition: steering in a description pollutes the human-facing semantic layer and fits it to one question. Disambiguate two legitimately similar fields that cannot be merged with an `ai_hint` on each.
 
-**Proactively suggesting semantic-layer improvements:**
+**Impact of removals and renames.** When a change removes or renames a field, call `analyzeFieldImpact` right after `editDbtProject` starts, for each field id that goes away (the old id for a rename), and add a few lines to your reply: whether it breaks content, the totals (charts, dashboards, dependent metrics, scheduled deliveries) and the most notable items, or that nothing references the field. The check is advisory: the pull request stands whatever it returns. Skip it for additions and for description- or SQL-only edits.
 
-When a discovery tool — especially `searchSemanticLayer` — surfaces problems in the semantic layer, don't stop at describing them. Issues worth offering to fix include duplicate or confusingly similar metrics (two that compute the same thing), vague or missing descriptions, and inconsistent naming. After listing what you found, briefly and concretely offer to fix it with a pull request — e.g. "I can open a PR to clarify these descriptions / consolidate these duplicate metrics — want me to?". Tie the offer to the specific fields you found. When two fields are legitimately similar and can't be merged, disambiguate them with an `ai_hint` on each (see **Descriptions vs. AI hints** below) — never by adding "use this, not that" steering to their descriptions.
+**Value correctness.** The impact check shows what would break, not whether the numbers survive. When a change claims to preserve values (merging duplicate metrics, replacing or repointing a field, splitting a metric into parts that should sum back to it, refactoring a field's SQL), prove the claim before calling the change safe, with the cheapest sufficient method:
 
-**Descriptions vs. AI hints — put each edit in the right field:**
+- By construction: read the field definitions and the model SQL (with `exploreRepo` when the metadata is not enough). The same aggregation over the same rows, a uniqueness or non-null guarantee (a `row_number() = 1` dedup, a primary key) or a split whose parts partition the original is enough; state the guarantee in plain terms.
+- By data: when the SQL cannot guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), query the fields at a total grain and across a time dimension and check the expected relationship on every row: equality for a replacement or dedup, parts summing to the original for a split.
 
-A field carries two distinct metadata channels, and a proposed edit must land in the right one:
+Settle it before calling `editDbtProject` when you can, otherwise in the same turn, and report it with the impact. When the numbers diverge, name the rows or periods that differ and rework the change or ask the user how to proceed rather than calling it safe. Skip this for additions and description- or label-only edits.
 
-- A `description` defines what a field **is** — its grain, its source, what it measures. It's rendered to humans in the catalog and UI, so keep `description` edits to making that definition accurate and complete.
-- An `ai_hint` (model- and field-level) is disambiguation guidance written for _you_, the agent: it says **when to choose this field over a similar one**. Routing directives ("use this metric when you want X; combine with Y to break down by Z"), join recipes, and negative cross-model caveats ("NOT suitable for…, use `other_model` instead") belong here.
+**Splitting work into pull requests.** Group edits that belong together (several description fixes on one model, the changes that add one metric) in one pull request, and split unrelated changes with `startNewPullRequest` so each can be reviewed and merged alone; when unsure, prefer a new pull request, since a spare one is easy to close and mixed changes are not easy to separate. When the split is obvious, make it and tell the user what went where. When a broad request ("improve the semantic layer") could reasonably be one pull request or several, lay out the groupings and ask before opening any.
 
-So when you improve discoverability, do **not** write imperative agent-steering into user-facing `description`s — it pollutes the human semantic layer, over-fits it to a single question, and drifts from the same guidance you (correctly) put in `ai_hint`. Put the steering in `ai_hint` (model- or field-level as fits the directive) and reserve any `description` edit for fixing the field's own definition. Rule of thumb: **a `description` says what a field is; an `ai_hint` says when to pick it over a similar one.**
+`listWorkstreams` shows the pull requests this thread opened, `getPullRequestDiff` what one contains, and `closePullRequest` discards one the user asks to drop, for example after you fold its change into the one you continue with `prUrl`.
 
-**Offer to model data you could only reach the hard way:**
+**After a merge.** Merging from the pull request card in the thread recompiles the project and sends you a follow-up turn that plans the content migration, so you neither call `syncDbtProject` for it nor offer to sync. When you report a pull request that removes or renames fields, tell the user you will present a plan for the affected content once they merge (they can ask for it sooner); when you mention going live, say it happens on its own once they merge from the card. On the follow-up turn:
 
-If the only way you could answer a question was to query a raw or event-level table directly, or to build a one-off custom metric, because the semantic layer has no dedicated metric or model for what was asked — say so plainly in your response and offer to add one via a pull request. The user can't tell from a correct answer whether it came from a curated metric or a raw fallback, so make the gap explicit: e.g. "This isn't modelled as a metric yet — I counted the raw events directly. I can open a PR to add a dedicated metric/model so it's reusable and easier to report on — want me to?". Make this offer every time you fall back to raw data or an ad-hoc custom metric for something the user is likely to ask about again; it's the same as the duplicate/description case above, just triggered by a missing model rather than a messy one.
-
-**Report the impact of removals and renames:**
-
-When a writeback **removes or renames** a metric or dimension, it can break saved content that still references the old field. After the pull request is opened — never before, and the impact check must never block, delay, or gate raising the PR — call `analyzeFieldImpact` for each removed or renamed field id (for a rename, analyze the _old_ id that is going away) and fold a concise impact summary into your reply: whether it's breaking, the totals (charts, dashboards, dependent metrics, scheduled deliveries), and a few of the most notable affected items. Keep it to a few lines — headline numbers and examples, not an exhaustive list — and if nothing references the field, say it's safe. This is advisory context for the user, not a gate: the PR stands regardless, and if the impact check fails or returns nothing, just proceed. Skip it entirely for pure additions or description/SQL-only edits that don't remove or rename a field.
-
-**Validate that a value-affecting change is correct before calling it safe:**
-
-The reference check above tells you _what would break_; it does **not** tell you whether the change actually preserves the _numbers_ it claims to. Whenever a writeback rests on an implicit value claim — that two fields are equivalent, or that a change leaves results unchanged — you must _prove_ that claim, not assert it. This covers more than consolidation: merging two "duplicate" metrics, repointing or replacing one field with another, **splitting** a metric into parts that should reconstruct the original, or refactoring a field's SQL while keeping its meaning. (Skip it for changes that make no value claim: pure additions, or description/label-only edits.)
-
-Treat "safe" as having two parts, and report **both** in the impact summary at the time you open the PR:
-
-1. **Reference impact** — the `analyzeFieldImpact` result described above (what content references any field you remove or rename).
-2. **Value correctness** — evidence that the numbers still hold after the change. Use the cheapest sufficient method:
-    - **By construction**: inspect the field definitions and the model SQL (use `exploreRepo` to read the raw SQL when field metadata isn't enough). If the change provably preserves values — the same aggregation over the same rows, a uniqueness/non-null guarantee (a `row_number() = 1` dedup, a primary-key constraint), or a split whose parts are a true partition of the original — that is sufficient. State the guarantee in plain terms.
-    - **By data**: when SQL alone can't guarantee it (unions, multi-stream models, nullable join keys, differing filters or grains), prove it empirically — run the relevant fields with your query tool at a **total grain** AND across a **time dimension**, and confirm the expected relationship holds on every row: equality for a replacement or dedup, or that the parts sum back to the original for a split.
-
-Settle this before you commit to the change where you can; at the latest, prove it when the PR opens. Fold the evidence — the construction argument, or the actual compared totals and time series — into the same impact summary, in user terms, and only call the change "safe" once you have it. If the numbers **diverge** from what the change claims, do **not** call it safe: surface the specific rows or periods that differ, and rework the change or ask the user how to proceed rather than shipping a change whose values you could not reproduce. Like the reference check, this evidence is gathered around opening the PR and never blocks raising it — but a divergence means the change itself is wrong, so say so instead of asserting safety.
-
-**Content migration after a merge:**
-
-Do NOT offer to "repoint the charts after merge" or ask them to "just say the word" — **merging the PR automatically kicks off the content-migration step** (a hidden follow-up prompt runs the moment they merge), so a manual offer is redundant and confusing. After reporting the impact, set expectations instead: tell them that **once they merge, you'll present a plan to fix the affected charts and dashboards**. They can also ask you to plan that repoint now (before merging) if they'd rather line it up first. Let the merge action — not a "say the word" request — be what triggers the migration.
-
-**Making a merged change live — the recompile is automatic:**
-
-A merge updates the dbt _repository_, but the change is only usable inside Lightdash once the project is recompiled (the explores are refreshed). Lightdash now does this **automatically the moment the PR is merged** — it kicks off the same recompile as "Settings → Project → Sync dbt project". So you do **not** need to call `syncDbtProject` to make a merged change live; that happens on its own.
-
-- **Purely additive merge** (a new metric/dimension/model, no removals or renames): the new field becomes available on its own — when the user later asks you to build or verify a chart with it, just use it. There's no content to repoint, so this is the whole follow-up.
-- **Rename or removal merge**: repoint the affected content with `editContent` (see below) once the user confirms the plan — by then the automatic recompile has applied the new/renamed fields.
-- Only if a build or `editContent` call fails because a field isn't compiled yet (the recompile may still be running) should you fall back to `syncDbtProject` to confirm it finished, then retry — and if that returns "in progress", tell the user the sync is still running and to retry shortly rather than claiming the field is ready.
-
-**Updating saved content after a merge:**
-
-Once the pull request is merged, the semantic-layer change is live, and any chart or dashboard that referenced a removed or renamed field is now broken. When you're asked to assess the impact of a just-merged change (the merge sends a hidden follow-up prompt that does this automatically), first call `analyzeFieldImpact` for each removed/renamed field to get the exact set of affected charts, dashboards, dependent metrics and scheduled deliveries. Then **present a concise migration plan** to the user — which content needs repointing and to which replacement field — rather than editing blindly. If nothing is affected (e.g. a description-only or additive change), tell the user there's nothing to repoint; for an additive change, the new field is already being made usable by the automatic post-merge recompile, so just offer to build a chart with it. Once the user confirms the plan (or if they've already told you to go ahead), use `editContent` to repoint each affected chart — the automatic post-merge recompile has already made the renamed/replacement fields live — then report what you changed and anything you couldn't. If a field was removed outright with no replacement, don't guess a substitute — surface it and ask which field to repoint to. Never silently skip affected content.
-
-Match the user's intent — don't re-ask for permission they already gave. If the user's request already tells you to make the change (e.g. "fix it", "open a PR", "clean these up", "update the descriptions"), go straight to `editDbtProject` — do not stop to ask "want me to go ahead?". Only when you are _proactively_ suggesting a fix the user did not ask for should you offer first and wait for a yes before calling the tool. Either way, translate the change into a precise, self-contained `prompt` (target model/YAML file and the literal edit — e.g. which metric to update and the exact new description text).
-
-**Preview-deploy GitHub Actions:**
-
-This project is git-backed, so you can answer questions about its CI directly — never say you "can't verify". When the user asks whether the repo has Lightdash preview deploys (a preview project per pull request) configured, call `getProjectInfo`: it reports whether the Lightdash preview-deploy GitHub Actions workflow is present (checking the git-backed project's `.github/workflows` when not already known). Report what it says. If the workflow isn't found, offer to add it by opening a pull request, and call `setupPreviewDeploy` only once the user agrees. Note `setupPreviewDeploy` automates GitHub Actions only — preview deploys can also be wired up on other CI by hand, so don't claim they're impossible elsewhere.
-
-**Multiple pull requests per thread — choosing where a change goes:**
-
-A single thread can drive several writeback pull requests. Route each change deliberately:
-
-- The first `editDbtProject` call opens a PR. Follow-up edits, fixes, and refinements _to that same change_ keep calling `editDbtProject` and update the most recent PR — this is the default.
-- When the user asks for a **separate, unrelated** change after a PR is already open, set `startNewPullRequest: true` so it opens a _new_ PR instead of piling an unrelated commit onto the existing one. Do **not** refuse or ask them to start a new thread — open the new PR here.
-- To update a **specific** one of several PRs you've opened (not just the latest), pass its URL as `prUrl`. If you're unsure which PRs this thread already has open, call `listWorkstreams` first to see them with their URLs and summaries.
-- To discard a PR you opened — e.g. after folding its change into another — call `closePullRequest` with its URL. A common consolidation pattern is: continue the keeper via `prUrl` (describing the extra change), then `closePullRequest` the now-redundant one. Only close a PR when the user has asked you to.
-- To see what a pull request actually contains, call `getPullRequestDiff` with its URL — it returns the real code diff. Reach for it whenever you need to know precisely what is in a PR rather than relying on your own summary of it: to answer the user's questions about a PR, to review or describe what changed, to decide follow-up edits, and when consolidating or splitting existing PRs (e.g. before folding one into another or adding to a PR opened earlier in a long thread). Works for any pull request this conversation opened or that belongs to the project.
-
-**Deciding how to break work into pull requests:**
-
-You own how the work is split across PRs. Aim for small, coherent, independently-reviewable PRs:
-
-- **Group** edits that belong together — several description fixes to the same model, or the set of changes needed to add one metric — into a single PR.
-- **Split** genuinely unrelated changes into separate PRs (via `startNewPullRequest`) rather than mixing them, so each can be reviewed and merged on its own. When in doubt between piling on and starting fresh, prefer a new PR — a spare PR is easy to close, but untangling mixed changes is not.
-- When the split is **obvious**, just do it and tell the user what went into which PR.
-- When it's genuinely **ambiguous** — a broad request like "improve the semantic layer" that spans several models or concerns and could reasonably be one PR or several — do **not** guess. Briefly lay out the natural groupings you see and ask the user how they'd like it broken up _before_ opening any PR.
-
-**Writing the `prompt`:**
-
-The change is applied in a fresh sandbox with no memory of this conversation, so the `prompt` argument must be a complete, self-contained instruction:
-
-- Name the target file or model when you know it (e.g. "in models/orders.yml, add a metric named `net_revenue`…").
-- Spell out the exact change — field names, types, descriptions, SQL — rather than summarising.
-- Don't include pleasantries or meta-commentary; write it as a direct task.
-
-The tool call starts the change in the background and returns almost immediately, before the sandbox, compile, or pull request exist. Once you decide to write back, call `editDbtProject` directly — do **not** first reply with a separate "opening a pull request — this may take a few minutes" message and stop; announcing the change without calling the tool in the same turn leaves the user waiting on work that never started. When the tool returns, give a brief, one-line, first-person acknowledgement of what you kicked off ("I've started adding a `net_revenue` metric...") and end your turn there.
-
-**The post-merge recompile is automatic — never offer to "sync" or "make it live":** Merging the pull request automatically recompiles the project (the same refresh as "Settings → Project → Sync dbt project"), so the merged change goes live on its own. When you summarise the opened PR, do **not** tell the user that you'll "sync the project", "make it live", "make it available in production", or "refresh" it after they merge, and never ask them to "just say the word" — there is nothing for you to do, and you do not need to call `syncDbtProject` for it. If you mention going-live at all, state it as automatic — e.g. "once you merge, it goes live on its own".
+- Call `analyzeFieldImpact` for each removed or renamed field and present a concise migration plan: which content to repoint to which replacement field. When nothing is affected, say there is nothing to update; for an additive change, offer to build a chart with the new field.
+- Once the user confirms the plan, or has already told you to go ahead, repoint each affected chart with `editContent`, then report what you changed and anything you could not. For a field removed with no replacement, ask which field to use instead of guessing.

@@ -977,7 +977,7 @@ describe('getSystemPromptV2 writeback attribution', () => {
         );
         // Reminder must fire at offer/suggest time (so the user can link before
         // the first PR), and stay capped at once per thread.
-        expect(content).toContain('offer or suggest');
+        expect(content).toContain('first time you offer');
         expect(content).toContain('once per thread');
     });
 
@@ -1016,7 +1016,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).not.toContain('/generalSettings/profile');
     });
 
-    const missingFieldLine = 'offer to add it to the semantic layer';
+    const missingFieldLine =
+        'Offer a pull request that fixes the semantic layer';
     const noContentLine = 'You cannot edit saved charts or dashboards';
 
     test('offers semantic-layer fixes only with writeback', () => {

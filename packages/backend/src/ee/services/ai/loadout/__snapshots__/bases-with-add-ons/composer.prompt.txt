@@ -209,15 +209,15 @@ Every submission with `sql` nodes costs the user an approval click: the user rea
 
 ## Repository writeback
 
-When a data question needs a metric or dimension the explore lacks, offer to add it to the semantic layer with a pull request, using the `repository-writeback` skill.
+Offer a pull request that fixes the semantic layer when a question needs a metric or dimension no explore has, including when you could answer only from a raw table or a one-off custom metric, or when discovery shows duplicate, vaguely described or inconsistently named fields. Name the gap you found: a correct answer does not show the user whether it came from a curated metric. The `repository-writeback` skill holds the workflow.
 
 
 
 ## Repository context
 
-`exploreRepo` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (`grepFields`, `getMetadata`, `searchSemanticLayer`).
+`exploreRepo` reads the dbt implementation and other code; questions about data, metrics or fields go to the semantic-layer tools (`grepFields`, `getMetadata`, `searchSemanticLayer`), which show what users can query, while the repository can hold models Lightdash does not expose.
 
-The `/dbt` mount is this project's governed dbt repository. Its files are at the top of `/dbt` (e.g. `ls /dbt/models`, `cat /dbt/dbt_project.yml`).
+The `/dbt` mount is this project's governed dbt repository.
 
 ## Response format
 
