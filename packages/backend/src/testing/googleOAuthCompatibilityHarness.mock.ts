@@ -29,6 +29,8 @@ vi.mock('../config/lightdashConfig', async () => {
     };
 });
 
+export const googleOAuthCompatibilityConfig = lightdashConfig;
+
 export const createGoogleOAuthCompatibilityHarness = (
     user: SessionUser | undefined,
     userService: Pick<

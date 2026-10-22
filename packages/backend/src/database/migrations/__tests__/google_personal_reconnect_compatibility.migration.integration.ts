@@ -9,13 +9,15 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
-import { lightdashConfig } from '../../../config/lightdashConfig';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { UserModel } from '../../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from '../../../services/UserService';
-import { createGoogleOAuthCompatibilityHarness } from '../../../testing/googleOAuthCompatibilityHarness.mock';
+import {
+    createGoogleOAuthCompatibilityHarness,
+    googleOAuthCompatibilityConfig as lightdashConfig,
+} from '../../../testing/googleOAuthCompatibilityHarness.mock';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
