@@ -7972,9 +7972,6 @@ export class ProjectService
             );
         }
 
-        let copies: Awaited<
-            ReturnType<ProjectModel['getAllByOrganizationUuid']>
-        > = [];
         if (project.type === ProjectType.TRAINING) {
             // Deleting the playground takes every learner's copy with it and
             // switches Learn off for the org, so it is an org admin's call
@@ -7992,7 +7989,9 @@ export class ProjectService
                     'Only an organization admin can delete the training playground',
                 );
             }
-            copies = (
+            // The copies exist only as sandboxes of this project; without it
+            // they would linger as ordinary previews until they expire.
+            const copies = (
                 await this.projectModel.getAllByOrganizationUuid(
                     project.organizationUuid,
                 )
@@ -8002,82 +8001,33 @@ export class ProjectService
                     candidate.provisioningSource === 'training' &&
                     candidate.upstreamProjectUuid === projectUuid,
             );
+            await Promise.all(
+                copies.map((copy) =>
+                    this.deletePreviewAndAppFiles(copy.projectUuid),
+                ),
+            );
         }
 
-        const deletingProjectUuids = [
-            projectUuid,
-            ...copies.map((copy) => copy.projectUuid),
-        ];
-        await this.projectModel.withDeletionLock(
-            deletingProjectUuids,
-            async (transaction) => {
-                if (transaction) {
-                    await deletingProjectUuids.reduce(
-                        async (previous, uuid) => {
-                            await previous;
-                            await this.projectModel.deleteContentInBatches(
-                                uuid,
-                            );
-                        },
-                        Promise.resolve(),
-                    );
-                    await copies.reduce(async (previous, copy) => {
-                        await previous;
-                        await this.deletePreviewAppFiles(copy.projectUuid);
-                    }, Promise.resolve());
-                    await copies.reduce(async (previous, copy) => {
-                        await previous;
-                        await this.projectModel.delete(
-                            copy.projectUuid,
-                            transaction,
-                            deletingProjectUuids,
-                        );
-                    }, Promise.resolve());
-                } else {
-                    await Promise.all(
-                        copies.map((copy) =>
-                            this.deletePreviewAndAppFiles(copy.projectUuid),
-                        ),
-                    );
-                }
-
-                if (project.provisioningSource === 'playground') {
-                    if (!transaction) {
-                        await this.projectModel.deleteContentInBatches(
-                            projectUuid,
-                        );
-                    }
-                    await this.onboardingModel.runInPlaygroundProvisioningLock(
+        if (project.provisioningSource === 'playground') {
+            await this.projectModel.deleteContentInBatches(projectUuid);
+            await this.onboardingModel.runInPlaygroundProvisioningLock(
+                project.organizationUuid,
+                async (trx) => {
+                    await this.onboardingModel.getByOrganizationUuid(
                         project.organizationUuid,
-                        async (trx) => {
-                            await this.onboardingModel.getByOrganizationUuid(
-                                project.organizationUuid,
-                                trx,
-                            );
-                            await this.onboardingModel.update(
-                                project.organizationUuid,
-                                { playgroundProjectDeletedAt: new Date() },
-                                trx,
-                            );
-                            await this.projectModel.delete(
-                                projectUuid,
-                                trx,
-                                deletingProjectUuids,
-                            );
-                        },
-                        transaction,
+                        trx,
                     );
-                } else if (transaction) {
-                    await this.projectModel.delete(
-                        projectUuid,
-                        transaction,
-                        deletingProjectUuids,
+                    await this.onboardingModel.update(
+                        project.organizationUuid,
+                        { playgroundProjectDeletedAt: new Date() },
+                        trx,
                     );
-                } else {
-                    await this.projectModel.delete(projectUuid);
-                }
-            },
-        );
+                    await this.projectModel.delete(projectUuid, trx);
+                },
+            );
+        } else {
+            await this.projectModel.delete(projectUuid);
+        }
 
         this.analytics.track({
             event: 'project.deleted',
@@ -17666,27 +17616,6 @@ export class ProjectService
     private async deletePreviewAndAppFiles(
         previewProjectUuid: string,
     ): Promise<void> {
-        await this.projectModel.withDeletionLock(
-            [previewProjectUuid],
-            async (trx) => {
-                if (trx) {
-                    await this.projectModel.deleteContentInBatches(
-                        previewProjectUuid,
-                    );
-                }
-                await this.deletePreviewAppFiles(previewProjectUuid);
-                if (trx) {
-                    await this.projectModel.delete(previewProjectUuid, trx);
-                } else {
-                    await this.projectModel.delete(previewProjectUuid);
-                }
-            },
-        );
-    }
-
-    private async deletePreviewAppFiles(
-        previewProjectUuid: string,
-    ): Promise<void> {
         try {
             await this.getAppGenerateService?.()?.deleteProjectAppFiles(
                 previewProjectUuid,
@@ -17699,6 +17628,7 @@ export class ProjectService
                 }`,
             );
         }
+        await this.projectModel.delete(previewProjectUuid);
     }
 
     /*

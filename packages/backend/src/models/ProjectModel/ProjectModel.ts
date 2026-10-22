@@ -249,10 +249,6 @@ import {
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
-import {
-    PeerDbtSourcesModel,
-    type DbPeerDbtSource,
-} from '../PeerDbtSourcesModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -577,8 +573,6 @@ export class ProjectModel {
 
     private connectionRouter: WarehouseConnectionRouter;
 
-    private peerDbtSourcesModel: PeerDbtSourcesModel;
-
     readonly awsWebIdentity: AwsWebIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
@@ -594,11 +588,6 @@ export class ProjectModel {
                 database: args.database,
                 lightdashConfig: args.lightdashConfig,
             });
-        this.peerDbtSourcesModel = new PeerDbtSourcesModel({
-            database: args.database,
-            encryptionUtil: args.encryptionUtil,
-            featureFlagModel,
-        });
         this.awsWebIdentity = new AwsWebIdentityResolver({
             isEnabledFor: async (organizationUuid) =>
                 (
@@ -2233,124 +2222,18 @@ export class ProjectModel {
         });
     }
 
-    private async lockProjectsForDeletion(
-        projectUuids: string[],
-        trx: Transaction,
-    ): Promise<string[]> {
-        const sortedProjectUuids = [...new Set(projectUuids)].sort();
-        await trx('projects')
-            .select('project_uuid')
-            .whereIn('project_uuid', sortedProjectUuids)
-            .orderBy('project_uuid')
-            .forUpdate();
-        const sources = await trx<DbPeerDbtSource>(
-            'project_dbt_sources',
-        ).whereIn('project_uuid', sortedProjectUuids);
-        const sourceUuids = sources.map(
-            (source) => source.project_dbt_source_uuid,
-        );
-        const repositories = await trx<{
-            dbt_repository_uuid: string;
-            credential_project_uuid: string | null;
-            credential_source_uuid: string | null;
-            created_by_project_uuid: string | null;
-        }>('dbt_repositories')
-            .whereIn('credential_project_uuid', sortedProjectUuids)
-            .orWhereIn('created_by_project_uuid', sortedProjectUuids)
-            .orWhereIn('credential_source_uuid', sourceUuids)
-            .orWhereIn(
-                'dbt_repository_uuid',
-                sources.flatMap((source) =>
-                    source.dbt_repository_uuid
-                        ? [source.dbt_repository_uuid]
-                        : [],
-                ),
-            )
-            .orderBy('dbt_repository_uuid')
-            .forUpdate();
-        const ownedRepositoryUuids = repositories
-            .filter(
-                (repository) =>
-                    sortedProjectUuids.includes(
-                        repository.credential_project_uuid ?? '',
-                    ) ||
-                    sourceUuids.includes(
-                        repository.credential_source_uuid ?? '',
-                    ) ||
-                    sortedProjectUuids.includes(
-                        repository.created_by_project_uuid ?? '',
-                    ),
-            )
-            .map((repository) => repository.dbt_repository_uuid);
-        if (ownedRepositoryUuids.length > 0) {
-            const consumers = await trx<DbPeerDbtSource>('project_dbt_sources')
-                .distinct('project_uuid')
-                .whereIn('dbt_repository_uuid', ownedRepositoryUuids)
-                .whereNull('dbt_connection')
-                .whereNotIn('project_uuid', sortedProjectUuids);
-            if (consumers.length > 0)
-                throw new ConflictError(
-                    `Cannot delete this project: ${consumers.length} other project${consumers.length === 1 ? '' : 's'} use its shared repositories. Remove the sources from those projects first.`,
-                );
-        }
-        return ownedRepositoryUuids;
-    }
-
-    async withDeletionLock<T>(
-        projectUuids: string[],
-        callback: (trx?: Transaction) => Promise<T>,
-    ): Promise<T> {
-        const enabled = await Promise.all(
-            [...new Set(projectUuids)].map((projectUuid) =>
-                this.peerDbtSourcesModel.isEnabled(projectUuid),
-            ),
-        );
-        if (!enabled.some(Boolean)) return callback(undefined);
-        return this.database.transaction(async (trx) => {
-            await this.lockProjectsForDeletion(projectUuids, trx);
-            return callback(trx);
-        });
-    }
-
-    async assertCanDelete(
-        projectUuid: string,
-        transaction?: Transaction,
-    ): Promise<void> {
-        if (!(await this.peerDbtSourcesModel.isEnabled(projectUuid))) return;
-        const assertInTransaction = async (trx: Transaction): Promise<void> => {
-            await new PeerDbtSourcesModel({
-                database: trx,
-                encryptionUtil: this.encryptionUtil,
-            }).assertProjectCanBeDeleted(projectUuid);
-        };
-        if (transaction) {
-            await assertInTransaction(transaction);
-        } else {
-            await this.database.transaction(assertInTransaction);
-        }
-    }
-
     async delete(
         projectUuid: string,
         transaction?: Transaction,
-        deletingProjectUuids: string[] = [projectUuid],
     ): Promise<void> {
-        const peersEnabled =
-            await this.peerDbtSourcesModel.isEnabled(projectUuid);
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
+        if (!transaction) {
+            await this.deleteContentInBatches(projectUuid);
+        }
+
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
-            if (peersEnabled) {
-                const repositoryUuids = await this.lockProjectsForDeletion(
-                    [...deletingProjectUuids, projectUuid],
-                    trx,
-                );
-                if (repositoryUuids.length > 0)
-                    await trx('dbt_repositories')
-                        .whereIn('dbt_repository_uuid', repositoryUuids)
-                        .update({ is_shared: false, updated_at: new Date() });
-            }
             const [project] = await trx('projects')
                 .select('project_id')
                 .where('project_uuid', projectUuid);
@@ -2385,17 +2268,7 @@ export class ProjectModel {
 
         if (transaction) {
             await deleteInTransaction(transaction);
-        } else if (peersEnabled) {
-            await this.withDeletionLock([projectUuid], async (trx) => {
-                await this.deleteContentInBatches(projectUuid);
-                if (trx) {
-                    await deleteInTransaction(trx);
-                } else {
-                    await this.database.transaction(deleteInTransaction);
-                }
-            });
         } else {
-            await this.deleteContentInBatches(projectUuid);
             await this.database.transaction(deleteInTransaction);
         }
     }
