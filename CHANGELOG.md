@@ -1,3 +1,10 @@
+## [3.32.1](https://github.com/lightdash/lightdash/compare/3.32.0...3.32.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ai:** reject an invalid credential config as a validation error, not a 500 ([#31429](https://github.com/lightdash/lightdash/issues/31429)) ([33a0bce](https://github.com/lightdash/lightdash/commit/33a0bced1f19babe6107894f8f7bf3d224b681a4))
+
 # [3.32.0](https://github.com/lightdash/lightdash/compare/3.31.1...3.32.0) (2026-10-22)
 
 
