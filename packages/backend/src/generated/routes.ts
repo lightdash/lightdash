@@ -49355,6 +49355,7 @@ const models: TsoaRoute.Models = {
                 aiAgentReviewsEnabled: { dataType: 'boolean', required: true },
                 aiAgentMemoryEnabled: { dataType: 'boolean', required: true },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
+                mcpEnabled: { dataType: 'boolean' },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
             },
@@ -55132,6 +55133,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -55386,6 +55388,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },

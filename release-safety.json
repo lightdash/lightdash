@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.34.0",
-  "previousVersion": "3.33.0",
-  "releaseDate": "2026-10-22T16:47:57.134Z",
+  "version": "3.34.1",
+  "previousVersion": "3.34.0",
+  "releaseDate": "2026-10-22T17:05:23.738Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261022180000_add_mcp_enabled_to_ai_organization_settings.ts",
+        "edition": "ee",
+        "tables": [
+          "ai_organization_settings"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -1,3 +1,10 @@
+## [3.34.1](https://github.com/lightdash/lightdash/compare/3.34.0...3.34.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **mcp:** add organization access setting ([#31397](https://github.com/lightdash/lightdash/issues/31397)) ([c50e84c](https://github.com/lightdash/lightdash/commit/c50e84cbe266b05cb6d451842b82ad26acbd9ef0))
+
 # [3.34.0](https://github.com/lightdash/lightdash/compare/3.33.0...3.34.0) (2026-10-22)
 
 
