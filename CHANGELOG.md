@@ -1,3 +1,15 @@
+# [3.31.0](https://github.com/lightdash/lightdash/compare/3.30.1...3.31.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* raise analytics partition budgets for gradual rollout ([#31406](https://github.com/lightdash/lightdash/issues/31406)) ([6d14391](https://github.com/lightdash/lightdash/commit/6d14391bdc06e16e3d8270cc67230c7d9a162d9a))
+
+
+### Features
+
+* **analytics:** add default AI token usage dashboard ([#31401](https://github.com/lightdash/lightdash/issues/31401)) ([40cdfcd](https://github.com/lightdash/lightdash/commit/40cdfcdd137313413d40ad516d7e4ebb1d848ce8))
+
 ## [3.30.1](https://github.com/lightdash/lightdash/compare/3.30.0...3.30.1) (2026-10-22)
 
 
