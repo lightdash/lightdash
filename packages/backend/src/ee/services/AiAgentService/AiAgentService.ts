@@ -10113,7 +10113,7 @@ export class AiAgentService extends BaseService {
         if (!vizConfig) return null;
         try {
             const slots =
-                vizConfig.type === 'custom' && vizConfig.dataAppVizUuid
+                vizConfig.type === 'custom'
                     ? await this.getDataAppVizSchemaFields(
                           projectUuid,
                           vizConfig.dataAppVizUuid,

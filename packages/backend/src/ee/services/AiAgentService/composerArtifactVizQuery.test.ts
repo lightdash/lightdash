@@ -5,6 +5,7 @@ import {
     QuerySourceType,
     type AiArtifact,
     type AiComposerChartArtifactConfig,
+    type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
     type QueryHistory,
     type SessionUser,
@@ -350,8 +351,8 @@ describe('AiAgentService composer artifact visualization query', () => {
 
 describe('AiAgentService composer v2 artifact chart stage', () => {
     const lineViz = (
-        config: Partial<ComposerStoredChartVizConfig>,
-    ): ComposerStoredChartVizConfig => ({
+        config: Partial<ComposerBuiltinChartVizConfig>,
+    ): ComposerBuiltinChartVizConfig => ({
         type: 'line',
         x: 'order_month',
         y: ['order_count'],
@@ -360,11 +361,6 @@ describe('AiAgentService composer v2 artifact chart stage', () => {
         horizontal: null,
         y2: null,
         labels: null,
-        customChartTypeSlug: null,
-        fieldMapping: null,
-        options: null,
-        dataAppVizUuid: null,
-        dataAppVizVersion: null,
         ...config,
     });
     const v2Setup = (vizConfig: ComposerStoredChartVizConfig) =>
@@ -417,6 +413,51 @@ describe('AiAgentService composer v2 artifact chart stage', () => {
             orders: 'run-orders',
             orders_vs_target: 'run-orders_vs_target',
         });
+    });
+
+    it('splits a custom chart type on the series slots of its pinned version', async () => {
+        const { service, querySourceService } = v2Setup({
+            type: 'custom',
+            customChartTypeSlug: 'ribbon',
+            fieldMapping: {
+                x: 'order_month',
+                series: 'status',
+                value: 'order_count',
+            },
+            options: null,
+            dataAppVizUuid: 'viz-uuid',
+            dataAppVizVersion: 3,
+        });
+        const getSchemaFields = vi
+            .spyOn(
+                service as unknown as {
+                    getDataAppVizSchemaFields: () => Promise<unknown>;
+                },
+                'getDataAppVizSchemaFields',
+            )
+            .mockResolvedValue([
+                { name: 'x', type: 'dimension' },
+                { name: 'series', type: 'series' },
+                { name: 'value', type: 'metric' },
+            ]);
+
+        const result = await service.getArtifactVizQuery(user, options);
+
+        expect(getSchemaFields).toHaveBeenCalledWith(
+            'project-uuid',
+            'viz-uuid',
+            3,
+        );
+        expect(
+            querySourceService.submitQueries.mock.calls[0][0].queries[2],
+        ).toMatchObject({
+            pivotConfiguration: {
+                indexColumn: [{ reference: 'composer_result_order_month' }],
+                groupByColumns: [{ reference: 'composer_result_status' }],
+                valuesColumns: [{ reference: 'composer_result_order_count' }],
+            },
+        });
+        expect(result).toMatchObject({ chartStage: { status: 'ok' } });
     });
 
     it('runs no stage without a series split', async () => {
