@@ -337,6 +337,24 @@ describe('TileOverlays', () => {
             expect(container(both.uuid)).toBeEmptyDOMElement();
         });
 
+        it("rings a saved filter's tiles, with no veil or card, while a viewer changes its value", () => {
+            setSidebar({
+                editing: { filterId: 'hovered' },
+                editingRule: hovered,
+                isSavedValue: true,
+                hoveredFilterId: null,
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(
+                container(both.uuid).querySelector('[class*="reach"]'),
+            ).not.toBeNull();
+            expect(
+                container(both.uuid).querySelector('[data-controls-overlay]'),
+            ).toBeNull();
+            expect(container(statusOnly.uuid)).toBeEmptyDOMElement();
+        });
+
         it('rings a tile on a field it no longer has, as the counts include it', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,

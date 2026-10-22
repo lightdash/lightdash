@@ -829,4 +829,71 @@ describe('FilterPills', () => {
             expect(removeMetricDashboardFilter).toHaveBeenCalledWith(0, true);
         });
     });
+
+    describe('for a viewer', () => {
+        const ownRule: DashboardFilterRule = {
+            id: 'own',
+            label: undefined,
+            operator: FilterOperator.EQUALS,
+            target: { fieldId: 'orders_region', tableName: 'orders' },
+            values: ['EMEA'],
+        };
+
+        beforeEach(() => {
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [ownRule],
+                },
+            });
+        });
+
+        it('opens a saved pill in the rail, with no X, lock or grip', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Status/));
+            expect(open).toHaveBeenCalledWith('saved');
+            expect(
+                within(pill(/^Status/)).queryByRole('button', {
+                    name: 'Remove filter',
+                }),
+            ).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: /ock filter/ }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('opens their own pill in the rail and removes it from its X', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Order region/));
+            expect(open).toHaveBeenCalledWith('own');
+
+            const removes = screen.getAllByRole('button', {
+                name: 'Remove filter',
+            });
+            expect(removes).toHaveLength(1);
+            await user.click(removes[0]);
+            expect(removeFilterById).toHaveBeenCalledWith('own');
+        });
+
+        it('leaves a locked saved pill read-only, as the shipped pill', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
+        });
+    });
 });

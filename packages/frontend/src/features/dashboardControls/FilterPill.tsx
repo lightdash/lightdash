@@ -17,7 +17,12 @@ import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
+// An editor's pill, a viewer's pill on a saved filter (its value only) or on
+// a filter of their own (outline, with an X)
+export type FilterPillKind = 'editor' | 'viewerSaved' | 'viewerOwn';
+
 type Props = {
+    kind: FilterPillKind;
     filter: DashboardFilterRule;
     field: DashboardFilterableField | undefined;
     isOrphaned: boolean;
@@ -36,6 +41,7 @@ type Props = {
 
 export const FilterPill: FC<Props> = memo(
     ({
+        kind,
         filter,
         field,
         isOrphaned,
@@ -94,11 +100,11 @@ export const FilterPill: FC<Props> = memo(
                         field={field}
                         filterRule={filter}
                         isOrphaned={isOrphaned}
-                        isTemporary={false}
-                        isDraggable={!isSidebarOpen}
+                        isTemporary={kind === 'viewerOwn'}
+                        isDraggable={kind === 'editor' && !isSidebarOpen}
                         isLocked={isLocked}
                         lockLabel={
-                            !isSidebarOpen && lockKey
+                            kind === 'editor' && !isSidebarOpen && lockKey
                                 ? getFilterLockLabel(isLocked, hasTabs)
                                 : null
                         }
@@ -108,7 +114,7 @@ export const FilterPill: FC<Props> = memo(
                         }}
                         readOnlyLockLabel={null}
                         onRemove={
-                            isSidebarOpen
+                            isSidebarOpen || kind === 'viewerSaved'
                                 ? null
                                 : (e) => {
                                       e.stopPropagation();

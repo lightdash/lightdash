@@ -88,6 +88,14 @@
     opacity: 0.6;
 }
 
+.readOnlyRow.readOnlyRow {
+    cursor: default;
+}
+
+.readOnlyRow.readOnlyRow:hover {
+    background-color: transparent;
+}
+
 .rowIcon {
     flex: 0 0 auto;
     margin-top: 3px;

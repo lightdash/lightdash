@@ -55,6 +55,7 @@ const renderSettings = (
     const onChange = vi.fn();
     renderWithProviders(
         <FilterValueSettings
+            isEditMode
             filterType={filterType}
             field={null}
             filterRule={rule}

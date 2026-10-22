@@ -21,7 +21,10 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const editedRule = useControlsSidebarSelector((c) => c.editingRule);
+    // A saved filter a viewer changes the value of keeps its tiles: no counts
+    const editedRule = useControlsSidebarSelector((c) =>
+        c.isSavedValue ? null : c.editingRule,
+    );
     const isEditedPlaceholder = useControlsSidebarSelector(
         (c) => c.isPlaceholder,
     );

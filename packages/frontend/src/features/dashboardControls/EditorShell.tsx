@@ -103,7 +103,7 @@ export const EditorShell: FC<Props> = ({
                         </>
                     ) : (
                         <>
-                            <AddControl isVisibilityToggleHidden />
+                            <AddControl placement="rail" />
                             <Button
                                 size="xs"
                                 className={classes.done}

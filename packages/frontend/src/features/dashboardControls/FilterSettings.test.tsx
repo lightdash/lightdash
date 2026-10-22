@@ -95,6 +95,9 @@ const setActiveSection = vi.hoisted(() => vi.fn());
 const mockSection = vi.hoisted(() => ({
     current: null as 'tiles' | 'rules' | null,
 }));
+const mockViewer = vi.hoisted(() => ({
+    current: { isViewer: false, isSavedValue: false },
+}));
 const otherRules = vi.hoisted(
     () => [{ id: 'filter-2' }] as DashboardFilterRule[],
 );
@@ -107,6 +110,7 @@ vi.mock('./useControlsSidebar', () => ({
             updateOtherFilters,
             activeSection: mockSection.current,
             setActiveSection,
+            ...mockViewer.current,
         }),
 }));
 
@@ -172,6 +176,7 @@ describe('FilterSettings', () => {
         updateOtherFilters.mockClear();
         setActiveSection.mockClear();
         mockSection.current = 'rules';
+        mockViewer.current = { isViewer: false, isSavedValue: false };
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -351,5 +356,36 @@ describe('FilterSettings', () => {
         expect(
             screen.queryByRole('button', { name: 'edit rules' }),
         ).not.toBeInTheDocument();
+    });
+
+    it("gives a viewer's own filter the value and Tiles, never Rules", () => {
+        mockSection.current = null;
+        mockViewer.current = { isViewer: true, isSavedValue: false };
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        expect(screen.getByTestId('value-settings')).toBeVisible();
+        expect(
+            screen.getByText('Added by you · only in this view and its link'),
+        ).toBeInTheDocument();
+        expect(disclosure('Tiles')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Rules/ }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('gives a saved filter a viewer changes only its value', () => {
+        mockSection.current = null;
+        mockViewer.current = { isViewer: true, isSavedValue: true };
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+        expect(screen.getByTestId('value-settings')).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: /^Tiles/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText(/Added by you/)).not.toBeInTheDocument();
     });
 });

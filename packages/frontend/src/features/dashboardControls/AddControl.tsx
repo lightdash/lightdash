@@ -1,28 +1,46 @@
 import { type FC } from 'react';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectIsAddFilterDisabled,
+    useDashboardSelector,
+} from '../dashboard/store';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 const noop = () => {};
 
 type Props = {
-    /** The rail's footer has no eye: only the bar hides "Add filter". */
-    isVisibilityToggleHidden: boolean;
+    /**
+     * The bar's is the shipped one of the mode: the eye in edit mode, the
+     * reset button in view mode. The rail's footer has neither.
+     */
+    placement: 'bar' | 'rail';
 };
 
-// The shipped "Add filter" with its eye toggle. Its popover is never given an
-// id to open on, so a click only calls `onPopoverOpen`, which opens a new control
-export const AddControl: FC<Props> = ({ isVisibilityToggleHidden }) => {
+// The shipped "Add filter". Its popover is never given an id to open on, so a
+// click only calls `onPopoverOpen`, which opens a new control
+export const AddControl: FC<Props> = ({ placement }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
+    const isBarOfViewer = isViewer && placement === 'bar';
+    // Hidden from viewers by the editor's eye
+    if (isViewer && placement === 'rail' && isAddFilterDisabled) return null;
     return (
         <AddFilterButton
-            isEditMode
-            isVisibilityToggleHidden={isVisibilityToggleHidden}
+            isEditMode={!isBarOfViewer}
+            isVisibilityToggleHidden={placement === 'rail'}
             activeTabUuid={undefined}
             openPopoverId={undefined}
             onPopoverOpen={() => openNew()}
             onPopoverClose={noop}
             onSave={noop}
-            onResetDashboardFilters={noop}
+            onResetDashboardFilters={
+                isBarOfViewer ? resetDashboardFilters : noop
+            }
         />
     );
 };

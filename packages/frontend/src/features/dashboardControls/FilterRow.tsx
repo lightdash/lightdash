@@ -3,7 +3,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -38,6 +38,10 @@ type Props = {
     field: DashboardFilterableField | null;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
+    /** A viewer's own filter, never saved. */
+    isOwn: boolean;
+    /** A viewer's row on a locked filter: it opens nothing, as its pill. */
+    isReadOnly: boolean;
     /** Its field cannot be resolved, or the fields are not loaded yet. */
     isDisabled: boolean;
     onOpen: (filterId: string) => void;
@@ -53,6 +57,8 @@ export const FilterRow: FC<Props> = ({
     field,
     activeTabUuid,
     hasTabs,
+    isOwn,
+    isReadOnly,
     isDisabled,
     onOpen,
     onHover,
@@ -76,27 +82,8 @@ export const FilterRow: FC<Props> = ({
         hasTabs ? 'filters.filterIsLockedOnTab' : 'filters.filterIsLocked',
     );
 
-    return (
-        <PolymorphicGroupButton
-            component="button"
-            type="button"
-            gap="xs"
-            wrap="nowrap"
-            align="flex-start"
-            className={classes.row}
-            disabled={isDisabled}
-            data-controls-row={rule.id}
-            aria-expanded={false}
-            onClick={() => onOpen(rule.id)}
-            onMouseEnter={() => onHover(rule.id)}
-            onMouseLeave={() => onUnhover(rule.id)}
-            // Keyboard focus only: focus handed back after a click lights nothing
-            onFocus={(event) => {
-                if (event.currentTarget.matches(':focus-visible'))
-                    onHover(rule.id);
-            }}
-            onBlur={() => onUnhover(rule.id)}
-        >
+    const content = (
+        <>
             <FilterTypeIcon field={field} />
             <Stack gap={0} miw={0}>
                 <Text fz="sm" fw={600} truncate>
@@ -131,7 +118,54 @@ export const FilterRow: FC<Props> = ({
                         </>
                     )}
                 </Text>
+                {isOwn && (
+                    <Text fz="xs" c="dimmed" truncate>
+                        Added by you
+                    </Text>
+                )}
             </Stack>
+        </>
+    );
+
+    if (isReadOnly) {
+        // Hovering still shows its tiles
+        return (
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+                className={`${classes.row} ${classes.readOnlyRow}`}
+                data-controls-row={rule.id}
+                onMouseEnter={() => onHover(rule.id)}
+                onMouseLeave={() => onUnhover(rule.id)}
+            >
+                {content}
+            </Group>
+        );
+    }
+
+    return (
+        <PolymorphicGroupButton
+            component="button"
+            type="button"
+            gap="xs"
+            wrap="nowrap"
+            align="flex-start"
+            className={classes.row}
+            disabled={isDisabled}
+            data-controls-row={rule.id}
+            aria-expanded={false}
+            onClick={() => onOpen(rule.id)}
+            onMouseEnter={() => onHover(rule.id)}
+            onMouseLeave={() => onUnhover(rule.id)}
+            // Keyboard focus only: focus handed back after a click lights nothing
+            onFocus={(event) => {
+                if (event.currentTarget.matches(':focus-visible'))
+                    onHover(rule.id);
+            }}
+            onBlur={() => onUnhover(rule.id)}
+        >
+            {content}
         </PolymorphicGroupButton>
     );
 };

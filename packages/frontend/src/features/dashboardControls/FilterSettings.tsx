@@ -172,6 +172,8 @@ export const FilterSettings: FC<Props> = ({
         (c) => c.updateOtherFilters,
     );
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
     const setActiveSection = useControlsSidebarSelector(
         (c) => c.setActiveSection,
     );
@@ -216,38 +218,50 @@ export const FilterSettings: FC<Props> = ({
             parameterValues={parameterValues}
         >
             <FilterValueSettings
+                isEditMode={!isViewer}
                 filterType={filterType}
                 field={field}
                 filterRule={rule}
                 onChange={onChange}
             />
-            <Box className={classes.disclosures}>
-                <Disclosure
-                    section="tiles"
-                    label="Tiles"
-                    summary={tilesSummary}
-                    isOpen={activeSection === 'tiles'}
-                    onToggle={toggleSection}
-                >
-                    {tiles}
-                </Disclosure>
-                <Disclosure
-                    section="rules"
-                    label="Rules"
-                    summary={rulesSummary}
-                    isOpen={activeSection === 'rules'}
-                    onToggle={toggleSection}
-                >
-                    <ViewerControls
-                        rule={rule}
-                        filterType={filterType}
-                        field={field}
-                        onChange={onChange}
-                        onChangeOthers={updateOtherFilters}
-                        onEditRules={handleEditRules}
-                    />
-                </Disclosure>
-            </Box>
+            {/* A viewer changes a saved filter's value, nothing else */}
+            {isViewer && !isSavedValue && (
+                <Text fz="xs" c="dimmed">
+                    Added by you · only in this view and its link
+                </Text>
+            )}
+            {!isSavedValue && (
+                <Box className={classes.disclosures}>
+                    <Disclosure
+                        section="tiles"
+                        label="Tiles"
+                        summary={tilesSummary}
+                        isOpen={activeSection === 'tiles'}
+                        onToggle={toggleSection}
+                    >
+                        {tiles}
+                    </Disclosure>
+                    {/* Locks and requirements are the dashboard's, never a viewer's */}
+                    {!isViewer && (
+                        <Disclosure
+                            section="rules"
+                            label="Rules"
+                            summary={rulesSummary}
+                            isOpen={activeSection === 'rules'}
+                            onToggle={toggleSection}
+                        >
+                            <ViewerControls
+                                rule={rule}
+                                filterType={filterType}
+                                field={field}
+                                onChange={onChange}
+                                onChangeOthers={updateOtherFilters}
+                                onEditRules={handleEditRules}
+                            />
+                        </Disclosure>
+                    )}
+                </Box>
+            )}
         </FiltersProvider>
     );
 };

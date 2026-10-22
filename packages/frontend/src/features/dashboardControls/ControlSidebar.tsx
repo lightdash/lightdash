@@ -1,7 +1,9 @@
 import {
     getDashboardFilterField,
+    isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -14,11 +16,13 @@ import {
 import {
     IconArrowBackUp,
     IconChevronDown,
+    IconRotate2,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
@@ -26,7 +30,13 @@ import {
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
+    useDashboardTemporaryFilters,
 } from '../dashboard/store';
+import {
+    getFilterRuleRevertableObject,
+    getFilterRuleWithDisabledState,
+    hasSavedFilterValueChanged,
+} from '../dashboardFilters/FilterConfiguration/utils';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
@@ -61,7 +71,16 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const discard = useControlsSidebarSelector((c) => c.discard);
     const collapse = useControlsSidebarSelector((c) => c.collapse);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
+    const getUiString = useUiStrings();
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     useFocusLabelOnMount();
+    // The name takes focus as the edit-mode label input does (`autoFocus`)
+    const focusOnMount = useCallback(
+        (node: HTMLElement | null) => node?.focus(),
+        [],
+    );
     // As the control was opened: an emptied label goes back to exactly that
     const [hadLabelKey] = useState(() => 'label' in filterRule);
     const label = useLabelDraft(filterRule.label ?? '', (next) =>
@@ -87,6 +106,33 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
     // A new filter with no field yet leaves through the footer's Cancel
     const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
+    // A viewer's filter has no label of its own: it goes by its field
+    const viewerName = isPlaceholder
+        ? (emptiedFieldLabel ?? 'Filter name')
+        : (filterRule.label ?? fallbackName ?? 'Filter name');
+    // A saved filter a viewer changed goes back to its saved value, as the
+    // shipped popover's "Reset to original value" does
+    const originalRule = isSavedValue
+        ? ([
+              ...(savedFilters?.dimensions ?? []),
+              ...(savedFilters?.metrics ?? []),
+          ].find((saved) => saved.id === filterRule.id) ?? null)
+        : null;
+    const isValueChanged =
+        originalRule !== null &&
+        hasSavedFilterValueChanged(originalRule, filterRule);
+    const resetValue = () => {
+        if (originalRule === null) return;
+        updateFilter(
+            getFilterRuleWithDisabledState(
+                {
+                    ...filterRule,
+                    ...getFilterRuleRevertableObject(originalRule),
+                },
+                false,
+            ),
+        );
+    };
 
     return (
         <Box className={classes.edited}>
@@ -109,6 +155,19 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 {isPlaceholder && isNew ? (
                     <Text fz="sm" fw={600} flex={1}>
                         New filter
+                    </Text>
+                ) : isViewer ? (
+                    // Focus lands here when the filter opens
+                    <Text
+                        fz="sm"
+                        fw={600}
+                        flex={1}
+                        truncate
+                        tabIndex={-1}
+                        ref={focusOnMount}
+                        data-controls-label
+                    >
+                        {viewerName}
                     </Text>
                 ) : (
                     <TextInput
@@ -136,6 +195,21 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         }}
                     />
                 )}
+                {isValueChanged && (
+                    <Tooltip
+                        label={getUiString('filters.config.resetToOriginal')}
+                    >
+                        <ActionIcon
+                            variant="subtle"
+                            aria-label={getUiString(
+                                'filters.config.resetToOriginalAria',
+                            )}
+                            onClick={resetValue}
+                        >
+                            <MantineIcon icon={IconRotate2} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 {hasDiscard && (
                     <Tooltip label={discardLabel}>
                         <ActionIcon
@@ -147,7 +221,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         </ActionIcon>
                     </Tooltip>
                 )}
-                {!isNew && (
+                {!isNew && !isSavedValue && (
                     <ConfirmDeleteButton
                         aria-label="Remove filter"
                         tooltip="Click again to remove"
@@ -210,7 +284,9 @@ export const ControlSidebar: FC = () => {
     );
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const temporaryFilters = useDashboardTemporaryFilters();
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const hasTabs = useDashboardSelector(
         (state) => selectDashboardTabs(state).length > 0,
@@ -239,40 +315,53 @@ export const ControlSidebar: FC = () => {
         filterId === null || editingRule === null ? null : (
             <FilterEditor key={filterId} rule={editingRule} />
         );
-    const rows = GROUPS.flatMap((group) =>
-        dashboardFilters[group].map((rule) => {
-            if (rule.id === filterId) return editor;
-            const field =
-                getDashboardFilterField<DashboardFilterableField>(
-                    group === 'metrics'
-                        ? allFilterableMetricsMap
-                        : allFilterableFieldsMap,
-                    rule,
-                    filterableFieldsByTileUuid,
-                ) ?? null;
-            const isUnresolved =
-                field === null &&
-                !rule.target.isSqlColumn &&
-                !isPlaceholderRule(rule) &&
-                !areFieldsLoading;
-            return (
-                <FilterRow
-                    key={rule.id}
-                    rule={rule}
-                    field={field}
-                    activeTabUuid={activeTabUuid}
-                    hasTabs={hasTabs}
-                    isDisabled={
-                        isUnresolved ||
-                        (!areFieldsLoaded && !rule.target.isSqlColumn)
-                    }
-                    onOpen={open}
-                    onHover={setHoveredFilterId}
-                    onUnhover={clearHoveredFilterId}
-                />
-            );
-        }),
-    );
+    // A viewer's rail lists the saved filters, then their own
+    const rowsOf = (filters: DashboardFilters, isOwn: boolean) =>
+        GROUPS.flatMap((group) =>
+            filters[group].map((rule) => {
+                if (rule.id === filterId) return editor;
+                const field =
+                    getDashboardFilterField<DashboardFilterableField>(
+                        group === 'metrics'
+                            ? allFilterableMetricsMap
+                            : allFilterableFieldsMap,
+                        rule,
+                        filterableFieldsByTileUuid,
+                    ) ?? null;
+                const isUnresolved =
+                    field === null &&
+                    !rule.target.isSqlColumn &&
+                    !isPlaceholderRule(rule) &&
+                    !areFieldsLoading;
+                return (
+                    <FilterRow
+                        key={rule.id}
+                        rule={rule}
+                        field={field}
+                        activeTabUuid={activeTabUuid}
+                        hasTabs={hasTabs}
+                        isOwn={isOwn}
+                        // As the shipped pill: a viewer cannot open a locked one
+                        isReadOnly={
+                            isViewer &&
+                            !isOwn &&
+                            isFilterLockedOnTab(rule, activeTabUuid, hasTabs)
+                        }
+                        isDisabled={
+                            isUnresolved ||
+                            (!areFieldsLoaded && !rule.target.isSqlColumn)
+                        }
+                        onOpen={open}
+                        onHover={setHoveredFilterId}
+                        onUnhover={clearHoveredFilterId}
+                    />
+                );
+            }),
+        );
+    const rows = [
+        ...rowsOf(dashboardFilters, false),
+        ...(isViewer ? rowsOf(temporaryFilters, true) : []),
+    ];
     // A placeholder is not in the dashboard filters yet: it comes last. One
     // keyed list, so the editor keeps its state when its rule joins them
     const isListed = editor === null || rows.includes(editor);
@@ -282,7 +371,7 @@ export const ControlSidebar: FC = () => {
             ? null
             : isPlaceholder
               ? 'Select a field to keep this filter'
-              : isDefaultValueIncomplete(editingRule)
+              : !isViewer && isDefaultValueIncomplete(editingRule)
                 ? 'No default value set, so the default stays off'
                 : null;
 
@@ -290,7 +379,11 @@ export const ControlSidebar: FC = () => {
         <EditorShell
             filterCount={
                 dashboardFilters.dimensions.length +
-                dashboardFilters.metrics.length
+                dashboardFilters.metrics.length +
+                (isViewer
+                    ? temporaryFilters.dimensions.length +
+                      temporaryFilters.metrics.length
+                    : 0)
             }
             onClose={close}
             onCancel={editor !== null && isPlaceholder ? discard : null}

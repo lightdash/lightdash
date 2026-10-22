@@ -28,7 +28,9 @@ fields. User-facing copy says *tile*, never *chart*.
   that is not Save, Cancel or on the path down to them, re-applies as the
   header's DOM changes, and removes exactly what it set once the editor
   closes. Save and Cancel are found by `data-dashboard-edit-action`, a static
-  attribute on the two shipped buttons in `DashboardHeader`.
+  attribute on the two shipped buttons in `DashboardHeader`. A viewer's
+  editor (`isViewer`) never locks the header: their filters leave the
+  dashboard as it is.
 
 ## Openings in shipped files
 
@@ -38,7 +40,12 @@ All are in `features/dashboardFilters/`.
 - `AddFilterButton`: `isVisibilityToggleHidden` (default false), which leaves out the eye in
   the rail's footer.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
-  the requirements button (default: both, as today).
+  the requirements button (default: both, as today), and
+  `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
+  shown in place, as in edit mode, instead of behind its drawer button, and
+  the drawer is closed (state adjusted during render, no effect). `ControlsBar`
+  sets it while the rail is open, so a viewer's rail is never under the
+  drawer.
 - `ActiveFilters/`: `FilterRuleLabel`, `TemporaryFilters`, `UnresolvedFilter`,
   `useFilterTabPlacement`, `filterLabels`, `filterLock` and `filterOrder`,
   moved out of `index.tsx` and `Filter.tsx`. `FilterPillButton` is the
@@ -100,10 +107,11 @@ In `FilterConfiguration/`:
   `[data-has-header-above][data-is-stuck]`. The rail's `max-height` keeps
   "Done" in view: its body scrolls. Fullscreen is not handled: its toggle
   only exists in view mode, and the editor only opens in edit mode.
-- `ControlsBar` is the shipped `DashboardFiltersBar` with its one opening,
+- `ControlsBar` is the shipped `DashboardFiltersBar` with its openings,
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
   button. In edit mode it holds `AddControl`, `FilterPills` and the shipped
-  requirements button. While the rail is open (`isRailOpen`, a filter
+  requirements button; in view mode `AddControl` and `FilterPills` only, as
+  the shipped view bar has no requirements button. While the rail is open (`isRailOpen`, a filter
   expanded or not) all three fold away: the rail lists the filters and its
   footer has "Add filter". In their place `EditingStrip` says what is being
   edited, after the bar's own filter icon: "Editing filters" (semibold,
@@ -120,10 +128,14 @@ In `FilterConfiguration/`:
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.
-- `AddControl` is the shipped `AddFilterButton` in edit mode: the dashed
-  button with its disabled and loading states and, on the bar, the eye that
-  hides "Add filter" from viewers. The rail's footer renders it without the
-  eye (`isVisibilityToggleHidden`). It is never
+- `AddControl` (`placement`: `'bar'` or `'rail'`) is the shipped
+  `AddFilterButton`: the dashed button with its disabled and loading states.
+  On an editor's bar it has the eye that hides "Add filter" from viewers; on
+  a viewer's bar it is the shipped view-mode button, with the reset-all
+  button attached once filters changed (`resetDashboardFilters`), and
+  nothing but that reset while "Add filter" is hidden from viewers. The
+  rail's footer renders it in edit mode without the eye, and not at all for
+  a viewer while "Add filter" is hidden. It is never
   given a popover id to open on, so a click only calls `onPopoverOpen`, which
   is `openNew`. It tracks nothing; `ADD_FILTER_CLICKED` stays with the
   provider. The provider returns focus to the bar's one by
@@ -152,8 +164,16 @@ In `FilterConfiguration/`:
   (invalid or locked) and opens no editor. Nothing is called unresolved while
   the fields load, or for a placeholder.
 - `TemporaryFilterPills` renders the shipped `TemporaryFilters` after the saved
-  pills, inside the shipped `FiltersProvider` its popover needs: outline pill,
-  its own popover and an X. They are never opened in the sidebar.
+  pills in edit mode, inside the shipped `FiltersProvider` its popover needs:
+  outline pill, its own popover and an X. They are never opened in the
+  sidebar in edit mode.
+- For a viewer (`isViewer`) `FilterPills` renders no grip, lock toggle or
+  drag. A saved pill (`FilterPill` `kind="viewerSaved"`) opens the rail on
+  its value and has no X; a saved filter locked on this tab is the shipped
+  `Filter` pill as it is in view mode: read-only lock, its tooltip, no
+  editor. The viewer's own filters (the lock-safe temporary filters, as the
+  shipped pills list them) follow as outline pills (`kind="viewerOwn"`) that
+  open the rail, with an X that is `removeFilterById`.
 
 ## Provider contract (`useControlsSidebar`)
 
@@ -362,6 +382,20 @@ In `FilterConfiguration/`:
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.
+- For a viewer the rail lists the saved filters, then their own (the
+  lock-safe temporary filters), and the header count is both. An own row
+  adds a dimmed "Added by you" line. A saved filter locked on this tab is a
+  read-only row (`isReadOnly`: a `Group`, not a button, that only hovers).
+  An own filter opens as in edit mode with no label input (its name is a
+  focusable heading, `tabIndex={-1}`, focused on mount as the label input
+  is), discard and trash; `FilterSettings` gives it the value in view mode
+  (`FilterValueSettings isEditMode={false}`: no default switch, the shipped
+  "clear to any value" X), the line "Added by you · only in this view and
+  its link" and "Tiles", never "Rules". A saved filter (`isSavedValue`) opens
+  with its value only, and the head offers the shipped "Reset to original
+  value" (`IconRotate2`, the shipped labels) while the value differs from
+  the saved dashboard's (`hasSavedFilterValueChanged`), which writes the
+  shipped revert. The footer's default-value status is edit mode's only.
 - `ControlSidebar` lists every dashboard filter, dimensions then metrics, as
   a closed `FilterRow` (a `PolymorphicGroupButton`: type icon, name, one
   line: the pill's value, then the shipped lock wording on this tab
@@ -832,6 +866,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     over the other SQL chart tiles that have the column.
   - The card gets it as two strings (`followUpLabel`, `followUpName`, null
     on every other tile) and one stable `onFollowUp`, so the memo holds.
+- While a viewer changes a saved filter's value, the tiles it is on get the
+  hovered row's `.reach` ring (`HoveredFilterReach`), no veil or card, and
+  the tab badges show nothing for it; the field bar never shows.
 - `TileOverlays` portals a veil and a "This tile is filtered on" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
