@@ -333,7 +333,7 @@ it('covers common agent definitions and all runtime variants without stale entri
             'loadAgentTools',
             'loadMcpTools',
             'runSql',
-            'runComposerQueries',
+            'query',
             'generateDashboard',
             'createContent',
             'editDbtProject',

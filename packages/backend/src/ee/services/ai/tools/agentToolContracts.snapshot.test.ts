@@ -221,7 +221,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             updateSlackMessage: noop,
             waitForSqlApproval: noop,
         }),
-        runComposerQueries: getRunComposerQueries({
+        query: getRunComposerQueries({
             agentContext: new AgentContext([]),
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,

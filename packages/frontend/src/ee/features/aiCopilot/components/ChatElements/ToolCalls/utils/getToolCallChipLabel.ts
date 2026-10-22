@@ -163,6 +163,10 @@ const CHIP_LABEL_BY_TOOL: Partial<Record<ToolName, ToolCallChipLabelFn>> = {
             return `${args.target}: ${args.command}`;
         return args.command ?? args.target ?? null;
     },
+    query: (toolArgs) => {
+        const args = toolArgs as { title?: string | null };
+        return args.title ?? null;
+    },
     runComposerQueries: (toolArgs) => {
         const args = toolArgs as { title?: string | null };
         return args.title ?? null;

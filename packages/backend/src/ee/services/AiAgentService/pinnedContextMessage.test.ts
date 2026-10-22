@@ -295,7 +295,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             'External source "Databricks finance" (sourceUuid: source-uuid) exposes 2 queryable tables',
         );
-        expect(content).toContain('runComposerQueries');
+        expect(content).toContain('with the `query` tool');
         expect(content).toContain(
             'tables: {"quarterly_targets":"targets-uuid","monthly_actuals":"actuals-uuid"}',
         );

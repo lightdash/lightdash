@@ -55,6 +55,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     runSavedChart: 'strip_rows',
     runContentQuery: 'strip_rows',
     runSql: 'strip_rows',
+    query: 'strip_rows',
     runComposerQueries: 'strip_rows',
     generateVisualization: 'strip_rows',
     getDashboardCharts: 'strip_rows',

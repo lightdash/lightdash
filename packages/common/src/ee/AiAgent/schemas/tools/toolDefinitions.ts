@@ -734,13 +734,13 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'runComposerQueries',
+export const queryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'query',
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesOutputSchema
 > = defineTool({
-    name: 'runComposerQueries',
+    name: 'query',
     title: 'Run composer queries',
     description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
     availability: ['agent', 'mcp'],
@@ -750,6 +750,21 @@ export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
         name: 'run_composer_queries',
         annotations: readOnlyAnnotations,
     },
+});
+
+/** @deprecated The composer query tool's name before `query`; kept for historical tool calls. */
+export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runComposerQueries',
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesOutputSchema
+> = defineTool({
+    name: 'runComposerQueries',
+    title: 'Run composer queries',
+    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolComposerQueriesArgsSchema,
+    agent: { outputSchema: toolComposerQueriesOutputSchema },
 });
 
 export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
@@ -1935,6 +1950,7 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
+    query: typeof queryToolDefinition;
     runComposerQueries: typeof runComposerQueriesToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
@@ -1995,6 +2011,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
+    query: queryToolDefinition,
     runComposerQueries: runComposerQueriesToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
@@ -2060,6 +2077,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    queryToolDefinition,
     runComposerQueriesToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,

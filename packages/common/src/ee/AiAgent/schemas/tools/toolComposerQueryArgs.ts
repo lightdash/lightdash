@@ -19,6 +19,19 @@ import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas'
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
+/** The composer query tool's name, and the name calls persisted before the rename carry. */
+export const COMPOSER_QUERY_TOOL_NAMES = [
+    'query',
+    'runComposerQueries',
+] as const;
+
+export type ComposerQueryToolName = (typeof COMPOSER_QUERY_TOOL_NAMES)[number];
+
+export const isComposerQueryToolName = (
+    toolName: string,
+): toolName is ComposerQueryToolName =>
+    (COMPOSER_QUERY_TOOL_NAMES as readonly string[]).includes(toolName);
+
 export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 
@@ -114,7 +127,7 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     enablePythonNodes?: boolean;
 };
 
-export const createToolComposerQueriesArgsSchema = ({
+export const createToolComposerQueriesArgsSchemaV1 = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
@@ -256,8 +269,46 @@ export const createToolComposerQueriesArgsSchema = ({
         .build();
 };
 
+// The advertised contract; python nodes and the row limit are runtime-selected.
+export const createToolComposerQueriesArgsSchema =
+    createToolComposerQueriesArgsSchemaV1;
+
 export const toolComposerQueriesArgsSchema =
     createToolComposerQueriesArgsSchema();
+
+// Calls persisted before node filters became expressions carry free-form
+// filters; parse those nodes unfiltered rather than dropping the call.
+const dropLegacyComposerNodeFilters = (input: unknown): unknown => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return input;
+    }
+    const { queries } = input as { queries?: unknown };
+    if (!Array.isArray(queries)) return input;
+    return {
+        ...input,
+        queries: queries.map((node: unknown) =>
+            node &&
+            typeof node === 'object' &&
+            'sourceType' in node &&
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER &&
+            'filters' in node &&
+            !composerSemanticLayerFiltersSchema.safeParse(node.filters).success
+                ? { ...node, filters: null }
+                : node,
+        ),
+    };
+};
+
+// Wide contract for parsing persisted args, never advertised. Same evolution
+// rules as toolRunQueryArgsSchemaPersisted: additive fields are nullish with a
+// default; a restructure adds V(N) and this alias keeps parsing every version.
+export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
+    dropLegacyComposerNodeFilters,
+    createToolComposerQueriesArgsSchemaV1({
+        enablePythonNodes: true,
+        maxLimit: Number.MAX_SAFE_INTEGER,
+    }),
+);
 
 export type ToolComposerQueryNode = z.infer<
     ReturnType<typeof createToolComposerQueriesArgsSchema>

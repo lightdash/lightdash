@@ -64,7 +64,7 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
     composer: (input) => ({
         tools: [
             ...CORE_TOOLS,
-            'runComposerQueries',
+            'query',
             // The service enables composer only with data access; kept for exact parity.
             ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
         ],

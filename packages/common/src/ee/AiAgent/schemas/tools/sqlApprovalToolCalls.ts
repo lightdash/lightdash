@@ -4,6 +4,7 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 /** Agent tools whose SQL waits on the user's approval. */
 export const SQL_APPROVAL_TOOL_NAMES = [
     'runSql',
+    'query',
     'runComposerQueries',
     'runContentQuery',
     'createContent',
@@ -120,6 +121,7 @@ export const isSqlApprovalToolCall = (
     switch (toolName) {
         case 'runSql':
             return true;
+        case 'query':
         case 'runComposerQueries':
             return (
                 isRecord(toolArgs) &&

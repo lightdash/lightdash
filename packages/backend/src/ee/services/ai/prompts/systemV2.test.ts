@@ -450,11 +450,9 @@ describe('getSystemPromptV2 composer queries', () => {
             canRunSql: true,
         });
 
+        expect(content).toContain('**Raw SQL (query `sql` nodes):**');
         expect(content).toContain(
-            '**Raw SQL (runComposerQueries `sql` nodes):**',
-        );
-        expect(content).toContain(
-            'answer questions with runComposerQueries using a sql node',
+            'answer questions with query using a sql node',
         );
     });
 
@@ -544,7 +542,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain('**Raw SQL (runSql tool):**');
-        expect(content).not.toContain('runComposerQueries');
+        expect(content).not.toContain('query `sql` nodes');
     });
 });
 

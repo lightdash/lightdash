@@ -389,9 +389,12 @@ describe('resolveLoadout', () => {
         expect(loadout.promptSections.has('skills')).toBe(false);
     });
 
-    test('composer queries only through runComposerQueries', () => {
+    test('composer queries only through query', () => {
         const { toolNames } = resolveLoadout(inputs.composer);
-        expect(toolNames.has('runComposerQueries')).toBe(true);
+        expect(toolNames.has('query')).toBe(true);
+        expect(
+            (toolNames as ReadonlySet<string>).has('runComposerQueries'),
+        ).toBe(false);
         expect(
             CLASSIC_QUERY_TOOLS.filter((tool) => toolNames.has(tool)),
         ).toEqual([]);
@@ -508,7 +511,7 @@ describe('loadout structure', () => {
             const gated = [...(toolsForIntent(intent) ?? [])].filter((tool) =>
                 toolNames.has(tool as AgentToolName),
             );
-            expect(gated).toContain('runComposerQueries');
+            expect(gated).toContain('query');
         },
     );
 

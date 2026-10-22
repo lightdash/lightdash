@@ -2691,7 +2691,8 @@ describe('getAgentTools workstream tool gate', () => {
             canRunSql: true,
             enableComposerQueries: true,
         });
-        expect(names).toContain('runComposerQueries');
+        expect(names).toContain('query');
+        expect(names).not.toContain('runComposerQueries');
         expect(names).not.toContain('runSql');
         // The SQL discovery companions stay: composer sql nodes need them.
         expect(names).toContain('listWarehouseTables');
@@ -2706,7 +2707,7 @@ describe('getAgentTools workstream tool gate', () => {
             enableComposerQueries: false,
         });
         expect(names).toContain('runSql');
-        expect(names).not.toContain('runComposerQueries');
+        expect(names).not.toContain('query');
     });
 
     const buildResearchArgs = (

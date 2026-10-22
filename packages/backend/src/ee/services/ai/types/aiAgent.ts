@@ -302,7 +302,7 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
-    // Whether runComposerQueries is the query path: composer flags, data
+    // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.
