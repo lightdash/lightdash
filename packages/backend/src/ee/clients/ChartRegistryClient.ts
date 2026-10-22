@@ -136,12 +136,18 @@ async function readBodyWithCap(
 
 type PinnedAddress = { address: string; family: 4 | 6 };
 
-// Resolves hostname and validates every returned address is public. Mirrors
-// secureFetch.ts's resolveAndValidateHost: unlike validatePublicHttpUrl (which
-// only reports pass/fail), this returns the resolved address itself so the
-// fetch below can pin its connection to it — see createPinnedLookup.
-async function resolveAndValidatePublicHost(
+/**
+ * Resolves the registry hostname and returns the address the fetch below
+ * pins its connection to (see createPinnedLookup). Mirrors secureFetch.ts's
+ * resolveAndValidateHost: unlike validatePublicHttpUrl (which only reports
+ * pass/fail), this returns the resolved address itself. In strict mode every
+ * returned address must be public; with `allowPrivateAddresses` (self-hosted
+ * mirrors on internal networks) private/loopback addresses are accepted but
+ * the connection is still pinned, so DNS rebinding is refused either way.
+ */
+export async function resolveRegistryHost(
     hostname: string,
+    options: { allowPrivateAddresses: boolean },
 ): Promise<PinnedAddress> {
     const cleanHost = hostname.replace(/^\[/, '').replace(/\]$/, '');
     let addresses: Array<{ address: string; family: number }>;
@@ -158,7 +164,12 @@ async function resolveAndValidatePublicHost(
         );
     }
     for (const { address } of addresses) {
-        if (!ipaddr.isValid(address) || isPrivateAddress(address)) {
+        if (!ipaddr.isValid(address)) {
+            throw new ParameterError(
+                `Unable to resolve chart registry hostname "${hostname}"`,
+            );
+        }
+        if (!options.allowPrivateAddresses && isPrivateAddress(address)) {
             throw new ParameterError(
                 `Chart registry hostname "${hostname}" resolved to a private/internal address`,
             );
@@ -216,37 +227,47 @@ export function createPinnedLookup(
 /**
  * The real network fetch behind ChartRegistryClient's default fetchImpl,
  * exported standalone so tests can exercise it directly against a real
- * server. Validates the URL is public, refuses to follow redirects (a
- * redirect target is unvalidated — see secureFetch.ts), and streams the
- * body with a hard byte cap instead of buffering an unbounded response.
+ * server. Validates the URL, refuses to follow redirects (a redirect target
+ * is unvalidated — see secureFetch.ts), and streams the body with a hard
+ * byte cap instead of buffering an unbounded response.
+ *
+ * Three access modes, strictest first:
+ * - default: https only, public addresses only, connection pinned.
+ * - `allowPrivateAddresses`: https only, private/loopback addresses allowed,
+ *   connection still pinned. For self-hosted registry mirrors on internal
+ *   networks — credentials never travel over plain http.
+ * - `allowInsecure`: also allows http and skips pinning. Local fixture
+ *   servers only; implies allowPrivateAddresses.
  */
 export async function chartRegistryFetch(
     url: string,
     options: {
         maxBytes: number;
-        allowPrivateAddresses: boolean;
+        allowPrivateAddresses?: boolean;
+        allowInsecure?: boolean;
         headers?: Record<string, string>;
     },
 ): Promise<ChartRegistryRawResponse> {
+    const allowInsecure = options.allowInsecure ?? false;
+    const allowPrivateAddresses =
+        allowInsecure || (options.allowPrivateAddresses ?? false);
     const parsedUrl = await validatePublicHttpUrl(url, {
-        allowedProtocols: options.allowPrivateAddresses
-            ? ['http:', 'https:']
-            : ['https:'],
-        allowPrivateAddresses: options.allowPrivateAddresses,
+        allowedProtocols: allowInsecure ? ['http:', 'https:'] : ['https:'],
+        allowPrivateAddresses,
     });
 
-    // Pin the connection to the address just validated above so this fetch
-    // can't be answered by a different (private/internal) address than the
-    // one validatePublicHttpUrl checked. Skipped when allowPrivateAddresses
-    // is set — a dev-only escape hatch where hostname validation already
-    // does not run.
-    const dispatcher = options.allowPrivateAddresses
+    // Pin the connection to the address resolved here so this fetch can't be
+    // answered by a different address than the one checked (DNS rebinding).
+    // Skipped only when allowInsecure is set — a dev-only escape hatch.
+    const dispatcher = allowInsecure
         ? undefined
         : new Agent({
               connect: {
                   lookup: createPinnedLookup(
                       parsedUrl.hostname,
-                      await resolveAndValidatePublicHost(parsedUrl.hostname),
+                      await resolveRegistryHost(parsedUrl.hostname, {
+                          allowPrivateAddresses,
+                      }),
                   ),
               },
           });
@@ -293,6 +314,7 @@ export class ChartRegistryClient {
     private readonly allowInsecure: boolean;
 
     private readonly authorizationHeader: string | null;
+    private readonly allowPrivateHosts: boolean;
 
     private readonly indexFileName: string;
 
@@ -315,6 +337,8 @@ export class ChartRegistryClient {
         this.authorizationHeader =
             args.lightdashConfig.appRuntime.chartRegistry.authorizationHeader ??
             null;
+        this.allowPrivateHosts =
+            args.lightdashConfig.appRuntime.chartRegistry.allowPrivateHosts;
         // The next channel's index additionally lists charts whose latest
         // version is a beta (entries carry `channel`); the stable index
         // only ever lists stable versions.
@@ -580,7 +604,8 @@ export class ChartRegistryClient {
         };
         return chartRegistryFetch(url, {
             maxBytes,
-            allowPrivateAddresses: this.allowInsecure,
+            allowInsecure: this.allowInsecure,
+            allowPrivateAddresses: this.allowPrivateHosts,
             ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
     }

@@ -589,6 +589,7 @@ export const lightdashConfigMock: LightdashConfig = {
             url: null,
             allowInsecure: false,
             authorizationHeader: null,
+            allowPrivateHosts: false,
             channel: 'stable',
         },
     },

@@ -202,6 +202,28 @@ describe('external connection private hosts', () => {
     );
 });
 
+describe('chart registry host access flags', () => {
+    it('defaults to strict: no private hosts, no insecure transport', () => {
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(false);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS=true enables private hosts without enabling insecure transport', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'true';
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(true);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('ignores any value other than "true"', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'yes';
+        expect(parseConfig().appRuntime.chartRegistry.allowPrivateHosts).toBe(
+            false,
+        );
+    });
+});
+
 describe('explore summary projection threshold', () => {
     test('defaults to 2048 stored bytes per explore', () => {
         expect(

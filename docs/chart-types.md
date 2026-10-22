@@ -91,9 +91,14 @@ pipeline, and authoring runbook are documented in
 
 - `LIGHTDASH_CHART_REGISTRY_URL` — the registry a deployment reads.
   Defaults to the official Pages URL; empty hides the library entirely.
+- `LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS` — permits a registry on a
+  private/internal address (a self-hosted mirror of the published tree
+  behind the customer's firewall). Transport stays https-only, redirects are
+  still refused, and the connection stays pinned to the resolved address.
 - `LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE` — permits plain-http registries
-  (local fixture servers, air-gapped mirrors). Logs a startup security
-  warning; never set it against a registry you don't control.
+  and turns off IP pinning, for local fixture servers only. Logs a startup
+  security warning; never set it against a registry you don't control, and
+  prefer `ALLOW_PRIVATE_HOSTS` for a real mirror.
 - `LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER` — full `Authorization`
   header value sent with every registry request, e.g. `Basic <base64>` or
   `Bearer <token>`. Use it for registries behind authentication; `user:pass@`
