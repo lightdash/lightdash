@@ -1,3 +1,10 @@
+## [3.23.1](https://github.com/lightdash/lightdash/compare/3.23.0...3.23.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** read disabled false as unset in filter dirty check ([#31382](https://github.com/lightdash/lightdash/issues/31382)) ([2a6ea1a](https://github.com/lightdash/lightdash/commit/2a6ea1ad1cee643ee92e52d1997082a0bc30c8db))
+
 # [3.23.0](https://github.com/lightdash/lightdash/compare/3.22.0...3.23.0) (2026-10-22)
 
 
