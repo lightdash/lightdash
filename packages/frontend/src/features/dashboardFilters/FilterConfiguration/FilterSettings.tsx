@@ -2,8 +2,6 @@ import {
     FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
-    isRelativeDateFilterOperator,
-    isWithValueFilter,
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -32,6 +30,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useApp from '../../../providers/App/useApp';
 import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
+import {
+    getFilterRuleWithDefaultValueEnabled,
+    getFilterRuleWithOperator,
+} from './utils';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -79,30 +81,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         }
     }, [filterLabel, filterRule.label, field?.label]);
 
-    const handleChangeFilterOperator = (operator: FilterRule['operator']) => {
-        // Absolute date values are already normalized. Running them through
-        // the defaults again can shift timezones.
-        const shouldPreserveValues =
-            filterType === FilterType.DATE &&
-            (filterRule.values?.length ?? 0) > 0 &&
-            isWithValueFilter(filterRule.operator) &&
-            isWithValueFilter(operator) &&
-            !isRelativeDateFilterOperator(filterRule.operator) &&
-            !isRelativeDateFilterOperator(operator);
-
+    const handleChangeFilterOperator = (operator: FilterRule['operator']) =>
         onChangeFilterRule(
-            shouldPreserveValues
-                ? {
-                      ...filterRule,
-                      operator,
-                      settings: undefined,
-                  }
-                : getFilterRuleWithDefaultValue(filterType, field, {
-                      ...filterRule,
-                      operator,
-                  }),
+            getFilterRuleWithOperator(filterType, field, filterRule, operator),
         );
-    };
 
     const isFilterDisabled = !!filterRule.disabled;
 
@@ -352,34 +334,16 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                         }
                                         labelPosition="right"
                                         checked={!isFilterDisabled}
-                                        onChange={(e) => {
-                                            const newFilter: DashboardFilterRule =
-                                                {
-                                                    ...filterRule,
-                                                    disabled:
-                                                        !e.currentTarget
-                                                            .checked,
-                                                    required:
-                                                        filterRule.required &&
-                                                        !e.currentTarget.checked
-                                                            ? // If the filter is required and the user is disabling it, we should also disable the required flag
-                                                              false
-                                                            : filterRule.required,
-                                                    // Toggling a default value removes the filter from any requirement rule
-                                                    requiredGroupId: undefined,
-                                                };
-
+                                        onChange={(e) =>
                                             onChangeFilterRule(
-                                                e.currentTarget.checked
-                                                    ? newFilter
-                                                    : getFilterRuleWithDefaultValue(
-                                                          filterType,
-                                                          field,
-                                                          newFilter,
-                                                          null,
-                                                      ),
-                                            );
-                                        }}
+                                                getFilterRuleWithDefaultValueEnabled(
+                                                    filterType,
+                                                    field,
+                                                    filterRule,
+                                                    e.currentTarget.checked,
+                                                ),
+                                            )
+                                        }
                                     />
                                 </Box>
                             </Tooltip>

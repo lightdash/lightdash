@@ -2,10 +2,14 @@ import {
     assertUnreachable,
     DimensionType,
     FilterOperator,
+    FilterType,
+    getFilterRuleWithDefaultValue,
     getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -14,7 +18,6 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
     type FilterRule,
-    type FilterType,
     type ResultColumn,
 } from '@lightdash/common';
 import { produce } from 'immer';
@@ -301,6 +304,59 @@ export const getFilterRuleWithDisabledState = (
             shouldDisableInViewMode ||
             isRequiredWithoutValue,
     };
+};
+
+// The rule after choosing another operator in the settings form
+export const getFilterRuleWithOperator = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    operator: FilterRule['operator'],
+): DashboardFilterRule => {
+    // Absolute date values are already normalized. Running them through
+    // the defaults again can shift timezones.
+    const shouldPreserveValues =
+        filterType === FilterType.DATE &&
+        (filterRule.values?.length ?? 0) > 0 &&
+        isWithValueFilter(filterRule.operator) &&
+        isWithValueFilter(operator) &&
+        !isRelativeDateFilterOperator(filterRule.operator) &&
+        !isRelativeDateFilterOperator(operator);
+
+    return shouldPreserveValues
+        ? {
+              ...filterRule,
+              operator,
+              settings: undefined,
+          }
+        : getFilterRuleWithDefaultValue(filterType, field, {
+              ...filterRule,
+              operator,
+          });
+};
+
+// The rule after the "Provide default value" switch of the settings form
+export const getFilterRuleWithDefaultValueEnabled = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    checked: boolean,
+): DashboardFilterRule => {
+    const newFilter: DashboardFilterRule = {
+        ...filterRule,
+        disabled: !checked,
+        required:
+            filterRule.required && !checked
+                ? // If the filter is required and the user is disabling it, we should also disable the required flag
+                  false
+                : filterRule.required,
+        // Toggling a default value removes the filter from any requirement rule
+        requiredGroupId: undefined,
+    };
+
+    return checked
+        ? newFilter
+        : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };
 
 export const isFilterEnabled = (
