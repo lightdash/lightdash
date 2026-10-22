@@ -331,6 +331,39 @@ describe('TileOverlays', () => {
             rerender(<TileOverlays />);
             expect(container(both.uuid)).toBeEmptyDOMElement();
         });
+
+        it('rings a tile on a field it no longer has, as the counts include it', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [
+                        rule(),
+                        {
+                            ...hovered,
+                            tileTargets: {
+                                ...hovered.tileTargets,
+                                [statusOnly.uuid]: {
+                                    fieldId: 'orders_gone',
+                                    tableName: 'orders',
+                                },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'hovered',
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(
+                container(statusOnly.uuid).querySelector('[class*="reach"]'),
+            ).not.toBeNull();
+        });
     });
 
     it('shows the field a filterable tile is filtered by', () => {

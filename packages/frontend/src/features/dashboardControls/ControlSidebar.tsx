@@ -205,6 +205,9 @@ export const ControlSidebar: FC = () => {
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
     );
+    const clearHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.clearHoveredFilterId,
+    );
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
@@ -265,6 +268,7 @@ export const ControlSidebar: FC = () => {
                     }
                     onOpen={open}
                     onHover={setHoveredFilterId}
+                    onUnhover={clearHoveredFilterId}
                 />
             );
         }),

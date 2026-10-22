@@ -9,6 +9,7 @@ import {
     Text,
     Title,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
@@ -49,8 +50,9 @@ export const EditorShell: FC<Props> = ({
             >
                 <Group gap="xs" wrap="nowrap">
                     <Title order={5}>Filters</Title>
-                    <Badge size="sm" aria-label={`${filterCount} filters`}>
+                    <Badge size="sm">
                         {filterCount}
+                        <VisuallyHidden> filters</VisuallyHidden>
                     </Badge>
                 </Group>
                 <Tooltip label="Close">

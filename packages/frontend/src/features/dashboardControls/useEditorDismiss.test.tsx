@@ -443,6 +443,20 @@ describe('dismissing in the controls editor', () => {
             expect(addButton()).toHaveFocus();
         });
 
+        it('is not moved to the row left behind when the filter opened next is removed from outside', () => {
+            act(() => value().open('b'));
+            const setDashboardFilters = mockDashboardContext.current
+                .setDashboardFilters as (value: DashboardFilters) => void;
+            act(() =>
+                setDashboardFilters({
+                    ...initialFilters,
+                    dimensions: [rule('a')],
+                }),
+            );
+            expect(value().isSidebarOpen).toBe(false);
+            expect(row('a')).not.toHaveFocus();
+        });
+
         it('is not moved when another control opens', () => {
             act(() => value().open('b'));
             expect(value().editing).toEqual({ filterId: 'b' });

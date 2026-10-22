@@ -30,6 +30,8 @@ export type ControlsSidebarContextValue = {
     /** The rail row under the pointer or focus: its tiles are highlighted. */
     hoveredFilterId: string | null;
     setHoveredFilterId: (filterId: string | null) => void;
+    /** Clears the hover only while it is this filter's, so leaving one row keeps another's. */
+    clearHoveredFilterId: (filterId: string) => void;
     /** Null when both are closed, as they are each time a filter opens. */
     activeSection: ControlsSidebarSection | null;
     setActiveSection: (section: ControlsSidebarSection | null) => void;

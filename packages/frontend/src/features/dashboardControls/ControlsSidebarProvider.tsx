@@ -243,6 +243,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     // The rail can be open with no filter edited: every filter is a row
     const [isRailOpen, setIsRailOpen] = useState(false);
     const [hoveredFilterId, setHoveredFilterId] = useState<string | null>(null);
+    const clearHoveredFilterId = useCallback((filterId: string) => {
+        setHoveredFilterId((hovered) =>
+            hovered === filterId ? null : hovered,
+        );
+    }, []);
     // Lives here, never in the dashboard filters, until it gets a mapping
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
@@ -942,6 +947,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isRailOpen,
             hoveredFilterId,
             setHoveredFilterId,
+            clearHoveredFilterId,
             newTileUuids,
             dismissedLinks,
             dismissLink,
@@ -990,6 +996,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isSidebarOpen,
             isRailOpen,
             hoveredFilterId,
+            clearHoveredFilterId,
             editing,
             isPlaceholder,
             editingRule,

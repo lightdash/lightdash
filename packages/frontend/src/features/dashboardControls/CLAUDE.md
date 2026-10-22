@@ -114,7 +114,7 @@ In `FilterConfiguration/`:
   button: "Done" in the rail stays the one way out. The shipped divider and
   date zoom stay on the right as they are.
 - The rail's header shows the dashboard's filter count next to "Filters", a
-  default `Badge`. In view mode
+  default `Badge` whose text ends in a `VisuallyHidden` " filters". In view mode
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.
@@ -324,10 +324,13 @@ In `FilterConfiguration/`:
   with `open`. Strings are in `railSummaries.ts`.
 - Hovering a row, or focusing it from the keyboard (`:focus-visible`, so
   focus handed back after a click lights nothing), sets `hoveredFilterId`;
-  leaving or blurring clears it, and opening a filter or closing the rail
-  forgets it. `useHoveredFilterRule` reads it as a rule, null on the edited
-  filter. Its tiles on the tab in view (`isTileOnFilter`: a field or column
-  the tile still offers, or a data app tile that is on) get the `mapped`
+  leaving or blurring clears it only while it is that row's
+  (`clearHoveredFilterId`), so a focused row losing focus keeps the mouse's
+  hover on another row. Opening a filter or closing the rail forgets it.
+  Closed rows carry `aria-expanded="false"`. `useHoveredFilterRule` reads it
+  as a rule, null on the edited filter. Its tiles on the tab in view
+  (`isTileOnFilter`, as the counts read it: any field or column, one the
+  tile no longer offers included, or a data app tile that is on) get the `mapped`
   look and every other tile none, over the edited filter's overlays (the
   unreachable veil carries a `.ring` for it). With nothing edited
   `HoveredFilterReach` portals only a `.reach` ring into those tiles: no

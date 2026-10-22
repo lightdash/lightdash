@@ -109,6 +109,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isRailOpen: true,
         hoveredFilterId: null,
         setHoveredFilterId: vi.fn(),
+        clearHoveredFilterId: vi.fn(),
         activeSection: null,
         setActiveSection: vi.fn(),
         open: vi.fn(),
@@ -396,7 +397,9 @@ describe('ControlSidebar', () => {
     });
 
     it('reports the row under the pointer or focus as hovered, and its leaving', () => {
-        const { setHoveredFilterId } = setSidebar({ isNew: false });
+        const { setHoveredFilterId, clearHoveredFilterId } = setSidebar({
+            isNew: false,
+        });
         renderWithProviders(
             <ControlSidebar />,
             filters([
@@ -407,14 +410,16 @@ describe('ControlSidebar', () => {
 
         const row = screen.getByRole('button', { name: /Region/ });
         expect(row).toHaveAttribute('data-controls-row', 'filter-2');
+        expect(row).toHaveAttribute('aria-expanded', 'false');
         fireEvent.mouseEnter(row);
         expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
         fireEvent.mouseLeave(row);
-        expect(setHoveredFilterId).toHaveBeenLastCalledWith(null);
+        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
         act(() => row.focus());
         expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
         act(() => row.blur());
-        expect(setHoveredFilterId).toHaveBeenLastCalledWith(null);
+        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        expect(setHoveredFilterId).not.toHaveBeenCalledWith(null);
     });
 
     it('opens a new filter on its field search, with Cancel as the only way out', () => {
@@ -616,6 +621,11 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
+        // The count badge reads as words, not a bare number
+        expect(
+            screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
+                ?.textContent,
+        ).toMatch(/^\d+ filters$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
 

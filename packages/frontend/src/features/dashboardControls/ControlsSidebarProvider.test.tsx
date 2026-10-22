@@ -346,6 +346,16 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.hoveredFilterId).toBeNull();
         });
 
+        it("leaving a row keeps another row's hover", () => {
+            const { result } = setup();
+            act(() => result.current.setHoveredFilterId('b'));
+            // Focus leaves row a while the mouse is on row b
+            act(() => result.current.clearHoveredFilterId('a'));
+            expect(result.current.hoveredFilterId).toBe('b');
+            act(() => result.current.clearHoveredFilterId('b'));
+            expect(result.current.hoveredFilterId).toBeNull();
+        });
+
         it('leaving edit mode closes the rail', () => {
             const { result, rerender } = setup();
             act(() => result.current.openNew());
@@ -1802,7 +1812,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(21);
+        expect(Object.keys(initial)).toHaveLength(22);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
