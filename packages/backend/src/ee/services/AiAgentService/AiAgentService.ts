@@ -439,7 +439,6 @@ import {
 } from '../ai/attachmentFs/attachmentFileSystem';
 import { Compaction } from '../ai/compaction';
 import {
-    resolveAiDecisionClient,
     type AiDecisionClient,
     type AiDecisionUsage,
 } from '../ai/decisions/AiDecisionClient';
@@ -2604,15 +2603,10 @@ export class AiAgentService extends BaseService {
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
         projectUuid: string | null,
     ) {
-        if (
-            await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
-                user.organizationUuid,
-                projectUuid,
-            )
-        ) {
-            return undefined;
-        }
-        return resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
+        return this.orgAiCopilotConfigResolver.getDecisionClient(
+            user.organizationUuid,
+            projectUuid,
+        );
     }
 
     // Battle profiles and the Fast mode opt-out can only switch JEV off, never on past the decision client.

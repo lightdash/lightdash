@@ -72,7 +72,6 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
-import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -2076,15 +2075,10 @@ export class ManagedAgentService extends BaseService {
             await Promise.all([
                 exploresRead,
                 parametersRead,
-                this.orgAiCopilotConfigResolver
-                    .isOrgOnOwnProviderKeys(organizationUuid, projectUuid)
-                    .then((onOwnKeys) =>
-                        onOwnKeys
-                            ? undefined
-                            : resolveAiDecisionClient(
-                                  this.lightdashConfig.ai.decisions,
-                              ),
-                    ),
+                this.orgAiCopilotConfigResolver.getDecisionClient(
+                    organizationUuid,
+                    projectUuid,
+                ),
             ]);
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()
