@@ -104,6 +104,7 @@ import {
     QuerySourceType,
     servedSkillMetadataSchema,
     SlackPrompt,
+    stampToolArgsVersion,
     ToolName,
     ToolNameSchema,
     UnexpectedServerError,
@@ -8670,7 +8671,7 @@ export class AiAgentModel {
                 ai_prompt_uuid: data.promptUuid,
                 tool_call_id: data.toolCallId,
                 tool_name: data.toolName,
-                tool_args: data.toolArgs,
+                tool_args: stampToolArgsVersion(data.toolName, data.toolArgs),
                 ai_mcp_server_uuid: data.mcpServerUuid ?? null,
                 parent_tool_call_id: data.parentToolCallId,
             })
