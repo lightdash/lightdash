@@ -45,7 +45,7 @@ export const useExploreByProjectUuid = (
     useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({ projectUuid });
 
     const queryKey = ['tables', activeTableName, projectUuid];
     return useQuery<ApiExploreResults, ApiError>({
@@ -65,7 +65,7 @@ export const useExploreQueries = (
 ): (ApiExploreResults | undefined)[] => {
     const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({ projectUuid });
     const uniqueNames = [...new Set(exploreNames)];
     const queries = useQueries({
         queries: uniqueNames.map((name) => ({

@@ -277,7 +277,7 @@ export const useGetReadyQueryResults = (
     missingRequiredParameters: string[] | null,
 ) => {
     const lightdashApi = useLightdashApi();
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({ projectUuid: data?.projectUuid });
 
     const isEnabled = useMemo(() => {
         if (!data || missingRequiredParameters === null) return false;
@@ -388,6 +388,7 @@ export const useInfiniteQueryResults = (
 ): InfiniteQueryResults => {
     const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError({
+        projectUuid,
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
             ? `Error running query for chart '${chartName}'`

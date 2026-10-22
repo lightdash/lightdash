@@ -80,7 +80,7 @@ export const useCompiledSql = (
 
     const { data: explore } = useExplore(tableId);
 
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({ projectUuid });
     const metricQuery: MetricQuery = {
         exploreName: tableId,
         dimensions: Array.from(dimensions),
