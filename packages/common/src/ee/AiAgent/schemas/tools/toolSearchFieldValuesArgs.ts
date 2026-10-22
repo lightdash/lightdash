@@ -23,9 +23,8 @@ const emptyFiltersInstructionByRuntime = {
     mcp: 'Omit filters when the search does not need additional filters',
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
 
-const SEARCH_RESULT_GUIDANCE = `Reading the result:
-- The values describe observed data, not the permitted filter literals. When the user explicitly names a value to exclude, keep that exclusion in the executed query even when this search finds no matching rows, and say it currently removes no rows; do not drop it or substitute a different category.
-- When the intended category needs interpretation rather than a literal match, clarify it with the user before filtering.`;
+const SEARCH_RESULT_GUIDANCE =
+    'Reading the result: the values describe observed data, not the permitted filter literals.';
 
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = ({
     runtime,
