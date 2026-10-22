@@ -39,7 +39,7 @@ import {
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
-import { pluralizeTiles } from './fieldLabels';
+import { formatTileCount } from './fieldLabels';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
@@ -78,9 +78,6 @@ const NO_COLUMNS: SqlColumn[] = [];
 const NO_FIELD_IDS: string[] = [];
 // A tile card's select: the stand-in button, or the real input once used
 const SELECT_SELECTOR = '[aria-haspopup="listbox"]';
-const OWN_GROUP = 'In this filter';
-const OTHER_GROUP = 'Other fields on this tile';
-const STARTER_FIELDS_GROUP = 'Fields on this tile';
 // What a data app tile's switch reports when it is turned on
 const DATA_APP_ON = 'on';
 // Past this many entries the dropdown is searchable
@@ -198,6 +195,7 @@ const TileOverlay = memo<TileOverlayProps>(
         onFollowUp,
     }) => {
         const overlayRef = useRef<HTMLDivElement>(null);
+        const getUiString = useUiStrings();
         useScrollToHighlightedTile(
             overlayRef,
             scrollFieldId,
@@ -211,7 +209,7 @@ const TileOverlay = memo<TileOverlayProps>(
                     data-controls-overlay
                     data-highlighted={highlight ?? undefined}
                     data-wave={wave}
-                    title="This tile has no field this filter can use"
+                    title={getUiString('filters.tileCard.unreachable')}
                 >
                     {/* Lit when a hovered rail row's filter is on the tile */}
                     <Box className={classes.ring} aria-hidden />
@@ -234,10 +232,16 @@ const TileOverlay = memo<TileOverlayProps>(
         );
         // A new control lists the tile's fields as one plain list
         const firstGroup = isPlaceholder
-            ? { label: STARTER_FIELDS_GROUP, items: fieldOptions }
-            : { label: OWN_GROUP, items: ownOptions };
+            ? {
+                  label: getUiString('filters.tileCard.fieldsOnTile'),
+                  items: fieldOptions,
+              }
+            : {
+                  label: getUiString('filters.tileCard.inThisFilter'),
+                  items: ownOptions,
+              };
         const secondGroup = {
-            label: OTHER_GROUP,
+            label: getUiString('filters.tileCard.otherFields'),
             items: isPlaceholder ? [] : fieldOptions,
         };
 
@@ -248,7 +252,7 @@ const TileOverlay = memo<TileOverlayProps>(
                 data-controls-overlay
                 data-highlighted={highlight ?? undefined}
                 data-wave={wave}
-                title="Tiles are locked while a filter is edited"
+                title={getUiString('filters.tileCard.locked')}
             >
                 <Box className={classes.ring} aria-hidden />
                 {/* An empty title keeps the veil's hint off the card */}
@@ -267,14 +271,18 @@ const TileOverlay = memo<TileOverlayProps>(
                     {isDataAppTile ? (
                         <Stack gap="xs">
                             <Text fz="xs" c="dimmed">
-                                {tileFieldId !== null
-                                    ? 'This tile is filtered'
-                                    : 'This tile is not filtered'}
+                                {getUiString(
+                                    tileFieldId !== null
+                                        ? 'filters.tileCard.filtered'
+                                        : 'filters.tileCard.notFiltered',
+                                )}
                             </Text>
                             <Switch
                                 size="xs"
                                 aria-label={selectLabel}
-                                label="Filter this tile"
+                                label={getUiString(
+                                    'filters.tileCard.filterThisTile',
+                                )}
                                 checked={tileFieldId !== null}
                                 onChange={(event) =>
                                     onSelect(
@@ -290,11 +298,13 @@ const TileOverlay = memo<TileOverlayProps>(
                         <Stack gap="xs">
                             <Group gap="xxs" wrap="nowrap">
                                 <Text fz="xs" c="dimmed">
-                                    {missingFieldId !== null
-                                        ? 'Filtered by a field this tile no longer has'
-                                        : tileFieldId !== null
-                                          ? 'This tile is filtered on'
-                                          : 'This tile is not filtered'}
+                                    {getUiString(
+                                        missingFieldId !== null
+                                            ? 'filters.tileCard.missingField'
+                                            : tileFieldId !== null
+                                              ? 'filters.tileCard.filteredOn'
+                                              : 'filters.tileCard.notFiltered',
+                                    )}
                                 </Text>
                                 {missingFieldId !== null && (
                                     <MissingFieldWarning
@@ -315,23 +325,25 @@ const TileOverlay = memo<TileOverlayProps>(
                                         />
                                     )
                                 }
-                                placeholder={
+                                placeholder={getUiString(
                                     isSqlTile
-                                        ? 'Select a column'
-                                        : 'Select a field'
-                                }
-                                clearLabel="Stop filtering this tile"
+                                        ? 'filters.tileCard.selectColumn'
+                                        : 'filters.tileCard.selectField',
+                                )}
+                                clearLabel={getUiString(
+                                    'filters.tileCard.stopFiltering',
+                                )}
                                 fieldsMap={isSqlTile ? null : fieldsMap}
                                 groups={[firstGroup, secondGroup]}
                                 searchable={
                                     secondGroup.items.length > 0 ||
                                     firstGroup.items.length > SEARCH_THRESHOLD
                                 }
-                                nothingFoundMessage={
+                                nothingFoundMessage={getUiString(
                                     isSqlTile
-                                        ? 'No columns match'
-                                        : 'No fields match'
-                                }
+                                        ? 'filters.tileCard.noColumnsMatch'
+                                        : 'filters.tileCard.noFieldsMatch',
+                                )}
                                 value={tileFieldId}
                                 onChange={(value) => onSelect(tileUuid, value)}
                             />
@@ -429,6 +441,7 @@ const HoveredFilterReach: FC = () => {
 };
 
 const EditedTileOverlays: FC = () => {
+    const getUiString = useUiStrings();
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
     const highlightedFieldId = useControlsSidebarSelector(
@@ -613,16 +626,27 @@ const EditedTileOverlays: FC = () => {
         if (count === 0 || !fieldTiles.canAct) return null;
         const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
         // The card is on the tab, so only the name says which scope
-        const where = hasTabs ? ' on this tab' : '';
-        const others = `${count} ${pluralizeTiles(count)}${where}`;
+        const nameKey = isFilter
+            ? hasTabs
+                ? 'filters.tileCard.applyToOthersNameOnThisTab'
+                : 'filters.tileCard.applyToOthersName'
+            : hasTabs
+              ? 'filters.tileCard.clearOthersNameOnThisTab'
+              : 'filters.tileCard.clearOthersName';
         return {
             tileUuid: followUp.tileUuid,
-            label: isFilter
-                ? `Apply to the other ${count} too`
-                : `Clear the other ${count} too`,
-            name: isFilter
-                ? `Apply ${fieldTiles.label} to the other ${others} too`
-                : `Clear ${fieldTiles.label} from the other ${others} too`,
+            label: interpolateUiString(
+                getUiString(
+                    isFilter
+                        ? 'filters.tileCard.applyToOthers'
+                        : 'filters.tileCard.clearOthers',
+                ),
+                { count },
+            ),
+            name: interpolateUiString(getUiString(nameKey), {
+                field: fieldTiles.label,
+                tiles: formatTileCount(getUiString, count),
+            }),
             run: () =>
                 isFilter
                     ? fieldTiles.applyToAll(tileScope)
@@ -708,7 +732,19 @@ const EditedTileOverlays: FC = () => {
                         <TileOverlay
                             tileUuid={tile.uuid}
                             // Not the label: typing it must not reach the tiles
-                            selectLabel={`New filter on ${getTileTitle(tile)}`}
+                            selectLabel={interpolateUiString(
+                                getUiString(
+                                    'filters.tileCard.newFilterSelectName',
+                                ),
+                                {
+                                    tile: getTileTitle(
+                                        tile,
+                                        getUiString(
+                                            'filters.tileCard.thisTile',
+                                        ),
+                                    ),
+                                },
+                            )}
                             isPlaceholder
                             isReachable={isReachable}
                             isSqlTile={false}
@@ -811,7 +847,16 @@ const EditedTileOverlays: FC = () => {
                 return createPortal(
                     <TileOverlay
                         tileUuid={tile.uuid}
-                        selectLabel={`${filterLabel} on ${getTileTitle(tile)}`}
+                        selectLabel={interpolateUiString(
+                            getUiString('filters.tileCard.selectName'),
+                            {
+                                filter: filterLabel,
+                                tile: getTileTitle(
+                                    tile,
+                                    getUiString('filters.tileCard.thisTile'),
+                                ),
+                            },
+                        )}
                         isPlaceholder={false}
                         isReachable={isReachable}
                         isSqlTile={isSqlTile}

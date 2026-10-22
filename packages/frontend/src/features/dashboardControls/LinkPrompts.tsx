@@ -101,7 +101,7 @@ const LinkCard: FC<CardProps> = ({
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
-    const tileTitle = getTileTitle(tile);
+    const tileTitle = getTileTitle(tile, 'this tile');
     const getFilterLabel = (rule: DashboardFilterRule) =>
         rule.label ?? getLabel(rule.target.fieldId);
 

@@ -17,6 +17,7 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -60,6 +61,7 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
     ...picker
 }) => {
     const root = useRef<HTMLDivElement>(null);
+    const getUiString = useUiStrings();
     useEffect(() => {
         root.current?.querySelector('input')?.focus();
     }, []);
@@ -76,7 +78,7 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
                 {...picker}
                 selectedField={undefined}
                 withLabel={false}
-                placeholder="Search fields"
+                placeholder={getUiString('filters.rail.searchFields')}
                 withinPortal
                 onChange={onPick}
                 defaultOpened
@@ -101,6 +103,7 @@ export const FieldsAndTiles: FC = () => {
         hoveredFieldId,
         setHoveredFieldId,
     } = useControlsSidebar();
+    const getUiString = useUiStrings();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -220,7 +223,7 @@ export const FieldsAndTiles: FC = () => {
                         activeTabUuid={activeTabUuid}
                         selectedField={undefined}
                         withLabel={false}
-                        placeholder="Search fields"
+                        placeholder={getUiString('filters.rail.searchFields')}
                         withinPortal
                         onChange={(field) => {
                             addFirstField(field);
@@ -249,9 +252,11 @@ export const FieldsAndTiles: FC = () => {
                     />
                 )}
                 <Text fz="xs" c="dimmed">
-                    {hasFields
-                        ? 'Select the field to filter tiles by, or pick one on a tile.'
-                        : 'Select the column to filter tiles by.'}
+                    {getUiString(
+                        hasFields
+                            ? 'filters.rail.startHint'
+                            : 'filters.rail.startHintColumns',
+                    )}
                 </Text>
             </Stack>
         );
@@ -302,7 +307,7 @@ export const FieldsAndTiles: FC = () => {
             </Stack>
             <Stack gap="xs" align="flex-start">
                 <Tooltip
-                    label="No tile has another field this filter could use"
+                    label={getUiString('filters.rail.noOtherField')}
                     disabled={hasCandidates}
                 >
                     <Button
@@ -330,7 +335,7 @@ export const FieldsAndTiles: FC = () => {
                         data-disabled={!hasCandidates || undefined}
                         aria-disabled={!hasCandidates || undefined}
                     >
-                        Add another field
+                        {getUiString('filters.rail.addAnotherField')}
                     </Button>
                 </Tooltip>
                 {isAdding && hasCandidates && (
@@ -370,7 +375,7 @@ export const FieldsAndTiles: FC = () => {
                 )}
             </Stack>
             <Text fz="xs" c="dimmed">
-                Change a tile's field on the tile itself.
+                {getUiString('filters.rail.tileFieldHint')}
             </Text>
         </Stack>
     );

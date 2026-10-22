@@ -12,6 +12,16 @@ fields. User-facing copy says *tile*, never *chart*.
   shipped files".
 - Saved data keeps today's `DashboardFilterRule` shape.
 
+- **Strings**: a viewer (and an embed) sees the rail, the tile cards, the
+  field bar, the editing strip and the tab badges, so their copy is in
+  `DEFAULT_UI_STRINGS` (`filters.rail.*`, `filters.tileCard.*`,
+  `filters.fieldBar.*`, plus shipped keys where one fits) and read with
+  `useUiStrings`; counts go through `formatTileCount` and
+  `formatFieldCount` (`fieldLabels.ts`, one key per plural form). Copy only
+  an editor sees (the label input, "Rules", link prompts, the default-value
+  hints) stays literal. Every new key is in both sdk-test-app locale
+  bundles.
+
 ## Gated lines in shipped files
 
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of

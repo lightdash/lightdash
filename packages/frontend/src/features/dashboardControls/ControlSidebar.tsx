@@ -99,17 +99,19 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
     const discardLabel = isNew
-        ? 'Discard filter'
+        ? getUiString('filters.rail.discardFilter')
         : isDirty
-          ? 'Discard changes'
+          ? getUiString('filters.rail.discardChanges')
           : null;
     const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
     // A new filter with no field yet leaves through the footer's Cancel
     const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
     // A viewer's filter has no label of its own: it goes by its field
     const viewerName = isPlaceholder
-        ? (emptiedFieldLabel ?? 'Filter name')
-        : (filterRule.label ?? fallbackName ?? 'Filter name');
+        ? (emptiedFieldLabel ?? getUiString('filters.rail.filterName'))
+        : (filterRule.label ??
+          fallbackName ??
+          getUiString('filters.rail.filterName'));
     // A saved filter a viewer changed goes back to its saved value, as the
     // shipped popover's "Reset to original value" does
     const originalRule = isSavedValue
@@ -154,7 +156,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 <FilterTypeIcon field={field} />
                 {isPlaceholder && isNew ? (
                     <Text fz="sm" fw={600} flex={1}>
-                        New filter
+                        {getUiString('filters.rail.newFilter')}
                     </Text>
                 ) : isViewer ? (
                     // Focus lands here when the filter opens
@@ -223,17 +225,17 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 )}
                 {!isNew && !isSavedValue && (
                     <ConfirmDeleteButton
-                        aria-label="Remove filter"
-                        tooltip="Click again to remove"
+                        aria-label={getUiString('filters.rail.removeFilter')}
+                        tooltip={getUiString('filters.rail.confirmRemove')}
                         onConfirm={removeFilter}
                     >
                         <MantineIcon icon={IconTrash} />
                     </ConfirmDeleteButton>
                 )}
-                <Tooltip label="Collapse">
+                <Tooltip label={getUiString('filters.rail.collapse')}>
                     <ActionIcon
                         variant="subtle"
-                        aria-label="Collapse filter"
+                        aria-label={getUiString('filters.rail.collapseFilter')}
                         aria-expanded
                         onClick={collapse}
                     >
@@ -253,6 +255,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         tilesSummary={getTilesSummary(
                             appliedTileCount,
                             fieldCount,
+                            getUiString,
                         )}
                     />
                 )}
@@ -285,6 +288,7 @@ export const ControlSidebar: FC = () => {
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const getUiString = useUiStrings();
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const temporaryFilters = useDashboardTemporaryFilters();
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -370,7 +374,7 @@ export const ControlSidebar: FC = () => {
         editingRule === null || editor === null
             ? null
             : isPlaceholder
-              ? 'Select a field to keep this filter'
+              ? getUiString('filters.rail.selectFieldToKeep')
               : !isViewer && isDefaultValueIncomplete(editingRule)
                 ? 'No default value set, so the default stays off'
                 : null;

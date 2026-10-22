@@ -14,6 +14,7 @@ import {
 import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
 import { useRailTop } from './useRailTop';
@@ -38,6 +39,7 @@ export const EditorShell: FC<Props> = ({
 }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
+    const getUiString = useUiStrings();
     return (
         <Paper ref={ref} className={classes.root} data-controls-editor>
             <Group
@@ -49,17 +51,19 @@ export const EditorShell: FC<Props> = ({
                 className={classes.header}
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Title order={5}>Filters</Title>
+                    <Title order={5}>{getUiString('filters.rail.title')}</Title>
                     <Badge size="sm">
                         {filterCount}
-                        <VisuallyHidden> filters</VisuallyHidden>
+                        <VisuallyHidden>
+                            {` ${getUiString('filters.summary.filterPlural')}`}
+                        </VisuallyHidden>
                     </Badge>
                 </Group>
-                <Tooltip label="Close">
+                <Tooltip label={getUiString('filters.rail.close')}>
                     <ActionIcon
                         variant="subtle"
                         color="gray"
-                        aria-label="Close"
+                        aria-label={getUiString('filters.rail.close')}
                         onClick={onClose}
                     >
                         <MantineIcon icon={IconX} />
@@ -98,7 +102,7 @@ export const EditorShell: FC<Props> = ({
                                 flex="0 0 auto"
                                 onClick={onCancel}
                             >
-                                Cancel
+                                {getUiString('filters.actions.cancel')}
                             </Button>
                         </>
                     ) : (
@@ -109,7 +113,7 @@ export const EditorShell: FC<Props> = ({
                                 className={classes.done}
                                 onClick={onClose}
                             >
-                                Done
+                                {getUiString('filters.rail.done')}
                             </Button>
                         </>
                     )}

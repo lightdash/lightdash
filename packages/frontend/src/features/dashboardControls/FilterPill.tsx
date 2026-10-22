@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import {
@@ -55,6 +56,7 @@ export const FilterPill: FC<Props> = memo(
         dashboardUuid,
     }) => {
         const { track } = useTracking();
+        const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
         const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
@@ -121,7 +123,7 @@ export const FilterPill: FC<Props> = memo(
                                       removeFilterById(filter.id);
                                   }
                         }
-                        removeLabel="Remove filter"
+                        removeLabel={getUiString('filters.rail.removeFilter')}
                         isTablesTooltipDisabled={isSelected}
                         aria-pressed={isSelected}
                         data-controls-pill={filter.id}

@@ -1,6 +1,8 @@
+import { interpolateUiString } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardTabs,
@@ -21,6 +23,7 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
+    const getUiString = useUiStrings();
     // A saved filter a viewer changes the value of keeps its tiles: no counts
     const editedRule = useControlsSidebarSelector((c) =>
         c.isSavedValue ? null : c.editingRule,
@@ -93,7 +96,7 @@ export const TabCounts: FC = () => {
     // A SQL column goes by its own name, never by a field's
     const subject =
         activeFieldId === null
-            ? 'this filter'
+            ? getUiString('filters.rail.thisFilter')
             : isSqlColumnRow(editingRule, activeFieldId)
               ? activeFieldId
               : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
@@ -111,7 +114,18 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} ${count.total === 1 ? 'tile on this tab is' : 'tiles on this tab are'} filtered by ${subject}`}
+                        label={interpolateUiString(
+                            getUiString(
+                                count.total === 1
+                                    ? 'filters.rail.tabCountTooltip.singular'
+                                    : 'filters.rail.tabCountTooltip.plural',
+                            ),
+                            {
+                                applied: count.applied,
+                                total: count.total,
+                                subject,
+                            },
+                        )}
                     >
                         <Badge
                             size="xs"
@@ -122,7 +136,13 @@ export const TabCounts: FC = () => {
                             data-field-active={isFieldActive}
                             className={classes.count}
                         >
-                            {`${count.applied} of ${count.total}`}
+                            {interpolateUiString(
+                                getUiString('filters.rail.countOf'),
+                                {
+                                    applied: count.applied,
+                                    total: count.total,
+                                },
+                            )}
                         </Badge>
                     </Tooltip>,
                     element,

@@ -111,7 +111,7 @@ export const FilterRow: FC<Props> = ({
                                         inherit
                                         className={classes.required}
                                     >
-                                        Required
+                                        {getUiString('filters.rail.required')}
                                     </Text>
                                 </>
                             )}
@@ -120,7 +120,7 @@ export const FilterRow: FC<Props> = ({
                 </Text>
                 {isOwn && (
                     <Text fz="xs" c="dimmed" truncate>
-                        Added by you
+                        {getUiString('filters.rail.addedByYou')}
                     </Text>
                 )}
             </Stack>

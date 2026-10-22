@@ -8,6 +8,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -174,6 +175,7 @@ export const FilterSettings: FC<Props> = ({
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
+    const getUiString = useUiStrings();
     const setActiveSection = useControlsSidebarSelector(
         (c) => c.setActiveSection,
     );
@@ -227,14 +229,14 @@ export const FilterSettings: FC<Props> = ({
             {/* A viewer changes a saved filter's value, nothing else */}
             {isViewer && !isSavedValue && (
                 <Text fz="xs" c="dimmed">
-                    Added by you · only in this view and its link
+                    {getUiString('filters.rail.addedByYouNote')}
                 </Text>
             )}
             {!isSavedValue && (
                 <Box className={classes.disclosures}>
                     <Disclosure
                         section="tiles"
-                        label="Tiles"
+                        label={getUiString('filters.rail.tiles')}
                         summary={tilesSummary}
                         isOpen={activeSection === 'tiles'}
                         onToggle={toggleSection}
