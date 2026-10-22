@@ -1,3 +1,10 @@
+## [3.30.1](https://github.com/lightdash/lightdash/compare/3.30.0...3.30.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** keep unsaved edits on the first tab switch ([#31409](https://github.com/lightdash/lightdash/issues/31409)) ([b65c4cf](https://github.com/lightdash/lightdash/commit/b65c4cfb63da3e75a741a31cf7918af5145210e6))
+
 # [3.30.0](https://github.com/lightdash/lightdash/compare/3.29.0...3.30.0) (2026-10-22)
 
 
