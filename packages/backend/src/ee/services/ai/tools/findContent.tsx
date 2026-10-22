@@ -596,6 +596,7 @@ export const getFindContent = ({
     tool({
         ...toolDefinition,
         description: getFindContentToolDescription({
+            runtime: 'agent',
             toolName: toolDefinition.name,
             dashboardDetailsToolName,
         }),

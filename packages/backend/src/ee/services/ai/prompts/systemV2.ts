@@ -21,10 +21,8 @@ import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import {
     COMPOSER_FILTER_GUIDANCE_SECTION,
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
 import {
@@ -171,7 +169,6 @@ export const getSystemPromptV2 = (
         deepResearchRuns?: AiAgentDeepResearchRunContext[];
         hasProjectContext?: boolean;
         projectContextPreloaded?: boolean;
-        enableChartExport?: boolean;
         instructions?: string;
         agentName?: string;
         requestingUser?: AiAgentRequestingUser | null;
@@ -366,9 +363,11 @@ export const getSystemPromptV2 = (
     const chartFollowupGuidance = composer
         ? 'For a follow-up that changes an existing result, preserve everything the user did not ask to change. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.'
         : 'For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.';
+    const chartOnlyWhenAsked =
+        'Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized, and do not load more tools to build one.';
     const answerQueryGuidance = slackChannelId
-        ? 'Use runQuery when the user wants an answer from data without a chart; summarize from its rows when data access is available. Select generated tables or charts in the final response only when requested or useful. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
-        : 'Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.';
+        ? `Use runQuery when the user wants an answer from data without a chart; summarize from its rows when data access is available. Select generated tables or charts in the final response only when requested or useful. ${chartOnlyWhenAsked}`
+        : `Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. ${chartOnlyWhenAsked}`;
     // Function replacers keep any `$` in the inserted text literal.
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{internal_tool_examples}}',
@@ -391,12 +390,6 @@ export const getSystemPromptV2 = (
             allowMarkdownTables
                 ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows. Use blank lines around tables. Never emit an empty table header followed by the same data as a list. Use ### headings only when needed to organize a longer answer. No # or ## headers, code blocks, images or horizontal rules.'
                 : '- Use simple Markdown: `###`, bold, italics, lists. No `#` or `##` headers, no code blocks, no markdown tables, no images, no horizontal rules.',
-        )
-        .replace(
-            '{{search_field_values_filter_guidance}}',
-            enableFilterExpressions
-                ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
-                : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
         )
         .replace(
             '{{filter_guidance_section}}',
@@ -522,21 +515,6 @@ export const getSystemPromptV2 = (
               ].join('\n')
             : '';
 
-    const grepFieldsSection = [
-        '## Finding fields (grepFields)',
-        'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
-        '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
-        '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
-        '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
-        "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
-        '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
-        "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-        "- Table filters marked `required` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if `created_at inThePast [4 weeks]` is required, use `created_at inThePast [10 months]` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.",
-        '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
-        '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
-        'Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.',
-    ].join('\n');
-
     const finalContent = [
         content,
         getThreadBindingSection(threadBinding, contentToolsEnabled),
@@ -551,14 +529,11 @@ export const getSystemPromptV2 = (
             ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
             : '',
         deepResearchContent,
-        grepFieldsSection,
+        'Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.',
         'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.',
         canRunQuery ? answerQueryGuidance : '',
         chartFollowupGuidance,
-        args.enableChartExport
-            ? 'When exportChartAsCode is available, you MUST call it for chart YAML and never write or reconstruct YAML yourself. For a chart from an earlier turn, use its exact artifactUuid and versionUuid with null queryUuid when those references are already available. Otherwise call it with null for all three source identifiers to discover conversation artifacts. Pass null for an unspecified destination slug or spaceSlug; the tool reports missing values so you can ask the user. Do not search content to infer a destination, regenerate a chart or rerun data queries just to export it.'
-            : '',
-        'When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.',
+        'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
         'When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.',
         'Category labels are values, not comparisons. A label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering. Prior prose is not evidence; reuse or rerun the exact query when comparison rows are absent.',
         'For a definition or reference-only question, give the shortest complete answer: the definition, required conditions and exceptions, plus date scope only when requested. Preserve all requested rules. Avoid repeating them under multiple headings, speculative implementation caveats and offers to run future queries. Discuss an unspecified convention when the user asks about it or the requested result depends on choosing it; merely restating a documented definition does not require the user to settle every convention for a possible future query.',

@@ -2051,6 +2051,7 @@ export const getAgentTools = (
         runQuery: () =>
             getRunQuery({
                 purpose: 'answer',
+                inSlack: args.slackChannelId !== null,
                 documentsEnabled,
                 enableFastResponse: args.enableDataAnswerFastResponse,
                 agentContext,
@@ -2594,7 +2595,6 @@ export const getAgentMessages = (
     const systemPrompt = getSystemPromptV2({
         ...getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
         deferredSections,
-        enableChartExport: loadout.toolNames.has('exportChartAsCode'),
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,

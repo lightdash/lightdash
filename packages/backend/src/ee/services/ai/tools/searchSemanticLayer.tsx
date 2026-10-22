@@ -70,7 +70,7 @@ const generateResponse = ({
             page plus the totals above is usually enough — only page through the
             rest when you genuinely need every field (e.g. a project-wide
             duplicate/inconsistency audit). To inspect a single explore in
-            depth, use findFields.
+            depth, use grepFields with its exploreName.
         </note>
         {fields.map((field) => (
             <field

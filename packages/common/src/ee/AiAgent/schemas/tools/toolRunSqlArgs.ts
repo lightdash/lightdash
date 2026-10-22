@@ -15,6 +15,10 @@ import {
 export const DEFAULT_RUN_SQL_LIMIT = 500;
 export const DEFAULT_RUN_SQL_MAX_LIMIT = 5000;
 
+// Execution clamps every limit to the max, so the default never exceeds it.
+export const getRunSqlDefaultLimit = (maxLimit: number): number =>
+    Math.min(DEFAULT_RUN_SQL_LIMIT, maxLimit);
+
 export const buildAgentRunSqlDescription = (
     defaultLimit: number,
     maxLimit: number,
@@ -47,7 +51,7 @@ type CreateToolRunSqlArgsSchemaOptions = {
 
 export const createToolRunSqlArgsSchema = ({
     maxLimit = DEFAULT_RUN_SQL_MAX_LIMIT,
-    defaultLimit = DEFAULT_RUN_SQL_LIMIT,
+    defaultLimit = getRunSqlDefaultLimit(maxLimit),
 }: CreateToolRunSqlArgsSchemaOptions = {}) =>
     createToolSchema()
         .extend({

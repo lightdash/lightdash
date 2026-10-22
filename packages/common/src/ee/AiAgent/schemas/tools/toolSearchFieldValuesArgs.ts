@@ -23,6 +23,9 @@ const emptyFiltersInstructionByRuntime = {
     mcp: 'Omit filters when the search does not need additional filters',
 } satisfies Record<ToolDescriptionContext['runtime'], string>;
 
+const SEARCH_RESULT_GUIDANCE =
+    'Reading the result: the values describe observed data, not the permitted filter literals.';
+
 export const TOOL_SEARCH_FIELD_VALUES_DESCRIPTION = ({
     runtime,
     toolName,
@@ -38,6 +41,8 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - ${emptyFiltersInstructionByRuntime[runtime]}
 - When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
+
+${SEARCH_RESULT_GUIDANCE}
 `;
 
 const expressionGuidanceByRuntime = {
@@ -60,6 +65,8 @@ Usage Tips:
 - If the user or field metadata already provides the exact value, use it directly instead of searching
 - Omit filters when the search does not need additional filters
 - ${expressionGuidanceByRuntime[runtime]}
+
+${SEARCH_RESULT_GUIDANCE}
 `;
 
 export const toolSearchFieldValuesArgsSchema = createToolSchema()

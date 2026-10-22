@@ -1,6 +1,7 @@
 import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
+    AI_DEFAULT_MAX_QUERY_LIMIT,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
@@ -8,6 +9,7 @@ import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
+import { getAnalyzeFieldImpact } from './analyzeFieldImpact';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -27,8 +29,10 @@ import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
+import { getGetMetadata } from './getMetadata';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
+import { getGrepFields } from './grepFields';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
 import { getListDataAppConnections } from './listDataAppConnections';
@@ -47,6 +51,7 @@ import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
+import { getSearchSemanticLayer } from './searchSemanticLayer';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
 
@@ -209,7 +214,8 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             runSqlJob: noop,
             sendFile: noop,
             siteUrl: 'https://lightdash.example',
-            maxQueryLimit: 500,
+            // The runSqlMaxLimit production ships when AI_COPILOT_RUN_SQL_MAX_LIMIT is unset.
+            maxQueryLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
             updateProgress: noopAsync,
             updateSlackMessage: noop,
             waitForSqlApproval: noop,
@@ -238,6 +244,25 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             searchFieldValues: noop,
             getExplore: noop,
             enableFilterExpressions,
+        }),
+        grepFields: getGrepFields({
+            availableExplores: [],
+            findExplores: noop,
+            verifiedFieldUsage: new Map(),
+        }),
+        getMetadata: getGetMetadata({
+            availableExplores: [],
+            projectParameterDefinitions: {},
+        }),
+        analyzeFieldImpact: getAnalyzeFieldImpact({
+            analyzeFieldImpact: noop,
+            updateProgress: noopAsync,
+        }),
+        searchSemanticLayer: getSearchSemanticLayer({
+            searchSemanticLayer: noop,
+            updateProgress: noopAsync,
+            maxPageSize: 500,
+            toolDescriptionMaxChars: 600,
         }),
     };
 };
@@ -279,7 +304,9 @@ describe('AI agent tool contracts', () => {
             expect(generateVisualization.description).toContain(
                 'queryConfig.parameters',
             );
-            expect(runSql.description).toContain('max 500');
+            expect(runSql.description).toContain(
+                `max ${AI_DEFAULT_MAX_QUERY_LIMIT}`,
+            );
         },
     );
 

@@ -7,10 +7,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PromptSection } from '../loadout';
 import {
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getDeferredToolInstructions, getSystemPromptV2 } from './systemV2';
 import {
@@ -22,13 +20,6 @@ const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
     const { content } = getSystemPromptV2(args);
     return typeof content === 'string' ? content : JSON.stringify(content);
 };
-
-const searchFieldValuesInstruction = (
-    args: Parameters<typeof getSystemPromptV2>[0],
-) =>
-    promptText(args)
-        .split('\n')
-        .find((line) => line.startsWith('4. **searchFieldValues**'));
 
 const extractSection = (
     content: string,
@@ -49,15 +40,6 @@ const extractExpressionFilterSection = (content: string): string =>
         '## Filter expressions',
         '## String filter case sensitivity',
     );
-
-const normalizeFilterModeSections = (
-    content: string,
-    searchFieldValuesGuidance: string,
-    filterGuidance: string,
-): string =>
-    content
-        .replace(searchFieldValuesGuidance, '{{search guidance}}')
-        .replace(filterGuidance, '{{filter guidance}}');
 
 describe('getSystemPromptV2 filter expressions', () => {
     test('keeps the classic prompt byte-identical', () => {
@@ -110,53 +92,6 @@ describe('getSystemPromptV2 filter expressions', () => {
         );
 
         expect(rendered.equals(baseline)).toBe(true);
-    });
-
-    test('directs the agent to replace required filter defaults', () => {
-        const content = promptText({ availableExplores: [] });
-
-        expect(content).toContain(
-            'their configured operator and values are replaceable defaults, not fixed constraints on the data',
-        );
-        expect(content).toContain(
-            'you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field',
-        );
-        expect(content).toContain(
-            "Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it",
-        );
-        expect(content).not.toContain(
-            'required` are hard constraints: they are always applied',
-        );
-    });
-
-    test('keeps structured field-value guidance when disabled', () => {
-        const instruction = searchFieldValuesInstruction({
-            availableExplores: [],
-        });
-
-        expect(instruction).toMatchSnapshot();
-        expect(instruction).toContain(
-            'Set `filters` to null when no additional scope is needed.',
-        );
-        expect(instruction).not.toContain(
-            'Omit `filters` when the search is unscoped.',
-        );
-    });
-
-    test('uses expression field-value guidance when enabled', () => {
-        const instruction = searchFieldValuesInstruction({
-            availableExplores: [],
-            enableFilterExpressions: true,
-        });
-
-        expect(instruction).toMatchSnapshot();
-        expect(instruction).toContain(
-            'Omit `filters` when the search is unscoped.',
-        );
-        expect(instruction).toContain(
-            'When present, `filters` scopes the candidate-value search',
-        );
-        expect(instruction).not.toContain('Set `filters` to null');
     });
 
     test('renders expression-only filter guidance', () => {
@@ -227,16 +162,14 @@ describe('getSystemPromptV2 filter expressions', () => {
         });
 
         expect(
-            normalizeFilterModeSections(
-                expression,
-                EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+            expression.replace(
                 FILTER_EXPRESSION_GUIDANCE_SECTION,
+                '{{filter}}',
             ),
         ).toBe(
-            normalizeFilterModeSections(
-                structured,
-                STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+            structured.replace(
                 STRUCTURED_FILTER_GUIDANCE_SECTION,
+                '{{filter}}',
             ),
         );
     });
@@ -1374,17 +1307,6 @@ describe('getSystemPromptV2 Slack links only', () => {
         });
         expect(content).not.toContain(noDataInSlackRule);
         expect(content).toContain('call out trends');
-    });
-});
-
-describe('getSystemPromptV2 existing chart export', () => {
-    test('explains artifact discovery only when export is available', () => {
-        expect(
-            promptText({ availableExplores: [], enableChartExport: true }),
-        ).toContain('null for all three source identifiers');
-        expect(promptText({ availableExplores: [] })).not.toContain(
-            'null for all three source identifiers',
-        );
     });
 });
 

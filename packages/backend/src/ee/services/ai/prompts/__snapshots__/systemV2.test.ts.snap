@@ -1,7 +1,5 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`getSystemPromptV2 filter expressions > keeps structured field-value guidance when disabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Set \`filters\` to null when no additional scope is needed. If \`filters\` is non-null, include \`type\`, \`dimensions\`, \`metrics\`, and \`tableCalculations\`, using null or [] for every unused category."`;
-
 exports[`getSystemPromptV2 filter expressions > renders expression-only filter guidance 1`] = `
 "## Filter expressions
 
@@ -87,5 +85,3 @@ If the user mentions any time window ("last 3 months", "this quarter", "past yea
 - Arbitrary alternative ranges may use OR only when every dimension rule is truly an alternative. Never mix root AND and OR in one category.
 - Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window."
 `;
-
-exports[`getSystemPromptV2 filter expressions > uses expression field-value guidance when enabled 1`] = `"4. **searchFieldValues** only when you need to validate or disambiguate a specific candidate dimension value (e.g., a product name or status). If the user or field metadata already provides the exact value, use it directly. Otherwise pass a non-empty candidate in \`query\`; never use a null or empty query to enumerate a warehouse column. Empty searches can return curated metadata values, but warehouse-backed scans are rejected. Omit \`filters\` when the search is unscoped. When present, \`filters\` scopes the candidate-value search and is one raw, flat, dimension-only AND expression."`;

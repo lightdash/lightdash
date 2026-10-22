@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
+import { type ToolDescriptionContext, type ToolRuntime } from '../defineTool';
 import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
@@ -11,10 +11,19 @@ type FindContentDashboardDetailsToolName =
     | 'readContent'
     | 'read_content';
 
+// Agent only: the MCP description is already at the client's length cap.
+const verifiedMarkupGuidanceByRuntime = {
+    agent: `- A result carrying a \`<verified by="..." at="..." />\` element was approved by an organization or project admin as canonical, trustworthy content; \`by\` names who verified it and \`at\` says when. Verification is per item: a chart inside a verified dashboard is verified only when it carries its own \`<verified>\` element.
+`,
+    mcp: '',
+} satisfies Record<ToolRuntime, string>;
+
 export const getFindContentToolDescription = ({
+    runtime,
     toolName,
     dashboardDetailsToolName,
 }: {
+    runtime: ToolRuntime;
     toolName: string;
     dashboardDetailsToolName: FindContentDashboardDetailsToolName;
 }): string => `Tool: "${toolName}"
@@ -29,7 +38,7 @@ Usage tips:
 - verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word "verified". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
-- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
+${verifiedMarkupGuidanceByRuntime[runtime]}- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "${dashboardDetailsToolName}" to see all charts for a specific dashboard.
 ${
     dashboardDetailsToolName === 'getDashboardCharts'
@@ -43,6 +52,7 @@ export const TOOL_FIND_CONTENT_DESCRIPTION = ({
     toolName,
 }: ToolDescriptionContext): string =>
     getFindContentToolDescription({
+        runtime,
         toolName,
         dashboardDetailsToolName:
             runtime === 'mcp' ? 'read_content' : 'readContent',
