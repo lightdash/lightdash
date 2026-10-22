@@ -105,17 +105,20 @@ _Avoid_: selected node (selection is a graph-mode concept), active node,
 focused node
 
 **Viz config**:
-How the presented node's result is visualized: chart kind, axes and display
-options, in the same vocabulary as a SQL runner chart. Picked when the node is
-presented, from the question and the presented result, starting from the
-thread's latest viz config; stored with the artifact version and the starting
-point of the viz switcher and of any later configuration. Nothing is picked for
-a submission that is not presented, and the tool result names no viz. Other node results have no viz
-config and start from their column types.
-_Avoid_: viz plan, presentation, chart config (the classic vocabulary)
+How the presented node's result is visualized, in the agent chart vocabulary
+over the node's result column references: type (table, big number, bar, line,
+area, scatter, pie, funnel or a custom chart type), x, y, series split, stack,
+horizontal, secondary axis and labels. Stored with the artifact version and
+drawn by the same chart builders as a classic runQuery chart, with fields
+synthesized from the result columns. Versions stored before it (schemaVersion
+1) keep the SQL-runner vocabulary and their viz config panel. Other node
+results have no viz config and start from their column types.
+_Avoid_: viz plan, presentation, chart config (the saved-chart shape it is
+drawn through)
 
 **Viz switcher**:
-The kind control in the viz config panel: table or a chart kind. On the
+The kind control in the viz config panel: table or a chart kind. Shown on
+schemaVersion 1 versions only. On the
 presented node it edits the stored viz config's kind; on other nodes the choice
 is ephemeral. It starts from the viz config on the presented node, else from a
 default picked from the result's column types. The floating pill is retired.
@@ -124,7 +127,7 @@ _Avoid_: chart type selector, visualization toggle, view mode
 **Viz config panel**:
 The collapsible "Chart" section above the pipeline panel that shows and edits
 the displayed node's viz config: kind, x axis, y values with aggregation and
-series split. On the presented node every edit is written back to the artifact
+series split. Shown on schemaVersion 1 versions only. On the presented node every edit is written back to the artifact
 version; other nodes get the viz switcher alone. Only one of it and the
 pipeline panel is open at a time.
 _Avoid_: chart settings, config sidebar, viz sidebar
