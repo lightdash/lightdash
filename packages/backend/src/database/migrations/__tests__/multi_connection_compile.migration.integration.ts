@@ -43,7 +43,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -3959,6 +3959,104 @@ Sources in this project: Core models, marketing, finance.`;
                 expect(state.pins).toEqual([]);
                 expect(state.slices).toEqual([]);
                 expect(state.generations).toEqual([]);
+            });
+
+            test('turning the peer flag off during a single-connection refresh still publishes its manifest and ref catalogs', async () => {
+                const fixture = await createProject();
+                await routeSingle(fixture.projectUuid);
+                const stale = dbtManifest('project_a', [
+                    {
+                        name: 'model_stale',
+                        database: ORIGINAL_DB,
+                        table: 'orders',
+                    },
+                ]);
+                await projectModel.upsertMergedManifest(
+                    fixture.projectUuid,
+                    gzipSync(JSON.stringify(stale)),
+                );
+                await projectModel.saveExploresToCache(
+                    fixture.projectUuid,
+                    [explore('model_stale', ['orders'])],
+                    true,
+                );
+                const user = await compilingUser(fixture.projectUuid);
+                const mutableOptions = options();
+                const { service } = compileService(
+                    fixture.projectUuid,
+                    mutableOptions,
+                );
+                const reached = deferred();
+                const release = deferred();
+                const save =
+                    projectModel.saveMultiConnectionExplores.bind(projectModel);
+                vi.spyOn(
+                    projectModel,
+                    'saveMultiConnectionExplores',
+                ).mockImplementationOnce(async (...args) => {
+                    reached.resolve();
+                    await release.promise;
+                    return save(...args);
+                });
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+                const refresh = service.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+                try {
+                    await reached.promise;
+                    mutableOptions.peerDbtSources = false;
+                    release.resolve();
+                    await refresh;
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                    const state = await publicationState(fixture.projectUuid);
+                    expect(state.explores.map(({ name }) => name)).toEqual([
+                        'campaigns',
+                        'customers',
+                        'orders',
+                        'payments',
+                    ]);
+                    const serialized = gunzipSync(
+                        await projectModel.getMergedManifest(
+                            fixture.projectUuid,
+                        ),
+                    ).toString();
+                    let merged: DbtManifest;
+                    try {
+                        merged = JSON.parse(serialized) as DbtManifest;
+                    } catch (error) {
+                        throw new Error(
+                            'The published merged manifest is invalid',
+                            { cause: error },
+                        );
+                    }
+                    expect(Object.keys(merged.nodes).sort()).toEqual([
+                        'model.finance.payments',
+                        'model.marketing.campaigns',
+                        'model.primary.customers',
+                        'model.primary.orders',
+                    ]);
+                    expect(state.refCatalogs).toHaveLength(3);
+                    expect(
+                        state.refCatalogs.every(
+                            ({ status }) => status === 'confirmed',
+                        ),
+                    ).toBe(true);
+                    expect(state.pins).toEqual([]);
+                    expect(state.slices).toEqual([]);
+                    expect(state.generations).toEqual([]);
+                } finally {
+                    release.resolve();
+                    await refresh.catch(() => {});
+                }
             });
 
             test('adding a peer after a full refresh snapshot rejects publication without partial changes', async () => {

@@ -3905,27 +3905,29 @@ export class ProjectService
             },
             { trx },
         );
-        if (!enabled) return;
-        const sources = await trx('project_dbt_sources')
-            .select('project_dbt_source_uuid')
-            .where('project_uuid', projectUuid);
-        const current = new Set([
-            project!.dbt_source_uuid ?? projectUuid,
-            ...sources.map((source) => source.project_dbt_source_uuid),
-        ]);
-        const captured = new Set(
-            context.slices.map((slice) => slice.sourceUuid),
-        );
-        if (
-            (context.writeKind === 'all' && current.size !== captured.size) ||
-            [...captured].some((uuid) => !current.has(uuid)) ||
-            context.pins.some((pin) => !captured.has(pin.sourceUuid))
-        ) {
-            throw new ConflictError(
-                'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+        if (enabled) {
+            const sources = await trx('project_dbt_sources')
+                .select('project_dbt_source_uuid')
+                .where('project_uuid', projectUuid);
+            const current = new Set([
+                project!.dbt_source_uuid ?? projectUuid,
+                ...sources.map((source) => source.project_dbt_source_uuid),
+            ]);
+            const captured = new Set(
+                context.slices.map((slice) => slice.sourceUuid),
             );
+            if (
+                (context.writeKind === 'all' &&
+                    current.size !== captured.size) ||
+                [...captured].some((uuid) => !current.has(uuid)) ||
+                context.pins.some((pin) => !captured.has(pin.sourceUuid))
+            ) {
+                throw new ConflictError(
+                    'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+                );
+            }
+            await this.projectCompileModel.publish(trx, context);
         }
-        await this.projectCompileModel.publish(trx, context);
         await context.artifacts.reduce(async (previous, artifact) => {
             await previous;
             await artifact(trx);
