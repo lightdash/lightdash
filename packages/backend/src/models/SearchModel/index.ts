@@ -193,24 +193,14 @@ export class SearchModel {
             nameColumn: `${DashboardsTableName}.name`,
         });
 
-        const directChartSearchRankRawSql = getFullTextSearchRankCalcSql({
+        const chartSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
             variables: {
-                searchVectorColumn: 'direct_charts.search_vector',
+                searchVectorColumn: `${SavedChartsTableName}.search_vector`,
                 searchQuery: query,
             },
             fullTextSearchOperator,
-            nameColumn: 'direct_charts.name',
-        });
-
-        const tileChartSearchRankRawSql = getFullTextSearchRankCalcSql({
-            database: this.database,
-            variables: {
-                searchVectorColumn: 'tile_charts.search_vector',
-                searchQuery: query,
-            },
-            fullTextSearchOperator,
-            nameColumn: 'tile_charts.name',
+            nameColumn: `${SavedChartsTableName}.name`,
         });
 
         // GIN index filters - these use indexes instead of computing rank for all rows
@@ -220,15 +210,9 @@ export class SearchModel {
             searchQuery: query,
             fullTextSearchOperator,
         });
-        const directChartSearchFilterSql = getFullTextSearchFilterSql({
+        const chartSearchFilterSql = getFullTextSearchFilterSql({
             database: this.database,
-            searchVectorColumn: 'direct_charts.search_vector',
-            searchQuery: query,
-            fullTextSearchOperator,
-        });
-        const tileChartSearchFilterSql = getFullTextSearchFilterSql({
-            database: this.database,
-            searchVectorColumn: 'tile_charts.search_vector',
+            searchVectorColumn: `${SavedChartsTableName}.search_vector`,
             searchQuery: query,
             fullTextSearchOperator,
         });
@@ -250,67 +234,104 @@ export class SearchModel {
             ),
         };
 
-        // Each branch is driven by its own search_vector GIN index and yields
-        // (dashboard_id, rank) for matches only, so the work scales with matches
-        // rather than with every dashboard × tile in the project. The direct
-        // chart branch deliberately avoids joining dashboards so the planner
-        // cannot start from the whole project; dashboard-level filters are
-        // applied once below.
-        const nameMatches = this.database(DashboardsTableName)
+        let eligibleDashboards = this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
             .select(
                 `${DashboardsTableName}.dashboard_id`,
-                this.database.raw('? as search_rank', [
-                    dashboardSearchRankRawSql,
-                ]),
+                `${DashboardsTableName}.dashboard_uuid`,
             )
             .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
-            .where(dashboardSearchFilterSql);
+            .whereNull(`${SpaceTableName}.deleted_at`);
 
-        const directChartMatches = this.database(
-            `${SavedChartsTableName} as direct_charts`,
-        )
+        eligibleDashboards = filterByCreatedAt(
+            DashboardsTableName,
+            eligibleDashboards,
+            filters,
+        );
+        if (verifiedOnly) {
+            eligibleDashboards = eligibleDashboards.whereExists(
+                this.verifiedContentExists(
+                    projectUuid,
+                    ContentType.DASHBOARD,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ),
+            );
+        }
+        if (filters?.createdByUuid) {
+            // Prefilter by any authored version to keep sparse creators cheap;
+            // the exact first-version check still runs after grouping.
+            eligibleDashboards = eligibleDashboards.whereIn(
+                `${DashboardsTableName}.dashboard_id`,
+                this.database(DashboardVersionsTableName)
+                    .select(`${DashboardVersionsTableName}.dashboard_id`)
+                    .where(
+                        `${DashboardVersionsTableName}.updated_by_user_uuid`,
+                        filters.createdByUuid,
+                    ),
+            );
+        }
+
+        // Reuse chart ranks across ownership and tile matches without carrying
+        // chart names and search vectors through the tile joins.
+        const matchingCharts = this.database(SavedChartsTableName)
+            .select(
+                `${SavedChartsTableName}.saved_query_id`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+                this.database.raw('? as search_rank', [chartSearchRankRawSql]),
+            )
+            .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .where(chartSearchFilterSql);
+
+        const nameMatches = this.database(DashboardsTableName)
             .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                'direct_charts.dashboard_uuid',
+                'eligible_dashboards',
+                'eligible_dashboards.dashboard_id',
+                `${DashboardsTableName}.dashboard_id`,
             )
             .select(
                 `${DashboardsTableName}.dashboard_id`,
-                this.database.raw('? as search_rank', [
-                    directChartSearchRankRawSql,
-                ]),
+                this.database.raw('NULL::float as search_rank'),
             )
-            .where('direct_charts.project_uuid', projectUuid)
-            .whereNull('direct_charts.deleted_at')
-            .where(directChartSearchFilterSql);
+            .where(dashboardSearchFilterSql);
 
-        // The tile branch is bounded by the current version of each live
-        // dashboard, resolved before touching tiles. Starting from the matching
-        // charts instead would walk every historical version that ever held one
-        // of them, and a dashboard saved hundreds of times has orders of
-        // magnitude more historical tile rows than current ones.
+        const directChartMatches = this.database('matching_charts')
+            .innerJoin(
+                'eligible_dashboards',
+                'eligible_dashboards.dashboard_uuid',
+                'matching_charts.dashboard_uuid',
+            )
+            .select(
+                'eligible_dashboards.dashboard_id',
+                'matching_charts.search_rank',
+            );
+
+        // Resolve latest versions as a grouped set, including only dashboards
+        // eligible for this search before joining their chart tiles.
+        // A heavily saved dashboard can have far more historical tile rows
+        // than current ones.
         const currentVersions = this.database(DashboardVersionsTableName)
             .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
+                'eligible_dashboards',
+                'eligible_dashboards.dashboard_id',
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
             .select(`${DashboardVersionsTableName}.dashboard_id`)
             .max(
                 `${DashboardVersionsTableName}.dashboard_version_id as dashboard_version_id`,
             )
-            .where(`${DashboardsTableName}.project_uuid`, projectUuid)
-            .whereNull(`${DashboardsTableName}.deleted_at`)
             .groupBy(`${DashboardVersionsTableName}.dashboard_id`);
 
-        const tileChartMatches = this.database(
-            `${SavedChartsTableName} as tile_charts`,
-        )
+        const tileChartMatches = this.database('matching_charts')
             .innerJoin(
                 'dashboard_tile_charts',
                 'dashboard_tile_charts.saved_chart_id',
-                'tile_charts.saved_query_id',
+                'matching_charts.saved_query_id',
             )
             .innerJoin(
                 currentVersions.as('current_version'),
@@ -319,49 +340,40 @@ export class SearchModel {
             )
             .select(
                 'current_version.dashboard_id',
-                this.database.raw('? as search_rank', [
-                    tileChartSearchRankRawSql,
-                ]),
-            )
-            .where('tile_charts.project_uuid', projectUuid)
-            .whereNull('tile_charts.deleted_at')
-            .where(tileChartSearchFilterSql);
+                'matching_charts.search_rank',
+            );
 
-        let rankedCandidates = this.database
+        const matchedDashboards = this.database
             .from(
                 nameMatches
                     .unionAll([directChartMatches, tileChartMatches], true)
                     .as('matches'),
             )
+            .select('matches.dashboard_id')
+            .max('matches.search_rank as search_rank')
+            .groupBy('matches.dashboard_id');
+
+        // Calculate the dashboard's own rank after grouping, so the large
+        // aggregation contains only dashboard IDs and numeric chart ranks.
+        let rankedCandidates = this.database
+            .withNotMaterialized('eligible_dashboards', eligibleDashboards)
+            .withMaterialized('matching_charts', matchingCharts)
+            .from(matchedDashboards.as('matched_dashboards'))
             .innerJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_id`,
-                'matches.dashboard_id',
-            )
-            .innerJoin(
-                SpaceTableName,
-                `${DashboardsTableName}.space_id`,
-                `${SpaceTableName}.space_id`,
+                'matched_dashboards.dashboard_id',
             )
             .select(`${DashboardsTableName}.dashboard_id`)
             .select(
                 this.database.raw(
-                    'GREATEST(?, MAX(matches.search_rank)) as search_rank',
+                    'GREATEST(?, matched_dashboards.search_rank) as search_rank',
                     [dashboardSearchRankRawSql],
                 ),
-            )
-            .where(`${DashboardsTableName}.project_uuid`, projectUuid)
-            .whereNull(`${DashboardsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`)
-            .groupBy(`${DashboardsTableName}.dashboard_id`)
-            .orderBy('search_rank', 'desc')
-            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
+            );
 
-        rankedCandidates = filterByCreatedAt(
-            DashboardsTableName,
-            rankedCandidates,
-            filters,
-        );
+        // Keep the exact first-version check after grouping; its correlated MIN
+        // can distort row estimates inside the inlined eligibility CTE.
         if (filters?.createdByUuid) {
             rankedCandidates = filterByCreatedByUuid(
                 rankedCandidates.leftJoin(
@@ -375,15 +387,9 @@ export class SearchModel {
                 filters,
             );
         }
-        if (verifiedOnly) {
-            rankedCandidates = rankedCandidates.whereExists(
-                this.verifiedContentExists(
-                    projectUuid,
-                    ContentType.DASHBOARD,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                ),
-            );
-        }
+        rankedCandidates = rankedCandidates
+            .orderBy('search_rank', 'desc')
+            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
 
         const dashboards = await this.database
             .from(rankedCandidates.as('dashboards_with_rank'))
