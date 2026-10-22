@@ -160,8 +160,8 @@ const hatchBars = (
 /**
  * Styles the current, unfinished time period: hatched bars, and for unstacked
  * lines a dashed segment into a hollow point. A line's own last segment moves
- * to an overlay series that reads extra dataset columns, so the original
- * series keeps its tooltip, legend entry and click target.
+ * to a silent overlay series that reads extra dataset columns, so the
+ * original series keeps its tooltip and legend entry.
  */
 export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     series,
@@ -236,7 +236,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
             symbol: 'emptyCircle',
             symbolSize: (_value: unknown, params: { dataIndex: number }) =>
                 incompleteIndexes.has(params.dataIndex) ? 7 : 0,
-            silent: false,
+            silent: true,
             tooltip: { show: false },
             lineStyle: { ...serie.lineStyle, type: 'dashed' },
             areaStyle: serie.areaStyle
