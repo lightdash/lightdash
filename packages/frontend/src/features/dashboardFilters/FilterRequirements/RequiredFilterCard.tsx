@@ -41,6 +41,8 @@ type Props = {
     onChangeOtherFilterRule?: (filterRule: DashboardFilterRule) => void;
     /** Disables the switch and says why under it; default: enabled. */
     disabledReason?: string;
+    /** Renders the alternative picker's list in a portal; default false. */
+    isListInPortal?: boolean;
 };
 
 const RequiredFilterCard: FC<Props> = ({
@@ -50,6 +52,7 @@ const RequiredFilterCard: FC<Props> = ({
     onEditRules,
     onChangeOtherFilterRule,
     disabledReason,
+    isListInPortal = false,
 }) => {
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
@@ -167,6 +170,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 selectableFilters={selectableFilters}
                                 placeholder="+ Add a filter"
                                 onSelect={handleAddAlternative}
+                                withinPortal={isListInPortal}
                             />
                         ) : (
                             <Button

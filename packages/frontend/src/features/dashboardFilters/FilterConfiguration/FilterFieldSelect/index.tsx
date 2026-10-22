@@ -42,6 +42,8 @@ interface FilterFieldSelectProps {
     withLabel?: boolean;
     // Replaces the placeholders the input has open and closed
     placeholder?: string;
+    // Renders the list in a portal, for a host that clips its overflow
+    withinPortal?: boolean;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -74,6 +76,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     onChange,
     defaultOpened = false,
     withLabel = true,
+    withinPortal = false,
     placeholder: placeholderOverride,
     popoverProps,
 }) => {
@@ -274,7 +277,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
             <Combobox
                 store={combobox}
                 onOptionSubmit={handleOptionSubmit}
-                withinPortal={false}
+                withinPortal={withinPortal}
             >
                 <Combobox.Target>
                     <InputBase

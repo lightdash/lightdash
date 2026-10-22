@@ -38,7 +38,9 @@ All are in `features/dashboardFilters/`.
   names the X and gives it a tooltip.
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
   (default: the other filter is written to the dashboard filters, and this
-  one too) and `disabledReason` (default none: the switch is enabled). The
+  one too), `disabledReason` (default none: the switch is enabled) and
+  `isListInPortal` (default false; passed to `FilterSelect`'s new
+  `withinPortal`, since the rail's scrolling body clips the list). The
   group member conversion is `getRequiredGroupMemberUpdates` in `utils`.
 
 In `FilterConfiguration/`:
@@ -54,7 +56,8 @@ In `FilterConfiguration/`:
   filter type is `getFilterRuleFilterType`, both in `utils`.
 - `FilterFieldSelect`: `defaultOpened` (default false), `withLabel` (default
   true: "Select a field to filter" above the input) and `placeholder`
-  (default: the shipped open and closed placeholders).
+  (default: the shipped open and closed placeholders) and `withinPortal`
+  (default false; the rail sets it, since its scrolling body clips the list).
 - `SqlColumnSelect`: the "Select a column to filter" select, moved out of
   `index.tsx`.
 - `utils`: `getDefaultField`, `getUniqueSqlColumns`,

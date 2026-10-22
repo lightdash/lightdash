@@ -77,6 +77,7 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
                 selectedField={undefined}
                 withLabel={false}
                 placeholder="Search fields"
+                withinPortal
                 onChange={onPick}
                 defaultOpened
                 popoverProps={{ onClose: () => onDismiss(false) }}
@@ -220,6 +221,7 @@ export const FieldsAndTiles: FC = () => {
                         selectedField={undefined}
                         withLabel={false}
                         placeholder="Search fields"
+                        withinPortal
                         onChange={(field) => {
                             addFirstField(field);
                             // Naming it comes next

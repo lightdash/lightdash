@@ -258,6 +258,7 @@ export const ViewerControls: FC<Props> = ({
                 }
                 onChangeOtherFilterRule={(other) => onChangeOthers([other])}
                 onEditRules={onEditRules ?? undefined}
+                isListInPortal
                 disabledReason={
                     isRequiredBlocked
                         ? 'A locked filter needs a default value to be required.'
