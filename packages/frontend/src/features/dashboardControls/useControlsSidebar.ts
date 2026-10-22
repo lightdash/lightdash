@@ -12,9 +12,11 @@ import {
 /** The disclosure open under the edited filter's default value. */
 export type ControlsSidebarSection = 'tiles' | 'rules';
 
-// An "Apply to all": its field, the tiles it ends on, how many it took off
-// other fields, and whether it was over every tab of a dashboard with tabs
+// An "Apply to all" or a "Clear" that Undo can take back: its field, the
+// tiles it applied the field to or cleared it from, how many an apply took
+// off other fields, and whether it was over every tab of a dashboard with tabs
 export type FieldApply = {
+    kind: 'apply' | 'clear';
     fieldId: string;
     tileCount: number;
     replaced: number;

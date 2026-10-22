@@ -212,6 +212,12 @@ export const useFieldTileActions = (
             const thisTabScope =
                 thisTabTiles === null ? null : getScope(thisTabTiles);
             const everyTabScope = getScope(tiles);
+            const getScopeOf = (tileScope: TileScope) =>
+                tileScope === 'this-tab' && thisTabScope !== null
+                    ? thisTabScope
+                    : everyTabScope;
+            const isAcrossTabs = (tileScope: TileScope) =>
+                tileScope === 'every-tab' && thisTabScope !== null;
 
             return {
                 field,
@@ -230,10 +236,7 @@ export const useFieldTileActions = (
                         ? toSqlColumnTarget(fieldId)
                         : target;
                     if (!canAct || fieldTarget === null) return;
-                    const scope =
-                        tileScope === 'this-tab' && thisTabScope !== null
-                            ? thisTabScope
-                            : everyTabScope;
+                    const scope = getScopeOf(tileScope);
                     applyWithUndo(
                         applyFieldToAllTiles(
                             editingRule,
@@ -243,18 +246,17 @@ export const useFieldTileActions = (
                             sqlColumnsByTile,
                         ),
                         {
+                            kind: 'apply',
                             fieldId,
                             tileCount: scope.possible,
                             replaced: scope.replaced,
-                            acrossTabs:
-                                tileScope === 'every-tab' &&
-                                thisTabScope !== null,
+                            acrossTabs: isAcrossTabs(tileScope),
                         },
                     );
                 },
                 clear: (tileScope) => {
                     if (!canAct) return;
-                    updateFilter(
+                    applyWithUndo(
                         removeFieldFromAll(
                             editingRule,
                             fieldId,
@@ -263,6 +265,13 @@ export const useFieldTileActions = (
                             sqlColumnsByTile,
                             isSqlColumn,
                         ),
+                        {
+                            kind: 'clear',
+                            fieldId,
+                            tileCount: getScopeOf(tileScope).applied,
+                            replaced: 0,
+                            acrossTabs: isAcrossTabs(tileScope),
+                        },
                     );
                 },
                 remove: () => {

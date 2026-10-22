@@ -1709,6 +1709,7 @@ describe('ControlsSidebarProvider', () => {
 
         describe('with Undo', () => {
             const APPLY = {
+                kind: 'apply' as const,
                 fieldId: 'orders_region',
                 tileCount: 2,
                 replaced: 1,
@@ -1900,6 +1901,70 @@ describe('ControlsSidebarProvider', () => {
                     );
                 });
                 expect(result.current.fieldUndo).toEqual(ACROSS);
+            });
+
+            it('is not kept for a clear that promoted its field away, which unclicks it', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                const CLEAR = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_status',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                // Status off its last tile: Region is promoted
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: false }),
+                        CLEAR,
+                    ),
+                );
+                expect(result.current.editingRule?.target).toEqual(region);
+
+                // Promotion unclicks Status: no bar is left to show Undo
+                expect(result.current.highlightedFieldId).toBeNull();
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('takes back a clear', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                const CLEAR = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_region',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: false }),
+                        CLEAR,
+                    ),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                expect(result.current.fieldUndo).toEqual(CLEAR);
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(
+                    onStatus({ t1: region }),
+                );
+                expect(result.current.fieldUndo).toBeNull();
             });
 
             it('ends when the editor writes another filter', () => {

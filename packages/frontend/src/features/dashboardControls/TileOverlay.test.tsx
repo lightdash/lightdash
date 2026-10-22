@@ -144,7 +144,9 @@ const rule = (
 
 const updateFilter = vi.fn();
 // The provider's undoable write ends in its updateFilter
-const applyWithUndo = vi.fn((next: DashboardFilterRule) => updateFilter(next));
+const applyWithUndo = vi.fn((next: DashboardFilterRule, _apply: unknown) =>
+    updateFilter(next),
+);
 const addFirstFieldOnTile = vi.fn();
 
 const groupLabels = () =>
@@ -2101,6 +2103,7 @@ describe('TileOverlays', () => {
                     },
                 }),
                 {
+                    kind: 'apply' as const,
                     fieldId: 'orders_region',
                     tileCount: 3,
                     replaced: 2,
@@ -2144,6 +2147,15 @@ describe('TileOverlays', () => {
                 [first.uuid]: false,
                 [second.uuid]: false,
                 [third.uuid]: false,
+            });
+            // Through the undoable write, which the provider keeps only for
+            // the clicked field
+            expect(applyWithUndo.mock.lastCall?.[1]).toEqual({
+                kind: 'clear',
+                fieldId: 'orders_status',
+                tileCount: 2,
+                replaced: 0,
+                acrossTabs: false,
             });
             applyLastWrite(rerender);
             expect(anyFollowUp()).not.toBeInTheDocument();

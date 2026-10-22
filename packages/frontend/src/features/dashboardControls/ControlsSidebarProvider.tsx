@@ -704,8 +704,10 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const isClicked = current.highlightedFieldId === apply.fieldId;
             updateFilter(next);
             const written = latest.current.dashboardFilters;
+            // Still clicked: a field the write promoted away is unclicked
             if (
                 !isClicked ||
+                latest.current.highlightedFieldId !== apply.fieldId ||
                 !isFilterRuleDirty(before, written, filterId, toSavedNow)
             )
                 return;
@@ -1061,6 +1063,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 toSavedRule,
             )
                 ? {
+                      kind: undo.kind,
                       fieldId: undo.fieldId,
                       tileCount: undo.tileCount,
                       replaced: undo.replaced,

@@ -147,10 +147,6 @@ const queryButtonTexts = () =>
         .queryAllByRole('button')
         .map((button) => button.textContent);
 
-const getUpdatedRule = (): DashboardFilterRule => {
-    expect(updateFilter).toHaveBeenCalledTimes(1);
-    return updateFilter.mock.calls[0][0];
-};
 // "Apply to all" writes through the undoable update, with its toast's message
 const getAppliedRule = (): DashboardFilterRule => {
     expect(applyWithUndo).toHaveBeenCalledTimes(1);
@@ -339,6 +335,7 @@ describe('FieldTilesBar', () => {
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
             expect(appliedUndo()).toEqual({
+                kind: 'apply' as const,
                 fieldId: 'orders_status',
                 tileCount: 3,
                 replaced: 1,
@@ -383,6 +380,7 @@ describe('FieldTilesBar', () => {
 
         describe('after an apply', () => {
             const APPLIED = {
+                kind: 'apply' as const,
                 fieldId: 'orders_status',
                 tileCount: 2,
                 replaced: 1,
@@ -435,6 +433,52 @@ describe('FieldTilesBar', () => {
                 );
             });
 
+            it('says how many a clear took off, and names its Undo', () => {
+                setSidebar(
+                    rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+                    {
+                        fieldUndo: {
+                            ...APPLIED,
+                            kind: 'clear',
+                            replaced: 0,
+                        },
+                    },
+                );
+                renderWithProviders(<Dashboard />);
+
+                expect(countOf()).toHaveTextContent(
+                    /^0 of 2 tiles, 2 cleared$/,
+                );
+                expect(
+                    screen.getByRole('button', {
+                        name: 'Undo clearing Status from 2 tiles',
+                    }),
+                ).toHaveAttribute('data-variant', 'subtle');
+            });
+
+            it('stays for a clear that took the field off its last tile', () => {
+                setSidebar(rule('orders_status', { 'tile-1': false }), {
+                    highlightedFieldId: 'orders_region',
+                    fieldUndo: {
+                        ...APPLIED,
+                        kind: 'clear',
+                        fieldId: 'orders_region',
+                        tileCount: 1,
+                        replaced: 0,
+                    },
+                });
+                renderWithProviders(<Dashboard />);
+
+                expect(countOf('Region')).toHaveTextContent(
+                    /^0 of 1 tile, 1 cleared$/,
+                );
+                expect(
+                    screen.getByRole('button', {
+                        name: 'Undo clearing Region from 1 tile',
+                    }),
+                ).toBeInTheDocument();
+            });
+
             it('names nothing replaced when it replaced nothing', () => {
                 setSidebar(rule('orders_status'), {
                     fieldUndo: { ...APPLIED, replaced: 0 },
@@ -480,9 +524,16 @@ describe('FieldTilesBar', () => {
             fireEvent.click(
                 screen.getByRole('button', { name: 'Clear Status from tiles' }),
             );
-            expect(getUpdatedRule().tileTargets).toEqual({
+            expect(getAppliedRule().tileTargets).toEqual({
                 'tile-1': false,
                 'tile-2': false,
+            });
+            expect(appliedUndo()).toEqual({
+                kind: 'clear',
+                fieldId: 'orders_status',
+                tileCount: 2,
+                replaced: 0,
+                acrossTabs: false,
             });
         });
 
@@ -501,6 +552,7 @@ describe('FieldTilesBar', () => {
             );
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-1': REGION });
             expect(appliedUndo()).toEqual({
+                kind: 'apply' as const,
                 fieldId: 'orders_region',
                 tileCount: 1,
                 replaced: 1,
@@ -655,6 +707,7 @@ describe('FieldTilesBar', () => {
                 'tile-4': REGION,
             });
             expect(appliedUndo()).toEqual({
+                kind: 'apply' as const,
                 fieldId: 'orders_status',
                 tileCount: 2,
                 replaced: 0,
@@ -679,6 +732,7 @@ describe('FieldTilesBar', () => {
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
             expect(appliedUndo()).toEqual({
+                kind: 'apply' as const,
                 fieldId: 'orders_status',
                 tileCount: 4,
                 replaced: 1,
@@ -743,10 +797,15 @@ describe('FieldTilesBar', () => {
                     name: 'Clear Status from this tab',
                 }),
             );
-            expect(getUpdatedRule().tileTargets).toEqual({
+            expect(getAppliedRule().tileTargets).toEqual({
                 'tile-1': REGION,
                 'tile-2': false,
                 'tile-4': REGION,
+            });
+            expect(appliedUndo()).toMatchObject({
+                kind: 'clear',
+                tileCount: 1,
+                acrossTabs: false,
             });
         });
     });
@@ -819,6 +878,7 @@ describe('FieldTilesBar', () => {
                 isSqlColumn: true,
             });
             expect(appliedUndo()).toEqual({
+                kind: 'apply' as const,
                 fieldId: 'country',
                 tileCount: 2,
                 replaced: 1,
@@ -838,7 +898,12 @@ describe('FieldTilesBar', () => {
                 }),
             );
             // A SQL chart tile with no entry is not filtered
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedUndo()).toMatchObject({
+                kind: 'clear',
+                fieldId: 'country',
+                tileCount: 2,
+            });
         });
 
         it('uses the column on every tab from "Apply to all tabs"', () => {

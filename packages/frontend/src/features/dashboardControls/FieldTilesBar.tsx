@@ -96,6 +96,18 @@ const getUseOnAll = (
         : { name, tooltip: null };
 };
 
+// After the count: what the last apply replaced, or what the last clear took
+const getUndoNote = ({
+    kind,
+    tileCount,
+    replaced,
+    acrossTabs,
+}: FieldApply): string => {
+    const where = acrossTabs ? ' across tabs' : '';
+    if (kind === 'clear') return `, ${tileCount} cleared${where}`;
+    return replaced > 0 ? `, ${replaced} replaced${where}` : '';
+};
+
 const Bar: FC<{
     fieldTiles: FieldTiles;
     // The last "Apply to all" on this field, while Undo can take it back
@@ -178,9 +190,7 @@ const Bar: FC<{
                                 {`${applied} of ${possible}`}
                             </Text>
                             {` ${pluralizeTiles(possible)}${scopeSuffix}`}
-                            {undo !== null &&
-                                undo.replaced > 0 &&
-                                `, ${undo.replaced} replaced${undo.acrossTabs ? ' across tabs' : ''}`}
+                            {undo !== null && getUndoNote(undo)}
                         </Text>
                     )}
                     {useOnScope !== null && (
@@ -217,7 +227,11 @@ const Bar: FC<{
                         <Button
                             size="xs"
                             variant="subtle"
-                            aria-label={`Undo applying ${label} to ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`}
+                            aria-label={
+                                undo.kind === 'apply'
+                                    ? `Undo applying ${label} to ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`
+                                    : `Undo clearing ${label} from ${undo.tileCount} ${pluralizeTiles(undo.tileCount)}`
+                            }
                             onClick={press(onUndo)}
                         >
                             Undo
@@ -269,7 +283,9 @@ export const FieldTilesBar: FC = () => {
         (getFilterFields(editingRule, dashboardTiles).includes(
             highlightedFieldId,
         ) ||
-            waitingFieldIds.includes(highlightedFieldId))
+            waitingFieldIds.includes(highlightedFieldId) ||
+            // A clear that took the field off its last tile can be undone
+            fieldUndo?.fieldId === highlightedFieldId)
             ? highlightedFieldId
             : null;
     const isShown = fieldTileActions !== null && fieldId !== null;
