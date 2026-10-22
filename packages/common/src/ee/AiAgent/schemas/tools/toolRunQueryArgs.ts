@@ -232,7 +232,7 @@ const chartConfigBuiltinSchema = z.object({
         .describe('A helpful label for the secondary y-axis'),
 });
 
-const customChartTypeOptionValueSchema = z.union([
+export const customChartTypeOptionValueSchema = z.union([
     dataAppVizGradientValueSchema,
     z.string(),
     z.number(),

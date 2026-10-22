@@ -1,5 +1,6 @@
 import { type DataAppVizChart } from '../../types/savedCharts';
 import { isAiComposerChartArtifactConfig } from './composerArtifact';
+import { parseComposerStoredChartVizConfig } from './composerChartVizConfig';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
@@ -127,7 +128,14 @@ export const parseAiArtifactChartConfig = (
             : {};
 
     if (isAiComposerChartArtifactConfig(config)) {
-        return { ...config, vizConfig: config.vizConfig ?? null };
+        return config.schemaVersion === 1
+            ? { ...config, vizConfig: config.vizConfig ?? null }
+            : {
+                  ...config,
+                  vizConfig: parseComposerStoredChartVizConfig(
+                      config.vizConfig,
+                  ),
+              };
     }
 
     if (

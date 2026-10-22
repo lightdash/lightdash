@@ -1,13 +1,10 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ChartConfig } from '../../../../../types/savedCharts';
-import {
-    isCustomChartTypeSlugChartConfig,
-    type ToolRunQueryArgsTransformed,
-} from '../../../schemas';
+import { isCustomChartTypeSlugChartConfig } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { getTableChartConfig } from '../shared/getTableChartConfig';
-import { type AiAgentChartTypeOption } from '../types';
+import { type AiAgentChartTypeOption, type RunQueryChartInput } from '../types';
 import { getBarChartConfig } from './viz/bar';
 import { getFunnelChartConfig } from './viz/funnel';
 import { getHorizontalBarChartConfig } from './viz/horizontalBar';
@@ -25,7 +22,7 @@ export const getRunQueryChartConfig = ({
     fieldsMap,
     overrideChartType,
 }: {
-    queryTool: ToolRunQueryArgsTransformed;
+    queryTool: RunQueryChartInput;
     metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
     overrideChartType?: AiAgentChartTypeOption;
