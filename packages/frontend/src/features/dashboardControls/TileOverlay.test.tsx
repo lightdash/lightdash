@@ -143,6 +143,10 @@ const rule = (
 });
 
 const updateFilter = vi.fn();
+// The provider's undoable write ends in its updateFilter
+const updateFilterWithUndo = vi.fn((next: DashboardFilterRule) =>
+    updateFilter(next),
+);
 const addFirstFieldOnTile = vi.fn();
 
 const groupLabels = () =>
@@ -158,6 +162,7 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         waitingFieldIds: [],
         highlightedFieldId: null,
         updateFilter,
+        updateFilterWithUndo,
         addFirstFieldOnTile,
         ...overrides,
     };
@@ -2033,10 +2038,10 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 2 on this tab too',
+                'Apply to the other 2 too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 on this tab too, by Status',
+                'Apply Status to the other 2 tiles on this tab too',
             );
             expect(followUp(second.uuid)).not.toBeInTheDocument();
             expect(followUp(third.uuid)).not.toBeInTheDocument();
@@ -2066,7 +2071,7 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 on this tab too, by Region',
+                'Apply Region to the other 2 tiles on this tab too',
             );
             updateFilter.mockClear();
             await userEvent.click(followUp(first.uuid)!);
@@ -2077,11 +2082,39 @@ describe('TileOverlays', () => {
             });
         });
 
-        it('has none when no other tile of the tab is unfiltered', async () => {
+        it('applies over the other tiles of the tab that are on another field, with an Undo toast', async () => {
             const { rerender } = renderWithProviders(<TileOverlays />);
 
-            // The others are on Status: a switch is the bar's, not this
+            // The others are on Status
             await choose(first.uuid, 'Region');
+            applyLastWrite(rerender);
+
+            expect(followUp(first.uuid)).toHaveAccessibleName(
+                'Apply Region to the other 2 tiles on this tab too',
+            );
+            updateFilter.mockClear();
+            await userEvent.click(followUp(first.uuid)!);
+            expect(updateFilterWithUndo).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    tileTargets: {
+                        [first.uuid]: REGION,
+                        [second.uuid]: REGION,
+                        [third.uuid]: REGION,
+                    },
+                }),
+                'Region applied to 3 tiles, replacing Status on 2',
+            );
+            applyLastWrite(rerender);
+            expect(anyFollowUp()).not.toBeInTheDocument();
+        });
+
+        it('has none when every other tile of the tab is on the field', async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [first.uuid]: false } }),
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+
+            await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
 
             expect(status(first.uuid)).toBe('This tile is filtered on');
@@ -2095,10 +2128,10 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Clear the other 2 on this tab too',
+                'Clear the other 2 too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Clear the other 2 on this tab too, from Status',
+                'Clear Status from the other 2 tiles on this tab too',
             );
 
             updateFilter.mockClear();
@@ -2141,10 +2174,10 @@ describe('TileOverlays', () => {
 
             expect(followUp(first.uuid)).not.toBeInTheDocument();
             expect(followUp(second.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Filter the other 1 on this tab too, by Status',
+                'Apply Status to the other 1 tile on this tab too',
             );
         });
 
@@ -2165,7 +2198,7 @@ describe('TileOverlays', () => {
             });
             rerender(<TileOverlays />);
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
 
             setSidebar({
@@ -2268,10 +2301,10 @@ describe('TileOverlays', () => {
             await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
             expect(followUp(first.uuid)).toHaveTextContent(
-                /^Filter the other 3 too$/,
+                /^Apply to the other 3 too$/,
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 3 too, by Status',
+                'Apply Status to the other 3 tiles too',
             );
 
             await userEvent.click(followUp(first.uuid)!);
@@ -2282,7 +2315,7 @@ describe('TileOverlays', () => {
                 /^Clear the other 3 too$/,
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Clear the other 3 too, from Status',
+                'Clear Status from the other 3 tiles too',
             );
         });
 
@@ -2358,10 +2391,10 @@ describe('TileOverlays', () => {
             await choose(sql.uuid, 'country');
             applyLastWrite(rerender);
             expect(followUp(sql.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Filter the other 1 on this tab too, by country',
+                'Apply country to the other 1 tile on this tab too',
             );
 
             await userEvent.click(followUp(sql.uuid)!);
@@ -2377,7 +2410,7 @@ describe('TileOverlays', () => {
             await userEvent.click(clearButton(sql.uuid)!);
             applyLastWrite(rerender);
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Clear the other 1 on this tab too, from country',
+                'Clear country from the other 1 tile on this tab too',
             );
         });
 
@@ -2444,7 +2477,7 @@ describe('TileOverlays', () => {
             await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
 
             // On the second tab the tile is not drawn, so it gets no card

@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    applyFieldToAllTiles,
     getDefaultTileField,
     getEffectiveTabUuid,
     getFieldCount,
@@ -27,7 +28,6 @@ import {
     removeField,
     removeFieldFromAll,
     setTileField,
-    switchTilesToField,
     toSqlColumnTarget,
     withoutDefaultTileTargets,
     type SqlColumnsByTile,
@@ -182,32 +182,97 @@ describe('peers', () => {
         ).not.toHaveProperty('tileTargets');
     });
 
-    it('switchTilesToField moves the tiles on another field and leaves the rest', () => {
-        const r = switchTilesToField(rule(), PAYMENTS, tiles, fieldsByTile);
-        // b was on orders; c offers payments but was not filtered
-        expect(r.tileTargets).toEqual({ b: PAYMENTS });
-        expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
-        expect(getTileField(r, c, fieldsByTile)).toBeNull();
-    });
+    describe('applyFieldToAllTiles', () => {
+        it('puts every tile that offers the field on it: no entry, left out or another field', () => {
+            // a left out, b on payments
+            const r = applyFieldToAllTiles(
+                rule({ a: false, b: PAYMENTS }),
+                ORDERS,
+                tiles,
+                fieldsByTile,
+            );
+            // Both are back on the first field, its default: no entry left
+            expect(r).not.toHaveProperty('tileTargets');
+            expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
+            expect(getTileField(r, b, fieldsByTile)).toEqual(ORDERS);
+        });
 
-    it('switchTilesToField on the target takes its tiles back, never a left out one', () => {
-        const r = switchTilesToField(
-            rule({ a: false, b: PAYMENTS, c: PAYMENTS }),
-            ORDERS,
-            tiles,
-            fieldsByTile,
-        );
-        expect(r.tileTargets).toEqual({ a: false, c: PAYMENTS });
-    });
+        it('moves tiles off the first field onto another one, and fills the unfiltered', () => {
+            const r = applyFieldToAllTiles(
+                rule(),
+                PAYMENTS,
+                tiles,
+                fieldsByTile,
+            );
+            // b was on orders, c was unfiltered; a and d do not offer it
+            expect(r.tileTargets).toEqual({ b: PAYMENTS, c: PAYMENTS });
+            expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
+            expect(getTileField(r, d, fieldsByTile)).toBeNull();
+        });
 
-    it('switchTilesToField only touches the tiles it is given', () => {
-        const r = switchTilesToField(
-            rule({ b: PAYMENTS }),
-            ORDERS,
-            [a],
-            fieldsByTile,
-        );
-        expect(r.tileTargets).toEqual({ b: PAYMENTS });
+        it('only touches the tiles it is given', () => {
+            const r = applyFieldToAllTiles(
+                rule({ b: false, c: false }),
+                PAYMENTS,
+                [b],
+                fieldsByTile,
+            );
+            expect(r.tileTargets).toEqual({ b: PAYMENTS, c: false });
+        });
+
+        it('changes nothing when every tile that offers it is on it', () => {
+            const r = rule({ b: PAYMENTS, c: PAYMENTS });
+            expect(applyFieldToAllTiles(r, PAYMENTS, tiles, fieldsByTile)).toBe(
+                r,
+            );
+        });
+
+        it('never touches a data app tile', () => {
+            const appTile = {
+                uuid: 'app',
+                type: DashboardTileTypes.DATA_APP,
+            } as DashboardTile;
+            const withApp = {
+                ...fieldsByTile,
+                app: [field('payments', 'status')],
+            };
+            const r = applyFieldToAllTiles(
+                rule({ app: false }),
+                PAYMENTS,
+                [...tiles, appTile],
+                withApp,
+            );
+            expect(r.tileTargets?.app).toBe(false);
+        });
+
+        it('maps a column onto the SQL chart tiles that have it, never a field of the same id', () => {
+            const sqlTile = {
+                uuid: 's',
+                type: DashboardTileTypes.SQL_CHART,
+            } as DashboardTile;
+            const otherSqlTile = {
+                uuid: 's2',
+                type: DashboardTileTypes.SQL_CHART,
+            } as DashboardTile;
+            const sqlColumns: SqlColumnsByTile = {
+                s: [
+                    { reference: 'status', type: DimensionType.STRING },
+                    { reference: 'region', type: DimensionType.STRING },
+                ],
+                s2: [{ reference: 'region', type: DimensionType.STRING }],
+            };
+            const column = toSqlColumnTarget('status');
+            const r = applyFieldToAllTiles(
+                rule({ s: toSqlColumnTarget('region') }),
+                column,
+                [...tiles, sqlTile, otherSqlTile],
+                fieldsByTile,
+                sqlColumns,
+            );
+            // s moves off the other column; s2 has no "status"; chart tiles
+            // are not SQL chart tiles and stay as they were
+            expect(r.tileTargets).toEqual({ s: column });
+        });
     });
 
     it('removeFieldFromAll stops filtering the charts using the field', () => {

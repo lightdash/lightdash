@@ -15,8 +15,9 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
+import { pluralizeTiles } from './fieldLabels';
 import {
-    applyFieldToUnfilteredTiles,
+    applyFieldToAllTiles,
     getFieldCount,
     getFieldScope,
     getFilterFields,
@@ -24,8 +25,6 @@ import {
     getTilesOnTab,
     removeField,
     removeFieldFromAll,
-    setTileField,
-    switchTilesToField,
     toSqlColumnTarget,
     type FieldScope,
     type FieldsByTile,
@@ -36,9 +35,12 @@ import { toDashboardFilterableField } from './useFilterRuleField';
 
 const SQL_COLUMN_LABEL = 'SQL column';
 
-// Which tiles an action is over. Without tabs there is only 'every-tab';
-// 'other-tabs' is every tab but the active one
-export type TileScope = 'this-tab' | 'other-tabs' | 'every-tab';
+// The fields a press replaces: one or two by name, more as "other fields"
+export const nameReplacedFields = (labels: string[]): string =>
+    labels.length > 2 ? 'other fields' : labels.join(' and ');
+
+// Which tiles an action is over. Without tabs there is only 'every-tab'
+export type TileScope = 'this-tab' | 'every-tab';
 
 export type FieldTiles = {
     field: DashboardFilterableField | null;
@@ -50,13 +52,14 @@ export type FieldTiles = {
     thisTabScope: FieldScope | null;
     // Counted over every tile
     everyTabScope: FieldScope;
-    // Unfiltered tiles the field fits on the tabs that are not active
-    otherTabsUnfiltered: number;
     // False while the tiles' fields are not loaded: an action would write
     // blind, so none does anything
     canAct: boolean;
-    addToUnfiltered: (tileScope: TileScope) => void;
-    switchFromOthers: (tileScope: TileScope) => void;
+    // The name of another field or column of the filter, as its row reads
+    labelOf: (fieldId: string) => string;
+    // Every tile of the scope that offers it ends up on it, over other
+    // fields, with an Undo toast
+    applyToAll: (tileScope: TileScope) => void;
     clear: (tileScope: TileScope) => void;
     remove: () => void;
 };
@@ -128,35 +131,6 @@ const getSqlColumnScope = (
     };
 };
 
-// Maps the column onto the tiles that have it and pass the test, given the
-// field each one is on
-const applySqlColumn = (
-    rule: DashboardFilterRule,
-    reference: string,
-    tiles: DashboardTile[],
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile,
-    takesTile: (fieldIdOnTile: string | null) => boolean,
-): DashboardFilterRule =>
-    getSqlColumnTiles(reference, tiles, sqlColumnsByTile)
-        .filter((tile) =>
-            takesTile(
-                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)
-                    ?.fieldId ?? null,
-            ),
-        )
-        .reduce(
-            (next, tile) =>
-                setTileField(
-                    next,
-                    tile,
-                    toSqlColumnTarget(reference),
-                    fieldsByTile,
-                    sqlColumnsByTile,
-                ),
-            rule,
-        );
-
 export type FieldTileActions = {
     // A field of the filter; the column of a SQL column filter is one too
     forField: (fieldId: string) => FieldTiles;
@@ -175,6 +149,9 @@ export const useFieldTileActions = (
         (c) => c.removeLastField,
     );
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const updateFilterWithUndo = useControlsSidebarSelector(
+        (c) => c.updateFilterWithUndo,
+    );
     const waitingFieldIds = useControlsSidebarSelector(
         (c) => c.waitingFieldIds,
     );
@@ -200,13 +177,8 @@ export const useFieldTileActions = (
             scopeTabUuid === undefined
                 ? null
                 : getTilesOnTab(tiles, dashboardTabs, scopeTabUuid);
-        const otherTabsTiles =
-            thisTabTiles === null
-                ? []
-                : tiles.filter((tile) => !thisTabTiles.includes(tile));
         const tilesByScope: Record<TileScope, DashboardTile[]> = {
             'this-tab': thisTabTiles ?? tiles,
-            'other-tabs': otherTabsTiles,
             'every-tab': tiles,
         };
         const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
@@ -214,9 +186,14 @@ export const useFieldTileActions = (
             isSqlColumnFilter && fieldId === editingRule.target.fieldId
                 ? null
                 : toDashboardFilterableField(fieldsMap[fieldId]);
+        const labelOfField = (fieldId: string) =>
+            getField(fieldId)?.label ?? fieldId;
+        // A column is never looked up as a field
+        const labelOfColumn = (reference: string) => reference;
 
         const build = (fieldId: string, isSqlColumn: boolean): FieldTiles => {
             const field = isSqlColumn ? null : getField(fieldId);
+            const labelOf = isSqlColumn ? labelOfColumn : labelOfField;
             const isWaiting = waitingFieldIds.includes(fieldId);
             const target = isSqlColumn
                 ? null
@@ -249,59 +226,32 @@ export const useFieldTileActions = (
                 isWaiting,
                 thisTabScope,
                 everyTabScope,
-                otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
                 canAct,
-                addToUnfiltered: (tileScope) => {
-                    if (!canAct) return;
-                    if (isSqlColumn) {
-                        updateFilter(
-                            applySqlColumn(
-                                editingRule,
-                                fieldId,
-                                tilesByScope[tileScope],
-                                fieldsByTile,
-                                sqlColumnsByTile,
-                                (onTile) => onTile === null,
-                            ),
-                        );
-                        return;
-                    }
-                    if (target === null) return;
-                    updateFilter(
-                        applyFieldToUnfilteredTiles(
+                labelOf,
+                applyToAll: (tileScope) => {
+                    const fieldTarget = isSqlColumn
+                        ? toSqlColumnTarget(fieldId)
+                        : target;
+                    if (!canAct || fieldTarget === null) return;
+                    const scope =
+                        tileScope === 'this-tab' && thisTabScope !== null
+                            ? thisTabScope
+                            : everyTabScope;
+                    const replacing =
+                        scope.replaced > 0
+                            ? `, replacing ${nameReplacedFields(
+                                  scope.replacedFieldIds.map(labelOf),
+                              )} on ${scope.replaced}`
+                            : '';
+                    updateFilterWithUndo(
+                        applyFieldToAllTiles(
                             editingRule,
-                            target,
+                            fieldTarget,
                             tilesByScope[tileScope],
                             fieldsByTile,
                             sqlColumnsByTile,
                         ),
-                    );
-                },
-                switchFromOthers: (tileScope) => {
-                    if (!canAct) return;
-                    if (isSqlColumn) {
-                        updateFilter(
-                            applySqlColumn(
-                                editingRule,
-                                fieldId,
-                                tilesByScope[tileScope],
-                                fieldsByTile,
-                                sqlColumnsByTile,
-                                (onTile) =>
-                                    onTile !== null && onTile !== fieldId,
-                            ),
-                        );
-                        return;
-                    }
-                    if (target === null) return;
-                    updateFilter(
-                        switchTilesToField(
-                            editingRule,
-                            target,
-                            tilesByScope[tileScope],
-                            fieldsByTile,
-                            sqlColumnsByTile,
-                        ),
+                        `${labelOf(fieldId)} applied to ${scope.possible} ${pluralizeTiles(scope.possible)}${replacing}`,
                     );
                 },
                 clear: (tileScope) => {
@@ -368,6 +318,7 @@ export const useFieldTileActions = (
         sqlColumnsByTile,
         waitingFieldIds,
         updateFilter,
+        updateFilterWithUndo,
         removeLastField,
         removeWaitingField,
     ]);

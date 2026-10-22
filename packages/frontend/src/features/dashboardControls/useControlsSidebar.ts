@@ -82,6 +82,12 @@ export type ControlsSidebarContextValue = {
     removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /**
+     * `updateFilter`, then a toast with `message` and Undo when it changed the
+     * rule. Undo puts the rule back only while the same control is edited and
+     * the rule is still as this wrote it; the toast goes when the edit ends.
+     */
+    updateFilterWithUndo: (next: DashboardFilterRule, message: string) => void;
+    /**
      * Writes filters other than the edited one on the editor's behalf.
      * Discard and Remove put them back as they were when the control opened.
      */

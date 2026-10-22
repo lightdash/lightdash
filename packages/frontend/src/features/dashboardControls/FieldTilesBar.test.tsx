@@ -92,6 +92,7 @@ const rule = (
 });
 
 const updateFilter = vi.fn();
+const updateFilterWithUndo = vi.fn();
 const setHighlightedFieldId = vi.fn();
 const setHoveredFieldId = vi.fn();
 const removeWaitingField = vi.fn();
@@ -105,6 +106,7 @@ const setSidebar = (
         editingRule,
         isPlaceholder: false,
         updateFilter,
+        updateFilterWithUndo,
         highlightedFieldId: 'orders_status',
         setHighlightedFieldId,
         hoveredFieldId: null,
@@ -146,6 +148,12 @@ const getUpdatedRule = (): DashboardFilterRule => {
     expect(updateFilter).toHaveBeenCalledTimes(1);
     return updateFilter.mock.calls[0][0];
 };
+// "Apply to all" writes through the undoable update, with its toast's message
+const getAppliedRule = (): DashboardFilterRule => {
+    expect(updateFilterWithUndo).toHaveBeenCalledTimes(1);
+    return updateFilterWithUndo.mock.calls[0][0];
+};
+const appliedMessage = (): string => updateFilterWithUndo.mock.calls[0][1];
 
 // Seeds a real dashboard store from the context fixture, again on rerender
 const renderWithProviders = (ui: ReactElement) => {
@@ -245,12 +253,11 @@ describe('FieldTilesBar', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<Dashboard />);
 
-            expect(countOf()).toHaveTextContent('on 1 of 2 tiles');
-            expect(countOf()).not.toHaveTextContent('tab');
+            expect(countOf()).toHaveTextContent(/^1 of 2 tiles$/);
             expect(countOf()).toHaveAttribute('aria-live', 'polite');
             // The field leads the bar
             expect(within(bar()).getByText('Status')).toBeInTheDocument();
-            expect(buttonTexts()).toEqual(['Filter the other 1', 'Clear']);
+            expect(buttonTexts()).toEqual(['Apply to all', 'Clear']);
         });
 
         it('says "tile" for one tile', () => {
@@ -259,7 +266,7 @@ describe('FieldTilesBar', () => {
             });
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('Region')).toHaveTextContent(/^on 1 of 1 tile$/);
+            expect(countOf('Region')).toHaveTextContent(/^1 of 1 tile$/);
         });
 
         it('offers only the clear when every tile that offers the field is on it', () => {
@@ -269,18 +276,21 @@ describe('FieldTilesBar', () => {
             expect(buttonTexts()).toEqual(['Clear']);
         });
 
-        it('says "Filter all" for a field on no tile, with nothing to switch', () => {
+        it('names "Apply to all" by the field and every tile it ends up on, with no filled button', () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': false, 'tile-2': false }),
             );
             renderWithProviders(<Dashboard />);
 
-            expect(buttonTexts()).toEqual(['Filter all 2']);
+            expect(buttonTexts()).toEqual(['Apply to all']);
             expect(
                 screen.getByRole('button', {
-                    name: 'Filter all 2 tiles by Status',
+                    name: 'Apply Status to all 2 tiles',
                 }),
-            ).toHaveAttribute('data-variant', 'filled');
+            ).toHaveAttribute('data-variant', 'light');
+            expect(
+                bar().querySelector('[data-variant="filled"]'),
+            ).not.toBeInTheDocument();
         });
 
         it('has no button for a field no tile offers', () => {
@@ -299,19 +309,7 @@ describe('FieldTilesBar', () => {
             );
         });
 
-        it('filters the unfiltered tiles', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
-            renderWithProviders(<Dashboard />);
-
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Filter the other 1 tile by Status',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('filters without replacing, and switches without filtering', () => {
+        it('puts every tile on the field, over left out tiles and other fields, with an Undo toast', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 dashboardTiles: [
@@ -330,33 +328,20 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            // One tile each: the two buttons never count the same tile
-            expect(countOf()).toHaveTextContent('on 1 of 3 tiles');
-            expect(buttonTexts()).toEqual([
-                'Filter 1 unfiltered tile',
-                'Switch 1 tile to this field',
-                'Clear',
-            ]);
-
+            expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter 1 unfiltered tile by Status',
+                    name: 'Apply Status to all 3 tiles',
                 }),
             );
-            // tile-1 keeps Region
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
-
-            updateFilter.mockClear();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Switch 1 tile to this field (Status)',
-                }),
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedMessage()).toBe(
+                'Status applied to 3 tiles, replacing Region on 1',
             );
-            // tile-2 stays unfiltered
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-2': false });
+            expect(updateFilter).not.toHaveBeenCalled();
         });
 
-        it('counts every tile a switch takes off another field', () => {
+        it('says in a tooltip which fields it replaces, and has none when it replaces nothing', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 filterableFieldsByTileUuid: {
@@ -367,40 +352,27 @@ describe('FieldTilesBar', () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': REGION, 'tile-2': CITY }),
             );
-            renderWithProviders(<Dashboard />);
+            const { rerender } = renderWithProviders(<Dashboard />);
 
-            expect(buttonTexts()).toEqual(['Switch 2 tiles to this field']);
-            fireEvent.click(
+            await userEvent.hover(
                 screen.getByRole('button', {
-                    name: 'Switch 2 tiles to this field (Status)',
+                    name: 'Apply Status to all 2 tiles',
                 }),
             );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('counts the unfiltered tiles in words beside a switch', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status, region],
-                },
-            };
-            setSidebar(rule('orders_status', { 'tile-1': false }), {
-                highlightedFieldId: 'orders_region',
-                waitingFieldIds: ['orders_region'],
-            });
-            renderWithProviders(<Dashboard />);
-
-            expect(countOf('Region')).toHaveTextContent('on 0 of 2 tiles');
             expect(
-                within(bar('Region'))
-                    .getAllByRole('button')
-                    .map((button) => button.textContent),
-            ).toEqual([
-                'Filter 1 unfiltered tile',
-                'Switch 1 tile to this field',
-            ]);
+                await screen.findByText('Replaces Region and City on 2 tiles'),
+            ).toBeInTheDocument();
+
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+            );
+            rerender(<Dashboard />);
+            await userEvent.hover(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles',
+                }),
+            );
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
         });
 
         it('clears the field from its tiles', () => {
@@ -416,30 +388,33 @@ describe('FieldTilesBar', () => {
             });
         });
 
-        it('offers a waiting field to the tiles on another field', () => {
+        it('puts a waiting field on the tiles that are on another field', () => {
             setSidebar(rule('orders_status'), {
                 highlightedFieldId: 'orders_region',
                 waitingFieldIds: ['orders_region'],
             });
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('Region')).toHaveTextContent('on 0 of 1 tile');
+            expect(countOf('Region')).toHaveTextContent(/^0 of 1 tile$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile to this field (Region)',
+                    name: 'Apply Region to all 1 tile',
                 }),
             );
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
+            expect(getAppliedRule().tileTargets).toEqual({ 'tile-1': REGION });
+            expect(appliedMessage()).toBe(
+                'Region applied to 1 tile, replacing Status on 1',
+            );
         });
 
-        it('never has the other-tabs link', () => {
+        it('never has "Apply to all tabs"', () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': false, 'tile-2': false }),
             );
             renderWithProviders(<Dashboard />);
 
             expect(
-                screen.queryByRole('button', { name: /on other tabs/ }),
+                screen.queryByRole('button', { name: /every tab/ }),
             ).not.toBeInTheDocument();
         });
     });
@@ -482,8 +457,8 @@ describe('FieldTilesBar', () => {
                 <FieldTilesBar />
             </>
         );
-        const OTHER_TABS = (count: number) =>
-            `Filter ${count} on other tabs by Status`;
+        const EVERY_TAB = (count: number) =>
+            `Apply Status to all ${count} tiles on every tab`;
 
         beforeEach(() => setTabs(TAB_1));
 
@@ -494,9 +469,7 @@ describe('FieldTilesBar', () => {
             expect(screen.getByTestId('grid-1').nextElementSibling).toBe(
                 bar().parentElement,
             );
-            expect(countOf()).toHaveTextContent(
-                /^on 1 of 2 tiles on this tab$/,
-            );
+            expect(countOf()).toHaveTextContent(/^1 of 2 tiles on this tab$/);
             expect(countOf()).toHaveAttribute('aria-live', 'polite');
 
             setTabs(TAB_2);
@@ -505,10 +478,10 @@ describe('FieldTilesBar', () => {
                 bar().parentElement,
             );
             expect(screen.getByTestId('grid-1').nextElementSibling).toBeNull();
-            expect(countOf()).toHaveTextContent(/^on 1 of 1 tile on this tab$/);
+            expect(countOf()).toHaveTextContent(/^1 of 1 tile on this tab$/);
         });
 
-        it('has one scope and no link with fewer than two tabs', () => {
+        it('has one scope and one "Apply to all" with fewer than two tabs', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 dashboardTabs: [TAB_1],
@@ -518,79 +491,43 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(countOf()).toHaveTextContent(/^on 2 of 4 tiles$/);
-            expect(buttonTexts()).toEqual(['Filter the other 2', 'Clear']);
-        });
-
-        it('has nothing about every tab: no count, switch or clear for it', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status],
-                    'tile-2': [status],
-                    'tile-3': [status, region],
-                    'tile-4': [status, region],
-                },
-            };
-            // The other tabs have a tile on Status and one on Region
-            setSidebar(rule('orders_status', { 'tile-4': REGION }));
-            renderWithProviders(<TabbedDashboard />);
-
-            expect(bar()).not.toHaveTextContent(/every tab/i);
-            expect(buttonTexts()).toEqual(['Clear']);
+            expect(countOf()).toHaveTextContent(/^2 of 4 tiles$/);
+            expect(buttonTexts()).toEqual(['Apply to all', 'Clear']);
             expect(
                 screen.getByRole('button', {
-                    name: 'Clear Status from this tab',
+                    name: 'Apply Status to all 4 tiles',
                 }),
             ).toBeInTheDocument();
         });
 
-        it('shows the link only when another tab has an unfiltered tile', () => {
+        it('offers each scope only while a tile there is not on the field', () => {
             setSidebar(rule('orders_status'));
             const { rerender } = renderWithProviders(<TabbedDashboard />);
             expect(buttonTexts()).toEqual(['Clear']);
 
-            // Unfiltered on this tab only: still no link
             setSidebar(rule('orders_status', { 'tile-1': false }));
             rerender(<TabbedDashboard />);
-            expect(buttonTexts()).toEqual(['Filter the other 1', 'Clear']);
-
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
-            );
-            rerender(<TabbedDashboard />);
             expect(buttonTexts()).toEqual([
-                'Filter the other 1',
+                'Apply to all',
+                'Apply to all tabs',
                 'Clear',
-                'Filter 1 on other tabs',
             ]);
             expect(
-                screen.getByRole('button', { name: OTHER_TABS(1) }),
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles on this tab',
+                }),
+            ).toHaveAttribute('data-variant', 'light');
+            expect(
+                screen.getByRole('button', { name: EVERY_TAB(4) }),
             ).toHaveAttribute('data-variant', 'subtle');
 
-            setSidebar(
-                rule('orders_status', {
-                    'tile-1': false,
-                    'tile-3': false,
-                    'tile-4': false,
-                }),
-            );
+            // Only another tab has a tile off it, on another field here
+            setSidebar(rule('orders_status', { 'tile-4': REGION }));
             rerender(<TabbedDashboard />);
-            expect(
-                screen.getByRole('button', { name: OTHER_TABS(2) }),
-            ).toHaveTextContent('Filter 2 on other tabs');
+            expect(buttonTexts()).toEqual(['Apply to all tabs', 'Clear']);
         });
 
-        it('does not count a tile on another field of the other tabs', () => {
-            setSidebar(
-                rule('orders_status', { 'tile-3': false, 'tile-4': REGION }),
-            );
-            renderWithProviders(<TabbedDashboard />);
-
-            expect(buttonTexts()).toEqual(['Clear', 'Filter 1 on other tabs']);
-        });
-
-        it('fills the other tabs from the link and leaves this tab alone', () => {
+        it('uses the field on this tab only from "Apply to all"', () => {
             setSidebar(
                 rule('orders_status', {
                     'tile-1': false,
@@ -601,78 +538,35 @@ describe('FieldTilesBar', () => {
             renderWithProviders(<TabbedDashboard />);
 
             fireEvent.click(
-                screen.getByRole('button', { name: OTHER_TABS(1) }),
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles on this tab',
+                }),
             );
-            // tile-1 is on this tab and stays unfiltered; tile-4 keeps Region
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-1': false,
+            expect(getAppliedRule().tileTargets).toEqual({
+                'tile-3': false,
                 'tile-4': REGION,
             });
+            expect(appliedMessage()).toBe('Status applied to 2 tiles');
         });
 
-        it('fills this tab from the main button and leaves the other tabs alone', () => {
+        it('uses the field on every tab, other fields included, from "Apply to all tabs"', () => {
             setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
+                rule('orders_status', {
+                    'tile-1': false,
+                    'tile-3': false,
+                    'tile-4': REGION,
+                }),
             );
             renderWithProviders(<TabbedDashboard />);
 
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Filter the other 1 tile on this tab by Status',
-                }),
+            fireEvent.click(screen.getByRole('button', { name: EVERY_TAB(4) }));
+            expect(getAppliedRule().tileTargets).toBeUndefined();
+            expect(appliedMessage()).toBe(
+                'Status applied to 4 tiles, replacing Region on 1',
             );
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
         });
 
-        it('names the main button by its label, then the tab and the field', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status, region],
-                    'tile-3': [status],
-                    'tile-4': [status],
-                },
-            };
-            // All out on this tab
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
-            );
-            const { rerender } = renderWithProviders(<TabbedDashboard />);
-            expect(
-                screen.getByRole('button', {
-                    name: 'Filter all 2 tiles on this tab by Status',
-                }),
-            ).toHaveTextContent(/^Filter all 2$/);
-
-            // One on Region: the unfiltered count is spelled out
-            setSidebar(
-                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
-            );
-            rerender(<TabbedDashboard />);
-            expect(
-                screen.getByRole('button', {
-                    name: 'Filter 1 unfiltered tile on this tab by Status',
-                }),
-            ).toHaveTextContent(/^Filter 1 unfiltered tile$/);
-            expect(
-                screen.getByRole('button', {
-                    name: 'Switch 1 tile to this field (Status) on this tab',
-                }),
-            ).toHaveTextContent(/^Switch 1 tile to this field$/);
-        });
-
-        it('says "Filter all" when the field is on no tile of the tab', () => {
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
-            );
-            renderWithProviders(<TabbedDashboard />);
-
-            expect(countOf()).toHaveTextContent('on 0 of 2 tiles on this tab');
-            expect(buttonTexts()).toEqual(['Filter all 2']);
-        });
-
-        it('keeps the link on a tab where no tile offers the field', () => {
+        it('keeps "Apply to all tabs" on a tab where no tile offers the field', () => {
             setTabs(TAB_2);
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
@@ -689,11 +583,9 @@ describe('FieldTilesBar', () => {
             expect(countOf()).toHaveTextContent(
                 /^No tile on this tab has this field$/,
             );
-            expect(buttonTexts()).toEqual(['Filter 1 on other tabs']);
-            fireEvent.click(
-                screen.getByRole('button', { name: OTHER_TABS(1) }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
+            expect(buttonTexts()).toEqual(['Apply to all tabs']);
+            fireEvent.click(screen.getByRole('button', { name: EVERY_TAB(3) }));
+            expect(getAppliedRule().tileTargets).toBeUndefined();
         });
 
         it('has no button at all on a tab with no tile for it and nothing left elsewhere', () => {
@@ -720,20 +612,12 @@ describe('FieldTilesBar', () => {
             );
         });
 
-        it('switches and clears on this tab only', () => {
+        it('clears on this tab only', () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': REGION, 'tile-4': REGION }),
             );
             renderWithProviders(<TabbedDashboard />);
 
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Switch 1 tile to this field (Status) on this tab',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-4': REGION });
-
-            updateFilter.mockClear();
             fireEvent.click(
                 screen.getByRole('button', {
                     name: 'Clear Status from this tab',
@@ -789,46 +673,34 @@ describe('FieldTilesBar', () => {
             };
         });
 
-        it('filters the tiles that have the column and are not filtered', () => {
-            setSidebar(sqlRule({ 'sql-1': COUNTRY }), {
-                highlightedFieldId: 'country',
-            });
-            renderWithProviders(<Dashboard />);
-
-            expect(countOf('country')).toHaveTextContent('on 1 of 2 tiles');
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Filter the other 1 tile by country',
-                }),
-            );
-            const next = getUpdatedRule();
-            expect(Object.keys(next.tileTargets ?? {})).toEqual([
-                'sql-1',
-                'sql-2',
-            ]);
-            expect(next.tileTargets?.['sql-2']).toMatchObject({
-                fieldId: 'country',
-                isSqlColumn: true,
-            });
-        });
-
-        it('switches a tile from another column, and leaves the unfiltered one', () => {
+        it('uses the column on every SQL chart tile that has it, over another column', () => {
             setSidebar(sqlRule({ 'sql-2': CITY_COLUMN }), {
                 highlightedFieldId: 'country',
             });
             renderWithProviders(<Dashboard />);
 
+            expect(countOf('country')).toHaveTextContent(/^0 of 2 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Switch 1 tile to this field (country)',
+                    name: 'Apply country to all 2 tiles',
                 }),
             );
-            const next = getUpdatedRule();
-            expect(Object.keys(next.tileTargets ?? {})).toEqual(['sql-2']);
+            const next = getAppliedRule();
+            expect(Object.keys(next.tileTargets ?? {}).sort()).toEqual([
+                'sql-1',
+                'sql-2',
+            ]);
+            expect(next.tileTargets?.['sql-1']).toMatchObject({
+                fieldId: 'country',
+                isSqlColumn: true,
+            });
             expect(next.tileTargets?.['sql-2']).toMatchObject({
                 fieldId: 'country',
                 isSqlColumn: true,
             });
+            expect(appliedMessage()).toBe(
+                'country applied to 2 tiles, replacing city on 1',
+            );
         });
 
         it('clears the column from its tiles', () => {
@@ -846,7 +718,7 @@ describe('FieldTilesBar', () => {
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
-        it('fills the other tabs from the link, never this tab', () => {
+        it('uses the column on every tab from "Apply to all tabs"', () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 dashboardTiles: [
@@ -871,16 +743,18 @@ describe('FieldTilesBar', () => {
             );
 
             expect(countOf('country')).toHaveTextContent(
-                'on 0 of 1 tile on this tab',
+                /^0 of 1 tile on this tab$/,
             );
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter 1 on other tabs by country',
+                    name: 'Apply country to all 2 tiles on every tab',
                 }),
             );
-            const next = getUpdatedRule();
-            // sql-1 is on this tab; sql-3 does not have the column
-            expect(Object.keys(next.tileTargets ?? {})).toEqual(['sql-2']);
+            // sql-3 does not have the column
+            expect(Object.keys(getAppliedRule().tileTargets ?? {})).toEqual([
+                'sql-1',
+                'sql-2',
+            ]);
         });
     });
 
@@ -924,29 +798,26 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Tabbed />);
 
-            expect(countOf()).toHaveTextContent('on 0 of 2 tiles on this tab');
+            expect(countOf()).toHaveTextContent(/^0 of 2 tiles on this tab$/);
             expect(buttonTexts()).toEqual([
-                'Filter all 2',
-                'Filter 1 on other tabs',
+                'Apply to all',
+                'Apply to all tabs',
             ]);
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter 1 on other tabs by Status',
+                    name: 'Apply Status to all 2 tiles on this tab',
                 }),
             );
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-1': false,
-                'tile-x': false,
-            });
+            expect(getAppliedRule().tileTargets).toEqual({ 'tile-3': false });
 
-            updateFilter.mockClear();
+            updateFilterWithUndo.mockClear();
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter all 2 tiles on this tab by Status',
+                    name: 'Apply Status to all 3 tiles on every tab',
                 }),
             );
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
+            expect(getAppliedRule().tileTargets).toBeUndefined();
         });
     });
 
@@ -959,9 +830,7 @@ describe('FieldTilesBar', () => {
             });
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('orders_gone')).toHaveTextContent(
-                /^on 1 of 1 tile$/,
-            );
+            expect(countOf('orders_gone')).toHaveTextContent(/^1 of 1 tile$/);
             expect(
                 within(bar('orders_gone'))
                     .getAllByRole('button')
@@ -992,7 +861,7 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('country')).toHaveTextContent(/^on 1 of 1 tile$/);
+            expect(countOf('country')).toHaveTextContent(/^1 of 1 tile$/);
         });
 
         it('never counts a data app tile as a tile of a SQL column', () => {
@@ -1019,7 +888,7 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<Dashboard />);
 
-            expect(countOf('country')).toHaveTextContent(/^on 1 of 1 tile$/);
+            expect(countOf('country')).toHaveTextContent(/^1 of 1 tile$/);
         });
     });
 
@@ -1030,7 +899,7 @@ describe('FieldTilesBar', () => {
 
             // The mocked rule is not updated, so the button stays
             const button = screen.getByRole('button', {
-                name: 'Filter the other 1 tile by Status',
+                name: 'Apply Status to all 2 tiles',
             });
             await userEvent.click(button);
             rerender(<Dashboard />);
@@ -1046,14 +915,14 @@ describe('FieldTilesBar', () => {
 
             await userEvent.click(
                 screen.getByRole('button', {
-                    name: 'Filter the other 1 tile by Status',
+                    name: 'Apply Status to all 2 tiles',
                 }),
             );
-            setSidebar(getUpdatedRule());
+            setSidebar(getAppliedRule());
             rerender(<Dashboard />);
 
             expect(
-                screen.queryByRole('button', { name: /^Filter the other/ }),
+                screen.queryByRole('button', { name: /^Apply Status/ }),
             ).not.toBeInTheDocument();
             expect(bar()).toHaveFocus();
         });

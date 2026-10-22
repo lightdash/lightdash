@@ -1,4 +1,4 @@
-import { Button, Divider, Group, Paper, Text } from '@mantine/core';
+import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -9,9 +9,10 @@ import {
 } from '../dashboard/store';
 import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
-import { getFilterFields } from './peers';
+import { getFilterFields, type FieldScope } from './peers';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
+    nameReplacedFields,
     useFieldTileActions,
     type FieldTiles,
     type TileScope,
@@ -68,25 +69,50 @@ const useBarHost = (
     return host;
 };
 
+// What "Apply to all" would do over a scope: the tiles it ends up on, in the
+// button's name, and a tooltip only when it replaces another field. Null:
+// nothing to change
+const getUseOnAll = (
+    fieldTiles: FieldTiles,
+    scope: FieldScope,
+    where: string,
+): { name: string; tooltip: string | null } | null => {
+    if (scope.unfiltered + scope.replaced === 0) return null;
+    return {
+        name: `Apply ${fieldTiles.label} to all ${scope.possible} ${pluralizeTiles(scope.possible)}${where}`,
+        tooltip:
+            scope.replaced > 0
+                ? `Replaces ${nameReplacedFields(
+                      scope.replacedFieldIds.map(fieldTiles.labelOf),
+                  )} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`
+                : null,
+    };
+};
+
 const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     const {
         field,
         label,
         thisTabScope,
         everyTabScope,
-        otherTabsUnfiltered,
         canAct,
-        addToUnfiltered,
-        switchFromOthers,
+        applyToAll,
         clear,
     } = fieldTiles;
     // The tab in view, or every tile on a dashboard without tabs
     const hasTabs = thisTabScope !== null;
     const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
-    const { applied, possible, unfiltered, replaced } =
-        thisTabScope ?? everyTabScope;
-    // Ends the count and each `aria-label`
+    const { applied, possible } = thisTabScope ?? everyTabScope;
+    // Ends the count
     const scopeSuffix = hasTabs ? ' on this tab' : '';
+    const useOnScope = getUseOnAll(
+        fieldTiles,
+        thisTabScope ?? everyTabScope,
+        scopeSuffix,
+    );
+    const useOnEveryTab = hasTabs
+        ? getUseOnAll(fieldTiles, everyTabScope, ' on every tab')
+        : null;
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
     // A pressed button leaves once its action is done: focus stays on the bar
@@ -103,16 +129,6 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         wasPressedRef.current = true;
         action();
     };
-    // Beside a "Switch" button the count alone would be unclear
-    const mainLabel =
-        replaced > 0
-            ? `Filter ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}`
-            : applied > 0
-              ? `Filter the other ${unfiltered}`
-              : `Filter all ${unfiltered}`;
-    // Starts with the words on the button
-    const mainName = `${mainLabel}${replaced > 0 ? '' : ` ${pluralizeTiles(unfiltered)}`}${scopeSuffix} by ${label}`;
-    const switchLabel = `Switch ${replaced} ${pluralizeTiles(replaced)} to this field`;
 
     return (
         <Paper
@@ -143,32 +159,41 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         </Text>
                     ) : (
                         <Text fz="sm" aria-live="polite">
-                            {'on '}
                             <Text span fw={600} className={classes.count}>
                                 {`${applied} of ${possible}`}
                             </Text>
                             {` ${pluralizeTiles(possible)}${scopeSuffix}`}
                         </Text>
                     )}
-                    {unfiltered > 0 && (
-                        <Button
-                            size="xs"
-                            variant="filled"
-                            aria-label={mainName}
-                            onClick={press(() => addToUnfiltered(tileScope))}
+                    {useOnScope !== null && (
+                        <Tooltip
+                            label={useOnScope.tooltip}
+                            disabled={useOnScope.tooltip === null}
                         >
-                            {mainLabel}
-                        </Button>
+                            <Button
+                                size="xs"
+                                variant="light"
+                                aria-label={useOnScope.name}
+                                onClick={press(() => applyToAll(tileScope))}
+                            >
+                                Apply to all
+                            </Button>
+                        </Tooltip>
                     )}
-                    {replaced > 0 && (
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            aria-label={`${switchLabel} (${label})${scopeSuffix}`}
-                            onClick={press(() => switchFromOthers(tileScope))}
+                    {useOnEveryTab !== null && (
+                        <Tooltip
+                            label={useOnEveryTab.tooltip}
+                            disabled={useOnEveryTab.tooltip === null}
                         >
-                            {switchLabel}
-                        </Button>
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                aria-label={useOnEveryTab.name}
+                                onClick={press(() => applyToAll('every-tab'))}
+                            >
+                                Apply to all tabs
+                            </Button>
+                        </Tooltip>
                     )}
                     {applied > 0 && (
                         <Button
@@ -188,19 +213,6 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         </Button>
                     )}
                 </Group>
-                {otherTabsUnfiltered > 0 && (
-                    <>
-                        <Divider orientation="vertical" />
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            aria-label={`Filter ${otherTabsUnfiltered} on other tabs by ${label}`}
-                            onClick={press(() => addToUnfiltered('other-tabs'))}
-                        >
-                            {`Filter ${otherTabsUnfiltered} on other tabs`}
-                        </Button>
-                    </>
-                )}
             </Group>
         </Paper>
     );

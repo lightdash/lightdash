@@ -203,6 +203,16 @@ In `FilterConfiguration/`:
   kind). A locked control comes back not `required` when
   the new field brings no value (`isLockedRequiredMissingValue`).
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
+- `updateFilterWithUndo(rule, message)` is `updateFilter`, then, when the
+  edited rule changed, the app toaster's success toast with `message` and an
+  "Undo" action, under one key (`controls-field-undo`), so a new press
+  replaces it. Undo writes the rule as it was just before the press with
+  `updateFilter` (a field promoted away comes back with its tiles), and only
+  while the same control is edited and the rule is still what the press
+  wrote (`isFilterRuleDirty` over the filters right after the write, as
+  "changed" reads it); otherwise it does nothing. The toast is hidden when
+  the edit ends (`resetEdit`) and when another control or a placeholder
+  opens. The bar's and the follow-up's "Apply to all" use it.
 - The rail and the edit are two states. `isRailOpen` is the rail on screen;
   `isSidebarOpen` is a filter expanded in it. `open`/`openNew` open both.
   `collapse()` does to the edited filter exactly what `close()` does (edits
@@ -570,14 +580,23 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   control or a placeholder. `forSqlColumn` is for a column SQL chart tiles
   are mapped to on a filter of any kind (it is never a field of the filter).
   Both give the same shape: the
-  field, its labels, `isWaiting`, two `FieldScope`s (`thisTabScope`,
-  `everyTabScope`), `otherTabsUnfiltered`, and `addToUnfiltered`, `switchFromOthers`, `clear`
-  (each taking a `TileScope`) and `remove`.
+  field, its labels, `labelOf` (another field's name; a column's own name on
+  a column row), `isWaiting`, two `FieldScope`s (`thisTabScope`,
+  `everyTabScope`), and `applyToAll`, `clear` (each taking a `TileScope`)
+  and `remove`.
+- `applyToAll(scope)` is `applyFieldToAllTiles` (`peers.ts`) through
+  `updateFilterWithUndo`: every tile of the scope that offers the field (a
+  SQL chart tile that has the column, for a column) ends up on it, whether
+  it had no entry, was left out (`false`) or was on another field of the
+  filter. A data app tile is never touched, and a tile already on the field
+  is left as it is. Its toast reads "<field> applied to N tiles", N being the
+  scope's `possible`, plus ", replacing <fields> on k" when it moved tiles
+  off other fields (`nameReplacedFields`: one or two by name joined with
+  "and", more as "other fields").
 - Scope: there is no mode. On a dashboard with two tabs or more the scopes
-  are `'this-tab'` (the dashboard's active tab, which it follows),
-  `'other-tabs'` (every tile off that tab) and `'every-tab'`; with fewer
-  there is only `'every-tab'`, `thisTabScope` is null and `'other-tabs'` is
-  empty. Scope is only which tiles are passed to the helpers
+  are `'this-tab'` (the dashboard's active tab, which it follows) and
+  `'every-tab'`; with fewer there is only `'every-tab'` and `thisTabScope`
+  is null. Scope is only which tiles are passed to the helpers
   (`tilesByScope`), so an action never writes a tile out of scope. The card
   counts `everyTabScope`; the bar acts on the scope in view.
 - A tile's tab is its effective one (`getEffectiveTabUuid`, `getTilesOnTab`
@@ -589,38 +608,35 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   the card, the bar and the badge alike): the ones on it
   (`applied`), the ones the filter is not on (`unfiltered`) and the ones on
   another field (`replaced`, with `replacedFieldIds`). The three never
-  overlap.
+  overlap, and "Apply to all" changes `unfiltered + replaced` tiles.
 - `FieldTilesBar` is where a field's tiles are changed: a compact floating
   selection bar, shown while a field is clicked (`highlightedFieldId`, never
   the hovered one) and the control is not a placeholder. A waiting field can
   be clicked too.
   - One line that wraps when narrow: the field's icon and name, a vertical
     `Divider`, then the tab in view (every tile on a dashboard without
-    tabs): "on **x of N** tiles on this tab" ("on x of N tiles" without
-    tabs) and its actions. There is nothing about every tab: no count,
-    switch or clear for it.
+    tabs): "**x of N** tiles on this tab" ("x of N tiles" without tabs) and
+    its actions.
   - Where no tile of the scope offers the field the count reads "No tile on
-    this tab has this field" ("No tile has this field" without tabs) and
-    there is no action.
-  - Actions, size `xs`: the filled main button when the scope has unfiltered
-    tiles (`applyFieldToUnfilteredTiles`). Its label is "Filter n unfiltered
-    tile(s)" when a tile of the scope is on another field, else "Filter the
-    other n" when the field is on a tile there, else "Filter all n".
-    "Switch n tile(s) to this field" (`subtle`, `switchFromOthers`: only
-    the tiles on another field of the filter, so the two never count the
-    same tile); a subtle gray "Clear" (`removeFieldFromAll`).
-  - With tabs, after a second `Divider`: a subtle "Filter m on other tabs"
-    when `otherTabsUnfiltered` is above 0. It is
-    `addToUnfiltered('other-tabs')`: it fills the unfiltered tiles of the
-    tabs that are not active and never this tab's. It shows on a tab with no
-    tile for the field too.
+    this tab has this field" ("No tile has this field" without tabs).
+  - Actions, size `xs`, in this order, and never a filled button (the
+    header's Save and the rail's Done are the filled ones on screen):
+    "Apply to all" (`light`, `applyToAll('this-tab')`, or `'every-tab'`
+    without tabs), shown while a tile of the scope that offers the field is
+    not on it; with two tabs or more "Apply to all tabs" (`subtle`,
+    `applyToAll('every-tab')`), shown while any tile on any tab is not on it,
+    on a tab with no tile for the field too; a subtle gray "Clear"
+    (`removeFieldFromAll`, this tab), shown while the field is on a tile of
+    the scope.
   - A button that would change nothing is not rendered, never disabled.
   - It is a `region` named "Tiles filtered by <field>"; the count sentence
-    is the `aria-live="polite"` element. A button's `aria-label` starts with
-    the words on the button, then adds the scope and the field: "Filter all
-    3 tiles on this tab by <field>", "Switch 2 tiles to this field (<field>)
-    on this tab", "Filter 4 on other tabs by <field>" (no "on this
-    tab" without tabs). "Clear" is named "Clear <field> from this tab".
+    is the `aria-live="polite"` element. The apply buttons are named by the
+    field, the tiles they end on and the scope: "Apply <field> to all 8
+    tiles on this tab", "Apply <field> to all 23 tiles on every tab"
+    ("Apply <field> to all 8 tiles" without tabs). "Clear" is named "Clear
+    <field> from this tab" ("Clear <field> from tiles" without tabs). An
+    apply button has a tooltip only when it would replace another field:
+    "Replaces <fields> on k tiles".
   - A pressed button leaves once its action is done, so focus moves to the
     region itself (`tabIndex={-1}`), from a layout effect and only when
     focus would otherwise be on `<body>`.
@@ -729,13 +745,16 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - Follow-up on a tile card: right after a tile is changed from its card, that
   card offers the same for the rest of the scope in view, under the select
   and a top border, as one subtle `compact-xs` button.
-  - Set to a field (from nothing or from another field): "Filter the other n
-    on this tab too", n being the other tiles of the tab that offer it and
-    are unfiltered. It is `addToUnfiltered`, the bar's main button.
-  - Left out: "Clear the other k on this tab too", k being the other tiles
-    of the tab still on that field. It is `clear`, the bar's "Clear".
-  - Without tabs the scope is every tile and the labels drop "on this tab".
-    The `aria-label` carries the field, the count and the scope.
+  - Set to a field (from nothing or from another field): "Apply to the
+    other n too", n being the other tiles of the tab that offer it and are
+    not on it (`unfiltered + replaced`). It is `applyToAll`, the bar's
+    "Apply to all", with the same override and Undo toast.
+  - Left out: "Clear the other k too", k being the other tiles of the tab
+    still on that field. It is `clear`, the bar's "Clear".
+  - The card is on the tab, so the label never names it; the `aria-label`
+    carries the field, the count and the scope: "Apply <field> to the other
+    3 tiles on this tab too", "Clear <field> from the other 2 tiles on this
+    tab too" (no "on this tab" without tabs).
   - `EditedTileOverlays` keeps only the intent in state (`FollowUp`: rule
     id, tab, tile, field, whether it is a SQL column, kind), written by
     `handleSelect`. Everything shown is derived on render from

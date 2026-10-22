@@ -110,6 +110,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         hoveredFilterId: null,
         setHoveredFilterId: vi.fn(),
         clearHoveredFilterId: vi.fn(),
+        updateFilterWithUndo: vi.fn(),
         activeSection: null,
         setActiveSection: vi.fn(),
         open: vi.fn(),

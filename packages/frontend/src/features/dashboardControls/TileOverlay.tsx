@@ -39,6 +39,7 @@ import {
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
+import { pluralizeTiles } from './fieldLabels';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
@@ -597,22 +598,27 @@ const EditedTileOverlays: FC = () => {
             : fieldTileActions.forField(followUp.fieldId);
         const hasTabs = fieldTiles.thisTabScope !== null;
         const scope = fieldTiles.thisTabScope ?? fieldTiles.everyTabScope;
-        const count = isFilter ? scope.unfiltered : scope.applied;
+        // The other tiles of the scope that offer it and are not on it
+        const count = isFilter
+            ? scope.unfiltered + scope.replaced
+            : scope.applied;
         // Not while the tiles' fields load: the count would be a guess
         if (count === 0 || !fieldTiles.canAct) return null;
         const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
+        // The card is on the tab, so only the name says which scope
         const where = hasTabs ? ' on this tab' : '';
-        const label = `${isFilter ? 'Filter' : 'Clear'} the other ${count}${where} too`;
+        const others = `${count} ${pluralizeTiles(count)}${where}`;
         return {
             tileUuid: followUp.tileUuid,
-            label,
-            // Starts with the visible label, then names the field
+            label: isFilter
+                ? `Apply to the other ${count} too`
+                : `Clear the other ${count} too`,
             name: isFilter
-                ? `${label}, by ${fieldTiles.label}`
-                : `${label}, from ${fieldTiles.label}`,
+                ? `Apply ${fieldTiles.label} to the other ${others} too`
+                : `Clear ${fieldTiles.label} from the other ${others} too`,
             run: () =>
                 isFilter
-                    ? fieldTiles.addToUnfiltered(tileScope)
+                    ? fieldTiles.applyToAll(tileScope)
                     : fieldTiles.clear(tileScope),
         };
     };
