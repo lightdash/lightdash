@@ -12,6 +12,7 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { createExplorerStore } from '../../../features/explorer/store';
 import type * as ExplorerStore from '../../../features/explorer/store';
 import { AbilityContext } from '../../../providers/Ability/context';
@@ -64,6 +65,7 @@ const registryChart = {
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     getDataAppVisualization: (...args: unknown[]) =>
         mocks.getDataAppVisualization(...args),
@@ -166,10 +168,8 @@ const expectLibraryDialog = async () => {
 describe('AddChartTypeMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlags.current = {
-            [FeatureFlags.EnableDataApps]: true,
-            [FeatureFlags.ChartTypeRegistry]: true,
-        };
+        featureFlags.current = { [FeatureFlags.ChartTypeRegistry]: true };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         mocks.canCreateDataApp.mockReturnValue(true);
         registryState.current = { registryEnabled: true, charts: [] };
     });
@@ -245,8 +245,8 @@ describe('AddChartTypeMenu', () => {
         await expectLibraryDialog();
     });
 
-    it('starts authoring directly without the library flag', async () => {
-        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
+    it('starts authoring directly with data apps and the library off', async () => {
+        featureFlags.current = {};
         renderMenu();
 
         const button = screen.getByRole('button', {
@@ -261,8 +261,27 @@ describe('AddChartTypeMenu', () => {
         });
     });
 
+    it('offers only the library without Chart Studio, even with data apps on', () => {
+        featureFlags.current = {
+            [FeatureFlags.EnableDataApps]: true,
+            [FeatureFlags.ChartTypeRegistry]: true,
+        };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        renderMenu();
+
+        expect(
+            screen.queryByRole('button', { name: 'Add chart type' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Add chart type from the library',
+            }),
+        ).toBeInTheDocument();
+    });
+
     it('renders nothing when neither destination is open', () => {
-        featureFlags.current = {};
+        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         renderMenu();
 
         expect(screen.queryByRole('button')).not.toBeInTheDocument();

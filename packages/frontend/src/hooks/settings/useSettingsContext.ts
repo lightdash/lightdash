@@ -5,6 +5,7 @@ import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks'
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
+import { useChartStudioAvailable } from '../../features/chartTypes/hooks/useChartStudioAvailable';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -83,6 +84,7 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
+    const isChartStudioAvailable = useChartStudioAvailable();
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
@@ -243,6 +245,7 @@ export const useSettingsContext = (): SettingsContext => {
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
             dataAppAnalysisFlagQuery.isInitialLoading,
+        isChartStudioAvailable,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

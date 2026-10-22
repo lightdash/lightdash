@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useCanCreateDataApp } from '../../../features/apps/hooks/useCanCreateDataApp';
 import ChartTypeLibraryModal from '../../../features/chartTypes/components/ChartTypeLibraryModal';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { getDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import {
     explorerActions,
@@ -34,9 +35,7 @@ const AddChartTypeMenu: FC = () => {
         [projectUuid],
     );
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const libraryEnabled =
         useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
         true;
@@ -44,7 +43,7 @@ const AddChartTypeMenu: FC = () => {
     const { itemsMap } = useVisualizationState();
     const selectProjectChartType = useSelectProjectChartType();
     const onCreateNew =
-        dataAppsEnabled && canCreateChartType
+        chartStudioAvailable && canCreateChartType
             ? () =>
                   dispatch(
                       explorerActions.startChartTypeAuthoring({
