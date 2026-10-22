@@ -1401,6 +1401,7 @@ const allMcpFeatures: Record<McpFeature, boolean> = {
     filterExpressionsEnabled: false,
     documentsEnabled: true,
     dataAppBuildsEnabled: true,
+    chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
     agentIdentityEnabled: true,
 };
@@ -1423,10 +1424,13 @@ const mcpReferenceNames = [
 const DATA_APP_AGENT_NAMES =
     'data app description uses agent tool names instead of MCP ones';
 const RUN_SQL_GATED = 'names run_sql, which runSqlEnabled gates separately';
+const OTHER_BUILD_GROUP =
+    'names the other build group, which registers on its own flag';
 
 const WITH_DATA_APPS: McpScope[] = [
     'all',
     'without:agentIdentityEnabled',
+    'without:chartTypeBuildsEnabled',
     'without:customChartTypesEnabled',
     'without:documentsEnabled',
     'without:mcpContentWritesEnabled',
@@ -1438,18 +1442,10 @@ const WITH_DATA_APPS: McpScope[] = [
 // Shrink-only: fixing a reference fails this test until its entry is removed.
 const KNOWN_MCP: KnownToolReference<McpScope, McpSource>[] = [
     {
-        source: McpToolName.EDIT_CONTENT,
-        named: 'readContent',
-        scopes: [
-            'all',
-            'without:agentIdentityEnabled',
-            'without:customChartTypesEnabled',
-            'without:dataAppBuildsEnabled',
-            'without:runMetricQueryEnabled',
-            'without:runSqlEnabled',
-            'without:scheduledDeliveryEnabled',
-        ],
-        reason: 'names the agent tool readContent instead of read_content',
+        source: McpToolName.CREATE_CUSTOM_CHART_TYPE,
+        named: 'generate_data_app',
+        scopes: ['without:dataAppBuildsEnabled'],
+        reason: OTHER_BUILD_GROUP,
     },
     {
         source: McpToolName.FIND_CONTENT,
@@ -1460,21 +1456,17 @@ const KNOWN_MCP: KnownToolReference<McpScope, McpSource>[] = [
     {
         source: McpToolName.FIND_CUSTOM_CHART_TYPES,
         named: 'create_custom_chart_type',
-        scopes: ['without:dataAppBuildsEnabled'],
-        reason: 'names create_custom_chart_type, which dataAppBuildsEnabled gates',
+        scopes: ['without:chartTypeBuildsEnabled'],
+        reason: 'names create_custom_chart_type, which chartTypeBuildsEnabled gates',
     },
-    {
+    ...(
+        ['findContent', 'listDataAppConnections', 'listDataAppThemes'] as const
+    ).map((named) => ({
         source: McpToolName.GENERATE_DATA_APP,
-        named: 'findContent',
+        named,
         scopes: WITH_DATA_APPS,
         reason: DATA_APP_AGENT_NAMES,
-    },
-    {
-        source: McpToolName.GENERATE_DATA_APP,
-        named: 'listDataAppConnections',
-        scopes: WITH_DATA_APPS,
-        reason: DATA_APP_AGENT_NAMES,
-    },
+    })),
     {
         source: McpToolName.GET_QUERY_RESULT,
         named: 'run_sql',
@@ -1482,35 +1474,30 @@ const KNOWN_MCP: KnownToolReference<McpScope, McpSource>[] = [
         reason: RUN_SQL_GATED,
     },
     {
-        source: McpToolName.ITERATE_DATA_APP,
-        named: 'findContent',
-        scopes: WITH_DATA_APPS,
-        reason: DATA_APP_AGENT_NAMES,
+        source: McpToolName.ITERATE_CUSTOM_CHART_TYPE,
+        named: 'iterate_data_app',
+        scopes: ['without:dataAppBuildsEnabled'],
+        reason: OTHER_BUILD_GROUP,
     },
     {
         source: McpToolName.ITERATE_DATA_APP,
-        named: 'generateDataApp',
-        scopes: WITH_DATA_APPS,
-        reason: DATA_APP_AGENT_NAMES,
+        named: 'iterate_custom_chart_type',
+        scopes: ['without:chartTypeBuildsEnabled'],
+        reason: OTHER_BUILD_GROUP,
     },
-    {
+    ...(
+        [
+            'findContent',
+            'listDataAppConnections',
+            'listDataAppThemes',
+            'readContent',
+        ] as const
+    ).map((named) => ({
         source: McpToolName.ITERATE_DATA_APP,
-        named: 'iterateDataApp',
+        named,
         scopes: WITH_DATA_APPS,
         reason: DATA_APP_AGENT_NAMES,
-    },
-    {
-        source: McpToolName.ITERATE_DATA_APP,
-        named: 'listDataAppConnections',
-        scopes: WITH_DATA_APPS,
-        reason: DATA_APP_AGENT_NAMES,
-    },
-    {
-        source: McpToolName.ITERATE_DATA_APP,
-        named: 'readContent',
-        scopes: WITH_DATA_APPS,
-        reason: DATA_APP_AGENT_NAMES,
-    },
+    })),
     {
         source: McpToolName.RENDER_CHART,
         named: 'find_custom_chart_types',
