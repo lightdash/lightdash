@@ -2470,6 +2470,21 @@ describe('mergeLegendSettings', () => {
         });
     });
 
+    test('returns defaults when config only holds a persisted selection', () => {
+        const result = mergeLegendSettings(
+            { selected: { A: false } },
+            { A: false, B: true },
+            series,
+        );
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected: { A: false, B: true },
+        });
+    });
+
     test('passes through user orient/position when placement is unset', () => {
         const result = mergeLegendSettings(
             { orient: 'vertical', right: '10', top: '20' },

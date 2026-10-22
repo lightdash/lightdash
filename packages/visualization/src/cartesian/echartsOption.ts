@@ -462,7 +462,11 @@ export const mergeLegendSettings = <
     outsideLabelWidth: number = OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH,
 ): MergedLegendSettings => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
-    if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
+    // A persisted legend selection alone is not a layout config
+    const hasLayoutConfig = Object.keys(normalizedConfig ?? {}).some(
+        (key) => key !== 'selected',
+    );
+    if (!normalizedConfig || !hasLayoutConfig) {
         return {
             show: series.length > 1,
             type: 'scroll',
