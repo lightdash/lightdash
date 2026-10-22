@@ -4270,6 +4270,20 @@ Sources in this project: Core models, marketing, finance.`;
                     .whereIn('name', names)
                     .orderBy('name');
                 expect(before).toHaveLength(3);
+                const carriedAllocations = () =>
+                    database('explore_name_allocations')
+                        .where('project_uuid', fixture.projectUuid)
+                        .whereIn('name', names)
+                        .orderBy('name');
+                const reservations = () =>
+                    database('explore_name_allocations')
+                        .where({
+                            project_uuid: fixture.projectUuid,
+                            is_reserved: true,
+                        })
+                        .orderBy('name');
+                const allocationsBefore = await carriedAllocations();
+                const reservationsBefore = await reservations();
                 const refreshedModels = (label: string) => [
                     ...primaryModels.map((model) => ({ ...model, label })),
                     ...(collision
@@ -4322,7 +4336,16 @@ Sources in this project: Core models, marketing, finance.`;
                         ).toBe(label);
                 };
                 await refresh('First refresh');
+                const allocationsAfterFirst = await carriedAllocations();
+                expect(allocationsAfterFirst).toHaveLength(3);
+                if (sourceSelection !== 'legacy before allocations')
+                    expect(allocationsAfterFirst).toEqual(allocationsBefore);
+                expect(await reservations()).toEqual(reservationsBefore);
                 await refresh('Second refresh');
+                expect(await carriedAllocations()).toEqual(
+                    allocationsAfterFirst,
+                );
+                expect(await reservations()).toEqual(reservationsBefore);
                 expect(
                     await database('explore_name_allocations')
                         .where('project_uuid', fixture.projectUuid)
@@ -4334,6 +4357,18 @@ Sources in this project: Core models, marketing, finance.`;
                     primaryModels: refreshedModels('Recovered'),
                 });
                 expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(
+                    (await carriedAllocations()).map((row) => [
+                        row.name,
+                        row.explore_name_allocation_uuid,
+                    ]),
+                ).toEqual(
+                    allocationsAfterFirst.map((row) => [
+                        row.name,
+                        row.explore_name_allocation_uuid,
+                    ]),
+                );
+                expect(await reservations()).toEqual(reservationsBefore);
                 expect(
                     (
                         await database('cached_explore')
