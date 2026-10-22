@@ -1,0 +1,4 @@
+# Hash-checked bootstrap for pip's patched TLS bundle (GHSA-6q48-6c7w-9gw2).
+# python-security.py retains newer installed versions and updates certifi separately.
+--only-binary=:all:
+pip==26.2.2 --hash=sha256:fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70

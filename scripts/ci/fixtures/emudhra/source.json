@@ -1,0 +1,7 @@
+{
+  "source": "https://emudhra.we-have-a-problem.com/chains.zip",
+  "captured": "2026-10-20",
+  "sha256": "8a2edc81b6c51e3ad27d45ca1e441ec84c961e2dee0fc547f2a02c0f74315f95",
+  "scope": "Six compromised TLS intermediate keys through two public issuer routes; public certificates only.",
+  "control_roots_source": "https://emudhra.we-have-a-problem.com/roots.json"
+}

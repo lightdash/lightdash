@@ -33,22 +33,23 @@
 # same platform, same dockerfile, same (absent) TURBO_TOKEN secret mount.
 #
 # VERIFICATION PROTOCOL — WHAT IS AND IS NOT AUTOMATED HERE
-#   Automated by this workflow (artifacts uploaded for diffing):
+#   Automated by this workflow:
 #     1. Image config    — entrypoint, cmd, env, workdir, exposed ports,
 #                          labels, user, volumes. Gated: any diff fails.
 #     2. Filesystem      — every path with size, mode, uid/gid and content
 #                          sha256, sorted. Gated: any diff fails.
 #     3. Build timing    — per-stage seconds and BuildKit cache hit/miss
 #                          counts. Informational; never fails a comparison.
+#     4. Python TLS      — minimum security versions, compromised-chain rejection,
+#                          and offline dbt deps/parse/ls for three adapter profiles.
 #   Enforced elsewhere, already:
-#     4. DuckDB extension/ABI match — `dockerfile` asserts at build time that
+#     5. DuckDB extension/ABI match — `dockerfile` asserts at build time that
 #        the bundled extensions match @duckdb/node-api, so drift fails here
 #        by failing the build.
 #   Still manual, deliberately out of scope for v1:
-#     5. dbt --version sweep across the nine pinned venvs (dbt1.4 .. dbt1.12).
 #     6. Offline DuckDB extension load check (no network in the container).
 #     7. Container boot + health endpoint.
-#   5-7 need a running container plus a database; adding them would turn this
+#   The boot/health check needs a database; adding it would turn this
 #   from a build-comparison harness into an integration environment. They are
 #   run by hand against the loaded image until a follow-up ticket automates
 #   them.
@@ -238,3 +239,15 @@ jobs:
           name: docker-image-artifacts-${{ github.run_id }}
           path: image-artifacts/
           retention-days: 30
+
+      - name: Verify Python certificate security and dbt compatibility
+        env:
+          IMAGE_REF: ${{ steps.image.outputs.ref }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+            --mount "type=bind,source=$PWD/scripts/ci,target=/image-tests,readonly" \
+            --entrypoint python3 "$IMAGE_REF" \
+            /image-tests/test-python-certificates.py --dbt-smoke

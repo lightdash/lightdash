@@ -21,10 +21,15 @@ ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
 COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libatomic1 libstdc++6 \
+    && apt-get install -y --no-install-recommends libatomic1 libstdc++6 ca-certificates \
     && groupadd --gid 1000 node \
     && useradd --uid 1000 --gid node --shell /bin/bash --create-home node \
     && rm -rf /var/lib/apt/lists/*
+COPY docker/python-security-requirements.txt docker/python-security.py /usr/local/share/lightdash/
+# Bootstrap through the patched OS bundle; pip 24.0's own CA bundle is affected.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 /usr/local/share/lightdash/python-security.py install \
+    && python3 /usr/local/share/lightdash/python-security.py check
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node"]
 RUN pnpm config set store-dir /pnpm/store
@@ -63,6 +68,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Use pip cache to speed up subsequent builds
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m venv /usr/local/dbt1.4 \
+    && /usr/local/dbt1.4/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.4/bin/pip install \
     "dbt-postgres~=1.4.0" \
     "dbt-redshift~=1.4.0" \
@@ -76,6 +82,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt\
     && python3 -m venv /usr/local/dbt1.5 \
+    && /usr/local/dbt1.5/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.5/bin/pip install \
     "dbt-postgres~=1.5.0" \
     "dbt-redshift~=1.5.0" \
@@ -87,6 +94,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "psycopg2-binary==2.9.6" \
     && ln -s /usr/local/dbt1.5/bin/dbt /usr/local/bin/dbt1.5\
     && python3 -m venv /usr/local/dbt1.6 \
+    && /usr/local/dbt1.6/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.6/bin/pip install \
     "dbt-postgres~=1.6.0" \
     "dbt-redshift~=1.6.0" \
@@ -98,6 +106,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "psycopg2-binary==2.9.6"\
     && ln -s /usr/local/dbt1.6/bin/dbt /usr/local/bin/dbt1.6 \
     && python3 -m venv /usr/local/dbt1.7 \
+    && /usr/local/dbt1.7/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.7/bin/pip install \
     "dbt-postgres~=1.7.0" \
     "dbt-redshift~=1.7.0" \
@@ -109,6 +118,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "psycopg2-binary==2.9.6" \
     && ln -s /usr/local/dbt1.7/bin/dbt /usr/local/bin/dbt1.7 \
     && python3 -m venv /usr/local/dbt1.8 \
+    && /usr/local/dbt1.8/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.8/bin/pip install \
     # from 1.8, dbt-core needs to be explicitly installed
     "dbt-core~=1.8.0" \
@@ -122,6 +132,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.8.0" \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8 \
     && python3 -m venv /usr/local/dbt1.9 \
+    && /usr/local/dbt1.9/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.9/bin/pip install \
     "dbt-core~=1.9.0" \
     "dbt-postgres~=1.9.0" \
@@ -135,6 +146,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.9.0" \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
+    && /usr/local/dbt1.10/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.10/bin/pip install \
     "dbt-core~=1.10.0" \
     "dbt-postgres~=1.10.0" \
@@ -148,6 +160,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
+    && /usr/local/dbt1.11/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
     && /usr/local/dbt1.11/bin/pip install \
     "dbt-core~=1.11.0" \
     "dbt-postgres~=1.10.0" \
@@ -161,6 +174,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
+    && /usr/local/dbt1.12/bin/python /usr/local/share/lightdash/python-security.py bootstrap-pip \
 # dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install \
     "dbt-core==1.12.0" \
@@ -181,6 +195,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     /usr/local/dbt1.6/bin/pip install "google-cloud-bigquery<3.31.0" "pyarrow<26.0.0" \
     && /usr/local/dbt1.7/bin/pip install "pyarrow<26.0.0"
+
+# Reapply the certifi security override after adapter resolution, and replace
+# gRPC/botocore's independently bundled roots with the maintained OS bundle.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 /usr/local/share/lightdash/python-security.py install \
+    && python3 /usr/local/share/lightdash/python-security.py check
 
 # -----------------------------
 # Stage 1: stop here for dev environment
@@ -437,9 +457,8 @@ RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} +
 # Stage 5: runtime base
 # -----------------------------
 
-# Everything here is invalidated only by this file: system packages, the dbt
-# virtualenvs and their symlinks. It is deliberately independent of the build
-# context so a release version bump never rebuilds it.
+# System packages and dbt depend on this file and the Python security helpers.
+# Application source and release version bumps do not rebuild this stage.
 FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
@@ -486,6 +505,8 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
+
+RUN python3 /usr/local/share/lightdash/python-security.py check
 
 # `lightdash` on PATH for the Learn developer sandbox. The CLI itself arrives
 # with the application layers in the prod stage (COPY --link only there), so
