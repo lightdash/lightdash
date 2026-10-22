@@ -94,10 +94,14 @@ import {
     decodeLightdashJwt,
     encodeLightdashJwt,
 } from '../../../auth/lightdashJwt';
+import { isAppRuntimeConfigured } from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import {
+    FeatureFlagModel,
+    type FeatureFlagLogicArgs,
+} from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -231,6 +235,17 @@ export class EmbedService extends BaseService {
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
         this.externalConnectionModel = dependencies.externalConnectionModel;
+    }
+
+    /** Embedded chart types follow the same usage gate as the app, with Chart Studio from this instance's runtime. */
+    private async assertChartTypesUsable(
+        user: FeatureFlagLogicArgs['user'],
+    ): Promise<void> {
+        await assertChartTypesEnabled(
+            this.featureFlagModel,
+            isAppRuntimeConfigured(this.lightdashConfig),
+            user,
+        );
     }
 
     async getEmbedUrl(
@@ -2015,7 +2030,7 @@ export class EmbedService extends BaseService {
             throw new ForbiddenError('Insufficient permissions');
         }
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.id,
             organizationUuid,
         });
@@ -2143,7 +2158,7 @@ export class EmbedService extends BaseService {
             );
         }
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.id,
             organizationUuid: dataAppViz.organization_uuid,
         });

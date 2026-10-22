@@ -199,6 +199,7 @@ const registrationOnlyFeatures = {
     mcpContentWritesEnabled: true,
     scheduledDeliveryEnabled: true,
     dataAppBuildsEnabled: true,
+    chartTypeBuildsEnabled: true,
     customChartTypesEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
@@ -849,6 +850,7 @@ describe('MCP tool contracts', () => {
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
                 dataAppBuildsEnabled: true,
+                chartTypeBuildsEnabled: true,
                 customChartTypesEnabled: true,
             }),
         );

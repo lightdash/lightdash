@@ -1337,19 +1337,7 @@ export class AiAgentToolsService extends BaseService {
     private async customChartTypesEnabled(
         context: AiAgentToolsRuntimeContext,
     ): Promise<boolean> {
-        // Chart types are usable wherever data apps OR the chart type
-        // library is on, matching AppGenerateService.assertChartTypesEnabled.
-        const [dataApps, chartTypeLibrary] = await Promise.all([
-            this.featureFlagService.get({
-                user: context.user,
-                featureFlagId: FeatureFlags.EnableDataApps,
-            }),
-            this.featureFlagService.get({
-                user: context.user,
-                featureFlagId: FeatureFlags.ChartTypeRegistry,
-            }),
-        ]);
-        return dataApps.enabled || chartTypeLibrary.enabled;
+        return this.appGenerateService.chartTypesEnabledFor(context.user);
     }
 
     static readonly CUSTOM_CHART_TYPES_INLINE_LIMIT = 10;
@@ -1413,7 +1401,7 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    /** Chart Studio's gallery gate: chart types enabled and manage:Explore. */
+    /** The chart type usage gate: chart types usable and manage:Explore. */
     async canUseCustomChartTypes(context: {
         user: SessionUser;
         projectUuid: string | null;
@@ -2418,6 +2406,28 @@ export class AiAgentToolsService extends BaseService {
         if (!(await this.appGenerateService.dataAppsEnabledFor(context.user))) {
             return false;
         }
+        return this.canCreateApps(context);
+    }
+
+    isChartStudioAvailable(): boolean {
+        return this.appGenerateService.isChartStudioAvailable();
+    }
+
+    // Chart Studio available and the user may create apps; coarse without a project.
+    async canAuthorCustomChartTypes(context: {
+        user: SessionUser;
+        projectUuid: string | undefined;
+    }): Promise<boolean> {
+        if (!this.isChartStudioAvailable()) {
+            return false;
+        }
+        return this.canCreateApps(context);
+    }
+
+    private async canCreateApps(context: {
+        user: SessionUser;
+        projectUuid: string | undefined;
+    }): Promise<boolean> {
         return context.projectUuid === undefined
             ? this.appGenerateService.canCreateAnyDataApp(context.user)
             : this.appGenerateService.canCreateDataApp(

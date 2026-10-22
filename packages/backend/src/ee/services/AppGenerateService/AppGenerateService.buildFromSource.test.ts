@@ -1,13 +1,21 @@
 import { Ability } from '@casl/ability';
 import {
+    DATA_APP_VIZ_TEMPLATE,
+    FeatureFlags,
+    ForbiddenError,
     ProjectType,
     type AppBuildFromSourceJobPayload,
     type AppVersionDependencies,
     type ServiceAccount,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../../config/lightdashConfig.mock';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -94,15 +102,23 @@ const SERVICE_ACCOUNT: ServiceAccountLookup = {
     expiresAt: null,
 };
 
-const makeServiceAccountUser = (): SessionUser => {
+const makeAppManager = (isActive: boolean): SessionUser => {
     const ability = new Ability([{ action: 'manage', subject: 'DataApp' }]);
     return {
         userUuid: 'user-uuid-1',
         organizationUuid: 'org-uuid-1',
-        isActive: false,
+        isActive,
         ability,
         abilityRules: ability.rules,
     } as unknown as SessionUser;
+};
+
+const makeServiceAccountUser = (): SessionUser => makeAppManager(false);
+
+type QueuedGates = {
+    template: string | null;
+    featureFlags: Partial<Record<FeatureFlags, boolean>>;
+    appRuntimeConfigured: boolean;
 };
 
 function buildService(
@@ -111,7 +127,11 @@ function buildService(
         user: SessionUser;
         serviceAccount: ServiceAccountLookup | undefined;
     },
+    gates?: QueuedGates,
 ) {
+    const runtimeConfig = gates?.appRuntimeConfigured
+        ? lightdashConfigWithAppRuntimeMock.appRuntime
+        : lightdashConfigMock.appRuntime;
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
             app_id: 'app-uuid-1',
@@ -119,6 +139,7 @@ function buildService(
             organization_uuid: 'org-uuid-1',
             space_uuid: null,
             created_by_user_uuid: 'user-uuid-1',
+            ...(gates ? { template: gates.template } : {}),
         }),
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
@@ -146,6 +167,7 @@ function buildService(
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
+                ...(gates ? runtimeConfig : {}),
                 dependencyRegistryHosts: REGISTRY_HOSTS,
                 dependencyInstallTimeoutMs: 120_000,
             },
@@ -155,9 +177,9 @@ function buildService(
         catalogModel: {} as never,
         userModel: userModel as never,
         appModel: appModel as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
+        featureFlagModel: (gates
+            ? featureFlagModelWith(gates.featureFlags)
+            : { get: vi.fn().mockResolvedValue({ enabled: true }) }) as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -312,6 +334,74 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
 
         expect(service.markError).toHaveBeenCalledOnce();
         expect(service.createSandbox).not.toHaveBeenCalled();
+    });
+
+    describe('queued app gates', () => {
+        const buildGated = (gates: QueuedGates) => {
+            const built = buildService(
+                null,
+                { user: makeAppManager(true), serviceAccount: undefined },
+                gates,
+            );
+            built.service.runBuild = vi
+                .fn()
+                .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
+            return built;
+        };
+
+        it('refuses a queued data app once data apps are turned off', async () => {
+            const { service } = buildGated({
+                template: null,
+                featureFlags: { [FeatureFlags.EnableDataApps]: false },
+                appRuntimeConfigured: true,
+            });
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            expect(service.markError).toHaveBeenCalledWith(
+                'app-uuid-1',
+                1,
+                new ForbiddenError('Data apps are not enabled'),
+                'Build stopped because access is no longer available.',
+            );
+            expect(service.getS3Client).not.toHaveBeenCalled();
+            expect(service.createSandbox).not.toHaveBeenCalled();
+            expect(service.runBuild).not.toHaveBeenCalled();
+        });
+
+        it('refuses a queued chart type once Chart Studio is unavailable', async () => {
+            const { service } = buildGated({
+                template: DATA_APP_VIZ_TEMPLATE,
+                featureFlags: {},
+                appRuntimeConfigured: false,
+            });
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            expect(service.markError).toHaveBeenCalledWith(
+                'app-uuid-1',
+                1,
+                new ForbiddenError('Chart Studio is not available'),
+                'Build stopped because access is no longer available.',
+            );
+            expect(service.getS3Client).not.toHaveBeenCalled();
+            expect(service.createSandbox).not.toHaveBeenCalled();
+            expect(service.runBuild).not.toHaveBeenCalled();
+        });
+
+        it('builds a queued chart type with data apps off while Chart Studio is available', async () => {
+            const { service } = buildGated({
+                template: DATA_APP_VIZ_TEMPLATE,
+                featureFlags: { [FeatureFlags.EnableDataApps]: false },
+                appRuntimeConfigured: true,
+            });
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            expect(service.markError).not.toHaveBeenCalled();
+            expect(service.createSandbox).toHaveBeenCalledOnce();
+            expect(service.runBuild).toHaveBeenCalledOnce();
+        });
     });
 
     it('happy path: advances sandbox→building→packaging→ready, uploads, no markError', async () => {

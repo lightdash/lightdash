@@ -603,3 +603,16 @@ export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
         },
     },
 };
+
+export const lightdashConfigWithAppRuntimeMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    appRuntime: {
+        ...lightdashConfigMock.appRuntime,
+        s3: {
+            region: 'us-east-1',
+            endpoint: 'http://localhost:9000',
+            bucket: 'apps',
+        },
+        sandboxProvider: 'docker',
+    },
+};

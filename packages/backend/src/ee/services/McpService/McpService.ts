@@ -666,6 +666,7 @@ export type McpServerToolOptions = {
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
+        chartTypeBuildsEnabled: boolean;
         customChartTypesEnabled: boolean;
         agentIdentityEnabled: boolean;
     };
@@ -2160,15 +2161,30 @@ export class McpService extends BaseService {
         );
     }
 
-    /** Data app build tools; gated together so tools/list stays stable. */
-    private registerDataAppBuildTools(): void {
-        this.registerGenerateDataAppTool();
-        this.registerIterateDataAppTool();
-        this.registerListDataAppThemesTool();
-        this.registerListDataAppConnectionsTool();
-        this.registerGetDataAppBuildStatusTool();
-        this.registerCreateCustomChartTypeTool();
-        this.registerIterateCustomChartTypeTool();
+    /**
+     * Data app and Chart Studio build tools, each group gated on its own. The
+     * theme and build status tools serve both groups, so they register once
+     * when either is on. Registration order keeps tools/list stable.
+     */
+    private registerAppBuildTools({
+        dataAppBuildsEnabled,
+        chartTypeBuildsEnabled,
+    }: {
+        dataAppBuildsEnabled: boolean;
+        chartTypeBuildsEnabled: boolean;
+    }): void {
+        const anyBuildsEnabled = dataAppBuildsEnabled || chartTypeBuildsEnabled;
+        if (dataAppBuildsEnabled) {
+            this.registerGenerateDataAppTool();
+            this.registerIterateDataAppTool();
+        }
+        if (anyBuildsEnabled) this.registerListDataAppThemesTool();
+        if (dataAppBuildsEnabled) this.registerListDataAppConnectionsTool();
+        if (anyBuildsEnabled) this.registerGetDataAppBuildStatusTool();
+        if (chartTypeBuildsEnabled) {
+            this.registerCreateCustomChartTypeTool();
+            this.registerIterateCustomChartTypeTool();
+        }
     }
 
     /**
@@ -3356,6 +3372,7 @@ export class McpService extends BaseService {
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
+                chartTypeBuildsEnabled: false,
                 customChartTypesEnabled: false,
             },
         },
@@ -4928,9 +4945,7 @@ export class McpService extends BaseService {
         this.registerGetAiWritebackStatusTool();
         this.registerAiWritebackTaskHandlers();
 
-        if (options.dataAppBuildsEnabled) {
-            this.registerDataAppBuildTools();
-        }
+        this.registerAppBuildTools(options);
 
         if (options.customChartTypesEnabled) {
             this.registerFindCustomChartTypesTool();
@@ -5670,12 +5685,33 @@ export class McpService extends BaseService {
             })
             .safeParse(request);
         if (!call.success) return;
-        const dataApp = [
-            'generate_data_app',
-            'iterate_data_app',
+        const chartType = [
             'create_custom_chart_type',
             'iterate_custom_chart_type',
         ].includes(call.data.params.name);
+        if (chartType) {
+            if (availability.chartTypeBuildsEnabled) return;
+            const available = this.aiAgentToolsService.isChartStudioAvailable();
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: null,
+                objectType: 'app',
+                action:
+                    call.data.params.name === 'iterate_custom_chart_type'
+                        ? 'update'
+                        : 'create',
+                policyLayer: available ? 'casl' : 'organization_setting',
+                reasonCode: available
+                    ? 'data_app_create_forbidden'
+                    : 'chart_studio_unavailable',
+            });
+            return;
+        }
+        const dataApp = ['generate_data_app', 'iterate_data_app'].includes(
+            call.data.params.name,
+        );
         if (dataApp) {
             if (availability.dataAppBuildsEnabled) return;
             const { enabled } = await this.featureFlagService.get({
@@ -5688,12 +5724,10 @@ export class McpService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 projectUuid: null,
                 objectType: 'app',
-                action: [
-                    'iterate_data_app',
-                    'iterate_custom_chart_type',
-                ].includes(call.data.params.name)
-                    ? 'update'
-                    : 'create',
+                action:
+                    call.data.params.name === 'iterate_data_app'
+                        ? 'update'
+                        : 'create',
                 policyLayer: enabled ? 'casl' : 'organization_setting',
                 reasonCode: enabled
                     ? 'data_app_create_forbidden'
@@ -5768,7 +5802,18 @@ export class McpService extends BaseService {
         });
     }
 
-    /** Chart Studio's gallery gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
+    /** Whether the chart type build tools should be registered: Chart Studio available and the caller may create apps. */
+    public async isChartTypeBuildsEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.aiAgentToolsService.canAuthorCustomChartTypes({
+            user,
+            projectUuid: headerProjectUuid,
+        });
+    }
+
+    /** The chart type usage gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
     public async isCustomChartTypesEnabled(
         user: SessionUser,
         headerProjectUuid?: string,

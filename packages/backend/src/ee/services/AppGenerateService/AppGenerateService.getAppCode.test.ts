@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import {
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -10,6 +11,7 @@ import { pack } from 'tar-stream';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { assertCanViewApp } from './appAuthz';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -161,8 +163,12 @@ function buildService(overrides: {
     organizationDesignModel?: Record<string, unknown>;
     externalConnectionModel?: Record<string, unknown>;
     spaceModel?: Record<string, unknown>;
+    dataAppsEnabled?: boolean;
+    chartStudioAvailable?: boolean;
 }): AppGenerateService {
     const {
+        dataAppsEnabled = true,
+        chartStudioAvailable = true,
         appModel = {},
         s3ClientOverride,
         projectModel = {},
@@ -202,9 +208,9 @@ function buildService(overrides: {
         ...externalConnectionModel,
     };
 
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
-    };
+    const featureFlagModel = featureFlagModelWith({
+        [FeatureFlags.EnableDataApps]: dataAppsEnabled,
+    });
     const spacePermissionService = {
         resolveAccess: vi.fn().mockResolvedValue({}),
     };
@@ -247,6 +253,9 @@ function buildService(overrides: {
         } as never,
     });
 
+    vi.spyOn(svc, 'isChartStudioAvailable').mockReturnValue(
+        chartStudioAvailable,
+    );
     vi.spyOn(
         svc as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
@@ -960,6 +969,54 @@ describe('AppGenerateService.getDataAppAuthoringContext', () => {
                 null,
             ),
         ).rejects.toThrow(`A data app with slug "${APP_SLUG}" already exists`);
+    });
+
+    it('serves chart type authoring with data apps off while Chart Studio is available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: true,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).resolves.toEqual(expect.objectContaining({ parameters: null }));
+    });
+
+    it('serves authoring with data apps on while Chart Studio is not available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: true,
+            chartStudioAvailable: false,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).resolves.toEqual(expect.objectContaining({ parameters: null }));
+    });
+
+    it('refuses when neither data apps nor Chart Studio are available', async () => {
+        const svc = buildService({
+            dataAppsEnabled: false,
+            chartStudioAvailable: false,
+        });
+
+        await expect(
+            svc.getDataAppAuthoringContext(
+                fakeUser,
+                PROJECT_UUID,
+                'sankey-flow',
+                null,
+            ),
+        ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
     });
 
     it('rejects an invalid local app slug', async () => {

@@ -172,6 +172,7 @@ export const BaseResponse: HealthState = {
         previewOrigin: null,
         sampleDataEnabled: true,
         capturesEnabled: true,
+        runtimeAvailable: false,
     },
 };
 

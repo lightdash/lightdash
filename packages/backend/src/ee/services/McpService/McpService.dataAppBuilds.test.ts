@@ -17,6 +17,7 @@ type RegisteredToolCallback = (
 ) => Promise<Record<string, unknown>>;
 
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
+const mockRegisteredToolNames: string[] = [];
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
@@ -44,6 +45,7 @@ vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
                         callback: RegisteredToolCallback,
                     ) => {
                         mockRegisteredMcpTools.set(name, callback);
+                        mockRegisteredToolNames.push(name);
                         return {};
                     },
                 ),
@@ -162,9 +164,11 @@ const createServerWithRuntime = async (
 ) => {
     const mcpService = makeMcpService(() => runtimeFns, queryServiceDeps);
     mockRegisteredMcpTools.clear();
+    mockRegisteredToolNames.length = 0;
     await mcpService.createServer(
         makeMcpServerOptions({
             dataAppBuildsEnabled: true,
+            chartTypeBuildsEnabled: true,
             ...featureAvailability,
         }),
     );
@@ -205,9 +209,10 @@ describe('McpService get_data_app_build_status', () => {
             ).toBe(true);
         });
 
-        it('omits the tool when data app builds are unavailable', async () => {
+        it('omits the tool when data app and chart type builds are unavailable', async () => {
             await createServerWithBuildStatus(versionRow(), {
                 dataAppBuildsEnabled: false,
+                chartTypeBuildsEnabled: false,
             });
 
             expect(
@@ -474,15 +479,54 @@ describe('McpService create_custom_chart_type', () => {
         ).toBe(true);
     });
 
-    it('omits the tool when data app builds are unavailable', async () => {
+    it('omits the tool when chart type builds are unavailable', async () => {
         await createServerWithRuntime(
             { createCustomChartType: vi.fn() },
-            { dataAppBuildsEnabled: false },
+            { chartTypeBuildsEnabled: false },
         );
 
         expect(
             mockRegisteredMcpTools.has(McpToolName.CREATE_CUSTOM_CHART_TYPE),
         ).toBe(false);
+    });
+
+    it('registers the chart type build tools and their companions without the data app build tools', async () => {
+        await createServerWithRuntime(
+            { createCustomChartType: vi.fn() },
+            { dataAppBuildsEnabled: false, chartTypeBuildsEnabled: true },
+        );
+
+        for (const tool of [
+            McpToolName.CREATE_CUSTOM_CHART_TYPE,
+            McpToolName.ITERATE_CUSTOM_CHART_TYPE,
+            McpToolName.LIST_DATA_APP_THEMES,
+            McpToolName.GET_DATA_APP_BUILD_STATUS,
+        ]) {
+            expect(mockRegisteredMcpTools.has(tool)).toBe(true);
+        }
+        for (const tool of [
+            McpToolName.GENERATE_DATA_APP,
+            McpToolName.ITERATE_DATA_APP,
+            McpToolName.LIST_DATA_APP_CONNECTIONS,
+        ]) {
+            expect(mockRegisteredMcpTools.has(tool)).toBe(false);
+        }
+    });
+
+    it('registers the shared build tools once when both groups are enabled', async () => {
+        await createServerWithRuntime(
+            { createCustomChartType: vi.fn() },
+            { dataAppBuildsEnabled: true, chartTypeBuildsEnabled: true },
+        );
+
+        for (const tool of [
+            McpToolName.LIST_DATA_APP_THEMES,
+            McpToolName.GET_DATA_APP_BUILD_STATUS,
+        ]) {
+            expect(
+                mockRegisteredToolNames.filter((name) => name === tool),
+            ).toHaveLength(1);
+        }
     });
 
     it('starts the build with the name, brief and theme', async () => {
@@ -811,10 +855,10 @@ describe('McpService iterate_custom_chart_type', () => {
         ).toBe(true);
     });
 
-    it('omits the tool when data app builds are unavailable', async () => {
+    it('omits the tool when chart type builds are unavailable', async () => {
         await createServerWithRuntime(
             { iterateCustomChartType: vi.fn() },
-            { dataAppBuildsEnabled: false },
+            { chartTypeBuildsEnabled: false },
         );
 
         expect(
@@ -1012,10 +1056,10 @@ describe('McpService list_data_app_themes', () => {
         { slug: 'dark', name: 'Dark', isDefault: false, description: null },
     ];
 
-    it('omits the tool when data app builds are unavailable', async () => {
+    it('omits the tool when data app and chart type builds are unavailable', async () => {
         await createServerWithRuntime(
             { listDataAppThemes: vi.fn() },
-            { dataAppBuildsEnabled: false },
+            { dataAppBuildsEnabled: false, chartTypeBuildsEnabled: false },
         );
 
         expect(
