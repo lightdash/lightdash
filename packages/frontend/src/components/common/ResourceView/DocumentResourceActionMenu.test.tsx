@@ -332,16 +332,6 @@ describe('Document resource actions', () => {
             ).not.toBeInTheDocument();
         },
     );
-    it.each([
-        { enabled: false, flagError: false },
-        { enabled: true, flagError: true },
-    ])('fails closed for unavailable flag %j', (flag) => {
-        Object.assign(mocks, flag);
-        renderMenu([SpaceMemberRole.ADMIN]);
-        expect(
-            screen.queryByRole('button', { name: 'Document actions' }),
-        ).not.toBeInTheDocument();
-    });
     it('has canonical links and a Document label without view statistics', () => {
         expect(getResourceUrl('project', item, 'project-slug')).toBe(
             '/projects/project-slug/documents/weekly-review',

@@ -167,13 +167,9 @@ const buildService = ({
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
     const grantReadModel = { getUserAccess: vi.fn().mockResolvedValue({}) };
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
-    };
 
     const service = new DirectAccessService({
         documentAccessModel: grantReadModel as never,
-        featureFlagModel: featureFlagModel as never,
         directAccessModel: directAccessModel as unknown as DirectAccessModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
@@ -190,72 +186,10 @@ const buildService = ({
         directAccessFeatureGate,
         spacePermissionService,
         grantReadModel,
-        featureFlagModel,
     };
 };
 
 describe('DirectAccessService', () => {
-    it.each([
-        'listAssignments',
-        'listGroups',
-        'listUsers',
-        'resetAssignments',
-    ] as const)(
-        'document %s fails closed while flag disabled',
-        async (method) => {
-            const { service, featureFlagModel, directAccessModel } =
-                buildService({ enabled: true });
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service[method](
-                    buildAccount(OrganizationMemberRole.ADMIN),
-                    PROJECT_UUID,
-                    DirectAccessResourceType.DOCUMENT,
-                    DASHBOARD_UUID,
-                ),
-            ).rejects.toThrow(ForbiddenError);
-            expect(
-                directAccessModel.findResourceLocation,
-            ).not.toHaveBeenCalled();
-        },
-    );
-
-    it('disabled documents contribute no grants, discovery, or export while other content remains enabled', async () => {
-        const { service, featureFlagModel, directAccessModel, grantReadModel } =
-            buildService({ enabled: true });
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        const requester = {
-            userUuid: USER_UUID,
-            organizationUuid: ORGANIZATION_UUID,
-        };
-        await expect(
-            service.findGrantedRoles(requester, [
-                {
-                    resourceType: DirectAccessResourceType.DOCUMENT,
-                    uuids: [DASHBOARD_UUID],
-                },
-            ]),
-        ).resolves.toEqual({});
-        expect(grantReadModel.getUserAccess).not.toHaveBeenCalled();
-        const shared = await service.findSharedWithMeUuids(requester, [
-            PROJECT_UUID,
-        ]);
-        expect(shared.document).toEqual([]);
-        expect(
-            directAccessModel.findCandidateResourceUuidsForUser,
-        ).not.toHaveBeenCalledWith(
-            DirectAccessResourceType.DOCUMENT,
-            USER_UUID,
-        );
-        await expect(
-            service.listPoliciesForExport(
-                requester,
-                DirectAccessResourceType.DOCUMENT,
-                [DASHBOARD_UUID],
-            ),
-        ).resolves.toEqual({});
-    });
-
     it.each([
         SpaceMemberRole.VIEWER,
         SpaceMemberRole.EDITOR,

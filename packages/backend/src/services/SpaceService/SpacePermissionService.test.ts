@@ -101,9 +101,6 @@ describe('SpacePermissionService', () => {
         documentAccessModel: {
             getUserAccess: vi.fn().mockResolvedValue({}),
         } as never,
-        featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        } as never,
         spaceModel: {} as SpaceModel,
         spacePermissionModel:
             mockPermissionModel as unknown as SpacePermissionModel,
@@ -1930,9 +1927,6 @@ describe('resolveAccess', () => {
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            } as never,
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
             appAccessModel: appAccessModel as never,
@@ -2371,9 +2365,6 @@ describe('resolveAccessBatch', () => {
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            } as never,
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
             appAccessModel: {
@@ -2801,9 +2792,6 @@ describe('resolveAccess space-saved chart target', () => {
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            } as never,
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
             appAccessModel: {
@@ -2911,9 +2899,6 @@ describe('resolveAccess saved SQL chart target', () => {
         const service = new SpacePermissionService({
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
-            } as never,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as never,
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
@@ -3034,9 +3019,6 @@ describe('resolveAccess chart ownership routing', () => {
             documentAccessModel: {
                 getUserAccess: vi.fn().mockResolvedValue({}),
             } as never,
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            } as never,
             spaceModel: {} as SpaceModel,
             spacePermissionModel: {} as unknown as SpacePermissionModel,
             appAccessModel: {
@@ -3155,13 +3137,9 @@ describe('resolveAccess chart ownership routing', () => {
 });
 
 describe('Document access boundaries', () => {
-    test.each([
-        { licensed: true, documents: true },
-        { licensed: false, documents: true },
-        { licensed: true, documents: false },
-    ])(
+    test.each([{ licensed: true }, { licensed: false }])(
         'document grants remain resource-scoped with gates %j',
-        async ({ licensed, documents }) => {
+        async ({ licensed }) => {
             const documentAccessModel = {
                 getUserAccess: vi.fn().mockResolvedValue({
                     doc: {
@@ -3181,9 +3159,6 @@ describe('Document access boundaries', () => {
                 savedChartAccessModel: {} as never,
                 savedSqlAccessModel: {} as never,
                 documentAccessModel: documentAccessModel as never,
-                featureFlagModel: {
-                    get: vi.fn().mockResolvedValue({ enabled: documents }),
-                } as never,
                 directAccessFeatureGate: {
                     isEnabledForUser: vi.fn().mockResolvedValue(licensed),
                 } as never,
@@ -3213,7 +3188,7 @@ describe('Document access boundaries', () => {
                 { type: 'document', documentUuid: 'doc', spaceUuid: 'space' },
             );
             expect(deleteContext.access).toEqual([]);
-            if (licensed && documents) {
+            if (licensed) {
                 expect(results[0].context?.access).toEqual([
                     expect.objectContaining({
                         userUuid: 'reader',

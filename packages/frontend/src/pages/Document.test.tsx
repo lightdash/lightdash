@@ -297,23 +297,6 @@ describe('Document page', () => {
         expect(controls).not.toContainElement(badge);
     });
 
-    test('does not request document content while the feature flag loads', () => {
-        mocks.flag.isInitialLoading = true;
-        renderPage();
-        expect(screen.getByText('Loading document')).toBeInTheDocument();
-        expect(mockedLightdashApi).not.toHaveBeenCalled();
-    });
-
-    test.each([
-        { data: { enabled: false }, isInitialLoading: false, isError: false },
-        { data: { enabled: true }, isInitialLoading: false, isError: true },
-    ])('fails closed for a disabled or failed feature flag', async (flag) => {
-        mocks.flag = flag;
-        renderPage();
-        expect(await screen.findByText('Project home')).toBeInTheDocument();
-        expect(mockedLightdashApi).not.toHaveBeenCalled();
-    });
-
     test('shows the document loading state until the request resolves', async () => {
         mockedLightdashApi.mockReturnValue(new Promise(() => {}));
         renderPage();

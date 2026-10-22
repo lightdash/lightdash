@@ -17052,24 +17052,15 @@ export class ProjectService
             ),
         );
 
-        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        const documentCounts = documentsEnabled
-            ? await this.spaceModel.getDocumentCounts(
-                  spacesWithContext
-                      .filter(
-                          ({ ctx }, index) =>
-                              accessResults[index] &&
-                              auditedAbility.can(
-                                  'view',
-                                  subject('Document', ctx),
-                              ),
-                      )
-                      .map(({ space }) => space.uuid),
-              )
-            : {};
+        const documentCounts = await this.spaceModel.getDocumentCounts(
+            spacesWithContext
+                .filter(
+                    ({ ctx }, index) =>
+                        accessResults[index] &&
+                        auditedAbility.can('view', subject('Document', ctx)),
+                )
+                .map(({ space }) => space.uuid),
+        );
 
         return spacesWithContext
             .filter((_, index) => accessResults[index])
@@ -17508,18 +17499,13 @@ export class ProjectService
     /**
      * Copies carry no documents, so the sample a learner reads in the
      * documents walkthrough is made in each copy, in the seeded space and
-     * credited to whoever enabled Learn. Skipped while documents are off.
+     * credited to whoever enabled Learn.
      */
     private async seedSampleDocumentsInCopy(
         user: SessionUser,
         projectUuid: string,
         createdByUserUuid: string | null,
     ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        if (!enabled) return;
         const [space] = await this.spaceModel.find({
             projectUuid,
             path: TRAINING_SPACE.path,

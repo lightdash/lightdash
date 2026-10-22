@@ -1802,13 +1802,6 @@ export class AiAgentService extends BaseService {
                 }
 
                 if (item.type === 'document') {
-                    const { enabled } = await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.Documents,
-                    });
-                    if (!enabled) {
-                        throw new ForbiddenError('Documents are not enabled');
-                    }
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
                         fromSession(user),
@@ -3717,13 +3710,7 @@ export class AiAgentService extends BaseService {
             !threadContext.latestAssistantTurn.askedClarifyingQuestion &&
             agent.enableDataAccess &&
             canManageContent &&
-            shouldSuggestDocument(threadMessages) &&
-            (
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.Documents,
-                })
-            ).enabled;
+            shouldSuggestDocument(threadMessages);
         if (documentChipShown) {
             chips = withDocumentSuggestion(chips);
         }
@@ -15584,15 +15571,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ) {
             return null;
         }
-        const { enabled: documentsEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.Documents,
-            },
-        );
-        if (!documentsEnabled) {
-            return null;
-        }
         const runtime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -16711,11 +16689,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         user,
                         projectUuid: promptProject.projectUuid,
                     }));
-                const { enabled: documentsEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.Documents,
-                    });
                 const {
                     listExplores,
                     getExplore,
@@ -16808,7 +16781,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableDocuments: canUseContentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17067,7 +17040,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
                     enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableDocuments: canUseContentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,

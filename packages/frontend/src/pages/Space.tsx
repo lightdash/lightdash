@@ -79,9 +79,6 @@ const Space: FC = () => {
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        documentsFlag.data?.enabled === true && !documentsFlag.isError;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -141,9 +138,10 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
-    const userCanCreateDocuments =
-        documentsEnabled &&
-        user.data?.ability?.can('create', subject('Document', { ...space }));
+    const userCanCreateDocuments = user.data?.ability?.can(
+        'create',
+        subject('Document', { ...space }),
+    );
 
     // Data apps have a project-level `create:DataApp` scope (no @space variant
     // for create), so we combine it with `manage:DataApp` against the space —
@@ -505,9 +503,7 @@ const Space: FC = () => {
                                     ContentType.CHART,
                                     ContentType.SPACE,
                                     ContentType.DATA_APP,
-                                    ...(documentsEnabled
-                                        ? [ContentType.DOCUMENT]
-                                        : []),
+                                    ContentType.DOCUMENT,
                                 ],
                                 // Vizs are spaceless today, but declare the
                                 // exclusion rather than rely on that invariant.
@@ -521,9 +517,7 @@ const Space: FC = () => {
                                     ...(dataAppsEnabled
                                         ? [ContentType.DATA_APP]
                                         : []),
-                                    ...(documentsEnabled
-                                        ? [ContentType.DOCUMENT]
-                                        : []),
+                                    ContentType.DOCUMENT,
                                 ],
                             }}
                             columnVisibility={{

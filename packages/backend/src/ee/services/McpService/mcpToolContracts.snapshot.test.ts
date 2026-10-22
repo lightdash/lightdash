@@ -337,18 +337,6 @@ describe('MCP tool contracts', () => {
         });
     });
 
-    it('resolves the Documents flag for the request user', async () => {
-        const get = vi.fn().mockResolvedValue({ enabled: true });
-        const service = makeMcpService(true, { get });
-        await expect(
-            service.isDocumentsEnabled(defaultSessionUser),
-        ).resolves.toBe(true);
-        expect(get).toHaveBeenCalledWith({
-            user: defaultSessionUser,
-            featureFlagId: FeatureFlags.Documents,
-        });
-    });
-
     it('gates Document schemas per request without leaking between callers', async () => {
         const service = makeMcpService();
         for (const documentsEnabled of [false, true, false]) {

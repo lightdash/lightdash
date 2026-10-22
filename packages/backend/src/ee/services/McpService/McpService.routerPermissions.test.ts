@@ -79,7 +79,6 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
             isRunSqlEnabled: vi.fn().mockResolvedValue(true),
             isRunMetricQueryEnabled: vi.fn().mockResolvedValue(true),
             isFilterExpressionsEnabled: vi.fn().mockResolvedValue(false),
-            isDocumentsEnabled: vi.fn().mockResolvedValue(false),
             isDataAppBuildsEnabled: vi.fn().mockResolvedValue(false),
             isChartTypeBuildsEnabled: vi.fn().mockResolvedValue(false),
             isCustomChartTypesEnabled: vi.fn().mockResolvedValue(false),

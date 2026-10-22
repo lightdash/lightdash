@@ -68,7 +68,6 @@ test.each(['off', 'legacy', 'managed'] as const)(
         vi.spyOn(service, 'isFilterExpressionsEnabled').mockResolvedValue(
             false,
         );
-        vi.spyOn(service, 'isDocumentsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isDataAppBuildsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isChartTypeBuildsEnabled').mockResolvedValue(false);
         vi.spyOn(service, 'isCustomChartTypesEnabled').mockResolvedValue(false);

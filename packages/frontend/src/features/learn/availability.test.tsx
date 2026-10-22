@@ -76,27 +76,6 @@ describe('useLearnAvailability sandbox gate', () => {
     });
 });
 
-describe('useLearnAvailability documents gate', () => {
-    beforeEach(() => {
-        state.flags = [];
-        state.health = {
-            learnSandbox: { enabled: false },
-            softDelete: { enabled: false },
-        };
-    });
-
-    it('is closed while the documents flag is off', () => {
-        const { result } = renderHook(() => useLearnAvailability());
-        expect(result.current.isGateOpen('documents')).toBe(false);
-    });
-
-    it('opens with the documents flag', () => {
-        state.flags = ['documents'];
-        const { result } = renderHook(() => useLearnAvailability());
-        expect(result.current.isGateOpen('documents')).toBe(true);
-    });
-});
-
 describe('useLearnAvailability content-as-code gate', () => {
     beforeEach(() => {
         state.flags = [];

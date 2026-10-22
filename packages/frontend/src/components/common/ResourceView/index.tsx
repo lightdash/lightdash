@@ -1,8 +1,4 @@
-import {
-    assertUnreachable,
-    FeatureFlags,
-    ResourceViewItemType,
-} from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import {
     Box,
     Divider,
@@ -15,7 +11,6 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import ResourceActionHandlers from './ResourceActionHandlers';
 import ResourceEmptyState from './ResourceEmptyState';
@@ -40,7 +35,7 @@ interface ResourceViewProps extends ResourceViewCommonProps {
 
 const ResourceView: FC<ResourceViewProps> = ({
     view = ResourceViewType.LIST,
-    items: suppliedItems,
+    items: allItems,
     maxItems,
     tabs,
     gridProps = {},
@@ -50,18 +45,6 @@ const ResourceView: FC<ResourceViewProps> = ({
     hasReorder = false,
     defaultActiveTab,
 }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        documentsFlag.data?.enabled === true && !documentsFlag.isError;
-    const allItems = useMemo(
-        () =>
-            suppliedItems.filter(
-                (item) =>
-                    item.type !== ResourceViewItemType.DOCUMENT ||
-                    documentsEnabled,
-            ),
-        [suppliedItems, documentsEnabled],
-    );
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
