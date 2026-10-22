@@ -1,3 +1,10 @@
+# [3.29.0](https://github.com/lightdash/lightdash/compare/3.28.0...3.29.0) (2026-10-22)
+
+
+### Features
+
+* **chart-registry:** allow private-host registry mirrors without disabling SSRF defenses ([#31333](https://github.com/lightdash/lightdash/issues/31333)) ([a02e92c](https://github.com/lightdash/lightdash/commit/a02e92c84973bc26e2c343e997a612f3f0e22cde)), closes [#31050](https://github.com/lightdash/lightdash/issues/31050)
+
 # [3.28.0](https://github.com/lightdash/lightdash/compare/3.27.1...3.28.0) (2026-10-22)
 
 
