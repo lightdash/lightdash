@@ -1,3 +1,10 @@
+## [3.25.2](https://github.com/lightdash/lightdash/compare/3.25.1...3.25.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* ask for a project name when connecting a warehouse to an existing organization ([#31394](https://github.com/lightdash/lightdash/issues/31394)) ([b3b80f3](https://github.com/lightdash/lightdash/commit/b3b80f3ae393773aab6e73bff00f70e76377ffaf))
+
 ## [3.25.1](https://github.com/lightdash/lightdash/compare/3.25.0...3.25.1) (2026-10-22)
 
 
