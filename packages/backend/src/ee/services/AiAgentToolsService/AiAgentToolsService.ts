@@ -4812,18 +4812,61 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    // Best effort: an unreadable or unfinished node gets null, never failing the run.
+    // Waits for every node within the run's budget; a failed, unreadable or timed out node gets null.
     private async getComposerNodeColumns({
         context,
         submissions,
         terminalNodeId,
         terminalColumns,
+        maxWaitMs,
+        startTime,
     }: {
         context: AiAgentToolsRuntimeContext;
         submissions: SourceQuerySubmission[];
         terminalNodeId: string;
         terminalColumns: ResultColumns;
+        maxWaitMs: number;
+        startTime: number;
     }): Promise<Record<string, ResultColumns | null>> {
+        const readColumns = async (
+            queryUuid: string,
+        ): Promise<ResultColumns | null> => {
+            let delayMs = 500;
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                // eslint-disable-next-line no-await-in-loop
+                const results =
+                    await this.asyncQueryService.getAsyncQueryResults({
+                        account: context.account,
+                        reader: buildResultReader(
+                            context.account,
+                            context.defaultQueryExecutionContext,
+                            context.querySurface ?? null,
+                        ),
+                        projectUuid: context.projectUuid,
+                        queryUuid,
+                        page: 1,
+                        aiAccessOnly: true,
+                        pageSize: 1,
+                    });
+                if (results.status === QueryHistoryStatus.READY) {
+                    return results.columns;
+                }
+                if (
+                    results.status === QueryHistoryStatus.ERROR ||
+                    results.status === QueryHistoryStatus.CANCELLED ||
+                    Date.now() - startTime + delayMs > maxWaitMs
+                ) {
+                    return null;
+                }
+                const localDelay = delayMs;
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise((resolve) => {
+                    setTimeout(resolve, localDelay);
+                });
+                delayMs = Math.min(delayMs * 2, 2000);
+            }
+        };
         const entries = await Promise.all(
             submissions.map(
                 async (submission): Promise<[string, ResultColumns | null]> => {
@@ -4831,25 +4874,9 @@ export class AiAgentToolsService extends BaseService {
                         return [submission.nodeId, terminalColumns];
                     }
                     try {
-                        const results =
-                            await this.asyncQueryService.getAsyncQueryResults({
-                                account: context.account,
-                                reader: buildResultReader(
-                                    context.account,
-                                    context.defaultQueryExecutionContext,
-                                    context.querySurface ?? null,
-                                ),
-                                projectUuid: context.projectUuid,
-                                queryUuid: submission.queryUuid,
-                                page: 1,
-                                aiAccessOnly: true,
-                                pageSize: 1,
-                            });
                         return [
                             submission.nodeId,
-                            results.status === QueryHistoryStatus.READY
-                                ? results.columns
-                                : null,
+                            await readColumns(submission.queryUuid),
                         ];
                     } catch {
                         return [submission.nodeId, null];
@@ -4944,6 +4971,8 @@ export class AiAgentToolsService extends BaseService {
                         submissions,
                         terminalNodeId: terminalSubmission.nodeId,
                         terminalColumns: queryResults.columns,
+                        maxWaitMs,
+                        startTime,
                     }),
                 };
             }

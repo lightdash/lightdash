@@ -3704,6 +3704,46 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it('waits for a node that finishes after the terminal before reading its columns', async () => {
+        const slowColumns = {
+            slow_value: { reference: 'slow_value', type: DimensionType.NUMBER },
+        };
+        let slowReads = 0;
+        const getAsyncQueryResults = vi.fn(
+            async ({ queryUuid }: { queryUuid: string }) => {
+                if (queryUuid !== 'query-3') return readyResults;
+                slowReads += 1;
+                return slowReads === 1
+                    ? { status: QueryHistoryStatus.PENDING }
+                    : { ...readyResults, columns: slowColumns };
+            },
+        );
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi.fn().mockResolvedValue({
+                    queries: [
+                        ...submissions,
+                        {
+                            nodeId: 'slow',
+                            sourceType: QuerySourceType.SQL,
+                            queryUuid: 'query-3',
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+            });
+
+        expect(result.nodeColumns.slow).toEqual(slowColumns);
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()
