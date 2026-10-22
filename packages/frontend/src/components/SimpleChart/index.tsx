@@ -26,6 +26,7 @@ import {
     useLegendDoubleClickSelection,
     type LegendSelection,
 } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useLegendScrollIndex } from '../../hooks/echarts/useLegendScrollIndex';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -409,6 +410,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             return resolveCssVariablesInOptions(eChartsOptions);
         }, [eChartsOptions, opts.renderer]);
 
+        const { option: renderedEChartsOptions, onLegendScroll } =
+            useLegendScrollIndex(resolvedEChartsOptions ?? eChartsOptions);
+
         // Keep native axis/legend tooltips and local emphasis. Narrow segment tips
         // before paint. A short grace period bridges gaps without rebuilding options.
         useEffect(() => {
@@ -523,8 +527,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 contextmenu: onChartContextMenu,
                 click: onChartContextMenu,
                 legendselectchanged: onLegendChange,
+                legendscroll: onLegendScroll,
             }),
-            [onChartContextMenu, onLegendChange],
+            [onChartContextMenu, onLegendChange, onLegendScroll],
         );
 
         if (resultsData?.error) return <EmptyChart />;
@@ -550,7 +555,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 lazyUpdate={props.isInDashboard}
                 {...props}
                 ref={chartRef}
-                option={resolvedEChartsOptions ?? eChartsOptions}
+                option={renderedEChartsOptions}
                 notMerge
                 opts={opts}
                 onEvents={onEvents}
