@@ -6,7 +6,7 @@ import {
     getToolComposerQueriesDescription,
     isSlackPrompt,
     QuerySourceType,
-    runComposerQueriesToolDefinition,
+    queryToolDefinition,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type SourceQuery,
@@ -73,7 +73,7 @@ type Dependencies = {
     useSlackStreamCard?: boolean;
 };
 
-const toolDefinition = runComposerQueriesToolDefinition.for('agent');
+const toolDefinition = queryToolDefinition.for('agent');
 
 const PREVIEW_ROW_LIMIT = 50;
 
@@ -86,7 +86,7 @@ const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
     timeoutResult:
         'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
     previousTimeoutResult:
-        'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+        'A previous SQL approval timed out in this response. Do not call query again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
 };
 
 type ComposerQueriesOutput =
@@ -185,7 +185,7 @@ export const getRunComposerQueries = ({
             autoApproveSqlUserUuid,
             useSlackStreamCard,
         },
-        'runComposerQueries',
+        'query',
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
@@ -292,12 +292,8 @@ export const getRunComposerQueries = ({
                     try {
                         await approveSql({
                             sql: approvalSql,
-                            heading:
-                                getSqlApprovalHeading('runComposerQueries'),
-                            steps: getSqlApprovalSteps(
-                                'runComposerQueries',
-                                args,
-                            ),
+                            heading: getSqlApprovalHeading('query'),
+                            steps: getSqlApprovalSteps('query', args),
                         });
                     } catch (e) {
                         if (e instanceof SqlNotApprovedError) {
@@ -340,7 +336,7 @@ export const getRunComposerQueries = ({
                             }
                             void updateProgress(
                                 message,
-                                'runComposerQueries',
+                                'query',
                                 `${toolCallId}:${nodeId}`,
                                 progressStatus,
                             ).catch(() => {});
@@ -416,11 +412,11 @@ export const getRunComposerQueries = ({
                         : null;
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
-                    `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
+                    `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     isSlack
                         ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
-                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer; the same marker presents it again in a later message without rerunning it.`,
+                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer, in this message or a later one.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');

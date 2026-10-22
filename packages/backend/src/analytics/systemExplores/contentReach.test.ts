@@ -9,6 +9,7 @@ import {
     contentViewsProjections,
     type CapturedContentView,
 } from '../eventStream/contentViewsStream';
+import { usageDimensionSchemas } from '../eventStream/usageDimensions';
 import { contentReachSql } from './contentReach';
 
 const compile = (dimensions: string[], metrics: string[]) =>
@@ -33,6 +34,108 @@ const compile = (dimensions: string[], metrics: string[]) =>
         parameterDefinitions: {},
         timezone: 'UTC',
     }).compileQuery().query;
+
+describe('content reach URLs', () => {
+    it('lazily resolves the matching inventory URL without changing captured names, rows or metrics', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            threads: '1',
+            memory_limit: '128MB',
+        });
+        const db = await instance.connect();
+        try {
+            for (const [table, columns] of [
+                ['content_views', contentViewsColumns],
+                ['lightdash_content', usageDimensionSchemas.content],
+            ] as const) {
+                await db.run(
+                    `CREATE TABLE ${table} (${columns.map(({ name, type }) => `"${name}" ${type}`).join(', ')})`,
+                );
+            }
+            await db.run(`INSERT INTO content_views (org_id,project_id,content_id,content_type,content_name,user_id,event_id,event_ts,actor_type,is_qualifying) VALUES
+                ('org','project','shared','chart','Captured saved chart','reader','saved-1','2026-09-01','user',true),
+                ('org','project','shared','chart','Captured saved chart','reader','saved-2','2026-09-02','user',true),
+                ('org','project','shared','sql_chart','Captured SQL chart','reader','sql','2026-09-01','user',true),
+                ('org','project','shared','dashboard','Captured dashboard','reader','dashboard','2026-09-01','user',true),
+                ('org','project','missing','dashboard','Missing inventory','reader','missing','2026-09-01','user',true),
+                ('org','project','legacy','dashboard','Legacy snapshot','reader','legacy','2026-09-01','user',true)`);
+            await db.run(`INSERT INTO lightdash_content (org_id,project_id,content_type,content_id,content_name,content_url) VALUES
+                ('org','project','saved_chart','shared','Renamed saved chart','https://lightdash.example/projects/project/saved/shared'),
+                ('org','project','sql_chart','shared','Renamed SQL chart','https://lightdash.example/projects/project/sql-runner/shared'),
+                ('org','project','dashboard','shared','Renamed dashboard','https://lightdash.example/projects/project/dashboards/shared'),
+                ('org','project','dashboard','legacy','Legacy snapshot',NULL),
+                ('other','project','dashboard','shared','Other organization','https://lightdash.example/wrong-org'),
+                ('org','other','dashboard','shared','Other project','https://lightdash.example/wrong-project'),
+                ('org','project','data_app','shared','Different type','https://lightdash.example/wrong-type')`);
+            const dimensions = [
+                'content_type',
+                'content_id',
+                'content_name',
+            ].map((name) => `content_reach_${name}`);
+            const metrics = ['qualifying_views', 'distinct_viewers'];
+            const originalQuery = compile(dimensions, metrics);
+            expect(originalQuery).not.toContain('JOIN');
+            expect(originalQuery).not.toContain('lightdash_content');
+            const before = (
+                await db.runAndReadAll(originalQuery)
+            ).getRowObjectsJson();
+            const rows = (
+                await db.runAndReadAll(
+                    compile(
+                        [...dimensions, 'content_reach_content_url'],
+                        metrics,
+                    ),
+                )
+            ).getRowObjectsJson();
+            expect(rows).toHaveLength(5);
+            for (const { content_reach_content_url: url, ...row } of rows) {
+                expect(before).toContainEqual(row);
+                const id = row.content_reach_content_id;
+                if (id === 'shared') {
+                    const routes: Record<string, string> = {
+                        chart: 'saved',
+                        sql_chart: 'sql-runner',
+                        dashboard: 'dashboards',
+                    };
+                    const route =
+                        routes[String(row.content_reach_content_type)];
+                    expect(url).toBe(
+                        `https://lightdash.example/projects/project/${route}/shared`,
+                    );
+                } else expect(url).toBeNull();
+            }
+            expect(
+                rows.reduce(
+                    (total, row) =>
+                        total + Number(row.content_reach_qualifying_views),
+                    0,
+                ),
+            ).toBe(6);
+            expect(rows.map((row) => row.content_reach_content_name)).toContain(
+                'Captured saved chart',
+            );
+            await db.run('DELETE FROM lightdash_content');
+            const withoutMetadata = (
+                await db.runAndReadAll(
+                    compile(
+                        [...dimensions, 'content_reach_content_url'],
+                        metrics,
+                    ),
+                )
+            ).getRowObjectsJson();
+            expect(withoutMetadata).toHaveLength(before.length);
+            for (const {
+                content_reach_content_url: url,
+                ...row
+            } of withoutMetadata) {
+                expect(url).toBeNull();
+                expect(before).toContainEqual(row);
+            }
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+    });
+});
 
 export const backendView = (
     id: string,

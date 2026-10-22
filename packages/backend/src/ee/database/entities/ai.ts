@@ -120,6 +120,7 @@ type DbWebAppThread = {
     ai_thread_uuid: string;
     user_uuid: string;
     embed_space_uuid: string | null;
+    embed_space_uuids: string[] | null;
 };
 
 export type AiSlackThreadTable = Knex.CompositeTableType<
@@ -137,7 +138,7 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
     Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'> &
-        Partial<Pick<DbWebAppThread, 'embed_space_uuid'>>,
+        Partial<Pick<DbWebAppThread, 'embed_space_uuid' | 'embed_space_uuids'>>,
     never
 >;
 
@@ -670,6 +671,7 @@ export type DbAiOrganizationSettings = {
     ai_agent_reviews_enabled: boolean;
     deep_research_limits: AiDeepResearchLimits;
     deep_research_raw_sql_enabled: boolean;
+    mcp_enabled: boolean;
     mcp_content_writes_enabled: boolean;
     mcp_agents_enabled: boolean;
     data_app_runtime_ai_enabled: boolean;
@@ -691,13 +693,15 @@ export type DbAiOrganizationSettings = {
 
 export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     DbAiOrganizationSettings,
-    Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'> &
+    Pick<DbAiOrganizationSettings, 'organization_uuid'> &
         Partial<
             Pick<
                 DbAiOrganizationSettings,
+                | 'ai_agents_visible'
                 | 'ai_agent_reviews_enabled'
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
+                | 'mcp_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
@@ -721,6 +725,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agent_reviews_enabled'
             | 'deep_research_limits'
             | 'deep_research_raw_sql_enabled'
+            | 'mcp_enabled'
             | 'mcp_content_writes_enabled'
             | 'mcp_agents_enabled'
             | 'data_app_runtime_ai_enabled'
@@ -735,6 +740,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'provider_api_key_hints'
             | 'provider_base_urls'
             | 'thread_retention_hours'
+            | 'updated_at'
         >
     >
 >;

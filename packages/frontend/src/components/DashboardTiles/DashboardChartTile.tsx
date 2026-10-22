@@ -1071,8 +1071,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             () => ({
                 ...chart,
                 metricQuery: metricQuery ?? chart.metricQuery,
+                parameters: usedParametersValues,
             }),
-            [chart, metricQuery],
+            [chart, metricQuery, usedParametersValues],
         );
         const cannotUseCustomDimensions =
             !userCanUseCustomFields &&
@@ -2076,7 +2077,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     const {
         chart,
         explore,
-        executeQueryResponse: { metricQuery },
+        executeQueryResponse: { metricQuery, usedParametersValues },
     } = dashboardChartReadyQuery;
     const showEditChart =
         onEditChart !== undefined &&
@@ -2096,8 +2097,16 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     // Explorer can open, so a merged chart reopens from its own primary query.
     const handleExploreFromHere = useCallback(() => {
         if (!onExplore) return;
-        onExplore({ chart: chart.merge ? chart : { ...chart, metricQuery } });
-    }, [onExplore, chart, metricQuery]);
+        onExplore({
+            chart: chart.merge
+                ? chart
+                : {
+                      ...chart,
+                      metricQuery,
+                      parameters: usedParametersValues,
+                  },
+        });
+    }, [onExplore, chart, metricQuery, usedParametersValues]);
 
     const canExplore = canViewExploreOverride ?? canViewExplore;
 

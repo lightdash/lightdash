@@ -9,15 +9,25 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { type IDisposable, type languages } from 'monaco-editor';
-import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDeepCompareEffect } from 'react-use';
 import { useCanCreateDataApp } from '../../../../features/apps/hooks/useCanCreateDataApp';
+import { useChartStudioAvailable } from '../../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../../../../features/chartTypes/hooks/useChartTypesEnabled';
 import { chartTypeBuilderPath } from '../../../../features/chartTypes/utils/chartTypeBuilderPath';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { useIsInsideChartGallery } from '../../../common/ChartGallery/ChartGalleryContext';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -29,9 +39,12 @@ import {
     useCreateProjectChartType,
     useSelectProjectChartType,
 } from '../../CustomChartType/useSelectProjectChartType';
+import { ChartStudioInfoCallout } from './components/ChartStudioInfoCallout';
+import { ChartStudioNudgeCard } from './components/ChartStudioNudgeCard';
 import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';
 import classes from './CustomVisConfig.module.css';
+import { useChartStudioVegaNudge } from './hooks/useChartStudioVegaNudge';
 import { type Schema } from './types/types';
 
 const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
@@ -218,15 +231,67 @@ export const ConfigTabs: React.FC = memo(() => {
     // Without chart types there is nothing to switch to, so Vega is the only
     // custom chart type there is and a picker would offer a choice of one.
     const { enabled: chartTypesEnabled } = useChartTypesEnabled();
-    // Creating a chart type is authoring, so those affordances need data apps.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    // Creating a chart type is authoring, so those affordances need Chart Studio.
+    const chartStudioAvailable = useChartStudioAvailable();
     // With the chart gallery, the user already picked a chart type there.
     const isInsideChartGallery = useIsInsideChartGallery();
     const canCreateApp = useCanCreateDataApp(projectUuid);
     const selectProjectChartType = useSelectProjectChartType();
     const createProjectChartType = useCreateProjectChartType();
+
+    const { track } = useTracking();
+    const { isVisible: isNudgeVisible, dismiss: forgetNudge } =
+        useChartStudioVegaNudge();
+    // Once per mount: seeing the card is the top of the Chart Studio funnel.
+    const hasTrackedNudgeView = useRef(false);
+    useEffect(() => {
+        if (!isNudgeVisible || hasTrackedNudgeView.current || !projectUuid)
+            return;
+        hasTrackedNudgeView.current = true;
+        track({
+            name: EventName.CHART_STUDIO_VEGA_NUDGE_VIEWED,
+            properties: { projectUuid },
+        });
+    }, [isNudgeVisible, projectUuid, track]);
+    const openChartStudioFromNudge = useCallback(() => {
+        if (projectUuid) {
+            track({
+                name: EventName.CHART_STUDIO_VEGA_NUDGE_OPENED,
+                properties: { projectUuid },
+            });
+        }
+        // The builder keeps the Explorer query via the search string; without
+        // authoring rights the gallery is the most the user can do.
+        if (chartStudioAvailable && canCreateApp) {
+            void navigate({
+                pathname: chartTypeBuilderPath(projectUrlIdentifier ?? ''),
+                search: location.search,
+            });
+        } else {
+            void navigate(`/projects/${projectUrlIdentifier}/chart-studio`);
+        }
+    }, [
+        canCreateApp,
+        chartStudioAvailable,
+        location.search,
+        navigate,
+        projectUrlIdentifier,
+        projectUuid,
+        track,
+    ]);
+    const openChartStudioGallery = useCallback(
+        () => void navigate(`/projects/${projectUrlIdentifier}/chart-studio`),
+        [navigate, projectUrlIdentifier],
+    );
+    const dismissNudge = useCallback(() => {
+        forgetNudge();
+        if (projectUuid) {
+            track({
+                name: EventName.CHART_STUDIO_VEGA_NUDGE_DISMISSED,
+                properties: { projectUuid },
+            });
+        }
+    }, [forgetNudge, projectUuid, track]);
     useDeepCompareEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow
@@ -262,6 +327,22 @@ export const ConfigTabs: React.FC = memo(() => {
     return (
         <>
             <Stack>
+                {isNudgeVisible && (
+                    <ChartStudioNudgeCard
+                        onOpenChartStudio={openChartStudioFromNudge}
+                        onDismiss={dismissNudge}
+                    />
+                )}
+
+                {/* The dismissable card already makes the pitch. */}
+                {!isNudgeVisible && (
+                    <ChartStudioInfoCallout
+                        onOpenChartStudio={
+                            chartStudioAvailable ? openChartStudioGallery : null
+                        }
+                    />
+                )}
+
                 {chartTypesEnabled && !isInsideChartGallery && (
                     <CustomChartTypeSection
                         projectUuid={projectUuid ?? ''}
@@ -276,12 +357,12 @@ export const ConfigTabs: React.FC = memo(() => {
                         }
                         // Clearing leaves Vega for the empty project-type state.
                         onClear={
-                            dataAppsEnabled && canCreateApp
+                            chartStudioAvailable && canCreateApp
                                 ? createProjectChartType
                                 : null
                         }
                         onCreateNew={
-                            dataAppsEnabled && canCreateApp
+                            chartStudioAvailable && canCreateApp
                                 ? () =>
                                       void navigate({
                                           pathname: chartTypeBuilderPath(

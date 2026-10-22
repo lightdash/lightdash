@@ -9,22 +9,9 @@ import {
     type AiFilterExample,
 } from '@lightdash/common';
 
-export const STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'Set `filters` to null when no additional scope is needed. If `filters` is non-null, include `type`, `dimensions`, `metrics`, and `tableCalculations`, using null or [] for every unused category.';
-
-export const EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE =
-    'Omit `filters` when the search is unscoped. When present, `filters` scopes the candidate-value search and is one raw, flat, dimension-only AND expression.';
-
 export const STRUCTURED_FILTER_GUIDANCE_SECTION = `## Time-based filtering
 
-If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), you MUST add an explicit filter on a date dimension in \`filters.dimensions\`. Describing the window in the response or sorting + limiting is not a substitute — sparse data will produce wrong results.
-
-- Use \`inThePast\` for relative windows, \`inBetween\` for explicit ranges.
-- Relative windows resolve against today's date, stated at the top of this prompt. Never anchor them to dates seen in field metadata or query results.
-- Date fields from joined tables work identically to base-table date fields in filters. Prefer filtering on a joined-table date over no filter at all.
-- Selecting or comparing multiple non-contiguous periods (e.g. "Mar or May 2025"): prefer a single \`equals\` rule on the date field at the requested granularity with one value per period (e.g. a month-grain field with values \`2025-03-01\` and \`2025-05-01\`). This keeps every filter under AND.
-- Never set the dimension filter \`type\` to \`or\` when the query also has a categorical (or any non-date) filter. \`or\` applies across all dimension filters in the group, so the categorical filter becomes optional and is silently dropped. Only use \`type: or\` with one \`inBetween\` per range when the date ranges are the sole dimension filter and no granularity-aligned \`equals\` rule fits (e.g. arbitrary day ranges like "Mar 1–6 vs Apr 1–6").
-- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window.`;
+When the user mentions a time window ("last 3 months", "this quarter", "past year", "since March"), add an explicit filter on a date dimension in \`filters.dimensions\`; a joined table's date field filters like a base-table one. Describing the window in the response, or sorting and limiting, is not a substitute: on sparse data it produces wrong results. For several periods, the \`filters\` parameter says when \`or\` is safe.`;
 
 const placementExamples = {
     dimensions: [
@@ -168,14 +155,13 @@ export const MCP_FILTER_EXPRESSION_GUIDANCE_SECTION =
 
 const EXPRESSION_TIME_FILTERING_GUIDANCE = `## Time-based filtering
 
-If the user mentions any time window ("last 3 months", "this quarter", "past year", "since March"), every requested window MUST appear as an explicit date rule in the dimension expression. Describing the window, sorting, limiting, prose, or dates observed in result data is not a substitute.
+When the user mentions a time window ("last 3 months", "this quarter", "past year", "since March"), put every requested window in the dimension expression as an explicit date rule. Describing the window in prose, sorting, limiting, or relying on dates observed in result data is not a substitute: on sparse data it produces wrong results.
 
 - Use \`inThePast\` for relative windows and \`inBetween\` for explicit ranges.
-- Relative windows resolve against today's date, stated at the top of this prompt. Never anchor them to dates seen in field metadata or query results.
-- Date fields from joined tables work identically to base-table date fields. Prefer filtering on a joined-table date over no date rule at all.
+- A date field from a joined table filters exactly like a base-table date field, so use a joined-table date rule rather than no date rule at all.
 - For multiple granularity-aligned periods, use one multi-value \`equals\` rule when another dimension predicate must be combined with AND.
-- Arbitrary alternative ranges may use OR only when every dimension rule is truly an alternative. Never mix root AND and OR in one category.
-- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests, never to approximate a time window.`;
+- Join arbitrary alternative ranges with OR only when every dimension rule is truly an alternative.
+- Use \`limit\` only for explicit "top N" / "show me 10 rows" requests.`;
 
 export const FILTER_EXPRESSION_GUIDANCE_SECTION = `${getFilterExpressionGuidanceSection('agent')}
 

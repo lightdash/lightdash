@@ -4,7 +4,6 @@ import {
     ContentReviewContentType,
     DirectAccessResourceType,
     ContentType,
-    FeatureFlags,
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
@@ -41,7 +40,6 @@ import {
 } from '../../hooks/useContentVerification';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
@@ -67,19 +65,15 @@ const DocumentActions = ({
     canRequestReview: boolean;
 }) => {
     const { user } = useApp();
-    const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const pinMutation = useDocumentPinningMutation();
     const isPinned = document.pinnedListUuid !== null;
-    const canPin =
-        !documentFlag.isError &&
-        documentFlag.data?.enabled === true &&
-        user.data?.ability.can(
-            'manage',
-            subject('PinnedItems', {
-                organizationUuid: document.organizationUuid,
-                projectUuid: document.projectUuid,
-            }),
-        );
+    const canPin = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', {
+            organizationUuid: document.organizationUuid,
+            projectUuid: document.projectUuid,
+        }),
+    );
     const [isShareOpen, setShareOpen] = useState(false);
     const favorites = useFavorites(document.projectUuid);
     const favoriteMutation = useFavoriteMutation(document.projectUuid);

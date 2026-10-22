@@ -49,7 +49,17 @@ const view = useInsights();
 // view.analyse()    ask Lightdash to (re)run the analysis
 ```
 
-Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
+Render `<InsightsSummary />` near the top of the page. It handles every status (idle, analysing, ready, error, stale) and renders nothing when unavailable. Props: `title`, `idleText`, `instructions`, `className`. Write your own block only when the user asks for a layout the component cannot give, and then keep every status branch.
+
+### Author instructions for the analysis
+
+When the user wants the summary written a certain way — a language or locale ("British English", "amounts in EUR"), a tone, or a line or two of domain vocabulary the model would otherwise misread ("stage labels are covenant stages") — pass it as `instructions`:
+
+```tsx
+<InsightsSummary instructions="Write in British English. Amounts are EUR. 'Stage' labels are covenant stages, not sales stages." />
+```
+
+Or equivalently `useInsights({ instructions })` in a custom block. One string per app (the last value set wins), applied to every analysis of the app, max 2000 characters — keep it to a few short sentences. It guides wording and interpretation only; it cannot grant data access or change which rows are analysed. Do not restate what the data already shows, and do not set it unless the user asked for specific guidance.
 
 Rules for the block:
 

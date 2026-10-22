@@ -178,6 +178,8 @@ const getDocumentReference = (
 
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
+    // The answer goes to a Slack thread, which also shows a result card.
+    inSlack?: boolean;
     documentsEnabled?: boolean;
     enableFastResponse?: boolean;
     decisions?: AiDecisionClient;
@@ -565,6 +567,7 @@ const getFastAnswerText = (
 
 export const getRunQuery = ({
     purpose = 'visualization',
+    inSlack = false,
     documentsEnabled = false,
     enableFastResponse = false,
     updateProgress,
@@ -598,7 +601,9 @@ export const getRunQuery = ({
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
     let description = baseDescription;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it; Slack also receives an explorable result card.`;
+        description = `${baseDescription} It answers without a chart: set chartConfig to null. The rows are saved as a table artifact, so follow-up edits can refine it${
+            inSlack ? '; Slack also receives an explorable result card' : ''
+        }.`;
     } else if (decisions && enableDataAccess) {
         description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
     }

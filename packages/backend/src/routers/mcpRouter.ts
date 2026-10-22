@@ -400,8 +400,8 @@ mcpRouter.all(
                     runSqlEnabled,
                     runMetricQueryEnabled,
                     filterExpressionsEnabled,
-                    documentsEnabled,
                     dataAppBuildsEnabled,
+                    chartTypeBuildsEnabled,
                     customChartTypesEnabled,
                     agentIdentityEnabled,
                 ] = await Promise.all([
@@ -413,8 +413,11 @@ mcpRouter.all(
                         pinnedProjectUuid,
                     ),
                     mcpService.isFilterExpressionsEnabled(req.user!),
-                    mcpService.isDocumentsEnabled(req.user!),
                     mcpService.isDataAppBuildsEnabled(
+                        req.user!,
+                        pinnedProjectUuid,
+                    ),
+                    mcpService.isChartTypeBuildsEnabled(
                         req.user!,
                         pinnedProjectUuid,
                     ),
@@ -436,8 +439,9 @@ mcpRouter.all(
                         runSqlEnabled,
                         runMetricQueryEnabled,
                         filterExpressionsEnabled,
-                        documentsEnabled,
+                        documentsEnabled: true,
                         dataAppBuildsEnabled,
+                        chartTypeBuildsEnabled,
                         customChartTypesEnabled,
                         agentIdentityEnabled,
                     },

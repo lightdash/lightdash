@@ -5,6 +5,7 @@ import {
     FilterOperator,
     TimeFrames,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -142,7 +143,16 @@ const rule = (
 });
 
 const updateFilter = vi.fn();
+// The provider's undoable write ends in its updateFilter
+const applyWithUndo = vi.fn((next: DashboardFilterRule, _apply: unknown) =>
+    updateFilter(next),
+);
 const addFirstFieldOnTile = vi.fn();
+
+const groupLabels = () =>
+    screen
+        .getAllByRole('group', { hidden: true })
+        .map((group) => group.firstChild?.textContent);
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
@@ -152,6 +162,7 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         waitingFieldIds: [],
         highlightedFieldId: null,
         updateFilter,
+        applyWithUndo,
         addFirstFieldOnTile,
         ...overrides,
     };
@@ -178,6 +189,9 @@ const renderWithProviders = (ui: ReactElement) => {
     const store = createDashboardTestStore({
         sqlChartTilesMetadata: mockTileStatusContext.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+        dashboardFilters: mockDashboardContext.current.dashboardFilters as
+            | DashboardFilters
+            | undefined,
     });
     seedDashboardEditState(
         store,
@@ -239,6 +253,124 @@ describe('TileOverlays', () => {
         setSidebar();
     });
 
+    describe('a hovered rail row', () => {
+        // On "both" only: every other tile is left out
+        const hovered = rule({
+            id: 'hovered',
+            tileTargets: {
+                [statusOnly.uuid]: false,
+                [otherTab.uuid]: false,
+            },
+        });
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [rule(), hovered],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+        });
+
+        it('rings the tiles its filter is on, over the edited filter', () => {
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: 'hovered',
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(overlay(both.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'mapped',
+            );
+            // On the edited filter, not on the hovered one
+            expect(overlay(statusOnly.uuid)).not.toHaveAttribute(
+                'data-highlighted',
+            );
+            expect(overlay(markdown.uuid)).not.toHaveAttribute(
+                'data-highlighted',
+            );
+        });
+
+        it('clears once the row is left', () => {
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: 'hovered',
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: null,
+            });
+            rerender(<TileOverlays />);
+
+            expect(overlay(statusOnly.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'filtered',
+            );
+        });
+
+        it('rings only its tiles on this tab, with no veil, while nothing is edited', () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'hovered',
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+
+            expect(
+                container(both.uuid).querySelector('[class*="reach"]'),
+            ).not.toBeNull();
+            expect(
+                container(both.uuid).querySelector('[data-controls-overlay]'),
+            ).toBeNull();
+            expect(container(statusOnly.uuid)).toBeEmptyDOMElement();
+            expect(container(otherTab.uuid)).toBeEmptyDOMElement();
+
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: null,
+            });
+            rerender(<TileOverlays />);
+            expect(container(both.uuid)).toBeEmptyDOMElement();
+        });
+
+        it('rings a tile on a field it no longer has, as the counts include it', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [
+                        rule(),
+                        {
+                            ...hovered,
+                            tileTargets: {
+                                ...hovered.tileTargets,
+                                [statusOnly.uuid]: {
+                                    fieldId: 'orders_gone',
+                                    tableName: 'orders',
+                                },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'hovered',
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(
+                container(statusOnly.uuid).querySelector('[class*="reach"]'),
+            ).not.toBeNull();
+        });
+    });
+
     it('shows the field a filterable tile is filtered by', () => {
         renderWithProviders(<TileOverlays />);
 
@@ -285,7 +417,7 @@ describe('TileOverlays', () => {
                 screen
                     .getAllByRole('option', { hidden: true })
                     .map((option) => option.textContent),
-            ).toEqual(['Status', 'Region']);
+            ).toEqual(['Region', 'Status']);
         },
     );
 
@@ -328,7 +460,7 @@ describe('TileOverlays', () => {
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
-        ).toEqual(['Status', 'Region']);
+        ).toEqual(['Region', 'Status']);
     });
 
     it('marks a SQL chart tile as available, and as mapped once it is on a column', () => {
@@ -548,7 +680,7 @@ describe('TileOverlays', () => {
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
-        ).toEqual(['Status', 'Region']);
+        ).toEqual(['Region', 'Status']);
         await userEvent.click(clearButton(both.uuid)!);
 
         expect(updateFilter).toHaveBeenCalledTimes(1);
@@ -675,7 +807,7 @@ describe('TileOverlays', () => {
         renderWithProviders(<TileOverlays />);
 
         expect(overlay(markdown.uuid)).not.toBeNull();
-        expect(overlay(markdown.uuid)).toBeEmptyDOMElement();
+        expect(overlay(markdown.uuid)?.textContent).toBe('');
     });
 
     it("veils a tile with none of the filter's fields and none it could add, with no text", () => {
@@ -692,7 +824,7 @@ describe('TileOverlays', () => {
         };
         renderWithProviders(<TileOverlays />);
 
-        expect(overlay(statusOnly.uuid)).toBeEmptyDOMElement();
+        expect(overlay(statusOnly.uuid)?.textContent).toBe('');
         expect(overlay(statusOnly.uuid)).not.toHaveAttribute(
             'data-highlighted',
         );
@@ -703,21 +835,12 @@ describe('TileOverlays', () => {
     });
 
     describe('adding a field from a tile', () => {
-        const addGroup = () =>
-            screen.getByRole('group', {
-                name: 'Other fields on this tile',
-                hidden: true,
-            });
-        const groupOptions = () =>
-            within(addGroup())
-                .getAllByRole('option', { hidden: true })
-                .map((option) => option.textContent);
         const allOptions = () =>
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent);
 
-        it('lists the other fields of the kind the tile offers in a second group', async () => {
+        it('lists the other fields of the kind the tile offers too', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -734,39 +857,28 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
 
-            // The filter's own field first, then what the tile could add;
-            // Amount is another kind
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(groupOptions()).toEqual(['Region']);
-            expect(
-                within(
-                    screen.getByRole('group', {
-                        name: 'In this filter',
-                        hidden: true,
-                    }),
-                )
-                    .getAllByRole('option', { hidden: true })
-                    .map((option) => option.textContent),
-            ).toEqual(['Status']);
+            // The filter's own field and what the tile could add, grouped by
+            // table as the shipped field select does; Amount is another kind
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('has no second group on a tile that offers nothing else', async () => {
+        it('lists only its own field on a tile that offers nothing else', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(statusOnly.uuid));
 
             expect(allOptions()).toEqual(['Status']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('In this filter'),
             ).not.toBeInTheDocument();
-            // Short and ungrouped: it stays a plain select
+            // Short: it is not searchable
             expect(select(statusOnly.uuid)).toHaveAttribute('readonly');
         });
 
-        it('maps only this tile to the field chosen from the second group', async () => {
+        it('maps only this tile to another field chosen from it', async () => {
             const third = tile('tile-third', 'tab-1');
             const element = document.createElement('div');
             document.body.appendChild(element);
@@ -784,7 +896,7 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
             await userEvent.click(
-                within(addGroup()).getByRole('option', {
+                screen.getByRole('option', {
                     name: 'Region',
                     hidden: true,
                 }),
@@ -849,10 +961,6 @@ describe('TileOverlays', () => {
                     'Created week',
                     'Created month',
                 ]);
-                expect(groupOptions()).toEqual([
-                    'Created week',
-                    'Created month',
-                ]);
             });
 
             it('writes the chosen grain to this tile', async () => {
@@ -876,7 +984,7 @@ describe('TileOverlays', () => {
             });
         });
 
-        it('lists a field that joined the filter in the first group of the other tiles', async () => {
+        it('lists a field that joined the filter on the other tiles', async () => {
             const third = tile('tile-third', 'tab-1');
             const element = document.createElement('div');
             document.body.appendChild(element);
@@ -903,25 +1011,23 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(third.uuid));
 
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('does not repeat a waiting field in the second group', async () => {
+        it('does not repeat a waiting field', async () => {
             setSidebar({ waitingFieldIds: ['orders_region'] });
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
 
-            expect(allOptions()).toEqual(['Status', 'Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            expect(allOptions()).toEqual(['Region', 'Status']);
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
         });
 
-        it('shows the table label on an entry that would read like another one', async () => {
+        it('tells apart entries that read the same by their table group', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -941,7 +1047,8 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(both.uuid));
 
-            expect(groupOptions()).toEqual(['Customers Status', 'Region']);
+            expect(allOptions()).toEqual(['Status', 'Region', 'Status']);
+            expect(groupLabels()).toEqual(['Customers', 'Orders']);
         });
 
         it('has no second group on a SQL chart tile', async () => {
@@ -996,9 +1103,8 @@ describe('TileOverlays', () => {
 
             // One group only: a plain list with no label, still searchable
             expect(allOptions()).toEqual(['Region']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('Other fields on this tile'),
             ).not.toBeInTheDocument();
@@ -1240,7 +1346,7 @@ describe('TileOverlays', () => {
             expect(overlay(markdown.uuid)).not.toHaveAttribute(
                 'data-highlighted',
             );
-            expect(overlay(markdown.uuid)).toBeEmptyDOMElement();
+            expect(overlay(markdown.uuid)?.textContent).toBe('');
             expect(overlay(markdown.uuid)).toHaveAttribute(
                 'title',
                 'This tile has no field this filter can use',
@@ -1268,10 +1374,10 @@ describe('TileOverlays', () => {
             renderWithProviders(<TileOverlays />);
 
             expect(overlay(sql.uuid)).not.toHaveAttribute('data-highlighted');
-            expect(overlay(sql.uuid)).toBeEmptyDOMElement();
+            expect(overlay(sql.uuid)?.textContent).toBe('');
         });
 
-        it('lists the fields of every kind, each grain of a date included, as one plain list', async () => {
+        it('lists the fields of every kind, each grain of a date included', async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(both.uuid));
@@ -1283,30 +1389,28 @@ describe('TileOverlays', () => {
                 'Region',
                 'Status',
             ]);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(select(both.uuid)).toHaveAttribute(
                 'placeholder',
                 'Select a field',
             );
         });
 
-        it('shows no group label on a tile with fields only', async () => {
+        it("shows none of the rail's own group labels", async () => {
             renderWithProviders(<TileOverlays />);
 
             await userEvent.click(select(statusOnly.uuid));
 
             expect(allOptions()).toEqual(['Status']);
-            expect(
-                screen.queryByRole('group', { hidden: true }),
-            ).not.toBeInTheDocument();
+            // The shipped field select groups by table
+            expect(groupLabels()).toEqual(['Orders']);
             expect(
                 screen.queryByText('Fields on this tile'),
             ).not.toBeInTheDocument();
         });
 
-        it('shows the table label where two fields would read the same', async () => {
+        it('tells apart two fields that read the same by their table group', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableFieldsMap: {
@@ -1321,7 +1425,8 @@ describe('TileOverlays', () => {
 
             await userEvent.click(select(statusOnly.uuid));
 
-            expect(allOptions()).toEqual(['Customers Status', 'Orders Status']);
+            expect(allOptions()).toEqual(['Status', 'Status']);
+            expect(groupLabels()).toEqual(['Customers', 'Orders']);
         });
 
         it('starts the filter from the chosen grain on this tile', async () => {
@@ -1933,10 +2038,10 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 2 on this tab too',
+                'Apply to the other 2 too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 on this tab too, by Status',
+                'Apply Status to the other 2 tiles on this tab too',
             );
             expect(followUp(second.uuid)).not.toBeInTheDocument();
             expect(followUp(third.uuid)).not.toBeInTheDocument();
@@ -1966,7 +2071,7 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 on this tab too, by Region',
+                'Apply Region to the other 2 tiles on this tab too',
             );
             updateFilter.mockClear();
             await userEvent.click(followUp(first.uuid)!);
@@ -1977,11 +2082,45 @@ describe('TileOverlays', () => {
             });
         });
 
-        it('has none when no other tile of the tab is unfiltered', async () => {
+        it('applies over the other tiles of the tab that are on another field, for the bar to undo', async () => {
             const { rerender } = renderWithProviders(<TileOverlays />);
 
-            // The others are on Status: a switch is the bar's, not this
+            // The others are on Status
             await choose(first.uuid, 'Region');
+            applyLastWrite(rerender);
+
+            expect(followUp(first.uuid)).toHaveAccessibleName(
+                'Apply Region to the other 2 tiles on this tab too',
+            );
+            updateFilter.mockClear();
+            await userEvent.click(followUp(first.uuid)!);
+            expect(applyWithUndo).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    tileTargets: {
+                        [first.uuid]: REGION,
+                        [second.uuid]: REGION,
+                        [third.uuid]: REGION,
+                    },
+                }),
+                {
+                    kind: 'apply' as const,
+                    fieldId: 'orders_region',
+                    tileCount: 3,
+                    replaced: 2,
+                    acrossTabs: false,
+                },
+            );
+            applyLastWrite(rerender);
+            expect(anyFollowUp()).not.toBeInTheDocument();
+        });
+
+        it('has none when every other tile of the tab is on the field', async () => {
+            setSidebar({
+                editingRule: rule({ tileTargets: { [first.uuid]: false } }),
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+
+            await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
 
             expect(status(first.uuid)).toBe('This tile is filtered on');
@@ -1995,10 +2134,10 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Clear the other 2 on this tab too',
+                'Clear the other 2 too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Clear the other 2 on this tab too, from Status',
+                'Clear Status from the other 2 tiles on this tab too',
             );
 
             updateFilter.mockClear();
@@ -2008,6 +2147,15 @@ describe('TileOverlays', () => {
                 [first.uuid]: false,
                 [second.uuid]: false,
                 [third.uuid]: false,
+            });
+            // Through the undoable write, which the provider keeps only for
+            // the clicked field
+            expect(applyWithUndo.mock.lastCall?.[1]).toEqual({
+                kind: 'clear',
+                fieldId: 'orders_status',
+                tileCount: 2,
+                replaced: 0,
+                acrossTabs: false,
             });
             applyLastWrite(rerender);
             expect(anyFollowUp()).not.toBeInTheDocument();
@@ -2041,10 +2189,10 @@ describe('TileOverlays', () => {
 
             expect(followUp(first.uuid)).not.toBeInTheDocument();
             expect(followUp(second.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Filter the other 1 on this tab too, by Status',
+                'Apply Status to the other 1 tile on this tab too',
             );
         });
 
@@ -2065,7 +2213,7 @@ describe('TileOverlays', () => {
             });
             rerender(<TileOverlays />);
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
 
             setSidebar({
@@ -2168,10 +2316,10 @@ describe('TileOverlays', () => {
             await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
             expect(followUp(first.uuid)).toHaveTextContent(
-                /^Filter the other 3 too$/,
+                /^Apply to the other 3 too$/,
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 3 too, by Status',
+                'Apply Status to the other 3 tiles too',
             );
 
             await userEvent.click(followUp(first.uuid)!);
@@ -2182,7 +2330,7 @@ describe('TileOverlays', () => {
                 /^Clear the other 3 too$/,
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Clear the other 3 too, from Status',
+                'Clear Status from the other 3 tiles too',
             );
         });
 
@@ -2258,10 +2406,10 @@ describe('TileOverlays', () => {
             await choose(sql.uuid, 'country');
             applyLastWrite(rerender);
             expect(followUp(sql.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Filter the other 1 on this tab too, by country',
+                'Apply country to the other 1 tile on this tab too',
             );
 
             await userEvent.click(followUp(sql.uuid)!);
@@ -2277,7 +2425,7 @@ describe('TileOverlays', () => {
             await userEvent.click(clearButton(sql.uuid)!);
             applyLastWrite(rerender);
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Clear the other 1 on this tab too, from country',
+                'Clear country from the other 1 tile on this tab too',
             );
         });
 
@@ -2344,7 +2492,7 @@ describe('TileOverlays', () => {
             await choose(first.uuid, 'Status');
             applyLastWrite(rerender);
             expect(followUp(first.uuid)).toHaveTextContent(
-                'Filter the other 1 on this tab too',
+                'Apply to the other 1 too',
             );
 
             // On the second tab the tile is not drawn, so it gets no card
@@ -2410,7 +2558,7 @@ describe('TileOverlays', () => {
     describe('a tile mapped to a field it no longer has', () => {
         const GONE = { fieldId: 'orders_gone', tableName: 'orders' };
         const WARNING =
-            "The selected field 'orders_gone' is not available in this tile";
+            "The selected field 'orders_gone' is not available in this chart";
 
         beforeEach(() => {
             setSidebar({

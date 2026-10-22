@@ -259,6 +259,8 @@ describe('trusted surface to persisted chart identity', () => {
             },
         } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
         vi.spyOn(tools, 'canGenerateDataApp').mockResolvedValue(false);
+        vi.spyOn(tools, 'isChartStudioAvailable').mockReturnValue(false);
+        vi.spyOn(tools, 'canAuthorCustomChartTypes').mockResolvedValue(false);
         vi.spyOn(tools, 'canUseCustomChartTypes').mockResolvedValue(false);
         const content = {
             version: 1,
@@ -368,6 +370,7 @@ describe('trusted surface to persisted chart identity', () => {
                     getProject: vi.fn().mockResolvedValue(f.projectInfo),
                 },
                 aiOrganizationSettingsService: {
+                    isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
                 },
                 aiAgentSkillService: {
@@ -461,11 +464,12 @@ describe('trusted surface to persisted chart identity', () => {
             } as ConstructorParameters<typeof AiAgentModel>[0]),
             featureFlagService: f.featureFlagService,
             aiOrganizationSettingsService: {
+                isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {
                 isOrgBedrockRouted: vi.fn().mockResolvedValue(false),
-                isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+                getDecisionClient: vi.fn().mockResolvedValue(undefined),
                 getCopilotConfig: vi
                     .fn()
                     .mockResolvedValue({ defaultProvider: 'openai' }),

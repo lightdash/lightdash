@@ -116,6 +116,34 @@ describe('parseAiArtifactChartConfig', () => {
         });
     });
 
+    it('parses the viz config of a composer v2 version', () => {
+        const vizConfig = {
+            type: 'bar',
+            x: 'month',
+            y: ['revenue'],
+            groupBy: null,
+            stack: null,
+            horizontal: null,
+            y2: null,
+            labels: null,
+        };
+        const config = {
+            source: 'composer',
+            schemaVersion: 2,
+            queries: [],
+            terminalNodeId: 'n1',
+            vizConfig,
+        };
+
+        expect(parseAiArtifactChartConfig(config)).toEqual(config);
+        expect(
+            parseAiArtifactChartConfig({
+                ...config,
+                vizConfig: { ...vizConfig, type: 'sankey' },
+            }),
+        ).toEqual({ ...config, vizConfig: null });
+    });
+
     it('round-trips a customChartType envelope', () => {
         const config = {
             source: 'customChartType',

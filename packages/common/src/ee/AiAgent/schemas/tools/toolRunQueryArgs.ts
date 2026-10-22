@@ -48,7 +48,7 @@ export const queryConfigBaseSchema = z.object({
     dimensions: z
         .array(getFieldIdSchema({ additionalDescription: null }))
         .describe(
-            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.',
+            'The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (`order_date_month`, not `order_date`, for "by month").',
         ),
     metrics: z
         .array(getFieldIdSchema({ additionalDescription: null }))
@@ -58,7 +58,7 @@ export const queryConfigBaseSchema = z.object({
     sorts: z
         .array(sortFieldSchema)
         .describe(
-            'Sort configuration for the query, it can use a combination of metrics and dimensions.',
+            'Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. `order_date_month_num`) while displaying another (`order_date_month_name`), select both as dimensions.',
         ),
     limit: z.coerce
         .number()
@@ -71,7 +71,7 @@ export const queryConfigBaseSchema = z.object({
         .nullable()
         .default(null)
         .describe(
-            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+            'Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
         ),
 });
 
@@ -85,7 +85,11 @@ const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
 const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
     customMetrics: customMetricsSchema,
     tableCalculations: tableCalcsSchema,
-    filters: filtersSchemaV2.nullable(),
+    filters: filtersSchemaV2
+        .nullable()
+        .describe(
+            '`type` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. `or` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep `and` with one `equals` rule on the date field at that grain and a value per period (`2025-03-01`, `2025-05-01`). Use `or`, with one `inBetween` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.',
+        ),
 });
 
 // V4 narrows the advertised tableCalculations contract to formula-only.
@@ -186,7 +190,7 @@ const chartConfigBuiltinSchema = z.object({
         .array(getFieldIdSchema({ additionalDescription: null }))
         .nullable()
         .describe(
-            'Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.',
+            'Dimensions that split metrics into separate series (one line per region, one bar per status), never the x-axis dimension. Example: dimensions=["order_date", "status"], groupBy=["status"] creates one series per status value. null for a single-series chart.',
         ),
 
     // Bar and horizontal bar chart specific
@@ -228,7 +232,7 @@ const chartConfigBuiltinSchema = z.object({
         .describe('A helpful label for the secondary y-axis'),
 });
 
-const customChartTypeOptionValueSchema = z.union([
+export const customChartTypeOptionValueSchema = z.union([
     dataAppVizGradientValueSchema,
     z.string(),
     z.number(),
@@ -298,22 +302,14 @@ export const isCustomChartTypeSlugChartConfig = (
 // the agent runtime has its own prompt and different sibling tool names.
 const MCP_RUN_QUERY_LEAD = `Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.`;
 
-const RUN_QUERY_PARAMETER_GUIDANCE = `If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.`;
-
 export const TOOL_RUN_QUERY_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string => {
     switch (runtime) {
         case 'agent':
-            return `Execute a metric query.
-
-${RUN_QUERY_PARAMETER_GUIDANCE}
-
-The tool handles execution and chart artifacts. It returns a result summary and CSV data when data access is enabled. For empty results, follow the returned guidance. Correct validation or execution errors before retrying.`;
+            return `Execute a metric query. The tool handles execution and chart artifacts and returns a result summary, plus CSV data when data access is enabled.`;
         case 'mcp':
             return `${MCP_RUN_QUERY_LEAD}
-
-${RUN_QUERY_PARAMETER_GUIDANCE}
 
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 

@@ -94,6 +94,7 @@ import Logger from '../../logging/logger';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
+    MAX_SLUG_ALIAS_LENGTH,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
@@ -1053,11 +1054,13 @@ export class DashboardModel {
                     .delete();
             }
 
-            await trx(DashboardSlugMappingsTableName).insert({
-                project_uuid: projectUuid,
-                dashboard_uuid: dashboardUuid,
-                slug: dashboard.slug,
-            });
+            if (dashboard.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
+                await trx(DashboardSlugMappingsTableName).insert({
+                    project_uuid: projectUuid,
+                    dashboard_uuid: dashboardUuid,
+                    slug: dashboard.slug,
+                });
+            }
 
             const updated = await trx(DashboardsTableName)
                 .where('project_uuid', projectUuid)

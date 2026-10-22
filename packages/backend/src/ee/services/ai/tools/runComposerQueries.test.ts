@@ -357,12 +357,12 @@ describe('getRunComposerQueries', () => {
             description: null,
         });
         expect(output.result).toContain(
-            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer; the same marker presents it again in a later message without rerunning it.',
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer, in this message or a later one.',
         );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
-                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                'Nodes in this pipeline:',
                 '- revenue: "Revenue by month" (semanticLayer)',
                 '- signups: "Signups by month" (sql)',
                 '- joined: "Revenue vs signups" (duckdb)',
@@ -548,7 +548,7 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.recordSqlApproval).toHaveBeenCalledWith({
             toolCallId: 'tool-call-1',
-            toolName: 'runComposerQueries',
+            toolName: 'query',
             decidedByUserUuid: 'user-uuid',
             source: 'auto_approve',
         });
@@ -647,7 +647,7 @@ describe('getRunComposerQueries', () => {
             dependencies.trackSqlApprovalTimeout,
         ).toHaveBeenCalledExactlyOnceWith({
             toolCallId: 'tool-call-1',
-            toolName: 'runComposerQueries',
+            toolName: 'query',
             promptedUserUuid: 'user-uuid',
             source: 'web',
         });
@@ -700,7 +700,7 @@ describe('getRunComposerQueries', () => {
             expect(dependencies.storeToolResults).toHaveBeenCalledWith([
                 expect.objectContaining({
                     toolCallId: 'tool-call-1',
-                    toolName: 'runComposerQueries',
+                    toolName: 'query',
                     result: output.result,
                 }),
             ]);
@@ -778,19 +778,19 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Running query "revenue"...',
-            'runComposerQueries',
+            'query',
             'tool-call-1:revenue',
             'in_progress',
         );
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Query "revenue" complete',
-            'runComposerQueries',
+            'query',
             'tool-call-1:revenue',
             'complete',
         );
         expect(dependencies.updateProgress).toHaveBeenCalledWith(
             'Query "joined" failed: column not found',
-            'runComposerQueries',
+            'query',
             'tool-call-1:joined',
             'error',
         );
@@ -979,7 +979,7 @@ describe('composer artifact with reused nodes', () => {
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
-                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                'Nodes in this pipeline:',
                 '- orders: "Orders by customer" (semanticLayer)',
                 '- customers: "Customers" (semanticLayer)',
                 '- enriched: "Orders with customer names" (duckdb)',

@@ -220,6 +220,14 @@ export const SDK_FEATURES: SdkFeature[] = [
         wiring: 'Wire the template\'s shipped components from src/components/insights (InsightsSummary at the top of the page; InsightMarker as both dot and activeDot, or insightCellProps on bar Cells, on every query-bound chart; InvestigateMenuItem in every point menu; InvestigationCard under the chart). A short ask such as "add AI analysis" gets the whole set. They sit on useInsights() and render nothing when the host has no analysis.',
     },
     {
+        key: 'analysis-instructions',
+        appliesTo: ['data_app'],
+        label: 'AI analysis instructions',
+        description:
+            'Author-written guidance for the AI analysis — language and formatting rules (e.g. British English, amounts in EUR) and a line or two of domain vocabulary — applied to every summary the app shows.',
+        wiring: "Pass the guidance where the app renders its view-level analysis: useInsights({ instructions: '<guidance>' }), or the instructions prop on the shipped InsightsSummary component. One string per app; keep it to a few short sentences.",
+    },
+    {
         key: 'ai-prompt',
         appliesTo: ['data_app'],
         label: 'AI prompts',

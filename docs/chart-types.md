@@ -91,11 +91,26 @@ pipeline, and authoring runbook are documented in
 
 - `LIGHTDASH_CHART_REGISTRY_URL` — the registry a deployment reads.
   Defaults to the official Pages URL; empty hides the library entirely.
+- `LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS` — permits a registry on a
+  private/internal address (a self-hosted mirror of the published tree
+  behind the customer's firewall). Transport stays https-only, redirects are
+  still refused, and the connection stays pinned to the resolved address.
 - `LIGHTDASH_CHART_REGISTRY_ALLOW_INSECURE` — permits plain-http registries
-  (local fixture servers, air-gapped mirrors). Logs a startup security
-  warning; never set it against a registry you don't control.
-- The feature sits on top of data apps (enterprise + its config/flags) and
-  is additionally gated by the `chart-type-registry` feature flag.
+  and turns off IP pinning, for local fixture servers only. Logs a startup
+  security warning; never set it against a registry you don't control, and
+  prefer `ALLOW_PRIVATE_HOSTS` for a real mirror.
+- `LIGHTDASH_CHART_REGISTRY_AUTHORIZATION_HEADER` — full `Authorization`
+  header value sent with every registry request, e.g. `Basic <base64>` or
+  `Bearer <token>`. Use it for registries behind authentication; `user:pass@`
+  in the URL is not supported. Unset sends no credentials.
+- The library is enterprise-only and gated by the `chart-type-registry`
+  feature flag alone; it does not need data apps or Chart Studio.
+- Installed chart types are usable (picked, configured, rendered) wherever
+  the library flag is on, the `enable-data-apps` flag is on, or Chart Studio
+  is available. Chart Studio, which authors and forks chart types, is
+  available with a valid licence and a configured sandbox provider, not the
+  `enable-data-apps` flag. The coding agent key is resolved per organization
+  when a build starts.
 
 ## Where to look
 

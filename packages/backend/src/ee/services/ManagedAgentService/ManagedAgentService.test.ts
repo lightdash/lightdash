@@ -25,7 +25,10 @@ import {
     metricQueryMock,
     validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
-import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import {
+    AiDecisionClient,
+    resolveAiDecisionClient,
+} from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
 import { type getFindContent } from '../ai/tools/findContent';
 import { type getRunMetricQuery } from '../ai/tools/runMetricQuery';
@@ -130,13 +133,30 @@ const buildService = ({
     ] as AnyType);
     vi.mocked(getModel).mockReset();
     vi.mocked(getModel).mockReturnValue(resolvedModel as AnyType);
+    const lightdashConfig = {
+        siteUrl: 'http://localhost',
+        preAggregates: { enabled: false },
+        ai: {
+            copilot: { maxQueryLimit: 500, toolDescriptionMaxChars: 500 },
+            decisions: undefined as AnyType,
+        },
+        managedAgent: {
+            schedule: '0 0 * * *',
+            validatedModels: [],
+            maxSteps: 5,
+            sessionTimeoutMs: 5000,
+        },
+    };
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue(copilotConfig),
         getOrgModelOverrides: vi.fn().mockResolvedValue({
             modelVisibility: null,
             keyAccessibleModelIds: null,
         }),
-        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+        // Reads the config lazily so tests can swap the decision key.
+        getDecisionClient: vi.fn(async () =>
+            resolveAiDecisionClient(lightdashConfig.ai.decisions),
+        ),
     };
     const aiOrganizationSettingsService = {
         getDefaultModelConfig: vi.fn().mockResolvedValue(defaultModelConfig),
@@ -219,19 +239,7 @@ const buildService = ({
         insert: vi.fn().mockResolvedValue(undefined),
     };
     const service = new ManagedAgentService({
-        lightdashConfig: {
-            siteUrl: 'http://localhost',
-            preAggregates: { enabled: false },
-            ai: {
-                copilot: { maxQueryLimit: 500, toolDescriptionMaxChars: 500 },
-            },
-            managedAgent: {
-                schedule: '0 0 * * *',
-                validatedModels: [],
-                maxSteps: 5,
-                sessionTimeoutMs: 5000,
-            },
-        },
+        lightdashConfig,
         analytics,
         managedAgentModel,
         analyticsModel: {},

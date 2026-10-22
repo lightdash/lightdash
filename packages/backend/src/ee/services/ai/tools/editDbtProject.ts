@@ -45,7 +45,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 });
 
                 return {
-                    result: 'Started the change. Give a brief one-line acknowledgement.',
+                    result: 'Started the change; the pull request opens in the background. Acknowledge it briefly.',
                     metadata: {
                         status: 'pending',
                         aiWritebackRunUuid,

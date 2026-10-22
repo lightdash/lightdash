@@ -86,12 +86,12 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         description: 'Browse warehouse tables and the raw SQL guidance',
         when: (input) => input.canRunSql,
         tools: ['listWarehouseTables', 'describeWarehouseTable'],
-        // The base owns runSql or runComposerQueries; this section explains both.
+        // The base owns runSql or query; this section explains both.
         section: {
             id: 'runSql',
             documents: [
                 'runSql',
-                'runComposerQueries',
+                'query',
                 'listWarehouseTables',
                 'describeWarehouseTable',
             ],

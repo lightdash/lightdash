@@ -5,31 +5,28 @@ import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 export const AI_WRITEBACK_PENDING_GRACE_MS = 5 * 60 * 1000;
 
 export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
-    'Open or update a pull request that modifies the connected semantic layer (dbt or native Lightdash YAML).',
-    'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
-    'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those).',
-    'When a project has more than one dbt source, the prompt must name the source or its owner/repo verbatim, or you will be asked to choose one.',
-    'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, validates the semantic layer, and opens a pull request — but the call returns immediately once the run has started, before any of that finishes (status: "pending"). Give a brief acknowledgement that you have started the change, then end your turn. Do not wait for it or call this tool again to check on it.',
-    'A single conversation can open several pull requests: follow-up edits continue the most recent one, prUrl targets a specific existing one, and startNewPullRequest opens a fresh one for an unrelated change.',
+    "Open or update a pull request that changes this project's semantic layer (dbt or Lightdash YAML): it edits the repository in an isolated sandbox, validates the semantic layer and opens the pull request on your behalf, so report it as your own work.",
+    'Call it, in the same turn you decide to make the change, when the user asks for one in the repository (add or rename a metric, edit a dimension or model, update YAML metadata) or accepts one you offered. It is not for questions about data or code, nor for changes that can be made inside Lightdash, such as to saved charts and dashboards.',
+    'It returns status "pending" once the run starts, and the pull request opens in the background: do not call it again to check on it.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
     prompt: z
         .string()
         .describe(
-            'A focused, self-contained natural-language instruction describing exactly which files in the connected project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). When the project has multiple dbt sources, include the source name or owner/repo verbatim. Do not include preamble or pleasantries.',
+            'A self-contained instruction, written as a direct task: the target model or file when you know it, and the literal change (field names, types, descriptions, SQL). The sandbox does not see this conversation, so include every detail it needs. When the project has more than one dbt source, name the source or its owner/repo verbatim, or you will be asked to choose one.',
         ),
     prUrl: z
         .string()
         .nullable()
         .describe(
-            "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own connected repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
+            "Full URL of an existing pull request to update instead (e.g. 'https://github.com/owner/repo/pull/123'): one the user pasted, or one of several this conversation opened (from listWorkstreams or an earlier editDbtProject result). It must be in this project's repository. Otherwise null.",
         ),
     startNewPullRequest: z
         .boolean()
         .nullable()
         .describe(
-            "Set true to open a brand-new pull request even when this conversation already has one open against this project's connected repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
+            'true opens a new pull request in this conversation for a change unrelated to the open one; null continues the most recent pull request. Ignored when prUrl is set.',
         ),
 });
 

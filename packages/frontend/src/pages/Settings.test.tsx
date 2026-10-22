@@ -49,6 +49,7 @@ const renderSettings = (
     seedAdminSettings = true,
     cold = false,
     isAnalyticsProject = false,
+    isChartStudioAvailable = false,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -149,6 +150,12 @@ const renderSettings = (
         {
             health: {
                 softDelete: { enabled: isSoftDeleteEnabled, retentionDays: 30 },
+                dataApps: {
+                    previewOrigin: null,
+                    sampleDataEnabled: true,
+                    capturesEnabled: true,
+                    runtimeAvailable: isChartStudioAvailable,
+                },
             },
             user,
         },
@@ -604,6 +611,91 @@ describe('Agent identity settings routes', () => {
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('link', { name: 'Warehouse credentials' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
+describe('Themes settings with Chart Studio', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+
+    const manageRules: LightdashUserWithAbilityRules['abilityRules'] = [
+        viewProject,
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: { organizationUuid: 'org' },
+        },
+        {
+            action: 'manage',
+            subject: 'OrganizationDesign',
+            conditions: { organizationUuid: 'org' },
+        },
+    ];
+
+    const renderThemes = (path: string, isChartStudioAvailable: boolean) => {
+        nock(BASE_API_URL)
+            .get('/api/v1/org/designs')
+            .optionally()
+            .reply(200, { status: 'ok', results: [] });
+        renderSettings(
+            '',
+            manageRules,
+            true,
+            path,
+            false,
+            undefined,
+            true,
+            false,
+            false,
+            isChartStudioAvailable,
+        );
+    };
+
+    it('opens Themes without the data apps flag', async () => {
+        renderThemes('/generalSettings/dataApps/themes', true);
+
+        expect(
+            await screen.findByRole('heading', { name: 'Themes' }),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Themes' })).toHaveAttribute(
+            'href',
+            '/generalSettings/dataApps/themes',
+        );
+        expect(
+            screen.queryByRole('link', { name: 'Data apps' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/dataApps/themes');
+    });
+
+    it.each([
+        '/generalSettings/dataApps/general',
+        '/generalSettings/dataApps/activity',
+    ])('keeps %s behind the data apps flag', async (path) => {
+        renderThemes(path, true);
+
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/profile');
+    });
+
+    it('hides Themes without Chart Studio or the data apps flag', async () => {
+        renderThemes('/generalSettings/dataApps/themes', false);
+
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Themes' }),
         ).not.toBeInTheDocument();
     });
 });

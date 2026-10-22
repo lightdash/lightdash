@@ -98,6 +98,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        isChartStudioAvailable,
         externalSourcesFlag,
         isResultsCacheEnabled,
         isGitProject,
@@ -407,6 +408,18 @@ export const useSettingsNavigation = (
                     children: dataAppChildren,
                 });
             }
+        } else if (
+            isChartStudioAvailable &&
+            ability?.can('manage', 'OrganizationDesign')
+        ) {
+            organizationItems.push({
+                label: 'Themes',
+                to: '/generalSettings/dataApps/themes',
+                icon: IconBrush,
+                keywords: ['design', 'colors', 'charts', 'chart types'],
+                children: [],
+                exact: true,
+            });
         }
 
         if (ability?.can('manage', 'Organization')) {
@@ -717,6 +730,10 @@ export const useSettingsNavigation = (
                         'writes',
                     ],
                     pageSections: [
+                        {
+                            title: 'Allow MCP access',
+                            keywords: ['access', 'disable', 'organization'],
+                        },
                         {
                             title: 'Enable agents over MCP',
                             keywords: ['tools', 'context', 'access'],
@@ -1335,6 +1352,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
+        isChartStudioAvailable,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,
         isGitProject,

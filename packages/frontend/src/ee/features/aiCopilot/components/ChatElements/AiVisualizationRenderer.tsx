@@ -283,6 +283,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             tableName={tableName}
             explore={explore}
             queryUuid={vizQueryData.query.queryUuid}
+            parameters={vizQueryData.query.usedParametersValues}
             resolvedTimezone={resolvedTimezone}
         >
             <VisualizationProvider

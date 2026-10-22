@@ -12,9 +12,9 @@
         "grepFields",
         "listKnowledgeDocuments",
         "listProjects",
+        "query",
         "readPinnedThread",
         "resolveUrl",
-        "runComposerQueries",
         "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer"

@@ -244,9 +244,6 @@ const InfiniteResourceTable = ({
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        documentsFlag.data?.enabled === true && !documentsFlag.isError;
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -473,7 +470,7 @@ const InfiniteResourceTable = ({
                 } = row;
                 return (
                     <Group>
-                        {documentsEnabled && documentCount !== undefined && (
+                        {documentCount !== undefined && (
                             <AttributeCount
                                 Icon={IconFileText}
                                 count={documentCount}
@@ -631,7 +628,6 @@ const InfiniteResourceTable = ({
         return data.pages
             .flatMap((page) => page.data.map(contentToResourceViewItem))
             .filter((item) => {
-                if (isResourceViewDocumentItem(item)) return documentsEnabled;
                 if (!isResourceViewSpaceItem(item)) return true;
                 if (!userCanManageProject) return true;
                 if (
@@ -649,7 +645,6 @@ const InfiniteResourceTable = ({
         userCanManageProject,
         spaces,
         selectedAdminContentType,
-        documentsEnabled,
         contentView?.value,
     ]);
 

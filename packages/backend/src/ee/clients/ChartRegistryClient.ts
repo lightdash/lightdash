@@ -37,6 +37,39 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
+/** Identifies an allowlisted image type from its leading magic bytes. */
+const sniffImageContentType = (body: Buffer): string | undefined => {
+    if (
+        body.length >= 8 &&
+        body
+            .subarray(0, 8)
+            .equals(
+                Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            )
+    ) {
+        return 'image/png';
+    }
+    if (
+        body.length >= 3 &&
+        body[0] === 0xff &&
+        body[1] === 0xd8 &&
+        body[2] === 0xff
+    ) {
+        return 'image/jpeg';
+    }
+    if (
+        body.length >= 12 &&
+        body.toString('ascii', 0, 4) === 'RIFF' &&
+        body.toString('ascii', 8, 12) === 'WEBP'
+    ) {
+        return 'image/webp';
+    }
+    if (body.length >= 4 && body.toString('ascii', 0, 4) === 'GIF8') {
+        return 'image/gif';
+    }
+    return undefined;
+};
+
 // Servable asset shape: one image filename under a published version dir of
 // an indexed chart. Validated structurally (plus a slug check against the
 // index) rather than by exact enumeration: the index only lists each chart's
@@ -103,12 +136,18 @@ async function readBodyWithCap(
 
 type PinnedAddress = { address: string; family: 4 | 6 };
 
-// Resolves hostname and validates every returned address is public. Mirrors
-// secureFetch.ts's resolveAndValidateHost: unlike validatePublicHttpUrl (which
-// only reports pass/fail), this returns the resolved address itself so the
-// fetch below can pin its connection to it — see createPinnedLookup.
-async function resolveAndValidatePublicHost(
+/**
+ * Resolves the registry hostname and returns the address the fetch below
+ * pins its connection to (see createPinnedLookup). Mirrors secureFetch.ts's
+ * resolveAndValidateHost: unlike validatePublicHttpUrl (which only reports
+ * pass/fail), this returns the resolved address itself. In strict mode every
+ * returned address must be public; with `allowPrivateAddresses` (self-hosted
+ * mirrors on internal networks) private/loopback addresses are accepted but
+ * the connection is still pinned, so DNS rebinding is refused either way.
+ */
+export async function resolveRegistryHost(
     hostname: string,
+    options: { allowPrivateAddresses: boolean },
 ): Promise<PinnedAddress> {
     const cleanHost = hostname.replace(/^\[/, '').replace(/\]$/, '');
     let addresses: Array<{ address: string; family: number }>;
@@ -125,7 +164,12 @@ async function resolveAndValidatePublicHost(
         );
     }
     for (const { address } of addresses) {
-        if (!ipaddr.isValid(address) || isPrivateAddress(address)) {
+        if (!ipaddr.isValid(address)) {
+            throw new ParameterError(
+                `Unable to resolve chart registry hostname "${hostname}"`,
+            );
+        }
+        if (!options.allowPrivateAddresses && isPrivateAddress(address)) {
             throw new ParameterError(
                 `Chart registry hostname "${hostname}" resolved to a private/internal address`,
             );
@@ -183,37 +227,47 @@ export function createPinnedLookup(
 /**
  * The real network fetch behind ChartRegistryClient's default fetchImpl,
  * exported standalone so tests can exercise it directly against a real
- * server. Validates the URL is public, refuses to follow redirects (a
- * redirect target is unvalidated — see secureFetch.ts), and streams the
- * body with a hard byte cap instead of buffering an unbounded response.
+ * server. Validates the URL, refuses to follow redirects (a redirect target
+ * is unvalidated — see secureFetch.ts), and streams the body with a hard
+ * byte cap instead of buffering an unbounded response.
+ *
+ * Three access modes, strictest first:
+ * - default: https only, public addresses only, connection pinned.
+ * - `allowPrivateAddresses`: https only, private/loopback addresses allowed,
+ *   connection still pinned. For self-hosted registry mirrors on internal
+ *   networks — credentials never travel over plain http.
+ * - `allowInsecure`: also allows http and skips pinning. Local fixture
+ *   servers only; implies allowPrivateAddresses.
  */
 export async function chartRegistryFetch(
     url: string,
     options: {
         maxBytes: number;
-        allowPrivateAddresses: boolean;
+        allowPrivateAddresses?: boolean;
+        allowInsecure?: boolean;
         headers?: Record<string, string>;
     },
 ): Promise<ChartRegistryRawResponse> {
+    const allowInsecure = options.allowInsecure ?? false;
+    const allowPrivateAddresses =
+        allowInsecure || (options.allowPrivateAddresses ?? false);
     const parsedUrl = await validatePublicHttpUrl(url, {
-        allowedProtocols: options.allowPrivateAddresses
-            ? ['http:', 'https:']
-            : ['https:'],
-        allowPrivateAddresses: options.allowPrivateAddresses,
+        allowedProtocols: allowInsecure ? ['http:', 'https:'] : ['https:'],
+        allowPrivateAddresses,
     });
 
-    // Pin the connection to the address just validated above so this fetch
-    // can't be answered by a different (private/internal) address than the
-    // one validatePublicHttpUrl checked. Skipped when allowPrivateAddresses
-    // is set — a dev-only escape hatch where hostname validation already
-    // does not run.
-    const dispatcher = options.allowPrivateAddresses
+    // Pin the connection to the address resolved here so this fetch can't be
+    // answered by a different address than the one checked (DNS rebinding).
+    // Skipped only when allowInsecure is set — a dev-only escape hatch.
+    const dispatcher = allowInsecure
         ? undefined
         : new Agent({
               connect: {
                   lookup: createPinnedLookup(
                       parsedUrl.hostname,
-                      await resolveAndValidatePublicHost(parsedUrl.hostname),
+                      await resolveRegistryHost(parsedUrl.hostname, {
+                          allowPrivateAddresses,
+                      }),
                   ),
               },
           });
@@ -259,6 +313,9 @@ export class ChartRegistryClient {
 
     private readonly allowInsecure: boolean;
 
+    private readonly authorizationHeader: string | null;
+    private readonly allowPrivateHosts: boolean;
+
     private readonly indexFileName: string;
 
     private readonly fetchImpl: ChartRegistryFetch;
@@ -277,6 +334,11 @@ export class ChartRegistryClient {
         this.baseUrl = args.lightdashConfig.appRuntime.chartRegistry.url;
         this.allowInsecure =
             args.lightdashConfig.appRuntime.chartRegistry.allowInsecure;
+        this.authorizationHeader =
+            args.lightdashConfig.appRuntime.chartRegistry.authorizationHeader ??
+            null;
+        this.allowPrivateHosts =
+            args.lightdashConfig.appRuntime.chartRegistry.allowPrivateHosts;
         // The next channel's index additionally lists charts whose latest
         // version is a beta (entries carry `channel`); the stable index
         // only ever lists stable versions.
@@ -476,17 +538,28 @@ export class ChartRegistryClient {
         return body;
     }
 
-    /** Non-2xx or a content type outside the image allowlist is treated as absent. */
-    private isServableAsset(
+    /**
+     * Non-2xx or a content type outside the image allowlist is treated as
+     * absent. A generic octet-stream or missing type (e.g. Artifactory
+     * proxies) is resolved by sniffing the body's magic bytes, never by
+     * trusting the file extension.
+     */
+    private resolveAssetContentType(
         status: number,
         contentType: string | null,
-    ): boolean {
-        return (
-            status >= 200 &&
-            status < 300 &&
-            contentType !== null &&
-            ALLOWED_ASSET_CONTENT_TYPES.has(normalizeContentType(contentType))
-        );
+        body: Buffer,
+    ): string | undefined {
+        if (status < 200 || status >= 300) {
+            return undefined;
+        }
+        const normalized =
+            contentType === null ? null : normalizeContentType(contentType);
+        if (normalized === null || normalized === 'application/octet-stream') {
+            return sniffImageContentType(body);
+        }
+        return ALLOWED_ASSET_CONTENT_TYPES.has(normalized)
+            ? normalized
+            : undefined;
     }
 
     async getAsset(
@@ -507,13 +580,15 @@ export class ChartRegistryClient {
             this.resolveUrl(path).toString(),
             MAX_ARTIFACT_BYTES,
         );
-        if (!this.isServableAsset(status, contentType)) {
+        const resolvedContentType = this.resolveAssetContentType(
+            status,
+            contentType,
+            body,
+        );
+        if (!resolvedContentType) {
             return undefined;
         }
-        return {
-            buffer: body,
-            contentType: normalizeContentType(contentType as string),
-        };
+        return { buffer: body, contentType: resolvedContentType };
     }
 
     private defaultFetch(
@@ -521,10 +596,17 @@ export class ChartRegistryClient {
         maxBytes: number,
         options?: ChartRegistryFetchOptions,
     ): Promise<ChartRegistryRawResponse> {
+        const headers = {
+            ...options?.headers,
+            ...(this.authorizationHeader
+                ? { authorization: this.authorizationHeader }
+                : {}),
+        };
         return chartRegistryFetch(url, {
             maxBytes,
-            allowPrivateAddresses: this.allowInsecure,
-            ...(options?.headers ? { headers: options.headers } : {}),
+            allowInsecure: this.allowInsecure,
+            allowPrivateAddresses: this.allowPrivateHosts,
+            ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
     }
 }

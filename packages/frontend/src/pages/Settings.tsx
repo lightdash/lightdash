@@ -177,6 +177,7 @@ const Settings: FC = () => {
         dataAppAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
+        isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
@@ -537,6 +538,16 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            (dataAppsFlag?.enabled || isChartStudioAvailable) &&
+            user?.ability.can('manage', 'OrganizationDesign')
+        ) {
+            allowedRoutes.push({
+                path: '/dataApps/themes',
+                element: <DesignListPage />,
+            });
+        }
+
         if (dataAppsFlag?.enabled) {
             const canManageThemes =
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
@@ -549,12 +560,6 @@ const Settings: FC = () => {
                 allowedRoutes.push({
                     path: '/dataApps/general',
                     element: <DataAppGeneralSettingsPage />,
-                });
-            }
-            if (canManageThemes) {
-                allowedRoutes.push({
-                    path: '/dataApps/themes',
-                    element: <DesignListPage />,
                 });
             }
             if (canManageOrganization) {
@@ -896,6 +901,7 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
+        isChartStudioAvailable,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,
         canAccessAnalyticsSettings,

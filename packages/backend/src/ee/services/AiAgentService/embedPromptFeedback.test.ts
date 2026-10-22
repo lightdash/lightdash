@@ -128,9 +128,13 @@ const buildService = ({
     > | null;
 } = {}) => {
     const aiAgentModel = {
-        getWebAppThreadEmbedSpace: vi.fn<
-            AiAgentModel['getWebAppThreadEmbedSpace']
-        >(async () => embedThreadSpaceUuid),
+        isWebAppThreadInEmbedSpaces: vi.fn<
+            AiAgentModel['isWebAppThreadInEmbedSpaces']
+        >(async (_, spaces) =>
+            embedThreadSpaceUuid
+                ? spaces.includes(embedThreadSpaceUuid)
+                : false,
+        ),
         findPromptContext: vi.fn<AiAgentModel['findPromptContext']>(
             async () => promptContext ?? undefined,
         ),

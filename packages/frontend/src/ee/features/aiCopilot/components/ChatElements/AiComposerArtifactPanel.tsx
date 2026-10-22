@@ -25,6 +25,7 @@ import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useUpdateComposerVizConfig } from '../../hooks/useAiAgentArtifacts';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
+import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
 import { AiComposerPipelinePanel } from './composerPipeline/AiComposerPipelinePanel';
 import {
     AiComposerVizConfigPanel,
@@ -110,9 +111,19 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             : null,
     );
     const { columns, rows, isLoading } = useArtifactResultRows(results);
-    const storedVizConfig = isTerminalDisplayed
-        ? (config.vizConfig ?? null)
-        : null;
+    const storedVizConfig =
+        isTerminalDisplayed && config.schemaVersion === 1
+            ? (config.vizConfig ?? null)
+            : null;
+    // v2 draws the presented node through the runQuery chart builders; nothing to edit.
+    const runQueryVizConfig =
+        config.schemaVersion === 2 && isTerminalDisplayed
+            ? config.vizConfig
+            : null;
+    const metadata = useMemo(
+        () => ({ title, description: description ?? '' }),
+        [title, description],
+    );
     const derivedValue = useMemo(
         () => getComposerVizPanelValue({ columns, vizConfig: storedVizConfig }),
         [columns, storedVizConfig],
@@ -172,6 +183,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         );
     };
 
+    const hasVizConfigPanel = config.schemaVersion === 1;
     const panelMode = ((): AiComposerVizConfigPanelMode => {
         if (!isResultReady || options.kinds.length <= 1) return 'static';
         return isTerminalDisplayed ? 'expandable' : 'switcher';
@@ -223,6 +235,32 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         </Box>
     );
 
+    const visualization =
+        runQueryVizConfig && queryUuid && !runError && !results.error ? (
+            <AiComposerRunQueryVisualization
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                artifactUuid={artifactUuid}
+                versionUuid={versionUuid}
+                nodeResults={results}
+                chartStage={run?.chartStage ?? null}
+                vizConfig={runQueryVizConfig}
+                metadata={metadata}
+                headerContent={head}
+            />
+        ) : (
+            <AiComposerArtifactVisualization
+                projectUuid={projectUuid}
+                results={results}
+                queryUuid={queryUuid ?? null}
+                runError={runError}
+                onRerun={onRerun}
+                vizConfig={value}
+                headerContent={head}
+                flush
+            />
+        );
+
     return (
         <Box className={styles.floatingPanel}>
             <Box className={clsx(styles.floatingContent, styles.flushContent)}>
@@ -240,31 +278,26 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         if (open) setIsChartOpen(false);
                     }}
                 >
-                    <AiComposerVizConfigPanel
-                        value={value}
-                        columns={columns}
-                        options={options}
-                        onChange={setValue}
-                        onKindChange={changeKind}
-                        mode={panelMode}
-                        expanded={isChartOpen}
-                        onExpandedChange={(open) => {
-                            setIsChartOpen(open);
-                            if (open) setIsPipelineOpen(false);
-                        }}
-                        fieldsDisabledReason={fieldsDisabledReason}
-                    >
-                        <AiComposerArtifactVisualization
-                            projectUuid={projectUuid}
-                            results={results}
-                            queryUuid={queryUuid ?? null}
-                            runError={runError}
-                            onRerun={onRerun}
-                            vizConfig={value}
-                            headerContent={head}
-                            flush
-                        />
-                    </AiComposerVizConfigPanel>
+                    {hasVizConfigPanel ? (
+                        <AiComposerVizConfigPanel
+                            value={value}
+                            columns={columns}
+                            options={options}
+                            onChange={setValue}
+                            onKindChange={changeKind}
+                            mode={panelMode}
+                            expanded={isChartOpen}
+                            onExpandedChange={(open) => {
+                                setIsChartOpen(open);
+                                if (open) setIsPipelineOpen(false);
+                            }}
+                            fieldsDisabledReason={fieldsDisabledReason}
+                        >
+                            {visualization}
+                        </AiComposerVizConfigPanel>
+                    ) : (
+                        visualization
+                    )}
                 </AiComposerPipelinePanel>
             </Box>
         </Box>

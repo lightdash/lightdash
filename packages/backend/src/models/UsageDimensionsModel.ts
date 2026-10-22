@@ -203,6 +203,21 @@ export class UsageDimensionsModel {
                 }
                 return;
             }
+            case 'projects': {
+                const projects = this.database('projects as p')
+                    .where('p.organization_id', orgId)
+                    .select(
+                        this.database.raw(
+                            `json_build_object(
+                        'org_id', ?::text, 'project_id', p.project_uuid,
+                        'name', p.name
+                    )::text AS json`,
+                            [orgUuid],
+                        ),
+                    );
+                yield* this.readPages(projects, 'p.project_id');
+                return;
+            }
             case 'agents': {
                 const agents = this.database('ai_agent as a')
                     .where('a.organization_uuid', orgUuid)

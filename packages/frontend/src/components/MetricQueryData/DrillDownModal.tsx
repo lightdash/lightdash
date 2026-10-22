@@ -10,6 +10,7 @@ import {
     type FieldId,
     type Filters,
     type MetricQuery,
+    type ParametersValuesMap,
     type PivotReference,
     type ResultValue,
     type UUID,
@@ -43,6 +44,7 @@ type DrillDownExploreArgs = {
     pivotReference?: PivotReference;
     explore?: Explore;
     timezone?: string;
+    parameters: ParametersValuesMap | undefined;
 };
 
 const getDrillDownExplore = ({
@@ -56,6 +58,7 @@ const getDrillDownExplore = ({
     pivotReference,
     explore,
     timezone,
+    parameters,
 }: DrillDownExploreArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
@@ -90,6 +93,7 @@ const getDrillDownExplore = ({
             type: ChartType.CARTESIAN,
             config: { layout: {}, eChartsConfig: {} },
         },
+        parameters,
     };
     const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
         projectUuid,
@@ -135,6 +139,7 @@ const DrillDownModalContent: FC<
         metricQuery: contextMetricQuery,
         tableName,
         resolvedTimezone,
+        parameters,
     } = useMetricQueryDataContext();
     const source = drillDownConfig?.source;
     const metricQuery = source?.metricQuery ?? contextMetricQuery;
@@ -180,6 +185,7 @@ const DrillDownModalContent: FC<
                 pivotReference: drillDownConfig.pivotReference,
                 explore,
                 timezone: resolvedTimezone,
+                parameters,
             });
         }
     }, [
@@ -189,6 +195,7 @@ const DrillDownModalContent: FC<
         drillDownConfig,
         projectUuid,
         resolvedTimezone,
+        parameters,
     ]);
 
     const onClose = useCallback(() => {

@@ -145,11 +145,16 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
-/** The resource a thread is bound to, resolved for the prompt. `dashboard` is null once it no longer exists. */
-export type AiAgentThreadBindingContext = {
-    type: 'dashboard';
-    dashboard: { name: string; slug: string } | null;
-};
+/** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
+export type AiAgentThreadBindingContext =
+    | {
+          type: 'dashboard';
+          dashboard: { name: string; slug: string } | null;
+      }
+    | {
+          type: 'chart';
+          chart: { name: string; slug: string } | null;
+      };
 
 /**
  * The structured role a deep-research call plays. Absent for the legacy
@@ -297,7 +302,7 @@ export type AiAgentArgs = AnyAiModel & {
     // Drives whether the prompt tells the agent to use `search`.
     repoFsSupportsCodeSearch: boolean;
     canRunSql: boolean;
-    // Whether runComposerQueries is the query path: composer flags, data
+    // Whether the composer query tool is the query path: composer flags, data
     // access and the agent's enableComposerQueries opt-in.
     enableComposerQueries: boolean;
     // Whether the user can save a generated dashboard anywhere in the project.

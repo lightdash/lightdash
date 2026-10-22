@@ -18,11 +18,17 @@
     opacity: 0.5;
 }
 
+/* Shrinks with the context tray down to a readable floor; the tray scrolls past that. */
+.chipHost {
+    min-width: 96px;
+}
+
 /* One meaning: which source. It opens the preview data picker. */
 .chip {
     display: inline-flex;
     align-items: center;
     height: 22px;
+    min-width: 0;
     max-width: 260px;
     padding: 0 6px 0 6px;
     border: 1px solid var(--mantine-color-ldGray-2);

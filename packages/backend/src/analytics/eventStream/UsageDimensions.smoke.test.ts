@@ -285,7 +285,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 12,
+                    refreshed: 14,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -622,7 +622,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     ).ETag,
                 ).toBe(originalPeopleHistory.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 12,
+                    refreshed: 14,
                     failed: 0,
                 });
                 await fixture('ai_agent')
@@ -638,7 +638,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 12,
+                    refreshed: 14,
                     failed: 0,
                 });
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(

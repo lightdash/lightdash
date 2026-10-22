@@ -50,6 +50,7 @@ import {
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
     getRunQueryChartConfig,
+    getRunSqlDefaultLimit,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -437,7 +438,7 @@ const mcpCreateContentDocumentTool = withProjectScopeInput(
 );
 const mcpCreateContentTool = {
     ...mcpCreateContentDocumentTool,
-    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree. Pass a spaceSlug only for a Space the user named, so the Document stays personal.`,
+    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree.`,
 };
 const mcpEditContentTool = withProjectScopeInput(
     mcpEditContentToolDefinition.for('mcp'),
@@ -666,6 +667,7 @@ export type McpServerToolOptions = {
         filterExpressionsEnabled: boolean;
         documentsEnabled: boolean;
         dataAppBuildsEnabled: boolean;
+        chartTypeBuildsEnabled: boolean;
         customChartTypesEnabled: boolean;
         agentIdentityEnabled: boolean;
     };
@@ -2160,15 +2162,30 @@ export class McpService extends BaseService {
         );
     }
 
-    /** Data app build tools; gated together so tools/list stays stable. */
-    private registerDataAppBuildTools(): void {
-        this.registerGenerateDataAppTool();
-        this.registerIterateDataAppTool();
-        this.registerListDataAppThemesTool();
-        this.registerListDataAppConnectionsTool();
-        this.registerGetDataAppBuildStatusTool();
-        this.registerCreateCustomChartTypeTool();
-        this.registerIterateCustomChartTypeTool();
+    /**
+     * Data app and Chart Studio build tools, each group gated on its own. The
+     * theme and build status tools serve both groups, so they register once
+     * when either is on. Registration order keeps tools/list stable.
+     */
+    private registerAppBuildTools({
+        dataAppBuildsEnabled,
+        chartTypeBuildsEnabled,
+    }: {
+        dataAppBuildsEnabled: boolean;
+        chartTypeBuildsEnabled: boolean;
+    }): void {
+        const anyBuildsEnabled = dataAppBuildsEnabled || chartTypeBuildsEnabled;
+        if (dataAppBuildsEnabled) {
+            this.registerGenerateDataAppTool();
+            this.registerIterateDataAppTool();
+        }
+        if (anyBuildsEnabled) this.registerListDataAppThemesTool();
+        if (dataAppBuildsEnabled) this.registerListDataAppConnectionsTool();
+        if (anyBuildsEnabled) this.registerGetDataAppBuildStatusTool();
+        if (chartTypeBuildsEnabled) {
+            this.registerCreateCustomChartTypeTool();
+            this.registerIterateCustomChartTypeTool();
+        }
     }
 
     /**
@@ -3356,6 +3373,7 @@ export class McpService extends BaseService {
                 documentsEnabled: false,
                 agentIdentityEnabled: false,
                 dataAppBuildsEnabled: false,
+                chartTypeBuildsEnabled: false,
                 customChartTypesEnabled: false,
             },
         },
@@ -4580,7 +4598,9 @@ export class McpService extends BaseService {
                     title: mcpRunSqlTool.title,
                     description:
                         buildRunSqlDescription(
-                            500,
+                            getRunSqlDefaultLimit(
+                                this.lightdashConfig.mcp.runSqlMaxLimit,
+                            ),
                             this.lightdashConfig.mcp.runSqlMaxLimit,
                         ) +
                         (options.agentIdentityEnabled
@@ -4928,9 +4948,7 @@ export class McpService extends BaseService {
         this.registerGetAiWritebackStatusTool();
         this.registerAiWritebackTaskHandlers();
 
-        if (options.dataAppBuildsEnabled) {
-            this.registerDataAppBuildTools();
-        }
+        this.registerAppBuildTools(options);
 
         if (options.customChartTypesEnabled) {
             this.registerFindCustomChartTypesTool();
@@ -5606,10 +5624,22 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
+    // Organization disablement takes precedence over every MCP enablement path.
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (!user.organizationUuid) {
+            return false;
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isMcpEnabled(
+                user.organizationUuid,
+            ))
+        ) {
+            return false;
+        }
+
+        // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
@@ -5621,10 +5651,6 @@ export class McpService extends BaseService {
 
         if (aiCopilotFlag.enabled) {
             return true;
-        }
-
-        if (!user.organizationUuid) {
-            return false;
         }
 
         return this.aiOrganizationSettingsService.isEligibleForTrial(
@@ -5670,12 +5696,33 @@ export class McpService extends BaseService {
             })
             .safeParse(request);
         if (!call.success) return;
-        const dataApp = [
-            'generate_data_app',
-            'iterate_data_app',
+        const chartType = [
             'create_custom_chart_type',
             'iterate_custom_chart_type',
         ].includes(call.data.params.name);
+        if (chartType) {
+            if (availability.chartTypeBuildsEnabled) return;
+            const available = this.aiAgentToolsService.isChartStudioAvailable();
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: null,
+                objectType: 'app',
+                action:
+                    call.data.params.name === 'iterate_custom_chart_type'
+                        ? 'update'
+                        : 'create',
+                policyLayer: available ? 'casl' : 'organization_setting',
+                reasonCode: available
+                    ? 'data_app_create_forbidden'
+                    : 'chart_studio_unavailable',
+            });
+            return;
+        }
+        const dataApp = ['generate_data_app', 'iterate_data_app'].includes(
+            call.data.params.name,
+        );
         if (dataApp) {
             if (availability.dataAppBuildsEnabled) return;
             const { enabled } = await this.featureFlagService.get({
@@ -5688,12 +5735,10 @@ export class McpService extends BaseService {
                 organizationUuid: user.organizationUuid,
                 projectUuid: null,
                 objectType: 'app',
-                action: [
-                    'iterate_data_app',
-                    'iterate_custom_chart_type',
-                ].includes(call.data.params.name)
-                    ? 'update'
-                    : 'create',
+                action:
+                    call.data.params.name === 'iterate_data_app'
+                        ? 'update'
+                        : 'create',
                 policyLayer: enabled ? 'casl' : 'organization_setting',
                 reasonCode: enabled
                     ? 'data_app_create_forbidden'
@@ -5742,16 +5787,6 @@ export class McpService extends BaseService {
         );
     }
 
-    public async isDocumentsEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        return enabled;
-    }
-
     /**
      * Whether the data app build tools should be registered for this caller:
      * data apps enabled and the caller may create them. A project-pinned
@@ -5768,7 +5803,18 @@ export class McpService extends BaseService {
         });
     }
 
-    /** Chart Studio's gallery gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
+    /** Whether the chart type build tools should be registered: Chart Studio available and the caller may create apps. */
+    public async isChartTypeBuildsEnabled(
+        user: SessionUser,
+        headerProjectUuid?: string,
+    ): Promise<boolean> {
+        return this.aiAgentToolsService.canAuthorCustomChartTypes({
+            user,
+            projectUuid: headerProjectUuid,
+        });
+    }
+
+    /** The chart type usage gate; coarse without a pinned project, like isDataAppBuildsEnabled. */
     public async isCustomChartTypesEnabled(
         user: SessionUser,
         headerProjectUuid?: string,

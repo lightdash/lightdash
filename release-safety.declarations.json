@@ -126,6 +126,10 @@
         "mcp-deprecated-context-tools-removed": {
             "reason": "The deprecated MCP tools set_project, get_current_project, set_agent, clear_agent and get_current_agent are removed. MCP clients discover tools from tools/list, so agents pick up the change on their next session; only scripted callers that hard-code one of these names get an unknown-tool error. get_context reports the stored project and agent, route_agent selects an agent, and every project-scoped tool takes projectUuid (and optionally agentUuid) explicitly. Stored context written by older clients or route_agent is still honoured.",
             "requiredStop": false
+        },
+        "ai-agent-thread-binding-chart": {
+            "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
+            "requiredStop": false
         }
     }
 }

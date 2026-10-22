@@ -2,8 +2,10 @@ import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
-export const TOOL_CREATE_CONTENT_DESCRIPTION =
-    'Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.';
+export const SQL_CHART_CREATE_GUIDANCE =
+    'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
+
+export const TOOL_CREATE_CONTENT_DESCRIPTION = `Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. ${SQL_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],
@@ -17,7 +19,7 @@ type RequiredMetricQueryKeys = keyof Omit<
 >;
 
 const TOOL_CHART_AS_CODE_METRIC_QUERY_DESCRIPTION =
-    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
+    'Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. filters is {} when there are none, not null or an array. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.';
 
 const chartAsCodeMetricQueryShape = {
     exploreName: z.unknown().optional(),
@@ -40,7 +42,7 @@ const baseContentSchema = z.object({
         .string()
         .min(1)
         .describe(
-            'Requested slug. Lightdash may append a suffix if this slug already exists.',
+            'Requested slug. A taken slug gets a suffix, so reference the slug the result returns.',
         ),
     name: z.string().min(1),
     description: z.string().nullable(),

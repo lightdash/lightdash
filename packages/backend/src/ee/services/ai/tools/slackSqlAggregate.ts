@@ -70,6 +70,7 @@ export const getSqlApprovalSteps = (
     toolArgs: unknown,
 ): SqlApprovalStep[] | null => {
     switch (toolName) {
+        case 'query':
         case 'runComposerQueries':
             return getComposerSqlApprovalSteps(toolArgs);
         case 'runSql':

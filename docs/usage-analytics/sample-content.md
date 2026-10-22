@@ -1,8 +1,8 @@
 # Analytics sample content
 
 The backend-owned bundle in `packages/backend/src/analytics/systemExplores/sampleContent.ts`
-defines two focused managed dashboards using the existing system explores: AI usage
-(eight charts) and Query activity (nine charts). It is compiled with the backend: no CLI upload, migration,
+defines managed dashboards using system explores, including AI usage, Query activity
+and AI tokens and billing coverage. It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
 
 AI usage includes calls, total tokens, distinct users and output-token KPIs,
@@ -95,6 +95,38 @@ project settings still govern any snapshot behavior.
 Earlier local prototypes used deterministic UUIDs. Existing rows at canonical
 slugs are updated without changing those UUIDs; noncanonical/suffixed prototype
 dashboards are not adopted or deleted automatically.
+
+## AI tokens and billing coverage
+
+The managed `lightdash-analytics-ai-tokens` dashboard is installed during Analytics
+project creation and **Sync content**, in the existing AI usage space. Its 24
+charts provide Feature, Channel, User, Project and Agent tabs plus an all-usage
+coverage tab. The existing Agents & AI dashboard is preserved.
+
+The five breakdown tabs use the same feature, completed-outcome and
+Lightdash-managed-key criteria as credit accounting, but report **tokens**,
+including unpriced models. They do not reproduce priced billable credits,
+contract periods, allowances or holds. The default window is the current calendar
+month through yesterday in UTC, rather than the organization's contract window.
+All-usage charts additionally include self-managed and excluded/background usage.
+Cache and reasoning metrics overlap input/output; they must not all be added to
+the provider-reported token total. Record counts are not questions or an exact
+provider-call count.
+
+Colored daily stacks and token-share rows show the five largest groups plus
+Other. Identities remain separate even when names match. Token-share rows have
+reserved vertical space so labels and progress bars do not overlap. At the
+5,000-grouped-row query limit, a breakdown shows a warning instead of incomplete
+shares; add a dashboard filter to narrow the result. Detail tables show up to
+1,000 grouped rows.
+
+AI Usage exposes **Project name** from the current organization-scoped
+`projects.parquet` dimension, including projects with no saved content. Names
+refresh with the existing usage-dimension job; Sync updates the model and content
+without refreshing the data snapshot. Missing/deleted projects retain their
+events and render as unknown, with the project ID available for attribution.
+No tenant IDs, project names, credentials or internal issue links are embedded in
+the managed content.
 
 ## Future work
 

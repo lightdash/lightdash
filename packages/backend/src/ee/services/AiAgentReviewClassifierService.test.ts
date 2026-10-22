@@ -7,7 +7,10 @@ import {
 } from '@lightdash/common';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
-import { AiDecisionClient } from './ai/decisions/AiDecisionClient';
+import {
+    AiDecisionClient,
+    resolveAiDecisionClient,
+} from './ai/decisions/AiDecisionClient';
 import { resolveReviewJudgeProvider } from './ai/reviewJudgeModel';
 import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
 
@@ -266,9 +269,16 @@ describe('AiAgentReviewClassifierService', () => {
     const aiOrganizationSettingsModel = {
         findByOrganizationUuid: vi.fn(),
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
+    const decisionConfig = {
+        apiKey: null as string | null,
+        model: 'test',
+        timeoutMs: 100,
+    };
     const orgAiCopilotConfigResolver = {
         getReviewJudgeAvailability: vi.fn(),
-        isOrgOnOwnProviderKeys: vi.fn().mockResolvedValue(false),
+        getDecisionClient: vi.fn(async () =>
+            resolveAiDecisionClient(decisionConfig),
+        ),
     };
     const catalogModel = {
         getCatalogItemsSummary: vi.fn(),
@@ -285,11 +295,6 @@ describe('AiAgentReviewClassifierService', () => {
     };
     const judgeTurn = vi.fn();
 
-    const decisionConfig = {
-        apiKey: null as string | null,
-        model: 'test',
-        timeoutMs: 100,
-    };
     const service = new AiAgentReviewClassifierService({
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
@@ -322,6 +327,7 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentReviewsEnabled: true,
             deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
             deepResearchRawSqlEnabled: false,
+            mcpEnabled: true,
             mcpContentWritesEnabled: true,
             mcpAgentsEnabled: true,
             requireExplicitSlackChannelLinking: false,
@@ -400,10 +406,10 @@ describe('AiAgentReviewClassifierService', () => {
         judgeTurn.mockResolvedValue(makeJudgeOutput());
     });
 
-    it('does not rank evidence through the instance provider for an org on its own provider keys', async () => {
+    it('does not rank evidence when the org gets no instance decision client', async () => {
         decisionConfig.apiKey = 'test';
-        orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys.mockResolvedValue(
-            true,
+        orgAiCopilotConfigResolver.getDecisionClient.mockResolvedValueOnce(
+            undefined,
         );
         const candidate = makeCandidate({
             supportingEvidence: [makeWritebackEvidence('Some result')],
@@ -425,9 +431,6 @@ describe('AiAgentReviewClassifierService', () => {
             });
         } finally {
             evaluate.mockRestore();
-            orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys.mockResolvedValue(
-                false,
-            );
         }
     });
 
@@ -520,6 +523,7 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentReviewsEnabled: false,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 requireExplicitSlackChannelLinking: false,

@@ -607,11 +607,13 @@ export const AiComposerPipelinePanel: FC<Props> = ({
     defaultExpanded = false,
     expanded: controlledExpanded,
     onExpandedChange,
-    defaultMode = 'list',
+    defaultMode,
 }) => {
     const [ownExpanded, setOwnExpanded] = useState(defaultExpanded);
     const expanded = controlledExpanded ?? ownExpanded;
-    const [mode, setMode] = useState<PipelineMode>(defaultMode);
+    const [mode, setMode] = useState<PipelineMode>(
+        defaultMode ?? (queries.length > 1 ? 'graph' : 'list'),
+    );
     const display: NodeDisplay = {
         displayedNodeId,
         displayableNodeIds,

@@ -3,18 +3,36 @@ import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { ContentTypeFilter } from './ContentTypeFilter';
 
-const mocks = vi.hoisted(() => ({ enabled: true, isError: false }));
+const defaults = {
+    dataAppsEnabled: false,
+    chartTypesEnabled: false,
+};
+const mocks = vi.hoisted(() => ({
+    dataAppsEnabled: false,
+    chartTypesEnabled: false,
+}));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (flag: FeatureFlags) => ({
-        data: { enabled: flag === FeatureFlags.Documents && mocks.enabled },
-        isError: mocks.isError,
+        data: {
+            enabled:
+                flag === FeatureFlags.EnableDataApps && mocks.dataAppsEnabled,
+        },
+        isError: false,
+    }),
+}));
+
+beforeEach(() => {
+    Object.assign(mocks, defaults);
+});
+vi.mock('../../chartTypes/hooks/useChartTypesEnabled', () => ({
+    useChartTypesEnabled: () => ({
+        enabled: mocks.chartTypesEnabled,
+        isLoading: false,
     }),
 }));
 
 describe('Recently deleted Document filter', () => {
     it('selects documents', () => {
-        mocks.enabled = true;
-        mocks.isError = false;
         const onChange = vi.fn();
         render(
             <MantineProvider env="test">
@@ -27,19 +45,32 @@ describe('Recently deleted Document filter', () => {
         fireEvent.click(screen.getByLabelText('Documents'));
         expect(onChange).toHaveBeenCalledWith(ContentType.DOCUMENT);
     });
+});
+
+describe('Recently deleted chart type and data app filters', () => {
     it.each([
-        { enabled: false, isError: false },
-        { enabled: true, isError: true },
-    ])('hides documents with unavailable flag %j', (flag) => {
-        Object.assign(mocks, flag);
-        render(
-            <MantineProvider env="test">
-                <ContentTypeFilter
-                    selectedContentType="all"
-                    setSelectedContentType={vi.fn()}
-                />
-            </MantineProvider>,
-        );
-        expect(screen.queryByLabelText('Documents')).not.toBeInTheDocument();
-    });
+        { dataAppsEnabled: false, chartTypesEnabled: true },
+        { dataAppsEnabled: true, chartTypesEnabled: false },
+        { dataAppsEnabled: false, chartTypesEnabled: false },
+        { dataAppsEnabled: true, chartTypesEnabled: true },
+    ])(
+        'shows each filter on its own gate %j',
+        ({ dataAppsEnabled, chartTypesEnabled }) => {
+            Object.assign(mocks, { dataAppsEnabled, chartTypesEnabled });
+            render(
+                <MantineProvider env="test">
+                    <ContentTypeFilter
+                        selectedContentType="all"
+                        setSelectedContentType={vi.fn()}
+                    />
+                </MantineProvider>,
+            );
+            expect(screen.queryByLabelText('Custom chart types') !== null).toBe(
+                chartTypesEnabled,
+            );
+            expect(screen.queryByLabelText('Data apps') !== null).toBe(
+                dataAppsEnabled,
+            );
+        },
+    );
 });

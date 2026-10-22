@@ -184,6 +184,27 @@ export type HomepageV2PromoDismissedEvent = {
     };
 };
 
+export type ChartStudioVegaNudgeViewedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_VIEWED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeDismissedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_DISMISSED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
+export type ChartStudioVegaNudgeOpenedEvent = {
+    name: EventName.CHART_STUDIO_VEGA_NUDGE_OPENED;
+    properties: {
+        projectUuid: string;
+    };
+};
+
 export type HomepageV2OptedInEvent = {
     name: EventName.HOMEPAGE_V2_OPTED_IN;
     properties: {
@@ -1213,6 +1234,9 @@ export type EventData =
     | DocumentChartAppliedEvent
     | HomepageV2PromoViewedEvent
     | HomepageV2PromoDismissedEvent
+    | ChartStudioVegaNudgeViewedEvent
+    | ChartStudioVegaNudgeDismissedEvent
+    | ChartStudioVegaNudgeOpenedEvent
     | HomepageV2OptedInEvent
     | HomepageBlockAddedEvent
     | HomepageBlockRemovedEvent

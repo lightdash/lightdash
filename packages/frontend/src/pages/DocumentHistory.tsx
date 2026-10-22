@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getDocumentUrl,
     type Document,
     type DocumentVersionSummary,
@@ -34,7 +33,6 @@ import {
 } from '../features/documents/useDocumentVersions';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 const VERSION_PARAM = 'version';
 const COMPARE_PARAM = 'compare';
@@ -280,11 +278,10 @@ const DocumentHistoryPage = () => {
     const { documentUuidOrSlug } = useParams<{
         documentUuidOrSlug: UuidOrSlug;
     }>();
-    const flag = useServerFeatureFlag(FeatureFlags.Documents);
-    if (!projectUuid || flag.isInitialLoading) {
+    if (!projectUuid) {
         return <EmptyStateLoader my="xl" title="Loading version history" />;
     }
-    if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
+    if (!documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
     return (

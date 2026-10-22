@@ -53,12 +53,12 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './composerChartVizConfig';
 export * from './composerViz';
 export * from './composerVizPanel';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
-export * from './documentGuidance';
 export * from './documentTypes';
 export * from './skillTypes';
 export * from './threadFileTypes';
@@ -1071,7 +1071,13 @@ export type ApiAiAgentComposerArtifactVizQuery = {
     terminalNodeId: QueryNodeId;
     nodeQueryUuids: Record<QueryNodeId, string>;
     metadata: AiVizMetadata;
+    /** v2 series split only: the pivot stage run over the terminal node; null without one. */
+    chartStage: ApiAiAgentComposerArtifactChartStage | null;
 };
+
+export type ApiAiAgentComposerArtifactChartStage =
+    | { status: 'ok'; queryUuid: string }
+    | { status: 'error'; message: string };
 
 export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentThreadMessageVizQuery

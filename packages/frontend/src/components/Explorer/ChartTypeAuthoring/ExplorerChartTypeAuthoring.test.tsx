@@ -22,6 +22,7 @@ import {
     useChartTypeBuilderWorkspace,
     type ChartTypeBuilderWorkspaceState,
 } from '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { type VizSubtotalSource } from '../../../features/chartTypes/hooks/useVizSubtotalSource';
 import { clarificationStub } from '../../../features/chartTypes/testing/clarificationRoundStub';
 import { buildStub } from '../../../features/chartTypes/testing/dataAppVizBuildStub';
@@ -53,6 +54,7 @@ const {
     deleteApp: vi.fn(),
 }));
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock(
     '../../../features/chartTypes/builder/useChartTypeBuilderWorkspace',
     () => ({
@@ -69,12 +71,12 @@ vi.mock('../../../hooks/useAsyncCalculateTotal', async (importOriginal) => ({
 vi.mock('../VisualizationCard/useExplorerChartColorPalette', () => ({
     useExplorerChartColorPalette: () => ['#explorer-1', '#explorer-2'],
 }));
-const { dataAppsEnabled } = vi.hoisted(() => ({
-    dataAppsEnabled: { current: true },
+const { flagsEnabled } = vi.hoisted(() => ({
+    flagsEnabled: { current: true },
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
-        data: { enabled: dataAppsEnabled.current },
+        data: { enabled: flagsEnabled.current },
         isLoading: false,
     }),
 }));
@@ -317,7 +319,8 @@ describe('ExplorerChartTypeAuthoring', () => {
         vi.clearAllMocks();
         previewContexts.length = 0;
         previewSubtotals.handler = null;
-        dataAppsEnabled.current = true;
+        flagsEnabled.current = true;
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useChartTypeBuilderWorkspace).mockReturnValue(
@@ -903,12 +906,20 @@ describe('ExplorerChartTypeAuthoring', () => {
         expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
     });
 
-    it('leaves authoring when data-apps is switched off under it', () => {
-        dataAppsEnabled.current = false;
+    it('leaves authoring when Chart Studio is unavailable, even with data apps on', () => {
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
 
         expect(showToastError).toHaveBeenCalled();
         expect(store.getState().explorer.chartTypeAuthoring).toBeNull();
+    });
+
+    it('keeps authoring with feature flags off when Chart Studio is available', () => {
+        flagsEnabled.current = false;
+        const store = renderAuthoring({ dataAppVizUuid: 'viz-1' });
+
+        expect(showToastError).not.toHaveBeenCalled();
+        expect(store.getState().explorer.chartTypeAuthoring).not.toBeNull();
     });
 
     it('leaves authoring when the type is an official (registry-installed) chart type', () => {

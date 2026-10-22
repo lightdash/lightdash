@@ -167,6 +167,7 @@ type Props = {
     insights?: DataAppInsightsPayload | null;
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
+    onInsightInstructionsChange?: (instructions: string | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -236,6 +237,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             insights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
             onMountedQueriesChange,
         },
         ref,
@@ -386,6 +388,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             insights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
             onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);

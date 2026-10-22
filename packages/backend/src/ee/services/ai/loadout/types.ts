@@ -74,7 +74,7 @@ export const AGENT_TOOL_NAMES = [
     'searchFieldValues',
     'findCustomChartTypes',
     'runSql',
-    'runComposerQueries',
+    'query',
     'listWarehouseTables',
     'describeWarehouseTable',
     'loadSkill',

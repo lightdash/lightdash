@@ -153,6 +153,7 @@ import {
     getAppFileValidationError,
     isSupportedAppImage,
 } from '../features/apps/utils/appFileAttachments';
+import { getAppPageGate } from '../features/apps/utils/appPageGate';
 import {
     emptyChatMessage,
     mergeChatMessages,
@@ -170,6 +171,7 @@ import { getVersionNarration } from '../features/apps/utils/versionNarration';
 import { versionsToThreadChat } from '../features/apps/utils/versionsToChatMessages';
 import DataAppVizResultCard from '../features/chartTypes/components/DataAppVizResultCard';
 import DataAppVizTestPanel from '../features/chartTypes/components/DataAppVizTestPanel';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { type DataAppVizTestPreview } from '../features/chartTypes/hooks/useDataAppVizTestContext';
 import { useVizSubtotalSource } from '../features/chartTypes/hooks/useVizSubtotalSource';
 import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuilderPath';
@@ -692,6 +694,7 @@ const AppGenerate: FC = () => {
         return capture();
     }, []);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const isChartStudioAvailable = useChartStudioAvailable();
     const { user, health } = useApp();
     const sampleDataEnabled = health.data?.dataApps.sampleDataEnabled !== false;
     // Org switch for screenshots, file attachments and thumbnails. Hides the
@@ -1178,11 +1181,16 @@ const AppGenerate: FC = () => {
         () => refreshPreviewRef.current(),
         [],
     );
+    // Author guidance declared in app code, reported by the previewed bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
         onNeedsAgent: () => {},
@@ -1503,22 +1511,39 @@ const AppGenerate: FC = () => {
         };
     }, []);
 
-    if (dataAppsFlag.isLoading) {
+    const appPage = appData?.pages?.[0];
+    const gate = getAppPageGate({
+        isDataAppsFlagLoading: dataAppsFlag.isLoading,
+        isDataAppsEnabled: dataAppsFlag.data?.enabled === true,
+        isChartStudioAvailable,
+        urlAppUuid,
+        isLoadingApp,
+        app: appPage
+            ? {
+                  appUuid: appPage.appUuid,
+                  slug: appPage.slug ?? null,
+                  template: appPage.template ?? null,
+              }
+            : null,
+    });
+    if (gate.kind === 'wait') {
         return null;
     }
-    if (!dataAppsFlag.data?.enabled) {
+    if (gate.kind === 'home') {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
-
-    // Two paths: creating a brand-new app (no urlAppUuid) → check `create`;
-    // editing an existing one → check `manage` with the app's space access
-    // and creator context (so space editors and the creator of a personal
-    // app both match).
-    // Wait for the app to load before deciding the existing-app case —
-    // without spaceUuid + createdByUserUuid we'd misjudge a non-admin user.
-    if (urlAppUuid && isLoadingApp) {
-        return null;
+    if (gate.kind === 'chartTypeBuilder') {
+        return (
+            <Navigate
+                to={chartTypeBuilderPath(
+                    projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
+                    gate.appUuidOrSlug,
+                )}
+                replace
+            />
+        );
     }
+
     // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
     // not-found state before permission checks; missing app metadata cannot
     // produce a meaningful manage decision.
@@ -1534,23 +1559,10 @@ const AppGenerate: FC = () => {
         );
     }
 
-    // Chart types have their own builder; prefer slugs for the destination.
-    if (
-        urlAppUuid &&
-        appPersistedTemplate === DATA_APP_VIZ_TEMPLATE &&
-        activeAppUuid
-    ) {
-        return (
-            <Navigate
-                to={chartTypeBuilderPath(
-                    projectRoute?.projectUrlIdentifier ?? projectUuid ?? '',
-                    appData?.pages[0]?.slug ?? activeAppUuid,
-                )}
-                replace
-            />
-        );
-    }
-
+    // Two paths: creating a brand-new app (no urlAppUuid) → check `create`;
+    // editing an existing one → check `manage` with the app's space access
+    // and creator context (so space editors and the creator of a personal
+    // app both match).
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
         : undefined;
@@ -3547,6 +3559,9 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onInsightInstructionsChange={
+                                            setInsightInstructions
+                                        }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }

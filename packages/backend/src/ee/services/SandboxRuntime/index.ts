@@ -1,6 +1,7 @@
 import { LambdaMicrovms } from '@aws-sdk/client-lambda-microvms';
 import { DefaultAzureCredential } from '@azure/identity';
 import { MissingConfigError } from '@lightdash/common';
+import { AppRuntimeConfigErrors } from '../../../config/appRuntimeAvailability';
 import {
     AzureContainerAppsSandboxProvider,
     AzureSandboxGroupControlPlane,
@@ -78,9 +79,7 @@ export const createSandboxProvider = (
     switch (options.provider) {
         case 'e2b':
             if (!options.e2bApiKey) {
-                throw new MissingConfigError(
-                    'E2B API key is not configured (E2B_API_KEY)',
-                );
+                throw new MissingConfigError(AppRuntimeConfigErrors.e2bApiKey);
             }
             return new E2bSandboxProvider(options.e2bApiKey);
         case 'docker':
@@ -103,7 +102,7 @@ export const createSandboxProvider = (
             }
             if (!config.ingressConnectorArn || !config.egressConnectorArn) {
                 throw new MissingConfigError(
-                    'Lambda MicroVMs ingress/egress connector ARNs are not configured',
+                    AppRuntimeConfigErrors.lambdaMicroVmConnectors,
                 );
             }
             const controlPlane = new AwsMicrovmControlPlane(
@@ -119,7 +118,7 @@ export const createSandboxProvider = (
             const config = options.gcpCloudRun;
             if (!config) {
                 throw new MissingConfigError(
-                    'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
+                    AppRuntimeConfigErrors.gcpCloudRun,
                 );
             }
             if (!options.snapshotStore) {

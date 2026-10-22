@@ -11,10 +11,15 @@ in the Explorer.
 ## Language
 
 **Composer query**:
-One submission of a pipeline by the AI agent in a single tool call. Also the
-name of the tool. Each submission runs its pipeline once and registers its
+One submission of a pipeline by the AI agent in a single call to the
+composer query tool. Each submission runs its pipeline once and registers its
 nodes as thread composer query nodes; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
+
+**Composer query tool**:
+The agent tool that submits a composer query, named `query`. Calls recorded
+before the rename carry `runComposerQueries` and still parse and render.
+_Avoid_: runComposerQueries (the legacy name)
 
 **Run**:
 One execution of a pipeline, producing a node result for every node. The
@@ -105,17 +110,23 @@ _Avoid_: selected node (selection is a graph-mode concept), active node,
 focused node
 
 **Viz config**:
-How the presented node's result is visualized: chart kind, axes and display
-options, in the same vocabulary as a SQL runner chart. Picked when the node is
-presented, from the question and the presented result, starting from the
-thread's latest viz config; stored with the artifact version and the starting
-point of the viz switcher and of any later configuration. Nothing is picked for
-a submission that is not presented, and the tool result names no viz. Other node results have no viz
-config and start from their column types.
-_Avoid_: viz plan, presentation, chart config (the classic vocabulary)
+How the presented node's result is visualized, in the agent chart vocabulary
+over the node's result column references: a builtin type (table, big number,
+bar, line, area, scatter, pie, funnel) with x, y, series split, stack,
+horizontal, secondary axis and labels, or a custom chart type with its slug,
+field mapping and options, pinned to a chart type version when stored. Stored with the artifact version and
+drawn by the same chart builders as a classic runQuery chart, with fields
+synthesized from the columns of the render-time run (no columns are stored).
+A series split adds a pivot stage over the node result and needs explicit x
+and y. Versions stored before it (schemaVersion
+1) keep the SQL-runner vocabulary and their viz config panel. Other node
+results have no viz config and start from their column types.
+_Avoid_: viz plan, presentation, chart config (the saved-chart shape it is
+drawn through)
 
 **Viz switcher**:
-The kind control in the viz config panel: table or a chart kind. On the
+The kind control in the viz config panel: table or a chart kind. Shown on
+schemaVersion 1 versions only. On the
 presented node it edits the stored viz config's kind; on other nodes the choice
 is ephemeral. It starts from the viz config on the presented node, else from a
 default picked from the result's column types. The floating pill is retired.
@@ -124,7 +135,7 @@ _Avoid_: chart type selector, visualization toggle, view mode
 **Viz config panel**:
 The collapsible "Chart" section above the pipeline panel that shows and edits
 the displayed node's viz config: kind, x axis, y values with aggregation and
-series split. On the presented node every edit is written back to the artifact
+series split. Shown on schemaVersion 1 versions only. On the presented node every edit is written back to the artifact
 version; other nodes get the viz switcher alone. Only one of it and the
 pipeline panel is open at a time.
 _Avoid_: chart settings, config sidebar, viz sidebar
@@ -142,7 +153,8 @@ lists the pipeline, with a List and a Graph mode.
 _Avoid_: footer, pipeline card (that is the live tool-call card), drawer
 
 **Pipeline card**:
-The body of the "Ran composer queries" tool-call row, shown for every
+The body of the "Ran query" tool-call row ("Ran composer queries" on calls
+recorded before the rename), shown for every
 submission: expanded while its run is in flight or has failed, collapsed once
 it completes. The only record of a submission the agent did not present.
 _Avoid_: tool-call description, pipeline panel

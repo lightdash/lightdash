@@ -180,6 +180,7 @@ export const AiChartQuickOptions = ({
         chartConfig,
         pivotDimensions,
         savedChartUuid,
+        parameters,
     } = useVisualizationState();
     const canDownloadResults =
         showDownloadResults &&
@@ -364,6 +365,7 @@ export const AiChartQuickOptions = ({
                 pivotColumns: pivotDimensions?.length
                     ? remapFieldIdsDeep(pivotDimensions, fieldIdByAiFieldId)
                     : undefined,
+                parameters: merge.parameters,
             });
             const search = new URLSearchParams(url.search);
             search.set(
@@ -384,6 +386,7 @@ export const AiChartQuickOptions = ({
             pivotColumns: customChartTypeConfig
                 ? savedData?.pivotConfig?.columns
                 : pivotDimensions,
+            parameters,
         });
     }, [
         isDisabled,
@@ -396,6 +399,7 @@ export const AiChartQuickOptions = ({
         pivotDimensions,
         customChartTypeConfig,
         savedData,
+        parameters,
     ]);
 
     const { mutateAsync: createShareUrl } = useCreateShareMutation();

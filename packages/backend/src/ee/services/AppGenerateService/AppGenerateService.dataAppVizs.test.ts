@@ -10,9 +10,11 @@ import {
     ParameterError,
     type DataAppVizSchema,
 } from '@lightdash/common';
+import { Readable } from 'node:stream';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
+import { featureFlagModelWith } from './AppGenerateService.mock';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -77,6 +79,7 @@ function buildService(
         savedChartService?: unknown;
         documentService?: unknown;
         featureFlags?: Record<string, boolean>;
+        chartStudioAvailable?: boolean;
     } = {},
 ) {
     const service = new AppGenerateService({
@@ -94,16 +97,7 @@ function buildService(
         catalogModel: {} as never,
         userModel: {} as never,
         appModel: appModel as never,
-        featureFlagModel: {
-            get: vi
-                .fn()
-                .mockImplementation(
-                    async ({ featureFlagId }: { featureFlagId: string }) => ({
-                        enabled:
-                            overrides.featureFlags?.[featureFlagId] ?? true,
-                    }),
-                ),
-        } as never,
+        featureFlagModel: featureFlagModelWith(overrides.featureFlags) as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -144,6 +138,10 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    // The runtime config predicate has its own tests; stub its answer here.
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+        overrides.chartStudioAvailable ?? true,
+    );
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (
         service as unknown as { createAuditedAbility: () => unknown }
@@ -439,40 +437,46 @@ describe('AppGenerateService data app vizs', () => {
 
     describe('the chart type usage flag gate', () => {
         it.each([
-            [false, false],
-            [false, true],
-            [true, false],
-            [true, true],
-        ])('lists with data apps=%s, library=%s', async (dataApps, library) => {
-            const list = vi
-                .fn()
-                .mockResolvedValue({ data: [], pagination: undefined });
-            const service = buildService(
-                { listDataAppVisualizations: list },
-                {
-                    featureFlags: {
-                        [FeatureFlags.EnableDataApps]: dataApps,
-                        [FeatureFlags.ChartTypeRegistry]: library,
+            [true, false, false],
+            [false, false, false],
+        ])(
+            'lists with Chart Studio=%s, library=%s, data apps=%s',
+            async (chartStudio, library, dataApps) => {
+                const list = vi
+                    .fn()
+                    .mockResolvedValue({ data: [], pagination: undefined });
+                const service = buildService(
+                    { listDataAppVisualizations: list },
+                    {
+                        chartStudioAvailable: chartStudio,
+                        featureFlags: {
+                            [FeatureFlags.EnableDataApps]: dataApps,
+                            [FeatureFlags.ChartTypeRegistry]: library,
+                        },
                     },
-                },
-            );
-            const getFeatureFlag = vi.spyOn(service['featureFlagModel'], 'get');
-            const result = service.listDataAppVisualizations(USER, 'project-1');
-            if (dataApps || library) {
-                await expect(result).resolves.toMatchObject({ data: [] });
-                expect(list).toHaveBeenCalled();
-            } else {
-                await expect(result).rejects.toThrow(
-                    'Chart types are not enabled',
                 );
-                expect(list).not.toHaveBeenCalled();
-            }
-            expect(getFeatureFlag).toHaveBeenCalledWith({
-                user: USER,
-                featureFlagId: FeatureFlags.EnableDataApps,
-            });
-            expect(getFeatureFlag).toHaveBeenCalledTimes(dataApps ? 1 : 2);
-        });
+                const getFeatureFlag = vi.spyOn(
+                    service['featureFlagModel'],
+                    'get',
+                );
+                const result = service.listDataAppVisualizations(
+                    USER,
+                    'project-1',
+                );
+                if (chartStudio || library || dataApps) {
+                    await expect(result).resolves.toMatchObject({ data: [] });
+                    expect(list).toHaveBeenCalled();
+                } else {
+                    await expect(result).rejects.toThrow(
+                        'Chart types are not enabled',
+                    );
+                    expect(list).not.toHaveBeenCalled();
+                }
+                if (chartStudio) {
+                    expect(getFeatureFlag).not.toHaveBeenCalled();
+                }
+            },
+        );
 
         // Usage follows either flag: the library flag alone is enough to
         // pick, configure, and render installed chart types.
@@ -493,6 +497,7 @@ describe('AppGenerateService data app vizs', () => {
                 }),
             };
             const service = buildService(appModel, {
+                chartStudioAvailable: false,
                 featureFlags: libraryOnly,
             });
 
@@ -508,6 +513,7 @@ describe('AppGenerateService data app vizs', () => {
                     .mockResolvedValue(makeDataAppVizRow()),
             };
             const service = buildService(appModel, {
+                chartStudioAvailable: false,
                 featureFlags: libraryOnly,
             });
 
@@ -526,7 +532,10 @@ describe('AppGenerateService data app vizs', () => {
                     .fn()
                     .mockResolvedValue(makeDataAppVizRow()),
             };
-            const service = buildService(appModel, { featureFlags: bothOff });
+            const service = buildService(appModel, {
+                chartStudioAvailable: false,
+                featureFlags: bothOff,
+            });
 
             await expect(
                 service.getDataAppVisualization(
@@ -902,6 +911,7 @@ describe('AppGenerateService data app vizs', () => {
                 const { getChart, ...deps } = documentDeps();
                 const service = buildService(appModel, {
                     ...deps,
+                    chartStudioAvailable: false,
                     featureFlags: {
                         [FeatureFlags.EnableDataApps]: false,
                         [FeatureFlags.ChartTypeRegistry]: false,
@@ -1331,6 +1341,7 @@ describe('AppGenerateService data app vizs', () => {
                     .mockResolvedValue(makeDataAppVizRow()),
             };
             const service = buildService(appModel, {
+                chartStudioAvailable: false,
                 featureFlags: {
                     [FeatureFlags.EnableDataApps]: false,
                     [FeatureFlags.ChartTypeRegistry]: false,
@@ -1617,12 +1628,14 @@ describe('AppGenerateService data app vizs', () => {
 });
 
 describe('moving a viz into a space', () => {
-    it('rejects moveToSpace for viz-template apps before any access checks', async () => {
+    it('rejects moveToSpace for viz-template apps before any access checks, even with data apps off', async () => {
         const appModel = {
             getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()),
             moveToSpace: vi.fn(),
         };
-        const service = buildService(appModel);
+        const service = buildService(appModel, {
+            featureFlags: { [FeatureFlags.EnableDataApps]: false },
+        });
 
         await expect(
             service.moveToSpace(USER, {
@@ -1961,6 +1974,7 @@ describe('getDataAppVizUpgradeImpact', () => {
             },
             {
                 savedChartModel: { getDataAppVizUsageCounts },
+                chartStudioAvailable: false,
                 featureFlags: { [FeatureFlags.ChartTypeRegistry]: false },
             },
         );
@@ -1981,11 +1995,15 @@ describe('canUseChartTypes', () => {
         role: OrganizationMemberRole,
         projectUuid: string | null,
         featureFlags: Record<string, boolean> = {},
+        chartStudioAvailable = true,
     ) => {
         const { service, user } = buildServiceWithRealAbility(
             {},
             role,
             'user-1',
+        );
+        vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(
+            chartStudioAvailable,
         );
         (service as unknown as { featureFlagModel: unknown }).featureFlagModel =
             {
@@ -2011,19 +2029,24 @@ describe('canUseChartTypes', () => {
         },
     );
 
-    it('follows either chart type flag', async () => {
+    it('follows Chart Studio availability or the library flag', async () => {
         const off = {
             [FeatureFlags.EnableDataApps]: false,
             [FeatureFlags.ChartTypeRegistry]: false,
         };
         expect(
-            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off),
+            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off, false),
         ).toBe(false);
         expect(
-            await canUse(OrganizationMemberRole.ADMIN, 'project-1', {
-                ...off,
-                [FeatureFlags.ChartTypeRegistry]: true,
-            }),
+            await canUse(
+                OrganizationMemberRole.ADMIN,
+                'project-1',
+                { ...off, [FeatureFlags.ChartTypeRegistry]: true },
+                false,
+            ),
+        ).toBe(true);
+        expect(
+            await canUse(OrganizationMemberRole.ADMIN, 'project-1', off, true),
         ).toBe(true);
     });
 });
@@ -2064,8 +2087,8 @@ describe('assertCanIterateApp', () => {
         );
     });
 
-    it('refuses before loading the app when data apps are off', async () => {
-        const getApp = vi.fn();
+    it('allows a chart type with data apps off when Chart Studio is available', async () => {
+        const getApp = vi.fn().mockResolvedValue(makeDataAppVizRow());
         const service = buildService(
             { getApp },
             { featureFlags: { [FeatureFlags.EnableDataApps]: false } },
@@ -2073,7 +2096,490 @@ describe('assertCanIterateApp', () => {
 
         await expect(
             service.assertCanIterateApp(USER, 'project-1', 'data-app-viz-1'),
+        ).resolves.toBeUndefined();
+    });
+
+    it('refuses a chart type when Chart Studio is not available', async () => {
+        const service = buildService(
+            { getApp: vi.fn().mockResolvedValue(makeDataAppVizRow()) },
+            { chartStudioAvailable: false },
+        );
+
+        await expect(
+            service.assertCanIterateApp(USER, 'project-1', 'data-app-viz-1'),
+        ).rejects.toThrow(new ForbiddenError('Chart Studio is not available'));
+    });
+
+    it('refuses a data app when data apps are off, even with Chart Studio available', async () => {
+        const service = buildService(
+            {
+                getApp: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeDataAppVizRow({ template: 'dashboard' }),
+                    ),
+            },
+            { featureFlags: { [FeatureFlags.EnableDataApps]: false } },
+        );
+
+        await expect(
+            service.assertCanIterateApp(USER, 'project-1', 'data-app-viz-1'),
         ).rejects.toThrow(new ForbiddenError('Data apps are not enabled'));
-        expect(getApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('chart types with data apps off while Chart Studio is available', () => {
+    const dataAppsOff = {
+        featureFlags: { [FeatureFlags.EnableDataApps]: false },
+    };
+    const dataAppRow = () =>
+        makeDataAppVizRow({ app_id: 'data-app-1', template: null });
+    const disabled = new ForbiddenError('Data apps are not enabled');
+    const gateErrors = new Set([
+        'Data apps are not enabled',
+        'Chart Studio is not available',
+    ]);
+    const settle = (promise: Promise<unknown>) =>
+        promise.then(
+            () => null,
+            (error: Error) => error,
+        );
+
+    const APP_UUID = '7f9c8f8e-2b52-4d8e-9a43-3d4f1b6a2c10';
+    const byGetApp = (row: unknown) => ({
+        getApp: vi.fn().mockResolvedValue(row),
+    });
+    const appGatedCalls: {
+        name: string;
+        appModelStubs: (row: unknown) => Record<string, unknown>;
+        call: (service: AppGenerateService) => Promise<unknown>;
+    }[] = [
+        {
+            name: 'getPreviewToken',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.getPreviewToken(USER, 'project-1', APP_UUID, 1),
+        },
+        {
+            name: 'duplicateApp',
+            appModelStubs: (row) => ({
+                ...byGetApp(row),
+                getLatestReadyVersion: vi.fn().mockResolvedValue(undefined),
+            }),
+            call: (service) =>
+                service.duplicateApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'moveToSpace',
+            appModelStubs: (row) => ({
+                ...byGetApp(row),
+                moveToSpace: vi.fn(),
+            }),
+            call: (service) =>
+                service.moveToSpace(USER, {
+                    projectUuid: 'project-1',
+                    itemUuid: APP_UUID,
+                    targetSpaceUuid: 'space-1',
+                }),
+        },
+        {
+            name: 'getDataAppBuildStatus',
+            appModelStubs: (row) => ({
+                findAppBySlug: vi.fn().mockResolvedValue(row),
+                getLatestVersion: vi.fn().mockResolvedValue({
+                    version: 1,
+                    status: 'ready',
+                    error: null,
+                    status_message: null,
+                }),
+            }),
+            call: (service) =>
+                service.getDataAppBuildStatus(USER, 'project-1', 'app-slug'),
+        },
+        {
+            name: 'getAppVersions',
+            appModelStubs: (row) => ({
+                getAppByUuidOrSlug: vi.fn().mockResolvedValue(row),
+            }),
+            call: (service) =>
+                service.getAppVersions(USER, 'project-1', APP_UUID, {}),
+        },
+        {
+            name: 'updateApp',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.updateApp(USER, 'project-1', APP_UUID, {
+                    name: 'Renamed',
+                }),
+        },
+        {
+            name: 'upgradeApp',
+            appModelStubs: byGetApp,
+            call: (service) => service.upgradeApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'restoreVersion',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.restoreVersion(USER, 'project-1', APP_UUID, 1),
+        },
+        {
+            name: 'clearAgentContext',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.clearAgentContext(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'cancelVersion',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.cancelVersion(USER, 'project-1', APP_UUID, 1),
+        },
+        {
+            name: 'promoteApp',
+            appModelStubs: byGetApp,
+            call: (service) => service.promoteApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'getPromoteAppDiff',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.getPromoteAppDiff(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'deleteThumbnail',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.deleteThumbnail(USER, 'project-1', APP_UUID, null),
+        },
+        {
+            name: 'uploadThumbnail',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.uploadThumbnail(
+                    USER,
+                    'project-1',
+                    'image/png',
+                    Readable.from([]),
+                    0,
+                    APP_UUID,
+                    null,
+                ),
+        },
+        // User-authored chart types (no library install) follow Chart Studio.
+        {
+            name: 'deleteApp',
+            appModelStubs: (row) =>
+                byGetApp({ ...(row as object), registry_slug: null }),
+            call: (service) => service.deleteApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'restoreApp',
+            appModelStubs: (row) => ({
+                getAppIncludingDeleted: vi.fn().mockResolvedValue({
+                    ...(row as object),
+                    registry_slug: null,
+                }),
+            }),
+            call: (service) => service.restoreApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'permanentDeleteApp',
+            appModelStubs: (row) => ({
+                getAppIncludingDeleted: vi.fn().mockResolvedValue({
+                    ...(row as object),
+                    registry_slug: null,
+                }),
+            }),
+            call: (service) =>
+                service.permanentDeleteApp(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'getDataAppVizDeleteImpact',
+            appModelStubs: (row) => ({
+                findVisualizationApp: vi.fn().mockResolvedValue({
+                    ...(row as object),
+                    registry_slug: null,
+                }),
+            }),
+            call: (service) =>
+                service.getDataAppVizDeleteImpact(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'getImageUrl',
+            appModelStubs: byGetApp,
+            call: (service) =>
+                service.getImageUrl(USER, 'project-1', APP_UUID, APP_UUID),
+        },
+        {
+            name: 'uploadFile',
+            appModelStubs: (row) => ({
+                findApp: vi.fn().mockResolvedValue(row),
+            }),
+            call: (service) =>
+                service.uploadFile(
+                    USER,
+                    'project-1',
+                    'image/png',
+                    Readable.from([]),
+                    0,
+                    APP_UUID,
+                ),
+        },
+        {
+            name: 'getDataAppPromoteChanges',
+            appModelStubs: (row) => ({
+                findApp: vi.fn().mockResolvedValue(row),
+            }),
+            call: (service) => {
+                vi.spyOn(
+                    service as unknown as {
+                        getUpstreamProjectForPromotion: () => Promise<unknown>;
+                    },
+                    'getUpstreamProjectForPromotion',
+                ).mockResolvedValue({
+                    upstreamProjectUuid: 'upstream-project',
+                    upstreamProjectName: 'Production',
+                    upstreamOrganizationUuid: 'org-1',
+                });
+                return service.getDataAppPromoteChanges(USER, 'project-1', [
+                    APP_UUID,
+                ]);
+            },
+        },
+    ];
+
+    it.each(appGatedCalls)(
+        '$name lets a chart type through the gate and refuses a data app',
+        async ({ appModelStubs, call }) => {
+            const passed = await settle(
+                call(
+                    buildService(
+                        appModelStubs(makeDataAppVizRow()),
+                        dataAppsOff,
+                    ),
+                ),
+            );
+            expect(gateErrors.has(passed?.message ?? '')).toBe(false);
+
+            await expect(
+                call(buildService(appModelStubs(dataAppRow()), dataAppsOff)),
+            ).rejects.toThrow(disabled);
+        },
+    );
+
+    // The library flag keeps chart types usable, so a call site that wrongly
+    // used the usage gate would let this through.
+    it.each(appGatedCalls)(
+        '$name refuses a chart type without Chart Studio, even with the library flag on',
+        async ({ appModelStubs, call }) => {
+            await expect(
+                call(
+                    buildService(appModelStubs(makeDataAppVizRow()), {
+                        chartStudioAvailable: false,
+                        featureFlags: {
+                            [FeatureFlags.EnableDataApps]: false,
+                            [FeatureFlags.ChartTypeRegistry]: true,
+                        },
+                    }),
+                ),
+            ).rejects.toThrow(
+                new ForbiddenError('Chart Studio is not available'),
+            );
+        },
+    );
+
+    it.each([
+        {
+            name: 'getThumbnailUrl',
+            call: (service: AppGenerateService) =>
+                service.getThumbnailUrl(USER, 'project-1', APP_UUID),
+        },
+        {
+            name: 'getVersionThumbnailUrl',
+            call: (service: AppGenerateService) =>
+                service.getVersionThumbnailUrl(USER, 'project-1', APP_UUID, 1),
+        },
+    ])(
+        '$name shows a chart type wherever chart types are usable and refuses a data app',
+        async ({ call }) => {
+            const passed = await settle(
+                call(buildService(byGetApp(makeDataAppVizRow()), dataAppsOff)),
+            );
+            expect(gateErrors.has(passed?.message ?? '')).toBe(false);
+
+            const libraryOnly = await settle(
+                call(
+                    buildService(byGetApp(makeDataAppVizRow()), {
+                        chartStudioAvailable: false,
+                        featureFlags: {
+                            [FeatureFlags.EnableDataApps]: false,
+                            [FeatureFlags.ChartTypeRegistry]: true,
+                        },
+                    }),
+                ),
+            );
+            expect(gateErrors.has(libraryOnly?.message ?? '')).toBe(false);
+            expect(libraryOnly?.message).not.toBe(
+                'Chart types are not enabled',
+            );
+
+            await expect(
+                call(
+                    buildService(byGetApp(makeDataAppVizRow()), {
+                        chartStudioAvailable: false,
+                        featureFlags: {
+                            [FeatureFlags.EnableDataApps]: false,
+                            [FeatureFlags.ChartTypeRegistry]: false,
+                        },
+                    }),
+                ),
+            ).rejects.toThrow('Chart types are not enabled');
+
+            await expect(
+                call(buildService(byGetApp(dataAppRow()), dataAppsOff)),
+            ).rejects.toThrow(disabled);
+        },
+    );
+
+    it.each([
+        {
+            name: 'listLinkableExternalConnections',
+            call: (service: AppGenerateService) =>
+                service.listLinkableExternalConnections(USER, 'project-1'),
+        },
+        {
+            name: 'uploadFile before the app exists',
+            call: (service: AppGenerateService) =>
+                service.uploadFile(
+                    USER,
+                    'project-1',
+                    'image/png',
+                    Readable.from([]),
+                    11 * 1024 * 1024,
+                    'new-app-uuid',
+                ),
+        },
+    ])(
+        '$name passes with either Chart Studio or data apps and refuses without both',
+        async ({ call }) => {
+            const appModel = { findApp: vi.fn().mockResolvedValue(undefined) };
+            const passed = await settle(
+                call(buildService(appModel, dataAppsOff)),
+            );
+            expect(gateErrors.has(passed?.message ?? '')).toBe(false);
+
+            const dataAppsOnly = await settle(
+                call(
+                    buildService(appModel, {
+                        chartStudioAvailable: false,
+                        featureFlags: { [FeatureFlags.EnableDataApps]: true },
+                    }),
+                ),
+            );
+            expect(gateErrors.has(dataAppsOnly?.message ?? '')).toBe(false);
+
+            await expect(
+                call(
+                    buildService(appModel, {
+                        ...dataAppsOff,
+                        chartStudioAvailable: false,
+                    }),
+                ),
+            ).rejects.toThrow(disabled);
+        },
+    );
+
+    describe('promoting with a dashboard', () => {
+        const stubPromotion = (service: AppGenerateService) => {
+            const internals = service as unknown as {
+                getUpstreamProjectForPromotion: () => Promise<unknown>;
+                findLinkedUpstreamApp: () => Promise<unknown>;
+                assertCanManageApp: () => Promise<unknown>;
+            };
+            vi.spyOn(
+                internals,
+                'getUpstreamProjectForPromotion',
+            ).mockResolvedValue({
+                upstreamProjectUuid: 'upstream-project',
+                upstreamProjectName: 'Production',
+                upstreamOrganizationUuid: 'org-1',
+            });
+            vi.spyOn(internals, 'findLinkedUpstreamApp').mockResolvedValue(
+                undefined,
+            );
+            vi.spyOn(internals, 'assertCanManageApp').mockResolvedValue({
+                directOnly: false,
+            });
+            return vi.spyOn(service, 'promoteApp').mockResolvedValue({
+                appUuid: 'upstream-app',
+                projectUuid: 'upstream-project',
+                version: 1,
+                action: 'create',
+            });
+        };
+
+        it('promotes a chart type bound by a chart', async () => {
+            const service = buildService(
+                {
+                    findApp: vi.fn().mockResolvedValue(makeDataAppVizRow()),
+                },
+                dataAppsOff,
+            );
+            const promoteApp = stubPromotion(service);
+
+            await expect(
+                service.promoteAppsForDashboard(USER, 'project-1', [
+                    'data-app-viz-1',
+                ]),
+            ).resolves.toEqual([
+                {
+                    sourceAppUuid: 'data-app-viz-1',
+                    upstreamAppUuid: 'upstream-app',
+                    upstreamAppVersion: 1,
+                },
+            ]);
+            expect(promoteApp).toHaveBeenCalledWith(
+                USER,
+                'project-1',
+                'data-app-viz-1',
+            );
+            await expect(
+                service.getDataAppPromoteChanges(USER, 'project-1', [
+                    'data-app-viz-1',
+                ]),
+            ).resolves.toEqual([
+                {
+                    uuid: 'data-app-viz-1',
+                    name: 'Radial gauge',
+                    action: 'create',
+                },
+            ]);
+        });
+
+        it('refuses a data app and promotes nothing', async () => {
+            const findApp = vi
+                .fn()
+                .mockImplementation(async (appUuid: string) =>
+                    appUuid === 'data-app-1'
+                        ? dataAppRow()
+                        : makeDataAppVizRow(),
+                );
+            const service = buildService({ findApp }, dataAppsOff);
+            const promoteApp = stubPromotion(service);
+
+            await expect(
+                service.promoteAppsForDashboard(USER, 'project-1', [
+                    'data-app-viz-1',
+                    'data-app-1',
+                ]),
+            ).rejects.toThrow(disabled);
+            expect(promoteApp).not.toHaveBeenCalled();
+            await expect(
+                service.getDataAppPromoteChanges(USER, 'project-1', [
+                    'data-app-1',
+                ]),
+            ).rejects.toThrow(disabled);
+        });
     });
 });

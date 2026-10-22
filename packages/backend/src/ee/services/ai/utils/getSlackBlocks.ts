@@ -1084,6 +1084,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runQuery',
     'runContentQuery',
     'runSql',
+    'query',
     'runComposerQueries',
     'runSavedChart',
     'generateDashboard',

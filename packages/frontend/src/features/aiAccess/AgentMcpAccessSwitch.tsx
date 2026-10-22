@@ -10,20 +10,25 @@ export const AgentMcpAccessSwitch = ({
 }: {
     settings: Pick<
         AiOrganizationSettings,
-        'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
+        'mcpEnabled' | 'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
     >;
     setting: 'mcpAgentsEnabled' | 'mcpContentWritesEnabled';
     label: string;
     description: string;
 }) => {
     const update = useUpdateAiOrganizationSettings();
+    const mcpEnabled = settings.mcpEnabled !== false;
     return (
         <Switch
             aria-label={label}
             label={label}
-            description={description}
+            description={
+                settings.mcpEnabled === false
+                    ? 'MCP access is disabled for this organization.'
+                    : description
+            }
             checked={settings[setting]}
-            disabled={update.isLoading}
+            disabled={update.isLoading || !mcpEnabled}
             onChange={(event) =>
                 update.mutate({ [setting]: event.currentTarget.checked })
             }

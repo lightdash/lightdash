@@ -585,7 +585,13 @@ export const lightdashConfigMock: LightdashConfig = {
         // Off in the test fixture (real default is `true`) so tests never make
         // a live OSV call.
         dependencyMalwareCheckEnabled: false,
-        chartRegistry: { url: null, allowInsecure: false, channel: 'stable' },
+        chartRegistry: {
+            url: null,
+            allowInsecure: false,
+            authorizationHeader: null,
+            allowPrivateHosts: false,
+            channel: 'stable',
+        },
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
@@ -601,5 +607,18 @@ export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
             oauth2ClientId: 'test-google-client-id',
             oauth2ClientSecret: 'test-google-client-secret',
         },
+    },
+};
+
+export const lightdashConfigWithAppRuntimeMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    appRuntime: {
+        ...lightdashConfigMock.appRuntime,
+        s3: {
+            region: 'us-east-1',
+            endpoint: 'http://localhost:9000',
+            bucket: 'apps',
+        },
+        sandboxProvider: 'docker',
     },
 };

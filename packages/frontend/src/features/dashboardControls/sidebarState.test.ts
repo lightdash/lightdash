@@ -163,6 +163,35 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
+    it('reads `disabled: false` as no `disabled`', () => {
+        const saved: DashboardFilters = JSON.parse(JSON.stringify(filters));
+        const toggled = replaceFilterRule(saved, {
+            ...saved.dimensions[0],
+            required: false,
+            requiredGroupId: undefined,
+            disabled: false,
+        });
+        expect(isFilterRuleDirty(saved, toggled, 'a', asIs)).toBe(false);
+        expect(
+            haveFiltersChangedSince(
+                { dashboardFilters: saved, haveFiltersChanged: false },
+                toggled,
+                asIs,
+            ),
+        ).toBe(false);
+        expect(
+            isFilterRuleDirty(
+                saved,
+                replaceFilterRule(saved, {
+                    ...saved.dimensions[0],
+                    disabled: true,
+                }),
+                'a',
+                asIs,
+            ),
+        ).toBe(true);
+    });
+
     it('an emptied label leaves the rule as it was found', () => {
         const withKey = rule('a', []);
         // As a saved rule arrives: JSON has no undefined

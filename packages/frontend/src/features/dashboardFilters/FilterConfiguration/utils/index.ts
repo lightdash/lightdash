@@ -2,10 +2,15 @@ import {
     assertUnreachable,
     DimensionType,
     FilterOperator,
+    FilterType,
+    getFilterRuleWithDefaultValue,
+    getFilterTypeFromItem,
     getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
+    isRelativeDateFilterOperator,
+    isWithValueFilter,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -14,7 +19,6 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
     type FilterRule,
-    type FilterType,
     type ResultColumn,
 } from '@lightdash/common';
 import { produce } from 'immer';
@@ -301,6 +305,121 @@ export const getFilterRuleWithDisabledState = (
             shouldDisableInViewMode ||
             isRequiredWithoutValue,
     };
+};
+
+// The rule after choosing another operator in the settings form
+export const getFilterRuleWithOperator = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    operator: FilterRule['operator'],
+): DashboardFilterRule => {
+    // Absolute date values are already normalized. Running them through
+    // the defaults again can shift timezones.
+    const shouldPreserveValues =
+        filterType === FilterType.DATE &&
+        (filterRule.values?.length ?? 0) > 0 &&
+        isWithValueFilter(filterRule.operator) &&
+        isWithValueFilter(operator) &&
+        !isRelativeDateFilterOperator(filterRule.operator) &&
+        !isRelativeDateFilterOperator(operator);
+
+    return shouldPreserveValues
+        ? {
+              ...filterRule,
+              operator,
+              settings: undefined,
+          }
+        : getFilterRuleWithDefaultValue(filterType, field, {
+              ...filterRule,
+              operator,
+          });
+};
+
+// The rule after the "Provide default value" switch of the settings form
+export const getFilterRuleWithDefaultValueEnabled = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    checked: boolean,
+): DashboardFilterRule => {
+    const newFilter: DashboardFilterRule = {
+        ...filterRule,
+        disabled: !checked,
+        required:
+            filterRule.required && !checked
+                ? // If the filter is required and the user is disabling it, we should also disable the required flag
+                  false
+                : filterRule.required,
+        // Toggling a default value removes the filter from any requirement rule
+        requiredGroupId: undefined,
+    };
+
+    return checked
+        ? newFilter
+        : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
+};
+
+// The rule after the "Required" switch of the settings form
+export const getFilterRuleWithRequired = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    originalFilterRule: DashboardFilterRule | undefined,
+    checked: boolean,
+): DashboardFilterRule => {
+    // Toggling on restores the saved rule membership if there is one,
+    // otherwise it creates a one-member rule; off removes it from its rule.
+    const restoredGroupId = checked
+        ? originalFilterRule?.requiredGroupId
+        : undefined;
+
+    const newFilter: DashboardFilterRule = restoredGroupId
+        ? {
+              ...filterRule,
+              required: false,
+              requiredGroupId: restoredGroupId,
+              disabled: true,
+              values: [],
+          }
+        : {
+              ...filterRule,
+              required: checked,
+              requiredGroupId: undefined,
+          };
+
+    return checked
+        ? newFilter
+        : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
+};
+
+// The Apply guard of the settings form: no viewer can satisfy this filter
+export const isLockedRequiredMissingValue = (
+    filterRule: DashboardFilterRule | undefined,
+): boolean =>
+    !!filterRule?.lockedTabUuids?.length &&
+    !!filterRule?.required &&
+    !hasFilterValueSet(filterRule);
+
+// The filter type of the rule in the form: its field's, else its SQL column's
+export const getFilterRuleFilterType = (
+    field: DashboardFilterableField | undefined,
+    columns: ResultColumn[],
+    filterRule: DashboardFilterRule | undefined,
+): FilterType => {
+    if (field) {
+        return getFilterTypeFromItem(field);
+    }
+
+    if (filterRule?.target.fieldId) {
+        return getSqlColumnFilterType(
+            columns,
+            filterRule.target.fieldId,
+            filterRule.target.fallbackType,
+        );
+    }
+
+    return FilterType.STRING;
 };
 
 export const isFilterEnabled = (

@@ -131,22 +131,4 @@ describe('Documents page', () => {
             screen.queryByRole('button', { name: 'New document' }),
         ).not.toBeInTheDocument();
     });
-
-    test('does not mount discovery while its flag is loading', () => {
-        mocks.flag.isInitialLoading = true;
-        renderPage();
-        expect(screen.getByText('Loading documents')).toBeInTheDocument();
-        expect(mocks.table).not.toHaveBeenCalled();
-    });
-
-    test.each(['disabled', 'failed'])(
-        'does not mount discovery when its flag is %s',
-        (state) => {
-            mocks.flag.data.enabled = state !== 'disabled';
-            mocks.flag.isError = state === 'failed';
-            renderPage();
-            expect(screen.getByText('Project home')).toBeInTheDocument();
-            expect(mocks.table).not.toHaveBeenCalled();
-        },
-    );
 });

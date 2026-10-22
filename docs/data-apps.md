@@ -18,7 +18,8 @@ finer-grained. User-facing behaviour is documented at
   internally and by a project-scoped slug in URLs and as-code files.
 - **Runs in a sandboxed iframe with no API access.** Every query the app makes is proxied by the Lightdash page
   hosting it, so permissions, user attributes and row-level filters are enforced by Lightdash, never by the app.
-- **Enterprise-only**, gated by a runtime config flag, a feature flag and the data app permission scopes.
+- **Enterprise-only**, gated by a runtime config flag, a feature flag and the data app permission scopes. Custom
+  chart types are the exception to the feature flag (see below).
 
 ## Actors
 
@@ -284,6 +285,9 @@ A custom chart type is a data app built from a dedicated template that declares 
 queries: the explorer hands it rows and a field mapping, and it renders. They share the pipeline, storage and
 permissions of data apps but are excluded from app listings, have their own gallery, and are created and edited in
 **Chart Studio**, available as a standalone page and within the explorer. They are downloaded as code separately.
+Chart Studio does not follow the `enable-data-apps` flag: it is available with a valid licence and a configured
+sandbox provider, reported as `dataApps.runtimeAvailable` on the health response. The coding agent key is resolved
+per organization when a build starts. It keeps the data app permission scopes and AI credits.
 A type can carry one icon from a curated Tabler set; the as-code manifest's `icon` field round-trips
 it (omitted for non-chart-type apps), null clears it, and an off-list value is rejected on upload.
 

@@ -20,8 +20,6 @@ export enum FeatureFlags {
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
-    /** Independent Documents containing narrative and saved chart definitions. */
-    Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
     /* Show user groups */
@@ -105,7 +103,9 @@ export enum FeatureFlags {
     /**
      * Enable data apps feature. Disabled by default. Self-hosted
      * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
-     * the config parser translates into the enable allowlist.
+     * the config parser translates into the enable allowlist. Does not gate
+     * Chart Studio, which is available with a valid licence and a configured
+     * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
     // Enable the Learn library, walkthroughs and training project per org.
@@ -169,12 +169,6 @@ export enum FeatureFlags {
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
-
-    /**
-     * Legacy no-op retained so existing self-hosted feature flag configuration
-     * remains valid. Deep Research now follows AI Copilot availability.
-     */
-    AiDeepResearch = 'ai-deep-research',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
@@ -367,10 +361,12 @@ export enum FeatureFlags {
 
     /**
      * Enables the chart type library — browsing and installing official
-     * chart types from the configured chart registry — and, together with
-     * `EnableDataApps` as an either/or gate, usage of installed chart types
-     * (picking, configuring, rendering). Authoring, editing, and forking
-     * chart types stay behind `EnableDataApps`. Default: off.
+     * chart types from the configured chart registry — and, as an either/or
+     * gate with Chart Studio availability and `EnableDataApps`, usage of
+     * installed chart types (picking, configuring, rendering). Authoring,
+     * editing, and forking chart types follow Chart Studio availability
+     * (a valid licence and a configured sandbox provider), not this flag.
+     * Default: off.
      */
     ChartTypeRegistry = 'chart-type-registry',
 
@@ -392,8 +388,13 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /** @deprecated No longer read; the deployment decision key is the only switch. */
-    AiAgentFastDecisions = 'ai-agent-fast-decisions',
+    /**
+     * Organization-scoped: whether the instance decision provider (Jev) may
+     * run for an organization. On by default wherever a decision key is set,
+     * so a deployment can store a default of off and opt organizations back
+     * in through Console. Never turns decisions on without a key.
+     */
+    AiDecisions = 'ai-decisions',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source

@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine/core';
 import { Link } from 'react-router';
+import Callout from '../../../../../../components/common/Callout';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
@@ -17,6 +18,7 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
+import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
 export const McpGeneralSettingsPage = ({
     showAgentsPageLink,
@@ -32,6 +34,8 @@ export const McpGeneralSettingsPage = ({
     } = useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
+
+    const mcpEnabled = settings?.mcpEnabled !== false;
 
     return (
         <SettingsPage
@@ -56,6 +60,15 @@ export const McpGeneralSettingsPage = ({
                 </Group>
             ) : (
                 <>
+                    <McpAccessSettingsCard />
+                    {!mcpEnabled && (
+                        <Callout
+                            variant="warning"
+                            title="MCP access is disabled"
+                        >
+                            Turn on Allow MCP access to change these settings.
+                        </Callout>
+                    )}
                     <SettingsCard>
                         <Group
                             justify="space-between"
@@ -75,9 +88,11 @@ export const McpGeneralSettingsPage = ({
                             {showAgentsPageLink ? (
                                 <Stack gap="xs" align="flex-end">
                                     <Text size="sm">
-                                        {settings.mcpAgentsEnabled
-                                            ? 'On'
-                                            : 'Off'}
+                                        {!mcpEnabled
+                                            ? 'Disabled'
+                                            : settings.mcpAgentsEnabled
+                                              ? 'On'
+                                              : 'Off'}
                                     </Text>
                                     <Anchor
                                         component={Link}
@@ -92,7 +107,7 @@ export const McpGeneralSettingsPage = ({
                                     size="md"
                                     aria-label="Enable agents over MCP"
                                     checked={settings.mcpAgentsEnabled}
-                                    disabled={isUpdatingSettings}
+                                    disabled={isUpdatingSettings || !mcpEnabled}
                                     onChange={(event) =>
                                         updateSettings({
                                             mcpAgentsEnabled:
@@ -129,7 +144,7 @@ export const McpGeneralSettingsPage = ({
                                 size="md"
                                 aria-label="Allow content changes via MCP"
                                 checked={settings.mcpContentWritesEnabled}
-                                disabled={isUpdatingSettings}
+                                disabled={isUpdatingSettings || !mcpEnabled}
                                 onChange={(event) =>
                                     updateSettings({
                                         mcpContentWritesEnabled:

@@ -19,11 +19,14 @@ export const detectDataAppAnomalies = (
         projectUuid,
         appUuid,
         sources,
+        instructions,
         force,
     }: {
         projectUuid: string;
         appUuid: string;
         sources: DataAppAnalysisSource[];
+        /** App-author guidance for the model; part of the analysis identity. */
+        instructions: string | null;
         /** Run the model even when an analysis of identical rows is stored. */
         force: boolean;
     },
@@ -32,7 +35,11 @@ export const detectDataAppAnomalies = (
         version: 'v2',
         url: `${analysisBase(projectUuid, appUuid)}/detect`,
         method: 'POST',
-        body: JSON.stringify({ sources, force }),
+        body: JSON.stringify({
+            sources,
+            force,
+            ...(instructions !== null ? { instructions } : {}),
+        }),
     });
 
 /** A stored analysis of exactly these rows, or null. Never runs the model. */
@@ -42,17 +49,22 @@ export const lookupDataAppAnalysis = (
         projectUuid,
         appUuid,
         sources,
+        instructions,
     }: {
         projectUuid: string;
         appUuid: string;
         sources: DataAppAnalysisSource[];
+        instructions: string | null;
     },
 ) =>
     lightdashApi<ApiDataAppAnalysisLookupResponse['results']>({
         version: 'v2',
         url: `${analysisBase(projectUuid, appUuid)}/lookup`,
         method: 'POST',
-        body: JSON.stringify({ sources }),
+        body: JSON.stringify({
+            sources,
+            ...(instructions !== null ? { instructions } : {}),
+        }),
     });
 
 const getDataAppAnalysis = (

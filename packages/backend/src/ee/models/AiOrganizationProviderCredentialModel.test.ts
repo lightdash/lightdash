@@ -1,8 +1,11 @@
+import { ParameterError } from '@lightdash/common';
 import {
     assertInferenceGeographyForRegion,
     isMultiCredentialAiProvider,
     parseCredentialConfig,
+    resolveIsDefaultOnCreate,
     toApiCredential,
+    validateCredentialConfig,
     type AiProviderCredentialResolution,
 } from './AiOrganizationProviderCredentialModel';
 
@@ -63,6 +66,28 @@ describe('parseCredentialConfig', () => {
     });
 });
 
+describe('validateCredentialConfig', () => {
+    it('returns a complete config', () => {
+        expect(validateCredentialConfig(config)).toEqual(config);
+    });
+
+    // Request-boundary validation: bad input is the caller's 400, never a 500.
+    it('throws a ParameterError naming the field for an empty model list', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(ParameterError);
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(/allowedModels/);
+    });
+
+    it('throws a ParameterError for an empty key', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, apiKey: '' }),
+        ).toThrow(ParameterError);
+    });
+});
+
 describe('assertInferenceGeographyForRegion', () => {
     it('allows an absent geography', () => {
         expect(() =>
@@ -104,6 +129,23 @@ describe('assertInferenceGeographyForRegion', () => {
                 inferenceGeography: 'jp',
             }),
         ).toThrow(/not available for region us-east-1/);
+    });
+});
+
+describe('resolveIsDefaultOnCreate', () => {
+    it('makes the first credential the default when the caller does not decide', () => {
+        expect(resolveIsDefaultOnCreate(undefined, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(undefined, 2)).toBe(false);
+    });
+
+    it('stores without activating on an explicit false, even for the first credential', () => {
+        expect(resolveIsDefaultOnCreate(false, 0)).toBe(false);
+        expect(resolveIsDefaultOnCreate(false, 2)).toBe(false);
+    });
+
+    it('takes over as the default on an explicit true', () => {
+        expect(resolveIsDefaultOnCreate(true, 0)).toBe(true);
+        expect(resolveIsDefaultOnCreate(true, 2)).toBe(true);
     });
 });
 

@@ -63,11 +63,10 @@ import DeletedContentActionMenu from './DeletedContentActionMenu';
 function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
     dataAppsEnabled: boolean,
-    documentsEnabled: boolean,
 ): string | null {
     const parts: string[] = [];
     if (item.contentType === ContentType.SPACE) {
-        if (documentsEnabled && item.documentCount > 0) {
+        if (item.documentCount > 0) {
             parts.push(
                 `${item.documentCount} document${item.documentCount !== 1 ? 's' : ''}`,
             );
@@ -145,9 +144,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const retentionDays = health.data?.softDelete.retentionDays;
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        !documentsFlag.isError && (documentsFlag.data?.enabled ?? false);
 
     const [selectedContentType, setSelectedContentType] =
         useState<DeletedContentTypeFilter>('all');
@@ -206,15 +202,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         });
 
     const flatData = useMemo<DeletedContentWithDescendants[]>(
-        () =>
-            data?.pages?.flatMap((page) =>
-                page.data.filter(
-                    (item) =>
-                        documentsEnabled ||
-                        item.contentType !== ContentType.DOCUMENT,
-                ),
-            ) ?? [],
-        [data, documentsEnabled],
+        () => data?.pages?.flatMap((page) => page.data) ?? [],
+        [data],
     );
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
@@ -314,7 +303,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     const description = getDeletedContentDescription(
                         row.original,
                         dataAppsEnabled,
-                        documentsEnabled,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -510,7 +498,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             isRestoring,
             isDeleting,
             dataAppsEnabled,
-            documentsEnabled,
         ],
     );
 

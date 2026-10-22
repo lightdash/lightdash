@@ -59,3 +59,13 @@ export const getSelectableFilters = (
                 reason,
             };
         });
+
+// Rule members are valueless by definition
+export const getRequiredGroupMemberUpdates = (
+    groupId: string,
+): Partial<DashboardFilterRule> => ({
+    requiredGroupId: groupId,
+    required: false,
+    disabled: true,
+    values: [],
+});

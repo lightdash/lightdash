@@ -53,7 +53,7 @@ describe('getSearchFieldValues', () => {
             expect(output.result).toContain('```json\n[]\n```');
             expect(
                 output.result.includes(
-                    'Preserve an explicitly requested literal exclusion',
+                    'keep an explicitly requested exclusion',
                 ),
             ).toBe(enabled);
             expect(output.result).not.toContain('Matching value for');

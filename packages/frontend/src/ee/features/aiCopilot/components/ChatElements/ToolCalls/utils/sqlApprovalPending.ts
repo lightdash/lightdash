@@ -1,5 +1,6 @@
 import {
     getSameTurnSqlApprovalProgressId,
+    isComposerQueryToolName,
     isSqlApprovalToolCall,
 } from '@lightdash/common';
 import { type AiAgentThreadStreamingState } from '../../../../store/aiAgentThreadStreamSlice';
@@ -14,7 +15,7 @@ export const requiresSqlApproval = (
     toolName: string,
     toolArgs: unknown,
 ): boolean =>
-    toolName === 'runComposerQueries'
+    isComposerQueryToolName(toolName)
         ? getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode)
         : isSqlApprovalToolCall(toolName, toolArgs);
 

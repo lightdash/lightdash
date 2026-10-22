@@ -13,7 +13,6 @@ import {
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
-import { DOCUMENT_RESEARCH_SUMMARY_GUIDANCE } from '../../documentGuidance';
 import { createAgentInputSchema } from '../agentInputSchema';
 import {
     defineTool,
@@ -34,6 +33,9 @@ import {
 import { MCP_FILTER_EXPRESSION_SKILL_INSTRUCTION } from '../filterExpressions/mcpGuidance';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import {
+    MCP_CREATE_CONTENT_DESCRIPTION,
+    MCP_EDIT_CONTENT_DESCRIPTION,
+    MCP_READ_CONTENT_DESCRIPTION,
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
     mcpReadContentArgsSchema,
@@ -732,13 +734,13 @@ export const runSqlToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
-export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'runComposerQueries',
+export const queryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'query',
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesArgsSchema,
     typeof toolComposerQueriesOutputSchema
 > = defineTool({
-    name: 'runComposerQueries',
+    name: 'query',
     title: 'Run composer queries',
     description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
     availability: ['agent', 'mcp'],
@@ -748,6 +750,21 @@ export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
         name: 'run_composer_queries',
         annotations: readOnlyAnnotations,
     },
+});
+
+/** @deprecated The composer query tool's name before `query`; kept for historical tool calls. */
+export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'runComposerQueries',
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesArgsSchema,
+    typeof toolComposerQueriesOutputSchema
+> = defineTool({
+    name: 'runComposerQueries',
+    title: 'Run composer queries',
+    description: TOOL_COMPOSER_QUERIES_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolComposerQueriesArgsSchema,
+    agent: { outputSchema: toolComposerQueriesOutputSchema },
 });
 
 export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
@@ -1933,6 +1950,7 @@ type AgentToolDefinitionsByName = {
     generateVisualization: typeof generateVisualizationToolDefinition;
     runQuery: typeof runQueryToolDefinition;
     runSql: typeof runSqlToolDefinition;
+    query: typeof queryToolDefinition;
     runComposerQueries: typeof runComposerQueriesToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
@@ -1993,6 +2011,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateVisualization: generateVisualizationToolDefinition,
     runQuery: runQueryToolDefinition,
     runSql: runSqlToolDefinition,
+    query: queryToolDefinition,
     runComposerQueries: runComposerQueriesToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
@@ -2058,6 +2077,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateVisualizationToolDefinition,
     runQueryToolDefinition,
     runSqlToolDefinition,
+    queryToolDefinition,
     runComposerQueriesToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
@@ -2138,7 +2158,7 @@ export type AgentToolDefinition = (typeof agentToolDefinitions)[number];
 export const mcpCreateContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
-    description: `Create a dashboard, chart, SQL chart, or Document. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them. Documents use schema version 2: Markdown with <document-chart> tags plus the semantic/merge chart-as-code charts they reference. Returns the persisted Document with charts as short tags. A Document without a spaceSlug is personal until it is saved to a Space with edit_content. ${DOCUMENT_RESEARCH_SUMMARY_GUIDANCE}`,
+    description: MCP_CREATE_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpCreateContentArgsSchema,
     mcp: { name: 'create_content', annotations: writeAnnotations },
@@ -2147,8 +2167,7 @@ export const mcpCreateContentToolDefinition = defineTool({
 export const mcpReadContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
-    description:
-        'Read a dashboard, chart, SQL chart, data app, or Document by slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Documents return Markdown where each chart is a short tag (id, title, type, explore) plus the latest version UUID required for edits; pass chartId to read one chart in full. A tag marked unsupported is a chart from a newer version: keep its tag unchanged when editing.',
+    description: MCP_READ_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpReadContentArgsSchema,
     mcp: { name: 'read_content', annotations: readOnlyAnnotations },
@@ -2157,8 +2176,7 @@ export const mcpReadContentToolDefinition = defineTool({
 export const mcpEditContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
-    description:
-        'Edit dashboards, charts, and SQL charts with RFC6902 patch. A SQL chart (type sql_chart) needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL. For Documents, use documentEdit: replace the Markdown (keep unchanged charts by their <document-chart id> tag alone), patch one chart by id, or update metadata, including spaceSlug to save a personal Document into a Space. Stale versions are rejected; read again and retry.',
+    description: MCP_EDIT_CONTENT_DESCRIPTION,
     availability: ['agent', 'mcp'],
     inputSchema: mcpEditContentArgsSchema,
     mcp: { name: 'edit_content', annotations: writeAnnotations },

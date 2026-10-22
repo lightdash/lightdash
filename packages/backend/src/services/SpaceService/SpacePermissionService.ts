@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     getDocumentDeleteAccess,
     getHighestSpaceRole,
     getOrganizationRoleForRoleSetSpaceAccess,
@@ -30,7 +29,6 @@ import { type AppAccessModel } from '../../models/AppAccessModel';
 import { type DashboardAccessModel } from '../../models/DashboardAccessModel';
 import { type DirectAccess } from '../../models/directAccessModelUtils';
 import { type DocumentAccessModel } from '../../models/DocumentAccessModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartAccessModel } from '../../models/SavedChartAccessModel';
 import { type SavedSqlAccessModel } from '../../models/SavedSqlAccessModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -135,7 +133,6 @@ export class SpacePermissionService extends BaseService {
     private readonly appAccessModel: AppAccessModel;
 
     private readonly documentAccessModel: DocumentAccessModel;
-    private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly dashboardAccessModel: DashboardAccessModel;
 
@@ -150,7 +147,6 @@ export class SpacePermissionService extends BaseService {
         spacePermissionModel,
         appAccessModel,
         documentAccessModel,
-        featureFlagModel,
         dashboardAccessModel,
         savedChartAccessModel,
         savedSqlAccessModel,
@@ -160,7 +156,6 @@ export class SpacePermissionService extends BaseService {
         spacePermissionModel: SpacePermissionModel;
         appAccessModel: AppAccessModel;
         documentAccessModel: DocumentAccessModel;
-        featureFlagModel: FeatureFlagModel;
         dashboardAccessModel: DashboardAccessModel;
         savedChartAccessModel: SavedChartAccessModel;
         savedSqlAccessModel: SavedSqlAccessModel;
@@ -171,7 +166,6 @@ export class SpacePermissionService extends BaseService {
         this.spacePermissionModel = spacePermissionModel;
         this.appAccessModel = appAccessModel;
         this.documentAccessModel = documentAccessModel;
-        this.featureFlagModel = featureFlagModel;
         this.dashboardAccessModel = dashboardAccessModel;
         this.savedChartAccessModel = savedChartAccessModel;
         this.savedSqlAccessModel = savedSqlAccessModel;
@@ -403,22 +397,12 @@ export class SpacePermissionService extends BaseService {
     private getGrantLookup(userUuid: string, source: GrantSource): GrantLookup {
         switch (source) {
             case 'document':
-                return async (resourceUuids, opts) => {
-                    const flag = await this.featureFlagModel.get({
-                        featureFlagId: FeatureFlags.Documents,
-                        user: {
-                            userUuid,
-                            organizationUuid: opts.organizationUuid,
-                        },
-                    });
-                    return flag.enabled
-                        ? this.documentAccessModel.getUserAccess(
-                              resourceUuids,
-                              userUuid,
-                              opts,
-                          )
-                        : {};
-                };
+                return (resourceUuids, opts) =>
+                    this.documentAccessModel.getUserAccess(
+                        resourceUuids,
+                        userUuid,
+                        opts,
+                    );
             case 'dashboard':
                 return (resourceUuids, opts) =>
                     this.dashboardAccessModel.getUserAccess(

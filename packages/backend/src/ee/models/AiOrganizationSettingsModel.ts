@@ -34,8 +34,8 @@ type Dependencies = {
 
 export type StoredAiOrganizationSettings = Omit<
     AiOrganizationSettings,
-    'aiAgentMemoryEnabled'
->;
+    'aiAgentMemoryEnabled' | 'mcpEnabled'
+> & { mcpEnabled: boolean };
 
 const storedAiOrgProviderApiKeyFields = {
     anthropic: z.string().optional(),
@@ -291,6 +291,7 @@ export class AiOrganizationSettingsModel {
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
             deepResearchLimits: db.deep_research_limits,
             deepResearchRawSqlEnabled: db.deep_research_raw_sql_enabled,
+            mcpEnabled: db.mcp_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             mcpAgentsEnabled: db.mcp_agents_enabled,
             dataAppRuntimeAiEnabled: db.data_app_runtime_ai_enabled,
@@ -330,6 +331,16 @@ export class AiOrganizationSettingsModel {
             .first();
 
         return row ? this.mapDbToEntity(row) : null;
+    }
+
+    async findMcpEnabled(organizationUuid: string): Promise<boolean | null> {
+        const row = await this.database<AiOrganizationSettingsTable>(
+            AiOrganizationSettingsTableName,
+        )
+            .select('mcp_enabled')
+            .where('organization_uuid', organizationUuid)
+            .first();
+        return row?.mcp_enabled ?? null;
     }
 
     async getByOrganizationUuid(
@@ -384,6 +395,7 @@ export class AiOrganizationSettingsModel {
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 deep_research_limits: data.deepResearchLimits,
                 deep_research_raw_sql_enabled: data.deepResearchRawSqlEnabled,
+                mcp_enabled: data.mcpEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 mcp_agents_enabled: data.mcpAgentsEnabled,
                 data_app_runtime_ai_enabled: data.dataAppRuntimeAiEnabled,
@@ -418,6 +430,7 @@ export class AiOrganizationSettingsModel {
                 | 'ai_agent_reviews_enabled'
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
+                | 'mcp_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
@@ -446,6 +459,9 @@ export class AiOrganizationSettingsModel {
         if (data.deepResearchRawSqlEnabled !== undefined) {
             updateData.deep_research_raw_sql_enabled =
                 data.deepResearchRawSqlEnabled;
+        }
+        if (data.mcpEnabled !== undefined) {
+            updateData.mcp_enabled = data.mcpEnabled;
         }
         if (data.mcpContentWritesEnabled !== undefined) {
             updateData.mcp_content_writes_enabled =
@@ -578,6 +594,7 @@ export class AiOrganizationSettingsModel {
                     data.deepResearchLimits ?? AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled:
                     data.deepResearchRawSqlEnabled ?? false,
+                mcpEnabled: data.mcpEnabled ?? true,
                 mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
                 mcpAgentsEnabled: data.mcpAgentsEnabled ?? true,
                 dataAppRuntimeAiEnabled: data.dataAppRuntimeAiEnabled ?? false,

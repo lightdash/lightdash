@@ -92,7 +92,7 @@ export const ToolCallDescription: FC<{
     toolResult?: AiAgentToolResult;
     /**
      * Live per-node execution statuses for a running composer pipeline,
-     * keyed by nodeId. Only meaningful for runComposerQueries; omitted for
+     * keyed by nodeId. Only meaningful for the composer query tool; omitted for
      * persisted views, which render the pipeline without indicators.
      */
     composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
@@ -237,6 +237,7 @@ export const ToolCallDescription: FC<{
                     approval={approval}
                 />
             );
+        case 'query':
         case 'runComposerQueries':
             const composerToolArgs =
                 toolCall.toolArgs as ToolComposerQueriesArgs;

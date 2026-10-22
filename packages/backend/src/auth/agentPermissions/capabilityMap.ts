@@ -104,6 +104,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     readContent: [AgentCapability.ReadDiscover],
     readPinnedThread: [AgentCapability.ReadDiscover],
     resolveUrl: [AgentCapability.ReadDiscover],
+    query: [AgentCapability.Query],
     runComposerQueries: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],

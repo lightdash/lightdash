@@ -1,16 +1,21 @@
 /* eslint-disable no-await-in-loop -- One native DuckDB connection. */
 import { DuckDBInstance } from '@duckdb/node-api';
 import {
+    AI_BILLABLE_FEATURES,
     ChartType,
     DashboardTileTypes,
     FilterOperator,
+    getTemplatedUrlRowDependencies,
+    renderTemplatedUrl,
     TableCalculationType,
+    UnitOfTime,
     WarehouseTypes,
     type ChartAsCode,
     type Filters,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { compileMetricQuery } from '../../queryCompiler';
+import { getDashboardTabSlug } from '../../services/CoderService/scheduledContent';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { compactedStreamSchemas } from '../eventStream/registry';
@@ -44,11 +49,168 @@ const compile = (chart: ChartAsCode) =>
     }).compileQuery();
 
 describe('built-in usage dashboards', () => {
-    it('uses display-only user labels without changing the selected identities', () => {
-        const userCharts = charts.filter((chart) =>
-            chart.metricQuery.dimensions.includes(
-                `${chart.tableName}_user_name`,
+    it('makes every built-in table content action usable with hidden selected URL values', () => {
+        const linked = charts.filter(
+            (chart) =>
+                chart.chartConfig.type === ChartType.TABLE &&
+                chart.metricQuery.dimensions.some((field) =>
+                    /_(chart|dashboard|content)_name$/.test(field),
+                ),
+        );
+        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
+        expect(
+            linked.some(({ slug }) =>
+                slug.endsWith('-adoption-dashboard-audience'),
             ),
+        ).toBe(true);
+        for (const chart of linked) {
+            if (chart.chartConfig.type !== ChartType.TABLE)
+                throw new Error('Expected table');
+            const table = explores.find(({ name }) => name === chart.tableName)!
+                .tables[chart.tableName];
+            for (const fieldId of chart.metricQuery.dimensions.filter((field) =>
+                /_(chart|dashboard|content)_name$/.test(field),
+            )) {
+                const field = Object.values(table.dimensions).find(
+                    ({ name }) => `${table.name}_${name}` === fieldId,
+                )!;
+                const [action] = field.urls!;
+                const urlId = fieldId.replace(/_name$/, '_url');
+                expect(getTemplatedUrlRowDependencies(action.url)).toEqual([
+                    urlId,
+                ]);
+                expect(chart.metricQuery.dimensions).toContain(urlId);
+                expect(
+                    chart.chartConfig.config?.columns?.[urlId]?.visible,
+                ).toBe(false);
+                expect(chart.tableConfig?.columnOrder).toContain(urlId);
+                const urlName = field.name.replace(/_name$/, '_url');
+                const target =
+                    'https://lightdash.example/projects/project/dashboards/dashboard';
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        {
+                            raw: '<untrusted name>',
+                            formatted: '<untrusted name>',
+                        },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: target, formatted: target },
+                            },
+                        },
+                    ),
+                ).toBe(target);
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        { raw: 'Legacy content', formatted: 'Legacy content' },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: null, formatted: '-' },
+                            },
+                        },
+                    ),
+                ).toBe('');
+            }
+        }
+        const scatter = charts.find(({ slug }) =>
+            slug.endsWith(
+                '-high-compute-dashboards-audience-versus-warehouse-time',
+            ),
+        )!;
+        expect(scatter.metricQuery.dimensions).not.toContain(
+            'content_health_content_url',
+        );
+    });
+
+    const aiTokens = analyticsContentAsCode.find(
+        ({ dashboard }) => dashboard.slug === 'lightdash-analytics-ai-tokens',
+    )!;
+
+    it('uses existing AI Usage fields and distinguishes billing scope from all usage', () => {
+        expect(aiTokens.charts).toHaveLength(24);
+        for (const chart of aiTokens.charts) {
+            expect(chart.tableName).toBe('ai_usage');
+            expect(chart.metricQuery.timezone).toBe('UTC');
+            const group = (chart.metricQuery.filters as Filters).dimensions!;
+            const rules = 'and' in group ? group.and : [];
+            expect(rules).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings: { unitOfTime: UnitOfTime.months },
+                    }),
+                    expect.objectContaining({
+                        operator: FilterOperator.IN_THE_PAST,
+                        values: [31],
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    }),
+                ]),
+            );
+            const billingScope =
+                /-(eligible|details|(?:feature|channel|user|project|agent)-(?:daily|rank))$/.test(
+                    chart.slug,
+                );
+            expect(rules).toHaveLength(billingScope ? 5 : 2);
+            if (billingScope) {
+                for (const [fieldId, values] of [
+                    ['ai_usage_key_management', ['lightdash-managed']],
+                    ['ai_usage_outcome', ['complete']],
+                    ['ai_usage_feature', [...AI_BILLABLE_FEATURES]],
+                ]) {
+                    expect(rules).toContainEqual(
+                        expect.objectContaining({
+                            target: { fieldId },
+                            operator: FilterOperator.EQUALS,
+                            values,
+                        }),
+                    );
+                }
+            }
+            if (/-(project-(?:daily|rank)|details)$/.test(chart.slug)) {
+                expect(chart.metricQuery.dimensions).toEqual(
+                    expect.arrayContaining([
+                        'ai_usage_project_id',
+                        'ai_usage_project_name',
+                    ]),
+                );
+            }
+        }
+    });
+
+    it('keeps AI token tabs stable on sync and leaves room for ranking labels', () => {
+        const installed = {
+            tabs: aiTokens.dashboard.tabs.map((tab) => ({
+                name: tab.name,
+                order: tab.order,
+                uuid: tab.slug!,
+            })),
+        };
+        expect(installed.tabs).toHaveLength(6);
+        for (const tab of installed.tabs) {
+            expect(getDashboardTabSlug(installed, tab.uuid)).toBe(tab.uuid);
+        }
+        for (const tile of aiTokens.dashboard.tiles.filter(
+            (item) => item.type === DashboardTileTypes.SAVED_CHART,
+        )) {
+            expect(tile.properties.title).toBe('');
+            if (tile.properties.chartSlug?.endsWith('-rank')) {
+                expect(tile.h).toBeGreaterThanOrEqual(6);
+            }
+        }
+    });
+
+    it('uses display-only user labels without changing the selected identities', () => {
+        const userCharts = charts.filter(
+            (chart) =>
+                chart.dashboardSlug !== 'lightdash-analytics-ai-tokens' &&
+                chart.metricQuery.dimensions.includes(
+                    `${chart.tableName}_user_name`,
+                ),
         );
         expect(userCharts.length).toBeGreaterThan(0);
         for (const chart of userCharts) {

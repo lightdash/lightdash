@@ -82,7 +82,12 @@ const DataSourceChip: FC<Props> = ({
               : null;
 
     return (
-        <Group gap={4} wrap="nowrap" miw={0}>
+        <Group
+            gap={4}
+            wrap="nowrap"
+            flex="0 1 auto"
+            className={classes.chipHost}
+        >
             <DataSourcePicker
                 opened={pickerOpened}
                 onOpenedChange={setPickerOpened}

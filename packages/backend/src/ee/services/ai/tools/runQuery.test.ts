@@ -33,6 +33,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { renderEcharts } from '../utils/renderEcharts';
+import { getStaticToolDescription } from '../utils/toolDescription';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
 import { getRunQuery } from './runQuery';
 
@@ -562,6 +563,38 @@ describe('getRunQuery', () => {
         );
         expect(output.result).toContain('a_met1');
     });
+
+    it.each([false, true])(
+        'describes the Slack result card only when answering in Slack: %s',
+        (inSlack) => {
+            const queryTool = getRunQuery({
+                purpose: 'answer',
+                inSlack,
+                agentContext: new AgentContext([validExplore]),
+                updateProgress: vi.fn().mockResolvedValue(undefined),
+                runAsyncQuery: vi.fn(),
+                enableFilterExpressions: false,
+                projectParameterDefinitions: {},
+                getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+                sendFile: vi.fn().mockResolvedValue(undefined),
+                createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
+                maxLimit: 500,
+                maxContextRows: Number.POSITIVE_INFINITY,
+                exposeQueryUuid: false,
+                enableDataAccess: true,
+                slackLinksOnly: false,
+                resolveCustomChartType: vi.fn().mockResolvedValue(null),
+                exportCustomChartTypeImage:
+                    vi.fn() as ExportCustomChartTypeImageFn,
+            });
+
+            expect(
+                getStaticToolDescription(queryTool)?.includes(
+                    'Slack also receives an explorable result card',
+                ),
+            ).toBe(inSlack);
+        },
+    );
 
     it('keeps a table artifact for fast data answers in web chat', async () => {
         const createOrUpdateArtifact = vi.fn().mockResolvedValue(undefined);

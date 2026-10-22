@@ -1,4 +1,4 @@
-# Current content, user and agent dimensions
+# Current content, user, agent and project dimensions
 
 The existing `compactUsageEvents` Graphile job refreshes dimension snapshots
 after processing event partitions, daily at 00:30 UTC. It also refreshes on days
@@ -13,6 +13,7 @@ Each organization has one current Parquet object per dimension:
 | `dim=dashboards/dashboards.parquet`            | org_id, dashboard_id, name, slug, space_name, is_deleted         |
 | `dim=agents/agents.parquet`                    | org_id, agent_id, name                                           |
 | `dim=users/users.parquet`                      | org_id, user_id, name                                            |
+| `dim=projects/projects.parquet`                | org_id, project_id, name                                         |
 
 Charts include saved metric and SQL charts, including charts owned by a
 dashboard. Soft-deleted content remains identifiable through `is_deleted`;
@@ -67,7 +68,7 @@ worker scratch-space cleanup and storage lifecycle configuration.
 ## Read path and rollout
 
 Query Events exposes Charts, Dashboards and Users as optional many-to-one LEFT
-JOINs on organization plus entity ID. AI Usage joins Users and Agents; Data App
+JOINs on organization plus entity ID. AI Usage joins Users, Agents and Projects; Data App
 Events and Export Events join Users. Export Events also joins Charts and Dashboards
 through its Query Events metadata, so exports can be grouped by content names.
 Every lookup declares a composite primary key on organization and entity ID.
@@ -113,8 +114,16 @@ display `Unknown agent` without dropping events or changing totals. Only
 `org_id`, `agent_id` and `name` are exported; instructions and configuration are
 excluded.
 
-Project, space and group lookup tables are not part of this implementation;
-charts and dashboards include a `space_name` attribute.
+AI Usage also exposes **Project name** from the current `projects` snapshot.
+The snapshot exports only `org_id`, `project_id` and `name`, including projects
+with no saved content, through the same bounded organization-scoped refresh.
+Names update on the next successful refresh. Missing snapshots and deleted,
+unknown or null project IDs display `Unknown project` without dropping events
+or changing token totals. Project IDs remain available to distinguish projects
+with identical names.
+
+Space and group lookup tables are not part of this implementation; charts and
+dashboards include a `space_name` attribute.
 
 ## Local verification
 

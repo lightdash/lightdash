@@ -14,6 +14,7 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { parseAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
 import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
 import { AiAgentService } from './AiAgentService';
@@ -58,6 +59,7 @@ describe('Slack image delivery scope', () => {
         };
         const previewCreate = vi.fn().mockResolvedValue(undefined);
         const decisionFlag = vi.fn().mockResolvedValue({ enabled: true });
+        const decisions = { apiKey: 'test', model: 'test', timeoutMs: 100 };
         const loadRequest = vi.fn().mockResolvedValue({});
         const assertOperationWithRequest = vi.fn().mockResolvedValue(undefined);
         const finish = vi.fn().mockResolvedValue(undefined);
@@ -72,18 +74,12 @@ describe('Slack image delivery scope', () => {
             featureFlagService: { get: decisionFlag },
             lightdashConfig: {
                 ...lightdashConfigMock,
-                ai: {
-                    ...lightdashConfigMock.ai,
-                    decisions: {
-                        apiKey: 'test',
-                        model: 'test',
-                        timeoutMs: 100,
-                    },
-                },
+                ai: { ...lightdashConfigMock.ai, decisions },
             },
             orgAiCopilotConfigResolver: {
                 getCopilotConfig: async () => ({}),
-                isOrgOnOwnProviderKeys: async () => false,
+                getDecisionClient: async () =>
+                    resolveAiDecisionClient(decisions),
             },
             aiAgentModel: {
                 findSlackPrompt: async () => prompt,

@@ -50,7 +50,6 @@ const ExploreMenu: FC<Props> = memo((props) => {
 
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -167,22 +166,18 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             />
                         )}
 
-                        {contentAuthoringEnabled &&
-                            documentsFlag.data?.enabled &&
-                            userCanCreateDocuments && (
-                                <LargeMenuItem
-                                    title="Document"
-                                    description="Write up analysis with live charts."
-                                    onClick={() =>
-                                        setIsCreateDocumentOpen(true)
-                                    }
-                                    icon={IconFileText}
-                                    data-testid="ExploreMenu/NewDocumentButton"
-                                    // Navigation anchor for scope walkthroughs (data-tour-via)
-                                    data-tour-nav="new-document"
-                                    data-tour-hint="Choose Document"
-                                />
-                            )}
+                        {contentAuthoringEnabled && userCanCreateDocuments && (
+                            <LargeMenuItem
+                                title="Document"
+                                description="Write up analysis with live charts."
+                                onClick={() => setIsCreateDocumentOpen(true)}
+                                icon={IconFileText}
+                                data-testid="ExploreMenu/NewDocumentButton"
+                                // Navigation anchor for scope walkthroughs (data-tour-via)
+                                data-tour-nav="new-document"
+                                data-tour-hint="Choose Document"
+                            />
+                        )}
 
                         {dataAppsFlag.data?.enabled && (
                             <Can

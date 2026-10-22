@@ -295,6 +295,8 @@ function buildService(overrides: {
         svc as unknown as { createAuditedAbility: () => unknown },
         'createAuditedAbility',
     ).mockReturnValue(ability);
+    // A library-only instance: no app runtime, so no Chart Studio.
+    vi.spyOn(svc, 'isChartStudioAvailable').mockReturnValue(false);
 
     if (s3ClientOverride) {
         vi.spyOn(
@@ -1500,11 +1502,11 @@ describe('importAppCode with registry provenance', () => {
         const changed = toUploadFiles([
             { name: 'src/App.tsx', content: 'changed' },
         ]);
-        // The normal path's first gate is EnableDataApps; hitting it proves
-        // the fallthrough happened without exercising the whole build chain.
+        // The normal path's first gate is Chart Studio for a chart type; hitting
+        // it proves the fallthrough happened without exercising the build chain.
         await expect(
             svc.importAppCode(fakeUser, PROJECT_UUID, makeBody(changed)),
-        ).rejects.toThrow('Data apps are not enabled');
+        ).rejects.toThrow('Chart Studio is not available');
         const outcome = await callHelper(svc, changed);
         expect(outcome.kind).toBe('fallthrough');
         expect(outcome.warning).toMatch(/differs from "sankey@1\.1\.0"/);

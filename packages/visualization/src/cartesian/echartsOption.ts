@@ -111,9 +111,8 @@ import { EMPTY_X_AXIS } from './config';
 import { defaultAxisLabelGap, defaultGrid, legendTopSpacing } from './grid';
 import { applyIncompletePeriodStyle } from './incompletePeriod';
 import {
-    getLegendDoubleClickTooltip,
-    LEGEND_INTERACTION_HINT,
-    type LegendDoubleClickTooltip,
+    getLegendLabelTooltipStyle,
+    type LegendLabelTooltipStyle,
 } from './legendTooltip';
 import {
     detectTimeAxisMode,
@@ -463,7 +462,11 @@ export const mergeLegendSettings = <
     outsideLabelWidth: number = OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH,
 ): MergedLegendSettings => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
-    if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
+    // A persisted legend selection alone is not a layout config
+    const hasLayoutConfig = Object.keys(normalizedConfig ?? {}).some(
+        (key) => key !== 'selected',
+    );
+    if (!normalizedConfig || !hasLayoutConfig) {
         return {
             show: series.length > 1,
             type: 'scroll',
@@ -584,13 +587,13 @@ const getLegendItemName = (params: unknown): string =>
 
 /**
  * Layers the shared legend typography over the merged legend settings without
- * dropping the outside-placement truncation, and shows the full label in the
- * hover tooltip whenever labels can be truncated.
+ * dropping the outside-placement truncation. Only truncated labels get a hover
+ * tooltip, which shows the full label.
  */
 export const composeLegendConfig = (
     mergedLegend: MergedLegendSettings,
     legendStyle: LegendStyle,
-    doubleClickTooltip: LegendDoubleClickTooltip,
+    labelTooltipStyle: LegendLabelTooltipStyle,
 ) => {
     const isTruncated = mergedLegend.textStyle?.overflow === 'truncate';
     return {
@@ -599,13 +602,11 @@ export const composeLegendConfig = (
         textStyle: { ...legendStyle.textStyle, ...mergedLegend.textStyle },
         tooltip: isTruncated
             ? {
-                  ...doubleClickTooltip,
+                  ...labelTooltipStyle,
                   formatter: (params: unknown) =>
-                      `<div style="font-weight: 500">${encodeHtml(
-                          getLegendItemName(params),
-                      )}</div>${LEGEND_INTERACTION_HINT}`,
+                      encodeHtml(getLegendItemName(params)),
               }
-            : doubleClickTooltip,
+            : { show: false },
     };
 };
 
@@ -4556,7 +4557,7 @@ export const buildCartesianEchartsOptionFromData = (
         resolvedTimezone,
     } = data;
 
-    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
+    const legendLabelTooltipStyle = getLegendLabelTooltipStyle(theme);
 
     const legendConfigWithInstructionsTooltip = (() => {
         // Use line icon only for line/area charts, otherwise use square with border radius
@@ -4591,7 +4592,7 @@ export const buildCartesianEchartsOptionFromData = (
         return composeLegendConfig(
             mergedLegendConfig,
             legendStyle,
-            legendDoubleClickTooltip,
+            legendLabelTooltipStyle,
         );
     })();
 
