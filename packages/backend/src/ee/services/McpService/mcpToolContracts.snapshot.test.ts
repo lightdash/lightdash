@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    agentToolDefinitions,
     defineUserAbility,
     FeatureFlags,
     mcpToolDefinitions,
@@ -8,12 +9,20 @@ import {
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import { toolNameFor } from '@lightdash/common/src/ee/AiAgent/schemas/tools/discoveryToolNames';
 import type { ZodRawShape, ZodType } from 'zod';
 import { z } from 'zod';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuidance';
 import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import {
+    groupToolReferences,
+    namedTools,
+    withoutReasons,
+    type KnownToolReference,
+    type ToolReference,
+} from '../ai/utils/toolReferences.mock';
 import { MCP_CUSTOM_CHART_FRAME_TOOL_NAME } from './mcpCustomChartFrameHtml';
 import {
     isProjectScopedMcpTool,
@@ -1378,4 +1387,192 @@ describe('MCP tool contracts', () => {
             );
         },
     );
+});
+
+type McpFeature = keyof McpServerToolOptions['featureAvailability'];
+type McpScope = 'all' | `without:${McpFeature}`;
+type McpSource = McpToolName | 'instructions';
+
+const allMcpFeatures: Record<McpFeature, boolean> = {
+    mcpContentWritesEnabled: true,
+    scheduledDeliveryEnabled: true,
+    runSqlEnabled: true,
+    runMetricQueryEnabled: true,
+    filterExpressionsEnabled: false,
+    documentsEnabled: true,
+    dataAppBuildsEnabled: true,
+    customChartTypesEnabled: true,
+    agentIdentityEnabled: true,
+};
+
+const agentToolNames = agentToolDefinitions.map(
+    (definition) => definition.for('agent').name,
+);
+// Agent names count too: on MCP they point at a tool that does not exist.
+const mcpReferenceNames = [
+    ...new Set<string>([
+        ...sharedMcpToolDefinitionNames,
+        ...Object.values(McpToolName),
+        ...agentToolNames.map((name) =>
+            toolNameFor(name as Parameters<typeof toolNameFor>[0], 'mcp'),
+        ),
+        ...agentToolNames,
+    ]),
+];
+
+const DATA_APP_AGENT_NAMES =
+    'data app description uses agent tool names instead of MCP ones';
+const RUN_SQL_GATED = 'names run_sql, which runSqlEnabled gates separately';
+
+const WITH_DATA_APPS: McpScope[] = [
+    'all',
+    'without:agentIdentityEnabled',
+    'without:customChartTypesEnabled',
+    'without:documentsEnabled',
+    'without:mcpContentWritesEnabled',
+    'without:runMetricQueryEnabled',
+    'without:runSqlEnabled',
+    'without:scheduledDeliveryEnabled',
+];
+
+// Shrink-only: fixing a reference fails this test until its entry is removed.
+const KNOWN_MCP: KnownToolReference<McpScope, McpSource>[] = [
+    {
+        source: McpToolName.EDIT_CONTENT,
+        named: 'readContent',
+        scopes: [
+            'all',
+            'without:agentIdentityEnabled',
+            'without:customChartTypesEnabled',
+            'without:dataAppBuildsEnabled',
+            'without:runMetricQueryEnabled',
+            'without:runSqlEnabled',
+            'without:scheduledDeliveryEnabled',
+        ],
+        reason: 'names the agent tool readContent instead of read_content',
+    },
+    {
+        source: McpToolName.FIND_CONTENT,
+        named: 'run_sql',
+        scopes: ['without:runSqlEnabled'],
+        reason: RUN_SQL_GATED,
+    },
+    {
+        source: McpToolName.FIND_CUSTOM_CHART_TYPES,
+        named: 'create_custom_chart_type',
+        scopes: ['without:dataAppBuildsEnabled'],
+        reason: 'names create_custom_chart_type, which dataAppBuildsEnabled gates',
+    },
+    {
+        source: McpToolName.GENERATE_DATA_APP,
+        named: 'findContent',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.GENERATE_DATA_APP,
+        named: 'listDataAppConnections',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.GET_QUERY_RESULT,
+        named: 'run_sql',
+        scopes: ['without:runSqlEnabled'],
+        reason: RUN_SQL_GATED,
+    },
+    {
+        source: McpToolName.ITERATE_DATA_APP,
+        named: 'findContent',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.ITERATE_DATA_APP,
+        named: 'generateDataApp',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.ITERATE_DATA_APP,
+        named: 'iterateDataApp',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.ITERATE_DATA_APP,
+        named: 'listDataAppConnections',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.ITERATE_DATA_APP,
+        named: 'readContent',
+        scopes: WITH_DATA_APPS,
+        reason: DATA_APP_AGENT_NAMES,
+    },
+    {
+        source: McpToolName.RENDER_CHART,
+        named: 'find_custom_chart_types',
+        scopes: ['without:customChartTypesEnabled'],
+        reason: 'names custom chart type tools that customChartTypesEnabled gates',
+    },
+    {
+        source: McpToolName.RENDER_CHART,
+        named: 'list_custom_chart_types',
+        scopes: ['without:customChartTypesEnabled'],
+        reason: 'names custom chart type tools that customChartTypesEnabled gates',
+    },
+    {
+        source: McpToolName.RENDER_CHART,
+        named: 'run_sql',
+        scopes: ['without:runSqlEnabled'],
+        reason: RUN_SQL_GATED,
+    },
+];
+
+describe('MCP tool references', () => {
+    it('tools and instructions name only registered tools', async () => {
+        const scopes: [McpScope, Record<McpFeature, boolean>][] = [
+            ['all', allMcpFeatures],
+            ...(Object.keys(allMcpFeatures) as McpFeature[])
+                .filter((feature) => allMcpFeatures[feature])
+                .map((feature): [McpScope, Record<McpFeature, boolean>] => [
+                    `without:${feature}`,
+                    { ...allMcpFeatures, [feature]: false },
+                ]),
+        ];
+        const references: ToolReference<McpScope, McpSource>[] = [];
+        for (const [scope, features] of scopes) {
+            mockRegisteredMcpTools.length = 0;
+            // eslint-disable-next-line no-await-in-loop
+            await makeMcpService().createServer(makeMcpServerOptions(features));
+            const registered = new Set(
+                mockRegisteredMcpTools.map(({ name }) => name),
+            );
+            const sources: [McpSource, string][] = [
+                ...mockRegisteredMcpTools.map(
+                    ({ name, config }): [McpSource, string] => [
+                        name as McpToolName,
+                        `${config.description}\n${JSON.stringify(
+                            schemaToJson(config.inputSchema, 'input'),
+                        )}`,
+                    ],
+                ),
+                ['instructions', getLatestMcpServerInstructions()],
+            ];
+            for (const [source, text] of sources) {
+                for (const named of namedTools(
+                    text,
+                    mcpReferenceNames,
+                ).keys()) {
+                    if (!registered.has(named))
+                        references.push({ scope, source, named });
+                }
+            }
+        }
+        expect(groupToolReferences(references)).toEqual(
+            withoutReasons(KNOWN_MCP),
+        );
+    });
 });
