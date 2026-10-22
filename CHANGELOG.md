@@ -1,3 +1,12 @@
+# [3.27.0](https://github.com/lightdash/lightdash/compare/3.26.1...3.27.0) (2026-10-22)
+
+
+### Features
+
+* **ai:** default composer pipeline panel to graph for multi-node queries ([#31411](https://github.com/lightdash/lightdash/issues/31411)) ([faa2078](https://github.com/lightdash/lightdash/commit/faa20780255fd572d7d1cc265e3441bfb62e76fb))
+* **backend:** add authorization header support for private chart registry ([#31051](https://github.com/lightdash/lightdash/issues/31051)) ([aa3b23f](https://github.com/lightdash/lightdash/commit/aa3b23f63d895cf2fc6dfa56481febe992a3de21)), closes [#31050](https://github.com/lightdash/lightdash/issues/31050)
+* **custom-charts:** nudge Cloud users from Vega to Chart Studio on new charts ([#31398](https://github.com/lightdash/lightdash/issues/31398)) ([71a53e1](https://github.com/lightdash/lightdash/commit/71a53e19df17f5cda0594ad4b1191b7994bd2194))
+
 ## [3.26.1](https://github.com/lightdash/lightdash/compare/3.26.0...3.26.1) (2026-10-22)
 
 
