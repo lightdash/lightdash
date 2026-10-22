@@ -238,7 +238,8 @@ In `FilterConfiguration/`:
   the placeholder land in the same render, so the new rule is never missing.
 - `close()`, `discard()`, `removeFilter()` and opening another control clear
   the waiting fields. The first three send focus back to the bar once the
-  editor has left the page: to the control's pill when it is still there and
+  editor has left the page (so do Done, the X, Escape and the header's Save,
+  which all go through `close()`): to the control's pill when it is still there and
   not disabled (a fields refetch disables it), else to "Add". The provider finds
   them in the DOM, as the pill carrying the control's id
   (`data-controls-pill`, set by `FilterPill`) and as the shipped "Add filter"
@@ -306,8 +307,9 @@ In `FilterConfiguration/`:
   the control id as `key`, so the draft restarts and a pending commit is
   dropped when another control opens.
 - Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
-  editor mounts (from a pill or a row); a new filter's field search takes it
-  instead. The first field of a
+  editor mounts (from a pill or a row); a new filter's field search
+  (`[data-controls-start]`) takes it instead, on the next frame
+  (`useFocusLabelOnMount`). The first field of a
   filter keeps the same editor mounted: the id is the placeholder's. So the
   pick calls `focusLabelInput()`, from the sidebar and from a tile card.
 - The edited filter's field is resolved as the shipped bar does
