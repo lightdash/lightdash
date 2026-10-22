@@ -143,7 +143,8 @@ ${connectionLines}
 
 ${words.approvalCost}: the user reads the SQL and approves it before it runs.
 
-- Discover tables and columns with listWarehouseTables and describeWarehouseTable, not with SQL: the server rejects any SQL that reads \`information_schema\`. When they do not return what you need, ask the user.
+- Discover the columns of an explore-backed table with grepFields and getMetadata, and of any other table with listWarehouseTables and describeWarehouseTable, not with SQL: the server rejects any SQL that reads \`information_schema\`. When they do not return what you need, ask the user.
+- After a "column does not exist" or "relation not found" error, describe the offending table and rewrite the SQL once from its real columns. When those columns lack the relationship you need (no foreign key, no junction table), tell the user what you expected and what the table has, then offer a proxy or ask for the right table.
 - Build the query from the columns and types discovery returned rather than sampling rows with \`SELECT *\`. To inspect specific values (e.g. enum cardinality), select those columns with \`DISTINCT\` and a tight limit.
 - Compose multi-step logic into one query with CTEs and joins. Add another ${words.sqlUnit} only when you need real warehouse values to recover or validate. When several ${words.sqlUnits} lead to the answer, make the final one the composed query and rest the answer on it, unless the final result genuinely came from an intermediate table.
 - ${scopeLine ? `${schemaLine} ${scopeLine}` : schemaLine}

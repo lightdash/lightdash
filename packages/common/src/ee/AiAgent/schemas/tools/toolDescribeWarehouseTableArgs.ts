@@ -4,10 +4,6 @@ import { createToolSchema } from '../toolSchemaBuilder';
 
 export const TOOL_DESCRIBE_WAREHOUSE_TABLE_DESCRIPTION = `Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
 
-- Before writing raw SQL against such a table, call it to confirm the columns you need exist, such as a join key.
-- After a "column does not exist" or "relation not found" error, call it for the real columns, then rewrite the SQL once instead of guessing again.
-- When the columns show that the relationship you need does not exist (no foreign key, no junction table), stop and tell the user what you expected and what the table has, then offer a proxy or ask for the right table.
-
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.`;
 
 export const toolDescribeWarehouseTableArgsSchema = createToolSchema()
