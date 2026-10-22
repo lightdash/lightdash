@@ -66,6 +66,7 @@ const source: PeerDbtSourceSummary = {
         usesSharedCredentials: false,
         dbtRepositoryUuid: 'repository_a',
         dbtProjectName: 'project_a',
+        dbtProjectNameState: 'known',
         warehouseConnectionUuid: null,
         membershipRole: 'publish',
         refreshPolicy: 'git_refresh',
@@ -252,7 +253,12 @@ describe('dbt peer settings', () => {
         routeApi({
             peerSource: {
                 ...source,
-                peer: { ...source.peer, dbtProjectNameConflict: 'project_a' },
+                peer: {
+                    ...source.peer,
+                    dbtProjectName: null,
+                    dbtProjectNameState: 'conflict',
+                    dbtProjectNameConflict: 'project_a',
+                },
             },
         });
         renderPanel();
@@ -260,6 +266,26 @@ describe('dbt peer settings', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Two sources provide dbt project project_a on the same connection; rename or rebind one.',
         );
+    });
+
+    it('shows an unknown name without claiming that name initialization found no conflict', async () => {
+        routeApi({
+            peerSource: {
+                ...source,
+                peer: {
+                    ...source.peer,
+                    dbtProjectName: null,
+                    dbtProjectNameState: 'unknown',
+                },
+            },
+        });
+        renderPanel();
+        expect(
+            await screen.findByText(/dbt project: Unknown/),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/Two sources provide/),
+        ).not.toBeInTheDocument();
     });
 
     it('validates the dbt project name and saves metadata without connection credentials', async () => {

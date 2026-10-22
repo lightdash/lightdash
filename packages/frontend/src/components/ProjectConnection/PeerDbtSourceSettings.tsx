@@ -7,7 +7,7 @@ import {
     type PeerMembershipRole,
     type PeerRefreshPolicy,
 } from '@lightdash/common';
-import { Alert, Select, Stack, Switch, Text, TextInput } from '@mantine/core';
+import { Select, Stack, Switch, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import {
@@ -16,6 +16,7 @@ import {
     useShareDbtRepository,
     useUpdatePeerDbtSource,
 } from '../../hooks/usePeerDbtSources';
+import Callout from '../common/Callout';
 import MantineModal from '../common/MantineModal';
 
 const membershipRoles = [
@@ -33,7 +34,8 @@ export const PeerDbtSourceMetadata: FC<{ peer: PeerDbtSourceSettings }> = ({
 }) => (
     <Stack gap={2}>
         <Text size="xs" c="dimmed">
-            dbt project: {peer.dbtProjectName ?? 'Not set'} ·{' '}
+            dbt project:{' '}
+            {peer.dbtProjectName ?? peer.dbtProjectNameConflict ?? 'Unknown'} ·{' '}
             {
                 membershipRoles.find(
                     (role) => role.value === peer.membershipRole,
@@ -151,9 +153,9 @@ export const PeerDbtSourceSettingsModal: FC<{
                     />
                 )}
                 {(update.error || share.error) && (
-                    <Alert color="red" role="alert">
+                    <Callout variant="danger" role="alert">
                         {(update.error ?? share.error)?.error.message}
-                    </Alert>
+                    </Callout>
                 )}
             </Stack>
         </MantineModal>
@@ -269,9 +271,9 @@ export const AddSharedDbtSourceModal: FC<{
                     {...form.getInputProps('refreshPolicy')}
                 />
                 {(shared.error || add.error) && (
-                    <Alert color="red" role="alert">
+                    <Callout variant="danger" role="alert">
                         {(shared.error ?? add.error)?.error.message}
-                    </Alert>
+                    </Callout>
                 )}
             </Stack>
         </MantineModal>
