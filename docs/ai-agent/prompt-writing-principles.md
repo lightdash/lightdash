@@ -4,8 +4,8 @@ Rules for every sentence the AI agent reads: the system prompt sections (`packag
 
 ## Where a sentence lives
 
-- **Tool description**: how to call one tool, its parameters, its result shape, its own errors.
-- **System prompt**: the order between tools and the policy that no single tool owns.
+- **Tool description**: how to call one tool, its parameters, its result shape, its own errors. It names another tool only as the source of an input ("chartUuid from findContent") or as the alternative for a case it does not handle ("for explore-backed tables use grepFields"), and only when that tool loads wherever this one does.
+- **System prompt**: the order between tools and the policy that no single tool owns. Sequences across tools ("save with createContent, then schedule") and conditions on turn or conversation state ("a chart from an earlier turn") live here, in the base they apply to.
 - **Skill**: material only some turns need (a formula reference, a repository workflow). The prompt keeps one pointer sentence that names the trigger.
 - **Conditional section**: text that describes something present in the request (documents, project context) renders only when that thing is present, beside it.
 
@@ -36,5 +36,5 @@ Test for each line: inline what every branch needs; push behind a pointer what o
 ## Running a pass
 
 - Work one unit at a time: an add-on or base, its section and its tool descriptions together, so a rule gets exactly one home.
-- Prompt fixtures (`prompts/__fixtures__/*.txt`) are byte-compared and hand-edited. Loadout snapshots (`loadout/__snapshots__/**/*.prompt.txt`) and the contract snapshot (`tools/__snapshots__/agentToolContracts.snapshot.test.ts.snap`) regenerate with `-u`. Shared descriptions also feed the MCP snapshot: `pnpm generate:mcp-tools-snapshot`.
+- Prompt fixtures (`prompts/__fixtures__/*.txt`) are byte-compared and regenerate with `UPDATE_PROMPT_FIXTURES=1`. Loadout snapshots (`loadout/__snapshots__/**/*.prompt.txt`) and the contract snapshot (`tools/__snapshots__/agentToolContracts.snapshot.test.ts.snap`) regenerate with `-u`. Shared descriptions also feed the MCP snapshot: `pnpm generate:mcp-tools-snapshot`.
 - Count words before and after (`wc -w` on the classic fixtures) and report both.
