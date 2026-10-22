@@ -14,6 +14,10 @@ declare module 'express-session' {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
             intent?: 'link' | undefined;
+            googlePersonalReconnect?: {
+                userUuid: string;
+                credentialUuid: string;
+            };
             githubFlow?: 'installation' | 'user_link' | undefined;
             githubInstallation?: {
                 installationId: string;
