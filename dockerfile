@@ -180,7 +180,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-core==1.12.0" \
     "dbt-postgres~=1.10.0" \
     "dbt-redshift~=1.10.0" \
-    "dbt-snowflake~=1.12.0" \
+    "dbt-snowflake~=1.12.4" \
     "dbt-bigquery~=1.12.0" \
     "dbt-databricks~=1.12.3" \
     "dbt-trino~=1.10.0" \
