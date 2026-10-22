@@ -4553,6 +4553,7 @@ export const buildCartesianEchartsOptionFromData = (
         series,
         rows,
         timeAxisMode,
+        resolvedTimezone,
     } = data;
 
     const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
@@ -4637,6 +4638,7 @@ export const buildCartesianEchartsOptionFromData = (
                       xFieldId: validCartesianConfig.layout.xField,
                       flipAxes: !!flipAxes,
                       itemsMap,
+                      timezone: resolvedTimezone,
                       now,
                   })
                 : { series: orderedSeries, rows: dataToRender, tooltip };

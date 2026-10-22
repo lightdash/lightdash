@@ -1,15 +1,19 @@
 import {
     CartesianSeriesType,
+    isCalendarValueItem,
     isDimension,
     TimeFrames,
+    type Dimension,
     type EChartsImagePattern,
     type EChartsSeries,
     type ItemsMap,
 } from '@lightdash/common';
 import dayjs, { type ManipulateType } from 'dayjs';
-import utc from 'dayjs/plugin/utc';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
 
-dayjs.extend(utc);
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
 
 const PERIOD_LENGTH: Partial<
     Record<TimeFrames, { amount: number; unit: ManipulateType }>
@@ -44,37 +48,55 @@ export const isIncompletePeriodEligible = (
     !!field.timeInterval &&
     PERIOD_LENGTH[field.timeInterval] !== undefined;
 
-/** The row indexes whose time period has started but not ended at `now`. */
+const CALENDAR_DATE_FORMAT = 'YYYY-MM-DD';
+
+const isTemporalRawValue = (value: unknown): value is Date | string | number =>
+    value instanceof Date ||
+    typeof value === 'string' ||
+    typeof value === 'number';
+
+/**
+ * The rows whose period contains `now`: the rows an "in the current <grain>"
+ * filter on the x field keeps. Each x value is the warehouse's own period
+ * start (so week starts already follow the project's start of week); only
+ * "now" needs placing. Day-or-coarser grains are calendar dates, and the
+ * filter compiler reads today in the query timezone when timezone support is
+ * on (the results' resolved timezone) and in UTC otherwise. Sub-day grains
+ * are instants, compared directly.
+ */
 export const getIncompletePeriodRowIndexes = ({
     rows,
     xKey,
-    timeInterval,
+    field,
+    timezone,
     now,
 }: {
     rows: Record<string, unknown>[];
     xKey: string;
-    timeInterval: TimeFrames | undefined;
+    field: Dimension;
+    timezone: string | undefined;
     now: Date;
 }): Set<number> => {
-    const period = timeInterval ? PERIOD_LENGTH[timeInterval] : undefined;
+    const period = field.timeInterval
+        ? PERIOD_LENGTH[field.timeInterval]
+        : undefined;
     const indexes = new Set<number>();
     if (!period) return indexes;
-    const nowMs = now.getTime();
+    const isCalendar = isCalendarValueItem(field);
+    const today = dayjs(now)
+        .tz(timezone ?? 'UTC')
+        .format(CALENDAR_DATE_FORMAT);
     rows.forEach((row, index) => {
         const value = row[xKey];
-        if (
-            !(value instanceof Date) &&
-            typeof value !== 'string' &&
-            typeof value !== 'number'
-        ) {
-            return;
-        }
+        if (!isTemporalRawValue(value)) return;
         const start = dayjs.utc(value);
         if (!start.isValid()) return;
         const end = start.add(period.amount, period.unit);
-        if (start.valueOf() <= nowMs && nowMs < end.valueOf()) {
-            indexes.add(index);
-        }
+        const isCurrent = isCalendar
+            ? start.format(CALENDAR_DATE_FORMAT) <= today &&
+              today < end.format(CALENDAR_DATE_FORMAT)
+            : start.valueOf() <= now.getTime() && now.getTime() < end.valueOf();
+        if (isCurrent) indexes.add(index);
     });
     return indexes;
 };
@@ -170,6 +192,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     xFieldId,
     flipAxes,
     itemsMap,
+    timezone,
     now,
 }: {
     series: EChartsSeries[];
@@ -178,6 +201,8 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     xFieldId: string | undefined;
     flipAxes: boolean;
     itemsMap: ItemsMap;
+    /** The results' resolved timezone: set only when timezone support is on */
+    timezone: string | undefined;
     now: Date;
 }): {
     series: EChartsSeries[];
@@ -194,7 +219,8 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     const incompleteIndexes = getIncompletePeriodRowIndexes({
         rows,
         xKey,
-        timeInterval: xField.timeInterval,
+        field: xField,
+        timezone,
         now,
     });
     if (incompleteIndexes.size === 0) return { series, rows, tooltip };

@@ -61,6 +61,7 @@ const apply = (series: EChartsSeries[]) =>
         xFieldId: 'orders_created_week',
         flipAxes: false,
         itemsMap,
+        timezone: undefined,
         now,
     });
 
@@ -70,10 +71,26 @@ describe('getIncompletePeriodRowIndexes', () => {
             getIncompletePeriodRowIndexes({
                 rows,
                 xKey: 'orders_created_week',
-                timeInterval: TimeFrames.WEEK,
+                field: weekDimension,
+                timezone: undefined,
                 now,
             }),
         ).toEqual(new Set([2]));
+    });
+
+    test('reads today in the results timezone for calendar grains', () => {
+        // Monday 03:00 UTC is still Sunday in Los Angeles: last week is current there
+        const mondayMorningUtc = new Date('2026-10-19T03:00:00Z');
+        const indexes = (timezone: string | undefined) =>
+            getIncompletePeriodRowIndexes({
+                rows,
+                xKey: 'orders_created_week',
+                field: weekDimension,
+                timezone,
+                now: mondayMorningUtc,
+            });
+        expect(indexes(undefined)).toEqual(new Set([2]));
+        expect(indexes('America/Los_Angeles')).toEqual(new Set([1]));
     });
 
     test('ignores intervals that are not truncated periods', () => {
@@ -81,7 +98,8 @@ describe('getIncompletePeriodRowIndexes', () => {
             getIncompletePeriodRowIndexes({
                 rows,
                 xKey: 'orders_created_week',
-                timeInterval: TimeFrames.RAW,
+                field: { ...weekDimension, timeInterval: TimeFrames.RAW },
+                timezone: undefined,
                 now,
             }).size,
         ).toBe(0);
@@ -148,6 +166,7 @@ describe('applyIncompletePeriodStyle', () => {
             xFieldId: 'orders_created_week',
             flipAxes: false,
             itemsMap,
+            timezone: undefined,
             now,
         });
         expect(
