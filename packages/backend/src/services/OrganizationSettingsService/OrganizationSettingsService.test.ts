@@ -40,7 +40,10 @@ const buildService = (proLimitsEnabled: boolean) => {
 
     const organizationSettingsModel = {
         get: vi.fn(async () => rawSettings),
-        update: vi.fn(async () => rawSettings),
+        update: vi.fn(async () => ({
+            previous: rawSettings,
+            current: rawSettings,
+        })),
     } as unknown as OrganizationSettingsModel;
 
     const service = new OrganizationSettingsService({
@@ -178,8 +181,9 @@ describe('OrganizationSettingsService — automatic data app thumbnails', () => 
                 _orgUuid: string,
                 patch: UpdateOrganizationSettings,
             ) => {
+                const previous = stored;
                 stored = { ...stored, ...patch };
-                return stored;
+                return { previous, current: stored };
             },
         } as unknown as OrganizationSettingsModel;
         return new OrganizationSettingsService({
@@ -241,8 +245,9 @@ describe('OrganizationSettingsService — data app captures', () => {
                 _orgUuid: string,
                 patch: UpdateOrganizationSettings,
             ) => {
+                const previous = stored;
                 stored = { ...stored, ...patch };
-                return stored;
+                return { previous, current: stored };
             },
         } as unknown as OrganizationSettingsModel;
         return new OrganizationSettingsService({

@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     assertRegisteredAccount,
     ForbiddenError,
+    type OrganizationSettings,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
@@ -159,6 +160,81 @@ test('organization admins can disable and restore MCP without affecting other or
     ).resolves.toMatchObject({ mcpEnabled: true });
     expect((await model.get(first.organization_uuid)).mcpEnabled).toBe(true);
 });
+
+test.each([false, true])(
+    'audits the committed MCP transition after a concurrent save when a settings row exists: %s',
+    async (settingsRowExists) => {
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => undefined);
+        const { database } = migrated;
+        const [organization] = await database('organizations')
+            .insert({ organization_name: 'MCP concurrent settings test' })
+            .returning('organization_uuid');
+        const organizationUuid = organization.organization_uuid;
+        const model = new OrganizationSettingsModel({ database });
+        const service = new OrganizationSettingsService({
+            organizationSettingsModel: model,
+            lightdashConfig: lightdashConfigMock,
+            featureFlagModel: new FeatureFlagModel({
+                database,
+                lightdashConfig: lightdashConfigMock,
+            }),
+        });
+        if (settingsRowExists) {
+            await model.update(organizationUuid, { mcpEnabled: true });
+        }
+        const holder = await database.transaction();
+        let saving: Promise<OrganizationSettings> | undefined;
+        try {
+            const backend = await holder.raw<{ rows: { pid: number }[] }>(
+                'select pg_backend_pid() as pid',
+            );
+            const holderPid = backend.rows[0].pid;
+            if (settingsRowExists) {
+                await holder('organization_settings')
+                    .where('organization_uuid', organizationUuid)
+                    .update({ mcp_enabled: false });
+            } else {
+                await holder('organization_settings').insert({
+                    organization_uuid: organizationUuid,
+                    mcp_enabled: false,
+                });
+            }
+            saving = service.updateOrganizationSettings(
+                accountFor(organizationUuid, true),
+                { mcpEnabled: true },
+            );
+            await vi.waitFor(
+                async () => {
+                    const blockers = await database.raw<{
+                        rows: { pid: number }[];
+                    }>(
+                        'select pid from pg_stat_activity where ? = ANY(pg_blocking_pids(pid)) and datname = current_database()',
+                        [holderPid],
+                    );
+                    expect(blockers.rows).toHaveLength(1);
+                },
+                { timeout: 5000 },
+            );
+            await holder.commit();
+            await expect(saving).resolves.toMatchObject({ mcpEnabled: true });
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resource: {
+                        type: 'OrganizationSettings',
+                        organizationUuid,
+                        metadata: { mcpEnabled: { from: false, to: true } },
+                    },
+                }),
+            );
+            expect((await model.get(organizationUuid)).mcpEnabled).toBe(true);
+        } finally {
+            if (!holder.isCompleted()) await holder.rollback();
+            await saving;
+        }
+    },
+);
 
 test('MCP preference writes honor persisted organization consent and reject mixed patches atomically', async () => {
     const { database } = migrated;

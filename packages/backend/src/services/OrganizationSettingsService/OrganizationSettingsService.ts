@@ -196,15 +196,9 @@ export class OrganizationSettingsService extends BaseService {
         const organizationUuid = this.assertCanManageOrganization(account);
         await this.assertCanManageLimits(account, data);
         this.assertValidPatch(data);
-        const previous =
-            data.mcpEnabled !== undefined
-                ? await this.organizationSettingsModel.get(organizationUuid)
-                : undefined;
-        const raw = await this.organizationSettingsModel.update(
-            organizationUuid,
-            data,
-        );
-        if (previous) {
+        const { previous, current: raw } =
+            await this.organizationSettingsModel.update(organizationUuid, data);
+        if (data.mcpEnabled !== undefined) {
             try {
                 logAuditEvent(
                     createAuditLogEvent(

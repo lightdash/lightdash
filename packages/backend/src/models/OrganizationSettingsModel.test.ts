@@ -8,8 +8,8 @@ type Captured = {
 
 /**
  * Builds an OrganizationSettingsModel backed by a chainable Knex mock. `row`
- * is what `.first()` resolves to (the row `get` reads — also what `update`
- * re-reads at the end), and `captured` records the args passed to `.insert()`
+ * is what `.first()` and `.returning()` resolve to, and `captured` records
+ * the args passed to `.insert()`
  * / `.merge()` so we can assert exactly which columns a write touched.
  */
 const createModel = (row: Record<string, unknown> | undefined) => {
@@ -17,17 +17,28 @@ const createModel = (row: Record<string, unknown> | undefined) => {
     const builder: Record<string, import('vitest').Mock> = {};
     Object.assign(builder, {
         where: vi.fn(() => builder),
+        forUpdate: vi.fn(() => builder),
         first: vi.fn(async () => row),
         insert: vi.fn((arg: Record<string, unknown>) => {
             captured.insert = arg;
             return builder;
         }),
         onConflict: vi.fn(() => builder),
-        merge: vi.fn(async (arg: Record<string, unknown>) => {
+        ignore: vi.fn(async () => undefined),
+        merge: vi.fn((arg: Record<string, unknown>) => {
             captured.merge = arg;
+            return builder;
         }),
+        returning: vi.fn(async () => [row]),
     });
-    const database = vi.fn(() => builder) as unknown as Knex;
+    const database = Object.assign(
+        vi.fn(() => builder),
+        {
+            transaction: vi.fn(async (run: (trx: Knex) => Promise<unknown>) =>
+                run(database),
+            ),
+        },
+    ) as unknown as Knex;
     return {
         model: new OrganizationSettingsModel({ database }),
         captured,
@@ -241,8 +252,8 @@ describe('OrganizationSettingsModel', () => {
             );
             expect(captured.merge?.updated_at).toBeInstanceOf(Date);
 
-            // returns the re-read settings
-            expect(result).toEqual({
+            // returns the transaction's current settings
+            expect(result.current).toEqual({
                 mcpEnabled: null,
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
