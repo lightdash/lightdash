@@ -593,15 +593,18 @@ describe('getSystemPromptV2 knowledge documents', () => {
         content: 'Net revenue excludes refunds.',
     } satisfies AiAgentDocumentContext;
 
-    test('recognizes preloaded documents', () => {
-        const content = promptText({
+    test('renders reading guidance only beside documents', () => {
+        const withDocuments = promptText({
             availableExplores: [],
             knowledgeDocuments: [document],
         });
-        expect(content).toContain(
-            'whose complete content has not already been preloaded for this request',
+        const withoutDocuments = promptText({ availableExplores: [] });
+
+        expect(withDocuments).toContain('loaded in full for this request');
+        expect(withoutDocuments).not.toContain('full_content_included');
+        expect(withoutDocuments).toContain(
+            'No knowledge documents have been curated for this agent.',
         );
-        expect(content).not.toContain('{{unloaded_knowledge_documents}}');
     });
 
     test('includes full content for documents configured to always load', () => {
@@ -629,7 +632,7 @@ describe('getSystemPromptV2 knowledge documents', () => {
                 ],
             });
             const knowledgeSection = content.slice(
-                content.indexOf('## Available knowledge documents'),
+                content.indexOf('<knowledge_document '),
             );
 
             expect(knowledgeSection).toContain('full_content_included="false"');

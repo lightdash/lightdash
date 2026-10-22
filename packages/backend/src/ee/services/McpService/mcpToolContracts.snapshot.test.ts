@@ -646,7 +646,7 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.GREP_FIELDS,
                     details: [
-                        '1–5 patterns in a SINGLE call',
+                        'cover every angle of the question in one call',
                         'long natural-language phrases',
                         'right grain',
                     ],
@@ -656,7 +656,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'required filters',
                         'filter type, case-sensitivity',
-                        'Batch every explore and field you need into a SINGLE call',
+                        'Batch every explore and field you need into one call',
                     ],
                 },
                 {
@@ -704,8 +704,11 @@ describe('MCP tool contracts', () => {
                     (registered) => registered.name === name,
                 );
                 expect(tool).toBeDefined();
+                const text = `${tool?.config.description}\n${JSON.stringify(
+                    schemaToJson(tool?.config.inputSchema, 'input'),
+                )}`;
                 for (const detail of details) {
-                    expect(tool?.config.description).toContain(detail);
+                    expect(text).toContain(detail);
                 }
             }
         },

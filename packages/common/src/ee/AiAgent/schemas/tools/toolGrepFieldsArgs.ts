@@ -10,12 +10,6 @@ import {
     findExploresRequiredFilterSchema,
 } from './toolFindExploresArgs';
 
-// Only the agent receives pre-grepped candidates in the user message.
-const preGreppedCandidatesGuidanceByRuntime = {
-    agent: '\n- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it first: when its fields cover the question, use them directly instead of calling grepFields. Call grepFields when those candidates miss the question or you need a different angle.',
-    mcp: '',
-} satisfies Record<ToolDescriptionContext['runtime'], string>;
-
 export const GREP_FIELDS_DESCRIPTION = ({
     runtime,
 }: ToolDescriptionContext): string => {
@@ -25,20 +19,15 @@ export const GREP_FIELDS_DESCRIPTION = ({
     return `Tool: ${grepFields}
 
 Purpose:
-Find which explores and fields can answer a data question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). ${grepFields} tells you which fields exist; ${getMetadata} gives the detail needed to query them.
+Find which explores and fields can answer a data question by grepping the project's field catalog (names, labels, descriptions, hints and tags). ${grepFields} tells you which fields exist; ${getMetadata} gives the detail needed to query them.
 
 When to use:
-- Use this as the first step of a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use ${findContent} instead.${preGreppedCandidatesGuidanceByRuntime[runtime]}
-
-Inputs:
-- Each pattern is a case-insensitive keyword pattern, not a full regex: use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status").
-- Pass 1–5 patterns in a SINGLE call, covering every angle of the question at once (e.g. ["revenue|sales", "country|region", "segment|tier"]). They run together, so you see all results in one step instead of grepping one pattern at a time.
-- Use short, meaningful keywords; long natural-language phrases do not match.
+- Use this to discover the fields for a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use ${findContent} instead.
 
 Returns:
-Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with ${getMetadata} before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters: what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Read the parameter definitions with ${getMetadata} on its explore before querying such a field.
+- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with ${getMetadata} on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
@@ -51,7 +40,7 @@ export const grepFieldsInputSchema = z.object({
         .min(1)
         .max(5)
         .describe(
-            'Up to 5 case-insensitive keyword patterns, run together in one call. Use `|` to OR synonyms and a space or `.*` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.',
+            'Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms ("revenue|sales") and a space or `.*` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).',
         ),
     exploreName: z
         .string()

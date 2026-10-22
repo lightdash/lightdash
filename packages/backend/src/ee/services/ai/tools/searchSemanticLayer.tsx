@@ -63,15 +63,6 @@ const generateResponse = ({
         totalPageCount={pagination?.totalPageCount}
         totalResults={pagination?.totalResults}
     >
-        <note>
-            These fields are drawn from across ALL explores in the project. Use
-            this inventory to compare definitions and spot duplicate or
-            confusingly similar metrics. For a high-level overview, this first
-            page plus the totals above is usually enough — only page through the
-            rest when you genuinely need every field (e.g. a project-wide
-            duplicate/inconsistency audit). To inspect a single explore in
-            depth, use grepFields with its exploreName.
-        </note>
         {fields.map((field) => (
             <field
                 name={field.name}

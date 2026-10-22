@@ -20,21 +20,18 @@ export const GET_METADATA_DESCRIPTION = ({
     return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for explores and fields whose IDs you already know, typically from ${grepFields}. ${grepFields} tells you which fields exist; ${getMetadata} gives the detail you need to build a correct query: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
+Get the full metadata for explores and fields whose IDs you already know, typically from ${grepFields}: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
 When to use:
-Call this once you have narrowed down to the explore(s) and field(s) you intend to use, before building the query. Batch every explore and field you need into a SINGLE call instead of one request per item. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+Call this once you have narrowed down to the explores and fields you intend to use, before building the query. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
 
 Applying the result:
-- Table filters marked \`required\` apply to every query on the explore, but their operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST use a compatible filter on the same field or a derived time dimension of it, replacing the default: if \`created_at inThePast [4 weeks]\` is required and the user asks for ten months, use \`created_at inThePast [10 months]\`. A required default is not a modelling limitation or a reason to switch to saved chart results.
-- Table filters marked \`suggested\` are soft defaults: apply them unless the user asks for a different range or scope.
-- Use a metric's default time dimension unless the user asks for a different one.
-- A field with required parameters returns different results depending on the parameter values the query runs with; unset parameters resolve to their default.
+Use a metric's default time dimension unless the user asks for a different one.
 `;
 };
 

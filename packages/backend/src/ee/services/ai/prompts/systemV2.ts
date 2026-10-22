@@ -15,7 +15,6 @@ import {
     AiAgentRequestingUser,
     AiAgentThreadBindingContext,
 } from '../types/aiAgent';
-import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
@@ -33,6 +32,7 @@ import {
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
+import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
     COMPOSER_QUERY_PATH,
@@ -249,35 +249,6 @@ export const getSystemPromptV2 = (
             : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
     }
 
-    const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
-        const { summary } = doc;
-        const children = renderKnowledgeDocumentSummary(summary);
-        const fullContent = doc.content ?? '';
-        const hasFullContent =
-            doc.alwaysIncludeInContext && fullContent.length > 0;
-        if (hasFullContent) {
-            children.push(
-                xmlBuilder('full_content', null, escapeXmlText(fullContent)),
-            );
-        }
-        return xmlBuilder(
-            'knowledge_document',
-            {
-                uuid: doc.uuid,
-                name: doc.name,
-                relevance: summary.relevance,
-                full_content_included: hasFullContent,
-            },
-            ...children,
-        );
-    };
-
-    const knowledgeDocuments = args.knowledgeDocuments ?? [];
-    const knowledgeDocumentsContent =
-        knowledgeDocuments.length === 0
-            ? 'No knowledge documents have been curated for this agent.'
-            : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
-
     const deepResearchRuns = args.deepResearchRuns ?? [];
     const deepResearchContent =
         deepResearchRuns.length === 0
@@ -491,11 +462,9 @@ export const getSystemPromptV2 = (
                   )
                 : '',
         )
-        .replace(
-            '{{unloaded_knowledge_documents}}',
-            'other documents whose complete content has not already been preloaded for this request',
+        .replace('{{knowledge_documents}}', () =>
+            getKnowledgeDocumentsSection(args.knowledgeDocuments ?? []),
         )
-        .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 
     const skillsSection = getCapabilitySection('skills');

@@ -10,24 +10,15 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_ANALYZE_FIELD_IMPACT_DESCRIPTION = `Tool: analyzeFieldImpact
 
 Purpose:
-Compute the EXACT impact of changing or removing a single semantic-layer field (a metric or dimension) BEFORE the change is made. Use this whenever the user is about to remove, rename, deduplicate or otherwise alter a field and asks "what uses this?", "what will this break?", or "what's the impact?".
-
-This is a deterministic lookup over saved content — NOT a fuzzy search. Prefer it over findContent/searchSemanticLayer when you already know the exact field id and need a reliable blast radius. It returns:
+Compute the exact impact of changing or removing one semantic-layer field (a metric or dimension) before the change is made. It is a deterministic lookup over saved content, not a fuzzy search, so use it rather than findContent or searchSemanticLayer for a field's blast radius. It returns:
 - the saved charts that directly reference the field
 - the dashboards that embed those charts
 - dashboards whose filters target the field
-- other metrics built on this metric (metric-on-metric dependencies that break with no chart between them)
-- scheduled deliveries / alerts on the affected charts or dashboards
+- other metrics built on this metric
+- scheduled deliveries and alerts on the affected charts or dashboards
 - a severity: "breaking" if anything references the field, otherwise "safe"
 
-Parameters:
-- fieldId: The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human label. Use grepFields / searchSemanticLayer first if you only have a label and need the id.
-
-Output:
-- A structured impact report with counts plus the named charts, dashboards, dependent metrics and scheduled deliveries.
-
-Important:
-This tool reports field REFERENCES, not field VALUES. It cannot detect silent value-drift — a field whose id stays the same but whose underlying SQL/aggregation changes (so numbers move without breaking anything), nor whether a value-affecting change preserves the numbers it claims to (merging onto another field, splitting a metric into parts, replacing or refactoring a definition). A "safe" reference result does NOT prove a change is value-correct. When a change rests on a value claim — fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged — prove it separately before calling the change safe: by construction (the same aggregation/column/model, a uniqueness guarantee such as a row_number() = 1 dedup or a primary key, or a true partition) or by data (run the relevant fields at a total grain and across a time dimension and confirm the expected relationship). Surface any divergence instead of asserting safety.
+It reports references, not values: when a field keeps its id but its SQL or aggregation changes, numbers move without anything breaking, so "safe" does not prove a change keeps the numbers. When a change rests on a value claim (two fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged), prove it before calling the change safe, by construction (the same column and aggregation, a uniqueness guarantee such as a primary key or a row_number() = 1 dedup, a true partition) or by data (query the fields at a total grain and across a time dimension), and report any divergence.
 `;
 
 export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()
@@ -35,7 +26,7 @@ export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()
         fieldId: z
             .string()
             .describe(
-                'The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"). This is the id used in chart definitions, not the human-readable label.',
+                'The exact field id to analyze, formatted as "<table>_<fieldName>" (e.g. "orders_total_revenue"): the id used in chart definitions, not the label. When you only have the label, resolve the id first with grepFields or searchSemanticLayer.',
             ),
     })
     .build();
