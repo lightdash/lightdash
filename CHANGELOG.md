@@ -1,3 +1,17 @@
+# [3.25.0](https://github.com/lightdash/lightdash/compare/3.24.1...3.25.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **mcp:** describe build tools that may register without each other ([#31331](https://github.com/lightdash/lightdash/issues/31331)) ([aa9b462](https://github.com/lightdash/lightdash/commit/aa9b462f937324280c15fbb8cc5b85ddf2135a58))
+* **search:** reduce dashboard search load ([#31369](https://github.com/lightdash/lightdash/issues/31369)) ([6f9d611](https://github.com/lightdash/lightdash/commit/6f9d61169c91836a3f08b7f2819b32ae0de20b7e))
+
+
+### Features
+
+* **chart-studio:** gate Chart Studio on runtime, not data apps flag ([#31307](https://github.com/lightdash/lightdash/issues/31307)) ([8e773b6](https://github.com/lightdash/lightdash/commit/8e773b6a9d3f82d716a0dc7c08418463ea200e24))
+* **chart-studio:** show Chart Studio without the data apps flag ([#31308](https://github.com/lightdash/lightdash/issues/31308)) ([06f89c5](https://github.com/lightdash/lightdash/commit/06f89c54bbb2606244691e3e83fc12d383f3c974))
+
 ## [3.24.1](https://github.com/lightdash/lightdash/compare/3.24.0...3.24.1) (2026-10-22)
 
 

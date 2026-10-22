@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.24.1",
-  "previousVersion": "3.24.0",
-  "releaseDate": "2026-10-22T10:19:30.788Z",
+  "version": "3.25.0",
+  "previousVersion": "3.24.1",
+  "releaseDate": "2026-10-22T10:29:12.676Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261021150000_add_embed_space_uuids_to_ai_web_app_thread.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_web_app_thread"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
