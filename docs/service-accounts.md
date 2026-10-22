@@ -7,6 +7,8 @@ SCIM provisioning, scheduled scripts, etc.
 
 For the broader authentication picture (sessions, PATs, SCIM, embed) see
 [`authentication-and-roles.md`](./authentication-and-roles.md).
+For deployment integrations and script templates, see
+[`service-account-provisioning.md`](./service-account-provisioning.md).
 
 ## Anatomy
 
@@ -45,10 +47,8 @@ Why three rows:
   expiry, ornamental scope list) and points back at the user via
   `service_account_user_uuid`.
 
-Token format: `ldsvc_<32 hex>` (32 random bytes, hex-encoded). The cleartext
-token is returned **once** by `POST /api/v1/service-accounts` — only the hash
-is persisted. Lose it and rotation isn't exposed (see *Rotation* below) so
-recovery means delete + recreate.
+Token format: `ldsvc_<32 hex>` (16 random bytes, hex-encoded). The cleartext
+token is returned **once** on creation or rotation — only the hash is persisted.
 
 ## Permission shapes
 
@@ -72,6 +72,7 @@ catalog:
 | `system:editor` | delegates to `editor` | |
 | `system:developer` | delegates to `developer` | preview-project deploys, content-as-code, virtual views, custom SQL/fields, etc. |
 | `system:admin` | delegates to `admin` | |
+| `system:member` | no organization-wide project access | use with explicit project grants |
 
 The `system:*` aliases are the path the create UI uses today — they keep the
 SA's ability set in lockstep with the corresponding human role with no
@@ -129,9 +130,11 @@ silently break every CI workflow keyed off a role-driven token.
 {
   "description": "CI deploy bot",
   "expiresAt": "2026-12-31T00:00:00Z",
-  "scopes": ["system:developer"]      // OR "roleUuid": "<uuid>"
+  "scopes": ["system:developer"]
 }
 ```
+
+For a custom role, supply `roleUuid` instead of `scopes`.
 
 Response includes the cleartext `token` once — copy it before closing the
 modal. Subsequent reads of the SA never include the token.
@@ -169,18 +172,15 @@ the role name. Tokens are never returned here.
 
 ### Rotation
 
-There is **no** rotate endpoint exposed for the `/api/v1/service-accounts`
-route. Only SCIM tokens can rotate (via `PATCH
-/api/v1/scim/access-tokens/{uuid}/rotate`). To rotate a regular SA today:
-delete it and create a new one with the same description / scope shape, then
-update consumers. This is intentional — explicit re-create surfaces the
-permission shape to whoever's doing the rotation.
+`PATCH /api/v1/service-accounts/{uuid}/rotate` returns a replacement token and
+immediately invalidates the old one. It requires a future `expiresAt`, an account
+that already has an expiry, and at least one hour since its previous rotation.
 
 ### Expiration
 
-`expiresAt` is opt-in: pass `null` to mint a non-expiring token (allowed but
-discouraged), or any future ISO timestamp. Once past, the next auth attempt
-returns 401 — there's no "renew" surface; mint a new one.
+`expiresAt` is required in create requests: pass `null` for a non-expiring token
+or an ISO timestamp. Once past, authentication returns 401. Rotation replaces
+the token and sets its new expiry.
 
 ## Attribution
 
@@ -223,10 +223,9 @@ known endpoints; new endpoints need their own coverage.
   `OrganizationMemberProfile` + `Group`. Hitting any chart/dashboard endpoint
   returns 403 even though the token is otherwise valid (the auth middleware
   still resolves it).
-- **Custom role assigned after creation.** There's no API to *change* an
-  existing SA's `roleUuid` post-create. To repurpose an SA, delete + recreate.
-  Updating the custom *role* itself (adding/removing scopes) does flow into
-  every assigned SA's CASL on the next request — there's no caching.
+- **Custom role assigned after creation.** `PATCH /api/v1/service-accounts/{uuid}`
+  changes permissions without replacing the token. Changes to the assigned
+  custom role also flow into the SA's CASL on the next request.
 - **Custom role deletion is blocked when assigned.** The
   `organization_memberships.role_uuid` FK has `ON DELETE RESTRICT`. The API
   returns 400 with a clear error rather than orphaning rows.

@@ -55,6 +55,8 @@ export const HUMAN_ONLY_IN_MANAGED: ReadonlySet<string> = new Set<
     'ProjectRolesController.upsertProjectGroupRoleAssignment',
     'ProjectRolesController.upsertProjectUserRoleAssignment',
     'ScimOrganizationAccessTokenController.rotateOrganizationAccessToken',
+    'ServiceAccountsController.createServiceAccount',
+    'ServiceAccountsController.deleteServiceAccount',
     'ServiceAccountsController.rotateServiceAccount',
     'ServiceAccountsController.updateServiceAccount',
     'SpaceController.addSpaceGroupAccess',

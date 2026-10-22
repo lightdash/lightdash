@@ -2,6 +2,7 @@ import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
     ApiServiceAccountProjectGrantsResponse,
+    ApiSuccessEmpty,
     ApiUpdateServiceAccountRequest,
     assertRegisteredAccount,
     AuthTokenPrefix,
@@ -14,7 +15,6 @@ import {
     Body,
     Delete,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -37,19 +37,19 @@ import { BaseController } from '../../controllers/baseController';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 @Route('/api/v1/service-accounts')
-@Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('service-accounts')
+@Tags('Service Accounts')
 export class ServiceAccountsController extends BaseController {
     /**
-     * Get a list of service accounts for the organization
+     * List the organization's service accounts, excluding SCIM-only tokens.
+     * Requires organization administration permission. Tokens are never returned.
      * @summary List service accounts
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/')
     @OperationId('getServiceAccounts')
-    @Response<ServiceAccount[]>('200', 'Success')
+    @SuccessResponse('200', 'Success')
     async getServiceAccounts(@Request() req: express.Request): Promise<{
         status: 'ok';
         results: ServiceAccountWithProjectAccessCount[];
@@ -71,8 +71,8 @@ export class ServiceAccountsController extends BaseController {
     }
 
     /**
-     * List the project grants of a single service account.
-     * Powers the org SA list's expand panel.
+     * List a service account's project grants. Requires organization
+     * administration permission in the account's organization.
      * @summary List service-account project grants
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -93,19 +93,27 @@ export class ServiceAccountsController extends BaseController {
     }
 
     /**
-     * Create a new service account for the organization
+     * Create a service account using an admin session, personal access token,
+     * or service account token. Requires organization administration permission.
+     * Specify either organization scopes or an organization custom role UUID.
+     * For project access, use scopes ["system:member"] and projectAccess grants.
+     * The returned token is only available on creation; store it securely.
      * @summary Create service account
      * @param req express request
      * @param body service account details
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/')
     @OperationId('CreateServiceAccount')
-    @Response<ServiceAccount>('201', 'Created')
+    @SuccessResponse('201', 'Created')
     async createServiceAccount(
         @Request() req: express.Request,
         @Body() body: ApiCreateServiceAccountRequest,
-    ): Promise<{ status: 'ok'; results: ServiceAccount }> {
+    ): Promise<{ status: 'ok'; results: ServiceAccountWithToken }> {
         assertRegisteredAccount(req.account);
         const token = await this.getServiceAccountService().create({
             user: toSessionUser(req.account),
@@ -124,24 +132,30 @@ export class ServiceAccountsController extends BaseController {
     }
 
     /**
-     * Delete an access token by ID
+     * Revoke a service account by UUID. Requires organization administration
+     * permission in the account's organization. Its token immediately stops working.
      * @summary Delete service account
      * @param req express request
      * @param tokenUuid UUID of the access token to delete
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('/{tokenUuid}')
     @OperationId('DeleteServiceAccount')
-    @Response('204', 'No content')
+    @SuccessResponse('200', 'Success')
     async deleteServiceAccount(
         @Request() req: express.Request,
         @Path() tokenUuid: string,
-    ): Promise<{ status: 'ok'; results: undefined }> {
+    ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.getServiceAccountService().delete({
             user: toSessionUser(req.account),
             tokenUuid,
         });
+        this.setStatus(200);
         return {
             status: 'ok',
             results: undefined,
@@ -150,7 +164,10 @@ export class ServiceAccountsController extends BaseController {
 
     /**
      * Update a service account's name and permissions in place by UUID,
-     * without rotating its token.
+     * without rotating its token. Requires organization administration permission.
+     * Providing projectAccess replaces all project grants. Omit all permission
+     * fields to preserve existing permissions. Grants are limited to the caller's
+     * organization permissions.
      * @summary Update service account
      */
     @Middlewares([
@@ -182,7 +199,9 @@ export class ServiceAccountsController extends BaseController {
     }
 
     /**
-     * Rotate a service account token by UUID
+     * Rotate an expiring service account's token. Requires organization
+     * administration permission. The old token is immediately revoked and the
+     * replacement is returned once. Rotation is limited to once per hour.
      * @summary Rotate service account
      */
     @Middlewares([
