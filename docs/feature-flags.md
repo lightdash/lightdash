@@ -500,6 +500,10 @@ It is off by default on Cloud and self-hosted. It has no custom resolver handler
 and no preview default. Resolution uses the project's organization; personal
 user overrides do not apply. Standard ENV precedence and restart rules apply.
 
+Compile entry checks source membership even when the flag is off. Batched
+finalization also reads the stored snapshot. These read-only checks do not add
+publication writes or change API responses with the flag off.
+
 A refresh captures all source generations before it reads dbt inputs. A complete
 CLI deploy captures generations before source selection and preparation. A
 batched deploy stores its snapshot when the upload session starts, so another
