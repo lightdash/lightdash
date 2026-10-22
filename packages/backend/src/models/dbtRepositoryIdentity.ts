@@ -1,13 +1,28 @@
 import { DbtProjectType, type DbtProjectConfig } from '@lightdash/common';
 
 export const dbtRepositoryIdentity = (connection: DbtProjectConfig) => {
-    if (!('repository' in connection)) return null;
+    if (!connection || typeof connection !== 'object') return null;
     const provider = connection.type;
+    if (
+        provider !== DbtProjectType.GITHUB &&
+        provider !== DbtProjectType.GITLAB &&
+        provider !== DbtProjectType.BITBUCKET &&
+        provider !== DbtProjectType.AZURE_DEVOPS
+    )
+        return null;
+    if (typeof connection.repository !== 'string') return null;
     let repository = connection.repository.trim().replace(/\.git$/i, '');
     let host: string;
     let owner: string;
     let name: string;
     if (provider === DbtProjectType.AZURE_DEVOPS) {
+        if (
+            typeof connection.organization !== 'string' ||
+            typeof connection.project !== 'string' ||
+            /[/]/.test(connection.organization.trim()) ||
+            /[/]/.test(connection.project.trim())
+        )
+            return null;
         host = 'dev.azure.com';
         owner = `${connection.organization.trim()}/${connection.project.trim()}`;
         name = repository;
@@ -17,6 +32,11 @@ export const dbtRepositoryIdentity = (connection: DbtProjectConfig) => {
             [DbtProjectType.GITLAB]: 'gitlab.com',
             [DbtProjectType.BITBUCKET]: 'bitbucket.org',
         };
+        if (
+            connection.host_domain != null &&
+            typeof connection.host_domain !== 'string'
+        )
+            return null;
         host = connection.host_domain?.trim() || defaults[provider];
         if (/^https?:\/\//i.test(repository)) {
             try {
@@ -58,6 +78,9 @@ export const dbtRepositoryIdentity = (connection: DbtProjectConfig) => {
         host,
         owner: normalize(owner),
         name: normalize(name),
-        defaultBranch: connection.branch,
+        defaultBranch:
+            typeof connection.branch === 'string' && connection.branch.length
+                ? connection.branch
+                : null,
     };
 };

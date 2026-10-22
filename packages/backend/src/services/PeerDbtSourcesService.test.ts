@@ -14,7 +14,12 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
+import {
+    getPeerDbtSourcesEnabled,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
 import { PeerDbtSourcesService } from './PeerDbtSourcesService';
+import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 
 const organizationUuid = 'organization_a';
 const projectUuid = 'project_a';
@@ -75,6 +80,7 @@ const settings: PeerDbtSourceSettings = {
     dbtRepositoryUuid: repositoryUuid,
     dbtProjectName: 'project_a',
     dbtProjectNameConflict: null,
+    dbtProjectNameState: 'known',
     warehouseConnectionUuid: null,
     membershipRole: 'publish',
     refreshPolicy: 'git_refresh',
@@ -107,7 +113,9 @@ const fixture = () => {
         })),
     };
     const projectDbtSourcesService = {
-        getProjectDbtSources: vi.fn(async () => [source]),
+        getProjectDbtSources: vi.fn(
+            async (_account: Account, _projectUuid: string) => [source],
+        ),
     };
     const featureFlagModel = {
         get: vi.fn(async () => ({ enabled: true })),
@@ -172,6 +180,83 @@ const expectNoPeerAccess = ({ peers, projectDbtSourcesService }: Fixture) => {
 };
 
 describe('PeerDbtSourcesService', () => {
+    test.each(actions)(
+        'runs $name inside one frozen enabled operation',
+        async ({ invoke }) => {
+            const f = fixture();
+            f.featureFlagModel.get
+                .mockResolvedValueOnce({ enabled: true })
+                .mockResolvedValue({ enabled: false });
+            const check = () => expect(getPeerDbtSourcesEnabled()).toBe(true);
+            f.peers.getSettings.mockImplementationOnce(async () => {
+                check();
+                return new Map([[sourceUuid, settings]]);
+            });
+            f.peers.updatePeer.mockImplementationOnce(async () => {
+                check();
+            });
+            f.peers.setShared.mockImplementationOnce(async () => {
+                check();
+            });
+            f.peers.listShared.mockImplementationOnce(async () => {
+                check();
+                return [settings.repository!];
+            });
+            f.peers.addShared.mockImplementationOnce(async () => {
+                check();
+                return sourceUuid;
+            });
+            await invoke(f.service, admin);
+            expect(f.featureFlagModel.get).toHaveBeenCalledOnce();
+            expect(getPeerDbtSourcesEnabled()).toBe(false);
+        },
+    );
+
+    test.each([true, false])(
+        'reuses a parent snapshot of %s',
+        async (enabled) => {
+            const f = fixture();
+            await withPeerDbtSourcesOperation(enabled, async () => {
+                if (enabled) await f.service.listShared(admin, projectUuid);
+                else
+                    await expect(
+                        f.service.listShared(admin, projectUuid),
+                    ).rejects.toThrow(ForbiddenError);
+            });
+            expect(f.featureFlagModel.get).not.toHaveBeenCalled();
+        },
+    );
+
+    test('resolves once across peer and additional-source services', async () => {
+        const f = fixture();
+        const nestedService = new ProjectDbtSourcesService({
+            projectModel: {
+                ...f.projectModel,
+                get: async () => ({
+                    dbtConnection: { type: DbtProjectType.NONE },
+                }),
+            } as never,
+            projectDbtSourcesModel: {
+                getSourcesForApi: async () => {
+                    expect(getPeerDbtSourcesEnabled()).toBe(true);
+                    return [];
+                },
+            } as never,
+            featureFlagModel: f.featureFlagModel as never,
+            featureFlagService: {} as never,
+            dbtSourceRefCatalogModel: {} as never,
+            githubAppInstallationsModel: {} as never,
+            lightdashConfig: {} as never,
+            analytics: {} as never,
+        });
+        f.projectDbtSourcesService.getProjectDbtSources.mockImplementation(
+            (account, uuid) =>
+                nestedService.getProjectDbtSources(account, uuid),
+        );
+        await f.service.listPeers(admin, projectUuid);
+        expect(f.featureFlagModel.get).toHaveBeenCalledOnce();
+    });
+
     test.each(actions)(
         'rejects $name while the flag is disabled before accessing sources',
         async ({ invoke }) => {

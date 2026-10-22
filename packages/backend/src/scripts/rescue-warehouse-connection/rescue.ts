@@ -70,10 +70,9 @@ export const rescueWarehouseConnection = async (
                 bound('cached_explore').where('project_uuid', args.projectUuid),
             ),
             dbtSources: await count(
-                bound('project_dbt_sources').where(
-                    'project_uuid',
-                    args.projectUuid,
-                ),
+                bound('project_dbt_sources')
+                    .where('role', 'extra')
+                    .where('project_uuid', args.projectUuid),
             ),
             sqlChartVersions: await count(bound('saved_sql_versions')),
             userCredentialPreferences: await count(
@@ -94,6 +93,7 @@ export const rescueWarehouseConnection = async (
             warehouse_connection_uuid: null,
         });
         await bound('project_dbt_sources')
+            .where('role', 'extra')
             .where('project_uuid', args.projectUuid)
             .update({ warehouse_connection_uuid: null });
         await bound('cached_explore')

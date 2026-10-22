@@ -551,6 +551,7 @@ export class ServiceRepository
             'deployService',
             () =>
                 new DeployService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     deploySessionModel: this.models.getDeploySessionModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
@@ -2382,6 +2383,7 @@ export class ServiceRepository
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
                     featureFlagService: this.getFeatureFlagService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

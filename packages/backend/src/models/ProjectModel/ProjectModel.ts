@@ -3797,6 +3797,7 @@ export class ProjectModel {
                 .where('project_uuid', projectUuid)
                 .first(),
             database(ProjectDbtSourcesTableName)
+                .where('role', 'extra')
                 .select('project_dbt_source_uuid')
                 .where('project_uuid', projectUuid),
             database(DbtSourceRefCatalogsTableName)
@@ -4239,6 +4240,7 @@ export class ProjectModel {
                 .select('dbt_source_name', 'dbt_source_uuid')
                 .where('project_uuid', projectUuid);
             const extraSources = await trx(ProjectDbtSourcesTableName)
+                .where('role', 'extra')
                 .select('name', 'project_dbt_source_uuid')
                 .where('project_uuid', projectUuid)
                 .orderBy('precedence', 'asc')
@@ -5911,6 +5913,7 @@ export class ProjectModel {
             return null;
         }
         const source = await this.database('project_dbt_sources')
+            .where('role', 'extra')
             .select<{ warehouse_connection_uuid: string | null }>(
                 'warehouse_connection_uuid',
             )

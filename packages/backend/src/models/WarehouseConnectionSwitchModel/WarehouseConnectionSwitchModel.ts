@@ -192,10 +192,9 @@ export class WarehouseConnectionSwitchModel {
                 ),
             ),
             this.count(
-                this.database('project_dbt_sources').where(
-                    'project_uuid',
-                    project.projectUuid,
-                ),
+                this.database('project_dbt_sources')
+                    .where('role', 'extra')
+                    .where('project_uuid', project.projectUuid),
             ),
             this.count(
                 this.database('scheduler').where((builder) => {

@@ -1670,6 +1670,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
+                    featureFlagModel: models.getFeatureFlagModel(),
                     deploySessionModel: models.getDeploySessionModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),

@@ -218,6 +218,10 @@ import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
+    getPeerDbtSourcesEnabled,
+    withPeerDbtSourcesOperation,
+} from '../../utils/peerDbtSourcesOperation';
+import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
@@ -10581,6 +10585,7 @@ describe('ProjectService', () => {
                     }),
                 };
                 const deploy = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -10931,6 +10936,7 @@ describe('ProjectService', () => {
                     }),
                 };
                 const deploy = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -11068,6 +11074,7 @@ describe('ProjectService', () => {
                 };
                 const addBatch = vi.fn();
                 const deployService = new DeployService({
+                    featureFlagModel: service.featureFlagModel,
                     projectService: service,
                     projectModel,
                     schedulerClient,
@@ -16017,6 +16024,93 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     };
 
     it.each([
+        { method: 'compileProject', enabled: true },
+        { method: 'compileProject', enabled: false },
+        { method: 'testAndCompileProject', enabled: true },
+        { method: 'testAndCompileProject', enabled: false },
+    ] as const)(
+        '$method freezes one peer flag read with enabled=$enabled',
+        async ({ method, enabled }) => {
+            const configured = buildCompilationBoundaryService();
+            let peerFlagReads = 0;
+            vi.mocked(configured.featureFlagModel.get).mockImplementation(
+                async ({ featureFlagId }) => {
+                    if (featureFlagId === FeatureFlags.PeerDbtSources) {
+                        peerFlagReads += 1;
+                        return {
+                            id: featureFlagId,
+                            enabled: peerFlagReads === 1 ? enabled : !enabled,
+                        };
+                    }
+                    return {
+                        id: featureFlagId,
+                        enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    };
+                },
+            );
+            const observed: boolean[] = [];
+            const sources = (
+                configured as unknown as {
+                    projectDbtSourcesModel: {
+                        getSources: () => Promise<ProjectDbtSource[]>;
+                    };
+                }
+            ).projectDbtSourcesModel;
+            sources.getSources = vi.fn(async () => {
+                observed.push(getPeerDbtSourcesEnabled());
+                return [buildSource('source-b')];
+            });
+            await configured[method](
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            );
+            expect(peerFlagReads).toBe(1);
+            expect(observed.length).toBeGreaterThan(0);
+            expect(observed.every((value) => value === enabled)).toBe(true);
+            expect(
+                vi
+                    .mocked(configured.featureFlagModel.get)
+                    .mock.calls.filter(
+                        ([args]) =>
+                            args.featureFlagId === FeatureFlags.PeerDbtSources,
+                    ),
+            ).toEqual([
+                [
+                    {
+                        user: {
+                            organizationUuid: projectSummary.organizationUuid,
+                        },
+                        featureFlagId: FeatureFlags.PeerDbtSources,
+                    },
+                ],
+            ]);
+            expect(getPeerDbtSourcesEnabled()).toBe(false);
+        },
+    );
+
+    it('reuses the compile operation snapshot without another peer flag read', async () => {
+        const configured = buildCompilationBoundaryService();
+        await withPeerDbtSourcesOperation(false, () =>
+            configured.compileProject(
+                compileUser,
+                'projectUuid',
+                RequestMethod.WEB_APP,
+                'compile-job-uuid',
+            ),
+        );
+        expect(
+            vi
+                .mocked(configured.featureFlagModel.get)
+                .mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId === FeatureFlags.PeerDbtSources,
+                ),
+        ).toHaveLength(0);
+    });
+
+    it.each([
         { bound: true, scheduled: true },
         { bound: true, scheduled: false },
         { bound: false, scheduled: false },
@@ -16299,6 +16393,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 });
             }
             const deploy = new DeployService({
+                featureFlagModel: configured.featureFlagModel,
                 projectModel,
                 projectService: configured,
                 schedulerClient:

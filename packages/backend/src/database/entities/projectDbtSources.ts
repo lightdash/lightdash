@@ -6,6 +6,7 @@ export const ProjectDbtSourcesTableName = 'project_dbt_sources';
 export type DbProjectDbtSource = {
     project_dbt_source_uuid: string;
     project_uuid: string;
+    role: 'main' | 'extra';
     name: string;
     is_primary: boolean;
     precedence: number;

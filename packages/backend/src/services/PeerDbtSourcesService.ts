@@ -13,6 +13,11 @@ import {
 import { type FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
+import {
+    getPeerDbtSourcesEnabled,
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../utils/peerDbtSourcesOperation';
 import { BaseService } from './BaseService';
 import { type ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 
@@ -48,30 +53,47 @@ export class PeerDbtSourcesService extends BaseService {
             )
         )
             throw new ForbiddenError();
+        return organizationUuid;
+    }
+
+    private async withPeerOperation<T>(
+        organizationUuid: string,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        const run = async () => {
+            if (!getPeerDbtSourcesEnabled())
+                throw new ForbiddenError('Peer dbt sources are not enabled');
+            return callback();
+        };
+        if (hasPeerDbtSourcesOperation()) return run();
         const { enabled } = await this.args.featureFlagModel.get({
             user: { organizationUuid },
             featureFlagId: FeatureFlags.PeerDbtSources,
         });
-        if (!enabled)
-            throw new ForbiddenError('Peer dbt sources are not enabled');
-        return organizationUuid;
+        return withPeerDbtSourcesOperation(enabled, run);
     }
 
     async listPeers(
         account: Account,
         projectUuid: string,
     ): Promise<PeerDbtSourceSummary[]> {
-        await this.checkAccess(account, projectUuid, 'view');
-        const [sources, settings] = await Promise.all([
-            this.args.projectDbtSourcesService.getProjectDbtSources(
-                account,
-                projectUuid,
-            ),
-            this.args.projectDbtSourcesModel.peers.getSettings(projectUuid),
-        ]);
-        return sources.flatMap((source) => {
-            const peer = settings.get(source.projectDbtSourceUuid);
-            return peer ? [{ ...source, peer }] : [];
+        const organizationUuid = await this.checkAccess(
+            account,
+            projectUuid,
+            'view',
+        );
+        return this.withPeerOperation(organizationUuid, async () => {
+            const [sources, settings] = await Promise.all([
+                this.args.projectDbtSourcesService.getProjectDbtSources(
+                    account,
+                    projectUuid,
+                ),
+                this.args.projectDbtSourcesModel.peers.getSettings(projectUuid),
+            ]);
+            return sources.flatMap((source) => {
+                const peer = settings.get(source.projectDbtSourceUuid);
+                return peer ? [{ ...source, peer }] : [];
+            });
         });
     }
 
@@ -81,12 +103,18 @@ export class PeerDbtSourcesService extends BaseService {
         sourceUuid: string,
         data: UpdatePeerDbtSource,
     ): Promise<void> {
-        await this.checkAccess(account, projectUuid, 'manage');
-        await this.args.projectDbtSourcesModel.peers.updatePeer(
+        const organizationUuid = await this.checkAccess(
+            account,
             projectUuid,
-            sourceUuid,
-            data,
+            'manage',
         );
+        return this.withPeerOperation(organizationUuid, async () => {
+            await this.args.projectDbtSourcesModel.peers.updatePeer(
+                projectUuid,
+                sourceUuid,
+                data,
+            );
+        });
     }
 
     async setShared(
@@ -100,12 +128,14 @@ export class PeerDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        await this.args.projectDbtSourcesModel.peers.setShared(
-            organizationUuid,
-            projectUuid,
-            repositoryUuid,
-            isShared,
-        );
+        return this.withPeerOperation(organizationUuid, async () => {
+            await this.args.projectDbtSourcesModel.peers.setShared(
+                organizationUuid,
+                projectUuid,
+                repositoryUuid,
+                isShared,
+            );
+        });
     }
 
     async listShared(
@@ -117,8 +147,8 @@ export class PeerDbtSourcesService extends BaseService {
             projectUuid,
             'view',
         );
-        return this.args.projectDbtSourcesModel.peers.listShared(
-            organizationUuid,
+        return this.withPeerOperation(organizationUuid, async () =>
+            this.args.projectDbtSourcesModel.peers.listShared(organizationUuid),
         );
     }
 
@@ -132,22 +162,24 @@ export class PeerDbtSourcesService extends BaseService {
             projectUuid,
             'manage',
         );
-        const nameError = validateProjectDbtSourceName(data.name);
-        if (nameError) throw new ParameterError(nameError);
-        if (!['publish', 'dependency_only'].includes(data.membershipRole))
-            throw new ParameterError('Invalid membership role');
-        if (!['git_refresh', 'ci_managed'].includes(data.refreshPolicy))
-            throw new ParameterError('Invalid refresh policy');
-        const primary =
-            await this.args.projectModel.getDbtSourceIdentity(projectUuid);
-        if (data.name === primary.dbtSourceName)
-            throw new ParameterError(
-                `A dbt source named "${data.name}" already exists on this project`,
+        return this.withPeerOperation(organizationUuid, async () => {
+            const nameError = validateProjectDbtSourceName(data.name);
+            if (nameError) throw new ParameterError(nameError);
+            if (!['publish', 'dependency_only'].includes(data.membershipRole))
+                throw new ParameterError('Invalid membership role');
+            if (!['git_refresh', 'ci_managed'].includes(data.refreshPolicy))
+                throw new ParameterError('Invalid refresh policy');
+            const primary =
+                await this.args.projectModel.getDbtSourceIdentity(projectUuid);
+            if (data.name === primary.dbtSourceName)
+                throw new ParameterError(
+                    `A dbt source named "${data.name}" already exists on this project`,
+                );
+            return this.args.projectDbtSourcesModel.peers.addShared(
+                organizationUuid,
+                projectUuid,
+                data,
             );
-        return this.args.projectDbtSourcesModel.peers.addShared(
-            organizationUuid,
-            projectUuid,
-            data,
-        );
+        });
     }
 }

@@ -23,6 +23,7 @@ export type PeerDbtSourceSettings = {
     membershipRole: PeerMembershipRole;
     refreshPolicy: PeerRefreshPolicy;
     dbtProjectNameConflict: string | null;
+    dbtProjectNameState: 'unknown' | 'known' | 'conflict';
     repository: DbtRepositorySummary | null;
 };
 

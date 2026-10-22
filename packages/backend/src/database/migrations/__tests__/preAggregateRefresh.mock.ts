@@ -127,6 +127,7 @@ export const refreshFixture = async (database: Knex) => {
     vi.spyOn(service, 'assertAgentConnectionEffect').mockResolvedValue(account);
     vi.spyOn(service, 'trackCliSourceDeploy').mockResolvedValue(undefined);
     const deploy = new DeployService({
+        featureFlagModel: service.featureFlagModel,
         projectModel: f.projects,
         projectService: service,
         deploySessionModel: sessions,
