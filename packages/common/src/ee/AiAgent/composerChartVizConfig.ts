@@ -555,12 +555,22 @@ export const getComposerChartStage = ({
     columns: ResultColumn[];
     chart: ComposerRunQueryChart;
     sourceName: string;
-}): { sql: string; pivotConfiguration: PivotConfiguration | null } => ({
-    sql: `SELECT ${columns
-        .map(
-            ({ reference }) =>
-                `${quoteIdentifier(reference)} AS ${quoteIdentifier(getComposerResultFieldId(reference))}`,
-        )
-        .join(', ')} FROM ${quoteIdentifier(sourceName)}`,
-    pivotConfiguration: chart.pivotConfiguration,
-});
+}): { sql: string; pivotConfiguration: PivotConfiguration | null } => {
+    // Builders treat any extra row key as data (funnel labels), so select only the chart's fields.
+    const fieldIds = new Set([
+        ...chart.metricQuery.dimensions,
+        ...chart.metricQuery.metrics,
+    ]);
+    return {
+        sql: `SELECT ${columns
+            .filter(({ reference }) =>
+                fieldIds.has(getComposerResultFieldId(reference)),
+            )
+            .map(
+                ({ reference }) =>
+                    `${quoteIdentifier(reference)} AS ${quoteIdentifier(getComposerResultFieldId(reference))}`,
+            )
+            .join(', ')} FROM ${quoteIdentifier(sourceName)}`,
+        pivotConfiguration: chart.pivotConfiguration,
+    };
+};

@@ -371,17 +371,34 @@ describe('getComposerRunQueryChart', () => {
 
 describe('getComposerChartStage', () => {
     test('renames every node column to its field id', () => {
+        const tableColumns: ResultColumn[] = [
+            { reference: 'status', type: DimensionType.STRING },
+            { reference: 'say "hi"', type: DimensionType.STRING },
+        ];
         const stage = getComposerChartStage({
-            columns: [
-                { reference: 'status', type: DimensionType.STRING },
-                { reference: 'say "hi"', type: DimensionType.STRING },
-            ],
-            chart: chart(viz({ type: 'table' })),
+            columns: tableColumns,
+            chart: getComposerRunQueryChart({
+                columns: tableColumns,
+                vizConfig: viz({ type: 'table' }),
+                metadata: { title: '', description: '' },
+                customChartTypeSeriesSlots: [],
+            }),
             sourceName: 'node',
         });
         expect(stage).toEqual({
             sql: 'SELECT "status" AS "composer_result_status", "say ""hi""" AS "composer_result_say ""hi""" FROM "node"',
             pivotConfiguration: null,
         });
+    });
+
+    test('selects only the columns the chart uses', () => {
+        const stage = getComposerChartStage({
+            columns,
+            chart: chart(viz({ type: 'funnel', x: 'status', y: ['revenue'] })),
+            sourceName: 'node',
+        });
+        expect(stage.sql).toBe(
+            'SELECT "status" AS "composer_result_status", "revenue" AS "composer_result_revenue" FROM "node"',
+        );
     });
 });
