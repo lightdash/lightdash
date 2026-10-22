@@ -193,7 +193,6 @@ const renderPrompt = (loadout: Loadout, input: LoadoutInput) =>
         availableSkills: listedSkills(loadout, input),
         enableDataAccess: loadout.base === 'composer',
         canRunQuery: loadout.toolNames.has('runQuery'),
-        canExportChart: loadout.toolNames.has('exportChartAsCode'),
     }).content;
 
 const fixture = (name: string) =>
@@ -242,7 +241,6 @@ describe('loadout contracts', () => {
                 enableDataAccess: true,
                 canRunSql: true,
                 canRunQuery: loadout.toolNames.has('runQuery'),
-                canExportChart: loadout.toolNames.has('exportChartAsCode'),
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 slackChannelId: null,

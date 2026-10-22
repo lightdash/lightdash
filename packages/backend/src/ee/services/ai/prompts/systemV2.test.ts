@@ -55,7 +55,6 @@ describe('getSystemPromptV2 filter expressions', () => {
                 availableExplores: [],
                 date: '2026-08-27',
                 canRunQuery: true,
-                canExportChart: true,
             }),
         );
 
@@ -78,7 +77,6 @@ describe('getSystemPromptV2 filter expressions', () => {
                 enableDataAccess: true,
                 canRunSql: true,
                 canRunQuery: true,
-                canExportChart: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
                 slackChannelId: null,

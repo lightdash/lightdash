@@ -2508,7 +2508,6 @@ const getCapabilitySectionArgs = (
     warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
     canRunQuery: loadout.toolNames.has('runQuery'),
-    canExportChart: loadout.toolNames.has('exportChartAsCode'),
 });
 
 export const getAgentMessages = (

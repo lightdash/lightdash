@@ -214,8 +214,6 @@ For a plain entity trend or breakdown, use the single matching count definition 
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
 
-Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
-
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
 Apply or restate a sourced business rule with its exact predicate, entity grain, exceptions, date boundaries and numeric conditions, not a broader label: a zero amount does not mean the event is absent, and excluding nonzero amounts differs from excluding positive ones. Keep a reporting-date window distinct from when a mutable attribute is evaluated. When the sources set no current-state, snapshot or timezone convention, say so if it affects the answer instead of inventing one.
@@ -420,8 +418,6 @@ For a plain entity trend or breakdown, use the single matching count definition 
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
 
-Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
-
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
 Apply or restate a sourced business rule with its exact predicate, entity grain, exceptions, date boundaries and numeric conditions, not a broader label: a zero amount does not mean the event is absent, and excluding nonzero amounts differs from excluding positive ones. Keep a reporting-date window distinct from when a mutable attribute is evaluated. When the sources set no current-state, snapshot or timezone convention, say so if it affects the answer instead of inventing one.
@@ -546,8 +542,6 @@ After an execution error, fix the cause it reports rather than resubmitting a qu
 For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
-
-Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
 
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
@@ -27859,7 +27853,7 @@ exports[`AI agent tool contracts > matches the opt-in chart-as-code export contr
   "description": "Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Call it whenever the user wants chart YAML rather than writing YAML yourself, which skips the schema validation. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
 
 Inputs:
-- Source: queryUuid, or the artifactUuid and versionUuid pair, with null for the other. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
+- Source: for a chart from an earlier message, its artifactUuid and versionUuid with null queryUuid; queryUuid only for a chart generated in this same turn, with null artifact identifiers. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
 - Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
 
 Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it names which one, so you can ask the user rather than searching content for it. Export the existing chart instead of regenerating it or rerunning its query.",

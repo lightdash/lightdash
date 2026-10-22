@@ -16,7 +16,7 @@ export const getExportChartAsCode = (
         description: `Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Call it whenever the user wants chart YAML rather than writing YAML yourself, which skips the schema validation. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
 
 Inputs:
-- Source: queryUuid, or the artifactUuid and versionUuid pair, with null for the other. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
+- Source: for a chart from an earlier message, its artifactUuid and versionUuid with null queryUuid; queryUuid only for a chart generated in this same turn, with null artifact identifiers. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
 - Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
 
 Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it names which one, so you can ask the user rather than searching content for it. Export the existing chart instead of regenerating it or rerunning its query.`,
