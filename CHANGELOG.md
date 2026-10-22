@@ -1,3 +1,12 @@
+# [3.32.0](https://github.com/lightdash/lightdash/compare/3.31.1...3.32.0) (2026-10-22)
+
+
+### Features
+
+* **ai:** composer artifact v2 rendered through runQuery chart builders ([#31417](https://github.com/lightdash/lightdash/issues/31417)) ([c24f0c3](https://github.com/lightdash/lightdash/commit/c24f0c31e9e9fe07a65577b9cf2ef643416addcb))
+* **ai:** rename composer query tool to query ([#31418](https://github.com/lightdash/lightdash/issues/31418)) ([9727e35](https://github.com/lightdash/lightdash/commit/9727e35906020b7cbe81ac2697378f047cf29978))
+* **ai:** run composer v2 chart stage on the server ([#31420](https://github.com/lightdash/lightdash/issues/31420)) ([8469cf6](https://github.com/lightdash/lightdash/commit/8469cf661876e5085209db6d178704adaaafdf2d))
+
 ## [3.31.1](https://github.com/lightdash/lightdash/compare/3.31.0...3.31.1) (2026-10-22)
 
 
