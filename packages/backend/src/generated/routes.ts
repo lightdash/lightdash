@@ -134443,7 +134443,8 @@ export function RegisterRoutes(app: Router) {
             nestedProperties: {
                 message: { dataType: 'string' },
                 sha: { dataType: 'string' },
-                content: { dataType: 'string', required: true },
+                contentBase64: { dataType: 'string' },
+                content: { dataType: 'string' },
                 path: { dataType: 'string', required: true },
             },
         },

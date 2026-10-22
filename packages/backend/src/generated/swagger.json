@@ -73739,7 +73739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.21.4",
+        "version": "3.22.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -108045,7 +108045,7 @@
                         }
                     }
                 },
-                "description": "Create or update a file. Provide sha to update existing file, omit for new file.",
+                "description": "Create or update a file. Provide sha to update existing file, omit for new file.\nSend text as content, or a binary file's bytes as contentBase64: one of the two.",
                 "summary": "Save file",
                 "tags": ["Git Files"],
                 "security": [],
@@ -108079,6 +108079,9 @@
                                     "sha": {
                                         "type": "string"
                                     },
+                                    "contentBase64": {
+                                        "type": "string"
+                                    },
                                     "content": {
                                         "type": "string"
                                     },
@@ -108086,7 +108089,7 @@
                                         "type": "string"
                                     }
                                 },
-                                "required": ["content", "path"],
+                                "required": ["path"],
                                 "type": "object"
                             }
                         }

@@ -1,3 +1,10 @@
+# [3.22.0](https://github.com/lightdash/lightdash/compare/3.21.4...3.22.0) (2026-10-22)
+
+
+### Features
+
+* **git:** take a binary file as contentBase64 when saving it to a branch ([#31377](https://github.com/lightdash/lightdash/issues/31377)) ([c83e430](https://github.com/lightdash/lightdash/commit/c83e43029aca4b9d0cc92adb78b4e6695139489b))
+
 ## [3.21.4](https://github.com/lightdash/lightdash/compare/3.21.3...3.21.4) (2026-10-22)
 
 
