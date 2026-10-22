@@ -867,8 +867,6 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
             'rapt_required',
             WarehouseSignInRejection.RAPT_REQUIRED,
         ],
-        ['invalid_rapt', undefined, WarehouseSignInRejection.INVALID_RAPT],
-        ['rapt_required', undefined, WarehouseSignInRejection.RAPT_REQUIRED],
     ])(
         'classifies the structured rejection %s / %s',
         async (error, subtype, rejection) => {
@@ -879,6 +877,35 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
             await expect(executeAsyncQuery(warehouse)).rejects.toMatchObject({
                 data: { rejection },
             });
+        },
+    );
+
+    test.each(
+        ['invalid_rapt', 'rapt_required'].flatMap((error) =>
+            ['project', 'personal', 'service-account'].flatMap((owner) =>
+                ['stream', 'async'].map((method) => ({ error, owner, method })),
+            ),
+        ),
+    )(
+        'keeps bare $error raw for $owner $method queries',
+        async ({ error, owner, method }) => {
+            const original = createGaxiosError({ error });
+            const warehouse = createWarehouseRejectingQueries(
+                owner === 'service-account'
+                    ? serviceAccountCredentials
+                    : {
+                          ...userCredentials,
+                          ...(owner === 'personal' && {
+                              userWarehouseCredentialsUuid: 'credential_a',
+                          }),
+                      },
+                original,
+            );
+            const query =
+                method === 'stream'
+                    ? warehouse.streamQuery('SELECT 1', vi.fn(), { tags: {} })
+                    : executeAsyncQuery(warehouse);
+            await expect(query).rejects.toBe(original);
         },
     );
 
@@ -895,6 +922,23 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
                 original,
             );
             await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+        },
+    );
+
+    test.each([null, 'invalid_grant', {}, { error: 400 }, []])(
+        'keeps a malformed provider body untranslated: %j',
+        async (data) => {
+            const original = Object.assign(new Error('invalid_grant'), {
+                response: { status: 400, data },
+            });
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                original,
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+            await expect(
+                warehouse.streamQuery('SELECT 1', vi.fn(), { tags: {} }),
+            ).rejects.toBe(original);
         },
     );
 

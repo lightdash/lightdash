@@ -6596,6 +6596,81 @@ describe('personal warehouse sign-in marks', () => {
         },
     );
 
+    test.each(
+        [false, true].flatMap((enabled) =>
+            [false, true].flatMap((personal) =>
+                ['invalid_rapt', 'rapt_required'].flatMap((providerError) =>
+                    ['stream', 'async'].map((method) => ({
+                        enabled,
+                        personal,
+                        providerError,
+                        method,
+                    })),
+                ),
+            ),
+        ),
+    )(
+        'keeps bare $providerError raw without attribution for enabled=$enabled personal=$personal $method',
+        async ({ enabled, personal, providerError, method }) => {
+            const f = setupPersonal();
+            vi.mocked(f.featureFlagModel.get).mockResolvedValue({
+                enabled,
+            } as never);
+            const resolved = {
+                ...personalCredentials,
+                userWarehouseCredentialsUuid: personal
+                    ? personalCredentials.userWarehouseCredentialsUuid
+                    : undefined,
+            };
+            f.credentialSource.finish.mockResolvedValue(resolved);
+            const original = Object.assign(new Error(providerError), {
+                response: { status: 400, data: { error: providerError } },
+            });
+            f.projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => {
+                    const client = new BigqueryWarehouseClient(
+                        creds as CreateBigqueryCredentials,
+                    );
+                    client.client.createQueryJob = vi
+                        .fn()
+                        .mockRejectedValue(
+                            original,
+                        ) as unknown as typeof client.client.createQueryJob;
+                    return client;
+                },
+            );
+            const lookup = vi.fn();
+            Object.assign(f.projectModel, {
+                getSharedSignInSubjectForToken: lookup,
+            });
+            await expect(
+                f.factory.withWarehouseClient(
+                    ref,
+                    context(),
+                    async ({ warehouseClient }) => {
+                        if (method === 'stream') {
+                            await warehouseClient.streamQuery(
+                                'SELECT 1',
+                                vi.fn(),
+                                { tags: {} },
+                            );
+                        } else {
+                            await warehouseClient.executeAsyncQuery({
+                                sql: 'SELECT 1',
+                                tags: {},
+                            });
+                        }
+                    },
+                ),
+            ).rejects.toBe(original);
+            expect(lookup).not.toHaveBeenCalled();
+            expect(
+                f.userWarehouseCredentialsModel.markNeedsSignIn,
+            ).not.toHaveBeenCalled();
+            expect(original).not.toHaveProperty('data');
+        },
+    );
+
     test('does not mark with the kill switch off', async () => {
         const f = setupPersonal();
         vi.mocked(f.featureFlagModel.get).mockResolvedValue({

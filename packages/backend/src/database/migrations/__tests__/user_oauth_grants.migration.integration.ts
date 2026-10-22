@@ -209,3 +209,117 @@ test('an empty callback cannot overwrite a concurrently inserted fresh token', a
         provider_email: 'email_a',
     });
 });
+
+test('updates an observed empty grant to the callback identity with main merge semantics', async () => {
+    const f = await fixture();
+    await f.model.upsertGrant({ ...f.grant, refreshToken: '' });
+    await f
+        .database(UserOAuthGrantsTableName)
+        .where({ user_uuid: f.grant.userUuid })
+        .update({ updated_at: new Date(0) });
+    const original = await f.getRow();
+
+    await f.model.upsertGrant({
+        ...f.grant,
+        subject: 'subject_b',
+        email: 'email_b',
+        scopes: ['scope_b'],
+        refreshToken: '',
+    });
+
+    const row = await f.getRow();
+    expect(row!.user_oauth_grant_uuid).toBe(original!.user_oauth_grant_uuid);
+    expect(row!.created_at).toEqual(original!.created_at);
+    expect(row!.provider_subject).toBe('subject_b');
+    expect(row!.provider_email).toBe('email_b');
+    expect(row!.scopes.sort()).toEqual(['scope_a', 'scope_b']);
+    expect(row!.updated_at.getTime()).toBeGreaterThan(
+        original!.updated_at.getTime(),
+    );
+    expect(
+        row!.encrypted_refresh_token.equals(original!.encrypted_refresh_token),
+    ).toBe(false);
+    expect(f.encryptionUtil.decrypt(row!.encrypted_refresh_token) === '').toBe(
+        true,
+    );
+    expect(
+        (await f.model.getRefreshToken(f.grant.userUuid, f.grant.provider)) ===
+            '',
+    ).toBe(true);
+});
+
+test('a fresh update wins over a paused callback that observed an empty grant', async () => {
+    const f = await fixture();
+    await f.model.upsertGrant({ ...f.grant, refreshToken: '' });
+    const decrypt = f.encryptionUtil.decrypt.bind(f.encryptionUtil);
+    let observed!: () => void;
+    const observation = new Promise<void>((resolve) => {
+        observed = resolve;
+    });
+    const encrypt = f.encryptionUtil.encrypt.bind(f.encryptionUtil);
+    const emptyEncryption = vi
+        .spyOn(f.encryptionUtil, 'encrypt')
+        .mockImplementationOnce((value) => {
+            observed();
+            return encrypt(value);
+        });
+    const transaction = await f.database.transaction();
+    const writer = new UserOAuthGrantsModel({
+        database: transaction,
+        encryptionUtil: new EncryptionUtil({
+            lightdashConfig: lightdashConfigMock,
+        }),
+        userModel: f.userModel,
+    });
+    let emptyWrite: Promise<void> | undefined;
+    try {
+        const { rows } = await transaction.raw<{ rows: { pid: number }[] }>(
+            'SELECT pg_backend_pid() AS pid',
+        );
+        await writer.upsertGrant({
+            ...f.grant,
+            subject: 'subject_fresh',
+            email: 'email_fresh',
+            scopes: ['scope_fresh'],
+            refreshToken: 'token_fresh',
+        });
+        const fresh = await transaction(UserOAuthGrantsTableName)
+            .where({ user_uuid: f.grant.userUuid })
+            .first();
+        emptyWrite = f.model.upsertGrant({
+            ...f.grant,
+            subject: 'subject_stale',
+            email: 'email_stale',
+            scopes: ['scope_stale'],
+            refreshToken: '',
+        });
+        await observation;
+        await expect
+            .poll(
+                async () => {
+                    const result = await f.database.raw<{
+                        rows: { blocked: boolean }[];
+                    }>(
+                        'SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))) AS blocked',
+                        [rows[0].pid],
+                    );
+                    return result.rows[0].blocked;
+                },
+                { timeout: 5000 },
+            )
+            .toBe(true);
+        await transaction.commit();
+        await emptyWrite;
+        expect(JSON.stringify(await f.getRow()) === JSON.stringify(fresh)).toBe(
+            true,
+        );
+        expect(
+            decrypt((await f.getRow())!.encrypted_refresh_token) ===
+                'token_fresh',
+        ).toBe(true);
+    } finally {
+        await transaction.rollback();
+        await emptyWrite;
+        emptyEncryption.mockRestore();
+    }
+});
