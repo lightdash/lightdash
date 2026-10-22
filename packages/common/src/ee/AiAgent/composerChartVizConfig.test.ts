@@ -9,15 +9,17 @@ import {
 } from '../../visualizations/types';
 import { type DataAppVizFieldType } from '../apps/types';
 import {
-    composerChartVizConfigSchema,
-    composerChartVizConfigSchemaPersisted,
     getComposerChartStage,
     getComposerRunQueryChart,
-    parseComposerStoredChartVizConfig,
     toComposerResultRows,
+} from './composerChartVizConfig';
+import {
+    composerChartVizConfigSchema,
+    composerChartVizConfigSchemaPersisted,
+    parseComposerStoredChartVizConfig,
     type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
-} from './composerChartVizConfig';
+} from './schemas/tools/composerChartVizConfigSchema';
 
 const columns: ResultColumn[] = [
     {

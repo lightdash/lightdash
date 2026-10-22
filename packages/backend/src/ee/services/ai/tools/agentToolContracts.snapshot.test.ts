@@ -55,6 +55,7 @@ import { getSearchFieldValues } from './searchFieldValues';
 import { getSearchSemanticLayer } from './searchSemanticLayer';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
+import { getVisualize } from './visualize';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -242,6 +243,13 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             updateProgress: noopAsync,
             waitForSqlApproval: noop,
             projectParameterDefinitions: {},
+        }),
+        visualize: getVisualize({
+            getPrompt: noop,
+            listThreadComposerQueryNodes: noop,
+            runComposerQueries: noop,
+            createOrUpdateArtifact: noop,
+            updateProgress: noopAsync,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

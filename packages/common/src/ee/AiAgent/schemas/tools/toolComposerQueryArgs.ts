@@ -63,9 +63,7 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.
-
-Results stay hidden until you present one; each successful result says how.`;
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
@@ -254,9 +252,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             title: z
                 .string()
                 .nullable()
-                .describe(
-                    'A short title for the result, used when it is presented.',
-                ),
+                .describe('A short title for the result.'),
             description: z
                 .string()
                 .nullable()
@@ -560,9 +556,7 @@ const composerQueryColumnSchema = z.object({
 });
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
-    terminalNodeId: nodeIdSchema.describe(
-        'Node whose rows are returned and which a presentation can show.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     rowCount: z
         .number()
         .int()
@@ -604,7 +598,7 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
 const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
-    terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     title: z.string(),
     description: z.string().nullable(),
 });

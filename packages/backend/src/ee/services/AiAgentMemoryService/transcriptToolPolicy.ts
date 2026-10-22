@@ -98,6 +98,7 @@ export const DISTILL_TOOL_POLICIES = {
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     query: { result: shape() },
     runComposerQueries: { result: shape() },
+    visualize: { result: keep },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     exportChartAsCode: { result: omitResult('derived chart configuration') },
     getDashboardCharts: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },

@@ -155,6 +155,7 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -2218,6 +2219,15 @@ export const getAgentTools = (
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
                 projectParameterDefinitions,
+            }),
+        visualize: () =>
+            getVisualize({
+                getPrompt: dependencies.getPrompt,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                updateProgress: dependencies.updateProgress,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

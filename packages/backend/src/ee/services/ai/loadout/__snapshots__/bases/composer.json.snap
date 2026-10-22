@@ -17,7 +17,8 @@
         "resolveUrl",
         "runSavedChart",
         "searchFieldValues",
-        "searchSemanticLayer"
+        "searchSemanticLayer",
+        "visualize"
     ],
     "promptSections": [
         "queryingComposer"

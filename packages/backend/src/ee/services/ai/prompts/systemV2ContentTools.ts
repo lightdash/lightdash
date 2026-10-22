@@ -1,5 +1,5 @@
 const getQueryTools = (composer: boolean, canRunQuery: boolean): string => {
-    if (composer) return 'query';
+    if (composer) return 'query and visualize';
     return canRunQuery
         ? 'runQuery and generateVisualization'
         : 'generateVisualization';

@@ -223,6 +223,7 @@ import {
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ThreadComposerQueryNode,
+    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -589,9 +590,7 @@ import {
 } from '../ai/utils/classifyWritebackError';
 import {
     buildComposerPresentations,
-    hasComposerPresentations,
-    resolveComposerPresentations,
-    type ComposerPresentationSelection,
+    resolveSlackComposerPresentations,
     type TurnToolResult,
 } from '../ai/utils/composerPresentation';
 import {
@@ -8440,24 +8439,24 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    /** One composer artifact version per presented node, in answer order. */
+    /** One composer artifact version per Slack-presented result, in answer order. */
     private async saveComposerPresentations({
         prompt,
-        presented,
+        results,
         onArtifactReady,
     }: {
         prompt: AiPrompt;
-        presented: ComposerPresentationSelection;
+        results: ToolComposerQueriesSuccessMetadata[];
         onArtifactReady: (artifact: AiArtifact) => void;
     }): Promise<void> {
-        if (!hasComposerPresentations(presented)) return;
+        if (results.length === 0) return;
         const { threadUuid, promptUuid } = prompt;
         try {
             const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
                 threadComposerQueryScope(threadUuid),
             );
             const presentations = buildComposerPresentations({
-                presented,
+                results,
                 threadNodes,
             });
             await presentations.reduce<Promise<void>>(
@@ -17383,20 +17382,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
                         const composerPresentation =
-                            update.response !== undefined
-                                ? resolveComposerPresentations(
-                                      isSlackPrompt(prompt)
-                                          ? {
-                                                channel: 'slack',
-                                                response: update.response,
-                                                promptUuid: prompt.promptUuid,
-                                                toolResults: turnToolResults,
-                                            }
-                                          : {
-                                                channel: 'web',
-                                                response: update.response,
-                                            },
-                                  )
+                            update.response !== undefined &&
+                            isSlackPrompt(prompt)
+                                ? resolveSlackComposerPresentations({
+                                      response: update.response,
+                                      promptUuid: prompt.promptUuid,
+                                      toolResults: turnToolResults,
+                                  })
                                 : null;
                         const visibleUpdate = composerPresentation
                             ? {
@@ -17423,7 +17415,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 if (!persisted || !composerPresentation) return;
                                 await this.saveComposerPresentations({
                                     prompt,
-                                    presented: composerPresentation.presented,
+                                    results: composerPresentation.results,
                                     onArtifactReady: (artifact) => {
                                         if (decisions) {
                                             stepProgressEmitter?.emit(
@@ -19209,6 +19201,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'visualize':
                     return 'Preparing the answer...';
                 case 'runSql':
                 case 'query':

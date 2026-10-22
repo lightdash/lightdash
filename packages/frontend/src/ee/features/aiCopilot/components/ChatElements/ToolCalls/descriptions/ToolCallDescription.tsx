@@ -452,6 +452,7 @@ export const ToolCallDescription: FC<{
         case 'loadMcpTools':
         case 'resolveUrl':
         case 'findCustomChartTypes':
+        case 'visualize':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

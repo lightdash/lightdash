@@ -203,6 +203,20 @@ describe('deferred prompt sections', () => {
         ).toBeUndefined();
     });
 
+    it('keeps visualize beside query in composer answer and chart toolboxes', () => {
+        const composerTools = {
+            ...tools(),
+            query: tool({ inputSchema: z.object({}) }),
+            visualize: tool({ inputSchema: z.object({}) }),
+        };
+        expect(
+            createIntentToolGate(composerTools, 'data_answer').activeTools(),
+        ).toEqual(expect.arrayContaining(['query', 'visualize']));
+        expect(
+            createIntentToolGate(composerTools, 'chart').activeTools(),
+        ).toEqual(expect.arrayContaining(['query', 'visualize']));
+    });
+
     it('keeps runContentQuery out of the data answer toolbox', () => {
         expect(
             createIntentToolGate(tools(), 'data_answer').activeTools(),

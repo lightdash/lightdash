@@ -57,6 +57,7 @@ const DUMP_TOOL_RESULT_POLICIES = {
     runSql: 'strip_rows',
     query: 'strip_rows',
     runComposerQueries: 'strip_rows',
+    visualize: 'keep',
     generateVisualization: 'strip_rows',
     getDashboardCharts: 'strip_rows',
     generateDashboard: 'strip_rows',

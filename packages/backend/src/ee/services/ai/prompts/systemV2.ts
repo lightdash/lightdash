@@ -234,6 +234,7 @@ export const getSystemPromptV2 = (
               ...COMPOSER_QUERY_PATH,
               queryLanguageSections: getQueryingComposerSection({
                   enablePythonNodes: enableComposerPythonNodes,
+                  canRunSql,
                   slackChannelId,
               }),
           }
@@ -331,8 +332,8 @@ export const getSystemPromptV2 = (
                 '- When a user asks for a "table", present the result that answers it; it is shown as a table.';
         } else {
             answerToolGuidance = tabulateRows
-                ? '- Present a small tabular answer as a Markdown table. When the user asks for an interactive or downloadable table, present the result itself.'
-                : '- When the user asks for a table, present the result itself.';
+                ? '- Write a small tabular answer as a Markdown table.'
+                : '- When the user asks for a table, visualize the result as a table.';
         }
     } else if (!allowMarkdownTables) {
         const slackTableRule =
@@ -429,7 +430,7 @@ export const getSystemPromptV2 = (
             promptSections.has('memories') ? MEMORIES_SECTION : '',
         )
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
-        // Composer results pick their chart through the present marker.
+        // Composer chart types come from the visualize tool's schema.
         .replace(
             '{{chart_types_limitation}}',
             composer
