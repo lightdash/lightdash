@@ -40,7 +40,7 @@ type ColorCallbackParams = {
 
 type TooltipParam = { dimensionNames?: string[] };
 
-/** Whether the field is a truncated date dimension (week, month...) whose latest period can be unfinished. */
+/** Checks whether the field is a truncated date dimension (for example, week or month) whose latest period can be unfinished. */
 export const isIncompletePeriodEligible = (
     field: ItemsMap[string] | undefined,
 ): boolean =>
@@ -57,13 +57,12 @@ const isTemporalRawValue = (value: unknown): value is Date | string | number =>
     typeof value === 'number';
 
 /**
- * The rows whose period contains `now`: the rows an "in the current <grain>"
- * filter on the x field keeps. Each x value is the warehouse's own period
- * start (so week starts already follow the project's start of week); only
- * "now" needs placing. Day-or-coarser grains are calendar dates, and the
- * filter compiler reads today in the query timezone when timezone support is
- * on (the results' resolved timezone) and in UTC otherwise. Sub-day grains
- * are instants, compared directly.
+ * Gets the rows whose period contains `now`: the rows that an "in the current
+ * <grain>" filter on the x field keeps. Each x value is the warehouse's period
+ * start, so week starts already follow the project's start of week. Day-or-
+ * coarser grains are calendar dates. For those, the filter compiler reads today
+ * in the results' resolved timezone when timezone support is on, and in UTC
+ * when it's off. Sub-day grains are instants, so this compares them directly.
  */
 export const getIncompletePeriodRowIndexes = ({
     rows,
@@ -102,7 +101,7 @@ export const getIncompletePeriodRowIndexes = ({
     return indexes;
 };
 
-// Fallback hex of a `var(--name, #hex)` color; the pattern image cannot read CSS variables
+// Gets the fallback hex of a `var(--name, #hex)` color, because the pattern image can't read CSS variables.
 const toPatternColor = (color: string) =>
     /^var\(.*,\s*(#[0-9a-fA-F]{3,8})\s*\)$/.exec(color)?.[1] ?? color;
 
@@ -122,7 +121,7 @@ const isLineLike = (series: EChartsSeries) =>
     series.type === CartesianSeriesType.AREA;
 
 // ECharts only reads the dataset columns a series lists in its dimensions.
-// The original column stays listed: encode.seriesName names the series by it.
+// The original column stays listed because `encode.seriesName` names the series by that column.
 const addSplitDimension = (
     series: EChartsSeries,
     from: string,
@@ -186,10 +185,10 @@ const hatchBars = (
 };
 
 /**
- * Styles the current, unfinished time period: hatched bars, and for unstacked
- * lines a dashed segment into a hollow point. A line's own last segment moves
- * to a silent overlay series that reads extra dataset columns, so the
- * original series keeps its tooltip and legend entry.
+ * Styles the unfinished current period. Bars get a hatched fill. Unstacked
+ * lines get a dashed segment into the period, with a hollow end point when the
+ * line shows its points. A silent overlay series draws that segment from extra
+ * dataset columns, so the original series keeps its tooltip and legend entry.
  */
 export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     series,
@@ -207,7 +206,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     xFieldId: string | undefined;
     flipAxes: boolean;
     itemsMap: ItemsMap;
-    /** The results' resolved timezone: set only when timezone support is on */
+    /** The results' resolved timezone, set only when timezone support is on. */
     timezone: string | undefined;
     now: Date;
 }): {
@@ -247,7 +246,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     const splitKeys = new Map<string, string>();
     const overlays: EChartsSeries[] = [];
     const styledSeries = series.map<EChartsSeries>((serie, seriesIndex) => {
-        // Previous-period comparison values are complete periods
+        // Skips previous-period comparison series, whose values cover complete periods.
         const yFieldId = serie.encode?.yRef?.field;
         if (
             yFieldId &&
@@ -266,7 +265,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
         const incompleteKey = `${valueKey}${INCOMPLETE_SUFFIX}`;
         splitKeys.set(completeKey, valueKey);
         const { markLine, ...overlayBase } = serie;
-        // Only lines that already draw their points get the hollow end point
+        // Draws the hollow end point only on lines that already show their points.
         const hasPoints =
             typeof serie.symbolSize === 'number' && serie.symbolSize > 0;
         overlays.push({
@@ -323,7 +322,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
         return { ...row, ...extra };
     });
 
-    // Tooltips read the original column, not the split one the line draws from
+    // Points tooltips at the original column, not the split column that the line draws from.
     const { formatter } = tooltip;
     const styledTooltip =
         typeof formatter === 'function'

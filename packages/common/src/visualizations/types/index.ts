@@ -376,7 +376,7 @@ export type VizTableHeaderSortConfig = {
     };
 };
 
-/** A repeating image fill, eg the hatching of an incomplete period's bar */
+/** A repeating image fill, for example the hatching on the bar for an incomplete period. */
 export type EChartsImagePattern = {
     image: string;
     imageWidth: number;

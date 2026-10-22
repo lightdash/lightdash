@@ -785,7 +785,7 @@ export type CompleteCartesianChartLayout = {
     colorByCategory?: boolean | undefined;
     /** Per-category color overrides (maps category value to hex color) */
     categoryColorOverrides?: Record<string, string> | undefined;
-    /** Style the current, unfinished time period (eg this week) as dashed lines and hatched bars */
+    /** If true, marks the unfinished current period (for example, this week) with a dashed line segment and hatched bars. */
     showIncompletePeriod?: boolean | undefined;
 };
 
