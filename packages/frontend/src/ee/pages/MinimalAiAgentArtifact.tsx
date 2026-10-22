@@ -219,11 +219,6 @@ const MinimalComposerArtifact: FC<{
               })
             : null,
     );
-    const columns = useMemo(
-        () => Object.values(nodeResults.columns ?? {}),
-        [nodeResults.columns],
-    );
-
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>(
         'loading',
     );
@@ -255,7 +250,7 @@ const MinimalComposerArtifact: FC<{
                     <AiComposerRunQueryVisualization
                         projectUuid={projectUuid}
                         nodeQueryUuid={queryUuid}
-                        columns={columns}
+                        nodeResults={nodeResults}
                         vizConfig={config.vizConfig}
                         metadata={metadata}
                         onScreenshotReady={handleReady}

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { derivePivotConfigurationFromChart } from '../../pivot/derivePivotConfigFromChart';
 import {
     DimensionType,
     FieldType,
@@ -10,8 +9,12 @@ import {
     type Metric,
 } from '../../types/field';
 import { type MetricQuery } from '../../types/metricQuery';
-import { type PivotConfiguration } from '../../types/pivot';
-import { type ResultColumn } from '../../types/results';
+import {
+    QuerySourceType,
+    type DuckdbSourceQuery,
+    type QueryNodeId,
+} from '../../types/querySources';
+import { type ResultColumn, type ResultRow } from '../../types/results';
 import {
     ChartType,
     type ChartConfig,
@@ -21,7 +24,12 @@ import {
 import { TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { getItemId } from '../../utils/item';
+import {
+    VizAggregationOptions,
+    VizIndexType,
+} from '../../visualizations/types';
 import { getDataAppVizFieldIds } from '../apps/dataAppVizFieldMapping';
+import { type DataAppVizField } from '../apps/types';
 import { getRunQueryChartConfig } from './chartConfig/web/runQueryTool/getRunQueryChartConfig';
 import {
     customChartTypeOptionValueSchema,
@@ -152,9 +160,13 @@ export type ComposerRunQueryChart = {
     chartConfig: ChartConfig;
     /** Field ids pivoted into series; empty without a series split. */
     pivotColumns: string[];
-    /** Set when pivotColumns is not empty: the pivot over the chart stage. */
-    pivotConfiguration: PivotConfiguration | null;
 };
+
+/** Slots of a custom chart type; their kinds decide what a custom chart splits and measures. */
+export type ComposerCustomChartTypeSlot = Pick<
+    DataAppVizField,
+    'name' | 'type'
+>;
 
 // Day-or-coarser truncations are calendar dates, though result columns
 // report the warehouse's timestamp type.
@@ -269,20 +281,6 @@ const toQuery = (
     };
 };
 
-const getPivotConfiguration = (
-    chartConfig: ChartConfig,
-    metricQuery: MetricQuery,
-    fields: ItemsMap,
-    pivotColumns: string[],
-): PivotConfiguration | null =>
-    pivotColumns.length > 0
-        ? (derivePivotConfigurationFromChart(
-              { chartConfig, pivotConfig: { columns: pivotColumns } },
-              metricQuery,
-              fields,
-          ) ?? null)
-        : null;
-
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
 type RunQueryBuilderVizType = CartesianVizType | 'pie' | 'funnel';
 
@@ -318,7 +316,6 @@ const getTableChart = (columns: ComposerColumns): ComposerRunQueryChart => {
         ...toQuery(columns, dimensions, metrics),
         chartConfig: { type: ChartType.TABLE },
         pivotColumns: [],
-        pivotConfiguration: null,
     };
 };
 
@@ -343,7 +340,6 @@ const getBigNumberChart = (
             },
         },
         pivotColumns: [],
-        pivotConfiguration: null,
     };
 };
 
@@ -427,19 +423,11 @@ const getRunQueryBuilderChart = (
         type === 'area' && y2
             ? withUnstackedSecondaryArea(builtChartConfig)
             : builtChartConfig;
-    const pivotColumns =
-        chartConfig.type === ChartType.CARTESIAN ? groupBy.map(fieldIdOf) : [];
     return {
         metricQuery,
         fields,
         chartConfig,
-        pivotColumns,
-        pivotConfiguration: getPivotConfiguration(
-            chartConfig,
-            metricQuery,
-            fields,
-            pivotColumns,
-        ),
+        pivotColumns: groupBy.map(fieldIdOf),
     };
 };
 
@@ -454,30 +442,45 @@ const mapFieldMapping = (
         ]),
     );
 
+/** References bound to a custom chart type's slots: series slots split, metric slots measure, the rest index. */
+const getCustomChartTypeReferences = (
+    fieldMapping: DataAppVizFieldMapping,
+    slots: ComposerCustomChartTypeSlot[],
+) => {
+    const boundTo = (type: ComposerCustomChartTypeSlot['type']) =>
+        unique(
+            slots
+                .filter((slot) => slot.type === type)
+                .flatMap((slot) =>
+                    getDataAppVizFieldIds(fieldMapping[slot.name]),
+                ),
+        );
+    const split = boundTo('series');
+    const values = boundTo('metric').filter((ref) => !split.includes(ref));
+    const index = unique(
+        Object.values(fieldMapping).flatMap(getDataAppVizFieldIds),
+    ).filter((ref) => !split.includes(ref) && !values.includes(ref));
+    return { index, split, values };
+};
+
 /** The custom chart type as a DATA_APP_VIZ chart; columns bound to its series slots pivot. */
 const getCustomChartTypeChart = (
     columns: ComposerColumns,
     vizConfig: ComposerStoredChartVizConfig,
-    seriesSlots: string[],
+    slots: ComposerCustomChartTypeSlot[],
 ): ComposerRunQueryChart => {
     const { dataAppVizUuid, fieldMapping } = vizConfig;
     if (!dataAppVizUuid || !fieldMapping) {
         throw new Error('custom needs a resolved chart type and fieldMapping');
     }
-    const mapped = unique(
-        Object.values(fieldMapping).flatMap(getDataAppVizFieldIds),
+    const { index, split, values } = getCustomChartTypeReferences(
+        fieldMapping,
+        slots,
     );
-    const split = unique(
-        seriesSlots.flatMap((slot) =>
-            getDataAppVizFieldIds(fieldMapping[slot]),
-        ),
-    );
-    const isMetric = (ref: string) =>
-        columns.isNumeric(ref) && !split.includes(ref);
     const { metricQuery, fields } = toQuery(
         columns,
-        mapped.filter((ref) => !isMetric(ref)),
-        mapped.filter(isMetric),
+        [...index, ...split],
+        values,
     );
     const config: DataAppVizChart = {
         dataAppVizUuid,
@@ -487,37 +490,28 @@ const getCustomChartTypeChart = (
         fieldMapping: mapFieldMapping(fieldMapping, getComposerResultFieldId),
         ...(vizConfig.options ? { optionValues: vizConfig.options } : {}),
     };
-    const chartConfig: ChartConfig = { type: ChartType.DATA_APP_VIZ, config };
-    const pivotColumns = split.map(getComposerResultFieldId);
     return {
         metricQuery,
         fields,
-        chartConfig,
-        pivotColumns,
-        pivotConfiguration: getPivotConfiguration(
-            chartConfig,
-            metricQuery,
-            fields,
-            pivotColumns,
-        ),
+        chartConfig: { type: ChartType.DATA_APP_VIZ, config },
+        pivotColumns: split.map(getComposerResultFieldId),
     };
 };
 
 /**
  * A node result drawn by the runQuery chart builders: a synthetic metric query
- * and fields from the result columns. seriesSlots are the custom chart type's
- * `series` slot names.
+ * and fields from the result columns of the run being drawn.
  */
 export const getComposerRunQueryChart = ({
     columns: resultColumns,
     vizConfig,
     metadata,
-    customChartTypeSeriesSlots,
+    customChartTypeSlots,
 }: {
     columns: ResultColumn[];
     vizConfig: ComposerStoredChartVizConfig;
     metadata: { title: string; description: string };
-    customChartTypeSeriesSlots: string[];
+    customChartTypeSlots: ComposerCustomChartTypeSlot[];
 }): ComposerRunQueryChart => {
     const columns = new ComposerColumns(resultColumns);
     const { type } = vizConfig;
@@ -530,7 +524,7 @@ export const getComposerRunQueryChart = ({
             return getCustomChartTypeChart(
                 columns,
                 vizConfig,
-                customChartTypeSeriesSlots,
+                customChartTypeSlots,
             );
         case 'bar':
         case 'line':
@@ -544,33 +538,124 @@ export const getComposerRunQueryChart = ({
     }
 };
 
-const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
-
-/** The chart stage: a compose-engine query renaming the node result's columns to field ids, then pivoting when the chart splits series. */
-export const getComposerChartStage = ({
-    columns,
-    chart,
-    sourceName,
-}: {
-    columns: ResultColumn[];
-    chart: ComposerRunQueryChart;
-    sourceName: string;
-}): { sql: string; pivotConfiguration: PivotConfiguration | null } => {
-    // Builders treat any extra row key as data (funnel labels), so select only the chart's fields.
-    const fieldIds = new Set([
+/** Row keys renamed to field ids, keeping only the chart's fields: builders treat any extra key as data (funnel labels). */
+export const toComposerResultRows = (
+    chart: ComposerRunQueryChart,
+    rows: ResultRow[],
+): ResultRow[] => {
+    const fieldIds = [
         ...chart.metricQuery.dimensions,
         ...chart.metricQuery.metrics,
-    ]);
+    ];
+    return rows.map((row) =>
+        Object.fromEntries(
+            fieldIds.map((fieldId) => [
+                fieldId,
+                row[chart.fields[fieldId].name],
+            ]),
+        ),
+    );
+};
+
+/** References of a series split, from the viz config alone; null without one. */
+const getSplitReferences = (
+    vizConfig: ComposerStoredChartVizConfig,
+    customChartTypeSlots: ComposerCustomChartTypeSlot[],
+): { index: string[]; split: string[]; values: string[] } | null => {
+    const { type } = vizConfig;
+    switch (type) {
+        case 'table':
+        case 'big_number':
+        case 'pie':
+        case 'funnel':
+            return null;
+        case 'bar':
+        case 'line':
+        case 'area':
+        case 'scatter': {
+            const split = unique(vizConfig.groupBy ?? []);
+            if (split.length === 0) return null;
+            const { x, y } = vizConfig;
+            if (x === null || y === null || y.length === 0) {
+                throw new Error(
+                    'A series split needs explicit x and y columns',
+                );
+            }
+            const y2 = type === 'scatter' ? null : vizConfig.y2;
+            return {
+                index: [x],
+                split,
+                values: unique([...y, ...(y2 ? [y2] : [])]),
+            };
+        }
+        case 'custom': {
+            if (!vizConfig.fieldMapping) return null;
+            const references = getCustomChartTypeReferences(
+                vizConfig.fieldMapping,
+                customChartTypeSlots,
+            );
+            if (references.split.length === 0) return null;
+            if (references.values.length === 0) {
+                throw new Error(
+                    'A series split needs a column on a metric slot',
+                );
+            }
+            return references;
+        }
+        default:
+            return assertUnreachable(type, 'Unknown composer viz type');
+    }
+};
+
+const quoteIdentifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
+
+const CHART_STAGE_SOURCE_NAME = 'node_result';
+
+/**
+ * The chart stage for a series split: a DuckDB query over the presented
+ * node's result renaming the split's columns to field ids, then pivoting.
+ * Derived from the viz config's references alone; null without a split.
+ * source is the presented node's id or result query uuid.
+ */
+export const getComposerChartStage = ({
+    vizConfig,
+    customChartTypeSlots,
+    nodeId,
+    source,
+}: {
+    vizConfig: ComposerStoredChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlot[];
+    nodeId: QueryNodeId;
+    source: string;
+}): DuckdbSourceQuery | null => {
+    const references = getSplitReferences(vizConfig, customChartTypeSlots);
+    if (!references) return null;
+    const { index, split, values } = references;
+    const fieldId = getComposerResultFieldId;
     return {
-        sql: `SELECT ${columns
-            .filter(({ reference }) =>
-                fieldIds.has(getComposerResultFieldId(reference)),
-            )
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId,
+        sql: `SELECT ${unique([...index, ...split, ...values])
             .map(
-                ({ reference }) =>
-                    `${quoteIdentifier(reference)} AS ${quoteIdentifier(getComposerResultFieldId(reference))}`,
+                (reference) =>
+                    `${quoteIdentifier(reference)} AS ${quoteIdentifier(fieldId(reference))}`,
             )
-            .join(', ')} FROM ${quoteIdentifier(sourceName)}`,
-        pivotConfiguration: chart.pivotConfiguration,
+            .join(', ')} FROM ${quoteIdentifier(CHART_STAGE_SOURCE_NAME)}`,
+        references: { [CHART_STAGE_SOURCE_NAME]: source },
+        pivotConfiguration: {
+            // The pivot reads only the references; the axis type comes from the chart.
+            indexColumn: index.map((reference) => ({
+                reference: fieldId(reference),
+                type: VizIndexType.CATEGORY,
+            })),
+            groupByColumns: split.map((reference) => ({
+                reference: fieldId(reference),
+            })),
+            valuesColumns: values.map((reference) => ({
+                reference: fieldId(reference),
+                aggregation: VizAggregationOptions.ANY,
+            })),
+            sortBy: undefined,
+        },
     };
 };

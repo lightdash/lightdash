@@ -1,11 +1,18 @@
 import { DimensionType } from '../../types/field';
+import { QuerySourceType } from '../../types/querySources';
 import { type ResultColumn } from '../../types/results';
 import { ChartType } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import {
+    VizAggregationOptions,
+    VizIndexType,
+} from '../../visualizations/types';
+import { type DataAppVizFieldType } from '../apps/types';
+import {
     composerChartVizConfigSchema,
     getComposerChartStage,
     getComposerRunQueryChart,
+    toComposerResultRows,
     type ComposerChartVizConfig,
     type ComposerStoredChartVizConfig,
 } from './composerChartVizConfig';
@@ -44,13 +51,13 @@ const viz = (
 
 const chart = (
     config: ComposerStoredChartVizConfig,
-    customChartTypeSeriesSlots: string[] = [],
+    customChartTypeSlots: { name: string; type: DataAppVizFieldType }[] = [],
 ) =>
     getComposerRunQueryChart({
         columns,
         vizConfig: config,
         metadata: { title: '', description: '' },
-        customChartTypeSeriesSlots,
+        customChartTypeSlots,
     });
 
 describe('getComposerRunQueryChart', () => {
@@ -88,11 +95,6 @@ describe('getComposerRunQueryChart', () => {
             },
         });
         expect(result.pivotColumns).toEqual(['composer_result_status']);
-        expect(result.pivotConfiguration).toMatchObject({
-            indexColumn: [{ reference: 'composer_result_orders_month' }],
-            groupByColumns: [{ reference: 'composer_result_status' }],
-            valuesColumns: [{ reference: 'composer_result_revenue' }],
-        });
     });
 
     test('stacked bar sets stack on the series', () => {
@@ -131,7 +133,7 @@ describe('getComposerRunQueryChart', () => {
     });
 
     test('line infers x and y from column types', () => {
-        const { metricQuery, chartConfig, pivotConfiguration } = chart(
+        const { metricQuery, chartConfig, pivotColumns } = chart(
             viz({ type: 'line' }),
         );
         expect(metricQuery.dimensions).toEqual([
@@ -161,7 +163,7 @@ describe('getComposerRunQueryChart', () => {
                 },
             },
         });
-        expect(pivotConfiguration).toBeNull();
+        expect(pivotColumns).toEqual([]);
     });
 
     test('area with groupBy is a stacked line with area style', () => {
@@ -261,7 +263,7 @@ describe('getComposerRunQueryChart', () => {
     });
 
     test('pie slices y[0] by x and ignores groupBy', () => {
-        const { chartConfig, metricQuery, pivotConfiguration } = chart(
+        const { chartConfig, metricQuery, pivotColumns } = chart(
             viz({
                 type: 'pie',
                 x: 'status',
@@ -277,7 +279,7 @@ describe('getComposerRunQueryChart', () => {
                 metricId: 'composer_result_revenue',
             },
         });
-        expect(pivotConfiguration).toBeNull();
+        expect(pivotColumns).toEqual([]);
     });
 
     test('funnel draws y[0] by x', () => {
@@ -324,7 +326,7 @@ describe('getComposerRunQueryChart', () => {
             'composer_result_revenue',
             'composer_result_order_count',
         ]);
-        expect(result.pivotConfiguration).toBeNull();
+        expect(result.pivotColumns).toEqual([]);
     });
 
     test('custom maps slots to field ids and pivots series slots', () => {
@@ -342,7 +344,11 @@ describe('getComposerRunQueryChart', () => {
                 dataAppVizUuid: 'viz-uuid',
                 dataAppVizVersion: 3,
             },
-            ['series'],
+            [
+                { name: 'x', type: 'dimension' },
+                { name: 'series', type: 'series' },
+                { name: 'values', type: 'metric' },
+            ],
         );
         expect(result.chartConfig).toEqual({
             type: ChartType.DATA_APP_VIZ,
@@ -357,9 +363,7 @@ describe('getComposerRunQueryChart', () => {
             },
         });
         expect(result.pivotColumns).toEqual(['composer_result_status']);
-        expect(result.pivotConfiguration).toMatchObject({
-            groupByColumns: [{ reference: 'composer_result_status' }],
-        });
+        expect(result.metricQuery.metrics).toEqual(['composer_result_revenue']);
     });
 
     test('an unknown column is rejected', () => {
@@ -370,35 +374,136 @@ describe('getComposerRunQueryChart', () => {
 });
 
 describe('getComposerChartStage', () => {
-    test('renames every node column to its field id', () => {
-        const tableColumns: ResultColumn[] = [
-            { reference: 'status', type: DimensionType.STRING },
-            { reference: 'say "hi"', type: DimensionType.STRING },
-        ];
-        const stage = getComposerChartStage({
-            columns: tableColumns,
-            chart: getComposerRunQueryChart({
-                columns: tableColumns,
-                vizConfig: viz({ type: 'table' }),
-                metadata: { title: '', description: '' },
-                customChartTypeSeriesSlots: [],
-            }),
-            sourceName: 'node',
+    const stage = (
+        config: ComposerStoredChartVizConfig,
+        customChartTypeSlots: {
+            name: string;
+            type: DataAppVizFieldType;
+        }[] = [],
+    ) =>
+        getComposerChartStage({
+            vizConfig: config,
+            customChartTypeSlots,
+            nodeId: 'chart_stage',
+            source: 'orders',
         });
-        expect(stage).toEqual({
-            sql: 'SELECT "status" AS "composer_result_status", "say ""hi""" AS "composer_result_say ""hi""" FROM "node"',
-            pivotConfiguration: null,
+
+    test('is absent without a series split', () => {
+        expect(stage(viz({ type: 'line' }))).toBeNull();
+        expect(
+            stage(viz({ type: 'funnel', x: 'status', y: ['revenue'] })),
+        ).toBeNull();
+        expect(
+            stage(
+                viz({
+                    type: 'pie',
+                    x: 'status',
+                    y: ['revenue'],
+                    groupBy: ['orders_month'],
+                }),
+            ),
+        ).toBeNull();
+    });
+
+    test('renames the charted columns to field ids and pivots the split', () => {
+        expect(
+            stage(
+                viz({
+                    type: 'bar',
+                    x: 'orders_month',
+                    y: ['revenue'],
+                    y2: 'order_count',
+                    groupBy: ['say "hi"'],
+                }),
+            ),
+        ).toEqual({
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId: 'chart_stage',
+            sql: 'SELECT "orders_month" AS "composer_result_orders_month", "say ""hi""" AS "composer_result_say ""hi""", "revenue" AS "composer_result_revenue", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            references: { node_result: 'orders' },
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'composer_result_orders_month',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'composer_result_say "hi"' }],
+                valuesColumns: [
+                    {
+                        reference: 'composer_result_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'composer_result_order_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                sortBy: undefined,
+            },
         });
     });
 
-    test('selects only the columns the chart uses', () => {
-        const stage = getComposerChartStage({
-            columns,
-            chart: chart(viz({ type: 'funnel', x: 'status', y: ['revenue'] })),
-            sourceName: 'node',
-        });
-        expect(stage.sql).toBe(
-            'SELECT "status" AS "composer_result_status", "revenue" AS "composer_result_revenue" FROM "node"',
+    test('a split without explicit x or y is rejected', () => {
+        expect(() =>
+            stage(viz({ type: 'line', y: ['revenue'], groupBy: ['status'] })),
+        ).toThrow('A series split needs explicit x and y columns');
+        expect(() =>
+            stage(viz({ type: 'bar', x: 'orders_month', groupBy: ['status'] })),
+        ).toThrow('A series split needs explicit x and y columns');
+    });
+
+    test('custom pivots series slots, metric slots are the values', () => {
+        const result = stage(
+            {
+                ...viz({
+                    type: 'custom',
+                    customChartTypeSlug: 'ribbon',
+                    fieldMapping: {
+                        x: 'orders_month',
+                        series: 'status',
+                        values: ['revenue'],
+                    },
+                }),
+                dataAppVizUuid: 'viz-uuid',
+                dataAppVizVersion: 3,
+            },
+            [
+                { name: 'x', type: 'dimension' },
+                { name: 'series', type: 'series' },
+                { name: 'values', type: 'metric' },
+            ],
         );
+        expect(result?.pivotConfiguration).toMatchObject({
+            indexColumn: [{ reference: 'composer_result_orders_month' }],
+            groupByColumns: [{ reference: 'composer_result_status' }],
+            valuesColumns: [{ reference: 'composer_result_revenue' }],
+        });
+    });
+});
+
+describe('toComposerResultRows', () => {
+    test('keys rows by field id and keeps only the charted columns', () => {
+        const result = chart(
+            viz({ type: 'funnel', x: 'status', y: ['revenue'] }),
+        );
+        const value = (raw: unknown) => ({
+            value: { raw, formatted: String(raw) },
+        });
+        expect(
+            toComposerResultRows(result, [
+                {
+                    orders_month: value('2024-01-01'),
+                    status: value('completed'),
+                    revenue: value(10),
+                    order_count: value(2),
+                },
+            ]),
+        ).toEqual([
+            {
+                composer_result_status: value('completed'),
+                composer_result_revenue: value(10),
+            },
+        ]);
     });
 });

@@ -240,7 +240,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             <AiComposerRunQueryVisualization
                 projectUuid={projectUuid}
                 nodeQueryUuid={queryUuid}
-                columns={columns}
+                nodeResults={results}
                 vizConfig={runQueryVizConfig}
                 metadata={metadata}
                 headerContent={head}

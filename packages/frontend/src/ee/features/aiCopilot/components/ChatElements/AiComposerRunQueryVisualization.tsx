@@ -3,13 +3,14 @@ import {
     getComposerChartStage,
     getComposerRunQueryChart,
     isApiError,
-    QuerySourceType,
+    toComposerResultRows,
     type ApiExecuteSourceQueriesResults,
     type ChartConfig,
+    type ComposerCustomChartTypeSlot,
     type ComposerRunQueryChart,
     type ComposerStoredChartVizConfig,
+    type DuckdbSourceQuery,
     type ExecuteSourceQueriesRequestParams,
-    type ResultColumn,
 } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
@@ -19,38 +20,29 @@ import VisualizationProvider from '../../../../../components/LightdashVisualizat
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
-import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import {
+    useInfiniteQueryResults,
+    type InfiniteQueryResults,
+} from '../../../../../hooks/useQueryResults';
 import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 
 const DATA_APP_VIZ_RENDER_TARGET = {
     isEmbedded: false,
     savedChartUuid: undefined,
 };
-const STAGE_SOURCE_NAME = 'node_result';
 
-/** Runs the chart stage over the stored node result on the compose engine. */
+/** Runs the series split's chart stage over the stored node result on the compose engine. */
 const useChartStageQueryUuid = (
     projectUuid: string,
-    nodeQueryUuid: string,
-    stage: ReturnType<typeof getComposerChartStage> | null,
+    stage: DuckdbSourceQuery | null,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<string, Error>({
-        queryKey: ['composerChartStage', projectUuid, nodeQueryUuid, stage],
+        queryKey: ['composerChartStage', projectUuid, stage],
         queryFn: async () => {
             if (!stage) throw new Error('No chart stage');
             const body = {
-                queries: [
-                    {
-                        sourceType: QuerySourceType.DUCKDB,
-                        nodeId: 'chart_stage',
-                        sql: stage.sql,
-                        references: { [STAGE_SOURCE_NAME]: nodeQueryUuid },
-                        ...(stage.pivotConfiguration
-                            ? { pivotConfiguration: stage.pivotConfiguration }
-                            : {}),
-                    },
-                ],
+                queries: [stage],
             } satisfies ExecuteSourceQueriesRequestParams;
             const { queries } =
                 await lightdashApi<ApiExecuteSourceQueriesResults>({
@@ -76,8 +68,8 @@ type Props = {
     projectUuid: string;
     /** The presented node's result in this run. */
     nodeQueryUuid: string;
-    /** Columns of that result. */
-    columns: ResultColumn[];
+    /** That result, every row fetched; its columns type the chart. */
+    nodeResults: InfiniteQueryResults;
     vizConfig: ComposerStoredChartVizConfig;
     metadata: { title: string; description: string };
     headerContent?: ReactNode;
@@ -89,13 +81,17 @@ type Props = {
 export const AiComposerRunQueryVisualization: FC<Props> = ({
     projectUuid,
     nodeQueryUuid,
-    columns,
+    nodeResults,
     vizConfig,
     metadata,
     headerContent,
     onScreenshotReady,
     onScreenshotError,
 }) => {
+    const columns = useMemo(
+        () => Object.values(nodeResults.columns ?? {}),
+        [nodeResults.columns],
+    );
     const { data: palette } = useProjectColorPalette(projectUuid);
     const colorPalette = palette?.colors ?? ECHARTS_DEFAULT_COLORS;
 
@@ -106,52 +102,49 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
         DATA_APP_VIZ_RENDER_TARGET,
         customChartType?.dataAppVizVersion ?? undefined,
     );
-    const seriesSlots = useMemo(
-        () =>
+    const slots = useMemo(
+        (): ComposerCustomChartTypeSlot[] | null =>
             renderMetadata?.state === 'ready'
                 ? renderMetadata.schema.fields
-                      .filter((field) => field.type === 'series')
-                      .map((field) => field.name)
                 : null,
         [renderMetadata],
     );
 
-    const chart = useMemo((): ComposerRunQueryChart | Error | null => {
+    const chart = useMemo(():
+        | { chart: ComposerRunQueryChart; stage: DuckdbSourceQuery | null }
+        | Error
+        | null => {
         if (columns.length === 0) return null;
-        if (customChartType && seriesSlots === null) return null;
+        if (customChartType && slots === null) return null;
         try {
-            return getComposerRunQueryChart({
-                columns,
-                vizConfig,
-                metadata,
-                customChartTypeSeriesSlots: seriesSlots ?? [],
-            });
+            return {
+                chart: getComposerRunQueryChart({
+                    columns,
+                    vizConfig,
+                    metadata,
+                    customChartTypeSlots: slots ?? [],
+                }),
+                stage: getComposerChartStage({
+                    vizConfig,
+                    customChartTypeSlots: slots ?? [],
+                    nodeId: 'chart_stage',
+                    source: nodeQueryUuid,
+                }),
+            };
         } catch (error) {
             return error instanceof Error ? error : new Error(String(error));
         }
-    }, [columns, customChartType, seriesSlots, vizConfig, metadata]);
-    const readyChart = chart instanceof Error ? null : chart;
-    const stage = useMemo(
-        () =>
-            readyChart
-                ? getComposerChartStage({
-                      columns,
-                      chart: readyChart,
-                      sourceName: STAGE_SOURCE_NAME,
-                  })
-                : null,
-        [columns, readyChart],
-    );
+    }, [columns, customChartType, slots, vizConfig, metadata, nodeQueryUuid]);
+    const readyChart = chart instanceof Error ? null : (chart?.chart ?? null);
+    const stage = chart instanceof Error ? null : (chart?.stage ?? null);
     // The provider expands pivoted series; fed back so series colors resolve.
     const [expandedChartConfig, setExpandedChartConfig] =
         useState<ChartConfig | null>(null);
 
-    const stageQuery = useChartStageQueryUuid(
-        projectUuid,
-        nodeQueryUuid,
-        stage,
-    );
-    const results = useInfiniteQueryResults(projectUuid, stageQuery.data);
+    const stageQuery = useChartStageQueryUuid(projectUuid, stage);
+    const stageResults = useInfiniteQueryResults(projectUuid, stageQuery.data);
+    // Without a split the chart reads the node result, renamed in memory.
+    const results = stage ? stageResults : nodeResults;
 
     useEffect(() => {
         if (!results.hasFetchedAllRows && !results.fetchAll) {
@@ -164,7 +157,7 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
             ? chart.message
             : renderMetadata?.state === 'unavailable'
               ? 'Custom chart type bundle is unavailable'
-              : (stageQuery.error?.message ??
+              : ((stage ? stageQuery.error?.message : undefined) ??
                 results.error?.error.message ??
                 null);
     useEffect(() => {
@@ -176,11 +169,14 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
             readyChart
                 ? {
                       ...results,
+                      rows: stage
+                          ? results.rows
+                          : toComposerResultRows(readyChart, results.rows),
                       metricQuery: readyChart.metricQuery,
                       fields: readyChart.fields,
                   }
                 : null,
-        [results, readyChart],
+        [results, readyChart, stage],
     );
 
     const body = (() => {
