@@ -1,3 +1,4 @@
+import { arrayMove } from '@dnd-kit/sortable';
 import {
     DateGranularity,
     EMPTY_DATE_ZOOM_CONFIG,
@@ -5,6 +6,7 @@ import {
     type AdditionalMetric,
     type Dashboard,
     type DashboardConfig,
+    type DashboardControlSection,
     type DateZoomConfig,
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
@@ -39,6 +41,9 @@ export type DashboardEditState = {
         DateGranularity | string | undefined
     > | null;
     hasDefaultDateZoomGranularityChanged: boolean;
+    /** Staged sections of the controls rail, in display order */
+    controlSections: DashboardControlSection[];
+    haveControlSectionsChanged: boolean;
 };
 
 export const initialDashboardEditState: DashboardEditState = {
@@ -57,6 +62,8 @@ export const initialDashboardEditState: DashboardEditState = {
     haveDateZoomGranularitiesChanged: false,
     defaultDateZoomGranularity: null,
     hasDefaultDateZoomGranularityChanged: false,
+    controlSections: [],
+    haveControlSectionsChanged: false,
 };
 
 // Sub-day granularities are offered only when an editor enables them
@@ -145,7 +152,36 @@ export const dashboardEditActions = {
     dropStaleDrafts: createAction<SavedDateZoomSettings>(
         'dashboardEdit/dropStaleDrafts',
     ),
+    /** Seeds the sections from the saved config unless they have staged edits */
+    syncControlSections: createAction<DashboardControlSection[]>(
+        'dashboardEdit/syncControlSections',
+    ),
+    setHaveControlSectionsChanged: createAction<boolean>(
+        'dashboardEdit/setHaveControlSectionsChanged',
+    ),
+    addControlSection: createAction<DashboardControlSection>(
+        'dashboardEdit/addControlSection',
+    ),
+    renameControlSection: createAction<DashboardControlSection>(
+        'dashboardEdit/renameControlSection',
+    ),
+    removeControlSection: createAction<string>(
+        'dashboardEdit/removeControlSection',
+    ),
+    /** Puts the section `id` where `overId` is */
+    moveControlSection: createAction<{ id: string; overId: string }>(
+        'dashboardEdit/moveControlSection',
+    ),
 };
+
+const withControlSections = (
+    state: DashboardEditState,
+    controlSections: DashboardControlSection[],
+): DashboardEditState => ({
+    ...state,
+    controlSections,
+    haveControlSectionsChanged: true,
+});
 
 const set = <K extends keyof DashboardEditState>(
     state: DashboardEditState,
@@ -262,6 +298,47 @@ export const dashboardEditReducer = (
                   dateZoomGranularities,
                   defaultDateZoomGranularity,
               };
+    }
+    if (dashboardEditActions.syncControlSections.match(action)) {
+        return state.haveControlSectionsChanged
+            ? state
+            : set(state, 'controlSections', action.payload);
+    }
+    if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
+        return set(state, 'haveControlSectionsChanged', action.payload);
+    }
+    if (dashboardEditActions.addControlSection.match(action)) {
+        return withControlSections(state, [
+            ...state.controlSections,
+            action.payload,
+        ]);
+    }
+    if (dashboardEditActions.renameControlSection.match(action)) {
+        const { id, name } = action.payload;
+        return withControlSections(
+            state,
+            state.controlSections.map((section) =>
+                section.id === id ? { ...section, name } : section,
+            ),
+        );
+    }
+    if (dashboardEditActions.removeControlSection.match(action)) {
+        return withControlSections(
+            state,
+            state.controlSections.filter(
+                (section) => section.id !== action.payload,
+            ),
+        );
+    }
+    if (dashboardEditActions.moveControlSection.match(action)) {
+        const { id, overId } = action.payload;
+        const from = state.controlSections.findIndex((s) => s.id === id);
+        const to = state.controlSections.findIndex((s) => s.id === overId);
+        if (from === -1 || to === -1 || from === to) return state;
+        return withControlSections(
+            state,
+            arrayMove(state.controlSections, from, to),
+        );
     }
     return state;
 };

@@ -26,6 +26,8 @@ type Props = {
     onClose: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
+    /** Null for a viewer, whose rail has no sections. */
+    onNewSection: (() => void) | null;
     footerStatus: string | null;
     children: ReactNode;
 };
@@ -35,6 +37,7 @@ export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
     onCancel,
+    onNewSection,
     footerStatus,
     children,
 }) => {
@@ -123,7 +126,20 @@ export const EditorShell: FC<Props> = ({
                         </>
                     ) : (
                         <>
-                            <AddControl placement="rail" />
+                            <Group gap="xs" wrap="nowrap">
+                                <AddControl placement="rail" />
+                                {onNewSection && (
+                                    <Button
+                                        variant="subtle"
+                                        color="gray"
+                                        size="xs"
+                                        data-controls-new-section
+                                        onClick={onNewSection}
+                                    >
+                                        New section
+                                    </Button>
+                                )}
+                            </Group>
                             <Button
                                 size="xs"
                                 className={classes.done}

@@ -17,6 +17,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
+import { selectControlSections } from '../dashboard/store';
 import { ControlSidebar } from './ControlSidebar';
 import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
@@ -180,6 +181,7 @@ const renderWithProviders = (
     const result = renderWithAppProviders(wrap(ui));
     return {
         ...result,
+        store,
         rerender: (node: ReactElement) => {
             act(() => {
                 seedDashboardEditState(
@@ -1083,6 +1085,233 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Remove filter' }),
             ).toBeInTheDocument();
+        });
+    });
+
+    describe('sections', () => {
+        const sections = [
+            { id: 'section-a', name: 'Dates' },
+            { id: 'section-b', name: 'Regions' },
+        ];
+        const sectioned = () =>
+            filters([
+                makeRule({
+                    id: 'filter-2',
+                    label: 'Region',
+                    sectionId: 'section-b',
+                }),
+                makeRule({ label: 'Order status' }),
+                makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+                makeRule({ id: 'filter-4', label: 'Lost', sectionId: 'gone' }),
+            ]);
+        const closedRail = () =>
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+        const rowNames = () =>
+            [
+                ...document.querySelectorAll(
+                    '[data-controls-row], [data-controls-section]',
+                ),
+            ].map((node) =>
+                node.hasAttribute('data-controls-row')
+                    ? node.querySelector('p')?.textContent
+                    : `# ${node.textContent}`,
+            );
+
+        beforeEach(() => {
+            mockDashboardContext.current.dashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: sections,
+                },
+            };
+            mockDashboardContext.current.setDashboardFilters = vi.fn();
+            mockDashboardContext.current.setHaveFiltersChanged = vi.fn();
+        });
+
+        it('lists unsectioned rows first, then each section with its count', () => {
+            closedRail();
+            renderWithProviders(<ControlSidebar />, sectioned());
+
+            expect(rowNames()).toEqual([
+                'Order status',
+                'Lost',
+                '# Dates1 filter',
+                'Created',
+                '# Regions1 filter',
+                'Region',
+            ]);
+        });
+
+        it('offers a zone to leave a section while a filter is in one', () => {
+            closedRail();
+            const { unmount } = renderWithProviders(
+                <ControlSidebar />,
+                filters([makeRule({ label: 'Created' })]),
+            );
+            expect(
+                screen.queryByText(/take it out of its section/),
+            ).not.toBeInTheDocument();
+            unmount();
+
+            renderWithProviders(<ControlSidebar />, sectioned());
+            const zone = screen.getByText(/take it out of its section/);
+            expect(zone).toBeInTheDocument();
+            // Under the unsectioned rows, above the first section
+            expect(
+                zone.compareDocumentPosition(screen.getByText('Lost')) &
+                    Node.DOCUMENT_POSITION_PRECEDING,
+            ).toBeTruthy();
+            expect(
+                zone.compareDocumentPosition(screen.getByText('Dates')) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+
+        it('shows a drop zone in an empty section and hides rows when collapsed', () => {
+            closedRail();
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ label: 'Created', sectionId: 'section-a' }),
+                ]),
+            );
+
+            expect(screen.getByText('Drag filters here')).toBeInTheDocument();
+            expect(screen.getByText('0 filters')).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(
+                screen.queryByRole('button', { name: /Created/ }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            );
+            expect(
+                screen.getByRole('button', { name: /Created/ }),
+            ).toBeVisible();
+        });
+
+        it('adds a section named on Enter and drops one left empty on Escape', () => {
+            closedRail();
+            const { store } = renderWithProviders(<ControlSidebar />);
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'New section' }),
+            );
+            const input = screen.getByLabelText('Section name');
+            expect(input).toHaveFocus();
+            fireEvent.change(input, { target: { value: ' Time ' } });
+            fireEvent.keyDown(input, { key: 'Enter' });
+            expect(selectControlSections(store.getState())).toEqual([
+                ...sections,
+                { id: expect.any(String), name: 'Time' },
+            ]);
+            expect(screen.getByText('Time')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Section Time actions' }),
+            ).toHaveFocus();
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'New section' }),
+            );
+            fireEvent.keyDown(screen.getByLabelText('Section name'), {
+                key: 'Escape',
+            });
+            expect(
+                screen.queryByLabelText('Section name'),
+            ).not.toBeInTheDocument();
+            expect(selectControlSections(store.getState())).toHaveLength(3);
+            expect(
+                screen.getByRole('button', { name: 'New section' }),
+            ).toHaveFocus();
+        });
+
+        it('renames a section from its menu, keeping the name when emptied', async () => {
+            closedRail();
+            const { store } = renderWithProviders(<ControlSidebar />);
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            const input = screen.getByLabelText('Section name');
+            expect(input).toHaveValue('Dates');
+            fireEvent.change(input, { target: { value: 'When' } });
+            fireEvent.blur(input);
+            expect(
+                selectControlSections(store.getState()).map((s) => s.name),
+            ).toEqual(['When', 'Regions']);
+            expect(
+                screen.getByRole('button', { name: 'Section When actions' }),
+            ).toHaveFocus();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section When actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            fireEvent.change(screen.getByLabelText('Section name'), {
+                target: { value: '' },
+            });
+            fireEvent.keyDown(screen.getByLabelText('Section name'), {
+                key: 'Enter',
+            });
+            expect(
+                selectControlSections(store.getState()).map((s) => s.name),
+            ).toEqual(['When', 'Regions']);
+        });
+
+        it('removes a section and unsections its filters', async () => {
+            closedRail();
+            const dashboardFilters = sectioned();
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                dashboardFilters,
+            );
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Regions actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Remove section' }),
+            );
+            expect(selectControlSections(store.getState())).toEqual([
+                sections[0],
+            ]);
+            const setDashboardFilters = mockDashboardContext.current
+                .setDashboardFilters as ReturnType<typeof vi.fn>;
+            const update = setDashboardFilters.mock.calls[0][0] as (
+                f: DashboardFilters,
+            ) => DashboardFilters;
+            expect(
+                update(dashboardFilters).dimensions.map((r) => r.sectionId),
+            ).toEqual([undefined, undefined, 'section-a', 'gone']);
+            expect(
+                mockDashboardContext.current.setHaveFiltersChanged,
+            ).toHaveBeenCalledWith(true);
+            expect(
+                screen.getByRole('button', { name: 'New section' }),
+            ).toHaveFocus();
+        });
+
+        it('offers no grip while a filter is expanded', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(<ControlSidebar />, sectioned());
+            expect(
+                screen.queryByRole('button', { name: 'Drag to reorder' }),
+            ).not.toBeInTheDocument();
         });
     });
 });
