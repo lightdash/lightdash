@@ -11670,7 +11670,7 @@ Response shape (MCP CallToolResult):
     warnings: string[] // e.g. a connection the brief names but does not link
   }
 
-Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those.
+Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those, if available.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11801,10 +11801,10 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
       "description": "Tool: list_data_app_themes
 
 Purpose:
-List the organization's data app themes. A theme is a bundle of styling a data app can be built with; each has a slug you pass as themeSlug to generate_data_app.
+List the organization's themes. A theme is a bundle of styling a data app or custom chart type can be built with; each has a slug you pass as themeSlug to whichever build tools are available: generate_data_app, iterate_data_app, create_custom_chart_type or iterate_custom_chart_type.
 
 Important:
-- Call it when the user names a theme, brand, or look for a data app, then match the request to a theme and pass its slug.
+- Call it when the user names a theme, brand, or look for a data app or custom chart type, then match the request to a theme and pass its slug.
 - Skip it when the user says nothing about the look: the organization default theme applies.
 - An organization may have no themes at all, in which case omit themeSlug.
 
@@ -11814,7 +11814,7 @@ Response shape (MCP CallToolResult):
 - content: [{ type: "text", text: "<the themes, one per line>" }]
 - structuredContent: {
     themes: [{
-      slug:        string,        // pass as themeSlug to generate_data_app
+      slug:        string,        // pass as themeSlug to a build tool
       name:        string,
       isDefault:   boolean,       // applied when themeSlug is omitted
       description: string | null
@@ -11872,7 +11872,7 @@ Response shape (MCP CallToolResult):
                   "type": "string",
                 },
                 "slug": {
-                  "description": "Pass as themeSlug to generate_data_app.",
+                  "description": "Pass as themeSlug to a build tool.",
                   "type": "string",
                 },
               },
@@ -12042,7 +12042,7 @@ Errors: an unknown appSlug, or an app this caller may not view, returns an error
       "description": "Tool: get_data_app_build_status
 
 Purpose:
-Check how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.
+Check how a data app or custom chart type build is going, and get its URL once it is ready. Each build produces one version.
 
 Important:
 - Poll every 15 seconds — "nextPollAfterMs" in the response carries the same number in milliseconds. A build usually takes several minutes.
@@ -12078,7 +12078,7 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
             "type": "string",
           },
           "appSlug": {
-            "description": "The data app's slug, as returned when the build started.",
+            "description": "The data app's or custom chart type's slug, as returned when the build started.",
             "minLength": 1,
             "type": "string",
           },
@@ -12180,7 +12180,7 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
       },
       "description": "Tool: create_custom_chart_type
 
-Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app.
+Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app, if available.
 
 - Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.
 - Poll get_data_app_build_status with the returned slug as appSlug until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
@@ -12280,7 +12280,7 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
       },
       "description": "Tool: iterate_custom_chart_type
 
-Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app.
+Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app, if available.
 
 - Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data. Pass themeSlug only to switch the theme.
 - Poll get_data_app_build_status with appSlug set to the slug until it is "ready", "error" or "cancelled". If a version is already building, wait for it to end before calling again.

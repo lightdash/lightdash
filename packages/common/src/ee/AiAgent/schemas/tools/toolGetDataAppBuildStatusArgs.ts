@@ -34,7 +34,7 @@ const STAGE_STATUS_MESSAGES = {
 export const MCP_TOOL_GET_DATA_APP_BUILD_STATUS_DESCRIPTION = `Tool: get_data_app_build_status
 
 Purpose:
-Check how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.
+Check how a data app or custom chart type build is going, and get its URL once it is ready. Each build produces one version.
 
 Important:
 - Poll every ${
@@ -67,7 +67,9 @@ export const mcpGetDataAppBuildStatusArgsSchema = z.object({
     appSlug: z
         .string()
         .min(1)
-        .describe("The data app's slug, as returned when the build started."),
+        .describe(
+            "The data app's or custom chart type's slug, as returned when the build started.",
+        ),
     version: z
         .number()
         .int()
