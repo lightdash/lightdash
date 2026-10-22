@@ -1,3 +1,10 @@
+## [3.24.1](https://github.com/lightdash/lightdash/compare/3.24.0...3.24.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **embed:** scope embedded AI threads to every write space ([#31346](https://github.com/lightdash/lightdash/issues/31346)) ([fff8b41](https://github.com/lightdash/lightdash/commit/fff8b41a15ec0a8802b217ce02ea994fde6aceb7))
+
 # [3.24.0](https://github.com/lightdash/lightdash/compare/3.23.1...3.24.0) (2026-10-22)
 
 
