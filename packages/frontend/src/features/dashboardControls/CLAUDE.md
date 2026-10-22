@@ -193,7 +193,8 @@ In `FilterConfiguration/`:
   flag, and outside an embed editor's edit mode, it also renders
   `TileOverlays`, `TabCounts` and `FieldTilesBar`, and its grid row puts
   `ControlSidebar` first with `CONTROLS_RAIL_LAYOUT`. The embed has no route
-  `mode`, so the editor is a viewer's; `ADD_FILTER_CLICKED` tracks `embed`.
+  `mode`, so it passes `isEditMode` (an embed editor in edit mode) and the
+  same mode change closes the edit; `ADD_FILTER_CLICKED` tracks `embed`.
   Which saved filters exist is the shipped interactivity's
   (`applyEmbedFilterInteractivity` on the store), so the rail lists what
   the shipped bar would.
@@ -234,8 +235,16 @@ In `FilterConfiguration/`:
   `filters` URL override and drops it once the value is the saved one again;
   `discard()`, `removeFilter()` and the snapshot do nothing for it, and
   `close()` and `collapse()` only end the edit. The "other" filters that
-  `haveFiltersChanged` is lowered against are the saved ones then. Entering
-  or leaving edit mode resets the editor.
+  `haveFiltersChanged` is lowered against are the saved ones then.
+- The mode is the route's, or the provider's `isEditMode` input where no
+  route says it (an embed passes its own). An edit belongs to the mode it
+  started in (`SidebarState.isViewer`): it keeps reading and writing that
+  mode's filters, and is hidden from readers (`editing`, `editingRule`,
+  `isPlaceholder` are empty) in the render where the mode has changed.
+  The mode change then closes it as "Done" does, `close()` on its own
+  filters: a filter with no field dropped, an empty default switched off, a
+  new filter with a field kept and tracked in its own mode. The rail closes
+  and focus stays where it is.
 - `openNew()` opens a placeholder with no mapping; it cannot be kept and
   never reaches the bar. `addFirstField(field)` turns it into a filter control
   on every tile that offers the field (a metric makes a rule in

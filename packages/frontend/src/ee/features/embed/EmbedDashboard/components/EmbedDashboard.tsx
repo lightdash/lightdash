@@ -1203,6 +1203,8 @@ const EmbedDashboard: FC<{
             }
         >
             <ControlsSidebarProvider
+                // No route says the mode in an embed
+                isEditMode={canWriteDashboard && isEditMode}
                 canAddFilters={canAddDashboardFiltersInEmbed(
                     dashboard.dashboardFiltersInteractivity,
                 )}

@@ -134,6 +134,9 @@ const NO_FIELD_IDS: string[] = [];
 type SidebarState = {
     filterId: string;
     isNew: boolean;
+    // The mode the edit was started in: it keeps writing that mode's filters
+    // until the mode change has closed it
+    isViewer: boolean;
     // A viewer changing a saved filter's value: the rule is the dashboard's,
     // written as the shipped popover writes it, never kept in the snapshot
     isSavedValue: boolean;
@@ -172,7 +175,10 @@ type Latest = {
     // mode, the saved ones in view mode
     otherFilters: DashboardFilters;
     savedFilters: DashboardFilters;
+    // The edit's mode, else the page's
     isViewer: boolean;
+    // The page's mode, which a new edit starts in
+    isPageViewer: boolean;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -282,16 +288,19 @@ const getFirstFieldRule = (
 type ProviderProps = PropsWithChildren<{
     /** An embed may let viewers change filters but not add them (default true). */
     canAddFilters?: boolean;
+    /** The dashboard's mode where no route says it, as in an embed (default: the route's). */
+    isEditMode?: boolean;
 }>;
 
 export const ControlsSidebarProvider: FC<ProviderProps> = ({
     canAddFilters = true,
+    isEditMode: isEditModeInput,
     children,
 }) => {
     // The dashboard's own Save or Cancel ends the edit; nothing is restored.
     // Outside edit mode the editor is a viewer's: it writes temporary filters
     const { mode } = useParams<{ mode?: string }>();
-    const isEditMode = mode === 'edit';
+    const isEditMode = isEditModeInput ?? mode === 'edit';
     const isViewer = !isEditMode;
     const isEmbedded = useIsEmbedded();
     const savedFilters = useDashboardSelector(selectDashboardFilters);
@@ -307,11 +316,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         (c) => c.updateMetricDashboardFilter,
     );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
-    const dashboardFilters = isViewer ? rawTemporaryFilters : savedFilters;
-    const setDashboardFilters = isViewer
-        ? setTemporaryFilters
-        : setSavedFilters;
-    const otherFilters = isViewer ? savedFilters : dashboardTemporaryFilters;
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
@@ -326,6 +330,17 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
+    // An edit writes the filters of the mode it started in, also in the render
+    // where the mode has changed and before the change has closed it
+    const isEditViewer = state?.isViewer ?? isViewer;
+    const isOtherModeEdit = state !== null && state.isViewer !== isViewer;
+    const dashboardFilters = isEditViewer ? rawTemporaryFilters : savedFilters;
+    const setDashboardFilters = isEditViewer
+        ? setTemporaryFilters
+        : setSavedFilters;
+    const otherFilters = isEditViewer
+        ? savedFilters
+        : dashboardTemporaryFilters;
     // The rail can be open with no filter edited: every filter is a row
     const [isRailOpen, setIsRailOpen] = useState(false);
     const [hoveredFilterId, setHoveredFilterId] = useState<string | null>(null);
@@ -354,7 +369,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         dashboardFilters,
         otherFilters,
         savedFilters,
-        isViewer,
+        isViewer: isEditViewer,
+        isPageViewer: isViewer,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
         dashboardTiles,
@@ -555,9 +571,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             writeState({
                 filterId,
                 isNew: false,
+                isViewer: current.isPageViewer,
                 // A viewer's own filters are the ones the editor writes
                 isSavedValue:
-                    current.isViewer &&
+                    current.isPageViewer &&
                     findFilterRule(current.dashboardFilters, filterId) === null,
                 emptiedAt: null,
                 snapshot: {
@@ -586,6 +603,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         writeState({
             filterId: rule.id,
             isNew: true,
+            isViewer: current.isPageViewer,
             isSavedValue: false,
             emptiedAt: null,
             snapshot: {
@@ -1025,16 +1043,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     );
     const discard = useCallback(() => discardEdited(true), [discardEdited]);
 
-    const isPlaceholder = state !== null && placeholder !== null;
-    // The shipped bar's modes for ADD_FILTER_CLICKED
-    const trackingMode = isEditMode ? 'edit' : isEmbedded ? 'embed' : 'viewer';
-
-    // Entering or leaving edit mode ends whatever was edited: the editor
-    // writes another set of filters on each side
-    useEffect(() => {
-        reset();
-        if (!isEditMode) setDismissedLinks([]);
-    }, [isEditMode, reset]);
+    const isPlaceholder =
+        state !== null && placeholder !== null && !isOtherModeEdit;
+    // The shipped bar's modes for ADD_FILTER_CLICKED, the edit's own
+    const trackingMode = !isEditViewer
+        ? 'edit'
+        : isEmbedded
+          ? 'embed'
+          : 'viewer';
 
     const newTileUuids = useMemo(() => {
         if (!savedTiles || !dashboardTiles) return [];
@@ -1053,15 +1069,18 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [],
     );
 
+    // An edit of the other mode is not shown while the mode change closes it
     const editingRule = useMemo(
         () =>
-            getEditingRule({
-                state,
-                placeholder,
-                dashboardFilters,
-                savedFilters,
-            }),
-        [state, placeholder, dashboardFilters, savedFilters],
+            isOtherModeEdit
+                ? null
+                : getEditingRule({
+                      state,
+                      placeholder,
+                      dashboardFilters,
+                      savedFilters,
+                  }),
+        [isOtherModeEdit, state, placeholder, dashboardFilters, savedFilters],
     );
 
     const waitingFieldIds = useMemo(() => {
@@ -1142,6 +1161,18 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const close = useCallback(() => closeEdited(false), [closeEdited]);
     const collapse = useCallback(() => closeEdited(true), [closeEdited]);
 
+    // Entering or leaving edit mode closes whatever was edited as "Done"
+    // would, on the filters of the mode it started in, and the rail with it
+    const lastIsEditMode = useRef(isEditMode);
+    useEffect(() => {
+        if (lastIsEditMode.current === isEditMode) return;
+        lastIsEditMode.current = isEditMode;
+        closeEdited(false);
+        // The bar of the other mode has other pills: focus stays put
+        focusReturn.current = null;
+        if (!isEditMode) setDismissedLinks([]);
+    }, [isEditMode, closeEdited]);
+
     // Whatever is being edited is closed first, as "Done" would. A new
     // control with no field yet stays as it is, label included
     const openNew = useCallback(() => {
@@ -1218,7 +1249,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     });
 
     // Its own memo so a hover does not hand selectors a new object
-    const editingFilterId = state?.filterId ?? null;
+    const editingFilterId = isOtherModeEdit ? null : (state?.filterId ?? null);
     const editing = useMemo(
         () => (editingFilterId === null ? null : { filterId: editingFilterId }),
         [editingFilterId],

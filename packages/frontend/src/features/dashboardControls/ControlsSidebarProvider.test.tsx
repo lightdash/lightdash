@@ -57,6 +57,10 @@ const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockParams = vi.hoisted(() => ({ current: { mode: 'edit' } }));
+// The provider's own mode input, as an embed sets it; undefined: the route's
+const providerMode = vi.hoisted(() => ({
+    isEditMode: undefined as boolean | undefined,
+}));
 const mockTiles = vi.hoisted(() => ({
     saved: [{ uuid: 't1' }],
     current: [{ uuid: 't1' }],
@@ -196,7 +200,11 @@ const DashboardState: FC<
     latest.filters = dashboardFilters;
     latest.temporaryFilters = temporaryFilters;
     latest.changed = haveFiltersChanged;
-    return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
+    return (
+        <ControlsSidebarProvider isEditMode={providerMode.isEditMode}>
+            {children}
+        </ControlsSidebarProvider>
+    );
 };
 
 // Real dashboard store behind the mocked dashboard context so edits re-render
@@ -247,6 +255,7 @@ describe('ControlsSidebarProvider', () => {
         latest.temporaryFilters = NO_TEMPORARY_FILTERS;
         latest.changed = false;
         mockParams.current = { mode: 'edit' };
+        providerMode.isEditMode = undefined;
         mockTiles.current = [{ uuid: 't1' }];
         mockFieldsByTile.current = {};
         mockTrack.mockClear();
@@ -2619,6 +2628,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         latest.temporaryFilters = NO_TEMPORARY_FILTERS;
         latest.changed = false;
         mockParams.current = { mode: 'view' };
+        providerMode.isEditMode = undefined;
         mockTiles.current = [{ uuid: 't1' }];
         mockFieldsByTile.current = {};
         mockTrack.mockClear();
@@ -2733,6 +2743,81 @@ describe('ControlsSidebarProvider in view mode', () => {
         act(() => result.current.close());
         expect(result.current.isRailOpen).toBe(false);
         expect(mockTrack).not.toHaveBeenCalled();
+    });
+
+    describe('a mode change closes the edit as Done does', () => {
+        it('drops a new filter with no field, on the filters it started in', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editingRule).toBeNull();
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('keeps and tracks a new viewer filter with a field, as temporary', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'viewer' },
+            });
+
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('keeps an editor filter in the saved filters on the way back to view mode', () => {
+            mockParams.current = { mode: 'edit' };
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(latest.filters.dimensions).toHaveLength(3);
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'edit' },
+            });
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('follows the mode an embed gives it, where no route says one', () => {
+            mockParams.current = { mode: '' };
+            providerMode.isEditMode = false;
+            const { result, rerender } = setup();
+            expect(result.current.isViewer).toBe(true);
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+
+            providerMode.isEditMode = true;
+            rerender();
+            expect(result.current.isViewer).toBe(false);
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editing).toBeNull();
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+
+            providerMode.isEditMode = false;
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editing).toBeNull();
+        });
     });
 
     it('closes the rail when the dashboard enters edit mode', () => {
