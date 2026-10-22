@@ -2,8 +2,6 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
-    FilterType,
-    getFilterTypeFromItem,
     getItemId,
     isDashboardDataAppTileType,
     isField,
@@ -13,6 +11,7 @@ import {
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
+    type FilterType,
     type ResultColumn,
 } from '@lightdash/common';
 import {
@@ -49,12 +48,13 @@ import TileFilterConfiguration from './TileFilterConfiguration';
 import {
     getDefaultField,
     getFilterRuleRevertableObject,
+    getFilterRuleFilterType,
     getFilterRuleWithDisabledState,
-    getSqlColumnFilterType,
     getUniqueSqlColumns,
     hasFilterValueSet,
     hasSavedFilterValueChanged,
     isFilterEnabled,
+    isLockedRequiredMissingValue,
 } from './utils';
 
 interface Props {
@@ -192,26 +192,15 @@ const FilterConfiguration: FC<Props> = ({
         [isCreatingNew, isEditMode, sqlChartTilesMetadata],
     );
 
-    const filterType: FilterType = useMemo(() => {
-        if (selectedField) {
-            return getFilterTypeFromItem(selectedField);
-        }
-
-        if (draftFilterRule?.target.fieldId) {
-            return getSqlColumnFilterType(
+    const filterType: FilterType = useMemo(
+        () =>
+            getFilterRuleFilterType(
+                selectedField,
                 columnsOptions,
-                draftFilterRule.target.fieldId,
-                draftFilterRule.target.fallbackType,
-            );
-        }
-
-        return FilterType.STRING;
-    }, [
-        columnsOptions,
-        draftFilterRule?.target.fallbackType,
-        draftFilterRule?.target.fieldId,
-        selectedField,
-    ]);
+                draftFilterRule,
+            ),
+        [columnsOptions, draftFilterRule, selectedField],
+    );
 
     const handleChangeTileConfiguration = useCallback(
         (
@@ -361,13 +350,11 @@ const FilterConfiguration: FC<Props> = ({
         isCreatingNew,
     );
 
-    const isLockedRequiredMissingValue =
-        !!draftFilterRule?.lockedTabUuids?.length &&
-        !!draftFilterRule?.required &&
-        !hasFilterValueSet(draftFilterRule);
+    const isLockedRequiredMissing =
+        isLockedRequiredMissingValue(draftFilterRule);
 
     const applyDisabledTooltipLabel = getUiString(
-        isLockedRequiredMissingValue
+        isLockedRequiredMissing
             ? 'filters.config.applyLockedRequiredTooltip'
             : 'filters.config.applyRequiredTooltip',
     );
@@ -587,13 +574,13 @@ const FilterConfiguration: FC<Props> = ({
 
                 <Tooltip
                     label={applyDisabledTooltipLabel}
-                    disabled={!isApplyDisabled && !isLockedRequiredMissingValue}
+                    disabled={!isApplyDisabled && !isLockedRequiredMissing}
                 >
                     <Box>
                         <Button
                             size="xs"
                             disabled={
-                                isApplyDisabled || isLockedRequiredMissingValue
+                                isApplyDisabled || isLockedRequiredMissing
                             }
                             // We use onMouseDown instead of onClick: when an
                             // inline dropdown (Select/MultiSelect) is open,

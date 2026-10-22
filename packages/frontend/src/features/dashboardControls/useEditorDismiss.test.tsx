@@ -61,7 +61,7 @@ const disabledPills = { current: false };
 const Page: FC = () => {
     const value = useControlsSidebar();
     sidebar.current = value;
-    const { editing, isSidebarOpen, openNew, open, close } = value;
+    const { isSidebarOpen, openNew, open, close } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
     return (
         <>
@@ -74,17 +74,19 @@ const Page: FC = () => {
                         onClick={openNew}
                     />
                 </div>
-                {filters.dimensions.map((filter) => (
-                    <button
-                        key={filter.id}
-                        type="button"
-                        aria-pressed={editing?.filterId === filter.id}
-                        disabled={disabledPills.current}
-                        onClick={() => open(filter.id)}
-                    >
-                        {`Pill ${filter.id}`}
-                    </button>
-                ))}
+                {/* The pills fold away while the editor is open */}
+                {!isSidebarOpen &&
+                    filters.dimensions.map((filter) => (
+                        <button
+                            key={filter.id}
+                            type="button"
+                            data-controls-pill={filter.id}
+                            disabled={disabledPills.current}
+                            onClick={() => open(filter.id)}
+                        >
+                            {`Pill ${filter.id}`}
+                        </button>
+                    ))}
             </div>
             {isSidebarOpen && (
                 <div data-controls-editor data-testid="editor">
@@ -356,9 +358,6 @@ describe('dismissing in the controls editor', () => {
 
         it('goes to "Add" when the pill cannot take it', () => {
             disabledPills.current = true;
-            // Any change draws the bar again, with its pills disabled
-            act(() => value().setHoveredFieldId('orders_a'));
-            expect(pill('a')).toBeDisabled();
             act(() => value().close());
             disabledPills.current = false;
 
@@ -367,7 +366,7 @@ describe('dismissing in the controls editor', () => {
         });
 
         it('is not moved when another control opens', () => {
-            fireEvent.click(pill('b'));
+            act(() => value().open('b'));
             expect(value().editing).toEqual({ filterId: 'b' });
             expect(label()).toHaveFocus();
         });

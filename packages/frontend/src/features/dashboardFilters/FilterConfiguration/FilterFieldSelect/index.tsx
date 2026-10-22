@@ -38,6 +38,10 @@ interface FilterFieldSelectProps {
     onChange: (field: DashboardFilterableField) => void;
     // Mounts with the list open; the caller gives the input focus
     defaultOpened?: boolean;
+    // Shows "Select a field to filter" above the input
+    withLabel?: boolean;
+    // Replaces the placeholders the input has open and closed
+    placeholder?: string;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -69,6 +73,8 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     selectedField,
     onChange,
     defaultOpened = false,
+    withLabel = true,
+    placeholder: placeholderOverride,
     popoverProps,
 }) => {
     const getUiString = useUiStrings();
@@ -247,19 +253,23 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         ? getSelectedFieldLabel(selectedField)
         : null;
 
-    const placeholder = isOpen
-        ? (selectedLabel ??
-          getUiString('filters.config.searchFieldPlaceholder'))
-        : getUiString('filters.config.selectFilterPlaceholder');
+    const placeholder =
+        placeholderOverride ??
+        (isOpen
+            ? (selectedLabel ??
+              getUiString('filters.config.searchFieldPlaceholder'))
+            : getUiString('filters.config.selectFilterPlaceholder'));
 
     return (
         <div>
-            <Text size="sm" mb={4}>
-                {getUiString('filters.config.selectField')}{' '}
-                <Text component="span" c="red">
-                    *
+            {withLabel && (
+                <Text size="sm" mb={4}>
+                    {getUiString('filters.config.selectField')}{' '}
+                    <Text component="span" c="red">
+                        *
+                    </Text>
                 </Text>
-            </Text>
+            )}
 
             <Combobox
                 store={combobox}

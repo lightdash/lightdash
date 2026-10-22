@@ -211,4 +211,70 @@ describe('RequiredFilterCard', () => {
         );
         expect(onEditRules).toHaveBeenCalledTimes(1);
     });
+
+    it('hands the other filter to onChangeOtherFilterRule when given, instead of writing the dashboard filters', async () => {
+        const rule = buildRule({ required: true });
+        const sibling = buildRule({
+            id: 'filter-2',
+            target: { fieldId: 'customers_age', tableName: 'customers' },
+        });
+        setDashboardFilters([rule, sibling]);
+        const onChangeFilterRule = vi.fn();
+        const onChangeOtherFilterRule = vi.fn();
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={onChangeFilterRule}
+                onChangeOtherFilterRule={onChangeOtherFilterRule}
+            />,
+        );
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add an alternative filter' }),
+        );
+        await userEvent.click(screen.getByPlaceholderText('+ Add a filter'));
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: /customers_age/,
+                hidden: true,
+            }),
+        );
+
+        expect(updateFilterRule).not.toHaveBeenCalled();
+        expect(onChangeOtherFilterRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'filter-2',
+                required: false,
+                disabled: true,
+                values: [],
+                requiredGroupId: expect.any(String),
+            }),
+        );
+        const [[other]] = onChangeOtherFilterRule.mock.calls;
+        expect(onChangeFilterRule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: 'filter-1',
+                requiredGroupId: other.requiredGroupId,
+            }),
+        );
+    });
+
+    it('disables the switch and says why when given a reason', () => {
+        const rule = buildRule();
+        setDashboardFilters([rule]);
+
+        renderWithProviders(
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={vi.fn()}
+                onChangeFilterRule={vi.fn()}
+                disabledReason="Not now"
+            />,
+        );
+
+        expect(getRequiredSwitch().disabled).toBe(true);
+        expect(screen.getByText('Not now')).not.toBeNull();
+    });
 });

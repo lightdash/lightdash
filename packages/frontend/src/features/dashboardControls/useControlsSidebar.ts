@@ -9,7 +9,8 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 
-export type ControlsSidebarSection = 'fields' | 'settings';
+/** The disclosure open under the edited filter's default value. */
+export type ControlsSidebarSection = 'tiles' | 'rules';
 
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
@@ -21,8 +22,9 @@ export type ControlsSidebarContextValue = {
     editingRule: DashboardFilterRule | null;
     /** False as soon as the edited filter is no longer in the dashboard. */
     isSidebarOpen: boolean;
-    activeSection: ControlsSidebarSection;
-    setActiveSection: (section: ControlsSidebarSection) => void;
+    /** Null when both are closed, as they are each time a filter opens. */
+    activeSection: ControlsSidebarSection | null;
+    setActiveSection: (section: ControlsSidebarSection | null) => void;
     /** Closes any other control first, as "Done" would; a no-op on the open one. */
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */

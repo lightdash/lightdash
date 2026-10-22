@@ -89,10 +89,13 @@ const setContext = (
             },
         },
         dashboardTabs: tabs,
+        activeTab: tabs[0],
     };
 };
 
-const LOCKED_REQUIRED = 'A locked, required filter must have a value';
+const LOCK_BLOCKED = 'Give it a default value before locking it.';
+const REQUIRED_BLOCKED =
+    'A locked filter needs a default value to be required.';
 
 const renderControls = (
     rule: DashboardFilterRule,
@@ -112,15 +115,24 @@ const renderControls = (
     return onChange;
 };
 
-// A disabled input takes no mouse events, so the tooltip is on its wrapper
-const hoverSwitch = (input: HTMLElement) => {
-    const wrapper = input.closest('.mantine-Switch-root')?.parentElement;
-    if (!wrapper) throw new Error('Not a switch');
-    fireEvent.mouseEnter(wrapper);
+const lockSwitch = () => screen.getByRole('switch', { name: 'Lock' });
+const requiredSwitch = () => screen.getByRole('switch', { name: 'Required' });
+const scope = (name: string) => screen.getByRole('radio', { name });
+const pickScope = (name: string) => fireEvent.click(scope(name));
+const tabsField = () =>
+    screen
+        .getAllByLabelText('Locked tabs')
+        .find((element) => element.tagName === 'INPUT') as HTMLElement;
+// jsdom keeps the combobox dropdown hidden, so options are clicked directly
+const toggleTab = (name: string) => {
+    fireEvent.click(tabsField());
+    fireEvent.click(
+        screen.getByRole('option', {
+            name: new RegExp(`^${name}`),
+            hidden: true,
+        }),
+    );
 };
-
-const openRow = (name: RegExp) =>
-    fireEvent.click(screen.getByRole('button', { name }));
 
 describe('ViewerControls', () => {
     beforeEach(() => {
@@ -129,75 +141,135 @@ describe('ViewerControls', () => {
     });
 
     describe('lock', () => {
-        it('summarises a filter no tab locks', () => {
+        it('says what a lock does, with the open lock while it is off', () => {
             renderControls(makeRule('a'));
             expect(
-                screen.getByText(
-                    'Not locked: viewers can change it on every tab',
-                ),
+                screen.getByText("Viewers see the value but can't change it."),
             ).toBeInTheDocument();
+            expect(lockSwitch()).not.toBeChecked();
+            expect(screen.queryAllByRole('radio')).toHaveLength(0);
         });
 
-        it('summarises a filter locked on every tab', () => {
-            renderControls(
-                makeRule('a', { lockedTabUuids: ['t1', 't2', 't3'] }),
+        it('locks the tab in view, as the pill does', () => {
+            const onChange = renderControls(makeRule('a'));
+            fireEvent.click(lockSwitch());
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({ lockedTabUuids: ['t1'] }),
             );
-            expect(screen.getByText('Locked on every tab')).toBeInTheDocument();
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: TABS[1],
+            };
+            const onChangeOnDetails = renderControls(makeRule('a'));
+            fireEvent.click(screen.getAllByRole('switch', { name: 'Lock' })[1]);
+            expect(onChangeOnDetails).toHaveBeenCalledWith(
+                expect.objectContaining({ lockedTabUuids: ['t2'] }),
+            );
         });
 
-        it('summarises a filter locked on some tabs', () => {
+        it('shows the scope of the lock, derived from the locked tabs', () => {
+            const { unmount } = renderWithProviders(
+                <ViewerControls
+                    rule={makeRule('a', { lockedTabUuids: ['t1'] })}
+                    filterType={FilterType.STRING}
+                    field={null}
+                    onChange={vi.fn()}
+                    onChangeOthers={onChangeOthers}
+                    onEditRules={null}
+                />,
+            );
+            expect(scope('This tab')).toBeChecked();
+            expect(screen.queryAllByLabelText('Locked tabs')).toHaveLength(0);
+            unmount();
+
+            const { unmount: unmountAll } = renderWithProviders(
+                <ViewerControls
+                    rule={makeRule('a', { lockedTabUuids: ['t3', 't1', 't2'] })}
+                    filterType={FilterType.STRING}
+                    field={null}
+                    onChange={vi.fn()}
+                    onChangeOthers={onChangeOthers}
+                    onEditRules={null}
+                />,
+            );
+            expect(scope('All tabs')).toBeChecked();
+            unmountAll();
+
             renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+            expect(scope('Some tabs')).toBeChecked();
+            expect(tabsField()).toBeInTheDocument();
+            expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+        });
+
+        it('locks only the tab in view with "This tab"', () => {
+            const onChange = renderControls(
+                makeRule('a', { lockedTabUuids: ['t2', 't3'] }),
+            );
+            pickScope('This tab');
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({ lockedTabUuids: ['t1'] }),
+            );
+        });
+
+        it('locks every tab with "All tabs"', () => {
+            const onChange = renderControls(
+                makeRule('a', { lockedTabUuids: ['t1'] }),
+            );
+            pickScope('All tabs');
+            expect(onChange).toHaveBeenCalledWith(
+                expect.objectContaining({ lockedTabUuids: ['t1', 't2', 't3'] }),
+            );
+        });
+
+        it('keeps the locked tabs and opens the tab list with "Some tabs"', () => {
+            const onChange = renderControls(
+                makeRule('a', { lockedTabUuids: ['t1'] }),
+            );
+            pickScope('Some tabs');
+            expect(onChange).not.toHaveBeenCalled();
+            expect(scope('Some tabs')).toBeChecked();
+            expect(tabsField()).toBeInTheDocument();
+        });
+
+        it('marks the tab in view in the tab list', () => {
+            renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+            fireEvent.click(tabsField());
             expect(
-                screen.getByText('Locked on 1 of 3 tabs'),
+                screen.getByRole('option', {
+                    name: 'Overview · this tab',
+                    hidden: true,
+                }),
             ).toBeInTheDocument();
         });
 
-        it('locks a single tab from the per-tab list', () => {
+        it('locks another tab from the list', () => {
             const onChange = renderControls(
                 makeRule('a', { lockedTabUuids: ['t2'] }),
             );
-            openRow(/^Lock/);
-            fireEvent.click(screen.getByRole('switch', { name: 'Finance' }));
+            toggleTab('Finance');
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: ['t2', 't3'] }),
             );
         });
 
-        it('unlocks the last locked tab', () => {
+        it('unlocks a tab from the list, the last one too', () => {
             const onChange = renderControls(
                 makeRule('a', { lockedTabUuids: ['t2'] }),
             );
-            openRow(/^Lock/);
-            fireEvent.click(screen.getByRole('switch', { name: 'Details' }));
+            toggleTab('Details');
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: undefined }),
             );
         });
 
-        it('reveals the per-tab list on request', () => {
-            renderControls(makeRule('a'));
-            openRow(/^Lock/);
-            expect(
-                screen.queryByRole('switch', { name: 'Overview' }),
-            ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Set per tab' }),
-            );
-            expect(
-                screen.getByRole('switch', { name: 'Overview' }),
-            ).toBeInTheDocument();
-        });
-
-        it('locks every tab at once', () => {
+        it('unlocks every tab with the switch', () => {
             const onChange = renderControls(
-                makeRule('a', { lockedTabUuids: ['t2'] }),
+                makeRule('a', { lockedTabUuids: ['t2', 't3'] }),
             );
-            openRow(/^Lock/);
-            fireEvent.click(
-                screen.getByRole('switch', { name: /Lock on every tab/ }),
-            );
+            fireEvent.click(lockSwitch());
             expect(onChange).toHaveBeenCalledWith(
-                expect.objectContaining({ lockedTabUuids: ['t2', 't1', 't3'] }),
+                expect.objectContaining({ lockedTabUuids: undefined }),
             );
         });
 
@@ -218,35 +290,41 @@ describe('ViewerControls', () => {
 
             it('sends the event of the tab that is locked or unlocked', () => {
                 renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
-                openRow(/^Lock/);
 
-                fireEvent.click(
-                    screen.getByRole('switch', { name: 'Finance' }),
-                );
+                toggleTab('Finance');
                 expect(mockTrack).toHaveBeenCalledTimes(1);
                 expect(mockTrack).toHaveBeenLastCalledWith(
                     lockEvent('lock', 't3'),
                 );
 
-                fireEvent.click(
-                    screen.getByRole('switch', { name: 'Details' }),
-                );
+                toggleTab('Details');
                 expect(mockTrack).toHaveBeenLastCalledWith(
                     lockEvent('unlock', 't2'),
                 );
             });
 
-            it('sends one event per tab that "every tab" changes', () => {
+            it('sends one event per tab a scope changes', () => {
                 renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
-                openRow(/^Lock/);
 
-                fireEvent.click(
-                    screen.getByRole('switch', { name: /Lock on every tab/ }),
-                );
+                pickScope('This tab');
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('lock', 't1'),
+                    lockEvent('unlock', 't2'),
+                ]);
+                mockTrack.mockClear();
 
+                pickScope('All tabs');
                 expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
                     lockEvent('lock', 't1'),
                     lockEvent('lock', 't3'),
+                ]);
+            });
+
+            it('sends the lock of the tab in view from the switch', () => {
+                renderControls(makeRule('a'));
+                fireEvent.click(lockSwitch());
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('lock', 't1'),
                 ]);
             });
 
@@ -254,11 +332,8 @@ describe('ViewerControls', () => {
                 renderControls(
                     makeRule('a', { lockedTabUuids: ['t1', 't2', 't3'] }),
                 );
-                openRow(/^Lock/);
 
-                fireEvent.click(
-                    screen.getByRole('switch', { name: /Lock on every tab/ }),
-                );
+                fireEvent.click(lockSwitch());
 
                 expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
                     lockEvent('unlock', 't1'),
@@ -270,9 +345,8 @@ describe('ViewerControls', () => {
             it('sends no tab on a dashboard without tabs', () => {
                 setContext([]);
                 renderControls(makeRule('a'));
-                openRow(/^Lock/);
 
-                fireEvent.click(screen.getByRole('switch', { name: /Lock/ }));
+                fireEvent.click(lockSwitch());
 
                 expect(mockTrack).toHaveBeenCalledWith(
                     lockEvent('lock', undefined),
@@ -280,42 +354,30 @@ describe('ViewerControls', () => {
             });
         });
 
-        it('uses the dashboard uuid when there are no tabs', () => {
+        it('uses the dashboard uuid when there are no tabs, with no tab list', () => {
             setContext([]);
-            const onChange = renderControls(makeRule('a'));
-            expect(
-                screen.getByText('Not locked: viewers can change it'),
-            ).toBeInTheDocument();
-            openRow(/^Lock/);
-            expect(
-                screen.queryByRole('button', { name: 'Set per tab' }),
-            ).not.toBeInTheDocument();
-            expect(screen.getAllByRole('switch')).toHaveLength(1);
-            fireEvent.click(screen.getByRole('switch', { name: /Lock/ }));
+            const onChange = renderControls(
+                makeRule('a', { lockedTabUuids: undefined }),
+            );
+            fireEvent.click(lockSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: ['dashboard-uuid'] }),
             );
-        });
 
-        it('cannot lock a required filter that has no value', async () => {
-            const onChange = renderControls(makeRule('a', { required: true }));
-            openRow(/^Lock/);
-            const everyTab = screen.getByRole('switch', {
-                name: /Lock on every tab/,
-            });
-            expect(everyTab).toBeDisabled();
-            hoverSwitch(everyTab);
-            expect(
-                await screen.findByText(LOCKED_REQUIRED),
-            ).toBeInTheDocument();
-
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Set per tab' }),
+            renderControls(
+                makeRule('b', { lockedTabUuids: ['dashboard-uuid'] }),
             );
             expect(
-                screen.getByRole('switch', { name: 'Overview' }),
-            ).toBeDisabled();
-            expect(onChange).not.toHaveBeenCalled();
+                screen.getAllByRole('switch', { name: 'Lock' })[1],
+            ).toBeChecked();
+            expect(screen.queryAllByRole('radio')).toHaveLength(0);
+            expect(screen.queryAllByLabelText('Locked tabs')).toHaveLength(0);
+        });
+
+        it('cannot lock a required filter that has no value, and says why', () => {
+            renderControls(makeRule('a', { required: true }));
+            expect(lockSwitch()).toBeDisabled();
+            expect(screen.getByText(LOCK_BLOCKED)).toBeInTheDocument();
         });
 
         it('can lock a required filter that has a value', () => {
@@ -326,60 +388,61 @@ describe('ViewerControls', () => {
                     values: ['x'],
                 }),
             );
-            openRow(/^Lock/);
-            expect(
-                screen.getByRole('switch', { name: /Lock on every tab/ }),
-            ).toBeEnabled();
+            expect(lockSwitch()).toBeEnabled();
+            expect(screen.queryByText(LOCK_BLOCKED)).not.toBeInTheDocument();
         });
 
         it('can always unlock, and cannot lock more, a locked required filter with no value', () => {
             const onChange = renderControls(
                 makeRule('a', { required: true, lockedTabUuids: ['t2'] }),
             );
-            openRow(/^Lock/);
+            expect(lockSwitch()).toBeEnabled();
+            expect(scope('This tab')).toBeDisabled();
+            expect(scope('All tabs')).toBeDisabled();
+            fireEvent.click(tabsField());
             expect(
-                screen.getByRole('switch', { name: 'Finance' }),
-            ).toBeDisabled();
-            const locked = screen.getByRole('switch', { name: 'Details' });
-            expect(locked).toBeEnabled();
-            fireEvent.click(locked);
+                screen.getByRole('option', { name: /^Finance/, hidden: true }),
+            ).toHaveAttribute('data-combobox-disabled', 'true');
+            toggleTab('Details');
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: undefined }),
             );
         });
-
-        it('notes what a lock still does', () => {
-            renderControls(makeRule('a', { lockedTabUuids: ['t1'] }));
-            openRow(/^Lock/);
-            expect(
-                screen.getByText(
-                    'A locked filter still filters the tiles. Values from the URL or an embed are ignored.',
-                ),
-            ).toBeInTheDocument();
-        });
     });
 
     describe('required', () => {
-        it('says under each switch what it does to viewers', () => {
-            renderControls(makeRule('a'));
-            openRow(/^Lock/);
-            expect(
-                screen.getByText('Viewers see the value but cannot change it.'),
-            ).toBeInTheDocument();
+        const addAlternative = (name: string) => {
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add an alternative filter',
+                }),
+            );
+            fireEvent.click(screen.getByPlaceholderText('+ Add a filter'));
+            fireEvent.click(screen.getByRole('option', { name, hidden: true }));
+        };
 
-            openRow(/Required/);
+        it('is the shipped Required card', () => {
+            setContext(TABS, [
+                makeRule('a', { required: true }),
+                makeRule('b'),
+            ]);
+            renderControls(makeRule('a', { required: true }));
+            expect(requiredSwitch()).toBeChecked();
             expect(
                 screen.getByText(
-                    'Viewers would have to set this filter before the tiles load.',
+                    'Viewers must set this filter to load the dashboard.',
                 ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Add an alternative filter',
+                }),
             ).toBeInTheDocument();
         });
 
         it('marks the filter as required', () => {
             const onChange = renderControls(makeRule('a'));
-            expect(screen.getByText('Not required')).toBeInTheDocument();
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
+            fireEvent.click(requiredSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({
                     id: 'a',
@@ -394,11 +457,7 @@ describe('ViewerControls', () => {
             const onChange = renderControls(
                 makeRule('a', { disabled: false, values: ['x'] }),
             );
-            expect(screen.getByText('Not required')).toBeInTheDocument();
-            openRow(/Required/);
-            const toggle = screen.getByRole('switch', { name: /Required/ });
-            expect(toggle).toBeEnabled();
-            fireEvent.click(toggle);
+            fireEvent.click(requiredSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({
                     required: true,
@@ -408,44 +467,23 @@ describe('ViewerControls', () => {
             );
         });
 
-        it('keeps the default value of a filter saved without a requirement when it is switched off', () => {
-            const filter = makeRule('a', {
-                required: true,
-                disabled: false,
-                values: ['x'],
-            });
-            setContext(TABS, [filter], [], [makeRule('a', { values: ['x'] })]);
-            const onChange = renderControls(filter);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
-            expect(onChange).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    required: false,
-                    disabled: false,
-                    values: ['x'],
-                }),
-            );
-        });
-
         it('switches the default off when it requires a filter with no value', () => {
             const onChange = renderControls(makeRule('a', { disabled: false }));
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
+            fireEvent.click(requiredSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ required: true, disabled: true }),
             );
         });
 
-        it('drops the temporary value of a filter saved as required when the requirement is switched off', () => {
+        it('drops the temporary value when the requirement is switched off, as the shipped form does', () => {
             const filter = makeRule('a', {
                 required: true,
                 disabled: false,
                 values: ['x'],
             });
-            setContext(TABS, [filter], [], [makeRule('a', { required: true })]);
+            setContext(TABS, [filter]);
             const onChange = renderControls(filter);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
+            fireEvent.click(requiredSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({
                     required: false,
@@ -457,31 +495,13 @@ describe('ViewerControls', () => {
             expect(onChangeOthers).not.toHaveBeenCalled();
         });
 
-        it('leaves the rest of the rule alone when one member is switched off', () => {
-            const a = makeRule('a', { requiredGroupId: 'g' });
-            const b = makeRule('b', { requiredGroupId: 'g' });
-            setContext(TABS, [a, b]);
-            const onChange = renderControls(a);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
-            expect(onChange).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    id: 'a',
-                    required: false,
-                    requiredGroupId: undefined,
-                }),
-            );
-            expect(onChangeOthers).not.toHaveBeenCalled();
-        });
-
         it('goes back into the rule it was saved in when switched on again', () => {
             const saved = makeRule('a', { requiredGroupId: 'g' });
             const b = makeRule('b', { requiredGroupId: 'g' });
             const draft = makeRule('a', { disabled: false, values: ['x'] });
             setContext(TABS, [draft, b], [], [saved, b]);
             const onChange = renderControls(draft);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('switch', { name: /Required/ }));
+            fireEvent.click(requiredSwitch());
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({
                     required: false,
@@ -492,15 +512,10 @@ describe('ViewerControls', () => {
             );
         });
 
-        it('cannot require a locked filter that has no value', async () => {
+        it('cannot require a locked filter that has no value, and says why', () => {
             renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
-            openRow(/Required/);
-            const toggle = screen.getByRole('switch', { name: /Required/ });
-            expect(toggle).toBeDisabled();
-            hoverSwitch(toggle);
-            expect(
-                await screen.findByText(LOCKED_REQUIRED),
-            ).toBeInTheDocument();
+            expect(requiredSwitch()).toBeDisabled();
+            expect(screen.getByText(REQUIRED_BLOCKED)).toBeInTheDocument();
         });
 
         it('can require a locked filter that has a value', () => {
@@ -511,154 +526,68 @@ describe('ViewerControls', () => {
                     values: ['x'],
                 }),
             );
-            openRow(/Required/);
+            expect(requiredSwitch()).toBeEnabled();
             expect(
-                screen.getByRole('switch', { name: /Required/ }),
-            ).toBeEnabled();
+                screen.queryByText(REQUIRED_BLOCKED),
+            ).not.toBeInTheDocument();
         });
 
         it('can always switch the requirement off', () => {
             renderControls(
                 makeRule('a', { required: true, lockedTabUuids: ['t2'] }),
             );
-            openRow(/Required/);
-            expect(
-                screen.getByRole('switch', { name: /Required/ }),
-            ).toBeEnabled();
+            expect(requiredSwitch()).toBeEnabled();
         });
 
-        it('says why another filter cannot be an alternative, in the shipped words', () => {
+        it('adds an alternative: this filter through onChange, the other one through the editor', () => {
             const a = makeRule('a', { required: true });
-            setContext(TABS, [
-                a,
-                makeRule('b', { required: true }),
-                makeRule('c', { requiredGroupId: 'other' }),
-                makeRule('d', { disabled: false, values: ['x'] }),
-                makeRule('e', { lockedTabUuids: ['t1', 't2', 't3'] }),
-            ]);
-            renderControls(a);
-            openRow(/Required/);
-
-            expect(
-                screen.getByRole('checkbox', { name: 'Filter b' }),
-            ).toBeDisabled();
-            expect(
-                screen.getByRole('checkbox', { name: 'Filter c' }),
-            ).toBeDisabled();
-            expect(
-                screen.getAllByText('Already part of a filter rule'),
-            ).toHaveLength(2);
-            expect(
-                screen.getByRole('checkbox', { name: 'Filter d' }),
-            ).toBeDisabled();
-            expect(
-                screen.getByText(
-                    'Has a default value, so the rule would always be satisfied',
-                ),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('checkbox', { name: 'Filter e' }),
-            ).toBeEnabled();
-        });
-
-        it('removes an alternative and leaves this filter in its rule', () => {
-            const a = makeRule('a', { requiredGroupId: 'g' });
-            const b = makeRule('b', { requiredGroupId: 'g' });
+            const b = makeRule('b');
             setContext(TABS, [a, b]);
             const onChange = renderControls(a);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('checkbox', { name: 'Filter b' }));
+            addAlternative('Filter b');
 
-            expect(onChange).not.toHaveBeenCalled();
-            // Only the other filter, handed to the editor to write
+            expect(onChange).toHaveBeenCalledTimes(1);
+            const own = onChange.mock.calls[0][0];
+            expect(own).toEqual(
+                expect.objectContaining({
+                    id: 'a',
+                    required: false,
+                    disabled: true,
+                    values: [],
+                }),
+            );
+            expect(own.requiredGroupId).toEqual(expect.any(String));
+
             expect(onChangeOthers).toHaveBeenCalledTimes(1);
             expect(onChangeOthers).toHaveBeenCalledWith([
                 expect.objectContaining({
                     id: 'b',
                     required: false,
-                    requiredGroupId: undefined,
+                    disabled: true,
+                    values: [],
+                    requiredGroupId: own.requiredGroupId,
                 }),
             ]);
         });
 
-        it('links to the filter rules when the filter shares a rule', () => {
+        it('lists the rule it shares and links to the filter rules', () => {
             const a = makeRule('a', { requiredGroupId: 'g' });
             setContext(TABS, [a, makeRule('b', { requiredGroupId: 'g' })]);
             const onEditRules = vi.fn();
             renderControls(a, onEditRules);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('button', { name: 'Edit rule' }));
+            expect(screen.getByText('Filter b')).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Edit rule →' }),
+            );
             expect(onEditRules).toHaveBeenCalledTimes(1);
         });
 
-        it('has no link for a filter required on its own, or when the rules cannot be reached', () => {
-            const lone = makeRule('a', { required: true });
-            setContext(TABS, [lone, makeRule('b')]);
-            const { unmount } = renderWithProviders(
-                <ViewerControls
-                    rule={lone}
-                    filterType={FilterType.STRING}
-                    field={null}
-                    onChange={vi.fn()}
-                    onChangeOthers={onChangeOthers}
-                    onEditRules={vi.fn()}
-                />,
-            );
-            openRow(/Required/);
-            expect(
-                screen.queryByRole('button', { name: 'Edit rule' }),
-            ).not.toBeInTheDocument();
-            unmount();
-
+        it('has no link when the rules cannot be reached', () => {
             const a = makeRule('a', { requiredGroupId: 'g' });
             setContext(TABS, [a, makeRule('b', { requiredGroupId: 'g' })]);
             renderControls(a, null);
-            openRow(/Required/);
             expect(
-                screen.queryByRole('button', { name: 'Edit rule' }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('names the alternatives in the summary', () => {
-            const a = makeRule('a', { requiredGroupId: 'g' });
-            setContext(TABS, [a, makeRule('b', { requiredGroupId: 'g' })]);
-            renderControls(a);
-            expect(
-                screen.getByText('Required, or Filter b'),
-            ).toBeInTheDocument();
-        });
-
-        it('adds an alternative to this filter and the other one', () => {
-            const a = makeRule('a', { required: true });
-            const b = makeRule('b');
-            setContext(TABS, [a, b]);
-            const onChange = renderControls(a);
-            openRow(/Required/);
-            fireEvent.click(screen.getByRole('checkbox', { name: 'Filter b' }));
-
-            const own = onChange.mock.calls[0][0];
-            expect(own.id).toBe('a');
-            expect(own.required).toBe(false);
-            expect(own.requiredGroupId).toEqual(expect.any(String));
-
-            expect(onChangeOthers).toHaveBeenCalledTimes(1);
-            const others = onChangeOthers.mock.calls[0][0];
-            expect(others).toHaveLength(1);
-            expect(others[0].id).toBe('b');
-            expect(others[0].requiredGroupId).toBe(own.requiredGroupId);
-        });
-
-        it('offers no table calculation filter as an alternative', () => {
-            const a = makeRule('a', { required: true });
-            setContext(TABS, [a, makeRule('b')], [makeRule('c')]);
-            renderControls(a);
-            openRow(/Required/);
-
-            expect(
-                screen.getByRole('checkbox', { name: 'Filter b' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('checkbox', { name: 'Filter c' }),
+                screen.queryByRole('button', { name: 'Edit rule →' }),
             ).not.toBeInTheDocument();
         });
     });

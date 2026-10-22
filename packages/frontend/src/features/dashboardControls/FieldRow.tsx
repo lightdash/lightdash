@@ -1,8 +1,8 @@
 import { type DashboardFilterableField } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Group,
-    Stack,
     Text,
     Tooltip,
     UnstyledButton,
@@ -31,6 +31,7 @@ type Props = {
     onRemove: () => void;
 };
 
+// One line: icon, name, the tiles it is on, and the trash can
 export const FieldRow: FC<Props> = ({
     field,
     label,
@@ -44,58 +45,57 @@ export const FieldRow: FC<Props> = ({
     onHoverChange,
     onRemove,
 }) => (
-    <Stack
+    <Box
         className={
             isHighlighted
                 ? `${classes.row} ${classes.rowHighlighted}`
                 : classes.row
         }
-        gap={0}
         data-waiting={isWaiting || undefined}
         onMouseEnter={() => onHoverChange(true)}
         onMouseLeave={() => onHoverChange(false)}
     >
-        <Group className={classes.rowHeader} gap="xs" wrap="nowrap">
-            <UnstyledButton
-                className={classes.rowMain}
-                data-highlighted={isHighlighted || undefined}
-                aria-pressed={isHighlighted}
-                onClick={onToggleHighlight}
-                onFocus={() => onHoverChange(true)}
-                onBlur={() => onHoverChange(false)}
-            >
-                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
-                    {field !== null && (
-                        <FieldIcon item={field} size={14} aria-hidden />
-                    )}
-                    <Text fz="sm" fw={600} truncate>
-                        {label}
-                    </Text>
-                </Group>
-            </UnstyledButton>
-            <Tooltip label="Remove field">
-                <ActionIcon
-                    className={classes.rowRemove}
-                    size="sm"
-                    variant="subtle"
-                    color="gray"
-                    flex="0 0 auto"
-                    aria-label={`Remove field ${label}`}
-                    disabled={isRemoveDisabled}
-                    onClick={onRemove}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-        </Group>
-        <Text
-            key={`${applied}/${possible}`}
-            fz="xs"
-            c="dimmed"
-            truncate
-            className={classes.rowCount}
+        <UnstyledButton
+            className={classes.rowMain}
+            data-highlighted={isHighlighted || undefined}
+            aria-pressed={isHighlighted}
+            onClick={onToggleHighlight}
+            onFocus={() => onHoverChange(true)}
+            onBlur={() => onHoverChange(false)}
         >
-            {`${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
-        </Text>
-    </Stack>
+            <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
+                {field !== null && (
+                    <FieldIcon item={field} size={14} aria-hidden />
+                )}
+                <Text fz="sm" truncate>
+                    {label}
+                </Text>
+            </Group>
+        </UnstyledButton>
+        <Tooltip
+            label={`${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
+        >
+            <Text
+                key={`${applied}/${possible}`}
+                fz="xs"
+                c="dimmed"
+                className={classes.rowCount}
+            >
+                {`${applied} ${pluralizeTiles(applied)}`}
+            </Text>
+        </Tooltip>
+        <Tooltip label="Remove field">
+            <ActionIcon
+                className={classes.rowRemove}
+                size="sm"
+                variant="subtle"
+                color="gray"
+                aria-label={`Remove field ${label}`}
+                disabled={isRemoveDisabled}
+                onClick={onRemove}
+            >
+                <MantineIcon icon={IconTrash} size={14} />
+            </ActionIcon>
+        </Tooltip>
+    </Box>
 );

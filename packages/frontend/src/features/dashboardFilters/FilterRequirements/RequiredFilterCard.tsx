@@ -22,13 +22,21 @@ import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
 import { useDashboardFilterField } from './useDashboardFilterField';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
-import { getDashboardFilterRuleLabel, getSelectableFilters } from './utils';
+import {
+    getDashboardFilterRuleLabel,
+    getRequiredGroupMemberUpdates,
+    getSelectableFilters,
+} from './utils';
 
 type Props = {
     filterRule: DashboardFilterRule;
     onToggleRequired: (checked: boolean) => void;
     onChangeFilterRule: (filterRule: DashboardFilterRule) => void;
     onEditRules?: () => void;
+    /** Writes the other filter an alternative changes; default: the dashboard filters. */
+    onChangeOtherFilterRule?: (filterRule: DashboardFilterRule) => void;
+    /** Disables the switch and says why under it; default: enabled. */
+    disabledReason?: string;
 };
 
 const RequiredFilterCard: FC<Props> = ({
@@ -36,6 +44,8 @@ const RequiredFilterCard: FC<Props> = ({
     onToggleRequired,
     onChangeFilterRule,
     onEditRules,
+    onChangeOtherFilterRule,
+    disabledReason,
 }) => {
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
@@ -85,28 +95,27 @@ const RequiredFilterCard: FC<Props> = ({
             // Rule members are valueless by definition; both filters get the
             // full conversion immediately so cancelling the popover cannot
             // leave a group member with values
-            updateFilterRule(siblingId, {
-                requiredGroupId: groupId,
-                required: false,
-                disabled: true,
-                values: [],
-            });
-            updateFilterRule(filterRule.id, {
-                required: false,
-                requiredGroupId: groupId,
-                disabled: true,
-                values: [],
-            });
-            onChangeFilterRule({
-                ...filterRule,
-                required: false,
-                requiredGroupId: groupId,
-                disabled: true,
-                values: [],
-            });
+            const updates = getRequiredGroupMemberUpdates(groupId);
+            if (onChangeOtherFilterRule) {
+                const sibling = allFilterRules.find(
+                    (rule) => rule.id === siblingId,
+                );
+                if (sibling)
+                    onChangeOtherFilterRule({ ...sibling, ...updates });
+            } else {
+                updateFilterRule(siblingId, updates);
+                updateFilterRule(filterRule.id, updates);
+            }
+            onChangeFilterRule({ ...filterRule, ...updates });
             setIsAddingAlternative(false);
         },
-        [filterRule, updateFilterRule, onChangeFilterRule],
+        [
+            filterRule,
+            allFilterRules,
+            updateFilterRule,
+            onChangeFilterRule,
+            onChangeOtherFilterRule,
+        ],
     );
 
     return (
@@ -127,9 +136,15 @@ const RequiredFilterCard: FC<Props> = ({
                     color="yellow.6"
                     aria-label="Required"
                     checked={isActive}
+                    disabled={!!disabledReason}
                     onChange={(e) => onToggleRequired(e.currentTarget.checked)}
                 />
             </Group>
+            {disabledReason && (
+                <Text size="xs" mt={6} className={classes.disabledReason}>
+                    {disabledReason}
+                </Text>
+            )}
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">
                     <Text size="xs" c="ldGray.7">

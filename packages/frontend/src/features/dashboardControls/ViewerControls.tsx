@@ -5,97 +5,41 @@ import {
     type FilterType,
 } from '@lightdash/common';
 import {
-    Box,
-    Button,
-    Checkbox,
     Group,
+    MultiSelect,
+    SegmentedControl,
     Stack,
     Switch,
     Text,
-    Tooltip,
-    UnstyledButton,
 } from '@mantine/core';
-import { IconChevronDown } from '@tabler/icons-react';
-import { useMemo, useState, type FC, type ReactNode } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { IconLock, IconLockOpen } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import {
-    selectDashboardFilters,
+    selectActiveTabUuid,
     selectDashboardTabs,
     useDashboardSelector,
 } from '../dashboard/store';
 import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
-import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import {
-    getDashboardFilterRuleLabel,
-    getRequirementIneligibilityReason,
-} from '../dashboardFilters/FilterRequirements/utils';
-import classes from './FilterSettings.module.css';
-import {
-    addAlternative,
-    clearRuleRequired,
-    getAlternativeIds,
+    getFilterRuleWithDisabledState,
+    getFilterRuleWithRequired,
     isLockedRequiredMissingValue,
-    isRuleRequired,
-    removeAlternative,
-    setRuleRequired,
-} from './requirements';
+} from '../dashboardFilters/FilterConfiguration/utils';
+import RequiredFilterCard from '../dashboardFilters/FilterRequirements/RequiredFilterCard';
+import classes from './FilterSettings.module.css';
+import { isRuleRequired } from './requirements';
 import { findFilterRule } from './sidebarState';
 
-type RowKey = 'lock' | 'required';
+type LockScope = 'this' | 'all' | 'some';
 
-type RowProps = {
-    label: string;
-    summary: string;
-    isChanged: boolean;
-    isOpen: boolean;
-    onToggle: () => void;
-    children: ReactNode;
-};
-
-const QuestionRow: FC<RowProps> = ({
-    label,
-    summary,
-    isChanged,
-    isOpen,
-    onToggle,
-    children,
-}) => (
-    <Stack gap={0} className={classes.row}>
-        <UnstyledButton
-            className={classes.rowHeader}
-            aria-expanded={isOpen}
-            onClick={onToggle}
-        >
-            <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Stack gap={0}>
-                    <Text size="xs" fw={isChanged ? 600 : 500}>
-                        {label}
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        {summary}
-                    </Text>
-                </Stack>
-                <MantineIcon
-                    icon={IconChevronDown}
-                    size={14}
-                    color="dimmed"
-                    className={`${classes.chevron} ${
-                        isOpen ? classes.chevronOpen : ''
-                    }`}
-                />
-            </Group>
-        </UnstyledButton>
-        {isOpen && (
-            <Stack gap="xs" mt="xs">
-                {children}
-            </Stack>
-        )}
-    </Stack>
-);
+const LOCK_SCOPES: { value: LockScope; label: string }[] = [
+    { value: 'this', label: 'This tab' },
+    { value: 'all', label: 'All tabs' },
+    { value: 'some', label: 'Some tabs' },
+];
 
 type Props = {
     rule: DashboardFilterRule;
@@ -116,37 +60,31 @@ export const ViewerControls: FC<Props> = ({
     onChangeOthers,
     onEditRules,
 }) => {
-    const getUiString = useUiStrings();
     const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const getField = useDashboardFilterField();
-
-    const [openRow, setOpenRow] = useState<RowKey | null>(null);
-    const [isPerTab, setIsPerTab] = useState(false);
-    const rowProps = (key: RowKey) => ({
-        isOpen: openRow === key,
-        onToggle: () => setOpenRow(openRow === key ? null : key),
-    });
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    // Only "Some tabs" can be picked without changing the locked tabs
+    const [isSomeTabsPicked, setIsSomeTabsPicked] = useState(false);
 
     // Lock
     const hasTabs = dashboardTabs.length > 0;
-    const tabUuids = useMemo(
-        () => dashboardTabs.map((tab) => tab.uuid),
-        [dashboardTabs],
-    );
     // Dashboards without tabs store the dashboard uuid as a sentinel
-    const lockKeys = hasTabs ? tabUuids : dashboardUuid ? [dashboardUuid] : [];
+    const lockKeys = hasTabs
+        ? dashboardTabs.map((tab) => tab.uuid)
+        : dashboardUuid
+          ? [dashboardUuid]
+          : [];
     const isLocked = (key: string) => isFilterLockedOnTab(rule, key, hasTabs);
-    const lockedCount = lockKeys.filter(isLocked).length;
-    const isLockedEverywhere =
-        lockKeys.length > 0 && lockedCount === lockKeys.length;
-    const isLockedSomewhere = lockedCount > 0;
-    const showPerTab =
-        dashboardTabs.length > 1 &&
-        (isPerTab || (isLockedSomewhere && !isLockedEverywhere));
+    const lockedKeys = lockKeys.filter(isLocked);
+    const isLockedSomewhere = lockedKeys.length > 0;
+    // The switch locks what the pill's lock would: the tab in view
+    const switchLockKey = hasTabs
+        ? lockKeys.includes(activeTabUuid ?? '')
+            ? activeTabUuid
+            : lockKeys[0]
+        : lockKeys[0];
 
     // The pill's lock, on the tab the key stands for: the next rule and the
     // event it tracks
@@ -157,258 +95,167 @@ export const ViewerControls: FC<Props> = ({
             activeTabUuid: hasTabs ? key : undefined,
             dashboardUuid,
         });
-    const toggleLock = (key: string) => {
-        const toggle = getLockToggle(rule, key);
-        if (toggle === null) return;
-        track(toggle.event);
-        onChange(toggle.filterRule);
+    // One pill lock per tab whose lock changes, each with its event
+    const setLockedKeys = (target: string[]) => {
+        const next = lockKeys.reduce((from, key) => {
+            if (
+                isFilterLockedOnTab(from, key, hasTabs) === target.includes(key)
+            )
+                return from;
+            const toggle = getLockToggle(from, key);
+            if (toggle === null) return from;
+            track(toggle.event);
+            return toggle.filterRule;
+        }, rule);
+        if (next !== rule) onChange(next);
     };
-    const lockedEverywhereRule = lockKeys
-        .filter((key) => !isLocked(key))
-        .reduce(
-            (next, key) => getLockToggle(next, key)?.filterRule ?? next,
-            rule,
-        );
-    // One event per tab whose lock changes, as if each pill lock was clicked
-    const setLockedEverywhere = (locked: boolean) => {
-        lockKeys
-            .filter((key) => isLocked(key) !== locked)
-            .forEach((key) => {
-                const toggle = getLockToggle(rule, key);
-                if (toggle !== null) track(toggle.event);
-            });
-        onChange(
-            locked
-                ? lockedEverywhereRule
-                : { ...rule, lockedTabUuids: undefined },
-        );
+    const unlockEverywhere = () => {
+        setIsSomeTabsPicked(false);
+        lockedKeys.forEach((key) => {
+            const toggle = getLockToggle(rule, key);
+            if (toggle !== null) track(toggle.event);
+        });
+        onChange({ ...rule, lockedTabUuids: undefined });
     };
     // Unlocking is always allowed; locking is not when no viewer could then
     // satisfy the filter
-    const lockedRequiredMessage = getUiString(
-        'filters.config.applyLockedRequiredTooltip',
-    );
-    const isLockEverywhereBlocked =
-        !isLockedEverywhere &&
-        isLockedRequiredMissingValue(lockedEverywhereRule);
     const isLockBlocked = (key: string) => {
         const toggle = isLocked(key) ? null : getLockToggle(rule, key);
         return (
             toggle !== null && isLockedRequiredMissingValue(toggle.filterRule)
         );
     };
+    const isLockSwitchBlocked =
+        !isLockedSomewhere &&
+        switchLockKey !== undefined &&
+        isLockBlocked(switchLockKey);
+    const getScopeKeys = (scope: LockScope): string[] => {
+        if (scope === 'all') return lockKeys;
+        if (scope === 'this')
+            return switchLockKey === undefined ? [] : [switchLockKey];
+        return lockedKeys;
+    };
+    const isScopeBlocked = (scope: LockScope) =>
+        getScopeKeys(scope).some(isLockBlocked);
+    const derivedScope: LockScope =
+        lockedKeys.length === 1 && lockedKeys[0] === switchLockKey
+            ? 'this'
+            : lockedKeys.length === lockKeys.length
+              ? 'all'
+              : 'some';
+    const lockScope = isSomeTabsPicked ? 'some' : derivedScope;
 
-    const everyTab = hasTabs ? ' on every tab' : '';
-    const lockSummary = isLockedEverywhere
-        ? `Locked${everyTab}`
-        : isLockedSomewhere
-          ? `Locked on ${lockedCount} of ${lockKeys.length} tabs`
-          : `Not locked: viewers can change it${everyTab}`;
-
-    // Required: rules are over dimensions and metrics, as in the shipped card
-    const savedRules = useMemo(
-        () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
-        [dashboardFilters],
-    );
-    // The rule being edited may be ahead of, or missing from, the saved filters
-    const allRules = useMemo(
-        () =>
-            savedRules.some((saved) => saved.id === rule.id)
-                ? savedRules.map((saved) =>
-                      saved.id === rule.id ? rule : saved,
-                  )
-                : [...savedRules, rule],
-        [savedRules, rule],
-    );
+    // Required, as the shipped form switches it
     const isRequired = isRuleRequired(rule);
-    const alternativeIds = getAlternativeIds(allRules, rule.id);
     // The rule as the dashboard was last saved, as the shipped popover reads it
     const savedRule = savedFilters
-        ? findFilterRule(savedFilters, rule.id)
-        : null;
-    const requiredRule = setRuleRequired(rule, savedRule);
+        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
+        : undefined;
+    const getRequiredRule = (checked: boolean) =>
+        getFilterRuleWithDisabledState(
+            getFilterRuleWithRequired(
+                filterType,
+                field ?? undefined,
+                rule,
+                savedRule,
+                checked,
+            ),
+            true,
+        );
     const isRequiredBlocked =
-        !isRequired && isLockedRequiredMissingValue(requiredRule);
-
-    // This rule goes through onChange, the other filters through
-    // onChangeOthers, so the editor knows which ones it wrote
-    const writeRules = (next: DashboardFilterRule[]) => {
-        const previousById = new Map(allRules.map((r) => [r.id, r]));
-        const changed = next.filter((r) => previousById.get(r.id) !== r);
-        const others = changed.filter((r) => r.id !== rule.id);
-        if (others.length > 0) onChangeOthers(others);
-        const own = changed.find((r) => r.id === rule.id);
-        if (own) onChange(own);
-    };
-
-    const alternativeLabels = allRules
-        .filter((other) => alternativeIds.includes(other.id))
-        .map((other) => getDashboardFilterRuleLabel(other, getField));
-    const requiredSummary = isRequired
-        ? alternativeLabels.length > 0
-            ? `Required, or ${alternativeLabels.join(' or ')}`
-            : 'Required'
-        : 'Not required';
-    const requiredSub = isRequired
-        ? 'Viewers must set this filter to load the dashboard.'
-        : 'Viewers would have to set this filter before the tiles load.';
+        !isRequired && isLockedRequiredMissingValue(getRequiredRule(true));
 
     return (
-        <Stack gap={0}>
-            <QuestionRow
-                label="Lock"
-                summary={lockSummary}
-                isChanged={isLockedSomewhere}
-                {...rowProps('lock')}
-            >
-                <Tooltip
-                    label={lockedRequiredMessage}
-                    disabled={!isLockEverywhereBlocked}
-                >
-                    <Box w="max-content">
-                        <Switch
-                            size="xs"
-                            label={hasTabs ? 'Lock on every tab' : 'Lock'}
-                            description="Viewers see the value but cannot change it."
-                            checked={isLockedEverywhere}
-                            disabled={
-                                lockKeys.length === 0 || isLockEverywhereBlocked
-                            }
-                            onChange={(e) =>
-                                setLockedEverywhere(e.currentTarget.checked)
-                            }
+        <Stack gap="md">
+            <Stack gap={6}>
+                <Group justify="space-between" wrap="nowrap" gap="xs">
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon
+                            icon={isLockedSomewhere ? IconLock : IconLockOpen}
+                            size="sm"
+                            color={isLockedSomewhere ? 'ldGray.9' : 'dimmed'}
                         />
-                    </Box>
-                </Tooltip>
-                {showPerTab && (
-                    <Stack gap="xs" role="group" aria-label="Lock per tab">
-                        {dashboardTabs.map((tab) => (
-                            <Tooltip
-                                key={tab.uuid}
-                                label={lockedRequiredMessage}
-                                disabled={!isLockBlocked(tab.uuid)}
-                            >
-                                <Box w="max-content">
-                                    <Switch
-                                        size="xs"
-                                        label={tab.name}
-                                        checked={isLocked(tab.uuid)}
-                                        disabled={isLockBlocked(tab.uuid)}
-                                        onChange={() => toggleLock(tab.uuid)}
-                                    />
-                                </Box>
-                            </Tooltip>
-                        ))}
-                    </Stack>
-                )}
-                {dashboardTabs.length > 1 && !showPerTab && (
-                    <Group gap="xs">
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            onClick={() => setIsPerTab(true)}
-                        >
-                            Set per tab
-                        </Button>
+                        <Text fz="sm" fw={500}>
+                            Lock
+                        </Text>
                     </Group>
+                    <Switch
+                        size="xs"
+                        aria-label="Lock"
+                        checked={isLockedSomewhere}
+                        disabled={
+                            switchLockKey === undefined || isLockSwitchBlocked
+                        }
+                        onChange={(e) => {
+                            if (!e.currentTarget.checked) unlockEverywhere();
+                            else if (switchLockKey !== undefined)
+                                setLockedKeys([switchLockKey]);
+                        }}
+                    />
+                </Group>
+                <Text fz="xs" c="dimmed">
+                    Viewers see the value but can&apos;t change it.
+                </Text>
+                {hasTabs && isLockedSomewhere && (
+                    <>
+                        <SegmentedControl
+                            size="xs"
+                            fullWidth
+                            aria-label="Locked on"
+                            value={lockScope}
+                            data={LOCK_SCOPES.map((scope) => ({
+                                ...scope,
+                                disabled:
+                                    scope.value !== lockScope &&
+                                    isScopeBlocked(scope.value),
+                            }))}
+                            onChange={(value) => {
+                                const scope = value as LockScope;
+                                setIsSomeTabsPicked(scope === 'some');
+                                setLockedKeys(getScopeKeys(scope));
+                            }}
+                        />
+                        {lockScope === 'some' && (
+                            <MultiSelect
+                                size="xs"
+                                aria-label="Locked tabs"
+                                data={dashboardTabs.map((tab) => ({
+                                    value: tab.uuid,
+                                    label:
+                                        tab.uuid === switchLockKey
+                                            ? `${tab.name} · this tab`
+                                            : tab.name,
+                                    disabled: isLockBlocked(tab.uuid),
+                                }))}
+                                value={lockedKeys}
+                                onChange={setLockedKeys}
+                            />
+                        )}
+                    </>
                 )}
-                {isLockedSomewhere && (
-                    <Text size="xs" c="dimmed">
-                        A locked filter still filters the tiles. Values from the
-                        URL or an embed are ignored.
+                {isLockSwitchBlocked && (
+                    <Text fz="xs" className={classes.warning}>
+                        Give it a default value before locking it.
                     </Text>
                 )}
-            </QuestionRow>
+            </Stack>
 
-            <QuestionRow
-                label="Required"
-                summary={requiredSummary}
-                isChanged={isRequired}
-                {...rowProps('required')}
-            >
-                <Tooltip
-                    label={lockedRequiredMessage}
-                    disabled={!isRequiredBlocked}
-                >
-                    <Box w="max-content">
-                        <Switch
-                            size="xs"
-                            label="Required"
-                            description={requiredSub}
-                            checked={isRequired}
-                            disabled={isRequiredBlocked}
-                            onChange={(e) =>
-                                onChange(
-                                    e.currentTarget.checked
-                                        ? requiredRule
-                                        : clearRuleRequired(
-                                              rule,
-                                              savedRule,
-                                              filterType,
-                                              field,
-                                          ),
-                                )
-                            }
-                        />
-                    </Box>
-                </Tooltip>
-                {alternativeIds.length > 0 && onEditRules !== null && (
-                    <Group gap="xs">
-                        <Button
-                            size="compact-xs"
-                            variant="subtle"
-                            onClick={onEditRules}
-                        >
-                            Edit rule
-                        </Button>
-                    </Group>
-                )}
-                {isRequired && allRules.length > 1 && (
-                    <Stack gap="xs">
-                        <Text size="xs" fw={500}>
-                            Or one of these instead
-                        </Text>
-                        {allRules
-                            .filter((other) => other.id !== rule.id)
-                            .map((other) => {
-                                const isAlternative = alternativeIds.includes(
-                                    other.id,
-                                );
-                                const reason = isAlternative
-                                    ? null
-                                    : getRequirementIneligibilityReason(other);
-                                return (
-                                    <Checkbox
-                                        key={other.id}
-                                        size="xs"
-                                        label={getDashboardFilterRuleLabel(
-                                            other,
-                                            getField,
-                                        )}
-                                        description={reason}
-                                        disabled={reason !== null}
-                                        checked={isAlternative}
-                                        onChange={(e) =>
-                                            writeRules(
-                                                e.currentTarget.checked
-                                                    ? addAlternative(
-                                                          allRules,
-                                                          rule.id,
-                                                          other.id,
-                                                          uuidv4(),
-                                                      )
-                                                    : removeAlternative(
-                                                          allRules,
-                                                          other.id,
-                                                      ),
-                                            )
-                                        }
-                                    />
-                                );
-                            })}
-                    </Stack>
-                )}
-            </QuestionRow>
+            <RequiredFilterCard
+                filterRule={rule}
+                onToggleRequired={(checked) =>
+                    onChange(getRequiredRule(checked))
+                }
+                onChangeFilterRule={(next) =>
+                    onChange(getFilterRuleWithDisabledState(next, true))
+                }
+                onChangeOtherFilterRule={(other) => onChangeOthers([other])}
+                onEditRules={onEditRules ?? undefined}
+                disabledReason={
+                    isRequiredBlocked
+                        ? 'A locked filter needs a default value to be required.'
+                        : undefined
+                }
+            />
         </Stack>
     );
 };

@@ -549,7 +549,7 @@ describe('LinkPrompts', () => {
         });
     });
 
-    it('tells apart two candidates that read the same by their table', async () => {
+    it('tells apart two candidates that read the same by their table group', async () => {
         const refundsMethod = dimension(
             'refunds',
             'method',
@@ -572,7 +572,12 @@ describe('LinkPrompts', () => {
             screen
                 .getAllByRole('option', { hidden: true })
                 .map((option) => option.textContent),
-        ).toEqual(['payments Method', 'refunds Method']);
+        ).toEqual(['Method', 'Method']);
+        expect(
+            screen
+                .getAllByRole('group', { hidden: true })
+                .map((group) => group.firstChild?.textContent),
+        ).toEqual(['payments', 'refunds']);
     });
 
     describe('focus after the card is answered', () => {

@@ -31,7 +31,7 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
 
 const LOCKED_REQUIRED = 'A locked, required filter must have a value';
 
-const NOTE = /No default: each tile keeps its own values/;
+const ANY_VALUE = 'any value';
 const HINT = 'Set a value, or the default stays off.';
 
 const makeRule = (
@@ -81,14 +81,26 @@ describe('FilterValueSettings', () => {
     };
 
     describe('default value', () => {
-        it('shows the note and a disabled any value input while the default is off', () => {
+        it('has the shipped switch under the value, with no heading', () => {
+            renderSettings(makeRule({ values: ['done'] }));
+
+            expect(screen.queryByText('Default value')).not.toBeInTheDocument();
+            expect(screen.queryByText('Preview value')).not.toBeInTheDocument();
+            expect(
+                screen.getByText('Provide default value'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('switch', { name: 'Provide default value' }),
+            ).toBeChecked();
+        });
+
+        it('shows the shipped any value input while the default is off', () => {
             renderSettings(makeRule({ disabled: true }));
 
             expect(
                 screen.getByRole('switch', { name: 'Provide default value' }),
             ).not.toBeChecked();
-            expect(screen.getByText(NOTE)).toBeInTheDocument();
-            const anyValue = screen.getByPlaceholderText('any value');
+            const anyValue = screen.getByPlaceholderText(ANY_VALUE);
             expect(anyValue).toBeDisabled();
             expect(screen.queryByTestId('value-input')).not.toBeInTheDocument();
         });
@@ -98,7 +110,7 @@ describe('FilterValueSettings', () => {
                 makeRule({ disabled: true, operator: FilterOperator.NULL }),
             );
             expect(
-                screen.queryByPlaceholderText('any value'),
+                screen.queryByPlaceholderText(ANY_VALUE),
             ).not.toBeInTheDocument();
         });
 
@@ -131,11 +143,10 @@ describe('FilterValueSettings', () => {
         it('shows the operator and the value input while the default is on', () => {
             renderSettings(makeRule({ values: ['done'] }));
 
-            expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
             expect(screen.getByRole('combobox')).toBeInTheDocument();
             expect(screen.getByTestId('value-input')).toBeInTheDocument();
             expect(
-                screen.queryByPlaceholderText('any value'),
+                screen.queryByPlaceholderText(ANY_VALUE),
             ).not.toBeInTheDocument();
         });
 
@@ -359,6 +370,20 @@ describe('FilterValueSettings', () => {
             });
         });
 
+        it('sits in the operator select while the default is on', () => {
+            renderSettings(makeRule({ values: ['done'] }));
+            expect(
+                screen.getByRole('button', { name: 'Multiple values' }),
+            ).toBeInTheDocument();
+        });
+
+        it('is offered while the default is off', () => {
+            renderSettings(makeRule({ disabled: true }));
+            expect(
+                screen.getByRole('button', { name: 'Multiple values' }),
+            ).toBeInTheDocument();
+        });
+
         it('is not offered where the shipped form does not offer it', () => {
             renderSettings(
                 makeRule({ operator: FilterOperator.NULL }),
@@ -378,7 +403,7 @@ describe('FilterValueSettings', () => {
     });
 
     describe('required filter', () => {
-        it('has no default switch and notes that the value is temporary', () => {
+        it('has no switch, and notes that its value is temporary', () => {
             renderSettings(makeRule({ required: true, values: ['done'] }));
 
             expect(
@@ -393,9 +418,8 @@ describe('FilterValueSettings', () => {
             expect(screen.getByRole('combobox')).toBeInTheDocument();
             expect(screen.getByTestId('value-input')).toBeInTheDocument();
             expect(
-                screen.queryByPlaceholderText('any value'),
+                screen.queryByPlaceholderText(ANY_VALUE),
             ).not.toBeInTheDocument();
-            expect(screen.queryByText(NOTE)).not.toBeInTheDocument();
             expect(screen.queryByText(REQUIRED_NOTE)).not.toBeInTheDocument();
         });
 

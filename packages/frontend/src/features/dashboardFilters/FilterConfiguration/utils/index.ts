@@ -4,6 +4,7 @@ import {
     FilterOperator,
     FilterType,
     getFilterRuleWithDefaultValue,
+    getFilterTypeFromItem,
     getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
@@ -357,6 +358,68 @@ export const getFilterRuleWithDefaultValueEnabled = (
     return checked
         ? newFilter
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
+};
+
+// The rule after the "Required" switch of the settings form
+export const getFilterRuleWithRequired = (
+    filterType: FilterType,
+    field: DashboardFilterableField | undefined,
+    filterRule: DashboardFilterRule,
+    originalFilterRule: DashboardFilterRule | undefined,
+    checked: boolean,
+): DashboardFilterRule => {
+    // Toggling on restores the saved rule membership if there is one,
+    // otherwise it creates a one-member rule; off removes it from its rule.
+    const restoredGroupId = checked
+        ? originalFilterRule?.requiredGroupId
+        : undefined;
+
+    const newFilter: DashboardFilterRule = restoredGroupId
+        ? {
+              ...filterRule,
+              required: false,
+              requiredGroupId: restoredGroupId,
+              disabled: true,
+              values: [],
+          }
+        : {
+              ...filterRule,
+              required: checked,
+              requiredGroupId: undefined,
+          };
+
+    return checked
+        ? newFilter
+        : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
+};
+
+// The Apply guard of the settings form: no viewer can satisfy this filter
+export const isLockedRequiredMissingValue = (
+    filterRule: DashboardFilterRule | undefined,
+): boolean =>
+    !!filterRule?.lockedTabUuids?.length &&
+    !!filterRule?.required &&
+    !hasFilterValueSet(filterRule);
+
+// The filter type of the rule in the form: its field's, else its SQL column's
+export const getFilterRuleFilterType = (
+    field: DashboardFilterableField | undefined,
+    columns: ResultColumn[],
+    filterRule: DashboardFilterRule | undefined,
+): FilterType => {
+    if (field) {
+        return getFilterTypeFromItem(field);
+    }
+
+    if (filterRule?.target.fieldId) {
+        return getSqlColumnFilterType(
+            columns,
+            filterRule.target.fieldId,
+            filterRule.target.fallbackType,
+        );
+    }
+
+    return FilterType.STRING;
 };
 
 export const isFilterEnabled = (

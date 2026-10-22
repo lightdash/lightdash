@@ -12,7 +12,13 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
-import { fireEvent, screen, waitFor, act } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -191,6 +197,17 @@ const Editor = () => {
 const removeButtonOf = (label: string) =>
     screen.getByLabelText(`Remove field ${label}`);
 
+// A field's row reads "N tiles"; its tooltip has the table and "x of N"
+const countOf = (label: string) =>
+    within(
+        screen.getByRole('button', { name: label }).parentElement!,
+    ).getByText(/^\d+ tiles?$/);
+const expectDetails = async (label: string, details: string) => {
+    await userEvent.hover(countOf(label));
+    expect(await screen.findByText(details)).toBeInTheDocument();
+    await userEvent.unhover(countOf(label));
+};
+
 const getUpdatedRule = (): DashboardFilterRule => {
     expect(updateFilter).toHaveBeenCalledTimes(1);
     return updateFilter.mock.calls[0][0];
@@ -269,12 +286,17 @@ describe('FieldsAndTiles', () => {
                 </>,
             );
 
-            expect(screen.getByText('Select a field to filter')).toBeVisible();
             expect(
-                screen.queryByText('Tiles are filtered by'),
+                screen.queryByText('Select a field to filter'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByPlaceholderText('Search fields')).toBeVisible();
+            expect(
+                screen.queryByText("Change a tile's field on the tile itself."),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByText('Select the field to filter tiles by.'),
+                screen.getByText(
+                    'Select the field to filter tiles by, or pick one on a tile.',
+                ),
             ).toBeVisible();
 
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
@@ -428,18 +450,19 @@ describe('FieldsAndTiles', () => {
         });
     });
 
-    it('lists the fields of a filter with their tile counts', () => {
+    it('lists the fields of a filter with their tile counts', async () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
         renderWithProviders(<FieldsAndTiles />);
 
-        expect(screen.getByText('Tiles are filtered by')).toBeVisible();
         expect(
-            screen.getByText('Select a field to see and change its tiles.'),
+            screen.getByText("Change a tile's field on the tile itself."),
         ).toBeVisible();
         expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
-        expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
+        expect(countOf('Status')).toHaveTextContent('1 tile');
         expect(screen.getByRole('button', { name: 'Region' })).toBeVisible();
-        expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
+        expect(countOf('Region')).toHaveTextContent('1 tile');
+        await expectDetails('Status', 'Orders · 1 of 2 tiles');
+        await expectDetails('Region', 'Orders · 1 of 1 tile');
         expect(removeButtonOf('Status')).toBeInTheDocument();
         expect(removeButtonOf('Region')).toBeInTheDocument();
         expect(fieldSearch()).not.toBeInTheDocument();
@@ -481,14 +504,15 @@ describe('FieldsAndTiles', () => {
             };
         });
 
-        it('lists its metric with the tiles that offer it', () => {
+        it('lists its metric with the tiles that offer it', async () => {
             setSidebar(rule('orders_revenue'));
             renderWithProviders(<FieldsAndTiles />);
 
             expect(
                 screen.getByRole('button', { name: 'Revenue' }),
             ).toBeVisible();
-            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
+            expect(countOf('Revenue')).toHaveTextContent('2 tiles');
+            await expectDetails('Revenue', 'Orders · 2 of 2 tiles');
         });
 
         it('adds metrics of its type, and no dimension', async () => {
@@ -544,14 +568,15 @@ describe('FieldsAndTiles', () => {
             };
         });
 
-        it('lists the column with the SQL chart tiles that have it', () => {
+        it('lists the column with the SQL chart tiles that have it', async () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
 
             expect(
                 screen.getByRole('button', { name: 'country' }),
             ).toBeVisible();
-            expect(screen.getByText('SQL column · 1 of 2 tiles')).toBeVisible();
+            expect(countOf('country')).toHaveTextContent('1 tile');
+            await expectDetails('country', 'SQL column · 1 of 2 tiles');
         });
 
         it('removes the column, its only field', async () => {
@@ -573,12 +598,13 @@ describe('FieldsAndTiles', () => {
         });
     });
 
-    it('falls back to the field id when the field is unknown', () => {
+    it('falls back to the field id when the field is unknown', async () => {
         setSidebar(rule('orders_gone'));
         renderWithProviders(<FieldsAndTiles />);
 
         expect(screen.getByText('orders_gone')).toBeVisible();
-        expect(screen.getByText('orders · 0 of 0 tiles')).toBeVisible();
+        expect(countOf('orders_gone')).toHaveTextContent('0 tiles');
+        await expectDetails('orders_gone', 'orders · 0 of 0 tiles');
         expect(removeButtonOf('orders_gone')).toBeInTheDocument();
     });
 
@@ -642,7 +668,7 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule('orders_status'));
         renderWithProviders(<FieldsAndTiles />);
 
-        await userEvent.hover(screen.getByText(/^Orders · /));
+        await userEvent.hover(countOf('Status'));
         expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
     });
 
@@ -669,14 +695,15 @@ describe('FieldsAndTiles', () => {
 
         beforeEach(() => setTabs(TAB_1));
 
-        it('counts every tab on the card, whatever the active tab', () => {
+        it('counts every tab on the card, whatever the active tab', async () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             const { rerender } = renderWithProviders(<FieldsAndTiles />);
-            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
+            expect(countOf('Status')).toHaveTextContent('2 tiles');
+            await expectDetails('Status', 'Orders · 2 of 3 tiles');
 
             setTabs(TAB_2);
             rerender(<FieldsAndTiles />);
-            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
+            expect(countOf('Status')).toHaveTextContent('2 tiles');
         });
     });
 
@@ -835,7 +862,9 @@ describe('FieldsAndTiles', () => {
         expect(add).toHaveFocus();
 
         await userEvent.click(add);
-        await userEvent.click(screen.getByText('Tiles are filtered by'));
+        await userEvent.click(
+            screen.getByText("Change a tile's field on the tile itself."),
+        );
         expect(fieldSearch()).not.toBeInTheDocument();
     });
 
@@ -963,7 +992,8 @@ describe('FieldsAndTiles', () => {
             });
             renderWithProviders(<FieldsAndTiles />);
 
-            expect(screen.getByText('Orders · 0 of 1 tile')).toBeVisible();
+            expect(countOf('Region')).toHaveTextContent('0 tiles');
+            await expectDetails('Region', 'Orders · 0 of 1 tile');
             expect(
                 screen
                     .getByRole('button', { name: 'Region' })
@@ -1117,7 +1147,7 @@ describe('FieldsAndTiles', () => {
         renderWithProviders(<FieldsAndTiles />);
 
         expect(
-            screen.queryByText('Tiles are filtered by'),
+            screen.queryByText("Change a tile's field on the tile itself."),
         ).not.toBeInTheDocument();
         expect(fieldSearch()).not.toBeInTheDocument();
     });
