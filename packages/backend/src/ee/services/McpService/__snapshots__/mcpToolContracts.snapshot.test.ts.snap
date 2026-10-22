@@ -5,7 +5,7 @@ exports[`MCP tool contracts > matches the 'filter-expression' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -30,7 +30,7 @@ exports[`MCP tool contracts > matches the 'structured-filter' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -55,7 +55,7 @@ exports[`MCP tool contracts > matches the agent-identity tools and instructions 
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -173,7 +173,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
  If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
       "name": "run_metric_query",
     },
@@ -187,7 +187,7 @@ Returns SQL data, not chart artifacts. The platform provides a query-specific SQ
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app. If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
       "name": "run_sql",
     },
   ],
@@ -209,7 +209,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -308,14 +308,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
       },
       "description": "Tool: list_explores
 
-Purpose:
-Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
-
-Usage Tips:
-- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information
-- No arguments needed - automatically uses the current project context
-- Results are filtered based on user permissions and selected tags
-- Returns explore metadata without field details for quick overview
+List the explores the user can access in a project, limited to the agent's tags when agent-scoped: each explore's name, label, base table, tags, joined tables and required filters, without its fields. Use it for an overview of the available data; grep_fields and get_metadata give the fields.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1569,16 +1562,9 @@ Usage tips:
       },
       "description": "Tool: resolve_url
 
-Purpose:
-Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
+Expand a share link, a URL whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as read_content.
 
-When to use:
-- ONLY for URLs whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."). Nothing else is a share link.
-- NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
-
-Usage tips:
-- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. read_content) to fetch the content.
-- URLs that don't belong to this Lightdash instance cannot be resolved.",
+Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>", already contains its identifiers: read them from the path and go straight to the appropriate tool. URLs from another instance cannot be resolved.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2497,7 +2483,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7224,7 +7210,7 @@ To render a custom chart type instead, set chartConfig to { customChartTypeSlug,
 
 The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -10503,13 +10489,13 @@ Returns SQL data, not chart artifacts. The platform provides a query-specific SQ
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
           "limit": {
             "default": 500,
-            "description": "Maximum number of rows to return. Defaults to 500, max 500.",
+            "description": "Maximum number of rows to return.",
             "exclusiveMinimum": 0,
             "maximum": 500,
             "type": "integer",
@@ -10648,7 +10634,7 @@ Stop on terminal errors and correct the request before retrying.
 
 Returns the original query's data on completion. For a visual, call render_chart after get_query_result returns done for a metric query. SQL results cannot be rendered by render_chart.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11021,7 +11007,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Read Skill",
       },
-      "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
+      "description": "Read the main SKILL.md instructions of a Lightdash built-in skill named by list_skills.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11141,7 +11127,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Read Skill Resource",
       },
-      "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
+      "description": "Read a supporting resource file of a Lightdash built-in skill.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -12113,9 +12099,8 @@ Important:
 
 Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app, if available.
 
-- Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.
-- Poll get_data_app_build_status with the returned slug as appSlug until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
-- Use the returned slug: a taken name gets a numeric suffix.
+- Describe the expected data by role (a date, a category, a value), not by a query's fields.
+- Poll get_data_app_build_status with the returned slug as appSlug (a taken name gets a numeric suffix) until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
 - For a named theme, brand or look, find its themeSlug with list_data_app_themes.
 - A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.
 ",
@@ -12213,7 +12198,7 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
 
 Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app, if available.
 
-- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data. Pass themeSlug only to switch the theme.
+- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass themeSlug only to switch the theme.
 - Poll get_data_app_build_status with appSlug set to the slug until it is "ready", "error" or "cancelled". If a version is already building, wait for it to end before calling again.
 - A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.
 ",
@@ -12309,7 +12294,7 @@ Start a build that adds a version to an existing custom chart type from a follow
       },
       "description": "Tool: find_custom_chart_types
 
-Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.
+Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. To browse page by page, use list_custom_chart_types.
 
 - Each match has its latest version, field slots, config options and a Chart Studio link.
 - Reuse a fitting type before building one with create_custom_chart_type, if available.
@@ -12695,7 +12680,7 @@ Search the project's custom chart types (reusable visualizations, including ones
       },
       "description": "Tool: list_custom_chart_types
 
-Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time. Page starts at 1.
+Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time.
 
 - Each item has the same fields as find_custom_chart_types: latest version, field slots, config options and a Chart Studio link.
 - Use find_custom_chart_types to search by text or fetch one by slug.
@@ -13112,7 +13097,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
 
 Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability. Each category uses AND or OR, never both; categories combine with AND. Conditional custom metric filters are AND-only. Before writing filter expressions, read the \`filter-expressions\` skill.",
   "inputSchema": {

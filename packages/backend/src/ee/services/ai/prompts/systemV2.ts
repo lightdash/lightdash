@@ -319,9 +319,11 @@ export const getSystemPromptV2 = (
     let projectContextContent =
         'No project context has been configured for this project.';
     if (promptSections.has('projectContext') && args.hasProjectContext) {
+        const projectContextDefinition =
+            'This project has curated business context: acronyms, definitions, rules and conventions that are not in the field metadata.';
         projectContextContent = args.projectContextPreloaded
-            ? 'Relevant project business context is already preloaded for this request. Apply it before discovery, as authoritative over your own assumptions. It is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.'
-            : 'This project has curated business context (acronyms, definitions, rules). Load it with `loadProjectContext` before discovery, since it can change which explore, field or filter value you should use, and treat it as authoritative over your own assumptions.';
+            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with \`loadProjectContext\` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
+            : `${projectContextDefinition} Load it with \`loadProjectContext\` before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
     }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
@@ -515,7 +517,7 @@ export const getSystemPromptV2 = (
                   '## MCP tools',
                   ...(hasLiveMcpTools
                       ? [
-                            'MCP tool definitions are loaded on demand. Call `loadMcpTools` with the exact names you need before calling an unloaded MCP tool, so you read its input schema instead of guessing it from the name. Loaded tools remain available for this thread.',
+                            'The tools of the attached MCP servers below load on demand: load the ones you need with `loadMcpTools` before calling them, so you read their input schema instead of guessing it from the name.',
                         ]
                       : []),
                   ...mcpServers.map(

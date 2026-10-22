@@ -7,22 +7,11 @@ export const TOOL_READ_PINNED_THREAD_DESCRIPTION = ({
     toolName,
 }: ToolDescriptionContext): string => `Tool: ${toolName}
 
-Purpose:
-Read the transcript of a previous conversation that was attached to this thread as context. Use it to understand what the user was trying to achieve in that conversation before answering.
+Read the transcript of a previous conversation attached to this thread as context, to understand what the user was trying to achieve there before answering.
 
-When to use:
-- A message in this thread lists a Conversation as attached context and you need its content.
-- You were asked to verify or follow up on something that happened in the attached conversation.
+Use it when a message in this thread lists a Conversation as attached context and you need its content, or when you are asked to verify or follow up on something from that conversation. Only attached conversations are readable, and a transcript does not change, so read each one once per turn.
 
-Do NOT use:
-- For threads that are not attached as context — only pinned conversations are readable.
-- Repeatedly for the same threadUuid in one turn — the transcript does not change between calls.
-
-Important:
-The attached conversation may predate recent project changes. Verify any claims it contains (available fields, metrics, query results) against the current project instead of trusting them.
-
-Parameters:
-- threadUuid: The uuid of the attached conversation, taken from the context note in this thread.
+The attached conversation may predate recent project changes: verify its claims (available fields, metrics, query results) against the current project before relying on them.
 `;
 
 export const toolReadPinnedThreadArgsSchema = createToolSchema()
@@ -30,7 +19,9 @@ export const toolReadPinnedThreadArgsSchema = createToolSchema()
         threadUuid: z
             .string()
             .uuid()
-            .describe('Uuid of the pinned conversation to read.'),
+            .describe(
+                'Uuid of the attached conversation, from the context note in this thread.',
+            ),
     })
     .build();
 

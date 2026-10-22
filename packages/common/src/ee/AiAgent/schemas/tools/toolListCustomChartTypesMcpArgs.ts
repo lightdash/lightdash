@@ -4,7 +4,7 @@ import { mcpCustomChartTypeOutputSchema } from './toolFindCustomChartTypesMcpArg
 
 export const MCP_TOOL_LIST_CUSTOM_CHART_TYPES_DESCRIPTION = `Tool: list_custom_chart_types
 
-Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time. Page starts at 1.
+Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time.
 
 - Each item has the same fields as find_custom_chart_types: latest version, field slots, config options and a Chart Studio link.
 - Use find_custom_chart_types to search by text or fetch one by slug.

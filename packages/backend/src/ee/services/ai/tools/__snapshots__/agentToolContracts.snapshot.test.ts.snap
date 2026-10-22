@@ -2937,7 +2937,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Update the first and last name of the user you are currently talking to. Use this when the user tells you their name — either because you asked (their name has not been collected yet) or because they want to correct how their name is stored. Only save a name the user explicitly provided for themselves; never invent or infer one, and never use it to change another user's name.",
+    "description": "Save the first and last name of the user you are talking to, when they tell you their name or ask to correct it. Save only a name the user gave for themselves; never invent or infer one, and never change another user's name.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -5153,18 +5153,7 @@ Usage tips:
     },
   },
   {
-    "description": "Purpose:
-Browse the project's custom chart type library. Set \`query\` to keyword-search types by name and description, or set \`slug\` to fetch one exact type — set exactly one of the two. Each match returns the type's slug plus its full schema: the field slots to bind query fields to (name, label, type, required) and the config options it accepts.
-
-Use it to look beyond the types inlined in availableCustomChartTypes, or to read a type's full schema before rendering through it.
-
-Parameters:
-- query: keyword terms matched against custom chart type names and descriptions
-- slug: exact slug of one custom chart type, from availableCustomChartTypes or a previous search
-
-Output:
-- Matching custom chart types, each with slug, name, description and full serialized schema (field slots and config option details)
-",
+    "description": "Search the project's custom chart types by keyword, or fetch one by slug. Each match returns the type's slug and full schema: the field slots to bind query fields to (name, label, type, required) and the config options it accepts. The system prompt lists only their field and option labels.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -5177,7 +5166,7 @@ Output:
           ],
         },
         "slug": {
-          "description": "Exact slug of one custom chart type. Set exactly one of query or slug.",
+          "description": "Exact slug of one custom chart type, from the listed types or a previous search. Set exactly one of query or slug.",
           "type": [
             "string",
             "null",
@@ -8780,7 +8769,7 @@ Parameters:
     },
   },
   {
-    "description": "Get details about the Lightdash project you are currently working in and its underlying dbt project. Use this when the user asks what dbt project this is, which git repository/branch it connects to, what dbt version or warehouse it uses, or wants general context about the current project. This is read-only, applies to the project you are currently working in, and never returns credentials or secrets.",
+    "description": "Get details about the project you are working in and its underlying dbt project. Use it when the user asks what dbt project this is, which git repository or branch it connects to, what dbt version or warehouse it uses, or wants general context about the project. It never returns credentials or secrets.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -10176,7 +10165,7 @@ Parameters:
     },
   },
   {
-    "description": "List the Lightdash projects in this organization that the current user has access to. Use this when the user asks what projects exist, which projects they can access, or wants to know about other projects in their organization. This is read-only and only returns projects the user is allowed to view. It does not switch the project you are currently working in.",
+    "description": "List the projects in this organization that the user can access. Use it when the user asks which projects exist, which they can access, or about other projects in their organization. It does not switch the project you are working in.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -10949,7 +10938,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Load a skill by name, or one of its resources. Always load the skill itself first, then resources on demand. When the skill takes arguments, pass what the user asked for in \`arguments\` so its placeholders are filled.",
+    "description": "Load a skill by name. The result lists the skill's resources; load only the one you need with \`resourceName\`.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -10967,7 +10956,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "type": "string",
         },
         "resourceName": {
-          "description": "Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.",
+          "description": "Name of a resource listed in the loaded skill, to load that resource instead of the skill.",
           "minLength": 1,
           "type": [
             "string",
@@ -11455,7 +11444,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Load the definitions for MCP tools you need before calling them. Pass exact tool names from the MCP tools section of the system prompt. Loaded definitions remain available for the rest of the thread.",
+    "description": "Load the definitions of MCP tools before calling them. Pass exact names from the MCP tools list in the system prompt. Loaded tools stay available for the rest of the thread.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -28242,7 +28231,7 @@ Use them whenever the question needs math the metric query alone can't express: 
 
 exports[`AI agent tool contracts > matches the opt-in agent toolbox loader contract 1`] = `
 {
-  "description": "Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.",
+  "description": "Load the rest of this agent's tools for this turn. Call it only when the request needs a capability your current tools lack, and before telling the user that a capability is unavailable.",
   "inputSchema": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "additionalProperties": false,

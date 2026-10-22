@@ -557,14 +557,12 @@ describe('getSystemPromptV2 memories', () => {
         });
 
         expect(content).toContain('## Memories');
-        expect(content).toContain(
-            'Do not save temporary query results as durable user memories.',
-        );
+        expect(content).toContain('<ld-mem-cite id="slug"></ld-mem-cite>');
     });
 
-    test('keeps the memories rule out of prompts without memories', () => {
+    test('keeps the memories rules out of prompts without memories', () => {
         expect(promptText({ availableExplores: [] })).not.toContain(
-            'durable user memories',
+            'ld-mem-cite',
         );
     });
 });
@@ -784,9 +782,6 @@ describe('getSystemPromptV2 requesting user', () => {
         expect(content).toContain('member of: Finance, Ops');
         expect(content).toContain('business user');
         expect(content).toContain("user's team(s)");
-        expect(content).toContain(
-            'If the user asks to correct or change their name, use the updateUserName tool.',
-        );
     });
 
     test('renders technical guidance for a developer', () => {
@@ -874,12 +869,10 @@ describe('getSystemPromptV2 requesting user', () => {
             requestingUser: { name: '', role: null, groups: [] },
         });
         expect(content).toContain('## Who you are talking to');
-        expect(content).toContain(
-            "You don't yet know the user's name — it hasn't been collected.",
-        );
+        expect(content).toContain("You don't know the user's name yet.");
         expect(content).toContain('Answer their request first');
         expect(content).toContain('first and last name');
-        expect(content).toContain('save it with the updateUserName tool');
+        expect(content).toContain('save it with updateUserName');
         expect(content).toContain(
             'If they decline or ignore the request, do not ask again',
         );
