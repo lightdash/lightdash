@@ -1,3 +1,10 @@
+## [3.31.1](https://github.com/lightdash/lightdash/compare/3.31.0...3.31.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **pivot:** keep pivot rows when a pinned sort column has no data after filtering ([#31419](https://github.com/lightdash/lightdash/issues/31419)) ([4edeeec](https://github.com/lightdash/lightdash/commit/4edeeec6bd5e596518732a2c26eff71d793a1002))
+
 # [3.31.0](https://github.com/lightdash/lightdash/compare/3.30.1...3.31.0) (2026-10-22)
 
 
