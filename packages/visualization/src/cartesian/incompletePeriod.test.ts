@@ -173,6 +173,19 @@ describe('applyIncompletePeriodStyle', () => {
         expect(endPointSize(0)).toBe(0);
     });
 
+    test('leaves previous-period comparison series alone', () => {
+        const previous = {
+            ...mkSeries(CartesianSeriesType.BAR),
+            periodOverPeriodMetadata: {
+                siblingSeriesIndex: 0,
+                periodOffset: 1,
+                granularity: 'WEEK',
+                baseFieldId: 'orders_total',
+            },
+        };
+        expect(apply([previous]).series).toEqual([previous]);
+    });
+
     test('leaves stacked lines alone', () => {
         const stacked = { ...mkSeries(CartesianSeriesType.LINE), stack: 's' };
         const result = apply([stacked]);

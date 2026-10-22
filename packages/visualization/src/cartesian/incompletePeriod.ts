@@ -246,6 +246,8 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
     const splitKeys = new Map<string, string>();
     const overlays: EChartsSeries[] = [];
     const styledSeries = series.map<EChartsSeries>((serie, seriesIndex) => {
+        // Previous-period comparison values are complete periods
+        if (serie.periodOverPeriodMetadata) return serie;
         if (serie.type === CartesianSeriesType.BAR) {
             return hatchBars(serie, incompleteIndexes);
         }
