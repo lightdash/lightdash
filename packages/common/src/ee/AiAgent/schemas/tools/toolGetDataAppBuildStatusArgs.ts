@@ -34,40 +34,24 @@ const STAGE_STATUS_MESSAGES = {
 export const MCP_TOOL_GET_DATA_APP_BUILD_STATUS_DESCRIPTION = `Tool: get_data_app_build_status
 
 Purpose:
-Check how a data app build is going, and get the app's URL once it is ready. A data app is an interactive application generated from a brief on top of a Lightdash project's semantic layer; each build produces one version of it.
+Check how a data app or custom chart type build is going, and get its URL once it is ready.
 
 Important:
 - Poll every ${
     DATA_APP_BUILD_POLL_INTERVAL_MS / 1000
-} seconds — "nextPollAfterMs" in the response carries the same number in milliseconds. A build usually takes several minutes.
-- Stop polling once "status" is "ready", "error", or "cancelled". Those are terminal; the version never changes again.
-- "slug" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.
+} seconds, as "nextPollAfterMs" in the response says; a build usually takes several minutes.
+- Stop polling once "status" is "ready", "error" or "cancelled": the version never changes again.
+- Keep using the slug the build started with: it never changes, even when the app is renamed.
 - An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.
-
-Parameters:
-- appSlug: The app's slug, as returned when the build started.
-- version: Which version of the app to report on. Omit it for the latest version, which is the one a build you just started produces.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable status summary>" }]
-- structuredContent: {
-    status:          string,        // "pending" | "sandbox" | "catalog" | "generating" | "building" | "packaging" | "ready" | "error" | "cancelled"
-    statusMessage:   string,        // short line describing what the build is doing, or how it ended
-    errorMessage:    string | null, // why the build failed, set only when status is "error"
-    name:            string,        // the app's name
-    slug:            string,        // the app's permanent slug
-    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type
-    nextPollAfterMs: number         // how long to wait before polling again
-  }
-
-Errors: an unknown slug, or an app or version this caller may not view, returns an error rather than a status.
 `;
 
 export const mcpGetDataAppBuildStatusArgsSchema = z.object({
     appSlug: z
         .string()
         .min(1)
-        .describe("The data app's slug, as returned when the build started."),
+        .describe(
+            "The data app's or custom chart type's slug, as returned when the build started.",
+        ),
     version: z
         .number()
         .int()

@@ -1,11 +1,15 @@
 import {
     CommercialFeatureFlags,
+    FeatureFlags,
     LightdashInstallType,
     LightdashMode,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../config/lightdashConfig.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -110,6 +114,39 @@ describe('health', () => {
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
+        },
+    );
+    it.each([
+        ['no', licenseService, lightdashConfigWithAppRuntimeMock, false],
+        [
+            'an invalid',
+            invalidLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            false,
+        ],
+        ['a valid', validLicenseService, lightdashConfigMock, false],
+        [
+            'a valid',
+            validLicenseService,
+            lightdashConfigWithAppRuntimeMock,
+            true,
+        ],
+    ])(
+        'reports the app runtime available only with a valid licence and a configured runtime (%s licence)',
+        async (_licence, caseLicenseService, config, expected) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: config,
+                licenseService: caseLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+                featureFlagModel: featureFlagModelMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.dataApps.runtimeAvailable).toBe(expected);
         },
     );
     it('Should return last version as undefined when fails fetch', async () => {
@@ -469,5 +506,62 @@ describe('health', () => {
 
             expect(result.pylon.verificationHash).toBe(expectedHash);
         });
+    });
+});
+
+describe('fast decisions in health', () => {
+    const withKey = {
+        ...lightdashConfigMock,
+        ai: {
+            ...lightdashConfigMock.ai,
+            decisions: { ...lightdashConfigMock.ai.decisions, apiKey: 'test' },
+        },
+    };
+    const build = (lightdashConfig: typeof lightdashConfigMock) =>
+        new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig,
+            licenseService,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
+            learnSandboxService: learnSandboxServiceMock,
+        });
+
+    it('is off without a decision key whatever the flag says', async () => {
+        vi.mocked(featureFlagModelMock.get).mockResolvedValue({
+            id: FeatureFlags.AiDecisions,
+            enabled: true,
+        });
+        expect(
+            (await build(lightdashConfigMock).getHealthState(userMock)).ai
+                .fastDecisionsEnabled,
+        ).toBe(false);
+    });
+
+    it('follows the org flag when the key is set', async () => {
+        vi.mocked(featureFlagModelMock.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: featureFlagId !== FeatureFlags.AiDecisions,
+            }),
+        );
+        expect(
+            (await build(withKey).getHealthState(userMock)).ai
+                .fastDecisionsEnabled,
+        ).toBe(false);
+        expect(featureFlagModelMock.get).toHaveBeenCalledWith({
+            user: { organizationUuid: userMock.organizationUuid },
+            featureFlagId: FeatureFlags.AiDecisions,
+        });
+    });
+
+    it('reports the key to anonymous callers', async () => {
+        expect(
+            (await build(withKey).getHealthState(undefined)).ai
+                .fastDecisionsEnabled,
+        ).toBe(true);
     });
 });

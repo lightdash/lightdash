@@ -18,21 +18,10 @@ export const TOOL_LIST_KNOWLEDGE_DOCUMENTS_DESCRIPTION = ({
     return `Tool: ${toolName}
 
 Purpose:
-List the knowledge documents that have been curated for this AI agent by the organization. These are short, user-written reference notes (business rules, glossaries, definitions, policies, runbooks, domain background) intended to extend the agent's understanding of the project beyond what the semantic layer and warehouse schema describe.
-
-Each item in the result includes a short summary describing what the document is about. Use that summary to decide whether the full content is worth reading with ${getKnowledgeDocumentContent}.
+List the knowledge documents curated for this agent and the Deep Research reports from this conversation, each with a summary that tells you whether its full text is worth reading with ${getKnowledgeDocumentContent}.
 
 When to use:
-- At the start of a task, to discover what curated knowledge exists that might be relevant.
-- When the user references a concept that might be defined in business documentation (e.g. "what counts as an active user", "how do we classify a refund").
-- When you need background or policy context that the data warehouse alone cannot provide.
-
-Do NOT use:
-- For data queries — use generateVisualization instead.
-- For schema or table discovery — use the field discovery tools instead.
-
-Parameters:
-- (no parameters)
+"Available knowledge documents" in the system prompt already lists the curated documents, so call this to find a Deep Research report from this conversation.
 `;
 };
 

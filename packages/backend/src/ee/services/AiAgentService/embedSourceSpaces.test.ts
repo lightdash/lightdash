@@ -66,19 +66,24 @@ const buildEmbedAccount = (writeActions: WriteActions): AnonymousAccount =>
     }) as unknown as AnonymousAccount;
 
 const buildService = (agent: AiAgent) => {
+    const aiAgentModel = {
+        getAgent: vi.fn(async () => agent),
+        getThread: vi.fn(async () => ({
+            uuid: THREAD_UUID,
+            createdFrom: 'web_app',
+            user: { uuid: EMBED_ACTOR_UUID },
+        })),
+        isWebAppThreadInEmbedSpaces: vi.fn(
+            async (_: string, spaces: string[]) =>
+                spaces.includes(WRITE_SPACE_UUID),
+        ),
+        createWebAppPrompt: vi.fn(async () => 'prompt-1'),
+        findThreadMessage: vi.fn(async () => ({ uuid: 'prompt-1' })),
+        findThreadModelConfig: vi.fn(async () => null),
+        findThreads: vi.fn(async () => []),
+    };
     const service = new AiAgentService({
-        aiAgentModel: {
-            getAgent: vi.fn(async () => agent),
-            getThread: vi.fn(async () => ({
-                uuid: THREAD_UUID,
-                createdFrom: 'web_app',
-                user: { uuid: EMBED_ACTOR_UUID },
-            })),
-            getWebAppThreadEmbedSpace: vi.fn(async () => WRITE_SPACE_UUID),
-            createWebAppPrompt: vi.fn(async () => 'prompt-1'),
-            findThreadMessage: vi.fn(async () => ({ uuid: 'prompt-1' })),
-            findThreadModelConfig: vi.fn(async () => null),
-        },
+        aiAgentModel,
         analytics: { track: vi.fn() },
         featureFlagService: {
             get: vi.fn(async () => ({ id: 'ai-copilot', enabled: true })),
@@ -119,7 +124,7 @@ const buildService = (agent: AiAgent) => {
         'startMobilePushLiveActivitiesForPrompt',
     ).mockResolvedValue(undefined);
 
-    return { service, validatePromptContextAccess };
+    return { service, validatePromptContextAccess, aiAgentModel };
 };
 
 const getAllowedSpaces = async (agent: AiAgent, writeActions: WriteActions) => {
@@ -201,5 +206,65 @@ describe('embedded agent source spaces', () => {
                 },
             ),
         ).resolves.toEqual([WRITE_SPACE_UUID, SOURCE_SPACE_UUID]);
+    });
+});
+
+describe('embedded agent thread spaces', () => {
+    const writeActions = {
+        writeSpaceUuids: [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+    };
+
+    it('lists threads that belong to every token write space', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.listEmbedAgentThreads(
+            buildEmbedAccount(writeActions),
+            PROJECT_UUID,
+            AGENT_UUID,
+        );
+        expect(aiAgentModel.findThreads).toHaveBeenCalledWith(
+            expect.objectContaining({
+                embedWriteSpaceUuids: [
+                    WRITE_SPACE_UUID,
+                    SECOND_WRITE_SPACE_UUID,
+                ],
+            }),
+        );
+    });
+
+    it('checks a thread against every token write space', async () => {
+        const { service, aiAgentModel } = buildService(buildAgent([]));
+        await service.createEmbedAgentThreadMessage(
+            buildEmbedAccount(writeActions),
+            PROJECT_UUID,
+            AGENT_UUID,
+            THREAD_UUID,
+            { prompt: 'How many orders last week?' },
+        );
+        expect(aiAgentModel.isWebAppThreadInEmbedSpaces).toHaveBeenCalledWith(
+            THREAD_UUID,
+            [WRITE_SPACE_UUID, SECOND_WRITE_SPACE_UUID],
+        );
+    });
+
+    it('allows an agent limited to a later write space', async () => {
+        const { service } = buildService(buildAgent([SECOND_WRITE_SPACE_UUID]));
+        await expect(
+            service.getEmbedAgentDetails(
+                buildEmbedAccount(writeActions),
+                PROJECT_UUID,
+                AGENT_UUID,
+            ),
+        ).resolves.toMatchObject({ uuid: AGENT_UUID });
+    });
+
+    it('refuses an agent limited to none of the write spaces', async () => {
+        const { service } = buildService(buildAgent([SOURCE_SPACE_UUID]));
+        await expect(
+            service.getEmbedAgentDetails(
+                buildEmbedAccount(writeActions),
+                PROJECT_UUID,
+                AGENT_UUID,
+            ),
+        ).rejects.toThrow('AI agent is not available in the embedded space');
     });
 });

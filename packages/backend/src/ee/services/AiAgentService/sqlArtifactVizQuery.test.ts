@@ -224,7 +224,7 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 artifactUuid: 'artifact-uuid',
                 versionUuid: 'version-uuid',
                 runtimeOptions: {
-                    embedSpaceUuid: 'space-uuid',
+                    writeSpaceUuids: ['space-uuid'],
                     externalUserId: null,
                     spaceAccess: ['space-uuid'],
                     readOnlySpaceUuids: [],

@@ -16,7 +16,28 @@ const projectUuid = SEED_PROJECT.project_uuid;
 const EMBED_API_PREFIX = `/api/v1/embed/${projectUuid}`;
 const AGENTS_API_PREFIX = `/api/v1/projects/${projectUuid}/aiAgents`;
 
-describe('Embedded AI agent threads bound to a dashboard', () => {
+const ordersChart = (name: string, spaceUuid: string) => ({
+    name,
+    description: 'thread binding api test',
+    tableName: 'orders',
+    spaceUuid,
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        sorts: [],
+        limit: 10,
+        tableCalculations: [],
+        additionalMetrics: [],
+    },
+    chartConfig: { type: 'table', config: {} },
+    tableConfig: {
+        columnOrder: ['orders_status', 'orders_total_order_amount'],
+    },
+});
+
+describe('Embedded AI agent threads bound to a dashboard or chart', () => {
     let admin: ApiClient;
     let available = true;
     const tracker = new TestResourceTracker();
@@ -25,6 +46,8 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
     let tenantBToken: string;
     let tenantADashboardUuid: string;
     let tenantBDashboardUuid: string;
+    let tenantAChartUuid: string;
+    let tenantBChartUuid: string;
 
     const threadsUrl = () => `${AGENTS_API_PREFIX}/${agentUuid}/threads`;
     const asTenant = (token: string) => ({
@@ -46,6 +69,14 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
             { name: uniqueName(name), spaceUuid, tiles: [], tabs: [] },
         );
         tracker.trackDashboard(resp.body.results.uuid);
+        return resp.body.results.uuid;
+    };
+    const createChart = async (name: string, spaceUuid: string) => {
+        const resp = await admin.post<Body<{ uuid: string }>>(
+            `/api/v1/projects/${projectUuid}/saved`,
+            ordersChart(uniqueName(name), spaceUuid),
+        );
+        tracker.trackChart(resp.body.results.uuid);
         return resp.body.results.uuid;
     };
     const createTenantToken = async (spaceUuid: string, externalId: string) => {
@@ -104,6 +135,14 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
         );
         tenantBDashboardUuid = await createDashboard(
             'tenant B dashboard',
+            tenantBSpaceUuid,
+        );
+        tenantAChartUuid = await createChart(
+            'tenant A chart',
+            tenantASpaceUuid,
+        );
+        tenantBChartUuid = await createChart(
+            'tenant B chart',
             tenantBSpaceUuid,
         );
         tenantAToken = await createTenantToken(tenantASpaceUuid, 'tenant-a');
@@ -208,6 +247,54 @@ describe('Embedded AI agent threads bound to a dashboard', () => {
             {
                 prompt: 'hi',
                 binding: { type: 'dashboard', dashboardUuid: randomUUID() },
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(404);
+    });
+
+    it("creates a thread bound to a chart in the tenant's embed space", async () => {
+        const created = await new ApiClient().post<Body<AiAgentThreadSummary>>(
+            threadsUrl(),
+            { binding: { type: 'chart', chartUuid: tenantBChartUuid } },
+            asTenant(tenantBToken),
+        );
+        expect(created.status).toBe(200);
+        expect(created.body.results).toMatchObject({
+            binding: { type: 'chart', chartUuid: tenantBChartUuid },
+            firstMessage: null,
+        });
+
+        const openedByB = await new ApiClient().get<Body<AiAgentThread>>(
+            `${threadsUrl()}/${created.body.results.uuid}`,
+            asTenant(tenantBToken),
+        );
+        expect(openedByB.status).toBe(200);
+        expect(openedByB.body.results.binding).toMatchObject({
+            type: 'chart',
+            chartUuid: tenantBChartUuid,
+            displayName: expect.stringContaining('tenant B chart'),
+        });
+    });
+
+    it('rejects a chart outside the embed space', async () => {
+        const resp = await new ApiClient().post(
+            threadsUrl(),
+            {
+                prompt: 'hi',
+                binding: { type: 'chart', chartUuid: tenantAChartUuid },
+            },
+            asTenant(tenantBToken),
+        );
+        expect(resp.status).toBe(403);
+    });
+
+    it('rejects an unknown chart', async () => {
+        const resp = await admin.post(
+            threadsUrl(),
+            {
+                prompt: 'hi',
+                binding: { type: 'chart', chartUuid: randomUUID() },
             },
             { failOnStatusCode: false },
         );

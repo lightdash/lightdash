@@ -67,7 +67,7 @@ const buildService = () => {
             createdFrom: 'web_app',
             user: { uuid: EMBED_ACTOR_UUID },
         })),
-        getWebAppThreadEmbedSpace: vi.fn(async () => SPACE_UUID),
+        isWebAppThreadInEmbedSpaces: vi.fn(async () => true),
         createWebAppPrompt: vi.fn<AiAgentModel['createWebAppPrompt']>(
             async () => 'prompt-1',
         ),

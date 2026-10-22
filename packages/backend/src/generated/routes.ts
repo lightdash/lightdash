@@ -28590,15 +28590,31 @@ const models: TsoaRoute.Models = {
     AiThreadBinding: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                dashboardUuid: { dataType: 'string', required: true },
-                type: {
-                    dataType: 'enum',
-                    enums: ['dashboard'],
-                    required: true,
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['dashboard'],
+                            required: true,
+                        },
+                    },
                 },
-            },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        chartUuid: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['chart'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },

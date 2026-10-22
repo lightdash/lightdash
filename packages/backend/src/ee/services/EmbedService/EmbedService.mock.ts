@@ -5,7 +5,10 @@ import {
     SessionAccount,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import {
+    lightdashConfigMock,
+    lightdashConfigWithAppRuntimeMock,
+} from '../../../config/lightdashConfig.mock';
 import { AppModel } from '../../../models/AppModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -134,3 +137,9 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     organizationModel: organizationModelMock,
     externalConnectionModel: {} as ExternalConnectionModel,
 };
+
+/** The mock config with or without a configured app runtime, which decides Chart Studio. */
+export const embedLightdashConfigMock = (chartStudioAvailable: boolean) =>
+    chartStudioAvailable
+        ? lightdashConfigWithAppRuntimeMock
+        : EmbedServiceArgumentsMock.lightdashConfig;

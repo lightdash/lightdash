@@ -78,10 +78,12 @@ const metricQuery: MetricQuery = {
     limit: 500,
     tableCalculations: [],
 };
+const parameters = { region: 'UK' };
 const metricQueryData: MetricQueryDataContext = {
     tableName: 'orders',
     explore,
     metricQuery,
+    parameters,
     underlyingDataConfig: undefined,
     isUnderlyingDataModalOpen: false,
     openUnderlyingDataModal: vi.fn(),
@@ -141,8 +143,30 @@ describe('drill-down modal in an embed', () => {
                     dimensions: ['orders_status'],
                     metrics: ['orders_count'],
                 }),
+                parameters,
             }),
         });
+    });
+
+    it('carries the parameter values the chart ran with into the new tab', async () => {
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(
+            300,
+        );
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
+            400,
+        );
+        const user = userEvent.setup();
+        renderModal(outsideEmbed);
+
+        await user.click(screen.getByPlaceholderText('Search field...'));
+        await user.click(await screen.findByRole('option', { name: 'Status' }));
+
+        const href = screen.getByText('Open in new tab').closest('a')?.href;
+        const search = new URL(href ?? '', 'http://localhost').searchParams;
+        const chart = JSON.parse(
+            search.get('create_saved_chart_version') ?? '{}',
+        );
+        expect(chart.parameters).toEqual(parameters);
     });
 
     it('keeps the new-tab link outside an embed', () => {

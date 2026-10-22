@@ -459,6 +459,21 @@ export const createAnalyticsExplores = (): Explore[] => {
             }),
         );
         const label = friendlyName(name);
+        const includeContentMetadata = name === 'content_reach';
+        const contentTableName = usageDimensionTable('content');
+        const contentFields = buildDimensionsFromColumns({
+            qualifyColumnReferences: true,
+            tableName: contentTableName,
+            tableLabel: 'Content',
+            columns: [
+                'org_id',
+                'project_id',
+                'content_id',
+                'content_type',
+                'content_url',
+            ].map((reference) => ({ reference, type: DimensionType.STRING })),
+            warehouseSqlBuilder: sqlBuilder,
+        });
         const includeQueryMetadata = name === 'export_events';
         const appTableName = 'lightdash_apps';
         const includeAppMetadata =
@@ -488,6 +503,17 @@ export const createAnalyticsExplores = (): Explore[] => {
             tags: [],
             baseTable: name,
             joinedTables: [
+                ...(includeContentMetadata
+                    ? [
+                          {
+                              table: contentTableName,
+                              type: 'left' as const,
+                              relationship: JoinRelationship.MANY_TO_ONE,
+                              fields: ['content_url'],
+                              sqlOn: "${content_reach.org_id} = ${lightdash_content.org_id} AND ${content_reach.project_id} = ${lightdash_content.project_id} AND ${content_reach.content_id} = ${lightdash_content.content_id} AND CASE WHEN ${content_reach.content_type} = 'chart' THEN 'saved_chart' ELSE ${content_reach.content_type} END = ${lightdash_content.content_type}",
+                          },
+                      ]
+                    : []),
                 ...(includeAppMetadata
                     ? [
                           {
@@ -531,6 +557,26 @@ export const createAnalyticsExplores = (): Explore[] => {
             meta: {},
             targetDatabase: sqlBuilder.getAdapterType(),
             tables: {
+                ...(includeContentMetadata
+                    ? {
+                          [contentTableName]: {
+                              name: contentTableName,
+                              label: 'Content',
+                              primaryKey: [
+                                  'org_id',
+                                  'project_id',
+                                  'content_type',
+                                  'content_id',
+                              ],
+                              sqlTable: `"${contentTableName}"`,
+                              database: 'memory',
+                              schema: 'main',
+                              lineageGraph: { nodes: [], edges: [] },
+                              dimensions: contentFields,
+                              metrics: {},
+                          },
+                      }
+                    : {}),
                 ...(includeAppMetadata
                     ? {
                           [appTableName]: {
@@ -597,6 +643,17 @@ export const createAnalyticsExplores = (): Explore[] => {
                 }
             }
             join.hidden = true;
+        }
+        for (const contentType of ['chart', 'dashboard', 'content']) {
+            const nameField = baseTable.dimensions[`${contentType}_name`];
+            if (nameField && baseTable.dimensions[`${contentType}_url`]) {
+                nameField.urls = [
+                    {
+                        label: `Open ${contentType}`,
+                        url: `\${row.${name}.${contentType}_url.raw}`,
+                    },
+                ];
+            }
         }
         return compiler.compileExplore(explore);
     });

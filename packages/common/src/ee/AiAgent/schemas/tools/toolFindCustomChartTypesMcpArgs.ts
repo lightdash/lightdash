@@ -6,7 +6,7 @@ import {
 
 export const MCP_TOOL_FIND_CUSTOM_CHART_TYPES_DESCRIPTION = `Tool: find_custom_chart_types
 
-Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.
+Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. To browse page by page, use list_custom_chart_types.
 
 - Each match has its latest version, field slots, config options and a Chart Studio link.
 - Reuse a fitting type before building one with create_custom_chart_type, if available.

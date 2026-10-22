@@ -1156,6 +1156,32 @@ describe('SDK AI agent', () => {
         });
     });
 
+    it('passes a chart binding in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{ type: 'chart', chartUuid: 'test-chart-uuid' }}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: {
+                binding: { type: 'chart', chartUuid: 'test-chart-uuid' },
+                threadContext: null,
+            },
+        });
+    });
+
     it('reloads the iframe when the host changes the thread setup', async () => {
         const { container, rerender } = render(
             <AiAgent
@@ -1407,6 +1433,26 @@ describe('SDK native AI agent', () => {
                 dashboardUuid: 'test-dashboard-uuid',
             },
             threadContext: 'Earlier conversation',
+        });
+    });
+
+    it('gives new threads a chart binding from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{ type: 'chart', chartUuid: 'test-chart-uuid' }}
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(
+            JSON.parse(newThread.getAttribute('data-thread-setup') ?? 'null'),
+        ).toEqual({
+            binding: { type: 'chart', chartUuid: 'test-chart-uuid' },
+            threadContext: null,
         });
     });
 

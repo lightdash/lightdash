@@ -541,7 +541,10 @@ const ExistingThreadPanel: FC<{
             previousContext: threadContext,
             projectUuid,
             threadId,
-            boundDashboardUuid: thread?.binding?.dashboardUuid ?? null,
+            boundDashboardUuid:
+                thread?.binding?.type === 'dashboard'
+                    ? thread.binding.dashboardUuid
+                    : null,
         });
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;

@@ -5,9 +5,18 @@ import {
     getLtreePathFromContentAsCodePath,
     getLtreePathFromSlug,
     isSubPath,
+    truncateSlug,
 } from './slugs';
 
 describe('Slug', () => {
+    test('should truncate slugs without leaving a dangling hyphen', () => {
+        expect(truncateSlug('orders-by-customer', 9)).toEqual('orders-by');
+        expect(truncateSlug('orders-by-customer', 10)).toEqual('orders-by');
+        expect(truncateSlug('orders-by-customer', 50)).toEqual(
+            'orders-by-customer',
+        );
+    });
+
     test('should generate space slugs', async () => {
         expect(generateSlug('my space name')).toEqual('my-space-name');
 

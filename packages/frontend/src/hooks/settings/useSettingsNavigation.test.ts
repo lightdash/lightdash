@@ -39,6 +39,7 @@ const settingsContext = (
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
     isResultsCacheEnabled: false,
     embeddingEnabled: undefined,
@@ -196,6 +197,76 @@ describe('Data apps settings navigation', () => {
         ).toEqual([
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
         ]);
+    });
+});
+
+describe('Themes settings navigation with Chart Studio', () => {
+    const chartStudioNavigation = (
+        rules: { action: string; subject: string }[],
+        overrides: Partial<SettingsContext> = {},
+    ) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            isChartStudioAvailable: true,
+            ...overrides,
+        });
+
+    const allRules = [
+        { action: 'manage', subject: 'Organization' },
+        { action: 'manage', subject: 'OrganizationDesign' },
+    ];
+
+    it('shows Themes as a top-level entry without the data apps flag', () => {
+        const items = chartStudioNavigation(allRules);
+
+        expect(
+            items
+                ?.filter((item) => item.label === 'Themes')
+                .map(({ to, children }) => ({ to, children })),
+        ).toEqual([{ to: '/generalSettings/dataApps/themes', children: [] }]);
+        expect(items?.some((item) => item.label === 'Data apps')).toBe(false);
+        expect(
+            items?.some((item) =>
+                [
+                    '/generalSettings/dataApps/general',
+                    '/generalSettings/dataApps/activity',
+                ].includes(item.to),
+            ),
+        ).toBe(false);
+    });
+
+    it('hides Themes from users who cannot manage designs', () => {
+        expect(
+            chartStudioNavigation([
+                { action: 'manage', subject: 'Organization' },
+            ])?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
+    });
+
+    it('keeps Themes inside Data apps when the flag is on', () => {
+        const items = chartStudioNavigation(allRules, {
+            dataAppsFlag: {
+                id: 'data-apps',
+                enabled: true,
+            } as SettingsContext['dataAppsFlag'],
+        });
+
+        expect(items?.some((item) => item.label === 'Themes')).toBe(false);
+        expect(
+            items
+                ?.find((item) => item.label === 'Data apps')
+                ?.children.map(({ label }) => label),
+        ).toEqual(['General', 'Themes', 'Activity']);
+    });
+
+    it('shows no Themes entry without Chart Studio or data apps', () => {
+        expect(
+            chartStudioNavigation(allRules, {
+                isChartStudioAvailable: false,
+            })?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
     });
 });
 

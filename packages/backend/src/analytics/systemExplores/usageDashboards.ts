@@ -19,6 +19,44 @@ import type {
     UsageChartSpec,
 } from './usageDashboardTypes';
 
+const withContentLinks = (chart: ChartAsCode): ChartAsCode => {
+    if (chart.chartConfig.type !== ChartType.TABLE) return chart;
+    const urlFields = chart.metricQuery.dimensions
+        .filter((field) => /_(chart|dashboard|content)_name$/.test(field))
+        .map((field) => field.replace(/_name$/, '_url'));
+    if (urlFields.length === 0) return chart;
+    return {
+        ...chart,
+        metricQuery: {
+            ...chart.metricQuery,
+            dimensions: [
+                ...new Set([...chart.metricQuery.dimensions, ...urlFields]),
+            ],
+        },
+        chartConfig: {
+            ...chart.chartConfig,
+            config: {
+                ...chart.chartConfig.config,
+                columns: {
+                    ...chart.chartConfig.config?.columns,
+                    ...Object.fromEntries(
+                        urlFields.map((field) => [field, { visible: false }]),
+                    ),
+                },
+            },
+        },
+        tableConfig: {
+            ...chart.tableConfig,
+            columnOrder: [
+                ...new Set([
+                    ...(chart.tableConfig?.columnOrder ?? []),
+                    ...urlFields,
+                ]),
+            ],
+        },
+    };
+};
+
 const withPeopleDisplayName = (chart: ChartAsCode): ChartAsCode => {
     const nameField = 'people_adoption_name';
     const idField = 'people_adoption_user_id';
@@ -371,5 +409,10 @@ export const buildUsageDashboards = (
                 y += isKpiRow ? 3 : sectionCharts.length * 6;
             }
         }
-        return { dashboard, charts: charts.map(withUserActivityLabels) };
+        return {
+            dashboard,
+            charts: charts.map((chart) =>
+                withContentLinks(withUserActivityLabels(chart)),
+            ),
+        };
     });

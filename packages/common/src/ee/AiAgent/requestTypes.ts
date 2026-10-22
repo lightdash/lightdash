@@ -197,7 +197,8 @@ export type CreateWebAppThread = {
     userUuid: string;
     createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
-    embedSpaceUuid?: string | null;
+    // Every write space of the embed token; the first one is used for attribution.
+    embedSpaceUuids?: string[];
     battleProfile?: AiAgentBattleProfile | null;
     binding?: AiThreadBinding | null;
     threadContext?: string | null;
@@ -389,10 +390,15 @@ export type AiPromptContextItemInput =
 export type AiPromptContextInput = AiPromptContextItemInput[];
 
 /** Resource a thread is bound to for its whole life. Same shape as the matching pinned context item. */
-export type AiThreadBinding = {
-    type: 'dashboard';
-    dashboardUuid: string;
-};
+export type AiThreadBinding =
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+      }
+    | {
+          type: 'chart';
+          chartUuid: string;
+      };
 
 /** A thread binding as read back, with the resource name. `displayName` is null once the resource is deleted. */
 export type AiThreadBindingSummary = AiThreadBinding & {

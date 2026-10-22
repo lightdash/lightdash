@@ -31,6 +31,7 @@ import ChartTypeGalleryCard from '../features/chartTypes/components/ChartTypeGal
 import ChartTypeGalleryEmptyState from '../features/chartTypes/components/ChartTypeGalleryEmptyState';
 import ChartTypeLibrarySection from '../features/chartTypes/components/ChartTypeLibrarySection';
 import ChartTypePreviewTableModal from '../features/chartTypes/components/ChartTypePreviewTableModal';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { useChartTypesEnabled } from '../features/chartTypes/hooks/useChartTypesEnabled';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
@@ -55,9 +56,7 @@ const ChartTypeGallery = () => {
     const { user } = useApp();
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const chartTypeRegistryFlag = useServerFeatureFlag(
         FeatureFlags.ChartTypeRegistry,
     );
@@ -196,7 +195,7 @@ const ChartTypeGallery = () => {
                         value={search}
                         onChange={(e) => setSearch(e.currentTarget.value)}
                     />
-                    {dataAppsEnabled && (
+                    {chartStudioAvailable && (
                         <Can
                             I="create"
                             this={subject('DataApp', {

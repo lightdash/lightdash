@@ -51,7 +51,6 @@ import { type AiAgentSkillModel } from '../models/AiAgentSkillModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { type ProjectContextModel } from '../models/ProjectContextModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
-import { resolveAiDecisionClient } from './ai/decisions/AiDecisionClient';
 import { rankReviewEvidence } from './ai/decisions/reviewEvidence';
 import { type getModel } from './ai/models';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
@@ -355,13 +354,10 @@ export class AiAgentReviewClassifierService extends BaseService {
         // Evidence ranking runs on the instance decision provider, so it would
         // send turn content outside a BYOK org's provider before its own judge
         // ever sees it. Skipping it leaves candidates unranked, not unreviewed.
-        const client =
-            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
-                args.organizationUuid,
-                args.projectUuid ?? null,
-            ))
-                ? undefined
-                : resolveAiDecisionClient(this.lightdashConfig.ai?.decisions);
+        const client = await this.orgAiCopilotConfigResolver.getDecisionClient(
+            args.organizationUuid,
+            args.projectUuid ?? null,
+        );
         const decisions =
             client && (await this.isEnabled(args)) ? client : undefined;
         const candidates =

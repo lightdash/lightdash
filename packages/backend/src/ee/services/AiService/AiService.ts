@@ -95,7 +95,6 @@ import {
     sanitizeCustomFormat,
 } from '../ai/agents/tableCalculationGenerator';
 import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tooltipGenerator';
-import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import {
     getModel,
     pickAmbientAnthropicPreset,
@@ -246,12 +245,10 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         cachedOnly = false,
     ): Promise<ChartSimilarityMatch[] | undefined> {
         const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
+            await this.orgAiCopilotConfigResolver.getDecisionClient(
                 user.organizationUuid,
                 projectUuid,
-            ))
-                ? undefined
-                : resolveAiDecisionClient(this.lightdashConfig.ai.decisions);
+            );
         const key = createHash('sha256')
             .update(
                 JSON.stringify([

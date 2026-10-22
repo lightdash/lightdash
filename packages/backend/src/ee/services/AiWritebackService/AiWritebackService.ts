@@ -83,7 +83,6 @@ import type {
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { selectWritebackSource } from '../ai/decisions/writebackSource';
 import { type OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
@@ -3423,12 +3422,10 @@ export class AiWritebackService extends BaseService {
         }
 
         const decisions =
-            (await this.orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
+            await this.orgAiCopilotConfigResolver.getDecisionClient(
                 organizationUuid,
                 projectUuid,
-            ))
-                ? undefined
-                : resolveAiDecisionClient(this.lightdashConfig.ai?.decisions);
+            );
         if (decisions) {
             const options = candidates.map(
                 AiWritebackService.toDbtSourceOption,

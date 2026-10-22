@@ -3,14 +3,12 @@ import {
     WarehouseTypes,
     type AiAgentDocumentContext,
 } from '@lightdash/common';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PromptSection } from '../loadout';
 import {
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getDeferredToolInstructions, getSystemPromptV2 } from './systemV2';
 import {
@@ -22,13 +20,6 @@ const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
     const { content } = getSystemPromptV2(args);
     return typeof content === 'string' ? content : JSON.stringify(content);
 };
-
-const searchFieldValuesInstruction = (
-    args: Parameters<typeof getSystemPromptV2>[0],
-) =>
-    promptText(args)
-        .split('\n')
-        .find((line) => line.startsWith('4. **searchFieldValues**'));
 
 const extractSection = (
     content: string,
@@ -50,20 +41,15 @@ const extractExpressionFilterSection = (content: string): string =>
         '## String filter case sensitivity',
     );
 
-const normalizeFilterModeSections = (
-    content: string,
-    searchFieldValuesGuidance: string,
-    filterGuidance: string,
-): string =>
-    content
-        .replace(searchFieldValuesGuidance, '{{search guidance}}')
-        .replace(filterGuidance, '{{filter guidance}}');
+// Fixtures are byte-compared; UPDATE_PROMPT_FIXTURES=1 rewrites them.
+const expectFixture = (name: string, rendered: Buffer) => {
+    const path = join(__dirname, '__fixtures__', name);
+    if (process.env.UPDATE_PROMPT_FIXTURES) writeFileSync(path, rendered);
+    expect(rendered.equals(readFileSync(path))).toBe(true);
+};
 
 describe('getSystemPromptV2 filter expressions', () => {
     test('keeps the classic prompt byte-identical', () => {
-        const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.classic.txt'),
-        );
         const rendered = Buffer.from(
             promptText({
                 availableExplores: [],
@@ -72,13 +58,10 @@ describe('getSystemPromptV2 filter expressions', () => {
             }),
         );
 
-        expect(rendered.equals(baseline)).toBe(true);
+        expectFixture('systemV2.classic.txt', rendered);
     });
 
     test('keeps the classic prompt with every capability byte-identical', () => {
-        const baseline = readFileSync(
-            join(__dirname, '__fixtures__/systemV2.classic-capabilities.txt'),
-        );
         const rendered = Buffer.from(
             promptText({
                 promptSections: new Set<PromptSection>([
@@ -96,7 +79,6 @@ describe('getSystemPromptV2 filter expressions', () => {
                 canRunQuery: true,
                 warehouseType: WarehouseTypes.POSTGRES,
                 warehouseSchema: 'jaffle',
-                runSqlMaxLimit: 5000,
                 slackChannelId: null,
                 availableSkills: [
                     {
@@ -109,54 +91,7 @@ describe('getSystemPromptV2 filter expressions', () => {
             }),
         );
 
-        expect(rendered.equals(baseline)).toBe(true);
-    });
-
-    test('directs the agent to replace required filter defaults', () => {
-        const content = promptText({ availableExplores: [] });
-
-        expect(content).toContain(
-            'their configured operator and values are replaceable defaults, not fixed constraints on the data',
-        );
-        expect(content).toContain(
-            'you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field',
-        );
-        expect(content).toContain(
-            "Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it",
-        );
-        expect(content).not.toContain(
-            'required` are hard constraints: they are always applied',
-        );
-    });
-
-    test('keeps structured field-value guidance when disabled', () => {
-        const instruction = searchFieldValuesInstruction({
-            availableExplores: [],
-        });
-
-        expect(instruction).toMatchSnapshot();
-        expect(instruction).toContain(
-            'Set `filters` to null when no additional scope is needed.',
-        );
-        expect(instruction).not.toContain(
-            'Omit `filters` when the search is unscoped.',
-        );
-    });
-
-    test('uses expression field-value guidance when enabled', () => {
-        const instruction = searchFieldValuesInstruction({
-            availableExplores: [],
-            enableFilterExpressions: true,
-        });
-
-        expect(instruction).toMatchSnapshot();
-        expect(instruction).toContain(
-            'Omit `filters` when the search is unscoped.',
-        );
-        expect(instruction).toContain(
-            'When present, `filters` scopes the candidate-value search',
-        );
-        expect(instruction).not.toContain('Set `filters` to null');
+        expectFixture('systemV2.classic-capabilities.txt', rendered);
     });
 
     test('renders expression-only filter guidance', () => {
@@ -227,16 +162,14 @@ describe('getSystemPromptV2 filter expressions', () => {
         });
 
         expect(
-            normalizeFilterModeSections(
-                expression,
-                EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+            expression.replace(
                 FILTER_EXPRESSION_GUIDANCE_SECTION,
+                '{{filter}}',
             ),
         ).toBe(
-            normalizeFilterModeSections(
-                structured,
-                STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+            structured.replace(
                 STRUCTURED_FILTER_GUIDANCE_SECTION,
+                '{{filter}}',
             ),
         );
     });
@@ -251,7 +184,6 @@ describe('getSystemPromptV2 project context', () => {
         });
         expect(content).toContain('## Project context');
         expect(content).toContain('loadProjectContext');
-        expect(content).toContain('BEFORE');
     });
 
     test('uses preloaded rules without requiring a redundant context tool turn', () => {
@@ -264,9 +196,6 @@ describe('getSystemPromptV2 project context', () => {
         expect(content).toContain('already preloaded');
         expect(content).toContain('partial selection');
         expect(content).toContain('loadProjectContext');
-        expect(content).not.toContain(
-            'Call the `loadProjectContext` tool BEFORE',
-        );
     });
 
     test('shows a placeholder when no project context is configured', () => {
@@ -362,13 +291,13 @@ describe('getSystemPromptV2 custom chart types', () => {
             enableDocumentCustomCharts: true,
         });
         expect(enabled).toContain(
-            'A chart can use a custom chart type. Run the query with that chart type and place the result with <artifact-chart>',
+            'draw it with that chart type and place it with <artifact-chart>',
         );
-        expect(enabled).not.toContain('custom charts are unsupported');
+        expect(enabled).not.toContain('or custom charts');
 
         const disabled = promptText(documentArgs);
-        expect(disabled).toContain('custom charts are unsupported');
-        expect(disabled).not.toContain('custom chart type. Run the query');
+        expect(disabled).toContain('composer charts or custom charts');
+        expect(disabled).not.toContain('draw it with that chart type');
     });
 
     test('offers and surfaces Documents only with Document nudges', () => {
@@ -394,25 +323,16 @@ describe('getSystemPromptV2 custom chart types', () => {
             'When looking for existing content, include Documents',
         );
         expect(nudged).toContain(
-            'Treat a request for a report, write-up or summary to share as a request for a Document: create a personal Document',
-        );
-        expect(nudged).toContain(
             'accepts your offer to save the analysis as a Document, or asks for a report, write-up or summary to share',
         );
         expect(nudged).not.toContain(
             'Create a Document only when the user explicitly asks for one',
-        );
-        expect(nudged).not.toContain(
-            'This guidance does not authorize creating a Document',
         );
 
         const notNudged = promptText(documentArgs);
         expect(notNudged).not.toContain(offer);
         expect(notNudged).toContain(
             'Create a Document only when the user explicitly asks for one',
-        );
-        expect(notNudged).toContain(
-            'This guidance does not authorize creating a Document',
         );
 
         expect(
@@ -451,44 +371,21 @@ describe('getSystemPromptV2 response content', () => {
     const extractResponseFormat = (content: string): string =>
         extractSection(content, '## Response format', '## Data analysis');
 
-    test('keeps working notes out of the answer and recovers cleared reads silently', () => {
-        const responseFormat = extractResponseFormat(
-            promptText({ availableExplores: [] }),
-        );
-        expect(responseFormat).toContain(
-            'never your own working notes, progress recaps or state summaries',
-        );
-        expect(responseFormat).toContain(
-            'Do not write context-preservation notes, scratchpads',
-        );
-        expect(responseFormat).toContain(
-            'If earlier tool results are no longer available, re-read what you need without mentioning it',
-        );
-    });
-
-    test('states the working-notes rule once', () => {
+    test('states the working-notes rule once, in the response format', () => {
         const content = promptText({ availableExplores: [] });
-        expect(
-            content.split('Do not write context-preservation notes').length - 1,
-        ).toBe(1);
+        expect(content.split('context-preservation notes').length - 1).toBe(1);
         expect(extractResponseFormat(content)).toContain(
-            'Do not write context-preservation notes, scratchpads',
+            'context-preservation notes',
         );
     });
 });
 
 describe('getSystemPromptV2 merge queries', () => {
-    test('names runQuery for small tables only when the agent has it', () => {
+    test('names runQuery only when the agent has it', () => {
         expect(
             promptText({ availableExplores: [], canRunQuery: true }),
-        ).toContain(
-            'For a small tabular answer, use runQuery and present its results as a Markdown table',
-        );
-        const withoutRunQuery = promptText({ availableExplores: [] });
-        expect(withoutRunQuery).toContain(
-            'For a small tabular answer, present the results as a Markdown table',
-        );
-        expect(withoutRunQuery).not.toContain('runQuery');
+        ).toContain('runQuery');
+        expect(promptText({ availableExplores: [] })).not.toContain('runQuery');
     });
 
     test.each([
@@ -508,11 +405,9 @@ describe('getSystemPromptV2 merge queries', () => {
         ({ args, markdownTables }) => {
             const content = promptText({ availableExplores: [], ...args });
             expect(
-                content.includes(
-                    'Markdown tables with a header, separator and data rows',
-                ),
+                content.includes('Markdown tables with their data in the rows'),
             ).toBe(markdownTables);
-            expect(content.includes('Never produce markdown tables')).toBe(
+            expect(content.includes('code blocks, Markdown tables')).toBe(
                 !markdownTables,
             );
         },
@@ -544,7 +439,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'one semanticLayer node per explore plus a duckdb node',
+            'combine explores that are not joined in the semantic layer with a duckdb node',
         );
     });
 
@@ -556,7 +451,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'Raw SELECT queries against the warehouse run as `sql` nodes in runComposerQueries.',
+            '**Raw SQL (runComposerQueries `sql` nodes):**',
         );
         expect(content).toContain(
             'answer questions with runComposerQueries using a sql node',
@@ -571,7 +466,7 @@ describe('getSystemPromptV2 composer queries', () => {
 
         expect(content).toContain('Present the result your answer rests on');
         expect(content).toContain(
-            'the terminal node is the result you present',
+            'whose terminal node is the result you present',
         );
     });
 
@@ -586,7 +481,7 @@ describe('getSystemPromptV2 composer queries', () => {
             'Present the result your answer rests on',
         );
         expect(content).toContain(
-            'the terminal node is the table you can share',
+            'whose terminal node is the table you can share',
         );
     });
 
@@ -648,7 +543,7 @@ describe('getSystemPromptV2 composer queries', () => {
             canRunSql: true,
         });
 
-        expect(content).toContain('You have access to a runSql tool');
+        expect(content).toContain('**Raw SQL (runSql tool):**');
         expect(content).not.toContain('runComposerQueries');
     });
 });
@@ -661,14 +556,12 @@ describe('getSystemPromptV2 memories', () => {
         });
 
         expect(content).toContain('## Memories');
-        expect(content).toContain(
-            'Do not save temporary query results as durable user memories.',
-        );
+        expect(content).toContain('<ld-mem-cite id="slug"></ld-mem-cite>');
     });
 
-    test('keeps the memories rule out of prompts without memories', () => {
+    test('keeps the memories rules out of prompts without memories', () => {
         expect(promptText({ availableExplores: [] })).not.toContain(
-            'durable user memories',
+            'ld-mem-cite',
         );
     });
 });
@@ -699,16 +592,18 @@ describe('getSystemPromptV2 knowledge documents', () => {
         content: 'Net revenue excludes refunds.',
     } satisfies AiAgentDocumentContext;
 
-    test('recognizes preloaded documents', () => {
-        const content = promptText({
+    test('renders reading guidance only beside documents', () => {
+        const withDocuments = promptText({
             availableExplores: [],
             knowledgeDocuments: [document],
         });
-        expect(content).toContain(
-            'whose complete content has not already been preloaded for this request',
+        const withoutDocuments = promptText({ availableExplores: [] });
+
+        expect(withDocuments).toContain('loaded in full for this request');
+        expect(withoutDocuments).not.toContain('full_content_included');
+        expect(withoutDocuments).toContain(
+            'No knowledge documents have been curated for this agent.',
         );
-        expect(content).toContain('Multiple matches → read each of them.');
-        expect(content).not.toContain('{{unloaded_knowledge_documents}}');
     });
 
     test('includes full content for documents configured to always load', () => {
@@ -736,7 +631,7 @@ describe('getSystemPromptV2 knowledge documents', () => {
                 ],
             });
             const knowledgeSection = content.slice(
-                content.indexOf('## Available knowledge documents'),
+                content.indexOf('<knowledge_document '),
             );
 
             expect(knowledgeSection).toContain('full_content_included="false"');
@@ -835,7 +730,6 @@ describe('getSystemPromptV2 Deep Research context', () => {
         expect(content).toContain('elapsed_seconds="90"');
         expect(content).toContain('Why did &lt;revenue&gt; fall?');
         expect(content).toContain('getKnowledgeDocumentContent');
-        expect(content).toContain('implicitly start a duplicate run');
         expect(content).toContain('You cannot update a published report here');
         expect(content).toContain('"Create and edit content"');
         expect(content).not.toContain('`editContent` it');
@@ -889,11 +783,7 @@ describe('getSystemPromptV2 requesting user', () => {
         expect(content).toContain('organization role: Viewer');
         expect(content).toContain('member of: Finance, Ops');
         expect(content).toContain('business user');
-        expect(content).toContain('Never advise them to use a different table');
         expect(content).toContain("user's team(s)");
-        expect(content).toContain(
-            'If the user asks to correct or change their name, use the updateUserName tool.',
-        );
     });
 
     test('renders technical guidance for a developer', () => {
@@ -981,12 +871,10 @@ describe('getSystemPromptV2 requesting user', () => {
             requestingUser: { name: '', role: null, groups: [] },
         });
         expect(content).toContain('## Who you are talking to');
-        expect(content).toContain(
-            "You don't yet know the user's name — it hasn't been collected.",
-        );
+        expect(content).toContain("You don't know the user's name yet.");
         expect(content).toContain('Answer their request first');
         expect(content).toContain('first and last name');
-        expect(content).toContain('save it with the updateUserName tool');
+        expect(content).toContain('save it with updateUserName');
         expect(content).toContain(
             'If they decline or ignore the request, do not ask again',
         );
@@ -1079,13 +967,12 @@ describe('getSystemPromptV2 writeback attribution', () => {
             writebackAttribution: { mode: 'org', canLink: true },
         });
         expect(content).toContain('Pull request attribution');
-        expect(content).toContain('not** linked a personal GitHub account');
         expect(content).toContain(
             'https://app.lightdash.cloud/generalSettings/profile',
         );
         // Reminder must fire at offer/suggest time (so the user can link before
         // the first PR), and stay capped at once per thread.
-        expect(content).toContain('offer or suggest');
+        expect(content).toContain('first time you offer');
         expect(content).toContain('once per thread');
     });
 
@@ -1124,7 +1011,8 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).not.toContain('/generalSettings/profile');
     });
 
-    const missingFieldLine = 'offer to add it to the semantic layer';
+    const missingFieldLine =
+        'Offer a pull request that fixes the semantic layer';
     const noContentLine = 'You cannot edit saved charts or dashboards';
 
     test('offers semantic-layer fixes only with writeback', () => {
@@ -1210,8 +1098,6 @@ describe('getSystemPromptV2 data apps', () => {
         expect(content).toContain('## Data apps');
         expect(content).toContain('generateDataApp');
         expect(content).toContain('iterateDataApp');
-        expect(content).toContain('dashboardSlug');
-        expect(content).toContain('chartSlugs');
         expect(content).not.toContain('{{generate_data_app_section}}');
     });
 
@@ -1253,18 +1139,7 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             'exact saved versionUuid copied from a successful chart execution in the current turn',
         );
         expect(content).toContain(
-            'Omit redundant, diagnostic and superseded charts',
-        );
-        expect(content).toContain('Select at most 10 charts');
-        expect(content).toContain(
-            'When the user requests a chart, select the best successful chart that answers the request',
-        );
-        expect(content).toContain(
             'Every selected chart card carries an "Explore in Lightdash" button',
-        );
-        expect(content).toContain('never claim you cannot provide a link');
-        expect(content).toContain(
-            'do not call the report incomplete or capped because of it',
         );
         expect(content).not.toContain(
             'Slack result cards are attached automatically',
@@ -1288,9 +1163,6 @@ describe('getSystemPromptV2 Slack chart selection', () => {
             enableDataAccess: true,
             canRunQuery: true,
         });
-        expect(content).toContain(
-            'it returns rows as a table rather than a chart. Use generateVisualization only',
-        );
         expect(content).not.toContain('Slack result cards');
     });
 });
@@ -1306,13 +1178,6 @@ describe('getSystemPromptV2 Slack table selection', () => {
         expect(content).toContain('<slack-table queryUuid="<queryUuid>" />');
         expect(content).toContain('The marker is hidden from visible text');
         expect(content).toContain('on its own line in your final response');
-        expect(content).toContain(
-            'Select at most 10 requested or useful final tables',
-        );
-        expect(content).toContain('Never automatically include every table');
-        expect(content).toContain(
-            'Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer',
-        );
         expect(content).not.toContain(
             'Slack result cards are attached automatically',
         );
@@ -1353,7 +1218,9 @@ describe('getSystemPromptV2 Slack links only', () => {
             slackLinksOnly: true,
         });
         expect(content).toContain(noDataInSlackRule);
-        expect(content).toContain('Do not summarize them');
+        expect(content).toContain(
+            'Use them only to check that the query answers the question',
+        );
         expect(content).not.toContain('call out trends');
     });
 
@@ -1374,17 +1241,6 @@ describe('getSystemPromptV2 Slack links only', () => {
         });
         expect(content).not.toContain(noDataInSlackRule);
         expect(content).toContain('call out trends');
-    });
-});
-
-describe('getSystemPromptV2 existing chart export', () => {
-    test('explains artifact discovery only when export is available', () => {
-        expect(
-            promptText({ availableExplores: [], enableChartExport: true }),
-        ).toContain('null for all three source identifiers');
-        expect(promptText({ availableExplores: [] })).not.toContain(
-            'null for all three source identifiers',
-        );
     });
 });
 
@@ -1427,13 +1283,10 @@ describe('getSystemPromptV2 deferred capability sections', () => {
     test('routes data questions to runQuery when it is available', () => {
         const content = promptText(capabilities);
         expect(content).toContain(
-            'Use runQuery to answer a data question and generateVisualization for an ad hoc chart.',
-        );
-        expect(content).toContain(
-            'runQuery for answers, generateVisualization for charts',
+            'Answers and ad hoc charts come from runQuery and generateVisualization.',
         );
         expect(content).not.toContain(
-            "Use generateVisualization when the user's intent is to answer a data question",
+            'Answer data questions with generateVisualization',
         );
     });
 });
@@ -1487,6 +1340,35 @@ describe('getSystemPromptV2 thread binding and context', () => {
 
         expect(content).toContain(
             'This conversation is bound to a dashboard that no longer exists.',
+        );
+    });
+
+    it('describes the bound chart and what can change', () => {
+        const content = promptText({
+            ...base,
+            threadBinding: {
+                type: 'chart',
+                chart: { name: 'Orders', slug: 'orders' },
+            },
+        });
+
+        expect(content).toContain(
+            'This conversation is bound to the chart "Orders" (slug: `orders`).',
+        );
+        expect(content).toContain(
+            'Saved content changes are limited to this chart.',
+        );
+        expect(content).not.toContain('## Bound dashboard');
+    });
+
+    it('says when the bound chart no longer exists', () => {
+        const content = promptText({
+            ...base,
+            threadBinding: { type: 'chart', chart: null },
+        });
+
+        expect(content).toContain(
+            'This conversation is bound to a chart that no longer exists.',
         );
     });
 

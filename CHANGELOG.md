@@ -1,3 +1,67 @@
+## [3.26.1](https://github.com/lightdash/lightdash/compare/3.26.0...3.26.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** carry dashboard parameter values into drill into and explore from here ([#31402](https://github.com/lightdash/lightdash/issues/31402)) ([6362b01](https://github.com/lightdash/lightdash/commit/6362b01570bf12f502faa8478ce2f2417bbd67f6))
+
+# [3.26.0](https://github.com/lightdash/lightdash/compare/3.25.2...3.26.0) (2026-10-22)
+
+
+### Features
+
+* add content links to built-in analytics tables ([#31374](https://github.com/lightdash/lightdash/issues/31374)) ([f6a6893](https://github.com/lightdash/lightdash/commit/f6a6893a36743823488b37c944ca864ba70529a5))
+
+## [3.25.2](https://github.com/lightdash/lightdash/compare/3.25.1...3.25.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* ask for a project name when connecting a warehouse to an existing organization ([#31394](https://github.com/lightdash/lightdash/issues/31394)) ([b3b80f3](https://github.com/lightdash/lightdash/commit/b3b80f3ae393773aab6e73bff00f70e76377ffaf))
+
+## [3.25.1](https://github.com/lightdash/lightdash/compare/3.25.0...3.25.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* keep chart slugs downloadable and let over-long slugs be renamed ([#31344](https://github.com/lightdash/lightdash/issues/31344)) ([3488421](https://github.com/lightdash/lightdash/commit/348842124781f18603b36411e1754a85616a69db))
+
+# [3.25.0](https://github.com/lightdash/lightdash/compare/3.24.1...3.25.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **mcp:** describe build tools that may register without each other ([#31331](https://github.com/lightdash/lightdash/issues/31331)) ([aa9b462](https://github.com/lightdash/lightdash/commit/aa9b462f937324280c15fbb8cc5b85ddf2135a58))
+* **search:** reduce dashboard search load ([#31369](https://github.com/lightdash/lightdash/issues/31369)) ([6f9d611](https://github.com/lightdash/lightdash/commit/6f9d61169c91836a3f08b7f2819b32ae0de20b7e))
+
+
+### Features
+
+* **chart-studio:** gate Chart Studio on runtime, not data apps flag ([#31307](https://github.com/lightdash/lightdash/issues/31307)) ([8e773b6](https://github.com/lightdash/lightdash/commit/8e773b6a9d3f82d716a0dc7c08418463ea200e24))
+* **chart-studio:** show Chart Studio without the data apps flag ([#31308](https://github.com/lightdash/lightdash/issues/31308)) ([06f89c5](https://github.com/lightdash/lightdash/commit/06f89c54bbb2606244691e3e83fc12d383f3c974))
+
+## [3.24.1](https://github.com/lightdash/lightdash/compare/3.24.0...3.24.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **embed:** scope embedded AI threads to every write space ([#31346](https://github.com/lightdash/lightdash/issues/31346)) ([fff8b41](https://github.com/lightdash/lightdash/commit/fff8b41a15ec0a8802b217ce02ea994fde6aceb7))
+
+# [3.24.0](https://github.com/lightdash/lightdash/compare/3.23.1...3.24.0) (2026-10-22)
+
+
+### Features
+
+* **ai-agents:** bind AI agent threads to a saved chart ([#31345](https://github.com/lightdash/lightdash/issues/31345)) ([df5502a](https://github.com/lightdash/lightdash/commit/df5502ab36483e24b0e1c46474dd9c0e071226d4))
+* **ai-agents:** gate instance decisions per organization with a default-on flag ([#31383](https://github.com/lightdash/lightdash/issues/31383)) ([78671e0](https://github.com/lightdash/lightdash/commit/78671e0cba5d153bd75fa2786c9cae25f7e16119))
+
+## [3.23.1](https://github.com/lightdash/lightdash/compare/3.23.0...3.23.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** read disabled false as unset in filter dirty check ([#31382](https://github.com/lightdash/lightdash/issues/31382)) ([2a6ea1a](https://github.com/lightdash/lightdash/commit/2a6ea1ad1cee643ee92e52d1997082a0bc30c8db))
+
 # [3.23.0](https://github.com/lightdash/lightdash/compare/3.22.0...3.23.0) (2026-10-22)
 
 

@@ -187,6 +187,12 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
+import {
+    AppRuntimeConfigErrors,
+    getDataAppAzureSandboxGroup,
+    getDataAppCloudRunGateway,
+    isAppRuntimeConfigured,
+} from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -210,7 +216,10 @@ import {
 } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
-import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import {
+    FeatureFlagModel,
+    type FeatureFlagLogicArgs,
+} from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -1394,8 +1403,6 @@ export class AppGenerateService extends BaseService {
                 );
             }
         }
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(
             payload.appUuid,
             payload.projectUuid,
@@ -1405,6 +1412,7 @@ export class AppGenerateService extends BaseService {
                 'Data app is not available in this organization',
             );
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -1637,7 +1645,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
             if (!imageArn) {
                 throw new MissingConfigError(
-                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
+                    AppRuntimeConfigErrors.lambdaMicroVmDataAppImage,
                 );
             }
             return imageArn;
@@ -1647,7 +1655,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
             if (!diskImage) {
                 throw new MissingConfigError(
-                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
+                    AppRuntimeConfigErrors.azureSandboxesDataAppDiskImage,
                 );
             }
             return diskImage;
@@ -1668,25 +1676,17 @@ export class AppGenerateService extends BaseService {
     /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
      * (the data-app sandbox group + shared subscription/region settings). */
     private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesDataAppGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesDataAppGroup
-        ) {
+        const { appRuntime } = this.lightdashConfig;
+        const { azureSandboxes, sandboxIdleTimeoutMs } = appRuntime;
+        const group = getDataAppAzureSandboxGroup(appRuntime);
+        if (!group) {
             throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
+                AppRuntimeConfigErrors.azureSandboxesDataAppGroup,
             );
         }
         return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
+            ...group,
             region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesDataAppGroup,
             apiVersion: azureSandboxes.apiVersion,
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
@@ -1696,16 +1696,13 @@ export class AppGenerateService extends BaseService {
 
     /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
     private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
-        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
-        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
-            throw new MissingConfigError(
-                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
-            );
+        const gateway = getDataAppCloudRunGateway(
+            this.lightdashConfig.appRuntime,
+        );
+        if (!gateway) {
+            throw new MissingConfigError(AppRuntimeConfigErrors.gcpCloudRun);
         }
-        return {
-            sandboxUrl: gcpCloudRun.sandboxUrl,
-            sandboxSecret: gcpCloudRun.sandboxSecret,
-        };
+        return gateway;
     }
 
     private buildSandboxSpec(
@@ -1742,6 +1739,89 @@ export class AppGenerateService extends BaseService {
         if (!enabled) {
             throw new ForbiddenError('Data apps are not enabled');
         }
+    }
+
+    /** Chart Studio is available with a valid licence (this EE service) and a configured sandbox provider. */
+    isChartStudioAvailable(): boolean {
+        return isAppRuntimeConfigured(this.lightdashConfig);
+    }
+
+    private assertChartStudioAvailable(): void {
+        if (!this.isChartStudioAvailable()) {
+            throw new ForbiddenError('Chart Studio is not available');
+        }
+    }
+
+    /** Chart type authoring follows Chart Studio; every other template follows data apps. */
+    private async assertAppsEnabled(
+        user: SessionUser,
+        template: DataAppTemplate | null,
+    ): Promise<void> {
+        if (template === DATA_APP_VIZ_TEMPLATE) {
+            this.assertChartStudioAvailable();
+            return;
+        }
+        await this.assertDataAppsEnabled(user);
+    }
+
+    /** Library installs uninstall and restore wherever chart types are usable, even without Chart Studio. */
+    private async assertCanRemoveAppGate(
+        user: SessionUser,
+        app: Pick<DbApp, 'registry_slug' | 'template'>,
+    ): Promise<void> {
+        if (app.registry_slug !== null) {
+            await this.assertChartTypesUsable(user);
+            return;
+        }
+        await this.assertAppsEnabled(user, app.template);
+    }
+
+    /** Chart types are spaceless and never built from a dashboard, so a create cannot claim either. */
+    private static assertChartTypeCreateInputs(
+        template: DataAppTemplate | null,
+        {
+            spaceUuid,
+            dashboard,
+        }: {
+            spaceUuid: string | undefined;
+            dashboard: AppDashboardReference | undefined;
+        },
+    ): void {
+        if (template !== DATA_APP_VIZ_TEMPLATE) return;
+        if (spaceUuid) {
+            throw new ParameterError(
+                'Custom chart types cannot be placed in spaces',
+            );
+        }
+        if (dashboard !== undefined) {
+            throw new ParameterError(
+                'Custom chart types cannot be built from a dashboard',
+            );
+        }
+    }
+
+    /** For requests whose template is not known yet, such as staging a file before creation. */
+    private async assertAnyAppsEnabled(user: SessionUser): Promise<void> {
+        if (this.isChartStudioAvailable()) return;
+        await this.assertDataAppsEnabled(user);
+    }
+
+    async chartTypesEnabledFor(user: SessionUser): Promise<boolean> {
+        return chartTypesEnabledFor(
+            this.featureFlagModel,
+            this.isChartStudioAvailable(),
+            user,
+        );
+    }
+
+    private async assertChartTypesUsable(
+        user: FeatureFlagLogicArgs['user'],
+    ): Promise<void> {
+        await assertChartTypesEnabled(
+            this.featureFlagModel,
+            this.isChartStudioAvailable(),
+            user,
+        );
     }
 
     /**
@@ -1830,7 +1910,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string | null,
     ): Promise<boolean> {
-        if (!(await chartTypesEnabledFor(this.featureFlagModel, user))) {
+        if (!(await this.chartTypesEnabledFor(user))) {
             return false;
         }
         const auditedAbility = this.createAuditedAbility(user);
@@ -2025,12 +2105,12 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    /** Project connections the user may link to a data app. */
+    /** Project connections the user may link to a data app or chart type. */
     async listLinkableExternalConnections(
         user: SessionUser,
         projectUuid: string,
     ): Promise<ExternalConnection[]> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAnyAppsEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(user);
@@ -2485,14 +2565,17 @@ export class AppGenerateService extends BaseService {
         filename: string;
         mimeType: string;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // For iterations the app already exists — use its space + creator
         // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
         // row doesn't exist yet, so we authorize against `create:DataApp`
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (app) {
+            await this.assertAppsEnabled(user, app.template);
+        } else {
+            await this.assertAnyAppsEnabled(user);
+        }
         let organizationUuid: string;
         if (app) {
             await this.assertCanManageApp(
@@ -2612,13 +2695,12 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         imageId: string,
     ): Promise<{ imageUrl: string }> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -2660,14 +2742,14 @@ export class AppGenerateService extends BaseService {
     ) {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await assertChartTypesEnabled(this.featureFlagModel, user);
+            await this.assertChartTypesUsable(user);
             this.assertCanUseChartTypes(user, {
                 organizationUuid: app.organization_uuid,
                 projectUuid,
             });
             return app;
         }
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
         return app;
     }
@@ -2678,8 +2760,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ) {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -7333,7 +7415,11 @@ export class AppGenerateService extends BaseService {
         dashboard?: AppDashboardReference,
         fileIds?: string[],
     ): Promise<{ questions: string[] }> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid: undefined,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -7676,7 +7762,11 @@ export class AppGenerateService extends BaseService {
             vizContext,
             thread,
         } = options;
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -7945,8 +8035,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -7974,11 +8064,10 @@ export class AppGenerateService extends BaseService {
             aiAgentToolCall,
             vizContext,
         } = options;
-        await this.assertDataAppsEnabled(user);
-
         AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8430,9 +8519,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         body: UpgradeAppRequestBody = {},
     ): Promise<GenerateAppResult> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8565,9 +8653,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sourceVersion: number,
     ): Promise<{ appUuid: string; version: number }> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8774,9 +8861,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<ApiGetAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -9181,8 +9267,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<PromoteAppDiff> {
-        await this.assertDataAppsEnabled(user);
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -9232,9 +9318,8 @@ export class AppGenerateService extends BaseService {
         version: number;
         action: PromoteAppAction;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -9517,7 +9602,20 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
+
+        const sourceApps = (
+            await Promise.all(
+                appUuids.map((appUuid) =>
+                    this.appModel.findApp(appUuid, projectUuid),
+                ),
+            )
+        ).filter((app): app is NonNullable<typeof app> => app !== undefined);
+        // Gate every app before promoting any, so a refused one leaves nothing half-promoted.
+        await Promise.all(
+            sourceApps.map((sourceApp) =>
+                this.assertAppsEnabled(user, sourceApp.template),
+            ),
+        );
 
         const results: {
             sourceAppUuid: string;
@@ -9525,19 +9623,14 @@ export class AppGenerateService extends BaseService {
             upstreamAppVersion: number;
         }[] = [];
         /* eslint-disable no-await-in-loop */
-        for (const appUuid of appUuids) {
-            const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
-            if (sourceApp) {
-                const {
-                    appUuid: upstreamAppUuid,
-                    version: upstreamAppVersion,
-                } = await this.promoteApp(user, projectUuid, appUuid);
-                results.push({
-                    sourceAppUuid: appUuid,
-                    upstreamAppUuid,
-                    upstreamAppVersion,
-                });
-            }
+        for (const sourceApp of sourceApps) {
+            const { appUuid: upstreamAppUuid, version: upstreamAppVersion } =
+                await this.promoteApp(user, projectUuid, sourceApp.app_id);
+            results.push({
+                sourceAppUuid: sourceApp.app_id,
+                upstreamAppUuid,
+                upstreamAppVersion,
+            });
         }
         /* eslint-enable no-await-in-loop */
 
@@ -9559,7 +9652,6 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
 
         const { upstreamProjectUuid } =
             await this.getUpstreamProjectForPromotion(projectUuid);
@@ -9573,6 +9665,7 @@ export class AppGenerateService extends BaseService {
                 if (!sourceApp) {
                     return null;
                 }
+                await this.assertAppsEnabled(user, sourceApp.template);
                 await this.assertCanManageApp(
                     user,
                     sourceApp,
@@ -9616,12 +9709,11 @@ export class AppGenerateService extends BaseService {
         sourceAppUuid: string,
         options?: { name?: string },
     ): Promise<ApiDuplicateAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(
             sourceAppUuid,
             projectUuid,
         );
+        await this.assertAppsEnabled(user, sourceApp.template);
         await this.assertCanViewApp(user, sourceApp);
 
         // The duplicate lands as a personal app in the same project. We need
@@ -10028,8 +10120,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -10209,14 +10301,13 @@ export class AppGenerateService extends BaseService {
         verification: ContentVerificationInfo | null;
         autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // Resolve to the real uuid before any query — the raw arg may be a
         // slug and must never reach a uuid-typed filter.
         const resolvedApp = await this.appModel.getAppByUuidOrSlug(
             projectUuid,
             appUuidOrSlug,
         );
+        await this.assertAppsEnabled(user, resolvedApp.template);
         const appUuid = resolvedApp.app_id;
 
         const {
@@ -10379,7 +10470,10 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(
+            user,
+            dataAppVizsFilter === 'only' ? DATA_APP_VIZ_TEMPLATE : null,
+        );
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
         // Coarse gate: roles with no view:DataApp rule at all (plain viewers)
@@ -10452,7 +10546,7 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -11071,12 +11165,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizDeleteImpact> {
-        await this.assertDataAppsEnabled(user);
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
             projectUuid,
             dataAppVizUuid,
         );
+        await this.assertCanRemoveAppGate(user, dataAppViz);
         await this.assertCanManageApp(
             user,
             dataAppViz,
@@ -11135,7 +11229,7 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -11179,7 +11273,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
 
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
@@ -11207,7 +11301,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, user);
+        await this.assertChartTypesUsable(user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -11289,7 +11383,7 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
+        await this.assertChartTypesUsable({
             userUuid: account.user.userUuid,
             organizationUuid: account.organization.organizationUuid,
         });
@@ -11728,8 +11822,8 @@ export class AppGenerateService extends BaseService {
         icon: ChartTypeIcon | null;
         autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -11842,13 +11936,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Uninstalling a library chart type must work wherever the
-                // library does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11909,13 +11997,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Restoring an uninstalled library chart type must work
-                // wherever uninstalling it does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11982,7 +12064,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            await this.assertDataAppsEnabled(user);
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -12185,8 +12267,6 @@ export class AppGenerateService extends BaseService {
             trackEvent?: boolean;
         } = {},
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
         if (targetSpaceUuid === null) {
             throw new ParameterError(
                 'You cannot move a data app outside of a space',
@@ -12194,6 +12274,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
 
         // Vizs are project-global chart content — space semantics don't apply.
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
@@ -12384,8 +12465,6 @@ export class AppGenerateService extends BaseService {
         version: number,
         viewContext: DataAppViewContext = 'unknown',
     ): Promise<string> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
         }
@@ -12395,6 +12474,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
@@ -13477,6 +13557,7 @@ export class AppGenerateService extends BaseService {
         if (!app) {
             throw new NotFoundError(`Data app "${slug}" was not found`);
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         const versionRow =
@@ -13733,7 +13814,8 @@ export class AppGenerateService extends BaseService {
         slug: string,
         designUuid: string | null,
     ): Promise<DataAppContext> {
-        await this.assertDataAppsEnabled(user);
+        // The CLI fetches this for data apps and chart types alike without naming the template.
+        await this.assertAnyAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -14073,7 +14155,7 @@ export class AppGenerateService extends BaseService {
             if (outcome.kind === 'installed') return outcome.result;
             warnings.push(outcome.warning);
         }
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, code.manifest.template);
 
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
@@ -14331,6 +14413,12 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError(
                 `"${existingApp.slug}" is an official chart type and cannot be updated by upload. Change the slug in lightdash-app.yml to upload a modified copy as a new chart type, or fork it in the app.`,
             );
+        }
+        if (
+            existingApp !== undefined &&
+            existingApp.template !== code.manifest.template
+        ) {
+            await this.assertAppsEnabled(user, existingApp.template);
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';

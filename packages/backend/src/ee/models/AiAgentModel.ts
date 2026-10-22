@@ -504,6 +504,7 @@ type AiThreadSummaryRow = Pick<
         agent_name: string | null;
         agent_image_url: string | null;
         bound_dashboard_name: string | null;
+        bound_chart_name: string | null;
     };
 
 type AiAgentThreadLiveStateRow = {
@@ -3420,6 +3421,19 @@ export class AiAgentModel {
                     )
                     .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where((builder) => {
                 void builder
                     .whereNotNull('first_prompt.ai_prompt_uuid')
@@ -3452,6 +3466,7 @@ export class AiAgentModel {
                 `${AiAgentTableName}.name as agent_name`,
                 `${AiAgentTableName}.image_url as agent_image_url`,
                 `${DashboardsTableName}.name as bound_dashboard_name`,
+                `${SavedChartsTableName}.name as bound_chart_name`,
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
     }
@@ -3460,8 +3475,10 @@ export class AiAgentModel {
         switch (binding.type) {
             case 'dashboard':
                 return binding.dashboardUuid;
+            case 'chart':
+                return binding.chartUuid;
             default:
-                return assertUnreachable(binding.type, 'Unknown binding type');
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -3473,6 +3490,8 @@ export class AiAgentModel {
         switch (type) {
             case 'dashboard':
                 return { type, dashboardUuid: entityUuid };
+            case 'chart':
+                return { type, chartUuid: entityUuid };
             default:
                 return assertUnreachable(type, 'Unknown binding type');
         }
@@ -3489,8 +3508,10 @@ export class AiAgentModel {
         switch (binding.type) {
             case 'dashboard':
                 return { ...binding, displayName: row.bound_dashboard_name };
+            case 'chart':
+                return { ...binding, displayName: row.bound_chart_name };
             default:
-                return assertUnreachable(binding.type, 'Unknown binding type');
+                return assertUnreachable(binding, 'Unknown binding type');
         }
     }
 
@@ -3809,12 +3830,14 @@ export class AiAgentModel {
         threadUuid,
         userUuid,
         createdFrom,
+        embedWriteSpaceUuids,
     }: {
         organizationUuid: string;
         agentUuid: string;
         threadUuid?: string;
         userUuid?: string;
         createdFrom?: AiThreadCreatedFrom[];
+        embedWriteSpaceUuids?: string[];
     }): Promise<
         AiAgentThreadSummary<AiAgentUser & { slackUserId: string | null }>[]
     > {
@@ -3840,6 +3863,12 @@ export class AiAgentModel {
 
         if (userUuid) {
             void query.andWhere(`${UserTableName}.user_uuid`, userUuid);
+        }
+
+        if (embedWriteSpaceUuids) {
+            void query.andWhere(
+                this.embedThreadSpacesWithin(embedWriteSpaceUuids),
+            );
         }
 
         const rows = await query;
@@ -7169,7 +7198,10 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
-                embed_space_uuid: data.embedSpaceUuid ?? null,
+                embed_space_uuid: data.embedSpaceUuids?.[0] ?? null,
+                embed_space_uuids: data.embedSpaceUuids?.length
+                    ? data.embedSpaceUuids
+                    : null,
             });
 
             return row.ai_thread_uuid;
@@ -7226,6 +7258,19 @@ export class AiAgentModel {
                     )
                     .andOnNull(`${DashboardsTableName}.deleted_at`);
             })
+            .leftJoin(SavedChartsTableName, function joinBoundChart() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${AiThreadTableName}.bound_entity_uuid`,
+                )
+                    .andOnVal(
+                        `${AiThreadTableName}.bound_entity_type`,
+                        '=',
+                        'chart',
+                    )
+                    .andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
             .first<
                 | {
@@ -7233,6 +7278,8 @@ export class AiAgentModel {
                       thread_context: string | null;
                       dashboard_name: string | null;
                       dashboard_slug: string | null;
+                      chart_name: string | null;
+                      chart_slug: string | null;
                   }
                 | undefined
             >(
@@ -7240,6 +7287,8 @@ export class AiAgentModel {
                 `${AiThreadTableName}.thread_context`,
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${DashboardsTableName}.slug as dashboard_slug`,
+                `${SavedChartsTableName}.name as chart_name`,
+                `${SavedChartsTableName}.slug as chart_slug`,
             );
         if (!row) return { threadBinding: null, threadContext: null };
 
@@ -7260,6 +7309,15 @@ export class AiAgentModel {
                             : null,
                 };
                 break;
+            case 'chart':
+                threadBinding = {
+                    type: 'chart',
+                    chart:
+                        row.chart_name !== null && row.chart_slug !== null
+                            ? { name: row.chart_name, slug: row.chart_slug }
+                            : null,
+                };
+                break;
             default:
                 return assertUnreachable(
                     row.bound_entity_type,
@@ -7269,13 +7327,26 @@ export class AiAgentModel {
         return { threadBinding, threadContext: row.thread_context };
     }
 
-    async getWebAppThreadEmbedSpace(threadUuid: string) {
+    // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
+    private embedThreadSpacesWithin(writeSpaceUuids: string[]) {
+        const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+        return this.database.raw(
+            `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
+            [writeSpaceUuids],
+        );
+    }
+
+    async isWebAppThreadInEmbedSpaces(
+        threadUuid: string,
+        writeSpaceUuids: string[],
+    ): Promise<boolean> {
         const row = await this.database(AiWebAppThreadTableName)
-            .select('embed_space_uuid')
+            .select('ai_thread_uuid')
             .where('ai_thread_uuid', threadUuid)
+            .andWhere(this.embedThreadSpacesWithin(writeSpaceUuids))
             .first();
 
-        return row?.embed_space_uuid ?? null;
+        return row !== undefined;
     }
 
     async createWebAppPrompt(

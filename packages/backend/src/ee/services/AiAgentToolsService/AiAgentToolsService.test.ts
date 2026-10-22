@@ -489,8 +489,8 @@ describe('AiAgentToolsService', () => {
             viz_schema: latestRenderableSchema,
         });
         const service = makeService({
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
+            appGenerateService: {
+                chartTypesEnabledFor: vi.fn().mockResolvedValue(true),
             },
             appModel: {
                 findDataAppVisualizationBySlug,
@@ -4626,8 +4626,14 @@ describe('AiAgentToolsService generateDataApp', () => {
     const makeAppGenerateService = ({
         enabled = true,
         canCreate = true,
-    }: { enabled?: boolean; canCreate?: boolean } = {}) => ({
+        chartStudioAvailable = true,
+    }: {
+        enabled?: boolean;
+        canCreate?: boolean;
+        chartStudioAvailable?: boolean;
+    } = {}) => ({
         dataAppsEnabledFor: vi.fn().mockResolvedValue(enabled),
+        isChartStudioAvailable: vi.fn().mockReturnValue(chartStudioAvailable),
         canCreateDataApp: vi.fn().mockResolvedValue(canCreate),
         generateApp: vi.fn().mockResolvedValue({
             appUuid: 'app-uuid',
@@ -4695,6 +4701,31 @@ describe('AiAgentToolsService generateDataApp', () => {
                 expect(
                     await service.canGenerateDataApp({ user, projectUuid }),
                 ).toBe(expected);
+            },
+        );
+
+        it.each([
+            [true, true, true],
+            [false, true, false],
+            [true, false, false],
+        ])(
+            'chart type authoring follows Chart Studio=%s canCreate=%s, not the data apps flag → %s',
+            async (chartStudioAvailable, canCreate, expected) => {
+                const appGenerateService = makeAppGenerateService({
+                    enabled: false,
+                    canCreate,
+                    chartStudioAvailable,
+                });
+                const service = makeService({ appGenerateService });
+                expect(
+                    await service.canAuthorCustomChartTypes({
+                        user,
+                        projectUuid,
+                    }),
+                ).toBe(expected);
+                expect(
+                    appGenerateService.dataAppsEnabledFor,
+                ).not.toHaveBeenCalled();
             },
         );
     });
@@ -7695,6 +7726,251 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
         const generateApp = vi.fn();
         const service = makeService({
             dashboardModel: dashboardModel(),
+            appGenerateService: { generateApp },
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).generateDataApp({
+                name: 'App',
+                prompt: 'Build an app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: null,
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService in a thread bound to a chart', () => {
+    const boundChart = {
+        uuid: 'bound-chart-uuid',
+        slug: 'bound-chart',
+        projectUuid,
+    };
+    const boundContext = () =>
+        makeRuntimeContext({
+            threadBinding: { type: 'chart', chartUuid: boundChart.uuid },
+        });
+    const savedChartModel = () => ({
+        getSummary: vi.fn().mockResolvedValue(boundChart),
+        get: vi.fn(async (slug: string) => ({
+            uuid: slug === boundChart.slug ? boundChart.uuid : `${slug}-uuid`,
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        })),
+    });
+    const contentValidation = () => ({
+        validateNewContent: vi.fn(),
+        validatePatch: vi.fn(),
+        validateContent: vi.fn(),
+    });
+    const makeChart = (slug: string) => ({
+        name: 'Orders',
+        description: '',
+        tableName: 'orders',
+        slug,
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: 'table', config: {} },
+        tableConfig: { columnOrder: [] },
+        spaceSlug: 'space',
+        version: 1,
+    });
+    const renamePatch = [{ op: 'replace', path: '/name', value: 'New' }];
+
+    it.each(['chart', 'dashboard', 'sql_chart'] as const)(
+        'rejects creating a %s',
+        async (type) => {
+            const upsert = vi.fn();
+            const service = makeService({
+                savedChartModel: savedChartModel(),
+                coderService: {
+                    upsertChart: upsert,
+                    upsertDashboard: upsert,
+                    upsertSqlChart: upsert,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type,
+                    content: makeChart('new-content'),
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to the chart "bound-chart". New content cannot be created here.',
+            );
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    describe('editContent', () => {
+        const chartEditService = (upsertChart: import('vitest').Mock) =>
+            makeService({
+                savedChartModel: savedChartModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: boundChart.uuid }),
+                },
+                coderService: {
+                    getChartsForRead: vi.fn(
+                        async (_user, _project, slugs: string[]) => ({
+                            charts: slugs.map(makeChart),
+                        }),
+                    ),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+        it('edits the bound chart', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: boundChart.uuid } }],
+            });
+            const service = chartEditService(upsertChart);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: boundChart.slug,
+                type: 'chart',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it.each([
+            ['chart', 'other-chart'],
+            ['dashboard', 'some-dashboard'],
+            ['sql_chart', 'some-sql-chart'],
+        ] as const)('rejects editing a %s %s', async (type, slug) => {
+            const upsertChart = vi.fn();
+            const service = chartEditService(upsertChart);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug,
+                    type,
+                    patch: renamePatch,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow('Only that chart can be edited.');
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects documents', async () => {
+            const service = makeService({ savedChartModel: savedChartModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'notes',
+                    type: 'document',
+                    documentEdit: {},
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+    });
+
+    describe('createScheduledDelivery', () => {
+        const deliveryService = () => {
+            const createChartScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const createDashboardScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const service = makeService({
+                savedChartModel: savedChartModel(),
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'space-uuid',
+                    }),
+                },
+                savedChartService: { createScheduler: createChartScheduler },
+                dashboardService: {
+                    createScheduler: createDashboardScheduler,
+                },
+            });
+            return { service, createChartScheduler, createDashboardScheduler };
+        };
+        const deliver = (
+            service: AiAgentToolsService,
+            resourceType: 'chart' | 'dashboard',
+            resourceUuidOrSlug: string,
+        ) =>
+            service.createRuntime(boundContext()).createScheduledDelivery({
+                resourceType,
+                resourceUuidOrSlug,
+                scheduler: {} as never,
+                aiAugmentationPrompt: null,
+            });
+
+        it('allows the bound chart', async () => {
+            const { service, createChartScheduler } = deliveryService();
+
+            await deliver(service, 'chart', boundChart.slug);
+
+            expect(createChartScheduler).toHaveBeenCalled();
+        });
+
+        it('rejects other charts and any dashboard', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await expect(
+                deliver(service, 'chart', 'other-chart'),
+            ).rejects.toThrow(
+                'Scheduled deliveries can only be created for that chart.',
+            );
+            await expect(
+                deliver(service, 'dashboard', 'some-dashboard'),
+            ).rejects.toThrow(ParameterError);
+
+            expect(createChartScheduler).not.toHaveBeenCalled();
+            expect(createDashboardScheduler).not.toHaveBeenCalled();
+        });
+    });
+
+    it('fails closed when the bound chart no longer exists', async () => {
+        const upsertChart = vi.fn();
+        const service = makeService({
+            savedChartModel: {
+                getSummary: vi
+                    .fn()
+                    .mockRejectedValue(new NotFoundError('not found')),
+            },
+            coderService: { upsertChart },
+            aiAgentContentValidation: contentValidation(),
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).createContent({
+                type: 'chart',
+                content: makeChart('new-chart'),
+            } as never),
+        ).rejects.toThrow(
+            'This conversation is bound to a chart that no longer exists',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+    });
+
+    it('rejects generating a data app', async () => {
+        const generateApp = vi.fn();
+        const service = makeService({
+            savedChartModel: savedChartModel(),
             appGenerateService: { generateApp },
         });
 

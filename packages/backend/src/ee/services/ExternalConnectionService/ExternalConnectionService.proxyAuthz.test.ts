@@ -16,6 +16,7 @@ import {
     buildAccount,
     defaultSessionUser,
 } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import * as secureFetchModule from '../../../utils/secureFetch/secureFetch';
 import { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -209,6 +210,7 @@ function buildService({
         ),
     };
     const appGenerateService = new AppGenerateService({
+        lightdashConfig: lightdashConfigMock,
         appModel,
         savedChartModel,
         savedChartService,
@@ -216,6 +218,7 @@ function buildService({
         documentService,
     } as never);
     const embedService = new EmbedService({
+        lightdashConfig: lightdashConfigMock,
         appModel,
         savedChartModel,
         dashboardModel,

@@ -82,7 +82,9 @@ const setup = (runtimeOptions?: EmbedAiAgentRuntimeOptions) => {
             agentUuid: 'agent',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space'),
+        isWebAppThreadInEmbedSpaces: vi.fn(
+            async (_: string, spaces: string[]) => spaces.includes('space'),
+        ),
     };
     const getExplore = vi.fn().mockResolvedValue(validExplore);
     const service = new AiAgentService({
@@ -157,7 +159,7 @@ describe('artifact export access', () => {
 
     it('rechecks embedded conversation scope before exporting', async () => {
         const { access, getExplore } = setup({
-            embedSpaceUuid: 'other-space',
+            writeSpaceUuids: ['other-space'],
             externalUserId: null,
             spaceAccess: ['other-space'],
             readOnlySpaceUuids: [],

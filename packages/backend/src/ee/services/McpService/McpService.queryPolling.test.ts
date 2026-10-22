@@ -999,6 +999,7 @@ describe('MCP catalogue audit', () => {
                                 filterExpressionsEnabled: true,
                                 documentsEnabled: false,
                                 dataAppBuildsEnabled: false,
+                                chartTypeBuildsEnabled: false,
                                 customChartTypesEnabled: false,
                                 agentIdentityEnabled: false,
                             },

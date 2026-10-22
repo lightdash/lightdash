@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     type AiAgentThreadSummary,
+    type AiPromptContextItem,
     type AiThreadBindingSummary,
 } from '@lightdash/common';
 import {
@@ -20,6 +21,31 @@ import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { ContentReferenceLink } from './ContentReferenceLink';
 import styles from './ThreadSetupHeader.module.css';
 
+const BoundResourceRow: FC<{
+    label: string;
+    unavailableLabel: string;
+    kind: 'dashboard' | 'chart';
+    item: AiPromptContextItem | null;
+    projectUuid: string;
+}> = ({ label, unavailableLabel, kind, item, projectUuid }) => (
+    <Group gap="xs" wrap="wrap">
+        <Text size="xs" c="dimmed" fw={500}>
+            {label}
+        </Text>
+        {item === null ? (
+            <ContentReferenceLink kind={kind} showArrow={false}>
+                {unavailableLabel}
+            </ContentReferenceLink>
+        ) : (
+            <PinnedContextCard
+                item={item}
+                projectUuid={projectUuid}
+                previewScope={null}
+            />
+        )}
+    </Group>
+);
+
 const BoundResource: FC<{
     binding: AiThreadBindingSummary;
     projectUuid: string;
@@ -29,37 +55,53 @@ const BoundResource: FC<{
     switch (binding.type) {
         case 'dashboard':
             return (
-                <Group gap="xs" wrap="wrap">
-                    <Text size="xs" c="dimmed" fw={500}>
-                        {uiStrings('aiAgent.thread.boundDashboard')}
-                    </Text>
-                    {binding.displayName === null ? (
-                        <ContentReferenceLink
-                            kind="dashboard"
-                            showArrow={false}
-                        >
-                            {uiStrings(
-                                'aiAgent.thread.boundDashboardUnavailable',
-                            )}
-                        </ContentReferenceLink>
-                    ) : (
-                        <PinnedContextCard
-                            item={{
-                                type: 'dashboard',
-                                dashboardUuid: binding.dashboardUuid,
-                                dashboardSlug: null,
-                                displayName: binding.displayName,
-                                pinnedVersionUuid: null,
-                                runtimeOverrides: null,
-                            }}
-                            projectUuid={projectUuid}
-                            previewScope={null}
-                        />
+                <BoundResourceRow
+                    label={uiStrings('aiAgent.thread.boundDashboard')}
+                    unavailableLabel={uiStrings(
+                        'aiAgent.thread.boundDashboardUnavailable',
                     )}
-                </Group>
+                    kind="dashboard"
+                    item={
+                        binding.displayName === null
+                            ? null
+                            : {
+                                  type: 'dashboard',
+                                  dashboardUuid: binding.dashboardUuid,
+                                  dashboardSlug: null,
+                                  displayName: binding.displayName,
+                                  pinnedVersionUuid: null,
+                                  runtimeOverrides: null,
+                              }
+                    }
+                    projectUuid={projectUuid}
+                />
+            );
+        case 'chart':
+            return (
+                <BoundResourceRow
+                    label={uiStrings('aiAgent.thread.boundChart')}
+                    unavailableLabel={uiStrings(
+                        'aiAgent.thread.boundChartUnavailable',
+                    )}
+                    kind="chart"
+                    item={
+                        binding.displayName === null
+                            ? null
+                            : {
+                                  type: 'chart',
+                                  chartUuid: binding.chartUuid,
+                                  chartSlug: null,
+                                  displayName: binding.displayName,
+                                  pinnedVersionUuid: null,
+                                  runtimeOverrides: null,
+                                  chartKind: null,
+                              }
+                    }
+                    projectUuid={projectUuid}
+                />
             );
         default:
-            return assertUnreachable(binding.type, 'Unknown binding type');
+            return assertUnreachable(binding, 'Unknown binding type');
     }
 };
 

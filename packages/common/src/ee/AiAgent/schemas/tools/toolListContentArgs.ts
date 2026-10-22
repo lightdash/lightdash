@@ -1,22 +1,12 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
 import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_LIST_CONTENT_DESCRIPTION = ({
-    toolName,
-}: ToolDescriptionContext): string => `Tool: "${toolName}"
-Purpose:
-Lists accessible Lightdash content in a project as a browsable hierarchy.
-
-Usage tips:
-- By default, lists root-level spaces.
-- Pass a spaceSlug to list direct children and content inside that space.
-- Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, URLs, and space content counts.`;
+export const TOOL_LIST_CONTENT_DESCRIPTION =
+    'Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.';
 
 export const toolListContentArgsSchema = createToolSchema()
     .extend({
@@ -24,7 +14,7 @@ export const toolListContentArgsSchema = createToolSchema()
             .string()
             .nullable()
             .describe(
-                'Optional space slug/path to list. Use null to list root-level content.',
+                'Slug or path of the space to list; null lists the root-level spaces.',
             ),
     })
     .withPagination()

@@ -155,7 +155,7 @@ describe.each([false, true])(
                         .mockResolvedValue(null),
                 },
                 orgAiCopilotConfigResolver: {
-                    isOrgOnOwnProviderKeys: async () => false,
+                    getDecisionClient: async () => undefined,
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
             vi.spyOn(

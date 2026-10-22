@@ -416,11 +416,11 @@ export const getRunComposerQueries = ({
                         : null;
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
-                    `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
+                    `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
                     isSlack
                         ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
-                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer; the same marker presents it again in a later message without rerunning it.`,
+                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer, in this message or a later one.`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');

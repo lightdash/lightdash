@@ -139,6 +139,7 @@ it('covers the tools registered by the real MCP service across feature variants'
                     filterExpressionsEnabled: enabled,
                     documentsEnabled: enabled,
                     dataAppBuildsEnabled: enabled,
+                    chartTypeBuildsEnabled: enabled,
                     customChartTypesEnabled: enabled,
                     agentIdentityEnabled: enabled,
                 }),

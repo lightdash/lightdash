@@ -1,5 +1,6 @@
 import Lightdash, {
     useLightdashAiAgentThreads,
+    type AiThreadBinding,
     type LightdashAiAgentThread,
     type LightdashApiClientConfig,
     type ListAiAgentThreadsOptions,
@@ -204,12 +205,24 @@ const truncateThreadLabel = (label: string) =>
 
 type AiAgentThreadSetup = {
     boundDashboardUuid: string;
+    boundChartUuid: string;
     threadContext: string;
 };
 
 const EMPTY_THREAD_SETUP: AiAgentThreadSetup = {
     boundDashboardUuid: '',
+    boundChartUuid: '',
     threadContext: '',
+};
+
+const getThreadBinding = (
+    setup: AiAgentThreadSetup,
+): AiThreadBinding | undefined => {
+    const dashboardUuid = setup.boundDashboardUuid.trim();
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    const chartUuid = setup.boundChartUuid.trim();
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
 };
 
 const getThreadLabel = (thread: LightdashAiAgentThread) =>
@@ -319,7 +332,6 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     // Applied on demand so typing doesn't reload the agent
     const [threadSetup, setThreadSetup] =
         useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
-    const boundDashboardUuid = threadSetup.boundDashboardUuid.trim();
     const remountKey = `${selectedAiAgentEmbedUrl || embedConfig.remountKey}:${
         resumeThreadUuid || 'new'
     }`;
@@ -534,6 +546,18 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     style={{ padding: '8px 10px' }}
                                 />
+                                <input
+                                    aria-label="Bound chart UUID"
+                                    placeholder="Chart UUID to bind new threads to"
+                                    value={threadSetupDraft.boundChartUuid}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            boundChartUuid: event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
                                 <textarea
                                     aria-label="Thread context"
                                     placeholder="Initial context for new threads"
@@ -560,8 +584,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             </div>
                             <p style={helperTextStyle}>
                                 Only threads started here get the binding and
-                                context. The dashboard must be in the token's
-                                embed space.
+                                context. Set a dashboard or a chart; the
+                                dashboard wins when both are set. It must be in
+                                the token's embed space.
                             </p>
                         </div>
                         <div style={threadHistoryStyle}>
@@ -607,15 +632,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     onThreadChange={handleThreadChange}
                                     renderMode={renderMode}
-                                    binding={
-                                        boundDashboardUuid
-                                            ? {
-                                                  type: 'dashboard',
-                                                  dashboardUuid:
-                                                      boundDashboardUuid,
-                                              }
-                                            : undefined
-                                    }
+                                    binding={getThreadBinding(threadSetup)}
                                     threadContext={
                                         threadSetup.threadContext.trim() ||
                                         undefined

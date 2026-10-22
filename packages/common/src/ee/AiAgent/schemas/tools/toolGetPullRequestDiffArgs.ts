@@ -5,16 +5,16 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION = [
-    'Read the actual code diff (unified patch) of a pull request this conversation opened, or that belongs to this project.',
-    'Use this before deciding how to split, consolidate, or continue changes across pull requests — for example to see exactly what a pull request already contains before adding to it, before folding one pull request into another, or when the user asks you to reorganise open pull requests.',
-    'Pass the pull request URL (from listWorkstreams or a previous editRepo / editDbtProject result). The pull request must belong to this project, or be one this conversation opened. Read-only. GitHub only for now.',
+    "Read the unified diff of a GitHub pull request in this project's dbt repository.",
+    'Use it when you need to know exactly what a pull request contains rather than relying on your own summary: to answer questions about it, before adding to it, or before folding, splitting or reorganising pull requests.',
+    'Pass its URL from listWorkstreams or an earlier edit result.',
 ].join(' ');
 
 export const toolGetPullRequestDiffArgsSchema = z.object({
     prUrl: z
         .string()
         .describe(
-            'The full URL of the pull request to read, e.g. "https://github.com/acme/web-app/pull/42". Must be a pull request this conversation opened or one that belongs to this project\'s repository.',
+            'Full URL of the pull request to read, e.g. "https://github.com/acme/analytics/pull/42"; it must be in this project\'s dbt repository.',
         ),
 });
 

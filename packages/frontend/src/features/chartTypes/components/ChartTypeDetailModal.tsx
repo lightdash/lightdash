@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
@@ -13,13 +12,13 @@ import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useChartStudioAvailable } from '../hooks/useChartStudioAvailable';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import classes from './ChartTypeDetailModal.module.css';
@@ -55,11 +54,9 @@ const ChartTypeDetailModal: FC<Props> = ({
     const navigate = useNavigate();
     const canEdit = useCanEditDataApp(projectUuid, dataAppViz);
     const canFork = useCanCreateDataApp(projectUuid);
-    // Forking and editing are authoring: they need data apps, unlike
+    // Forking and editing are authoring: they need Chart Studio, unlike
     // install/upgrade/uninstall which follow the chart type library.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    const chartStudioAvailable = useChartStudioAvailable();
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const projectRoute = useOptionalProjectRoute();
@@ -150,7 +147,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                 }
                 actions={
                     isOfficial
-                        ? dataAppsEnabled &&
+                        ? chartStudioAvailable &&
                           canFork && (
                               <Button
                                   variant="default"
@@ -172,7 +169,7 @@ const ChartTypeDetailModal: FC<Props> = ({
                                   Fork to customize
                               </Button>
                           )
-                        : dataAppsEnabled &&
+                        : chartStudioAvailable &&
                           canEdit && (
                               <Button
                                   component={Link}

@@ -145,11 +145,16 @@ export type AiAgentRequestingUser = {
     groups: string[];
 };
 
-/** The resource a thread is bound to, resolved for the prompt. `dashboard` is null once it no longer exists. */
-export type AiAgentThreadBindingContext = {
-    type: 'dashboard';
-    dashboard: { name: string; slug: string } | null;
-};
+/** The resource a thread is bound to, resolved for the prompt. The resource is null once it no longer exists. */
+export type AiAgentThreadBindingContext =
+    | {
+          type: 'dashboard';
+          dashboard: { name: string; slug: string } | null;
+      }
+    | {
+          type: 'chart';
+          chart: { name: string; slug: string } | null;
+      };
 
 /**
  * The structured role a deep-research call plays. Absent for the legacy

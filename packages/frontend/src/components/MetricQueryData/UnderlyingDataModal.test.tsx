@@ -6,7 +6,7 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -19,13 +19,29 @@ vi.mock('../../hooks/useProjectUuid', () => ({
 vi.mock('../../hooks/useExplore', () => ({
     useExplore: () => ({ data: explore }),
 }));
+const mocks = vi.hoisted(() => ({
+    resultsData: undefined as unknown,
+    createShareUrl: vi.fn(),
+}));
 vi.mock('../../hooks/useUnderlyingDataResults', () => ({
     useUnderlyingDataResults: () => ({
-        data: undefined,
+        data: mocks.resultsData,
         error: null,
         isInitialLoading: false,
     }),
     getUnderlyingDataResults: vi.fn(),
+}));
+vi.mock('../../hooks/useShare', () => ({
+    useCreateShareMutation: () => ({
+        mutateAsync: mocks.createShareUrl,
+        isLoading: false,
+    }),
+}));
+vi.mock('../../hooks/useContentAuthoringEnabled', () => ({
+    useContentAuthoringEnabled: () => true,
+}));
+vi.mock('../../providers/Ability', () => ({
+    Can: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 const count: CompiledMetric = {
@@ -90,5 +106,37 @@ describe('underlying data modal outside the explorer', () => {
         expect(
             await screen.findByText(/View underlying data/),
         ).toBeInTheDocument();
+    });
+
+    it('explores from here with the parameter values the chart ran with', async () => {
+        const parameters = { region: 'UK' };
+        mocks.resultsData = {
+            queryUuid: 'underlying-query',
+            metricQuery: { ...metricQuery, dimensions: ['orders_status'] },
+            fields: {},
+            rows: [],
+        };
+        mocks.createShareUrl.mockResolvedValue({ nanoid: 'share' });
+        renderWithProviders(
+            <MemoryRouter>
+                <Context.Provider value={{ ...metricQueryData, parameters }}>
+                    <UnderlyingDataModal />
+                </Context.Provider>
+            </MemoryRouter>,
+        );
+
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Explore from here' }),
+        );
+
+        await waitFor(() => {
+            expect(mocks.createShareUrl).toHaveBeenCalledTimes(1);
+        });
+        const { params } = mocks.createShareUrl.mock.calls[0][0];
+        const chart = JSON.parse(
+            new URLSearchParams(params).get('create_saved_chart_version') ??
+                '{}',
+        );
+        expect(chart.parameters).toEqual(parameters);
     });
 });
