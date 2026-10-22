@@ -32,22 +32,17 @@ import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
-import {
-    canTileTakeFilter,
-    getFilterFields,
-    getTabCounts,
-    getTileField,
-} from './peers';
+import { getFilterFields } from './peers';
 import { getTilesSummary } from './railSummaries';
 import {
     isDefaultValueIncomplete,
     isPlaceholderRule,
     withFilterRuleLabel,
 } from './sidebarState';
+import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
-import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 type FilterEditorProps = {
     rule: DashboardFilterRule;
@@ -73,47 +68,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
-
-    // Tiles the filter is on, over every tab
-    const appliedTileCount = useMemo(() => {
-        const tiles = dashboardTiles ?? [];
-        if (dashboardTabs.length === 0) {
-            return tiles.filter(
-                (tile) =>
-                    canTileTakeFilter(
-                        tile,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    ) &&
-                    getTileField(
-                        filterRule,
-                        tile,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    ) !== null,
-            ).length;
-        }
-        return Object.values(
-            getTabCounts(
-                filterRule,
-                tiles,
-                dashboardTabs,
-                filterableFieldsByTileUuid,
-                sqlColumnsByTile,
-            ),
-        ).reduce((sum, count) => sum + count.applied, 0);
-    }, [
-        filterRule,
-        dashboardTiles,
-        dashboardTabs,
-        filterableFieldsByTileUuid,
-        sqlColumnsByTile,
-    ]);
+    const appliedTileCount = useAppliedTileCount(filterRule);
     // No props, so one element: typing a label does not re-render the list
     const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
 
@@ -329,6 +284,10 @@ export const ControlSidebar: FC = () => {
 
     return (
         <EditorShell
+            filterCount={
+                dashboardFilters.dimensions.length +
+                dashboardFilters.metrics.length
+            }
             onClose={close}
             onCancel={editor !== null && isPlaceholder ? discard : null}
             footerStatus={footerStatus}

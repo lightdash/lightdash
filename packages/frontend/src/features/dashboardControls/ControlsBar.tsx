@@ -2,6 +2,7 @@ import { type ComponentProps, type FC } from 'react';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
 import { AddControl } from './AddControl';
+import { EditingStrip } from './EditingStrip';
 import { FilterPills } from './FilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -17,8 +18,11 @@ export const ControlsBar: FC<Props> = (props) => {
             filterArea={
                 props.isEditMode ? (
                     <>
-                        {/* The open rail holds the filters and "Add filter" */}
-                        {!isRailOpen && (
+                        {/* The open rail holds the filters and "Add filter";
+                            the bar says what is being edited */}
+                        {isRailOpen ? (
+                            <EditingStrip />
+                        ) : (
                             <>
                                 <AddControl isVisibilityToggleHidden={false} />
                                 <FilterPills

@@ -55,6 +55,9 @@ vi.mock('./useControlsSidebar', () => ({
 vi.mock('./AddControl', () => ({
     AddControl: () => <button>Add</button>,
 }));
+vi.mock('./EditingStrip', () => ({
+    EditingStrip: () => <div data-testid="editing-strip" />,
+}));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
@@ -132,6 +135,22 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('shows the editing strip only while the rail is open', () => {
+        const { rerender } = renderWithProviders(
+            <ControlsBar {...baseProps} isEditMode />,
+        );
+        expect(screen.queryByTestId('editing-strip')).not.toBeInTheDocument();
+
+        mockSidebar.current = { isRailOpen: true };
+        rerender(
+            <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                <ControlsBar {...baseProps} isEditMode />
+            </DashboardStoreTestProvider>,
+        );
+        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
+        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 
     it('folds Add, the pills and the Required button away while the rail is open', () => {
