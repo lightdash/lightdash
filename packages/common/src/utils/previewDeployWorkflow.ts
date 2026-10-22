@@ -132,7 +132,7 @@ const CLOSE_WORKFLOW_PATH = `${WORKFLOWS_DIR}close-preview.yml`;
 const CHECKOUT_ACTION =
     'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2';
 const SETUP_NODE_ACTION =
-    'actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6';
+    'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6';
 const GITHUB_SCRIPT_ACTION =
     'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8';
 
