@@ -123,10 +123,12 @@ const createConsumer = async (
         warehouse_connection_uuid: null,
     });
 };
-const projectRow = async (projectUuid: string) => {
-    const row = await database<ProjectFixture>('projects')
+const findProjectRow = (projectUuid: string) =>
+    database<ProjectFixture>('projects')
         .where('project_uuid', projectUuid)
         .first();
+const projectRow = async (projectUuid: string) => {
+    const row = await findProjectRow(projectUuid);
     if (!row) throw new Error('Missing synthetic project');
     return row;
 };
@@ -285,8 +287,8 @@ describe('ProjectModel tombstone wiring on the migrated schema', () => {
             await Promise.allSettled(deletions);
         }
         expect((await deletion).error).toBeNull();
-        expect(await projectRow(previewA)).toBeUndefined();
-        expect(await projectRow(previewB)).toBeUndefined();
+        expect(await findProjectRow(previewA)).toBeUndefined();
+        expect(await findProjectRow(previewB)).toBeUndefined();
         expect(
             await database('dbt_repositories')
                 .where('dbt_repository_uuid', repository)
@@ -345,7 +347,7 @@ describe('ProjectModel tombstone wiring on the migrated schema', () => {
                 }
             });
         });
-        expect(await projectRow(owner)).toBeUndefined();
-        expect(await projectRow(previewA)).toBeUndefined();
+        expect(await findProjectRow(owner)).toBeUndefined();
+        expect(await findProjectRow(previewA)).toBeUndefined();
     });
 });
