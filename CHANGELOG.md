@@ -1,3 +1,10 @@
+## [3.35.1](https://github.com/lightdash/lightdash/compare/3.35.0...3.35.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **charts:** keep scrollable legend mode and page when toggling legend entries ([#31389](https://github.com/lightdash/lightdash/issues/31389)) ([4d7bbd0](https://github.com/lightdash/lightdash/commit/4d7bbd0d1c70527958a95cf5da3bcc76070753f7))
+
 # [3.35.0](https://github.com/lightdash/lightdash/compare/3.34.1...3.35.0) (2026-10-22)
 
 
