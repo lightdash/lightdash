@@ -1,3 +1,10 @@
+## [3.27.1](https://github.com/lightdash/lightdash/compare/3.27.0...3.27.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **chart-studio:** keep the composer's send button inside the box ([#31410](https://github.com/lightdash/lightdash/issues/31410)) ([1256537](https://github.com/lightdash/lightdash/commit/1256537ca7ed1caa7883b2647e18dc746d29fb38))
+
 # [3.27.0](https://github.com/lightdash/lightdash/compare/3.26.1...3.27.0) (2026-10-22)
 
 
