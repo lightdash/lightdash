@@ -824,6 +824,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const addWaitingField = useCallback((fieldId: string) => {
         if (latest.current.state === null) return;
         const { filterId } = latest.current.state;
+        // A stale click on this field would show it clicked again once it waits
+        if (latest.current.highlightedFieldId === fieldId) {
+            latest.current.highlightedFieldId = null;
+            setHighlightedFieldId(null);
+        }
         setWaiting((current) => ({
             filterId,
             fieldIds: [

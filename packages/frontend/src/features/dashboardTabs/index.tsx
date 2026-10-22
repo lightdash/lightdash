@@ -28,8 +28,8 @@ import {
 import { type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import {
+    DASHBOARD_HEADER_HEIGHT,
     SCROLL_TO_TOP_BOTTOM,
     SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
 } from '../../components/common/Dashboard/dashboard.constants';

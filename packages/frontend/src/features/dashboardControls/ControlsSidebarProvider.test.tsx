@@ -2047,6 +2047,23 @@ describe('ControlsSidebarProvider', () => {
                     expect(result.current.activeFieldId).toBeNull();
                 });
 
+                it('is not clicked again when it comes back as a waiting field', () => {
+                    const { result } = setup();
+                    clearRegion(result);
+                    act(() =>
+                        result.current.updateFilter({
+                            ...(result.current
+                                .editingRule as DashboardFilterRule),
+                            values: ['2'],
+                        }),
+                    );
+                    act(() => result.current.addWaitingField('orders_region'));
+                    expect(result.current.waitingFieldIds).toContain(
+                        'orders_region',
+                    );
+                    expect(result.current.highlightedFieldId).toBeNull();
+                });
+
                 it('is hidden on another tab and back with its live undo', () => {
                     const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
                     const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
