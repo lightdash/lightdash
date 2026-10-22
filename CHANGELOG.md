@@ -1,3 +1,10 @@
+# [3.35.0](https://github.com/lightdash/lightdash/compare/3.34.1...3.35.0) (2026-10-22)
+
+
+### Features
+
+* **data-apps:** configurable instructions for the AI analysis summary ([#31421](https://github.com/lightdash/lightdash/issues/31421)) ([514a6f2](https://github.com/lightdash/lightdash/commit/514a6f22ddbd7ed11a324eca9d6c8e69acfeae58))
+
 ## [3.34.1](https://github.com/lightdash/lightdash/compare/3.34.0...3.34.1) (2026-10-22)
 
 
