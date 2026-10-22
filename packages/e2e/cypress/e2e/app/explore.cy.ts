@@ -60,7 +60,7 @@ describe('Explore', () => {
         cy.scrollTreeToItem('Unique order count');
         cy.findByText('Unique order count').click();
 
-        cy.findByTestId('Chart-card-expand').click();
+        cy.findByRole('button', { name: 'Add visualization' }).click();
 
         cy.findByText('Save chart').click();
 
@@ -113,15 +113,13 @@ describe('Explore', () => {
         // run query
         cy.get('button').contains('Run query').click();
 
-        // open chart
-        cy.findByTestId('Chart-card-expand').click();
+        // open chart and the chart gallery
+        cy.findByRole('button', { name: 'Add visualization' }).click();
 
         // wait for the chart to finish loading
         cy.contains('Loading chart').should('not.exist');
 
-        // open the chart gallery and change chart types
-        cy.findByText('Configure').click();
-        cy.findByRole('button', { name: 'Change chart type' }).click();
+        // change chart types
         cy.findByRole('button', { name: 'Table', pressed: true }).should(
             'be.visible',
         );
