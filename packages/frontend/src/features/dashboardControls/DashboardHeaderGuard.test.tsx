@@ -7,6 +7,7 @@ import { DashboardHeaderGuard } from './DashboardHeaderGuard';
 const calls = vi.hoisted(() => ({ current: [] as string[] }));
 const mockSidebar = vi.hoisted(() => ({
     current: {
+        isSidebarOpen: true,
         close: () => calls.current.push('close'),
         discard: () => calls.current.push('discard'),
     },
@@ -17,16 +18,29 @@ vi.mock('./useControlsSidebar', () => ({
         selector: (value: typeof mockSidebar.current) => unknown,
     ) => selector(mockSidebar.current),
 }));
-// The shipped header, down to the two buttons this guard is about
+// The shipped header's shape: a title, then Add tile beside Save and Cancel
 vi.mock('../../components/common/Dashboard/DashboardHeader', () => ({
     default: ({
         onSaveDashboard,
         onCancel,
     }: ComponentProps<typeof DashboardHeader>) => (
-        <>
-            <button onClick={onSaveDashboard}>Save changes</button>
-            <button onClick={onCancel}>Cancel</button>
-        </>
+        <header>
+            <a href="#title">Title</a>
+            <div>
+                <button>Add tile</button>
+                <div>
+                    <button
+                        data-dashboard-edit-action
+                        onClick={onSaveDashboard}
+                    >
+                        Save changes
+                    </button>
+                </div>
+                <button data-dashboard-edit-action onClick={onCancel}>
+                    Cancel
+                </button>
+            </div>
+        </header>
     ),
 }));
 
@@ -38,6 +52,29 @@ const headerProps = {
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
         calls.current = [];
+        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+    });
+
+    const isLocked = (name: string) =>
+        screen
+            .getByRole('button', { name, hidden: true })
+            .closest('[inert]') !== null;
+
+    it('locks every header action but Save and Cancel while the editor is open', () => {
+        render(<DashboardHeaderGuard {...headerProps} />);
+
+        expect(isLocked('Add tile')).toBe(true);
+        expect(screen.getByText('Title').closest('[inert]')).not.toBeNull();
+        expect(isLocked('Save changes')).toBe(false);
+        expect(isLocked('Cancel')).toBe(false);
+    });
+
+    it('unlocks the header once the editor closes', () => {
+        const { rerender } = render(<DashboardHeaderGuard {...headerProps} />);
+        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: false };
+        rerender(<DashboardHeaderGuard {...headerProps} />);
+
+        expect(document.querySelector('[inert]')).toBeNull();
     });
 
     it('closes the editor as Done does, then saves', () => {

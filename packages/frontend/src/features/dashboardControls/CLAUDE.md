@@ -22,8 +22,13 @@ fields. User-facing copy says *tile*, never *chart*.
   its Save and Cancel wrapped. Save calls `close()` first, as "Done" does, then
   saves (the save reads the store, so it sees what `close()` wrote); Cancel
   calls `discard()`, then the shipped Cancel. Both are no-ops on a closed
-  editor. Every other header action stays usable while the editor is open:
-  none of them writes the dashboard filters.
+  editor. Everything else in the header is inert and dimmed while the editor
+  is open (Add tile's new chart, for one, stores the dashboard with the edit
+  half done and leaves the page): the guard sets `inert` on every element
+  that is not Save, Cancel or on the path down to them, re-applies as the
+  header's DOM changes, and removes exactly what it set once the editor
+  closes. Save and Cancel are found by `data-dashboard-edit-action`, a static
+  attribute on the two shipped buttons in `DashboardHeader`.
 
 ## Openings in shipped files
 

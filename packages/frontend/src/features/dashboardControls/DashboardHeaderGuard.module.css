@@ -1,0 +1,11 @@
+/* display: contents keeps the header's own sticky positioning intact */
+.guard {
+    display: contents;
+}
+
+/* Dim the locked controls, not the header: it is sticky and has to stay
+   opaque. Save and Cancel are never inert, so they keep their look */
+.guard [inert]:is(button, a),
+.guard [inert] :is(button, a) {
+    opacity: 0.4;
+}
