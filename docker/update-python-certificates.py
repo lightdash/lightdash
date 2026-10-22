@@ -1,4 +1,4 @@
-"""Update installed Python CA bundles after resolving dbt adapter dependencies."""
+"""Bootstrap pip and update installed Python CA bundles."""
 
 import importlib.metadata
 import subprocess
@@ -7,8 +7,11 @@ from pathlib import Path
 
 from pip._vendor.packaging.version import Version
 
-# pip 26.2.2 updates its own certifi bundle; OS certificate updates alone are insufficient.
+# pip 26.2.2 updates its own certifi bundle.
 # https://pip.pypa.io/en/stable/news/#v26-2-2
+
+# OS trust updates alone do not replace upgrading pip's vendored certificate bundle.
+# https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576/3
 
 # Python's incident announcement supplies this hash-verified bootstrap for old pip.
 # https://discuss.python.org/t/information-for-python-users-regarding-emudhra-emsign-ca-certificate-security-incident/109576
@@ -38,7 +41,7 @@ for python in [
     Path(sys.executable),
     *sorted(Path("/usr/local").glob("dbt*/bin/python")),
 ]:
-    # --no-deps bypasses dbt-snowflake 1.9-1.11's certifi<2025.4.26 until fixed releases.
+    # Upgrade after resolution to override dbt-snowflake 1.9-1.11's certifi<2025.4.26 cap.
     # https://github.com/dbt-labs/dbt-adapters/pull/2241
     subprocess.run(
         [

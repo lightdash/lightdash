@@ -437,9 +437,8 @@ RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} +
 # Stage 5: runtime base
 # -----------------------------
 
-# Everything here is invalidated only by this file: system packages, the dbt
-# virtualenvs and their symlinks. It is deliberately independent of the build
-# context so a release version bump never rebuilds it.
+# This stage depends on this file and docker/update-python-certificates.py.
+# Release version bumps reuse its system packages and dbt virtualenvs.
 FROM pnpm-base AS runtime-base
 
 ENV NODE_ENV production
