@@ -11,10 +11,15 @@ in the Explorer.
 ## Language
 
 **Composer query**:
-One submission of a pipeline by the AI agent in a single tool call. Also the
-name of the tool. Each submission runs its pipeline once and registers its
+One submission of a pipeline by the AI agent in a single call to the
+composer query tool. Each submission runs its pipeline once and registers its
 nodes as thread composer query nodes; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
+
+**Composer query tool**:
+The agent tool that submits a composer query, named `query`. Calls recorded
+before the rename carry `runComposerQueries` and still parse and render.
+_Avoid_: runComposerQueries (the legacy name)
 
 **Run**:
 One execution of a pipeline, producing a node result for every node. The
@@ -148,7 +153,8 @@ lists the pipeline, with a List and a Graph mode.
 _Avoid_: footer, pipeline card (that is the live tool-call card), drawer
 
 **Pipeline card**:
-The body of the "Ran composer queries" tool-call row, shown for every
+The body of the "Ran query" tool-call row ("Ran composer queries" on calls
+recorded before the rename), shown for every
 submission: expanded while its run is in flight or has failed, collapsed once
 it completes. The only record of a submission the agent did not present.
 _Avoid_: tool-call description, pipeline panel
