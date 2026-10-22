@@ -3,11 +3,13 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    TableCalculationType,
     TimeFrames,
     type Dimension,
     type EChartsSeries,
     type ItemsMap,
     type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import {
@@ -115,6 +117,74 @@ describe('getIncompletePeriodRowIndexes', () => {
 });
 
 describe('applyIncompletePeriodStyle', () => {
+    describe('x fields that are not truncated date dimensions', () => {
+        const dateTableCalculation: TableCalculation = {
+            name: 'orders_created_week',
+            displayName: 'Week (calc)',
+            sql: '${orders.created_week}',
+            type: TableCalculationType.DATE,
+        };
+        const dateMetric = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.MAX,
+            name: 'created_week',
+            label: 'Latest week',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '',
+            hidden: false,
+        } as Metric;
+        test.each([
+            ['date table calculation', dateTableCalculation],
+            ['date metric', dateMetric],
+        ])('%s on x leaves the chart unchanged', (_label, xItem) => {
+            const series = [
+                mkSeries(CartesianSeriesType.BAR),
+                mkSeries(CartesianSeriesType.LINE),
+            ];
+            const result = applyIncompletePeriodStyle({
+                series,
+                rows,
+                tooltip: {},
+                xFieldId: 'orders_created_week',
+                flipAxes: false,
+                itemsMap: { orders_created_week: xItem },
+                timezone: undefined,
+                now,
+            });
+            expect(isIncompletePeriodEligible(xItem)).toBe(false);
+            expect(result.series).toBe(series);
+            expect(result.rows).toBe(rows);
+        });
+    });
+
+    test('a date-valued y series is split like any other line', () => {
+        const dateRows = rows.map((row, index) => ({
+            ...row,
+            orders_total: `2026-10-0${index + 1}`,
+        }));
+        const result = applyIncompletePeriodStyle({
+            series: [mkSeries(CartesianSeriesType.LINE)],
+            rows: dateRows,
+            tooltip: {},
+            xFieldId: 'orders_created_week',
+            flipAxes: false,
+            itemsMap,
+            timezone: undefined,
+            now,
+        });
+        expect(
+            result.rows.map((row) => [
+                row.orders_total__complete_period,
+                row.orders_total__incomplete_period,
+            ]),
+        ).toEqual([
+            ['2026-10-01', null],
+            ['2026-10-02', '2026-10-02'],
+            [null, '2026-10-03'],
+        ]);
+    });
+
     test('hatches the incomplete bar only', () => {
         const { series } = apply([mkSeries(CartesianSeriesType.BAR)]);
         const color = series[0].itemStyle?.color;
