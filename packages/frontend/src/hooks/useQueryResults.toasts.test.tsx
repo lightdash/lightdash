@@ -233,8 +233,16 @@ describe.each(hooks)(
                     const signInError: ApiError = {
                         status: 'error',
                         error: {
-                            name: 'Error',
-                            statusCode: 500,
+                            name:
+                                name === 'infinite results' &&
+                                kind === 'personal'
+                                    ? 'BigqueryTokenError'
+                                    : 'Error',
+                            statusCode:
+                                name === 'infinite results' &&
+                                kind === 'personal'
+                                    ? 401
+                                    : 500,
                             message,
                             data: {},
                         },

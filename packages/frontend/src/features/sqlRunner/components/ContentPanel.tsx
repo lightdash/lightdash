@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    deepEqual,
     getFirstIndexColumns,
     getParameterReferences,
     isVizBigNumberConfig,
@@ -68,6 +69,11 @@ import { QueryCostConfirmModal } from '../../../components/QueryCostEstimate/Que
 import { QueryCostEstimateBadge } from '../../../components/QueryCostEstimate/QueryCostEstimateBadge';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import {
+    canReplaySharedSignInQueryScope,
+    captureSharedSignInQueryScope,
+    isWarehouseSignInQueryErrorDetail,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     fetchSqlQueryCostEstimate,
@@ -236,6 +242,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
@@ -260,8 +267,18 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     // The in-flight SQL run, so Cancel can abort it
     const runPromiseRef = useRef<{ abort: () => void } | null>(null);
     const lastFailedRun = useRef<
-        | { kind: 'sql'; args: Parameters<typeof runSqlQuery>[0] }
-        | { kind: 'visualization'; projectUuid: string }
+        | {
+              kind: 'sql';
+              args: Parameters<typeof runSqlQuery>[0];
+              connectionUuid: typeof warehouseConnectionUuid;
+              scope: ReturnType<typeof captureSharedSignInQueryScope>;
+          }
+        | {
+              kind: 'visualization';
+              projectUuid: string;
+              connectionUuid: typeof warehouseConnectionUuid;
+              scope: ReturnType<typeof captureSharedSignInQueryScope>;
+          }
         | null
     >(null);
 
@@ -274,10 +291,19 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     lastFailedRun.current = {
                         kind: 'visualization',
                         projectUuid,
+                        connectionUuid: warehouseConnectionUuid,
+                        scope: captureSharedSignInQueryScope(projectUuid),
                     };
                 },
             ),
-        [projectUuid],
+        [projectUuid, warehouseConnectionUuid],
+    );
+
+    useEffect(
+        () => () => {
+            lastFailedRun.current = null;
+        },
+        [projectUuid, warehouseConnectionUuid],
     );
 
     // Resolved palette from the org → project → space → dashboard cascade.
@@ -333,7 +359,6 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const queryResults = useAppSelector(selectSqlQueryResults);
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
-    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const queryClient = useQueryClient();
     const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
     const [pendingCostConfirmation, setPendingCostConfirmation] = useState<{
@@ -363,6 +388,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const executeRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
+            const scope = captureSharedSignInQueryScope(projectUuid);
+            const connectionUuid = warehouseConnectionUuid;
+            lastFailedRun.current = null;
 
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -372,11 +400,18 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 const result = await dispatch(
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
-                lastFailedRun.current = prepareAndFetchChartData.rejected.match(
-                    result,
-                )
-                    ? { kind: 'visualization', projectUuid }
-                    : null;
+                lastFailedRun.current =
+                    prepareAndFetchChartData.rejected.match(result) &&
+                    result.payload &&
+                    isWarehouseSignInQueryErrorDetail(result.payload) &&
+                    scope === captureSharedSignInQueryScope(projectUuid)
+                        ? {
+                              kind: 'visualization',
+                              projectUuid,
+                              connectionUuid,
+                              scope,
+                          }
+                        : null;
             } else {
                 const args = {
                     sql: sqlToUse,
@@ -389,8 +424,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 const result = await promise;
                 runPromiseRef.current = null;
                 lastFailedRun.current =
-                    runSqlQuery.rejected.match(result) && !result.meta.aborted
-                        ? { kind: 'sql', args }
+                    runSqlQuery.rejected.match(result) &&
+                    !result.meta.aborted &&
+                    result.payload &&
+                    isWarehouseSignInQueryErrorDetail(result.payload) &&
+                    scope === captureSharedSignInQueryScope(projectUuid)
+                        ? { kind: 'sql', args, connectionUuid, scope }
                         : null;
 
                 // If we're on viz tab, also fetch chart data after SQL completes
@@ -402,8 +441,16 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                         prepareAndFetchChartData({ forceRefresh: true }),
                     );
                     lastFailedRun.current =
-                        prepareAndFetchChartData.rejected.match(vizResult)
-                            ? { kind: 'visualization', projectUuid }
+                        prepareAndFetchChartData.rejected.match(vizResult) &&
+                        vizResult.payload &&
+                        isWarehouseSignInQueryErrorDetail(vizResult.payload) &&
+                        scope === captureSharedSignInQueryScope(projectUuid)
+                            ? {
+                                  kind: 'visualization',
+                                  projectUuid,
+                                  connectionUuid,
+                                  scope,
+                              }
                             : null;
                 }
             }
@@ -415,6 +462,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             limit,
             parameterValues,
             hasQueryResults,
+            warehouseConnectionUuid,
         ],
     );
 
@@ -475,6 +523,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 !(event instanceof CustomEvent) ||
                 event.detail !== projectUuid ||
                 !failedRun ||
+                failedRun.connectionUuid !== warehouseConnectionUuid ||
+                !canReplaySharedSignInQueryScope(failedRun.scope) ||
+                (failedRun.kind === 'sql' &&
+                    (failedRun.args.sql !== sql ||
+                        failedRun.args.limit !== limit ||
+                        !deepEqual(
+                            failedRun.args.parameterValues,
+                            parameterValues,
+                        ))) ||
                 (failedRun.kind === 'sql'
                     ? failedRun.args.projectUuid !== projectUuid
                     : failedRun.projectUuid !== projectUuid)
@@ -493,7 +550,14 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [dispatch, projectUuid]);
+    }, [
+        dispatch,
+        projectUuid,
+        warehouseConnectionUuid,
+        sql,
+        limit,
+        parameterValues,
+    ]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 

@@ -5,8 +5,13 @@ import {
     type PersonalSignInExpiry,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { type LightdashApi } from '../api';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import {
+    captureSharedSignInQueryScope,
+    isCurrentSharedSignInQueryScope,
+} from './sharedSignInQueryRecovery';
 
 export const SHARED_SIGN_IN_RECONNECTED = 'shared-sign-in-reconnected';
 export const SHARED_SIGN_IN_QUERY_FAILED = 'shared-sign-in-query-failed';
@@ -14,7 +19,13 @@ export const SHARED_SIGN_IN_QUERY_FAILED = 'shared-sign-in-query-failed';
 export const reportSharedSignInQueryFailure = (
     projectUuid: string,
     error: unknown,
+    scope = captureSharedSignInQueryScope(projectUuid),
 ) => {
+    if (
+        scope !== captureSharedSignInQueryScope(projectUuid) ||
+        (scope && !isCurrentSharedSignInQueryScope(scope))
+    )
+        return;
     window.dispatchEvent(
         new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
             detail: { projectUuid, error },
@@ -36,6 +47,13 @@ export const useReconnectSharedSignIn = (
     projectUuid: string,
     personal?: PersonalSignInExpiry,
 ) => {
+    const mounted = useRef(false);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<ApiSuccessEmpty, ApiError>({
@@ -73,11 +91,11 @@ export const useReconnectSharedSignIn = (
                 body: undefined,
             });
         },
-        onSuccess: async () => {
+        onSuccess: () => {
+            if (!mounted.current) return;
             queryClient.removeQueries({
                 queryKey: ['shared-sign-in-status', projectUuid],
             });
-            await queryClient.invalidateQueries();
             window.dispatchEvent(
                 new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
                     detail: projectUuid,

@@ -1,9 +1,17 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    getExpiredPersonalSignInMessage,
+    PersonSignInProvider,
+    WarehouseTypes,
+} from '@lightdash/common';
+import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { store } from '.';
+import * as chartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { SHARED_SIGN_IN_QUERY_FAILED } from '../../../hooks/useReconnectSharedSignIn';
+import { getAsyncQueryError } from '../../queryRunner/asyncQueryError';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
+import * as sqlRunnerSelectors from './sqlRunnerSlice';
 import {
     initialState,
     resetState,
@@ -14,7 +22,7 @@ import {
     sqlRunnerSlice,
     type SqlRunnerConnection,
 } from './sqlRunnerSlice';
-import { runSqlQuery } from './thunks';
+import { prepareAndFetchChartData, runSqlQuery } from './thunks';
 
 vi.mock('../../queryRunner/executeQuery', () => ({
     executeSqlQuery: vi.fn(),
@@ -259,4 +267,42 @@ describe('SQL runner runs on the active connection', () => {
 
         expect(shared.connectionRoute).toEqual({ route: 'pending' });
     });
+});
+
+it('does not save a late pivot sign-in failure for a different connection', async () => {
+    store.dispatch(
+        setState({
+            ...initialState,
+            projectUuid: 'project_a',
+            connectionRoute: { route: 'single' },
+        }),
+    );
+    const pending = Promise.withResolvers<never>();
+    const runPivot = vi.fn(() => pending.promise);
+    const runner = vi
+        .spyOn(sqlRunnerSelectors, 'selectSqlRunnerResultsRunner')
+        .mockReturnValue({ invalidatePivotCache: vi.fn() } as never);
+    const model = vi
+        .spyOn(chartDataModel, 'default')
+        .mockReturnValue({ getPivotedChartData: runPivot } as never);
+    try {
+        const runPromise = store.dispatch(prepareAndFetchChartData());
+        await waitFor(() => expect(runPivot).toHaveBeenCalledOnce());
+        store.dispatch(
+            setConnectionRoute({ route: 'multi', connection: finance }),
+        );
+        pending.reject(
+            getAsyncQueryError(
+                getExpiredPersonalSignInMessage({
+                    provider: PersonSignInProvider.GOOGLE,
+                }),
+            ),
+        );
+        const result = await runPromise;
+        expect(prepareAndFetchChartData.rejected.match(result)).toBe(true);
+        expect(result.payload).toBeUndefined();
+    } finally {
+        model.mockRestore();
+        runner.mockRestore();
+    }
 });

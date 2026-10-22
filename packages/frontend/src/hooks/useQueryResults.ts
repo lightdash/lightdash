@@ -2,8 +2,6 @@ import {
     assertUnreachable,
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
-    isBigqueryTokenErrorMessage,
-    isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
     ParameterError,
@@ -29,10 +27,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type LightdashApi } from '../api';
+import { getAsyncQueryError } from '../features/queryRunner/asyncQueryError';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
+
+export { getAsyncQueryError } from '../features/queryRunner/asyncQueryError';
 
 export type QueryResultsProps = {
     projectUuid: string;
@@ -59,44 +60,6 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
     ReadyQueryResultsPage & {
         clientFetchTimeMs: number;
     };
-
-const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
-    const normalizedMessage = message.toLowerCase();
-    return (
-        normalizedMessage.includes('redshift iam') &&
-        normalizedMessage.includes('expired')
-    );
-};
-
-const getAsyncQueryErrorType = (
-    message: string,
-): Pick<ApiError['error'], 'name' | 'statusCode'> => {
-    if (isRedshiftIamTokenErrorMessage(message)) {
-        return { name: 'RedshiftIamTokenError', statusCode: 401 };
-    }
-    if (isPreviewWarehouseSignInExpiredMessage(message)) {
-        return { name: 'PreviewWarehouseSignInExpiredError', statusCode: 401 };
-    }
-    if (isBigqueryTokenErrorMessage(message)) {
-        return { name: 'BigqueryTokenError', statusCode: 401 };
-    }
-    return { name: 'Error', statusCode: 500 };
-};
-
-export const getAsyncQueryError = (message: string | null): ApiError => {
-    const errorMessage = message || 'Query failed';
-    const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
-
-    return {
-        status: 'error',
-        error: {
-            name,
-            statusCode,
-            message: errorMessage,
-            data: {},
-        },
-    };
-};
 
 const executeAsyncMetricQuery = async (
     lightdashApi: LightdashApi,
@@ -257,7 +220,7 @@ export const executeQueryAndWaitForResults = async (
         results.status === QueryHistoryStatus.ERROR ||
         results.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(results.error || 'Error executing SQL query');
+        throw getAsyncQueryError(results.error);
     }
 
     if (results.status !== QueryHistoryStatus.READY) {

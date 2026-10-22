@@ -17,6 +17,7 @@ import {
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { type QueryClient } from '@tanstack/react-query';
+import { captureSharedSignInQueryScope } from '../../hooks/sharedSignInQueryRecovery';
 import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
@@ -126,6 +127,9 @@ export class BaseResultsRunner implements IResultsRunner {
             return emptyPivotChartData;
         }
 
+        const scope = this.projectUuid
+            ? captureSharedSignInQueryScope(this.projectUuid)
+            : null;
         try {
             return await this.queryClient.fetchQuery({
                 queryKey: ['transformedData', query],
@@ -133,7 +137,7 @@ export class BaseResultsRunner implements IResultsRunner {
             });
         } catch (error) {
             if (this.projectUuid) {
-                reportSharedSignInQueryFailure(this.projectUuid, error);
+                reportSharedSignInQueryFailure(this.projectUuid, error, scope);
             }
             throw error;
         }

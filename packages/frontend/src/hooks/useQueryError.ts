@@ -2,6 +2,7 @@ import { InvalidUser, PaginationError, type ApiError } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import { isWarehouseSignInQueryError } from './sharedSignInQueryRecovery';
 import useToaster from './toaster/useToaster';
 
 type opts = {
@@ -40,7 +41,9 @@ const useQueryError = ({
                         });
                     }
                 } else if (statusCode === 401) {
-                    await queryClient.invalidateQueries(['health']);
+                    if (isWarehouseSignInQueryError(errorResponse))
+                        addToastError({ apiError: error, projectUuid });
+                    else await queryClient.invalidateQueries(['health']);
                 } else if (
                     statusCode === 422 &&
                     error.name !== PaginationError.name

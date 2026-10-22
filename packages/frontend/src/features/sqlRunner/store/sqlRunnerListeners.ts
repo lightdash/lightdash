@@ -7,6 +7,7 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
+import { isWarehouseSignInQueryErrorDetail } from '../../../hooks/sharedSignInQueryRecovery';
 import { type startAppListening } from './listenerMiddleware';
 import {
     EditorTabs,
@@ -219,8 +220,12 @@ export const addAutomaticPivotFailureListener = (
 ) =>
     startListening({
         actionCreator: prepareAndFetchChartData.rejected,
-        effect: (_, listenerApi) => {
-            if (listenerApi.getState().sqlRunner.projectUuid === projectUuid)
+        effect: (action, listenerApi) => {
+            if (
+                listenerApi.getState().sqlRunner.projectUuid === projectUuid &&
+                action.payload &&
+                isWarehouseSignInQueryErrorDetail(action.payload)
+            )
                 onFailure();
         },
     });

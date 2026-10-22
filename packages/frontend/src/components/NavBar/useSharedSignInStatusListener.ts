@@ -9,6 +9,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import {
+    captureSharedSignInQueryScope,
+    clearSharedSignInQueryScope,
+    isCurrentSharedSignInQuery,
+    isWarehouseSignInQueryError,
+    replaySharedSignInQueries,
+    startSharedSignInQueryScope,
+    trackSharedSignInQuery,
+} from '../../hooks/sharedSignInQueryRecovery';
+import {
     clearSharedSignInToastSuppression,
     setSharedSignInToastSuppression,
 } from '../../hooks/toaster/sharedSignInToastSuppression';
@@ -62,6 +71,7 @@ export const useSharedSignInStatusListener = ({
         Record<string, SharedSignInStatus>
     >({});
     const statusesRef = useRef(statuses);
+    const version = useRef(0);
     const [modalProjectUuid, setModalProjectUuid] = useState<string | null>(
         null,
     );
@@ -72,7 +82,13 @@ export const useSharedSignInStatusListener = ({
     useEffect(() => {
         if (!activeProjectUuid || !isQueryPage) return;
         let cancelled = false;
-        let version = 0;
+        startSharedSignInQueryScope(activeProjectUuid, userUuid);
+        if (
+            lastChecks.current.has(activeProjectUuid) &&
+            !pendingProjects.current.has(activeProjectUuid) &&
+            !openProjects.current.has(activeProjectUuid)
+        )
+            setWarehouseSignInPreflight(activeProjectUuid, userUuid);
         let trailingCheck: ReturnType<typeof setTimeout> | null = null;
         const clearTrailingCheck = () => {
             if (trailingCheck) clearTimeout(trailingCheck);
@@ -108,6 +124,7 @@ export const useSharedSignInStatusListener = ({
         const notify = (error: unknown, joinPending = false) => {
             if (!activeProjectUuid) return;
             if (flagsLoading) return;
+            if (error && !isWarehouseSignInQueryError(error)) return;
             if (!reconnectEnabled) {
                 showExpiryToast(error);
                 return;
@@ -132,16 +149,9 @@ export const useSharedSignInStatusListener = ({
                     !openProjects.current.has(activeProjectUuid)
                 ) {
                     clearTrailingCheck();
-                    const runTrailing = () => {
-                        if (pendingProjects.current.has(activeProjectUuid)) {
-                            trailingCheck = setTimeout(runTrailing, 100);
-                        } else {
-                            notify(error);
-                        }
-                    };
                     trailingCheck = scheduleSharedSignInCooldownCheck(
                         lastCheck,
-                        runTrailing,
+                        () => notify(error),
                     );
                 }
                 return;
@@ -151,7 +161,7 @@ export const useSharedSignInStatusListener = ({
                 lastChecks.current.set(activeProjectUuid, Date.now());
             pendingProjects.current.add(activeProjectUuid);
             const projectUuid = activeProjectUuid;
-            const requestVersion = version;
+            const requestVersion = version.current;
             const startedAt = lastChecks.current.get(projectUuid) ?? Date.now();
             void queryClient
                 .fetchQuery({
@@ -164,11 +174,12 @@ export const useSharedSignInStatusListener = ({
                 .then((status) => {
                     pendingProjects.current.delete(projectUuid);
                     if (cancelled) {
-                        lastChecks.current.delete(projectUuid);
+                        if (requestVersion === version.current)
+                            lastChecks.current.delete(projectUuid);
                         return;
                     }
                     if (
-                        requestVersion !== version ||
+                        requestVersion !== version.current ||
                         projectUuid !== currentProjectUuid.current
                     )
                         return;
@@ -214,10 +225,11 @@ export const useSharedSignInStatusListener = ({
                 })
                 .catch(() => {
                     pendingProjects.current.delete(projectUuid);
-                    if (cancelled) lastChecks.current.delete(projectUuid);
+                    if (cancelled && requestVersion === version.current)
+                        lastChecks.current.delete(projectUuid);
                     if (
                         !cancelled &&
-                        requestVersion === version &&
+                        requestVersion === version.current &&
                         projectUuid === currentProjectUuid.current
                     ) {
                         lastChecks.current.set(projectUuid, startedAt);
@@ -229,8 +241,12 @@ export const useSharedSignInStatusListener = ({
         const unsubscribeQueries = queryClient
             .getQueryCache()
             .subscribe((event) => {
+                if (event.type === 'updated' && event.action.type === 'fetch')
+                    trackSharedSignInQuery(event.query);
                 if (
                     event.type === 'updated' &&
+                    event.action.type === 'error' &&
+                    isCurrentSharedSignInQuery(event.query) &&
                     event.query.queryKey[0] !== 'shared-sign-in-status' &&
                     !!event.query.state.error &&
                     queryBelongsToProject(
@@ -243,8 +259,12 @@ export const useSharedSignInStatusListener = ({
         const unsubscribeMutations = queryClient
             .getMutationCache()
             .subscribe((event) => {
+                if (event.type === 'updated' && event.action.type === 'loading')
+                    trackSharedSignInQuery(event.mutation);
                 if (
                     event.type === 'updated' &&
+                    event.action.type === 'error' &&
+                    isCurrentSharedSignInQuery(event.mutation) &&
                     queryBelongsToProject(
                         event.mutation.options.mutationKey,
                         activeProjectUuid,
@@ -255,6 +275,7 @@ export const useSharedSignInStatusListener = ({
             });
         for (const query of queryClient.getQueryCache().getAll()) {
             if (
+                isCurrentSharedSignInQuery(query) &&
                 query.state.status === 'error' &&
                 queryBelongsToProject(query.queryKey, activeProjectUuid)
             )
@@ -273,7 +294,18 @@ export const useSharedSignInStatusListener = ({
                 event.detail !== activeProjectUuid
             )
                 return;
-            version += 1;
+            replaySharedSignInQueries(queryClient, (query) =>
+                queryBelongsToProject(query.queryKey, activeProjectUuid),
+            );
+            version.current += 1;
+            void queryClient.cancelQueries({
+                queryKey: [
+                    'shared-sign-in-status',
+                    activeProjectUuid,
+                    userUuid,
+                ],
+            });
+            pendingProjects.current.delete(activeProjectUuid);
             clearTrailingCheck();
             lastChecks.current.delete(activeProjectUuid);
             dismissedProjects.current.delete(activeProjectUuid);
@@ -292,6 +324,10 @@ export const useSharedSignInStatusListener = ({
         if (expiryEnabled) notify(undefined, true);
         return () => {
             cancelled = true;
+            const currentScope =
+                captureSharedSignInQueryScope(activeProjectUuid);
+            if (currentScope?.userUuid === userUuid)
+                clearSharedSignInQueryScope(currentScope);
             clearTrailingCheck();
             window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, onRestored);
             unsubscribeQueries();

@@ -62,6 +62,7 @@ import {
     getEmbedWriteSpaceUuids,
     getErrorMessage,
     getExecutableFilterFieldIds,
+    getExpiredPersonalSignInMessage,
     getFieldFormatOverrideProps,
     getFieldsFromMetricQuery,
     getItemId,
@@ -264,6 +265,7 @@ import {
     prepareFlatPivotExport,
     unpivotResultsStream,
 } from '../../utils/flatPivotExport';
+import { personalSignIn } from '../../utils/personalSignIn';
 import { composeMergeReferenceTable } from '../../utils/QueryBuilder/composeMergeSql';
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { getSqlBuilderForExplore } from '../../utils/QueryBuilder/getSqlBuilderForExplore';
@@ -297,6 +299,7 @@ import {
     type ResultEntitlementScope,
 } from '../../utils/queryResultProducer';
 import {
+    isWarehouseTokenError,
     personaliseSharedSignInError,
     personaliseStoredSharedSignInError,
 } from '../../utils/sharedSignInExpiry';
@@ -4235,9 +4238,13 @@ export class AsyncQueryService extends ProjectService {
                     queryTags,
                     queryCreatedAt,
                     queryUsage,
-                    errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
-                        personaliseSharedSignInError(preAggregateError, null),
-                    )}`,
+                    errorMessage:
+                        isWarehouseTokenError(preAggregateError) &&
+                        preAggregateError.data.personalSignIn
+                            ? getExpiredPersonalSignInMessage(
+                                  preAggregateError.data.personalSignIn,
+                              )
+                            : `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(personaliseSharedSignInError(preAggregateError, null))}`,
                     executionSource:
                         preAggregateExecution === 'duckdb'
                             ? 'pre_aggregate_duckdb'
@@ -4803,7 +4810,15 @@ export class AsyncQueryService extends ProjectService {
         const isTokenError =
             error instanceof BigqueryTokenError ||
             isBigqueryTokenErrorMessage(getErrorMessage(error));
-        if (!isPreviewProject || !isTokenError) return false;
+        if (
+            !isPreviewProject ||
+            !isTokenError ||
+            ('userWarehouseCredentialsUuid' in rejectedCredentials &&
+                !!rejectedCredentials.userWarehouseCredentialsUuid) ||
+            personalSignIn in rejectedCredentials ||
+            (error instanceof BigqueryTokenError && !!error.data.personalSignIn)
+        )
+            return false;
         try {
             return await this.repairPreviewSsoCredentialsAfterRejection({
                 projectUuid,
