@@ -189,6 +189,7 @@ export type {
     InsightsStatus,
     QueryInsights,
     ViewInsights,
+    ViewInsightsOptions,
 } from './insights';
 
 export { createGradientColorScale } from './gradientColorScale';

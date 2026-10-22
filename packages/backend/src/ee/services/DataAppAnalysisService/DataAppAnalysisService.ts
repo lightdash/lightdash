@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     EE_SCHEDULER_TASKS,
     FeatureFlags,
     ForbiddenError,
@@ -608,6 +609,22 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
+    /** App-author guidance is untrusted model input; keep it short. */
+    private static validateInstructions(
+        raw: string | undefined,
+    ): string | null {
+        const instructions = raw?.trim() || null;
+        if (
+            instructions !== null &&
+            instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+        ) {
+            throw new ParameterError(
+                `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+            );
+        }
+        return instructions;
+    }
+
     private static toDetection(
         row: DbDataAppAnalysis & { operation: 'detect' },
     ): DataAppAnalysis {
@@ -741,7 +758,9 @@ export class DataAppAnalysisService extends BaseService {
         body: DataAppLookupRequest,
     ): Promise<DataAppAnalysisLookup | null> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = body.instructions?.trim() || null;
+        const instructions = DataAppAnalysisService.validateInstructions(
+            body.instructions,
+        );
         const { user, appVersion } = await this.assertViewer(
             account,
             projectUuid,
@@ -831,7 +850,9 @@ export class DataAppAnalysisService extends BaseService {
         outcome: Extract<DataAppAnalysisOutcome, 'ok' | 'cached'>;
     }> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = body.instructions?.trim() || null;
+        const instructions = DataAppAnalysisService.validateInstructions(
+            body.instructions,
+        );
         const { user, appVersion } = await this.assertViewer(
             account,
             projectUuid,

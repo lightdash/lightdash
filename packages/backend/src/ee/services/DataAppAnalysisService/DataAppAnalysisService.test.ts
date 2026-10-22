@@ -725,6 +725,50 @@ describe('DataAppAnalysisService reuse', () => {
         expect(first.contentHash).not.toBe(second.contentHash);
     });
 
+    it('changes the cache identity when only the instructions change', async () => {
+        const { service, dataAppAnalysisModel } = buildService();
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            force: true,
+        });
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            instructions: 'Use British English.',
+            force: true,
+        });
+        await service.detect(account(), 'proj-1', 'app-1', {
+            ...request,
+            instructions: '  Use British English.  ',
+            force: true,
+        });
+        const [bare, instructed, padded] =
+            dataAppAnalysisModel.create.mock.calls.map(
+                ([data]) => data as { contentHash: string },
+            );
+        expect(bare.contentHash).not.toBe(instructed.contentHash);
+        // Whitespace-only differences never fork the cache.
+        expect(padded.contentHash).toBe(instructed.contentHash);
+    });
+
+    it('rejects instructions beyond the length cap on detect and lookup', async () => {
+        const { service, aiService } = buildService();
+        const oversized = 'x'.repeat(2001);
+        await expect(
+            service.detect(account(), 'proj-1', 'app-1', {
+                ...request,
+                instructions: oversized,
+                force: true,
+            }),
+        ).rejects.toThrow('limited to 2000 characters');
+        await expect(
+            service.lookup(account(), 'proj-1', 'app-1', {
+                sources: request.sources,
+                instructions: oversized,
+            }),
+        ).rejects.toThrow('limited to 2000 characters');
+        expect(aiService.detectDataAppAnomalies).not.toHaveBeenCalled();
+    });
+
     it("serves the viewer's own analysis of identical rows without the model, rebound to the current queries", async () => {
         const { service, dataAppAnalysisModel, aiService } = buildService();
         await service.detect(account(), 'proj-1', 'app-1', {

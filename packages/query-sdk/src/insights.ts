@@ -80,6 +80,9 @@ export type InsightsRequestMessage = {
     type: 'lightdash:sdk:insights-request';
     /** Set once a hook subscribed: this app renders AI analysis. */
     inUse?: boolean;
+    /** Author guidance the host forwards to the analysis model, set via
+     *  `useInsights({ instructions })`. One string per app. */
+    instructions?: string;
 };
 
 export type InsightAction =
@@ -234,15 +237,28 @@ let activeCleanup: (() => void) | null = null;
 // Flipped by the first hook subscription and never cleared: the host learns
 // this app renders analysis, so a builder can explain a disabled org.
 let inUse = false;
+// App-wide author guidance for the analysis model; last writer wins.
+let authorInstructions: string | null = null;
 
-const requestMessage = (): InsightsRequestMessage =>
-    inUse
-        ? { type: INSIGHTS_REQUEST_MESSAGE, inUse: true }
-        : { type: INSIGHTS_REQUEST_MESSAGE };
+const requestMessage = (): InsightsRequestMessage => ({
+    type: INSIGHTS_REQUEST_MESSAGE,
+    ...(inUse ? { inUse: true } : {}),
+    ...(authorInstructions !== null
+        ? { instructions: authorInstructions }
+        : {}),
+});
 
 const markInUse = () => {
     if (inUse) return;
     inUse = true;
+    hostWindow?.postMessage(requestMessage(), '*');
+};
+
+/** Module-internal (exported for tests); `useInsights({ instructions })` wraps it. */
+export const setInsightInstructions = (value: string | undefined) => {
+    const next = value?.trim() || null;
+    if (next === authorInstructions) return;
+    authorInstructions = next;
     hostWindow?.postMessage(requestMessage(), '*');
 };
 
@@ -359,6 +375,13 @@ type InsightSource = {
     rowKeys?: Record<string, string>;
 };
 
+export type ViewInsightsOptions = {
+    /** Guidance for the analysis model: language or formatting rules and a
+     *  line or two of domain vocabulary. One string per app (the last value
+     *  set wins); the host caps its length. */
+    instructions?: string;
+};
+
 export type ViewInsights = InsightsPayload & {
     /** Ask the host to analyse the current view (or re-analyse when stale). */
     analyse: () => void;
@@ -441,17 +464,30 @@ export function useHostAiAvailable(): boolean {
  * The host's AI analysis of the current view.
  *
  *   const view = useInsights();               // executive summary + every anomaly
+ *   const view = useInsights({ instructions: 'Use British English.' });
  *   const orders = useLightdash(ordersQuery);
  *   const insights = useInsights(orders);     // anomalies on this chart's rows
  *
  * Renders nothing on its own: read `status` and the fields, and call
  * `analyse()` / `investigate(id)` / `continueInAskAi(id)` from your own UI.
  */
-export function useInsights(): ViewInsights;
+export function useInsights(options?: ViewInsightsOptions): ViewInsights;
 export function useInsights(source: InsightSource): QueryInsights;
 export function useInsights(
-    source?: InsightSource,
+    sourceOrOptions?: InsightSource | ViewInsightsOptions,
 ): ViewInsights | QueryInsights {
+    const source =
+        sourceOrOptions !== undefined && 'queryUuid' in sourceOrOptions
+            ? sourceOrOptions
+            : undefined;
+    const instructions =
+        source === undefined
+            ? (sourceOrOptions as ViewInsightsOptions | undefined)?.instructions
+            : undefined;
+    useEffect(() => {
+        if (instructions === undefined) return;
+        setInsightInstructions(instructions);
+    }, [instructions]);
     const payload = useInsightsPayload();
     const investigate = useCallback(
         (anomalyId: string) =>
@@ -533,6 +569,7 @@ export function resetInsightsState(): void {
     sharedStore = null;
     hostWindow = null;
     inUse = false;
+    authorInstructions = null;
     mounted.clear();
     flushScheduled = false;
 }

@@ -12,15 +12,19 @@ type Props = {
     title?: ReactNode;
     /** Shown before the first run. */
     idleText?: string;
+    /** Guidance for the analysis model: language/format rules and a line or
+     *  two of domain vocabulary. One string per app. */
+    instructions?: string;
     className?: string;
 };
 
 export function InsightsSummary({
     title = 'Executive summary',
     idleText = 'Click Analyse for an AI-generated read of everything on this page.',
+    instructions,
     className,
 }: Props) {
-    const view = useInsights();
+    const view = useInsights(instructions ? { instructions } : undefined);
     if (view.status === 'unavailable') return null;
     const busy = view.status === 'analysing';
 

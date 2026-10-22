@@ -12,6 +12,7 @@ import {
     postInsightAction,
     registerMountedQuery,
     resetInsightsState,
+    setInsightInstructions,
     subscribeInsights,
     insightIsForField,
     rowMatchesInsight,
@@ -95,6 +96,47 @@ describe('insights channel', () => {
     it('carries the in-use flag on the mount request when a hook subscribed first', () => {
         subscribeInsights(() => {});
         mountInsights(host);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
+    });
+
+    it('announces author instructions and repeats them on every request', () => {
+        mountInsights(host);
+        posted.length = 0;
+        setInsightInstructions('  Use British English.  ');
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                instructions: 'Use British English.',
+            },
+        ]);
+        posted.length = 0;
+        // Unchanged value: no extra message.
+        setInsightInstructions('Use British English.');
+        expect(requests()).toEqual([]);
+        dispatch(host, { type: 'lightdash:sdk:ready' });
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                instructions: 'Use British English.',
+            },
+        ]);
+    });
+
+    it('carries instructions on the mount request when set first, and clears them', () => {
+        setInsightInstructions('Amounts are EUR.');
+        subscribeInsights(() => {});
+        mountInsights(host);
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                inUse: true,
+                instructions: 'Amounts are EUR.',
+            },
+        ]);
+        posted.length = 0;
+        setInsightInstructions('   ');
         expect(requests()).toEqual([
             { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
         ]);

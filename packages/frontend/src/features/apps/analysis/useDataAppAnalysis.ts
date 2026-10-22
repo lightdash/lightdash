@@ -94,6 +94,7 @@ export const useDataAppAnalysis = ({
     mountedQueryUuids,
     enabled,
     autoAnalyse = false,
+    instructions = null,
     onSourcesExpired,
 }: {
     projectUuid: string;
@@ -108,6 +109,10 @@ export const useDataAppAnalysis = ({
     mountedQueryUuids: string[] | null;
     /** Run detect on a quiet view that has no stored analysis. */
     autoAnalyse?: boolean;
+    /** App-author guidance forwarded to the model. Part of the analysis
+     *  identity: a change re-looks-up and never reuses a stored analysis
+     *  generated under other instructions. */
+    instructions?: string | null;
     /**
      * Re-run the app's queries (reload the iframe). Called at most once per
      * analyse when the sources expired; the fresh view is analysed again.
@@ -122,7 +127,12 @@ export const useDataAppAnalysis = ({
                 : selectMountedViewSources(queries, mountedQueryUuids),
         [queries, mountedQueryUuids],
     );
-    const signature = useMemo(() => sourcesSignature(sources), [sources]);
+    // Instructions join the view identity so a stored analysis generated
+    // under other guidance is never shown for this one.
+    const signature = useMemo(
+        () => `${sourcesSignature(sources)}|instr:${instructions ?? ''}`,
+        [sources, instructions],
+    );
     const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
 
     // All analysis state is keyed by project+app and read through the current
@@ -173,12 +183,15 @@ export const useDataAppAnalysis = ({
                     projectUuid,
                     appUuid,
                     sources: sourcesToAnalyse,
+                    instructions,
                     force,
                 });
                 if (run !== runRef.current) return;
                 patch(scope, (prev) => ({
                     ...prev,
-                    analysedSignature: sourcesSignature(sourcesToAnalyse),
+                    analysedSignature: `${sourcesSignature(
+                        sourcesToAnalyse,
+                    )}|instr:${instructions ?? ''}`,
                     state: { status: 'ready', analysis, stale: false },
                 }));
             } catch (e) {
@@ -218,7 +231,7 @@ export const useDataAppAnalysis = ({
                 }));
             }
         },
-        [projectUuid, appUuid, scope, patch, lightdashApi],
+        [projectUuid, appUuid, scope, patch, lightdashApi, instructions],
     );
 
     const { state } = current;
@@ -251,6 +264,7 @@ export const useDataAppAnalysis = ({
                 projectUuid,
                 appUuid,
                 sources,
+                instructions,
             })
                 .then((found) => {
                     // Drop a response for a view that is no longer current:
@@ -315,6 +329,7 @@ export const useDataAppAnalysis = ({
         scope,
         signature,
         sources,
+        instructions,
         projectUuid,
         appUuid,
         patch,
