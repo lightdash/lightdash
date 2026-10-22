@@ -37,6 +37,39 @@ const ALLOWED_ASSET_CONTENT_TYPES = new Set([
     'image/gif',
 ]);
 
+/** Identifies an allowlisted image type from its leading magic bytes. */
+const sniffImageContentType = (body: Buffer): string | undefined => {
+    if (
+        body.length >= 8 &&
+        body
+            .subarray(0, 8)
+            .equals(
+                Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+            )
+    ) {
+        return 'image/png';
+    }
+    if (
+        body.length >= 3 &&
+        body[0] === 0xff &&
+        body[1] === 0xd8 &&
+        body[2] === 0xff
+    ) {
+        return 'image/jpeg';
+    }
+    if (
+        body.length >= 12 &&
+        body.toString('ascii', 0, 4) === 'RIFF' &&
+        body.toString('ascii', 8, 12) === 'WEBP'
+    ) {
+        return 'image/webp';
+    }
+    if (body.length >= 4 && body.toString('ascii', 0, 4) === 'GIF8') {
+        return 'image/gif';
+    }
+    return undefined;
+};
+
 // Servable asset shape: one image filename under a published version dir of
 // an indexed chart. Validated structurally (plus a slug check against the
 // index) rather than by exact enumeration: the index only lists each chart's
@@ -259,6 +292,8 @@ export class ChartRegistryClient {
 
     private readonly allowInsecure: boolean;
 
+    private readonly authorizationHeader: string | null;
+
     private readonly indexFileName: string;
 
     private readonly fetchImpl: ChartRegistryFetch;
@@ -277,6 +312,9 @@ export class ChartRegistryClient {
         this.baseUrl = args.lightdashConfig.appRuntime.chartRegistry.url;
         this.allowInsecure =
             args.lightdashConfig.appRuntime.chartRegistry.allowInsecure;
+        this.authorizationHeader =
+            args.lightdashConfig.appRuntime.chartRegistry.authorizationHeader ??
+            null;
         // The next channel's index additionally lists charts whose latest
         // version is a beta (entries carry `channel`); the stable index
         // only ever lists stable versions.
@@ -476,17 +514,28 @@ export class ChartRegistryClient {
         return body;
     }
 
-    /** Non-2xx or a content type outside the image allowlist is treated as absent. */
-    private isServableAsset(
+    /**
+     * Non-2xx or a content type outside the image allowlist is treated as
+     * absent. A generic octet-stream or missing type (e.g. Artifactory
+     * proxies) is resolved by sniffing the body's magic bytes, never by
+     * trusting the file extension.
+     */
+    private resolveAssetContentType(
         status: number,
         contentType: string | null,
-    ): boolean {
-        return (
-            status >= 200 &&
-            status < 300 &&
-            contentType !== null &&
-            ALLOWED_ASSET_CONTENT_TYPES.has(normalizeContentType(contentType))
-        );
+        body: Buffer,
+    ): string | undefined {
+        if (status < 200 || status >= 300) {
+            return undefined;
+        }
+        const normalized =
+            contentType === null ? null : normalizeContentType(contentType);
+        if (normalized === null || normalized === 'application/octet-stream') {
+            return sniffImageContentType(body);
+        }
+        return ALLOWED_ASSET_CONTENT_TYPES.has(normalized)
+            ? normalized
+            : undefined;
     }
 
     async getAsset(
@@ -507,13 +556,15 @@ export class ChartRegistryClient {
             this.resolveUrl(path).toString(),
             MAX_ARTIFACT_BYTES,
         );
-        if (!this.isServableAsset(status, contentType)) {
+        const resolvedContentType = this.resolveAssetContentType(
+            status,
+            contentType,
+            body,
+        );
+        if (!resolvedContentType) {
             return undefined;
         }
-        return {
-            buffer: body,
-            contentType: normalizeContentType(contentType as string),
-        };
+        return { buffer: body, contentType: resolvedContentType };
     }
 
     private defaultFetch(
@@ -521,10 +572,16 @@ export class ChartRegistryClient {
         maxBytes: number,
         options?: ChartRegistryFetchOptions,
     ): Promise<ChartRegistryRawResponse> {
+        const headers = {
+            ...options?.headers,
+            ...(this.authorizationHeader
+                ? { authorization: this.authorizationHeader }
+                : {}),
+        };
         return chartRegistryFetch(url, {
             maxBytes,
             allowPrivateAddresses: this.allowInsecure,
-            ...(options?.headers ? { headers: options.headers } : {}),
+            ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
     }
 }
