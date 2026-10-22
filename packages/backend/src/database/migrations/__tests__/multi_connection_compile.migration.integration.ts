@@ -59,6 +59,7 @@ import { ProjectCompileModel } from '../../../models/ProjectCompileModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { rewriteAllocatedExplore } from '../../../models/ProjectModel/allocatedExploreReferences';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -988,10 +989,9 @@ describe('Multi-connection compile on the real schema', () => {
                         yamlTagsToCreateOrUpdate: [],
                     }),
                 },
-                projectParametersModel: {
-                    replace: async () => {},
-                    find: async () => [],
-                },
+                projectParametersModel: new ProjectParametersModel({
+                    database,
+                }),
             } as never);
             const internals = service as unknown as CompileInternals;
             vi.spyOn(internals, 'withCompileAdapter').mockImplementation(
@@ -3612,6 +3612,58 @@ Sources in this project: Core models, marketing, finance.`;
                     .where('project_uuid', projectUuid)
                     .orderBy('dbt_source_uuid')
                     .orderBy('connection_group'),
+            });
+
+            test('a refresh with project parameters publishes once and completes', async () => {
+                const fixture = await createProject();
+                const dbtProjectDir = mkdtempSync(
+                    path.join(tmpdir(), 'peer-compile-config-'),
+                );
+                writeFileSync(
+                    path.join(dbtProjectDir, 'lightdash.config.yml'),
+                    'parameters:\n  minimum_amount:\n    label: Minimum amount\n    type: number\n    default: 7\n    allow_custom_values: true\n',
+                );
+                try {
+                    const { service } = compileService(fixture.projectUuid, {
+                        ...options(),
+                        dbtProjectDir,
+                    });
+                    const user = await compilingUser(fixture.projectUuid);
+                    const jobUuid = await createJob(
+                        fixture.projectUuid,
+                        user.userUuid,
+                    );
+                    await service.compileProject(
+                        user,
+                        fixture.projectUuid,
+                        RequestMethod.WEB_APP,
+                        jobUuid,
+                    );
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                    const state = await publicationState(fixture.projectUuid);
+                    expect(state.pins).toHaveLength(1);
+                    expect(Number(state.generations[0].generation)).toBe(1);
+                    expect(
+                        await database('project_parameters')
+                            .where('project_uuid', fixture.projectUuid)
+                            .select('name', 'config'),
+                    ).toEqual([
+                        {
+                            name: 'minimum_amount',
+                            config: {
+                                label: 'Minimum amount',
+                                type: 'number',
+                                default: 7,
+                                allow_custom_values: true,
+                            },
+                        },
+                    ]);
+                } finally {
+                    rmSync(dbtProjectDir, { recursive: true, force: true });
+                }
             });
 
             test.each([false, true])(

@@ -3936,6 +3936,7 @@ export class ProjectService
 
     private getConnectionExploreWriteChecks(
         projectUuid: string,
+        publishCompile = false,
     ):
         | []
         | [
@@ -3946,11 +3947,12 @@ export class ProjectService
           ] {
         const checkConnection =
             !!agentExecutionContext.getStore()?.agentConnectionExecution;
-        const peerCompile = peerCompileContext.getStore();
+        const peerCompile = publishCompile && peerCompileContext.getStore();
         if (!checkConnection && !peerCompile) return [];
         return [
             async (trx, explores = []) => {
-                await this.publishPeerCompile(trx, projectUuid);
+                if (peerCompile)
+                    await this.publishPeerCompile(trx, projectUuid);
                 if (!checkConnection) return;
                 const stored =
                     await this.projectModel.getPreAggregateRefreshSummary(
@@ -4315,6 +4317,7 @@ export class ProjectService
             saveExplores: async (summary) => {
                 const [beforeWrite] = this.getConnectionExploreWriteChecks(
                     args.projectUuid,
+                    true,
                 );
                 const writeCheckArgs: [undefined?, ExploreWriteCheck?] =
                     beforeWrite ? [undefined, beforeWrite] : [];
