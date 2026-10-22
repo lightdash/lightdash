@@ -369,17 +369,11 @@ export class ExternalSourceService extends BaseService {
         userUuid: UUID;
         organizationUuid: UUID;
     }): Promise<void> {
-        const [multiSourceQuery, composeSqlRunner] = await Promise.all([
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.MultiSourceQuery,
-            }),
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ComposeSqlRunner,
-            }),
-        ]);
-        if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+        const composeSqlRunner = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!composeSqlRunner.enabled) {
             throw new ForbiddenError('AI data attachments are not enabled');
         }
     }

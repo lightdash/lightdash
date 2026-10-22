@@ -29,9 +29,9 @@ becomes: create saved chart (composer variant) + append a `SAVED_CHART` tile.
   on dashboards silently render the first leg only. Merged charts are also
   invisible to chart-as-code (`CoderService.transformChart` never reads
   `merge`) and promotion.
-- Composer execution today is author-gated: `FeatureFlags.MultiSourceQuery` +
-  `manage Explore` (`QuerySourceService.ts:76-112`), plus per-source checks;
-  compose additionally needs `FeatureFlags.ComposeSqlRunner`. Saved charts are
+- Composer execution today is author-gated: `FeatureFlags.ComposeSqlRunner` +
+  `manage Explore` (`QuerySourceService.ts:76-112`), plus per-source checks.
+  Saved charts are
   viewer-visible via `view SavedChart` + space access.
 - Saved pipelines must be self-contained: artifact pipelines referencing bare
   `queryUuid`s stop replaying when results expire
