@@ -24,6 +24,7 @@ import {
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { PeerDbtSourcesService } from '../../../services/PeerDbtSourcesService';
 import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
 import {
     createMigratedDatabase,
@@ -1472,3 +1473,185 @@ test('reports a known-name conflict for a source added while disabled without br
     });
     expect(await sources.getSources(projectA)).toHaveLength(2);
 });
+
+test('source and peer lists expose canonical repository coordinates without owner URL credentials', async () => {
+    const owner = await sources.createSource(projectA, {
+        name: 'source_url',
+        isPrimary: false,
+        precedence: 1,
+        dbtConnection: {
+            ...connection,
+            repository:
+                'https://synthetic-user:synthetic-url-token@git.example.test/fixture/repository_url.git?token=synthetic-query-token',
+        },
+        warehouseLocation: { database: null, schema: null },
+    });
+    const repository = (await sourceRow(owner.projectDbtSourceUuid))
+        .dbt_repository_uuid!;
+    await model.setShared(organizationUuid, projectA, repository, true);
+    const consumer = await model.addShared(
+        organizationUuid,
+        projectB,
+        sharedInput(repository),
+    );
+    const user = {
+        ...defaultSessionUser,
+        organizationUuid,
+        role: OrganizationMemberRole.MEMBER,
+        roleUuid: undefined,
+    };
+    const account = fromSession(
+        {
+            ...user,
+            ability: defineUserAbility(user, [
+                {
+                    projectUuid: projectB,
+                    userUuid: user.userUuid,
+                    role: ProjectMemberRole.VIEWER,
+                    roleUuid: undefined,
+                },
+            ]),
+        },
+        'session-cookie',
+    );
+    const projectModel = {
+        getSummary: async () => ({ organizationUuid, name: 'project_b' }),
+        get: async () => ({ dbtConnection: { type: DbtProjectType.NONE } }),
+        getDbtSourceIdentity: async () => ({
+            dbtSourceUuid: randomUUID(),
+            dbtSourceName: 'primary_b',
+        }),
+    };
+    const service = new ProjectDbtSourcesService({
+        lightdashConfig: {} as never,
+        analytics: { track: vi.fn() } as never,
+        projectModel: projectModel as never,
+        projectDbtSourcesModel: sources,
+        dbtSourceRefCatalogModel: { deleteForSource: vi.fn() } as never,
+        githubAppInstallationsModel: {} as never,
+        featureFlagService: { get: featureFlagModel.get } as never,
+    });
+    const peers = new PeerDbtSourcesService({
+        projectModel: projectModel as never,
+        projectDbtSourcesModel: sources,
+        projectDbtSourcesService: service,
+        featureFlagModel: featureFlagModel as never,
+    });
+    const ownerAccount = fromSession(
+        {
+            ...user,
+            ability: defineUserAbility(user, [
+                {
+                    projectUuid: projectA,
+                    userUuid: user.userUuid,
+                    role: ProjectMemberRole.VIEWER,
+                    roleUuid: undefined,
+                },
+            ]),
+        },
+        'session-cookie',
+    );
+    const lists = await Promise.all([
+        service.getProjectDbtSources(account, projectB),
+        peers.listPeers(account, projectB),
+        peers.listPeers(ownerAccount, projectA),
+    ]);
+    expect(JSON.stringify(lists)).not.toMatch(
+        /synthetic-user|synthetic-url-token|synthetic-query-token|synthetic-owner-token|synthetic-environment-value/,
+    );
+    expect(
+        lists[0].find((source) => source.projectDbtSourceUuid === consumer)
+            ?.repository,
+    ).toBe('fixture/repository_url');
+    const resolve = vi.spyOn(sources.peers, 'resolveConnection');
+    await service.getProjectDbtSources(account, projectB);
+    await peers.listPeers(account, projectB);
+    expect(resolve).not.toHaveBeenCalled();
+});
+
+test.each(['delete', 'rollback'] as const)(
+    'holds registry locks during cleanup until %s completes',
+    async (mode) => {
+        const owner = await createSource(projectA);
+        const repository = await createRepository({
+            credentialSourceUuid: owner.projectDbtSourceUuid,
+        });
+        const projectModel = new ProjectModel({
+            database,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil,
+            featureFlagModel: featureFlagModel as never,
+        });
+        let releaseCleanup!: () => void;
+        const release = new Promise<void>((resolve) => {
+            releaseCleanup = resolve;
+        });
+        let started!: (pid: number) => void;
+        const entered = new Promise<number>((resolve) => {
+            started = resolve;
+        });
+        const deletion = projectModel
+            .withDeletionLock([projectA], async (trx) => {
+                if (!trx) throw new Error('Missing peer deletion transaction');
+                const {
+                    rows: [{ pid }],
+                } = await trx.raw<{ rows: { pid: number }[] }>(
+                    'SELECT pg_backend_pid() AS pid',
+                );
+                started(pid);
+                await release;
+                if (mode === 'rollback')
+                    throw new Error('Synthetic cleanup failed');
+                await projectModel.delete(projectA, trx, [projectA]);
+            })
+            .then(
+                () => ({}),
+                (error: unknown) => ({ error }),
+            );
+        let pending: Promise<{ result?: string; error?: unknown }> | undefined;
+        try {
+            const pid = await Promise.race([
+                entered,
+                deletion.then(() => {
+                    throw new Error('Deletion ended before cleanup');
+                }),
+            ]);
+            pending = model
+                .addShared(organizationUuid, projectB, sharedInput(repository))
+                .then(
+                    (result) => ({ result }),
+                    (error: unknown) => ({ error }),
+                );
+            await expect
+                .poll(
+                    async () => {
+                        const blocked = await database.raw<{
+                            rows: { count: string }[];
+                        }>(
+                            'SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND ?::int = ANY(pg_blocking_pids(pid)) AND wait_event_type = ?',
+                            [pid, 'Lock'],
+                        );
+                        return Number(blocked.rows[0].count);
+                    },
+                    { timeout: 5000 },
+                )
+                .toBe(1);
+            releaseCleanup();
+            await deletion;
+            const outcome = await pending;
+            if (mode === 'delete') {
+                expect(outcome.error).toBeInstanceOf(NotFoundError);
+                expect(await sources.getSources(projectB)).toHaveLength(0);
+            } else {
+                expect(outcome.result).toEqual(expect.any(String));
+                expect(
+                    await model.resolveConnection(projectB, repository),
+                ).toEqual(connection);
+            }
+        } finally {
+            releaseCleanup();
+            await deletion;
+            await pending;
+        }
+    },
+);

@@ -8,6 +8,7 @@ import {
     ProjectDbtSource,
     UnexpectedServerError,
     UpdateProjectDbtSource,
+    type DbtRepositorySummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
@@ -24,6 +25,11 @@ import {
 import { normalizeStoredDbtConnection } from './ProjectModel/normalizeStoredDbtConnection';
 
 const PG_UNIQUE_VIOLATION = '23505';
+
+export type ApiProjectDbtSource = ProjectDbtSource & {
+    sharedRepository?: DbtRepositorySummary;
+    sanitizeRepository?: boolean;
+};
 
 export type BoundProjectDbtSource = ProjectDbtSource & {
     warehouseConnectionUuid: string | null;
@@ -175,6 +181,35 @@ export class ProjectDbtSourcesModel {
      * Whether the project has any additional sources. Drives the N=0
      * short-circuit without decrypting connections.
      */
+    async getSourcesForApi(
+        projectUuid: string,
+    ): Promise<ApiProjectDbtSource[]> {
+        const rows = await this.database<DbPeerDbtSource>(
+            ProjectDbtSourcesTableName,
+        )
+            .where('project_uuid', projectUuid)
+            .orderBy('precedence', 'asc')
+            .orderBy('name', 'asc');
+        if (rows.length === 0 || !(await this.peers.isEnabled(projectUuid)))
+            return rows.map((row) => this.convertRow(row));
+        const settings = await this.peers.getSettings(projectUuid);
+        return rows.map((row) => {
+            const source = {
+                ...this.convertRow(row),
+                sanitizeRepository: true,
+            };
+            if (row.dbt_connection === null && row.dbt_repository_uuid) {
+                const repository = settings.get(
+                    row.project_dbt_source_uuid,
+                )?.repository;
+                return repository
+                    ? { ...source, sharedRepository: repository }
+                    : { ...source, hasCredentialError: true };
+            }
+            return source;
+        });
+    }
+
     async hasSources(projectUuid: string): Promise<boolean> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)

@@ -364,17 +364,21 @@ const backfillProject = async (
                     failedSources.push(sourceUuid);
                 }
             }
-            await knex
-                .raw(
-                    `UPDATE project_dbt_sources
-                     SET dbt_repository_uuid = ?, refresh_policy = ?
-                     WHERE project_dbt_source_uuid = ?`,
-                    [
-                        repositoryUuid,
-                        isGit ? 'git_refresh' : 'ci_managed',
-                        sourceUuid,
-                    ],
+            const refreshPolicy = isGit ? 'git_refresh' : 'ci_managed';
+            await knex<{
+                project_dbt_source_uuid: string;
+                dbt_repository_uuid: string | null;
+                refresh_policy: string;
+            }>('project_dbt_sources')
+                .where('project_dbt_source_uuid', sourceUuid)
+                .whereRaw(
+                    '(dbt_repository_uuid, refresh_policy) IS DISTINCT FROM (?::uuid, ?::text)',
+                    [repositoryUuid, refreshPolicy],
                 )
+                .update({
+                    dbt_repository_uuid: repositoryUuid,
+                    refresh_policy: refreshPolicy,
+                })
                 .connection(connection);
         });
         await processSources(
@@ -393,7 +397,8 @@ const backfillProject = async (
         await knex
             .raw(
                 `UPDATE project_dbt_sources SET dbt_project_name = NULL, dbt_project_name_conflict = NULL
-                 WHERE project_dbt_source_uuid = ANY(?::uuid[])`,
+                 WHERE project_dbt_source_uuid = ANY(?::uuid[])
+                   AND (dbt_project_name, dbt_project_name_conflict) IS DISTINCT FROM (NULL::text, NULL::text)`,
                 [sourceIds.slice(offset, offset + BATCH_SIZE)],
             )
             .connection(connection);
@@ -401,14 +406,19 @@ const backfillProject = async (
     await inSequence(sourceIds, async (sourceUuid) => {
         const name = names.get(sourceUuid);
         if (!name) return;
+        const projectName = conflicts.has(sourceUuid) ? null : name;
+        const conflictName = conflicts.has(sourceUuid) ? name : null;
         await knex
             .raw(
                 `UPDATE project_dbt_sources SET dbt_project_name = ?, dbt_project_name_conflict = ?
-                 WHERE project_dbt_source_uuid = ?`,
+                 WHERE project_dbt_source_uuid = ?
+                   AND (dbt_project_name, dbt_project_name_conflict) IS DISTINCT FROM (?::text, ?::text)`,
                 [
-                    conflicts.has(sourceUuid) ? null : name,
-                    conflicts.has(sourceUuid) ? name : null,
+                    projectName,
+                    conflictName,
                     sourceUuid,
+                    projectName,
+                    conflictName,
                 ],
             )
             .connection(connection);
@@ -583,12 +593,14 @@ export async function up(knex: Knex): Promise<void> {
                           ON e.project_uuid = s.project_uuid
                          AND COALESCE(e.explore->'tables'->COALESCE(e.explore->>'baseTable', e.name)->>'dbtSourceUuid', e.explore->>'dbtSourceUuid') = s.project_dbt_source_uuid::text
                         WHERE s.dbt_repository_uuid = ? AND COALESCE(e.explore->>'type', '') NOT IN ('virtual', 'external_source')
-                    )
-                    UPDATE dbt_repositories SET dbt_project_name = (
+                    ), learned AS (
                         SELECT CASE WHEN count(DISTINCT project_name) = 1
-                            THEN min(project_name) ELSE NULL END
+                            THEN min(project_name) ELSE NULL END AS project_name
                         FROM evidence WHERE project_name <> ''
-                    ) WHERE dbt_repository_uuid = ?
+                    )
+                    UPDATE dbt_repositories SET dbt_project_name = learned.project_name
+                    FROM learned WHERE dbt_repository_uuid = ?
+                      AND dbt_project_name IS DISTINCT FROM learned.project_name
                 `,
                             [
                                 row.dbt_repository_uuid,

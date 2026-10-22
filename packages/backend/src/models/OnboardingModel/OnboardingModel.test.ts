@@ -1,4 +1,4 @@
-import knex from 'knex';
+import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { OnboardingModel } from './OnboardingModel';
 
@@ -53,6 +53,33 @@ describe('OnboardingModel', () => {
         );
         expect(lockQuery?.bindings).toEqual([19350428, 7]);
         expect(typedCallback).toHaveBeenCalledWith(expect.any(Function));
+    });
+
+    it('reuses the deletion transaction for the playground provisioning lock', async () => {
+        tracker.on.select('organizations').responseOnce({ organization_id: 7 });
+        tracker.on.select('pg_advisory_xact_lock').responseOnce({});
+        const transactionSpy = vi.spyOn(database, 'transaction');
+        try {
+            await database.transaction(async (transaction) => {
+                transactionSpy.mockClear();
+                const callback = vi.fn(async (trx: Knex.Transaction) => {
+                    expect(trx).toBe(transaction);
+                    expect(trx.isCompleted()).toBe(false);
+                    return 'deleted';
+                });
+                await expect(
+                    model.runInPlaygroundProvisioningLock(
+                        'organization-uuid',
+                        callback,
+                        transaction,
+                    ),
+                ).resolves.toBe('deleted');
+                expect(transactionSpy).not.toHaveBeenCalled();
+                expect(transaction.isCompleted()).toBe(false);
+            });
+        } finally {
+            transactionSpy.mockRestore();
+        }
     });
 
     it('takes the learner lock, then one of the organization copy slots', async () => {
