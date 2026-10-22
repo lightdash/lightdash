@@ -2,10 +2,12 @@ import {
     CartesianSeriesType,
     DimensionType,
     FieldType,
+    MetricType,
     TimeFrames,
     type Dimension,
     type EChartsSeries,
     type ItemsMap,
+    type Metric,
 } from '@lightdash/common';
 import { describe, expect, test } from 'vitest';
 import {
@@ -174,16 +176,51 @@ describe('applyIncompletePeriodStyle', () => {
     });
 
     test('leaves previous-period comparison series alone', () => {
-        const previous = {
+        const popFieldId = 'orders_total__pop__week_1__abc123';
+        const base = {
             ...mkSeries(CartesianSeriesType.BAR),
-            periodOverPeriodMetadata: {
-                siblingSeriesIndex: 0,
-                periodOffset: 1,
-                granularity: 'WEEK',
-                baseFieldId: 'orders_total',
+            encode: {
+                ...mkSeries(CartesianSeriesType.BAR).encode!,
+                yRef: { field: 'orders_total' },
             },
         };
-        expect(apply([previous]).series).toEqual([previous]);
+        const previous = {
+            ...base,
+            encode: {
+                ...base.encode,
+                y: popFieldId,
+                yRef: { field: popFieldId },
+            },
+        };
+        const { series } = applyIncompletePeriodStyle({
+            series: [base, previous],
+            rows,
+            tooltip: {},
+            xFieldId: 'orders_created_week',
+            flipAxes: false,
+            itemsMap: {
+                ...itemsMap,
+                [popFieldId]: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'total__pop__week_1__abc123',
+                    label: 'Total (previous week)',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '',
+                    hidden: false,
+                    generationType: 'periodOverPeriod',
+                    baseMetricId: 'orders_total',
+                    timeDimensionId: 'orders_created_week',
+                    granularity: TimeFrames.WEEK,
+                    periodOffset: 1,
+                } as Metric,
+            },
+            timezone: undefined,
+            now,
+        });
+        expect(typeof series[0].itemStyle?.color).toBe('function');
+        expect(series[1]).toBe(previous);
     });
 
     test('leaves stacked lines alone', () => {
