@@ -1,3 +1,15 @@
+# [3.23.0](https://github.com/lightdash/lightdash/compare/3.22.0...3.23.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ai:** open composer artifacts as a table without a stored viz config ([#31375](https://github.com/lightdash/lightdash/issues/31375)) ([bad0105](https://github.com/lightdash/lightdash/commit/bad0105da80cb5864c17c3abec4b4e3f33347f9a))
+
+
+### Features
+
+* enable service account provisioning through the public API ([#31330](https://github.com/lightdash/lightdash/issues/31330)) ([8e437e1](https://github.com/lightdash/lightdash/commit/8e437e112dd22909f8c4594e537a0d9e39308cd0))
+
 # [3.22.0](https://github.com/lightdash/lightdash/compare/3.21.4...3.22.0) (2026-10-22)
 
 

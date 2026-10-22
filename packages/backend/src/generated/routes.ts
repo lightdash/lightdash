@@ -11290,6 +11290,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ServiceAccountWithToken: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ServiceAccount' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        token: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_ServiceAccount.expiresAt-or-description_': {
         dataType: 'refAlias',
         type: {
@@ -11410,23 +11427,6 @@ const models: TsoaRoute.Models = {
     ApiUpdateServiceAccountRequest: {
         dataType: 'refAlias',
         type: { ref: 'UpdateServiceAccount', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ServiceAccountWithToken: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'ServiceAccount' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        token: { dataType: 'string', required: true },
-                    },
-                },
-            ],
-            validators: {},
-        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'ScimSchemaType.LIST_RESPONSE': {
@@ -82945,7 +82945,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
@@ -83067,7 +83067,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 201,
                 });
             } catch (err) {
                 return next(err);
@@ -83128,7 +83128,7 @@ export function RegisterRoutes(app: Router) {
                     response,
                     next,
                     validatedArgs,
-                    successStatus: undefined,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
