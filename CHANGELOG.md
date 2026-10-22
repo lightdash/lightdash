@@ -1,3 +1,10 @@
+# [3.34.0](https://github.com/lightdash/lightdash/compare/3.33.0...3.34.0) (2026-10-22)
+
+
+### Features
+
+* **dashboards:** collapse, hover and apply-to-all in the filter rail ([#31436](https://github.com/lightdash/lightdash/issues/31436)) ([0379668](https://github.com/lightdash/lightdash/commit/03796686a846dbb56e93d1222ce838def5833d58))
+
 # [3.33.0](https://github.com/lightdash/lightdash/compare/3.32.1...3.33.0) (2026-10-22)
 
 
