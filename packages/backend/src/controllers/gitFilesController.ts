@@ -95,6 +95,7 @@ export class GitFilesController extends BaseController {
 
     /**
      * Create or update a file. Provide sha to update existing file, omit for new file.
+     * Content is text; set encoding to base64 to send a binary file's bytes encoded.
      * @summary Save file
      */
     @Middlewares([
@@ -112,6 +113,7 @@ export class GitFilesController extends BaseController {
         body: {
             path: string;
             content: string;
+            encoding?: 'base64';
             sha?: string;
             message?: string;
         },
@@ -131,6 +133,7 @@ export class GitFilesController extends BaseController {
                     body.content,
                     body.sha,
                     body.message,
+                    body.encoding,
                 ),
         };
     }

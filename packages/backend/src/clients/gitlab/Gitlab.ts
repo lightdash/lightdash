@@ -36,12 +36,15 @@ type GitlabBranchParams = GitlabApiParams & {
 
 type GitlabUpdateFileParams = GitlabFileParams & {
     content: string;
+    /** `base64` when `content` is the file's bytes encoded, for a binary file; text otherwise. */
+    encoding?: 'base64';
     fileSha?: string;
     message: string;
 };
 
 type GitlabCreateFileParams = GitlabFileParams & {
     content: string;
+    encoding?: 'base64';
     message: string;
 };
 
@@ -247,6 +250,7 @@ export const checkFileDoesNotExist = async ({
 export const createFile = async ({
     fileName,
     content,
+    encoding,
     message,
     owner,
     repo,
@@ -266,7 +270,10 @@ export const createFile = async ({
         method: 'POST',
         body: JSON.stringify({
             branch,
-            content: Buffer.from(content, 'utf-8').toString('base64'),
+            content:
+                encoding === 'base64'
+                    ? content
+                    : Buffer.from(content, 'utf-8').toString('base64'),
             commit_message: message,
             encoding: 'base64',
         }),
@@ -276,6 +283,7 @@ export const createFile = async ({
 export const updateFile = async ({
     fileName,
     content,
+    encoding,
     fileSha,
     message,
     owner,
@@ -294,7 +302,10 @@ export const updateFile = async ({
 
     const body: Record<string, string | number> = {
         branch,
-        content: Buffer.from(content, 'utf-8').toString('base64'),
+        content:
+            encoding === 'base64'
+                ? content
+                : Buffer.from(content, 'utf-8').toString('base64'),
         commit_message: message,
         encoding: 'base64',
     };
