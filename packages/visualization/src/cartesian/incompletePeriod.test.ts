@@ -47,6 +47,10 @@ const mkSeries = (type: CartesianSeriesType): EChartsSeries => ({
         tooltip: ['orders_total'],
         seriesName: 'orders_total',
     },
+    dimensions: [
+        { name: 'orders_created_week', displayName: 'Created week' },
+        { name: 'orders_total', displayName: 'Total' },
+    ],
 });
 
 const apply = (series: EChartsSeries[]) =>
@@ -111,6 +115,10 @@ describe('applyIncompletePeriodStyle', () => {
         expect(line.encode?.y).toBe('orders_total__complete_period');
         expect(overlay.encode?.y).toBe('orders_total__incomplete_period');
         expect(overlay.lineStyle?.type).toBe('dashed');
+        expect(line.dimensions?.[1].name).toBe('orders_total__complete_period');
+        expect(overlay.dimensions?.[1].name).toBe(
+            'orders_total__incomplete_period',
+        );
         expect(overlay.tooltip?.show).toBe(false);
         expect(
             result.rows.map((row) => [

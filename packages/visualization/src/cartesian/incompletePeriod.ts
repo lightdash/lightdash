@@ -98,6 +98,16 @@ const isLineLike = (series: EChartsSeries) =>
     series.type === CartesianSeriesType.LINE ||
     series.type === CartesianSeriesType.AREA;
 
+// ECharts only reads the dataset columns a series lists in its dimensions
+const renameDimension = (
+    series: EChartsSeries,
+    from: string,
+    to: string,
+): EChartsSeries['dimensions'] =>
+    series.dimensions?.map((dimension) =>
+        dimension.name === from ? { ...dimension, name: to } : dimension,
+    );
+
 const hatchBars = (
     series: EChartsSeries,
     incompleteIndexes: Set<number>,
@@ -220,6 +230,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
             ...overlayBase,
             id: `${OVERLAY_ID_PREFIX}${seriesIndex}`,
             encode: { ...serie.encode, [valueAxis]: incompleteKey },
+            dimensions: renameDimension(serie, valueKey, incompleteKey),
             connectNulls: false,
             showSymbol: true,
             symbol: 'emptyCircle',
@@ -249,6 +260,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
         return {
             ...serie,
             encode: { ...serie.encode, [valueAxis]: completeKey },
+            dimensions: renameDimension(serie, valueKey, completeKey),
         };
     });
     if (splitKeys.size === 0) {
