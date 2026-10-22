@@ -83,7 +83,10 @@ const buildSdkFilterTileTargets = (
     >((acc, [tileUuid, availableFilters]) => {
         if (!availableFilters) return acc;
 
-        const matchingField = availableFilters.find(matchesByTypeAndName);
+        const matchingField =
+            availableFilters.find(
+                (f) => f.table === filter.model && f.name === filter.field,
+            ) ?? availableFilters.find(matchesByTypeAndName);
         if (!matchingField) return acc;
 
         acc[tileUuid] = {

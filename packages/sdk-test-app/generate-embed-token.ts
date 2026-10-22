@@ -8,17 +8,13 @@ import jwt from 'jsonwebtoken';
 import knex, { type Knex } from 'knex';
 import pgConnectionString from 'pg-connection-string';
 const { parse } = pgConnectionString;
-import { config } from 'dotenv';
-import path from 'path';
-
-const originalEnv = { ...process.env };
-const rootDir = path.resolve(import.meta.dirname, '../..');
-config({ path: path.join(rootDir, '.env.development') });
-config({ path: path.join(rootDir, '.env.development.local'), override: true });
-Object.assign(process.env, originalEnv);
+import {
+    LIGHTDASH_URL,
+    lightdashApi,
+    loginToLightdash,
+} from './dev-lightdash-api';
 
 const LIGHTDASH_SECRET = process.env.LIGHTDASH_SECRET || 'not very secret';
-const LIGHTDASH_URL = process.env.SITE_URL || 'http://localhost:8080';
 
 function encrypt(message: string, secret: string): Buffer {
     const saltLength = 64;
@@ -55,42 +51,6 @@ function decrypt(encrypted: Buffer, secret: string): string {
     });
     decipher.setAuthTag(tag);
     return `${decipher.update(encryptedMessage, undefined, 'utf-8')}${decipher.final()}`;
-}
-
-type ApiResponse<T> = { status: 'ok'; results: T } | { status: 'error' };
-
-async function loginToLightdash(): Promise<string> {
-    const response = await fetch(`${LIGHTDASH_URL}/api/v1/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            email: 'demo@lightdash.com',
-            password: 'demo_password!',
-        }),
-    });
-    const cookie = response.headers.get('set-cookie')?.split(';')[0];
-    if (!response.ok || !cookie) {
-        throw new Error(`Login failed with HTTP ${response.status}`);
-    }
-    return cookie;
-}
-
-async function lightdashApi<T>(
-    cookie: string,
-    method: string,
-    apiPath: string,
-    body?: unknown,
-): Promise<T> {
-    const response = await fetch(`${LIGHTDASH_URL}${apiPath}`, {
-        method,
-        headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    const json = (await response.json()) as ApiResponse<T>;
-    if (json.status !== 'ok') {
-        throw new Error(`${method} ${apiPath} failed: ${JSON.stringify(json)}`);
-    }
-    return json.results;
 }
 
 type AiAgentPermissions = { sql: boolean; download: boolean };

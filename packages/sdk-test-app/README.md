@@ -57,6 +57,7 @@ The examples currently include:
 - `I18n demo`
 - `Filters demo`
 - `Palette UUID demo`
+- `Analytics dashboard demo`
 
 The content catalog example calls `useLightdashContent`. It uses the configured
 embed token against the SDK-supported content endpoint. Prefer an `apiAccess`
@@ -103,6 +104,57 @@ The script:
 To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
 running the generator.
 
+## Analytics Dashboard Demo
+
+The `Analytics dashboard demo` shows a host product page around one
+embedded dashboard. The example page only holds the Lightdash SDK code: the
+`Lightdash.Dashboard` component and the mapping from host filter values to
+SDK `filters`. The host navigation, tabs and filter bar are placeholders in
+`src/examples/analytics-dashboard/HostPlaceholders.tsx`. Host filters reach the
+dashboard when you press **Apply**.
+
+The dashboard uses the jaffle `subscriptions` model and three custom chart
+types built for
+[Chart Studio](https://docs.lightdash.com/visualizations/chart-studio):
+
+- `rate-trend`: the cancellation rate with **Overall / By plan** buttons,
+  series chips, a target line and a summary sentence.
+- `breakdown-bars`: new subscriptions per month with **Overall / By ...**
+  buttons and series chips.
+- `composition-stack`: recurring revenue by plan as stacked bars, with a
+  proportional summary bar, chips that show or hide a plan, and a total line.
+
+Chart types run no queries, so the buttons regroup and filter the rows the
+saved chart already returned. Each saved chart queries at the grain of the
+month plus every breakdown dimension, and uses additive metrics.
+
+The chart type sources live in `analytics-chart-types/`. Only each
+manifest (`lightdash-app.yml`) and its authored `src/` files are committed.
+The server rebuilds an upload against its chart type template, which supplies
+`main.jsx` and the other template files. To preview one locally, scaffold a
+chart type with `lightdash apps create --chart-type` and copy the committed
+files over it.
+
+Setup needs an Enterprise license, the `embedding` feature flag and the data
+apps runtime (`SANDBOX_PROVIDER=docker` with the `lightdash-sandbox:local`
+image locally). Build the CLI with `pnpm -F @lightdash/cli build`, then run:
+
+```bash
+pnpm -F @lightdash/sdk-test-app setup-analytics-dashboard
+```
+
+The script uploads the chart types and waits for their builds. If the
+`Analytics` dashboard doesn't exist yet, it creates the three saved charts and
+the dashboard in a `SDK analytics example` space. It then prints
+`VITE_ANALYTICS_EMBED_URL` for `.env.local`. The token hides the built-in
+filter bar and enables **Explore from here** in the tile menu.
+
+Chart type tiles render in iframes served with `frame-ancestors 'self'
+https://*`. A host on plain `http://localhost:<port>` is blocked, so the tiles
+stay empty in a default local setup. Serve the test app and Lightdash from one
+origin, for example a local proxy that sends `/api/*` to the backend and
+everything else to this app, and point `VITE_ANALYTICS_EMBED_URL` at it.
+
 ## Available Scripts
 
 In the `packages/sdk-test-app` directory, you can run:
@@ -111,3 +163,4 @@ In the `packages/sdk-test-app` directory, you can run:
 - `pnpm start`: Runs `vite serve`.
 - `pnpm build`: Builds the application for production.
 - `pnpm generate-embed-token`: Generates a demo embed URL using your local Lightdash data.
+- `pnpm setup-analytics-dashboard`: Uploads the analytics chart types, creates the `Analytics` dashboard and prints its embed URL.

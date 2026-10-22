@@ -7,7 +7,8 @@
         "start": "vite preview --host --port 3002",
         "dev": "vite --host --port 3002",
         "build": "vite build",
-        "generate-embed-token": "node --import tsx generate-embed-token.ts"
+        "generate-embed-token": "node --import tsx generate-embed-token.ts",
+        "setup-analytics-dashboard": "node --import tsx setup-analytics-dashboard.ts"
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",

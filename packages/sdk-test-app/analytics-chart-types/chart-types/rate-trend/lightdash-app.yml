@@ -1,0 +1,61 @@
+codeVersion: 1
+projectUuid: 3675b69e-8324-4110-bdca-059031aa8da3
+slug: rate-trend
+version: 1
+name: Rate trend
+description: Line chart of a ratio over time with Overall/By-dimension toggles,
+  series filters, a target line and a summary sentence.
+template: data_app_viz
+vizSchema:
+  fields:
+    - name: time
+      label: Period
+      type: dimension
+      required: true
+      description: Time dimension, one point per period.
+    - name: numerator
+      label: Numerator
+      type: metric
+      required: true
+      description: Additive count of successes, for example completed orders.
+    - name: denominator
+      label: Denominator
+      type: metric
+      required: true
+      description: Additive count of all cases, for example all orders.
+    - name: breakdowns
+      label: Breakdowns
+      type: dimension
+      required: false
+      multiple: true
+      description: Dimensions offered as By buttons. Include them in the query.
+  configOptions:
+    - type: text
+      name: subtitle
+      label: Subtitle
+      default: ""
+    - type: number
+      name: target
+      label: Target (%)
+      group: Target
+      default: 70
+      min: 0
+      max: 100
+    - type: text
+      name: targetLabel
+      label: Target label
+      group: Target
+      default: Target
+    - type: boolean
+      name: showSummary
+      label: Show summary sentence
+      default: true
+    - type: boolean
+      name: useFieldColors
+      label: Use colors defined on the breakdown fields
+      group: Colors
+      default: true
+  colorPalette: {}
+  inputGuidance: Query at the grain of the period plus every breakdown dimension. The rate is recomputed from the summed numerator and denominator.
+downloadedAt: 2026-10-22T14:45:54.317Z
+scaffoldingVersion: 3.30.1

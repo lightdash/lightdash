@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
+import { AnalyticsDashboardExamplePage } from './AnalyticsDashboardExamplePage';
 import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
@@ -159,6 +160,16 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/MultipleEmbedsExamplePage.tsx',
         component: MultipleEmbedsExamplePage,
+    },
+    {
+        slug: 'analytics-dashboard',
+        path: '/examples/analytics-dashboard',
+        title: 'Analytics dashboard demo',
+        description:
+            'A host product page with its own tabs and filter bar around a dashboard built from Chart Studio chart types with in-chart group-by and filter buttons.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/AnalyticsDashboardExamplePage.tsx',
+        component: AnalyticsDashboardExamplePage,
     },
     // Future examples:
     // {

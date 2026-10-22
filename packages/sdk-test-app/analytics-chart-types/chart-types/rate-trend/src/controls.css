@@ -1,0 +1,144 @@
+.chart-root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.25rem 0.5rem 0.5rem;
+    box-sizing: border-box;
+    font-family: var(--ll-font);
+    color: var(--ll-ink);
+}
+
+.chart-subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: var(--ll-text-muted);
+}
+
+.chart-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    padding: 0.2rem;
+    border-radius: 0.55rem;
+    background: var(--ll-tooltip-pill-border);
+    border: 1px solid var(--ll-border);
+}
+
+.segmented-button {
+    appearance: none;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ll-text);
+    padding: 0.3rem 0.65rem;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.segmented-button[aria-pressed='true'] {
+    background: var(--ll-tooltip-bg);
+    color: var(--ll-ink);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ll-ink);
+    background: var(--ll-tooltip-bg);
+    border: 1px solid var(--ll-border);
+    border-radius: 999px;
+    padding: 0.25rem 0.6rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.chip[aria-pressed='false'] {
+    color: var(--ll-text-muted);
+    text-decoration: line-through;
+}
+
+.chip[aria-pressed='false'] .chip-swatch {
+    opacity: 0.3;
+}
+
+.chip-swatch {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 0.15rem;
+    flex: 0 0 auto;
+}
+
+.chip-icon {
+    width: 0.85rem;
+    height: 0.85rem;
+    color: var(--ll-text-muted);
+}
+
+.legend-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ll-text);
+}
+
+.chart-body {
+    flex: 1 1 auto;
+    min-height: 10rem;
+}
+
+.chart-summary {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--ll-ink);
+}
+
+.placeholder {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    color: var(--ll-text);
+    font-family: var(--ll-font);
+}
+
+.composition-bar {
+    display: flex;
+    gap: 0.2rem;
+    height: 1.4rem;
+}
+
+.composition-segment {
+    border-radius: 0.2rem;
+    min-width: 0.2rem;
+}

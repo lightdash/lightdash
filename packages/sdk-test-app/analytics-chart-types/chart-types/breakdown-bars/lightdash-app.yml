@@ -1,0 +1,48 @@
+codeVersion: 1
+projectUuid: 3675b69e-8324-4110-bdca-059031aa8da3
+slug: breakdown-bars
+version: 1
+name: Breakdown bars
+description: Bars per period with Overall/By-dimension toggles and series
+  filters, regrouping additive metrics client-side.
+template: data_app_viz
+vizSchema:
+  fields:
+    - name: time
+      label: Period
+      type: dimension
+      required: true
+      description: Time dimension, one bar group per period.
+    - name: value
+      label: Value
+      type: metric
+      required: true
+      description: Additive metric such as a count or a sum.
+    - name: breakdowns
+      label: Breakdowns
+      type: dimension
+      required: false
+      multiple: true
+      description: Dimensions offered as By buttons. Include them in the query.
+  configOptions:
+    - type: text
+      name: subtitle
+      label: Subtitle
+      default: ""
+    - type: text
+      name: legendLabel
+      label: Overall legend label
+      default: All
+    - type: boolean
+      name: showLabels
+      label: Show value labels
+      default: false
+    - type: boolean
+      name: useFieldColors
+      label: Use colors defined on the breakdown fields
+      group: Colors
+      default: true
+  colorPalette: {}
+  inputGuidance: Query at the grain of the period plus every breakdown dimension. Overall sums the groups, so use an additive metric.
+downloadedAt: 2026-10-22T14:46:52.400Z
+scaffoldingVersion: 3.30.1

@@ -112,6 +112,22 @@ describe('convertSdkFilterToDashboardFilter', () => {
         });
     });
 
+    it('prefers the exact model field when a tile also has a joined field with the same name', () => {
+        const result = convertSdkFilterToDashboardFilter(baseFilter, {
+            tile1: [
+                makeDimension('methods', 'payment_method'),
+                makeDimension('payments', 'payment_method'),
+            ],
+        });
+
+        expect(result.tileTargets).toEqual({
+            tile1: {
+                fieldId: 'payments_payment_method',
+                tableName: 'payments',
+            },
+        });
+    });
+
     it('excludes tiles with no matching field', () => {
         const result = convertSdkFilterToDashboardFilter(baseFilter, {
             tile1: [makeDimension('payments', 'payment_method')],

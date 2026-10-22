@@ -1,0 +1,11 @@
+# Commit only the manifest and authored sources. Upload rebuilds against the
+# server's chart type template, which supplies main.jsx and the other files.
+chart-types/*/*
+!chart-types/*/lightdash-app.yml
+!chart-types/*/src/
+chart-types/*/src/*
+!chart-types/*/src/App.jsx
+!chart-types/*/src/aggregate.js
+!chart-types/*/src/controls.css
+!chart-types/*/src/controls.jsx
+!chart-types/*/src/lightdash-library.css

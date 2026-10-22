@@ -1,0 +1,49 @@
+codeVersion: 1
+projectUuid: 3675b69e-8324-4110-bdca-059031aa8da3
+slug: composition-stack
+version: 1
+name: Composition stack
+description: Stacked bars per period with a proportional summary bar, show/hide
+  component chips and a total line.
+template: data_app_viz
+vizSchema:
+  fields:
+    - name: time
+      label: Period
+      type: dimension
+      required: true
+      description: Time dimension, one stacked bar per period.
+    - name: component
+      label: Component
+      type: dimension
+      required: true
+      description: Dimension whose values are the stacked segments.
+    - name: value
+      label: Value
+      type: metric
+      required: true
+      description: Additive metric stacked per component.
+  configOptions:
+    - type: text
+      name: subtitle
+      label: Subtitle
+      default: ""
+    - type: boolean
+      name: showTotal
+      label: Show total line
+      group: Total
+      default: true
+    - type: text
+      name: totalLabel
+      label: Total label
+      group: Total
+      default: Total
+    - type: boolean
+      name: useFieldColors
+      label: Use colors defined on the component field
+      group: Colors
+      default: true
+  colorPalette: {}
+  inputGuidance: Query the period, the component dimension and one additive metric. Hidden components are removed from the stacks and the total.
+downloadedAt: 2026-10-22T14:47:10.382Z
+scaffoldingVersion: 3.30.1
