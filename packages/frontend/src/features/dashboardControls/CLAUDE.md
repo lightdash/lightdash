@@ -216,7 +216,8 @@ In `FilterConfiguration/`:
   still what the press wrote (`isFilterRuleDirty`, as "changed" reads it,
   so a write from outside the editor ends it too) and, for a this-tab
   apply, that tab is in view; else null. `undo` is dropped by any
-  `updateFilter` and `updateOtherFilters`, by any change of the clicked
+  `updateFilter`, `updateOtherFilters` and `removeWaitingField` (Undo
+  would bring the removed field back), by any change of the clicked
   field (`setHighlightedFieldId` with another id or null,
   `clearHighlightedField`; clicking the same field keeps it), by opening
   another control or a placeholder and when the edit ends (`resetEdit`).
@@ -312,6 +313,13 @@ In `FilterConfiguration/`:
   unclicks it and drops that field's hover with it, so the tiles show
   everything again while the pointer is still on the row. Use it for every way
   out, never `setHighlightedFieldId(null)` from a row.
+- The context's `highlightedFieldId` (and `activeFieldId` through it) is
+  derived: the clicked id only while it is a field of the filter, a waiting
+  field or the field of a live `fieldUndo`, else null. So a field that a
+  clear took off its last tile stays clicked as long as its undo, and is no
+  longer clicked once the undo ends or is hidden on another tab, for the
+  tiles, the tab badges, the bar and Escape alike. Nothing resets it in an
+  effect.
 
 ## Dismissing (`useEditorDismiss`)
 
@@ -658,7 +666,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     field, the tiles they end on and the scope: "Apply <field> to all 8
     tiles on this tab", "Apply <field> to all 23 tiles on every tab"
     ("Apply <field> to all 8 tiles" without tabs), plus ", replacing
-    <fields> on k" when it would replace another field. "Clear" is named
+    <fields> on k tiles" when it would replace another field. "Clear" is named
     "Clear <field> from this tab" ("Clear <field> from tiles" without tabs).
     An apply button has a tooltip only when it would replace another field:
     "Replaces <fields> on k tiles" (`nameReplacedFields`: one or two by name
@@ -682,7 +690,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     and below, so at the end of the page the last tile row and its cards
     clear the bar. Below the `sm` breakpoint it floats above the page's
     scroll-to-top button (`--controls-scroll-top-clearance`, from
-    `ScrollToTop`'s size and offset) and keeps that much margin below it.
+    `--dashboard-scroll-to-top-reach`: the button's size plus its highest
+    offset, the one it has while the AI launcher is mounted, both in
+    `dashboard.constants.ts`) and keeps that much margin below it.
     `z-index: 3`: above the
     tile overlays (2), below the sticky tabs, menus and modals. It is not in
     `ControlsBar`: that would put it in the sticky filter bar.

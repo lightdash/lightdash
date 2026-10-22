@@ -222,15 +222,6 @@ describe('FieldTilesBar', () => {
             expect(queryBar()).not.toBeInTheDocument();
         });
 
-        it('is hidden for a clicked field the filter no longer lists', () => {
-            setSidebar(rule('orders_status'), {
-                highlightedFieldId: 'orders_region',
-            });
-            renderWithProviders(<Dashboard />);
-
-            expect(queryBar()).not.toBeInTheDocument();
-        });
-
         it('sits right after the tile grid and leaves when the field is unclicked', () => {
             setSidebar(rule('orders_status'));
             const { rerender } = renderWithProviders(<Dashboard />);
@@ -330,7 +321,7 @@ describe('FieldTilesBar', () => {
             expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply Status to all 3 tiles, replacing Region on 1',
+                    name: 'Apply Status to all 3 tiles, replacing Region on 1 tile',
                 }),
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
@@ -359,7 +350,7 @@ describe('FieldTilesBar', () => {
 
             await userEvent.hover(
                 screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles, replacing Region and City on 2',
+                    name: 'Apply Status to all 2 tiles, replacing Region and City on 2 tiles',
                 }),
             );
             expect(
@@ -547,7 +538,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('Region')).toHaveTextContent(/^0 of 1 tile$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply Region to all 1 tile, replacing Status on 1',
+                    name: 'Apply Region to all 1 tile, replacing Status on 1 tile',
                 }),
             );
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-1': REGION });
@@ -727,7 +718,7 @@ describe('FieldTilesBar', () => {
 
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: `${EVERY_TAB(4)}, replacing Region on 1`,
+                    name: `${EVERY_TAB(4)}, replacing Region on 1 tile`,
                 }),
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
@@ -861,7 +852,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('country')).toHaveTextContent(/^0 of 2 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply country to all 2 tiles, replacing city on 1',
+                    name: 'Apply country to all 2 tiles, replacing city on 1 tile',
                 }),
             );
             const next = getAppliedRule();

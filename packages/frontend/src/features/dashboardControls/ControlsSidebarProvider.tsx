@@ -836,7 +836,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     }, []);
 
     const removeWaitingField = useCallback(
-        (fieldId: string) =>
+        (fieldId: string) => {
+            // Undo would bring the removed field back
+            writeUndo(null);
             setWaiting((current) =>
                 current === null
                     ? null
@@ -846,8 +848,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                               (id) => id !== fieldId,
                           ),
                       },
-            ),
-        [],
+            );
+        },
+        [writeUndo],
     );
 
     const removeFilterById = useCallback(
@@ -1072,9 +1075,31 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 : null,
         [undo, state, dashboardFilters, activeTabUuid, toSavedRule],
     );
+    // The clicked field, while it is one: a field of the filter, a waiting
+    // field, or the field of a live undo. A clear that took it off its last
+    // tile leaves it clicked only as long as that undo
+    const clickedFieldId = useMemo(
+        () =>
+            highlightedFieldId !== null &&
+            editingRule !== null &&
+            (getFilterFields(editingRule, dashboardTiles).includes(
+                highlightedFieldId,
+            ) ||
+                waitingFieldIds.includes(highlightedFieldId) ||
+                fieldUndo?.fieldId === highlightedFieldId)
+                ? highlightedFieldId
+                : null,
+        [
+            highlightedFieldId,
+            editingRule,
+            dashboardTiles,
+            waitingFieldIds,
+            fieldUndo,
+        ],
+    );
     useEditorDismiss({
         isOpen: isRailOpen,
-        isFieldClicked: highlightedFieldId !== null,
+        isFieldClicked: clickedFieldId !== null,
         clearField: clearHighlightedField,
         close,
     });
@@ -1112,12 +1137,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,
-            highlightedFieldId,
+            highlightedFieldId: clickedFieldId,
             setHighlightedFieldId: selectField,
             clearHighlightedField,
             hoveredFieldId,
             setHoveredFieldId,
-            activeFieldId: hoveredFieldId ?? highlightedFieldId,
+            activeFieldId: hoveredFieldId ?? clickedFieldId,
             updateFilter,
             applyWithUndo,
             undoApply,
@@ -1163,7 +1188,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,
-            highlightedFieldId,
+            clickedFieldId,
             clearHighlightedField,
             hoveredFieldId,
             updateFilter,

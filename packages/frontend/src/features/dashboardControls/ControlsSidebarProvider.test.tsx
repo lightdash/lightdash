@@ -1967,6 +1967,115 @@ describe('ControlsSidebarProvider', () => {
                 expect(result.current.fieldUndo).toBeNull();
             });
 
+            it('ends when a waiting field is removed, so Undo cannot bring it back', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() => result.current.updateFilter(onStatus(undefined)));
+                act(() => result.current.addWaitingField('orders_region'));
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(onStatus({ t1: false }), {
+                        kind: 'clear',
+                        fieldId: 'orders_status',
+                        tileCount: 1,
+                        replaced: 0,
+                        acrossTabs: false,
+                    }),
+                );
+                expect(result.current.fieldUndo).not.toBeNull();
+
+                act(() => result.current.removeWaitingField('orders_region'));
+                expect(result.current.fieldUndo).toBeNull();
+                act(() => result.current.undoApply());
+                expect(result.current.waitingFieldIds).toEqual([]);
+            });
+
+            describe('a clicked field a clear took off its last tile', () => {
+                const CLEAR_REGION = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_region',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                const clearRegion = (result: {
+                    current: ControlsSidebarContextValue;
+                }) => {
+                    act(() => result.current.open('a'));
+                    act(() =>
+                        result.current.updateFilter(onStatus({ t1: region })),
+                    );
+                    act(() =>
+                        result.current.setHighlightedFieldId('orders_region'),
+                    );
+                    act(() =>
+                        result.current.applyWithUndo(
+                            onStatus({ t1: false }),
+                            CLEAR_REGION,
+                        ),
+                    );
+                };
+
+                it('is never clicked when it is not a field of the filter', () => {
+                    const { result } = setup();
+                    act(() => result.current.open('a'));
+                    act(() =>
+                        result.current.setHighlightedFieldId('orders_region'),
+                    );
+                    expect(result.current.highlightedFieldId).toBeNull();
+                });
+
+                it('stays clicked while its undo lives, and is no field once it ends', () => {
+                    const { result } = setup();
+                    clearRegion(result);
+                    expect(result.current.highlightedFieldId).toBe(
+                        'orders_region',
+                    );
+                    expect(result.current.activeFieldId).toBe('orders_region');
+
+                    act(() =>
+                        result.current.updateFilter({
+                            ...(result.current
+                                .editingRule as DashboardFilterRule),
+                            values: ['2'],
+                        }),
+                    );
+                    expect(result.current.fieldUndo).toBeNull();
+                    expect(result.current.highlightedFieldId).toBeNull();
+                    expect(result.current.activeFieldId).toBeNull();
+                });
+
+                it('is hidden on another tab and back with its live undo', () => {
+                    const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                    const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                    const { result } = setup();
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_1),
+                        );
+                    });
+                    clearRegion(result);
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_2),
+                        );
+                    });
+                    expect(result.current.highlightedFieldId).toBeNull();
+
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_1),
+                        );
+                    });
+                    expect(result.current.fieldUndo).toEqual(CLEAR_REGION);
+                    expect(result.current.highlightedFieldId).toBe(
+                        'orders_region',
+                    );
+                });
+            });
+
             it('ends when the editor writes another filter', () => {
                 const { result } = setup();
                 applyRegionToAll(result);
@@ -2057,8 +2166,8 @@ describe('ControlsSidebarProvider', () => {
     it('the hovered field wins over the highlighted one', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
-        act(() => result.current.setHighlightedFieldId('x'));
-        expect(result.current.activeFieldId).toBe('x');
+        act(() => result.current.setHighlightedFieldId('orders_a'));
+        expect(result.current.activeFieldId).toBe('orders_a');
         act(() => result.current.setHoveredFieldId('y'));
         expect(result.current.activeFieldId).toBe('y');
         act(() => result.current.close());

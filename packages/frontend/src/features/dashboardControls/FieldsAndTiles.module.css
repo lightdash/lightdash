@@ -61,6 +61,8 @@
 /* The press scales the name, not the button: a transform on the button would
    shrink the click area above to the button itself */
 .rowLabel {
+    /* Lets a long name shrink and end in an ellipsis */
+    min-width: 0;
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
 

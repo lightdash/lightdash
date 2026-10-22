@@ -1,6 +1,7 @@
 import { ActionIcon, Affix, Transition } from '@mantine/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { SCROLL_TO_TOP_SIZE } from './Dashboard/dashboard.constants';
 import MantineIcon from './MantineIcon';
 
 type ScrollToTopProps = {
@@ -46,7 +47,7 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
             <Transition transition="slide-up" mounted={show}>
                 {(transitionStyles) => (
                     <ActionIcon
-                        size={40}
+                        size={SCROLL_TO_TOP_SIZE}
                         radius="xl"
                         variant="default"
                         color="gray"

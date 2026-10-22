@@ -2,14 +2,10 @@ import { Button, Divider, Group, Paper, Text, Tooltip } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
-import {
-    selectActiveTabUuid,
-    selectDashboardTiles,
-    useDashboardSelector,
-} from '../dashboard/store';
+import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
-import { getFilterFields, type FieldScope } from './peers';
+import { type FieldScope } from './peers';
 import {
     useControlsSidebarSelector,
     type FieldApply,
@@ -90,7 +86,7 @@ const getUseOnAll = (
     const name = `Apply ${fieldTiles.label} to all ${scope.possible} ${pluralizeTiles(scope.possible)}${where}`;
     return scope.replaced > 0
         ? {
-              name: `${name}, replacing ${replaced} on ${scope.replaced}`,
+              name: `${name}, replacing ${replaced} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`,
               tooltip: `Replaces ${replaced} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`,
           }
         : { name, tooltip: null };
@@ -267,27 +263,14 @@ export const FieldTilesBar: FC = () => {
     const highlightedFieldId = useControlsSidebarSelector(
         (c) => c.highlightedFieldId,
     );
-    const waitingFieldIds = useControlsSidebarSelector(
-        (c) => c.waitingFieldIds,
-    );
     const fieldUndo = useControlsSidebarSelector((c) => c.fieldUndo);
     const undoApply = useControlsSidebarSelector((c) => c.undoApply);
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
-    const fieldId =
-        editingRule !== null &&
-        highlightedFieldId !== null &&
-        (getFilterFields(editingRule, dashboardTiles).includes(
-            highlightedFieldId,
-        ) ||
-            waitingFieldIds.includes(highlightedFieldId) ||
-            // A clear that took the field off its last tile can be undone
-            fieldUndo?.fieldId === highlightedFieldId)
-            ? highlightedFieldId
-            : null;
+    // The provider only names a field that still is one
+    const fieldId = editingRule === null ? null : highlightedFieldId;
     const isShown = fieldTileActions !== null && fieldId !== null;
     const host = useBarHost(activeTabUuid, isShown);
 

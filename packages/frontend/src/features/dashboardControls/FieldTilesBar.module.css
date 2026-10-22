@@ -1,9 +1,9 @@
 /* Sticky after the grid, so it floats at the bottom and never moves a tile.
    Above the tile overlays (z-index 2), below the sticky tabs */
 .host {
-    /* The page's scroll-to-top button (`ScrollToTop`): 40px, 24px up */
+    /* Over the dashboard's scroll-to-top button, launcher or not */
     --controls-scroll-top-clearance: calc(
-        24px + 40px + var(--mantine-spacing-xs)
+        var(--dashboard-scroll-to-top-reach) + var(--mantine-spacing-xs)
     );
 
     position: sticky;

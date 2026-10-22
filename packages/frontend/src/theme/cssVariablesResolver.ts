@@ -8,6 +8,8 @@ import {
     DASHBOARD_HEADER_ZINDEX,
     DASHBOARD_TAB_HEIGHT,
     DASHBOARD_TABS_ZINDEX,
+    SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
+    SCROLL_TO_TOP_SIZE,
 } from '../components/common/Dashboard/dashboard.constants';
 import { CELL_HEIGHT as LIGHT_TABLE_CELL_HEIGHT } from '../components/common/LightTable/constants';
 import {
@@ -69,6 +71,8 @@ export const cssVariablesResolver: CSSVariablesResolver = (theme) => ({
         '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
         '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
+        // The highest the dashboard's scroll-to-top button reaches
+        '--dashboard-scroll-to-top-reach': `${SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER + SCROLL_TO_TOP_SIZE}px`,
         '--ld-field-dimension-bg': LD_FIELD_COLORS.dimension.bg,
         '--ld-field-dimension-bg-hover': LD_FIELD_COLORS.dimension.bgHover,
         '--ld-field-dimension-color': LD_FIELD_COLORS.dimension.color,
