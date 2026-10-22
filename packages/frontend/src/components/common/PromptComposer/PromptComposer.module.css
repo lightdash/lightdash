@@ -426,9 +426,9 @@
     min-width: 0;
 }
 
-/* The submit controls keep their width; the left section absorbs the squeeze. */
+/* Call sites whose left section scrolls set this to 0 so the submit controls keep their width. */
 .toolbarSection:last-child {
-    flex-shrink: 0;
+    flex-shrink: var(--composer-toolbar-right-shrink, 1);
 }
 
 .inlineActions {
