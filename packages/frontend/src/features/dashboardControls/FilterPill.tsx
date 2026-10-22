@@ -38,6 +38,7 @@ type Props = {
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
+    triggerClassName: string | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
@@ -54,6 +55,7 @@ export const FilterPill: FC<Props> = memo(
         activeTabUuid,
         hasTabs,
         dashboardUuid,
+        triggerClassName,
     }) => {
         const { track } = useTracking();
         const getUiString = useUiStrings();
@@ -125,6 +127,7 @@ export const FilterPill: FC<Props> = memo(
                         }
                         removeLabel={getUiString('filters.rail.removeFilter')}
                         isTablesTooltipDisabled={isSelected}
+                        triggerClassName={triggerClassName}
                         aria-pressed={isSelected}
                         data-controls-pill={filter.id}
                         disabled={isDisabled}

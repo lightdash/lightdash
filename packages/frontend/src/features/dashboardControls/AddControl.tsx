@@ -15,12 +15,15 @@ type Props = {
      * reset button in view mode. The rail's footer has neither.
      */
     placement: 'bar' | 'rail';
+    /** An embed's class contract hook on the trigger (default none). */
+    triggerClassName?: string;
 };
 
 // The shipped "Add filter". Its popover is never given an id to open on, so a
 // click only calls `onPopoverOpen`, which opens a new control
-export const AddControl: FC<Props> = ({ placement }) => {
+export const AddControl: FC<Props> = ({ placement, triggerClassName }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
+    const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const resetDashboardFilters = useDashboardContext(
@@ -29,10 +32,12 @@ export const AddControl: FC<Props> = ({ placement }) => {
     const isBarOfViewer = isViewer && placement === 'bar';
     // Hidden from viewers by the editor's eye
     if (isViewer && placement === 'rail' && isAddFilterDisabled) return null;
+    if (!canAddFilters) return null;
     return (
         <AddFilterButton
             isEditMode={!isBarOfViewer}
             isVisibilityToggleHidden={placement === 'rail'}
+            triggerClassName={triggerClassName}
             activeTabUuid={undefined}
             openPopoverId={undefined}
             onPopoverOpen={() => openNew()}

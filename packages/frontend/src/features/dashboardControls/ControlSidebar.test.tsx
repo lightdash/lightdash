@@ -103,6 +103,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     const value: ControlsSidebarContextValue = {
         editing: { filterId: 'filter-1' },
         isViewer: false,
+        canAddFilters: true,
         isSavedValue: false,
         isNew: true,
         isPlaceholder: false,

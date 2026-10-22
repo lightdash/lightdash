@@ -31,6 +31,8 @@ export type ControlsSidebarContextValue = {
      * filters, and a saved filter only changes its value.
      */
     isViewer: boolean;
+    /** False in an embed whose viewers may not add filters: no "Add filter". */
+    canAddFilters: boolean;
     /** A viewer is changing a saved filter's value: no tiles, no remove. */
     isSavedValue: boolean;
     /** The edited control was started with Add in this sidebar session. */

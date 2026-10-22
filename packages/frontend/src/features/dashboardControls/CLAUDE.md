@@ -185,6 +185,29 @@ In `FilterConfiguration/`:
   shipped pills list them) follow as outline pills (`kind="viewerOwn"`) that
   open the rail, with an X that is `removeFilterById`.
 
+## Embeds
+
+- `EmbedDashboard` always wraps its page in `ControlsSidebarProvider` (it
+  adds no DOM) with `canAddFilters` from the shipped
+  `canAddDashboardFiltersInEmbed(dashboardFiltersInteractivity)`; under the
+  flag, and outside an embed editor's edit mode, it also renders
+  `TileOverlays`, `TabCounts` and `FieldTilesBar`, and its grid row puts
+  `ControlSidebar` first with `CONTROLS_RAIL_LAYOUT`. The embed has no route
+  `mode`, so the editor is a viewer's; `ADD_FILTER_CLICKED` tracks `embed`.
+  Which saved filters exist is the shipped interactivity's
+  (`applyEmbedFilterInteractivity` on the store), so the rail lists what
+  the shipped bar would.
+- `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
+  `isControlsEnabled` (default false). With it the bar holds `AddControl`
+  and `FilterPills` with the embed class contract (`ld-dashboard-add-filter`
+  on "Add filter", `ld-dashboard-filter` on each pill), the shipped reset
+  button (`EmbedResetFiltersButton`, moved out of `EmbedDashboardFilters`)
+  where viewers may not add filters, and `EditingStrip` while the rail is
+  open. `AddControl` renders nothing while `canAddFilters` is false. URL
+  sync, and its skip in SDK mode, stay the shipped `DashboardFiltersSync`.
+- An embed resolves the flag with no user (JWT), so only instance-wide
+  enablement reaches it, never a Console organisation override.
+
 ## Provider contract (`useControlsSidebar`)
 
 - The context is a `use-context-selector` context, like the dashboard's.

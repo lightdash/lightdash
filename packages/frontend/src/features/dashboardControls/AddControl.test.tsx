@@ -15,6 +15,7 @@ const mockSidebar = vi.hoisted(() => ({
     current: {
         isSidebarOpen: false,
         isViewer: false,
+        canAddFilters: true,
         isNew: false,
         isPlaceholder: false,
         openNew: vi.fn(),
@@ -67,6 +68,7 @@ describe('AddControl', () => {
         mockSidebar.current = {
             isSidebarOpen: false,
             isViewer: false,
+            canAddFilters: true,
             isNew: false,
             isPlaceholder: false,
             openNew: vi.fn(),

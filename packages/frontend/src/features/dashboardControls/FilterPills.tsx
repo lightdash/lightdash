@@ -32,6 +32,8 @@ import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = {
     activeTabUuid: string | undefined;
+    /** An embed's class contract hook on each pill (default none). */
+    triggerClassName?: string;
 };
 
 type FilterPillGroup = 'dimensions' | 'metrics';
@@ -40,7 +42,7 @@ const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
 const noop = () => {};
 
-export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
+export const FilterPills: FC<Props> = ({ activeTabUuid, triggerClassName }) => {
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
     );
@@ -139,12 +141,14 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                     onPopoverClose={noop}
                     onUpdate={noop}
                     onRemove={noop}
+                    triggerClassName={triggerClassName}
                 />
             );
         }
         return (
             <FilterPill
                 kind={kind}
+                triggerClassName={triggerClassName}
                 filter={filter}
                 field={field}
                 {...getOrphanedState(filter, appliesToTabs)}

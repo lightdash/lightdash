@@ -279,7 +279,13 @@ const getFirstFieldRule = (
         isViewer,
     );
 
-export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
+type ProviderProps = PropsWithChildren<{
+    /** An embed may let viewers change filters but not add them (default true). */
+    canAddFilters?: boolean;
+}>;
+
+export const ControlsSidebarProvider: FC<ProviderProps> = ({
+    canAddFilters = true,
     children,
 }) => {
     // The dashboard's own Save or Cancel ends the edit; nothing is restored.
@@ -1222,6 +1228,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         () => ({
             editing,
             isViewer,
+            canAddFilters,
             isSavedValue: state?.isSavedValue ?? false,
             isNew: state?.isNew ?? false,
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
@@ -1282,6 +1289,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         [
             state,
             isViewer,
+            canAddFilters,
             isSidebarOpen,
             isRailOpen,
             hoveredFilterId,
