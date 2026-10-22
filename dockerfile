@@ -175,6 +175,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
+# Keep legacy adapters importable when rebuilding their unbounded dependencies.
+# dbt-bigquery 1.6 uses the cell-data API removed in BigQuery 3.31.
+# PyArrow 26 requires NumPy 2, but dbt 1.6/1.7 require NumPy 1.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /usr/local/dbt1.6/bin/pip install "google-cloud-bigquery<3.31.0" "pyarrow<26.0.0" \
+    && /usr/local/dbt1.7/bin/pip install "pyarrow<26.0.0"
+
 # -----------------------------
 # Stage 1: stop here for dev environment
 # -----------------------------
