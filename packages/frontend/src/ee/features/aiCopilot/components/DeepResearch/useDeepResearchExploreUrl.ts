@@ -37,6 +37,7 @@ export const useDeepResearchOpenInExploreUrl = (
             ],
             pivotColumns: getGroupByDimensions(webChartConfig),
             chartConfig: webChartConfig.echartsConfig,
+            parameters: undefined,
         });
         return `${pathname}?${search}`;
     }, [chart, projectUuid]);

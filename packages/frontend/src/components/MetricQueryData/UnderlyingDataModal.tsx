@@ -202,6 +202,7 @@ const UnderlyingDataModalContent: FC<{
                 type: ChartType.CARTESIAN,
                 config: { layout: {}, eChartsConfig: {} },
             },
+            parameters,
         };
         const url = getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
@@ -212,7 +213,7 @@ const UnderlyingDataModalContent: FC<{
         const params = new URLSearchParams(url.search);
         params.delete(MERGE_URL_PARAM);
         return { pathname: url.pathname, search: params.toString() };
-    }, [resultsData, projectUuid]);
+    }, [resultsData, projectUuid, parameters]);
 
     const navigate = useNavigate();
     const { mutateAsync: createShareUrl, isLoading: isCreatingShareUrl } =

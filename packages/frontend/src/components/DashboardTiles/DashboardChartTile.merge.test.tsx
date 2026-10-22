@@ -613,6 +613,20 @@ describe('DashboardChartTile embedded "Explore from here"', () => {
 
         expect(explored).toBe(chart);
     });
+
+    it('opens the Explore with the parameter values the tile ran with', async () => {
+        const explored = await exploreFromMinimalTile({
+            ...plainChartQuery,
+            chart: { ...plainChartQuery.chart, parameters: { region: 'EU' } },
+            executeQueryResponse: {
+                ...plainChartQuery.executeQueryResponse,
+                usedParametersValues: { region: 'UK' },
+                parameterReferences: ['region'],
+            },
+        });
+
+        expect(explored.parameters).toEqual({ region: 'UK' });
+    });
 });
 
 describe('DashboardChartTile Google Sheets export', () => {
