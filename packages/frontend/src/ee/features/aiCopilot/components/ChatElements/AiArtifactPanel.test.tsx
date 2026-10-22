@@ -394,6 +394,11 @@ const openChart = async () => {
 };
 const xAxisSelect = () => screen.getByRole('combobox', { name: 'X axis' });
 
+const openPipelineList = () => {
+    fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+    fireEvent.click(screen.getByRole('radio', { name: 'List' }));
+};
+
 describe('composer artifact', () => {
     const renderComposer = (
         chartConfig: AiComposerChartArtifactConfig,
@@ -424,7 +429,7 @@ describe('composer artifact', () => {
 
     it('expands into grouped rows by title', () => {
         renderComposer(composerConfig);
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        openPipelineList();
         expect(screen.getByText('Sources')).toBeInTheDocument();
         expect(screen.getByText('Result')).toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
@@ -440,7 +445,7 @@ describe('composer artifact', () => {
             ...composerConfig,
             queries: composerConfig.queries.map(({ title, ...query }) => query),
         });
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        openPipelineList();
         expect(screen.getByText('joined')).toBeInTheDocument();
         expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
     });
@@ -642,7 +647,7 @@ describe('composer viz config panel', () => {
         renderComposer(statusCounts);
         await openChart();
         expect(chartBar()).toHaveAttribute('aria-expanded', 'true');
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        openPipelineList();
         expect(chartBar()).toHaveAttribute('aria-expanded', 'false');
         expect(screen.getByText('Sources')).toBeInTheDocument();
         await openChart();
@@ -689,8 +694,7 @@ describe('composer displayed node', () => {
         return renderWithProviders(<AiArtifactPanel artifact={artifact} />);
     };
 
-    const expandPipeline = () =>
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+    const expandPipeline = openPipelineList;
 
     it('displays a node result from List mode with its title and a way back', async () => {
         renderComposer();
@@ -901,7 +905,7 @@ describe('composer per-node viz switcher', () => {
         renderComposer();
         await openChart();
         expect(selectedKind()).toBe('table');
-        fireEvent.click(screen.getByRole('button', { name: /queries/i }));
+        openPipelineList();
 
         // Other nodes get the switcher alone in the bar, no expand.
         display('Orders by status');
