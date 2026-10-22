@@ -12,7 +12,7 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { IconLock, IconLockOpen } from '@tabler/icons-react';
+import { IconAlertTriangle, IconLock, IconLockOpen } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -29,7 +29,6 @@ import {
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import RequiredFilterCard from '../dashboardFilters/FilterRequirements/RequiredFilterCard';
-import classes from './FilterSettings.module.css';
 import { isRuleRequired } from './requirements';
 import { findFilterRule } from './sidebarState';
 
@@ -236,9 +235,16 @@ export const ViewerControls: FC<Props> = ({
                     </>
                 )}
                 {isLockSwitchBlocked && (
-                    <Text fz="xs" className={classes.warning}>
-                        Give it a default value before locking it.
-                    </Text>
+                    <Group gap={6} wrap="nowrap" align="flex-start">
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            size={14}
+                            color="yellow.6"
+                        />
+                        <Text fz="xs" c="dimmed">
+                            Give it a default value before locking it.
+                        </Text>
+                    </Group>
                 )}
             </Stack>
 

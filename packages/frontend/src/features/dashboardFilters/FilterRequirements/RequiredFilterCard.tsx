@@ -9,7 +9,11 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { IconCircleDashed, IconPlus } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconCircleDashed,
+    IconPlus,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
@@ -141,9 +145,16 @@ const RequiredFilterCard: FC<Props> = ({
                 />
             </Group>
             {disabledReason && (
-                <Text size="xs" mt={6} className={classes.disabledReason}>
-                    {disabledReason}
-                </Text>
+                <Group gap={6} mt={6} wrap="nowrap" align="flex-start">
+                    <MantineIcon
+                        icon={IconAlertTriangle}
+                        size={14}
+                        color="yellow.6"
+                    />
+                    <Text size="xs" c="dimmed">
+                        {disabledReason}
+                    </Text>
+                </Group>
             )}
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">

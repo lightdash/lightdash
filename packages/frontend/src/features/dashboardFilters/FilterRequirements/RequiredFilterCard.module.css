@@ -32,7 +32,3 @@
 .buttonAnchor {
     font-family: inherit;
 }
-
-.disabledReason {
-    color: var(--mantine-color-yellow-text);
-}
