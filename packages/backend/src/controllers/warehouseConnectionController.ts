@@ -1,5 +1,7 @@
 import {
     assertRegisteredAccount,
+    getRequestMethod,
+    LightdashRequestMethodHeader,
     type ApiCreateWarehouseConnectionRequest,
     type ApiErrorPayload,
     type ApiRenameWarehouseConnectionRequest,
@@ -126,6 +128,7 @@ export class WarehouseConnectionController extends BaseController {
                     projectUuid,
                     warehouseConnectionUuid,
                     body,
+                    getRequestMethod(req.header(LightdashRequestMethodHeader)),
                 ),
         };
     }

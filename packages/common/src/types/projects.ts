@@ -794,7 +794,9 @@ export const maybeOverrideWarehouseConnection = <
  * This is useful when creating preview projects where we want to use new connection details
  * (like from dbt profiles) but preserve advanced configuration from the parent project.
  */
-export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
+export const mergeWarehouseCredentials = <
+    T extends CreateWarehouseCredentialsWithOptionalSecrets,
+>(
     baseCredentials: T,
     newCredentials: T,
 ): T => {

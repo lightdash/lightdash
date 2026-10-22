@@ -6576,6 +6576,48 @@ export class ProjectService
             data,
         );
 
+        let updateData = data;
+        if (
+            savedProject.type === ProjectType.PREVIEW &&
+            savedProject.upstreamProjectUuid &&
+            (method === RequestMethod.CLI || method === RequestMethod.CLI_CI) &&
+            data.warehouseConnection
+        ) {
+            const upstreamCredentials = await this.projectModel
+                .getWarehouseCredentialsForBinding(
+                    savedProject.upstreamProjectUuid,
+                    { kind: 'original' },
+                )
+                .catch((error) => {
+                    if (error instanceof NotFoundError) return undefined;
+                    throw error;
+                });
+            const refreshedCredentials = savedProject.warehouseConnection
+                ? mergeWarehouseCredentials(
+                      savedProject.warehouseConnection,
+                      data.warehouseConnection,
+                  )
+                : data.warehouseConnection;
+            updateData = {
+                ...data,
+                warehouseConnection: upstreamCredentials
+                    ? mergeWarehouseCredentials(
+                          upstreamCredentials,
+                          refreshedCredentials,
+                      )
+                    : refreshedCredentials,
+            };
+            this.assertCanWriteWarehouseConnection(
+                account,
+                savedProject,
+                updateData,
+            );
+            await this.assertAwsWebIdentityAudienceBelongsTo(
+                updateData.warehouseConnection,
+                savedProject.organizationUuid,
+            );
+        }
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
@@ -6590,7 +6632,7 @@ export class ProjectService
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeSavedSecretsForResolution(data, savedProject),
+            this.mergeSavedSecretsForResolution(updateData, savedProject),
             account.user.id,
             savedProject.organizationUuid,
         );

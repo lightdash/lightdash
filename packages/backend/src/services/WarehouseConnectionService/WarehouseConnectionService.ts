@@ -8,7 +8,11 @@ import {
     fillOmittedSecrets,
     ForbiddenError,
     isUserConnectableWarehouseConnection,
+    mergeWarehouseCredentials,
+    NotFoundError,
     ParameterError,
+    ProjectType,
+    RequestMethod,
     SingleConnectionProjectError,
     SnowflakeAuthenticationType,
     validateWarehouseConnectionName,
@@ -18,6 +22,7 @@ import {
     type ApiCreateWarehouseConnectionRequest,
     type ApiUpdateWarehouseConnectionRequest,
     type CreateWarehouseCredentials,
+    type CreateWarehouseCredentialsWithOptionalSecrets,
     type ProjectSummary,
     type RegisteredAccount,
     type WarehouseConnection,
@@ -896,10 +901,43 @@ export class WarehouseConnectionService extends BaseService {
         }
     }
 
+    private async getUpstreamExtraCredentials(
+        upstreamProjectUuid: string,
+        organizationUuid: string,
+        connectionName: string,
+    ): Promise<CreateWarehouseCredentials | null> {
+        try {
+            const upstreamProject =
+                await this.warehouseConnectionModel.getProject(
+                    upstreamProjectUuid,
+                );
+            if (upstreamProject.organizationUuid !== organizationUuid)
+                throw new ForbiddenError();
+            const connections =
+                await this.warehouseConnectionModel.list(upstreamProject);
+            const upstreamConnection = connections.find(
+                (connection) =>
+                    !connection.isOriginal &&
+                    connection.name === connectionName,
+            );
+            return upstreamConnection
+                ? await this.warehouseConnectionModel.getCredentials(
+                      upstreamProject,
+                      upstreamConnection.warehouseConnectionUuid,
+                  )
+                : null;
+        } catch (error) {
+            if (error instanceof NotFoundError) return null;
+            throw error;
+        }
+    }
+
     private async resolveUpdateSource(
         project: WarehouseConnectionProject,
         existing: WarehouseConnection,
         request: ApiUpdateWarehouseConnectionRequest,
+        summary: ProjectSummary,
+        method: RequestMethod,
     ): Promise<WarehouseConnectionCredentialSource | null> {
         if (
             request.warehouseConnection !== undefined &&
@@ -924,13 +962,41 @@ export class WarehouseConnectionService extends BaseService {
                           existing.warehouseConnectionUuid,
                       )
                     : null;
+            let credentials = request.warehouseConnection;
+            if (
+                summary.type === ProjectType.PREVIEW &&
+                summary.upstreamProjectUuid &&
+                (method === RequestMethod.CLI ||
+                    method === RequestMethod.CLI_CI)
+            ) {
+                if (saved !== null) {
+                    credentials =
+                        mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
+                            saved,
+                            credentials,
+                        );
+                }
+                const upstreamCredentials =
+                    await this.getUpstreamExtraCredentials(
+                        summary.upstreamProjectUuid,
+                        project.organizationUuid,
+                        existing.name,
+                    );
+                if (upstreamCredentials !== null) {
+                    credentials =
+                        mergeWarehouseCredentials<CreateWarehouseCredentialsWithOptionalSecrets>(
+                            upstreamCredentials,
+                            credentials,
+                        );
+                }
+            }
             return {
                 kind: 'project',
                 credentials: fillOmittedSecrets(
                     saved === null
-                        ? request.warehouseConnection
+                        ? credentials
                         : ProjectModel.mergeMissingWarehouseSecrets(
-                              request.warehouseConnection,
+                              credentials,
                               saved,
                           ),
                 ),
@@ -944,6 +1010,7 @@ export class WarehouseConnectionService extends BaseService {
         projectUuid: string,
         warehouseConnectionUuid: string,
         request: ApiUpdateWarehouseConnectionRequest,
+        method: RequestMethod = RequestMethod.WEB_APP,
     ): Promise<WarehouseConnection> {
         assertRegisteredAccount(account);
         const { summary, project } = await this.getMultiProject(
@@ -998,6 +1065,8 @@ export class WarehouseConnectionService extends BaseService {
             project,
             existing,
             request,
+            summary,
+            method,
         );
         const source = requestedSource
             ? await this.inheritPrimaryCredentialRequirement(
