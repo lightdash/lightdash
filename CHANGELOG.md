@@ -1,3 +1,10 @@
+## [3.21.2](https://github.com/lightdash/lightdash/compare/3.21.1...3.21.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dbt:** keep a failed dbt source's explores and finish the refresh ([#31358](https://github.com/lightdash/lightdash/issues/31358)) ([684019a](https://github.com/lightdash/lightdash/commit/684019ae27c3ab966bebdb8e762f7fd06a17fb2e)), closes [#31113](https://github.com/lightdash/lightdash/issues/31113)
+
 ## [3.21.1](https://github.com/lightdash/lightdash/compare/3.21.0...3.21.1) (2026-10-22)
 
 
