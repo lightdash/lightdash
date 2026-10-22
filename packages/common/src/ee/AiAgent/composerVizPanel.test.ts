@@ -70,34 +70,20 @@ const edit = { ...result, remembered: null };
 describe('getComposerVizPanelValue', () => {
     test('returns the stored config when every column is present', () => {
         const stored = line({ groupBy: [{ reference: 'region' }] });
-        expect(getComposerVizPanelValue({ ...result, vizConfig: stored })).toBe(
+        expect(getComposerVizPanelValue({ columns, vizConfig: stored })).toBe(
             stored,
         );
     });
 
-    test('falls back to the column-type default when a column is gone', () => {
+    test('opens as a table when a stored column is gone', () => {
         const stored = line({ groupBy: [{ reference: 'country' }] });
-        const value = getComposerVizPanelValue({
-            ...result,
-            vizConfig: stored,
-        });
+        const value = getComposerVizPanelValue({ columns, vizConfig: stored });
         expect(value.type).toBe(ChartKind.TABLE);
     });
 
-    test('invents a chart from the column types without a stored config', () => {
-        const oneRegionPerMonth = rows.filter((row) => row.region === 'EMEA');
-        const value = getComposerVizPanelValue({
-            columns,
-            rows: oneRegionPerMonth,
-            node: null,
-            vizConfig: null,
-        });
-        expect(value.type).toBe(ChartKind.LINE);
-        expect(fieldConfig(value).x?.reference).toBe('month');
-        expect(fieldConfig(value).y.map((y) => y.reference)).toEqual([
-            'revenue',
-        ]);
-        expect(getComposerVizSort(value)).toBe(SortByDirection.ASC);
+    test('opens as a table without a stored config', () => {
+        const value = getComposerVizPanelValue({ columns, vizConfig: null });
+        expect(value.type).toBe(ChartKind.TABLE);
     });
 });
 
