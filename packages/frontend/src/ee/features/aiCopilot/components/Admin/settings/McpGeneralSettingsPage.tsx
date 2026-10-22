@@ -38,8 +38,8 @@ const McpToolSettings = ({
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
     const organization = useOrganization();
-    const mcpDisabled =
-        !organization.isSuccess || organization.data.mcpEnabled === false;
+    const mcpEnabled =
+        organization.isSuccess && organization.data.mcpEnabled !== false;
     const savedAgentsStatus = settings?.mcpAgentsEnabled ? 'On' : 'Off';
     const agentsStatus =
         organization.data?.mcpEnabled === false
@@ -108,7 +108,7 @@ const McpToolSettings = ({
                                     size="md"
                                     aria-label="Enable agents over MCP"
                                     checked={settings.mcpAgentsEnabled}
-                                    disabled={isUpdatingSettings || mcpDisabled}
+                                    disabled={isUpdatingSettings || !mcpEnabled}
                                     onChange={(event) =>
                                         updateSettings({
                                             mcpAgentsEnabled:
@@ -145,7 +145,7 @@ const McpToolSettings = ({
                                 size="md"
                                 aria-label="Allow content changes via MCP"
                                 checked={settings.mcpContentWritesEnabled}
-                                disabled={isUpdatingSettings || mcpDisabled}
+                                disabled={isUpdatingSettings || !mcpEnabled}
                                 onChange={(event) =>
                                     updateSettings({
                                         mcpContentWritesEnabled:

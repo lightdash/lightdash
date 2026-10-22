@@ -19,8 +19,8 @@ export const AgentMcpAccessSwitch = ({
 }) => {
     const update = useUpdateAiOrganizationSettings();
     const organization = useOrganization();
-    const mcpDisabled =
-        !organization.isSuccess || organization.data.mcpEnabled === false;
+    const mcpEnabled =
+        organization.isSuccess && organization.data.mcpEnabled !== false;
     return (
         <Switch
             aria-label={label}
@@ -31,7 +31,7 @@ export const AgentMcpAccessSwitch = ({
                     : description
             }
             checked={settings[setting]}
-            disabled={update.isLoading || mcpDisabled}
+            disabled={update.isLoading || !mcpEnabled}
             onChange={(event) =>
                 update.mutate({ [setting]: event.currentTarget.checked })
             }
