@@ -1,3 +1,10 @@
+## [3.25.1](https://github.com/lightdash/lightdash/compare/3.25.0...3.25.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* keep chart slugs downloadable and let over-long slugs be renamed ([#31344](https://github.com/lightdash/lightdash/issues/31344)) ([3488421](https://github.com/lightdash/lightdash/commit/348842124781f18603b36411e1754a85616a69db))
+
 # [3.25.0](https://github.com/lightdash/lightdash/compare/3.24.1...3.25.0) (2026-10-22)
 
 
