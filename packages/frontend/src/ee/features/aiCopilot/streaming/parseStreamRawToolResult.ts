@@ -5,7 +5,6 @@ import {
     mcpCreateContentArgsSchema,
     mcpEditContentArgsSchema,
     parsePartialToolComposerQueriesArgs,
-    TOOL_COMPOSER_QUERIES_ARGS_VERSION,
     toolComposerQueriesArgsSchemaPersisted,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
@@ -184,10 +183,7 @@ export const parseStreamRawPartialToolCall = (
     if (!partialArgs) return null;
     return {
         toolName: toolCall.toolName,
-        toolArgs: {
-            ...partialArgs,
-            version: TOOL_COMPOSER_QUERIES_ARGS_VERSION,
-        },
+        toolArgs: partialArgs,
         isPreliminary: toolCall.isPreliminary,
         isArgsPartial: true,
     };
