@@ -119,10 +119,20 @@
         var(--controls-ease-arrive) backwards;
 }
 
-/* A link prompt has one row per filter: it scrolls inside the tile instead of
-   spilling out of it */
+/* A link prompt has one row per filter: its rows scroll inside the tile, so
+   the card never spills out of it and Skip and Apply stay in view */
 .promptCard {
+    display: flex;
+    flex-direction: column;
     max-height: 100%;
+}
+
+.promptBody {
+    min-height: 0;
+}
+
+.promptRows {
+    min-height: 0;
     overflow-y: auto;
 }
 

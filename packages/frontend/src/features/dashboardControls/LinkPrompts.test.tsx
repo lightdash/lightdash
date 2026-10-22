@@ -21,6 +21,7 @@ import { renderWithProviders as renderWithAppProviders } from '../../testing/tes
 import { type DashboardStore } from '../dashboard/store';
 import { getLinkKey } from './linkCandidates';
 import { LinkPrompts } from './LinkPrompts';
+import classes from './TileOverlay.module.css';
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -89,6 +90,13 @@ const paymentsState = dimension(
     'payments',
     'state',
     'State',
+    DimensionType.STRING,
+);
+// Another table's field under the filter field's label
+const customersStatus = dimension(
+    'customers',
+    'status',
+    'Status',
     DimensionType.STRING,
 );
 const paymentsAmount = dimension(
@@ -173,6 +181,7 @@ const setDashboard = (
             payments_method: paymentsMethod,
             payments_state: paymentsState,
             payments_amount: paymentsAmount,
+            customers_status: customersStatus,
         },
         filterableFieldsByTileUuid: {
             [added.uuid]: addedFields,
@@ -222,13 +231,25 @@ describe('LinkPrompts', () => {
         setSidebar();
     });
 
-    it('shows the only candidate chosen and links the tile to it', async () => {
+    it('starts a lone candidate that is another field as not filtered', () => {
+        renderWithProviders(<LinkPrompts />);
+
+        expect(select(added.uuid)).toHaveValue('');
+        expect(select(added.uuid)).toHaveAttribute(
+            'placeholder',
+            'Not filtered',
+        );
+        expect(applyButton(added.uuid)).toBeDisabled();
+    });
+
+    it('chooses the candidate with the filter field label and links the tile to it', async () => {
+        setDashboard([paymentsMethod, customersStatus]);
         renderWithProviders(<LinkPrompts />);
 
         expect(
             card(added.uuid).getByText('This tile can use a filter'),
         ).toBeVisible();
-        expect(select(added.uuid)).toHaveValue('Method');
+        expect(select(added.uuid)).toHaveValue('Status');
         expect(applyButton(added.uuid)).toHaveTextContent('Apply');
         expect(applyButton(added.uuid)).toHaveAccessibleName(
             'Apply 1 filter to Title tile-added',
@@ -242,7 +263,10 @@ describe('LinkPrompts', () => {
 
         expect(updateFilter).toHaveBeenCalledTimes(1);
         expect(updateFilter.mock.calls[0][0].tileTargets).toEqual({
-            [added.uuid]: { fieldId: 'payments_method', tableName: 'payments' },
+            [added.uuid]: {
+                fieldId: 'customers_status',
+                tableName: 'customers',
+            },
         });
         expect(dismissLink).not.toHaveBeenCalled();
     });
@@ -274,19 +298,19 @@ describe('LinkPrompts', () => {
     });
 
     it('shows every filter that could link, each with its field', () => {
-        setDashboard([paymentsMethod], twoFilters);
+        setDashboard([customersStatus], twoFilters);
         renderWithProviders(<LinkPrompts />);
 
         expect(
             card(added.uuid).getByText('This tile can use 2 filters'),
         ).toBeVisible();
-        expect(select(added.uuid, 'Status')).toHaveValue('Method');
-        expect(select(added.uuid, 'Second')).toHaveValue('Method');
+        expect(select(added.uuid, 'Status')).toHaveValue('Status');
+        expect(select(added.uuid, 'Second')).toHaveValue('Status');
         expect(applyButton(added.uuid)).toHaveTextContent('Apply all 2');
     });
 
     it('links every filter with "Apply all"', async () => {
-        setDashboard([paymentsMethod], twoFilters);
+        setDashboard([customersStatus], twoFilters);
         renderWithProviders(<LinkPrompts />);
 
         await userEvent.click(applyButton(added.uuid));
@@ -298,19 +322,19 @@ describe('LinkPrompts', () => {
         ]);
         updateFilter.mock.calls.forEach(([next]) =>
             expect(next.tileTargets[added.uuid]).toEqual({
-                fieldId: 'payments_method',
-                tableName: 'payments',
+                fieldId: 'customers_status',
+                tableName: 'customers',
             }),
         );
         expect(dismissLink).not.toHaveBeenCalled();
     });
 
     it('leaves out a cleared filter: Apply links the others and skips it', async () => {
-        setDashboard([paymentsMethod], twoFilters);
+        setDashboard([customersStatus], twoFilters);
         renderWithProviders(<LinkPrompts />);
 
         // Picking the chosen option again clears it
-        await pick(added.uuid, 'Second', 'Method');
+        await pick(added.uuid, 'Second', 'Status');
 
         expect(select(added.uuid, 'Second')).toHaveValue('');
         expect(applyButton(added.uuid)).toHaveTextContent('Apply 1, skip 1');
@@ -351,6 +375,19 @@ describe('LinkPrompts', () => {
         await pick(added.uuid, 'Third', 'Method');
 
         expect(applyButton(added.uuid)).toHaveTextContent('Apply all 3');
+    });
+
+    it('scrolls only the rows, so Skip and Apply stay in view', () => {
+        setDashboard([customersStatus], threeFilters);
+        renderWithProviders(<LinkPrompts />);
+        const rows = select(added.uuid, 'Third').closest(
+            `.${classes.promptRows}`,
+        );
+
+        expect(rows).not.toBeNull();
+        expect(rows).toContainElement(select(added.uuid, 'Status'));
+        expect(rows).not.toContainElement(applyButton(added.uuid));
+        expect(rows).not.toContainElement(skipButton(added.uuid));
     });
 
     it('disables Apply when no filter has a field', () => {

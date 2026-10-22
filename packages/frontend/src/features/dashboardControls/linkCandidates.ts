@@ -52,6 +52,24 @@ export const getLinkCandidates = (
     );
 };
 
+// Chosen up front only on an exact match: one of the filter's own fields, or
+// a field under the filter field's label. Anything else starts not filtered
+export const getLinkDefault = (
+    rule: DashboardFilterRule,
+    candidates: DashboardFieldTarget[],
+    tiles: DashboardTile[] | undefined,
+    fieldsMap: Record<string, DashboardFilterableField>,
+): string | null => {
+    const ownIds = new Set(getFilterFields(rule, tiles));
+    const label = fieldsMap[rule.target.fieldId]?.label;
+    const matches = candidates.filter(
+        ({ fieldId }) =>
+            ownIds.has(fieldId) ||
+            (label !== undefined && fieldsMap[fieldId]?.label === label),
+    );
+    return matches.length === 1 ? matches[0].fieldId : null;
+};
+
 const dedupe = (targets: DashboardFieldTarget[]): DashboardFieldTarget[] =>
     targets.filter(
         (target, index) =>

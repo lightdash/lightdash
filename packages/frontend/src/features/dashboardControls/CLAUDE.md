@@ -730,15 +730,19 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   prompt, and neither does a SQL column filter.
 - One card per tile, one row per filter that could link: the filter's name
   and a clearable shipped `FieldSelect` ("Not filtered"; picking the chosen
-  field again clears it too). A filter with a single candidate
-  has it chosen, in plain sight, so the pairing is never hidden.
+  field again clears it too). A row starts chosen only on an exact match
+  (`getLinkDefault`): exactly one candidate is one of the filter's own fields
+  (same field id) or has the label of the filter's field (any table).
+  Anything else, a lone candidate of the same type included, starts "Not
+  filtered", so an unrelated field is never linked by default.
 - The card keeps the user's picks per rule: a rule present with `null` was
-  cleared and is not linked, absent means the default (the single candidate).
+  cleared and is not linked, absent means the default (the exact match).
   A pick that is no longer offered is dropped. Choices are derived on render,
   never synced in an effect. Candidates that read the same are told apart by
   their table group.
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
-  and scrolls.
+  and only its rows (`.promptRows`) scroll, so the header with Skip and the
+  footer with Apply stay in view.
 - One "Apply" answers the whole card: "Apply all N" or "Apply X, skip Y",
   and a plain "Apply" for a single row or when no row has a field (then
   disabled). Rows with a field are linked, the rest skipped. "Skip all"
