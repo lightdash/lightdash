@@ -121,6 +121,7 @@ import { wrapSentryTransaction } from '../utils';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
+    MAX_SLUG_ALIAS_LENGTH,
 } from '../utils/SlugUtils';
 import { dismissOpenContentDrafts } from './ContentDraftModel';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
@@ -1588,11 +1589,13 @@ export class SavedChartModel {
                     .delete();
             }
 
-            await trx(SavedChartSlugMappingsTableName).insert({
-                project_uuid: projectUuid,
-                saved_query_uuid: savedChartUuid,
-                slug: chart.slug,
-            });
+            if (chart.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
+                await trx(SavedChartSlugMappingsTableName).insert({
+                    project_uuid: projectUuid,
+                    saved_query_uuid: savedChartUuid,
+                    slug: chart.slug,
+                });
+            }
 
             const updated = await trx(SavedChartsTableName)
                 .where('project_uuid', projectUuid)
