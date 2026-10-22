@@ -983,7 +983,7 @@ describe('PivotQueryBuilder', () => {
             expect(result.match(/FROM pivot_query\b/g)).toHaveLength(1);
         });
 
-        test('Pinned sort: pivotValues swaps WHERE col_idx = 1 for a value match on the pinned column', () => {
+        test('Pinned sort: rows order by the metric at the pinned pivot column, read inline instead of through anchor_column', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -1011,12 +1011,50 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            expect(result).toContain('"revenue_anchor_column" AS (');
             expect(result).not.toContain('anchor_column AS (');
+            expect(result).not.toContain('CROSS JOIN anchor_column');
             expect(replaceWhitespace(result)).toContain(
-                '(cr."status") IN (\'completed\')',
+                'MAX(CASE WHEN (q."status") IN (\'completed\') THEN q."revenue_sum" END) AS "revenue_ra_value"',
             );
-            expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
+            expect(result).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."revenue_ra_value" DESC, g."date" ASC) AS "row_index"',
+            );
+        });
+
+        test('Pinned sort: a pinned value with no data keeps every row (NULL anchor, nothing joined that could be empty)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'status', value: 'completed' },
+                        ],
+                    },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            ).toSql();
+
+            // The row anchor is a plain aggregate over group_by_query: a pin that
+            // matches no column leaves every row's anchor NULL (sorted as empty)
+            // instead of joining an empty anchor CTE that would drop the rows.
+            expect(replaceWhitespace(result)).toContain(
+                'END) AS "revenue_ra_value" FROM group_by_query q GROUP BY q."date"',
+            );
+            expect(result).not.toContain('anchor_column');
         });
 
         test('Pinned sort: numeric and null pivot values emit type-correct SQL', () => {
@@ -1053,11 +1091,11 @@ describe('PivotQueryBuilder', () => {
 
             // Number → NUMBER filter (bare numeric literal, IN syntax).
             expect(replaceWhitespace(result)).toContain(
-                '(cr."segment_id") IN (42)',
+                '(q."segment_id") IN (42)',
             );
             // Null → IS NULL (strict equality with NULL never matches).
             expect(replaceWhitespace(result)).toContain(
-                '(cr."channel") IS NULL',
+                '(q."channel") IS NULL',
             );
         });
 
@@ -1106,9 +1144,9 @@ describe('PivotQueryBuilder', () => {
             // Native boolean literal — no quotes around `false`, which is what
             // BigQuery / Snowflake require (string='false' is a type error there).
             expect(replaceWhitespace(result)).toContain(
-                '(cr."is_completed") = false',
+                '(q."is_completed") = false',
             );
-            expect(result).not.toContain('(cr."is_completed") = \'false\'');
+            expect(result).not.toContain('(q."is_completed") = \'false\'');
         });
 
         test('Pinned sort: boolean inferred from JS type when dimension is unknown (fallback)', () => {
@@ -1142,7 +1180,7 @@ describe('PivotQueryBuilder', () => {
             const result = builder.toSql();
 
             expect(replaceWhitespace(result)).toContain(
-                '(cr."is_completed") = true',
+                '(q."is_completed") = true',
             );
         });
 
@@ -1193,7 +1231,7 @@ describe('PivotQueryBuilder', () => {
             // adapter, but the date value should appear and the column-side
             // expression should not be wrapped in a cast in the default path.
             expect(replaceWhitespace(result)).toContain(
-                '(cr."order_date") = (\'2024-01-01\')',
+                '(q."order_date") = (\'2024-01-01\')',
             );
         });
 
@@ -1233,7 +1271,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).not.toContain("'completed'); DROP TABLE x;--");
         });
 
-        test('Pinned sort: multiple metrics each get their own per-metric anchor_column', () => {
+        test('Pinned sort: multiple pinned metrics each read their own pinned column', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -1272,16 +1310,55 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            expect(result).toContain('"revenue_anchor_column" AS (');
-            expect(result).toContain('"orders_anchor_column" AS (');
-            expect(result).not.toContain('anchor_column AS (');
+            expect(result).not.toContain('anchor_column');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."status") IN (\'completed\') THEN q."revenue_sum" END) AS "revenue_ra_value"',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."status") IN (\'shipped\') THEN q."orders_count" END) AS "orders_ra_value"',
+            );
+        });
 
-            expect(result).toContain('(cr."status") IN (\'completed\')');
-            expect(result).toContain('(cr."status") IN (\'shipped\')');
-            // Both per-metric anchors are CROSS JOINed once inside the single
-            // folded row_ranking scan, with distinct aliases.
-            expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac0');
-            expect(result).toContain('CROSS JOIN "orders_anchor_column" ac1');
+        test('Pinned sort: a pinned metric and an unpinned metric sort together (anchor_column only serves the unpinned one)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'orders',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'status', value: 'completed' },
+                        ],
+                    },
+                    { reference: 'orders', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const result = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            ).toSql();
+
+            expect(result).toContain('anchor_column AS (');
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."status") IN (\'completed\') THEN q."revenue_sum" END) AS "revenue_ra_value"',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN (q."status" = ac."anchor_status" OR (q."status" IS NULL AND ac."anchor_status" IS NULL)) THEN q."orders_count" END) AS "orders_ra_value"',
+            );
         });
 
         test('Pinned sort: partial pin (covers only some groupBy columns) falls back to col_idx = 1', () => {
@@ -1315,13 +1392,14 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            // Pin doesn't cover 'channel', so the WHERE falls back rather than
-            // matching only on 'status' (which could pick multiple anchor rows).
-            expect(result).toContain('"revenue_anchor_column" AS (');
+            // Pin doesn't cover 'channel', so it is ignored rather than matching
+            // only on 'status' (which could pick multiple anchor rows).
+            expect(result).toContain('anchor_column AS (');
             expect(replaceWhitespace(result)).toContain(
                 'FROM column_ranking cr WHERE "col_idx" = 1',
             );
-            expect(result).not.toContain('cr."status" = \'completed\'');
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+            expect(result).not.toContain("IN ('completed')");
         });
 
         test('Pinned sort: pivotValues with unknown groupBy reference falls back to col_idx = 1', () => {
@@ -1355,13 +1433,14 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            // Per-metric anchor CTE still created, but with leftmost-column WHERE
-            // since the pinned reference isn't a valid groupBy.
-            expect(result).toContain('"revenue_anchor_column" AS (');
+            // The pinned reference isn't a valid groupBy, so the sort uses the
+            // leftmost column through anchor_column.
+            expect(result).toContain('anchor_column AS (');
             expect(replaceWhitespace(result)).toContain(
                 'FROM column_ranking cr WHERE "col_idx" = 1',
             );
-            expect(result).not.toContain('cr."not_a_groupby_column"');
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+            expect(result).not.toContain('not_a_groupby_column');
         });
 
         test('Unpinned metric sort: still uses shared anchor_column CTE (backwards compatible)', () => {
@@ -1545,13 +1624,15 @@ describe('PivotQueryBuilder', () => {
                 itemsMap,
             ).toSql();
 
-            expect(result).toContain('"month_order_anchor_column" AS (');
-            expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN (q."year" = ac."anchor_year" OR (q."year" IS NULL AND ac."anchor_year" IS NULL)) THEN q."month_order_any" END) AS "month_order_ra_value"',
+            // Pinned: reads the table calc at the pinned column rather than MAX
+            // across all pivot columns.
+            expect(replaceWhitespace(result)).toMatch(
+                /MAX\(CASE WHEN \(q\."year"\) .* THEN q\."month_order_any" END\) AS "month_order_ra_value"/,
             );
             expect(replaceWhitespace(result)).not.toContain(
                 'MAX(q."month_order_any") AS "month_order_ra_value"',
             );
+            expect(result).not.toContain('anchor_column');
         });
 
         test('displayed table calc sorts keep anchor semantics', () => {
