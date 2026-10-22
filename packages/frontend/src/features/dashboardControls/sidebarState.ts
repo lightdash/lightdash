@@ -49,14 +49,15 @@ export const removeFilterRule = (
 // A rule with the field entries that equal the tile's default dropped
 type ToSavedRule = (rule: DashboardFilterRule) => DashboardFilterRule;
 
-// Undefined keys and `required: false` read as absent, locks as a set; empty
-// tile targets stay, since tabs read them differently from none
+// Undefined keys, `required: false` and `disabled: false` read as absent,
+// locks as a set; empty tile targets stay, since tabs read them differently
 const toComparableRule = (rule: DashboardFilterRule, toSaved: ToSavedRule) => {
-    const { required, lockedTabUuids, ...rest } = toSaved(rule);
+    const { required, disabled, lockedTabUuids, ...rest } = toSaved(rule);
     return omitBy(
         {
             ...rest,
             required: required || undefined,
+            disabled: disabled || undefined,
             lockedTabUuids: lockedTabUuids && [...lockedTabUuids].sort(),
         },
         isUndefined,
