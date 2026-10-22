@@ -65,6 +65,8 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    /* The last row's border sits under the footer's, so the two read as one */
+    margin-bottom: -1px;
 }
 
 /* Doubled so the border outranks the group button's reset */
@@ -182,11 +184,6 @@
 
 .footer {
     border-top: 1px solid var(--mantine-color-default-border);
-}
-
-/* The footer's border closes the list; after .row.row so it wins */
-.body > :last-child {
-    border-bottom-width: 0;
 }
 
 /* Keyed by its text, so it arrives again when the message changes */

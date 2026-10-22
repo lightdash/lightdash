@@ -26,6 +26,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { EventName } from '../../types/Events';
 import {
+    dashboardEditActions,
     dashboardFiltersActions,
     selectDashboardFilters,
     selectHaveFiltersChanged,
@@ -1777,10 +1778,137 @@ describe('ControlsSidebarProvider', () => {
                 act(() =>
                     result.current.setHighlightedFieldId('orders_region'),
                 );
-                act(() => result.current.setHighlightedFieldId(null));
                 expect(result.current.fieldUndo).toEqual(APPLY);
                 act(() =>
                     result.current.setHighlightedFieldId('orders_status'),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends when the field is unclicked, either way', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() => result.current.setHighlightedFieldId(null));
+                expect(result.current.fieldUndo).toBeNull();
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule?.target).toEqual(region);
+
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.fieldUndo).toEqual(APPLY);
+                act(() => result.current.clearHighlightedField());
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('is made only for the clicked field, as the bar is the only one to show it', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                // A tile card's follow-up while nothing is clicked
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.editingRule?.target).toEqual(region);
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('brings back a waiting field the apply put on tiles', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() => result.current.updateFilter(onStatus(undefined)));
+                act(() => result.current.addWaitingField('orders_region'));
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.waitingFieldIds).toEqual([]);
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(onStatus(undefined));
+                expect(result.current.waitingFieldIds).toEqual([
+                    'orders_region',
+                ]);
+            });
+
+            it('is gone on another tab after a this-tab apply, and back on its tab', () => {
+                const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                const { result } = setup();
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_1),
+                    );
+                });
+                applyRegionToAll(result);
+                expect(result.current.fieldUndo).toEqual(APPLY);
+
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_2),
+                    );
+                });
+                expect(result.current.fieldUndo).toBeNull();
+                const written = result.current.editingRule;
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(written);
+            });
+
+            it('stays on every tab after an apply across tabs', () => {
+                const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                const { result } = setup();
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_1),
+                    );
+                });
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                const ACROSS = { ...APPLY, acrossTabs: true };
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: region }),
+                        ACROSS,
+                    ),
+                );
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_2),
+                    );
+                });
+                expect(result.current.fieldUndo).toEqual(ACROSS);
+            });
+
+            it('ends when the editor writes another filter', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() =>
+                    result.current.updateOtherFilters([
+                        { ...rule('b', ['2']), label: 'Other' },
+                    ]),
                 );
                 expect(result.current.fieldUndo).toBeNull();
             });

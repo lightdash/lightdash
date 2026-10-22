@@ -72,24 +72,28 @@ const useBarHost = (
     return host;
 };
 
-// What "Apply to all" would do over a scope: the tiles it ends up on, in the
-// button's name, and a tooltip only when it replaces another field. Null:
-// nothing to change
+// The tiles of a scope an apply would change
+const getChangeCount = (scope: FieldScope) => scope.unfiltered + scope.replaced;
+
+// What "Apply to all" would do over a scope: the tiles it ends up on and what
+// it replaces, in the button's name, and that again in a tooltip when it
+// replaces another field. Null: nothing to change
 const getUseOnAll = (
     fieldTiles: FieldTiles,
     scope: FieldScope,
     where: string,
 ): { name: string; tooltip: string | null } | null => {
-    if (scope.unfiltered + scope.replaced === 0) return null;
-    return {
-        name: `Apply ${fieldTiles.label} to all ${scope.possible} ${pluralizeTiles(scope.possible)}${where}`,
-        tooltip:
-            scope.replaced > 0
-                ? `Replaces ${nameReplacedFields(
-                      scope.replacedFieldIds.map(fieldTiles.labelOf),
-                  )} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`
-                : null,
-    };
+    if (getChangeCount(scope) === 0) return null;
+    const replaced = nameReplacedFields(
+        scope.replacedFieldIds.map(fieldTiles.labelOf),
+    );
+    const name = `Apply ${fieldTiles.label} to all ${scope.possible} ${pluralizeTiles(scope.possible)}${where}`;
+    return scope.replaced > 0
+        ? {
+              name: `${name}, replacing ${replaced} on ${scope.replaced}`,
+              tooltip: `Replaces ${replaced} on ${scope.replaced} ${pluralizeTiles(scope.replaced)}`,
+          }
+        : { name, tooltip: null };
 };
 
 const Bar: FC<{
@@ -118,9 +122,12 @@ const Bar: FC<{
         thisTabScope ?? everyTabScope,
         scopeSuffix,
     );
-    const useOnEveryTab = hasTabs
-        ? getUseOnAll(fieldTiles, everyTabScope, ' on every tab')
-        : null;
+    // Only when it would change a tile on another tab
+    const useOnEveryTab =
+        thisTabScope !== null &&
+        getChangeCount(everyTabScope) > getChangeCount(thisTabScope)
+            ? getUseOnAll(fieldTiles, everyTabScope, ' on every tab')
+            : null;
     const regionRef = useRef<HTMLDivElement>(null);
     const wasPressedRef = useRef(false);
     // A pressed button leaves once its action is done: focus stays on the bar

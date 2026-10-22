@@ -32,6 +32,7 @@ import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
+    selectActiveTabUuid,
     selectDashboardFilters,
     selectDashboardTiles,
     selectHaveFiltersChanged,
@@ -166,15 +167,37 @@ type Latest = {
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
     undo: ApplyUndo | null;
+    waiting: Waiting | null;
+    activeTabUuid: string | undefined;
 };
 
-// The last "Apply to all": what Undo puts back, and the filters as the press
-// left them, which tell whether the rule changed since
+// Fields of the filter on no tile yet, keyed by filter so a stale entry
+// never leaks into another filter
+type Waiting = { filterId: string; fieldIds: string[] };
+
+// The last "Apply to all": what Undo puts back (the rule and the fields that
+// were waiting), the filters as the press left them, which tell whether the
+// rule changed since, and the tab a this-tab apply was made on
 type ApplyUndo = FieldApply & {
     filterId: string;
     previous: DashboardFilterRule;
+    waitingFieldIds: string[];
     written: DashboardFilters;
+    tabUuid: string | undefined;
 };
+
+// Undo can still take it back: same control, the rule as the press left it,
+// and, for a this-tab apply, that tab in view
+const isUndoLive = (
+    undo: ApplyUndo,
+    editingFilterId: string | undefined,
+    filters: DashboardFilters,
+    activeTabUuid: string | undefined,
+    toSaved: (rule: DashboardFilterRule) => DashboardFilterRule,
+): boolean =>
+    editingFilterId === undo.filterId &&
+    (undo.acrossTabs || undo.tabUuid === activeTabUuid) &&
+    !isFilterRuleDirty(undo.written, filters, undo.filterId, toSaved);
 
 const getEditingRule = ({
     state,
@@ -246,6 +269,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const { track } = useTracking();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
@@ -269,11 +293,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     );
     const [undo, setUndo] = useState<ApplyUndo | null>(null);
     const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
-    // Keyed by filter so a stale entry never leaks into another filter
-    const [waiting, setWaiting] = useState<{
-        filterId: string;
-        fieldIds: string[];
-    } | null>(null);
+    const [waiting, setWaiting] = useState<Waiting | null>(null);
 
     const rendered: Latest = {
         state,
@@ -289,6 +309,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHaveFiltersChanged,
         track,
         undo,
+        waiting,
+        activeTabUuid,
     };
     const latest = useRef(rendered);
     useLayoutEffect(() => {
@@ -419,7 +441,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         latest.current.highlightedFieldId = null;
         setHighlightedFieldId(null);
         setHoveredFieldId((hovered) => (hovered === clicked ? null : hovered));
-    }, []);
+        // The bar that showed its undo is gone
+        writeUndo(null);
+    }, [writeUndo]);
 
     // Where focus goes once the editor is gone: the control's pill when it
     // is back on the bar, else "Add". In the rail: its row, else the next
@@ -660,6 +684,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         ],
     );
 
+    // Undo is the bar's: an apply makes one only on the clicked field
     const applyWithUndo = useCallback(
         (next: DashboardFilterRule, apply: FieldApply) => {
             const current = latest.current;
@@ -672,36 +697,55 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             )
                 return;
             const before = current.dashboardFilters;
+            const waitingFieldIds =
+                current.waiting?.filterId === filterId
+                    ? current.waiting.fieldIds
+                    : [];
+            const isClicked = current.highlightedFieldId === apply.fieldId;
             updateFilter(next);
             const written = latest.current.dashboardFilters;
-            if (!isFilterRuleDirty(before, written, filterId, toSavedNow))
+            if (
+                !isClicked ||
+                !isFilterRuleDirty(before, written, filterId, toSavedNow)
+            )
                 return;
-            writeUndo({ ...apply, filterId, previous, written });
+            writeUndo({
+                ...apply,
+                filterId,
+                previous,
+                waitingFieldIds,
+                written,
+                tabUuid: current.activeTabUuid,
+            });
         },
         [updateFilter, writeUndo, toSavedNow],
     );
 
     const undoApply = useCallback(() => {
-        const { undo: current, state: editingState } = latest.current;
+        const current = latest.current;
+        const { undo: applied } = current;
         if (
-            current === null ||
-            editingState?.filterId !== current.filterId ||
-            isFilterRuleDirty(
-                current.written,
-                latest.current.dashboardFilters,
-                current.filterId,
+            applied === null ||
+            !isUndoLive(
+                applied,
+                current.state?.filterId,
+                current.dashboardFilters,
+                current.activeTabUuid,
                 toSavedNow,
             )
         )
             return;
-        updateFilter(current.previous);
+        updateFilter(applied.previous);
+        // A waiting field the apply put on tiles waits again
+        const { filterId, waitingFieldIds } = applied;
+        setWaiting({ filterId, fieldIds: waitingFieldIds });
     }, [updateFilter, toSavedNow]);
 
-    // Clicking another field ends the undo; the same field keeps it
+    // Any other field clicked, or the field unclicked, ends the undo
     const selectField = useCallback(
         (fieldId: string | null) => {
-            if (fieldId !== null && fieldId !== latest.current.undo?.fieldId)
-                writeUndo(null);
+            if (fieldId !== latest.current.undo?.fieldId) writeUndo(null);
+            latest.current.highlightedFieldId = fieldId;
             setHighlightedFieldId(fieldId);
         },
         [writeUndo],
@@ -752,6 +796,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         (rules: DashboardFilterRule[]) => {
             const { state: editingState } = latest.current;
             if (editingState === null || rules.length === 0) return;
+            writeUndo(null);
             const byId = new Map(rules.map((rule) => [rule.id, rule]));
             const swap = (existing: DashboardFilterRule[]) =>
                 existing.map((rule) => byId.get(rule.id) ?? rule);
@@ -771,7 +816,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             }));
             writeFiltersChanged(true);
         },
-        [writeState, writeFilters, writeFiltersChanged],
+        [writeState, writeFilters, writeFiltersChanged, writeUndo],
     );
 
     const addWaitingField = useCallback((fieldId: string) => {
@@ -1004,15 +1049,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
 
-    // Derived: only while its control is edited and the rule is as it left it
+    // Derived: only while Undo can still take it back
     const fieldUndo = useMemo(
         () =>
             undo !== null &&
-            state?.filterId === undo.filterId &&
-            !isFilterRuleDirty(
-                undo.written,
+            isUndoLive(
+                undo,
+                state?.filterId,
                 dashboardFilters,
-                undo.filterId,
+                activeTabUuid,
                 toSavedRule,
             )
                 ? {
@@ -1022,7 +1067,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                       acrossTabs: undo.acrossTabs,
                   }
                 : null,
-        [undo, state, dashboardFilters, toSavedRule],
+        [undo, state, dashboardFilters, activeTabUuid, toSavedRule],
     );
     useEditorDismiss({
         isOpen: isRailOpen,

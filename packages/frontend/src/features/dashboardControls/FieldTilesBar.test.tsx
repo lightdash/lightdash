@@ -334,7 +334,7 @@ describe('FieldTilesBar', () => {
             expect(countOf()).toHaveTextContent(/^1 of 3 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply Status to all 3 tiles',
+                    name: 'Apply Status to all 3 tiles, replacing Region on 1',
                 }),
             );
             expect(getAppliedRule().tileTargets).toBeUndefined();
@@ -362,7 +362,7 @@ describe('FieldTilesBar', () => {
 
             await userEvent.hover(
                 screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles',
+                    name: 'Apply Status to all 2 tiles, replacing Region and City on 2',
                 }),
             );
             expect(
@@ -496,7 +496,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('Region')).toHaveTextContent(/^0 of 1 tile$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply Region to all 1 tile',
+                    name: 'Apply Region to all 1 tile, replacing Status on 1',
                 }),
             );
             expect(getAppliedRule().tileTargets).toEqual({ 'tile-1': REGION });
@@ -606,7 +606,14 @@ describe('FieldTilesBar', () => {
             const { rerender } = renderWithProviders(<TabbedDashboard />);
             expect(buttonTexts()).toEqual(['Clear']);
 
+            // Off on this tab only: "Apply to all tabs" would change nothing more
             setSidebar(rule('orders_status', { 'tile-1': false }));
+            rerender(<TabbedDashboard />);
+            expect(buttonTexts()).toEqual(['Apply to all', 'Clear']);
+
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
+            );
             rerender(<TabbedDashboard />);
             expect(buttonTexts()).toEqual([
                 'Apply to all',
@@ -665,7 +672,11 @@ describe('FieldTilesBar', () => {
             );
             renderWithProviders(<TabbedDashboard />);
 
-            fireEvent.click(screen.getByRole('button', { name: EVERY_TAB(4) }));
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: `${EVERY_TAB(4)}, replacing Region on 1`,
+                }),
+            );
             expect(getAppliedRule().tileTargets).toBeUndefined();
             expect(appliedUndo()).toEqual({
                 fieldId: 'orders_status',
@@ -791,7 +802,7 @@ describe('FieldTilesBar', () => {
             expect(countOf('country')).toHaveTextContent(/^0 of 2 tiles$/);
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Apply country to all 2 tiles',
+                    name: 'Apply country to all 2 tiles, replacing city on 1',
                 }),
             );
             const next = getAppliedRule();
