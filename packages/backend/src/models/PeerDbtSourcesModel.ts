@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
+import { DatabaseError } from 'pg';
 import { type DbProjectDbtSource } from '../database/entities/projectDbtSources';
 import Logger from '../logging/logger';
 import { type EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
@@ -193,11 +194,14 @@ export class PeerDbtSourcesModel {
         if (!this.enabled) return;
         await this.args.database.transaction(async (trx) => {
             await PeerDbtSourcesModel.lockProject(trx, projectUuid);
-            await this.initializeProjectNamesInTransaction(trx, projectUuid);
+            await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
+                trx,
+                projectUuid,
+            );
         });
     }
 
-    private async initializeProjectNamesInTransaction(
+    private static async initializeProjectNamesInTransaction(
         trx: Knex,
         projectUuid: string,
     ): Promise<void> {
@@ -398,6 +402,32 @@ export class PeerDbtSourcesModel {
             );
     }
 
+    static async assertBindingIsUnique(
+        trx: Knex,
+        projectUuid: string,
+        sourceUuid: string,
+        warehouseConnectionUuid: string | null,
+    ): Promise<void> {
+        await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
+            trx,
+            projectUuid,
+        );
+        const source = await trx<DbPeerDbtSource>('project_dbt_sources')
+            .where({
+                project_uuid: projectUuid,
+                project_dbt_source_uuid: sourceUuid,
+                role: 'extra',
+            })
+            .first();
+        if (!source)
+            throw new NotFoundError('Cannot find dbt source in this project');
+        await PeerDbtSourcesModel.assertUniqueName(
+            trx,
+            { ...source, warehouse_connection_uuid: warehouseConnectionUuid },
+            source.dbt_project_name ?? source.dbt_project_name_conflict,
+        );
+    }
+
     async updatePeer(
         projectUuid: string,
         sourceUuid: string,
@@ -423,7 +453,10 @@ export class PeerDbtSourcesModel {
             throw new ParameterError('Invalid refresh policy');
         await this.args.database.transaction(async (trx) => {
             await PeerDbtSourcesModel.lockProject(trx, projectUuid);
-            await this.initializeProjectNamesInTransaction(trx, projectUuid);
+            await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
+                trx,
+                projectUuid,
+            );
             const source = await trx<DbPeerDbtSource>('project_dbt_sources')
                 .where('role', 'extra')
                 .where({
@@ -501,18 +534,42 @@ export class PeerDbtSourcesModel {
         name: string,
     ): Promise<void> {
         if (!this.enabled) return;
-        const source = await this.args
-            .database('project_dbt_sources')
-            .where('role', 'extra')
-            .where({
-                project_uuid: projectUuid,
-                project_dbt_source_uuid: sourceUuid,
-            })
-            .first();
-        if (!source) return;
-        await this.updatePeer(projectUuid, sourceUuid, {
-            dbtProjectName: name,
-        });
+        try {
+            const source = await this.args
+                .database('project_dbt_sources')
+                .where('role', 'extra')
+                .where({
+                    project_uuid: projectUuid,
+                    project_dbt_source_uuid: sourceUuid,
+                })
+                .first();
+            if (!source) return;
+            await this.updatePeer(projectUuid, sourceUuid, {
+                dbtProjectName: name,
+            });
+        } catch (error) {
+            if (
+                !(
+                    error instanceof Error && error.name === 'KnexTimeoutError'
+                ) &&
+                !(
+                    error instanceof DatabaseError &&
+                    (['55P03', '40P01', '40001', '57014'].includes(
+                        error.code ?? '',
+                    ) ||
+                        ['08', '53', '58'].some((prefix) =>
+                            error.code?.startsWith(prefix),
+                        ) ||
+                        ['57P01', '57P02', '57P03'].includes(error.code ?? ''))
+                )
+            )
+                throw error;
+            Logger.info('peer_dbt_source_project_name_learning', {
+                projectUuid,
+                sourceUuid,
+                outcome: 'metadata_unavailable',
+            });
+        }
     }
 
     async registerSource(
@@ -585,7 +642,7 @@ export class PeerDbtSourcesModel {
                     let state: DbPeerDbtSource['repository_fill_state'];
                     try {
                         state = await trx.transaction(async (savepoint) => {
-                            await this.initializeProjectNamesInTransaction(
+                            await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
                                 savepoint,
                                 projectUuid,
                             );
@@ -859,7 +916,10 @@ export class PeerDbtSourcesModel {
     ): Promise<DbPeerDbtSource> {
         return this.args.database.transaction(async (trx) => {
             await PeerDbtSourcesModel.lockProject(trx, projectUuid);
-            await this.initializeProjectNamesInTransaction(trx, projectUuid);
+            await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
+                trx,
+                projectUuid,
+            );
             const project = await trx('projects')
                 .join(
                     'organizations',
@@ -1000,7 +1060,10 @@ export class PeerDbtSourcesModel {
     ): Promise<string> {
         return this.args.database.transaction(async (trx) => {
             await PeerDbtSourcesModel.lockProject(trx, projectUuid);
-            await this.initializeProjectNamesInTransaction(trx, projectUuid);
+            await PeerDbtSourcesModel.initializeProjectNamesInTransaction(
+                trx,
+                projectUuid,
+            );
             const project = await trx('projects')
                 .join(
                     'organizations',

@@ -74,6 +74,10 @@ import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../../../utils/peerDbtSourcesOperation';
 import type { DbAiWritebackRun } from '../../database/entities/ai';
 import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
@@ -603,6 +607,18 @@ export class AiWritebackService extends BaseService {
         });
     }
 
+    private async withPeerOperation<T>(
+        organizationUuid: string | undefined,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        if (hasPeerDbtSourcesOperation()) return callback();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, callback);
+    }
+
     /**
      * Close a write-back PR without merging it, so the coding agent can retire a
      * pull request it opened (e.g. after folding its change elsewhere).
@@ -625,6 +641,11 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid: string;
         prUrl: string;
     }): Promise<ClosePullRequestResult> {
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(args.user.organizationUuid, () =>
+                this.closePullRequest(args),
+            );
+
         const agentIdentity = getContentWriteAgentIdentity({
             userUuid: args.user.userUuid,
             organizationUuid: args.user.organizationUuid,
@@ -1175,6 +1196,11 @@ export class AiWritebackService extends BaseService {
             repo: string,
         ) => Promise<{ branch: string; token: string }>;
     }> {
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.getInstallationRepoReadAccess({ user, projectUuid }),
+            );
+
         const {
             installationId,
             token: installationToken,
@@ -1283,6 +1309,11 @@ export class AiWritebackService extends BaseService {
             repo: string,
         ) => Promise<{ branch: string; token: string }>;
     }> {
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.getGitlabInstallationRepoReadAccess({ user, projectUuid }),
+            );
+
         const { project, organizationUuid } = await this.assertSourceCodeAccess(
             {
                 user,
@@ -1443,6 +1474,11 @@ export class AiWritebackService extends BaseService {
         user: SessionUser;
         projectUuid: string;
     }): Promise<GitRepo[]> {
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.listProjectRepositories({ user, projectUuid }),
+            );
+
         const { project } = await this.assertSourceCodeAccess({
             user,
             projectUuid,
@@ -1885,10 +1921,12 @@ export class AiWritebackService extends BaseService {
             args.user.organizationUuid,
             args.projectUuid,
         );
-        return this.runCodingAgent(
-            args,
-            this.dbtWritebackConfig(),
-            assertPublishAllowed,
+        return this.withPeerOperation(args.user.organizationUuid, () =>
+            this.runCodingAgent(
+                args,
+                this.dbtWritebackConfig(),
+                assertPublishAllowed,
+            ),
         );
     }
 
@@ -3609,6 +3647,11 @@ export class AiWritebackService extends BaseService {
         project: Awaited<ReturnType<ProjectModel['get']>>;
         repoTarget: string | undefined;
     }): Promise<ResolvedTurnTarget> {
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.resolveWritableRepoTarget({ user, project, repoTarget }),
+            );
+
         await this.assertCanManageSourceCode(
             user,
             project,
@@ -4849,9 +4892,10 @@ export class AiWritebackService extends BaseService {
             source: args.source,
         });
         try {
-            const result = await this.runCodingAgent(
-                args,
-                this.generalCodingAgentConfig(),
+            const result = await this.withPeerOperation(
+                args.user.organizationUuid,
+                () =>
+                    this.runCodingAgent(args, this.generalCodingAgentConfig()),
             );
             this.emitWriteAudit({
                 user: args.user,

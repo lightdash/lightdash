@@ -118,6 +118,9 @@ const setup = (dbtConnection: DbtProjectConfig = connection) => {
     };
     const pullRequests = { create: vi.fn().mockResolvedValue(undefined) };
     const service = new GitIntegrationService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,

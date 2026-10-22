@@ -7,7 +7,11 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { type DbPeerDbtSource } from '../PeerDbtSourcesModel';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
+import {
+    PeerDbtSourcesModel,
+    type DbPeerDbtSource,
+} from '../PeerDbtSourcesModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const MANIFESTS_TABLE = 'warehouse_connection_manifests';
@@ -225,6 +229,13 @@ export class WarehouseConnectionCompileModel {
                     ).isOriginal
                         ? null
                         : warehouseConnectionUuid;
+                if (getPeerDbtSourcesEnabled())
+                    await PeerDbtSourcesModel.assertBindingIsUnique(
+                        trx,
+                        projectUuid,
+                        projectDbtSourceUuid,
+                        binding,
+                    );
                 const updated = await trx<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
                     .where('role', 'extra')
                     .where('project_uuid', projectUuid)

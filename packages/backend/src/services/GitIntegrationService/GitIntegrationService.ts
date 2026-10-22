@@ -14,6 +14,7 @@ import {
     DbtSchemaEditor,
     DbtVersionOptionLatest,
     Explore,
+    FeatureFlags,
     ForbiddenError,
     friendlyName,
     getCustomDimensionWriteBackError,
@@ -63,12 +64,17 @@ import * as GithubClient from '../../clients/github/Github';
 import * as GitlabClient from '../../clients/gitlab/Gitlab';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import {
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../../utils/peerDbtSourcesOperation';
 import { BaseService } from '../BaseService';
 import type { GithubAppService } from '../GithubAppService/GithubAppService';
 
@@ -82,6 +88,7 @@ type GitIntegrationServiceArguments = {
     githubAppService: GithubAppService;
     pullRequestsModel: PullRequestsModel;
     analytics: LightdashAnalytics;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
 
 type GitProps = {
@@ -159,6 +166,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: GitIntegrationServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -170,6 +179,19 @@ export class GitIntegrationService extends BaseService {
         this.githubAppService = args.githubAppService;
         this.pullRequestsModel = args.pullRequestsModel;
         this.analytics = args.analytics;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async withPeerOperation<T>(
+        organizationUuid: string | undefined,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        if (hasPeerDbtSourcesOperation()) return callback();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, callback);
     }
 
     /**
@@ -1027,6 +1049,18 @@ Affected charts:
             throw new ForbiddenError();
         }
 
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(
+                account.organization.organizationUuid,
+                () =>
+                    this.previewCustomDimensions(
+                        account,
+                        projectUuid,
+                        customDimensions,
+                        quoteChar,
+                    ),
+            );
+
         GitIntegrationService.assertCustomDimensionsSupported(customDimensions);
         await this.assertExploreWritebackSourceIsUnambiguous(projectUuid);
 
@@ -1119,6 +1153,11 @@ Affected charts:
         ) {
             throw new ForbiddenError();
         }
+
+        if (!hasPeerDbtSourcesOperation())
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.createPullRequest(user, projectUuid, quoteChar, args),
+            );
 
         if (args.type === 'customDimensions') {
             GitIntegrationService.assertCustomDimensionsSupported(args.fields);

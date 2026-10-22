@@ -587,6 +587,7 @@ export class ServiceRepository
                         this.models.getGithubAppInstallationsModel(),
                     githubAppService: this.getGithubAppService(),
                     pullRequestsModel: this.models.getPullRequestsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                 }),
         );

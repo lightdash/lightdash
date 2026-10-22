@@ -2,6 +2,7 @@ import {
     ConflictError,
     DbtProjectType,
     defineUserAbility,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -15,6 +16,8 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { AiWritebackService } from '../../../ee/services/AiWritebackService/AiWritebackService';
 import Logger from '../../../logging/logger';
 import {
     PeerDbtSourcesModel,
@@ -22,8 +25,14 @@ import {
 } from '../../../models/PeerDbtSourcesModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { GitIntegrationService } from '../../../services/GitIntegrationService/GitIntegrationService';
+import {
+    CUSTOM_DIMENSION,
+    CUSTOM_METRIC,
+} from '../../../services/GitIntegrationService/GitIntegrationService.mock';
 import { PeerDbtSourcesService } from '../../../services/PeerDbtSourcesService';
 import { ProjectDbtSourcesService } from '../../../services/ProjectDbtSourcesService';
+import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -101,10 +110,10 @@ const createWarehouse = async (projectUuid = projectA, isOriginal = false) => {
         .insert({
             project_uuid: projectUuid,
             name: `connection_${randomUUID()}`,
-            warehouse_type: 'postgres',
-            encrypted_credentials: Buffer.from(
-                'synthetic-warehouse-credentials',
-            ),
+            warehouse_type: isOriginal ? null : 'postgres',
+            encrypted_credentials: isOriginal
+                ? null
+                : Buffer.from('synthetic-warehouse-credentials'),
             is_original: isOriginal,
         })
         .returning('warehouse_connection_uuid');
@@ -1883,6 +1892,69 @@ describe('runtime repository fill', () => {
         );
     });
 
+    test('a failed fill and project-name lock timeout keep local manifest metadata learning available', async () => {
+        const uuid = await pendingSource();
+        const info = vi.spyOn(Logger, 'info');
+        const holding = await database.transaction();
+        try {
+            await holding('projects')
+                .where('project_uuid', projectA)
+                .forUpdate()
+                .first();
+            await expect(sources.getSources(projectA)).resolves.toEqual([
+                expect.objectContaining({
+                    projectDbtSourceUuid: uuid,
+                    dbtConnection: connection,
+                    hasCredentialError: false,
+                }),
+            ]);
+            await expect(
+                model.learnProjectName(projectA, uuid, 'manifest_project'),
+            ).resolves.toBeUndefined();
+            expect(await sourceRow(uuid)).toMatchObject({
+                dbt_project_name: null,
+                repository_fill_state: 'failed',
+            });
+            expect(info).toHaveBeenCalledWith(
+                'peer_dbt_source_project_name_learning',
+                {
+                    projectUuid: projectA,
+                    sourceUuid: uuid,
+                    outcome: 'metadata_unavailable',
+                },
+            );
+            expect(JSON.stringify(info.mock.calls)).not.toContain(
+                'manifest_project',
+            );
+        } finally {
+            await holding.rollback();
+        }
+        await model.learnProjectName(projectA, uuid, 'manifest_project');
+        expect((await sourceRow(uuid)).dbt_project_name).toBe(
+            'manifest_project',
+        );
+    }, 30_000);
+
+    test('manifest name learning retains validation and conflict errors after a failed fill', async () => {
+        const existing = await pendingSource(projectA, {
+            dbt_project_name: 'reserved_name',
+            dbt_project_name_initialized_at: new Date(),
+        });
+        const target = await pendingSource(projectA, {
+            repository_fill_state: 'failed',
+        });
+        await expect(
+            model.learnProjectName(projectA, target, 'invalid-name!'),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            model.learnProjectName(projectA, target, ' RESERVED_NAME '),
+        ).rejects.toBeInstanceOf(ConflictError);
+        expect((await sourceRow(existing)).dbt_project_name).toBe(
+            'reserved_name',
+        );
+        expect((await sourceRow(target)).dbt_project_name).toBeNull();
+    });
+
     test('a failure-state lock error stays isolated and a changed connection can fill later', async () => {
         const uuid = await pendingSource();
         const info = vi.spyOn(Logger, 'info');
@@ -2171,6 +2243,172 @@ describe('project name initialization barrier', () => {
         },
     );
 
+    test.each(['explicit', 'null', 'original'] as const)(
+        'rejects a rebind to the %s connection before changing a binding when legacy evidence reserves the name',
+        async (destination) => {
+            const destinationUuid =
+                destination === 'null'
+                    ? null
+                    : await createWarehouse(
+                          projectA,
+                          destination === 'original',
+                      );
+            const binding = destination === 'explicit' ? destinationUuid : null;
+            const sourceConnection = await createWarehouse();
+            const source = await pendingSource(projectA, {
+                dbt_project_name: 'reserved_name',
+                dbt_project_name_initialized_at: new Date(),
+                warehouse_connection_uuid: sourceConnection,
+            });
+            const legacy = await pendingSource(projectA, {
+                warehouse_connection_uuid: binding,
+            });
+            await nameEvidence(projectA, legacy, ' RESERVED_NAME ');
+            const before = await sourceRow(source);
+            await expect(
+                new WarehouseConnectionCompileModel({ database }).bindDbtSource(
+                    projectA,
+                    source,
+                    destinationUuid,
+                ),
+            ).rejects.toBeInstanceOf(ConflictError);
+            expect(await sourceRow(source)).toEqual(before);
+            expect(await sourceRow(legacy)).toMatchObject({
+                dbt_project_name: null,
+                dbt_project_name_initialized_at: null,
+                warehouse_connection_uuid: binding,
+            });
+            await model.initializeProjectNames(projectA);
+            expect((await sourceRow(legacy)).dbt_project_name).toBe(
+                'reserved_name',
+            );
+        },
+    );
+
+    test.each([true, false])(
+        'a public rebind resolves and freezes the peer flag when enabled=%s',
+        async (enabled) => {
+            const warehouse = await createWarehouse();
+            const source = await pendingSource(projectA, {
+                dbt_project_name: 'reserved_name',
+                dbt_project_name_initialized_at: new Date(),
+            });
+            const legacy = await pendingSource(projectA, {
+                warehouse_connection_uuid: warehouse,
+            });
+            await nameEvidence(projectA, legacy, 'reserved_name');
+            const user = {
+                ...defaultSessionUser,
+                organizationUuid,
+                role: OrganizationMemberRole.ADMIN,
+                roleUuid: undefined,
+            };
+            const account = fromSession(
+                { ...user, ability: defineUserAbility(user, []) },
+                'synthetic-session',
+            );
+            const getFlag = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId === FeatureFlags.PeerDbtSources &&
+                        enabled,
+                }),
+            );
+            const bindings = new WarehouseConnectionCompileModel({ database });
+            const bind = bindings.bindDbtSource.bind(bindings);
+            const observed: boolean[] = [];
+            vi.spyOn(bindings, 'bindDbtSource').mockImplementation(
+                async (...args) => {
+                    observed.push(peerOperation.getPeerDbtSourcesEnabled());
+                    return bind(...args);
+                },
+            );
+            const service = new WarehouseConnectionBindingService({
+                projectModel: {
+                    getSummary: vi.fn(async () => ({
+                        organizationUuid,
+                        name: 'project_a',
+                    })),
+                    getDbtSourceIdentity: vi.fn(async () => ({
+                        dbtSourceUuid: randomUUID(),
+                    })),
+                } as never,
+                warehouseConnectionCompileModel: bindings,
+                warehouseConnectionModel: {
+                    getProject: vi.fn(async () => ({
+                        originalWarehouseType: 'postgres',
+                    })),
+                } as never,
+                credentialPolicy: {
+                    assertCanWriteWarehouseConnection: vi.fn(),
+                },
+                analytics: { track: vi.fn() },
+                dbtSourceRefCatalogModel: { deleteForSource: vi.fn() },
+                featureFlagService: { get: getFlag } as never,
+            });
+            vi.mocked(peerOperation.getPeerDbtSourcesEnabled).mockRestore();
+            const operation = service.bindDbtSource(
+                account,
+                projectA,
+                source,
+                warehouse,
+            );
+            if (enabled) {
+                await expect(operation).rejects.toBeInstanceOf(ConflictError);
+                expect(
+                    (await sourceRow(source)).warehouse_connection_uuid,
+                ).toBeNull();
+            } else {
+                await expect(operation).resolves.toBeUndefined();
+                expect(
+                    (await sourceRow(source)).warehouse_connection_uuid,
+                ).toBe(warehouse);
+                expect(
+                    (await sourceRow(legacy)).dbt_project_name_initialized_at,
+                ).toBeNull();
+            }
+            expect(observed).toEqual([enabled]);
+            expect(
+                getFlag.mock.calls.filter(
+                    ([args]) =>
+                        args.featureFlagId === FeatureFlags.PeerDbtSources,
+                ),
+            ).toEqual([
+                [
+                    {
+                        user: { organizationUuid, userUuid: user.userUuid },
+                        featureFlagId: FeatureFlags.PeerDbtSources,
+                    },
+                ],
+            ]);
+            expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        },
+    );
+
+    test('keeps the flag-off binding path independent of name initialization', async () => {
+        const warehouse = await createWarehouse();
+        const source = await pendingSource();
+        const legacy = await pendingSource(projectA, {
+            warehouse_connection_uuid: warehouse,
+        });
+        await nameEvidence(projectA, source, 'same_name');
+        await nameEvidence(projectA, legacy, 'same_name');
+        setPeerEnabled(false);
+        await new WarehouseConnectionCompileModel({ database }).bindDbtSource(
+            projectA,
+            source,
+            warehouse,
+        );
+        expect(await sourceRow(source)).toMatchObject({
+            warehouse_connection_uuid: warehouse,
+            dbt_project_name_initialized_at: null,
+        });
+        expect(
+            (await sourceRow(legacy)).dbt_project_name_initialized_at,
+        ).toBeNull();
+    });
+
     test('concurrent name-dependent writes cannot win ahead of legacy name evidence', async () => {
         const legacy = await pendingSource();
         const a = await pendingSource();
@@ -2189,4 +2427,149 @@ describe('project name initialization barrier', () => {
             'reserved_name',
         );
     });
+});
+
+describe('writeback peer operation snapshots', () => {
+    const prepareWriteback = async () => {
+        const repository = await createRepository();
+        const consumer = await model.addShared(
+            organizationUuid,
+            projectB,
+            sharedInput(repository),
+        );
+        const primarySourceUuid = randomUUID();
+        const project = {
+            projectUuid: projectB,
+            organizationUuid,
+            name: 'writeback_project',
+            dbtConnection: {
+                ...connection,
+                repository: 'fixture/primary_repository',
+            },
+        };
+        const projectModel = {
+            get: vi.fn(async () => project),
+            getDbtSourceIdentity: vi.fn(async () => ({
+                dbtSourceUuid: primarySourceUuid,
+                dbtSourceName: 'primary_source',
+            })),
+        };
+        const user = {
+            ...defaultSessionUser,
+            organizationUuid,
+            role: OrganizationMemberRole.ADMIN,
+            roleUuid: undefined,
+        };
+        const session = { ...user, ability: defineUserAbility(user, []) };
+        vi.mocked(peerOperation.getPeerDbtSourcesEnabled).mockRestore();
+        featureFlagModel.get.mockReset().mockResolvedValue({ enabled: true });
+        return { consumer, projectModel, session };
+    };
+
+    test('an unscoped AI run includes a shared consumer instead of choosing the primary', async () => {
+        const { consumer, projectModel, session } = await prepareWriteback();
+        const service = new AiWritebackService({
+            lightdashConfig: lightdashConfigMock,
+            projectModel: projectModel as never,
+            projectDbtSourcesModel: sources,
+            featureFlagModel: featureFlagModel as never,
+            orgAiCopilotConfigResolver: {
+                isOrgBedrockRouted: vi.fn(async () => false),
+                getDecisionClient: vi.fn(async () => null),
+            },
+        } as never);
+        const read = sources.getSources.bind(sources);
+        const observed: boolean[] = [];
+        vi.spyOn(sources, 'getSources').mockImplementation(async (uuid) => {
+            observed.push(peerOperation.getPeerDbtSourcesEnabled());
+            featureFlagModel.get.mockResolvedValue({ enabled: false });
+            return read(uuid);
+        });
+        await expect(
+            service.run({
+                user: session,
+                projectUuid: projectB,
+                prompt: 'make a change',
+                source: 'admin_review',
+                agentPermissionsApply: false,
+            }),
+        ).resolves.toMatchObject({
+            needsDbtSourceSelection: true,
+            prUrl: null,
+            dbtSourceOptions: expect.arrayContaining([
+                expect.objectContaining({ projectDbtSourceUuid: consumer }),
+                expect.objectContaining({ isPrimary: true }),
+            ]),
+        });
+        expect(observed).toEqual([true]);
+        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        expect(peerOperation.getPeerDbtSourcesEnabled()).toBe(false);
+    });
+
+    test.each(['preview', 'create'] as const)(
+        'an unscoped Git %s refuses a shared consumer before using the primary repository',
+        async (method) => {
+            const { projectModel, session } = await prepareWriteback();
+            const service = new GitIntegrationService({
+                projectModel: projectModel as never,
+                projectDbtSourcesModel: sources,
+                featureFlagModel,
+            } as never);
+            await expect(
+                method === 'preview'
+                    ? service.previewCustomDimensions(
+                          fromSession(session, 'synthetic-session'),
+                          projectB,
+                          [CUSTOM_DIMENSION],
+                          '"',
+                      )
+                    : service.createPullRequest(session, projectB, '"', {
+                          type: 'customMetrics',
+                          fields: [CUSTOM_METRIC],
+                      }),
+            ).rejects.toThrow(
+                'Explore write-back cannot determine which dbt source',
+            );
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.PeerDbtSources,
+            });
+            expect(projectModel.get).not.toHaveBeenCalled();
+            expect(peerOperation.hasPeerDbtSourcesOperation()).toBe(false);
+        },
+    );
+
+    test.each([true, false])(
+        'a parent snapshot of %s bypasses the flag resolver for Git writeback',
+        async (enabled) => {
+            const { projectModel, session } = await prepareWriteback();
+            const service = new GitIntegrationService({
+                projectModel: projectModel as never,
+                projectDbtSourcesModel: sources,
+                featureFlagModel,
+            } as never);
+            const stopped = new Error('stopped after source selection');
+            projectModel.get.mockRejectedValue(stopped);
+            await peerOperation.withPeerDbtSourcesOperation(
+                enabled,
+                async () => {
+                    await expect(
+                        service.createPullRequest(session, projectB, '"', {
+                            type: 'customMetrics',
+                            fields: [CUSTOM_METRIC],
+                        }),
+                    ).rejects.toThrow(
+                        enabled
+                            ? 'Explore write-back cannot determine which dbt source'
+                            : stopped.message,
+                    );
+                },
+            );
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+        },
+    );
 });

@@ -83,6 +83,9 @@ const updateFileResponse: Awaited<ReturnType<typeof updateFile>> = {
 
 describe('GitIntegrationService', () => {
     const service = new GitIntegrationService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         savedChartModel: SAVED_CHART_MODEL as unknown as SavedChartModel,
@@ -805,6 +808,9 @@ describe('Bitbucket project credentials', () => {
             getWithSensitiveFields: vi.fn().mockResolvedValue(project),
         };
         const service = new GitIntegrationService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
             lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             savedChartModel: SAVED_CHART_MODEL as unknown as SavedChartModel,
