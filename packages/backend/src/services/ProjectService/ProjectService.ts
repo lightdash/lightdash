@@ -3551,8 +3551,9 @@ export class ProjectService
                               isRegisteredUser: true,
                           })
                       ).credentials
-                    : await this.projectModel.getWarehouseCredentialsForProject(
+                    : await this.projectModel.getWarehouseCredentialsForBinding(
                           projectUuid,
+                          { kind: 'original' },
                       );
             personalSelection = {
                 warehouseConnectionUuid:
