@@ -1,3 +1,10 @@
+## [3.21.1](https://github.com/lightdash/lightdash/compare/3.21.0...3.21.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* keep project parameters when the config parameters section is missing ([#31359](https://github.com/lightdash/lightdash/issues/31359)) ([8d65d8d](https://github.com/lightdash/lightdash/commit/8d65d8d9ea39447039b57b7f18213ce6825b8932))
+
 # [3.21.0](https://github.com/lightdash/lightdash/compare/3.20.3...3.21.0) (2026-10-21)
 
 

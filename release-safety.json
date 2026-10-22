@@ -1,40 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.21.0",
-  "previousVersion": "3.20.3",
-  "releaseDate": "2026-10-21T23:39:34.719Z",
+  "version": "3.21.1",
+  "previousVersion": "3.21.0",
+  "releaseDate": "2026-10-22T00:24:31.555Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261021160000_add_explore_name_allocations.ts",
-        "edition": "core",
-        "tables": [
-          "explore_name_allocations",
-          "projects"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261021180000_add_explore_name_reservations.ts",
-        "edition": "core",
-        "tables": [
-          "explore_name_allocations"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -46,23 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/unfilteredTables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[subschema #3]/errors/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/unfilteredTables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/log/report/exploresWithErrors/items/allOf[subschema #3]/errors/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/dataCatalog — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/items/anyOf[#/components/schemas/CatalogTable]/allOf[subschema #2]/errors/items/type` response property for the response status `200`",
-        "PUT /api/v1/projects/{projectUuid}/explores — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/tables/additionalProperties/allOf[#/components/schemas/TableBase]/warnings/items/type` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/warnings/items/type` response property for the response status `200`",
-        "PUT /api/v2/projects/{projectUuid}/deploy — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`",
-        "POST /api/v2/projects/{projectUuid}/deploy/{sessionUuid}/finalize — added the new `EXPLORE_NAME_COLLISION` enum value to the `results/allOf[#/components/schemas/ApiDeployExploresResults]/warnings/exploresWithWarnings/items/allOf[subschema #2]/warnings/allOf[subschema #1]/items/type` response property for the response status `200`"
-      ],
-      "advisoryCount": 14
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
