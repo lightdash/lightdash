@@ -10,7 +10,7 @@ FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:24-trixie-slim AS node-runtime
+FROM node:24.22.1-trixie-slim AS node-runtime
 
 # Keep Python 3.11 for the older supported dbt adapters on Debian 13.
 FROM python:3.11-slim-trixie AS pnpm-base

@@ -187,8 +187,8 @@ importers:
         specifier: 12.1.2
         version: 12.1.2
       node:
-        specifier: runtime:24.18.1
-        version: runtime:24.18.1
+        specifier: runtime:24.22.1
+        version: runtime:24.22.1
       oxfmt:
         specifier: 0.35.0
         version: 0.35.0
@@ -974,8 +974,8 @@ importers:
         specifier: 0.38.4
         version: 0.38.4
       '@yao-pkg/pkg':
-        specifier: 6.7.0
-        version: 6.7.0(encoding@0.1.13)(supports-color@9.1.0)
+        specifier: 6.23.0
+        version: 6.23.0(supports-color@9.1.0)
       copyfiles:
         specifier: 2.4.1
         version: 2.4.1
@@ -5650,6 +5650,10 @@ packages:
   '@remote-ui/rpc@1.4.3':
     resolution: {integrity: sha512-+XyELrHLIJVQEuidHoqZ32+drbphY/x697vykHCinTPhhuUiZpag1DnKSxoE4UlnwBzz336UtFHZIiDGtOL2Kg==}
 
+  '@roberts_lando/vfs@0.3.3':
+    resolution: {integrity: sha512-YjkxVSLw5WMZQoARaryRAjcxA+GbBzWMJdwYZX5oLUt9cC/gew9as4Dn7tcLzPp7BPoR221VpTZ+78TRPawnjg==}
+    engines: {node: '>= 22'}
+
   '@rolldown/binding-android-arm64@1.0.3':
     resolution: {integrity: sha512-454rs7jHngixp/NMxd5srYD57OnzSlZ/eFTETjORQHLwJG1lRtmNOJcBerZlfu4GjKqeq8aCCIQrMdHyhI51Hw==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -8080,13 +8084,13 @@ packages:
   '@xyflow/system@0.0.46':
     resolution: {integrity: sha512-bmFXvboVdiydIFZmDCjrbBCYgB0d5pYdkcZPWbAxGmhMRUZ+kW3CksYgYxWabrw51rwpWitLEadvLrivG0mVfA==}
 
-  '@yao-pkg/pkg-fetch@3.5.25':
-    resolution: {integrity: sha512-6deLQjwn5EJVCGRb9Rsy5c8TZixRgiBHMu3cIFVakwZR6ebidE16/Oc7WDBvhQg9N3B3ExgDi7QA19w7Z2GZkA==}
+  '@yao-pkg/pkg-fetch@3.6.6':
+    resolution: {integrity: sha512-Nu9ytHewcV6FuH4WvdpYZxz2XwiP2p30jlPBzbvwsS3OPYN7RRTyGrXhcmhS59O3AdXz/LW+4bozhV3alN+MEA==}
     hasBin: true
 
-  '@yao-pkg/pkg@6.7.0':
-    resolution: {integrity: sha512-Q06diprlqZrZ0SFefUUhvVj06QboHsBOLyml2CpzWvMUdV7fleSZ8wq5tBrVfmjWu2/ka4bDWHwlocHuYD7HOQ==}
-    engines: {node: '>=18.0.0'}
+  '@yao-pkg/pkg@6.23.0':
+    resolution: {integrity: sha512-+d8iqRcmDxPpTE5fbSmsn1rShktIKvMcQGcFhwLdH15A4g2fBcRVLXppeQmu9fbF98bhYXjCOj6UTf3odXxWiA==}
+    engines: {node: '>=22.0.0'}
     hasBin: true
 
   a-sync-waterfall@1.0.1:
@@ -10528,9 +10532,6 @@ packages:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
 
-  from2@2.3.0:
-    resolution: {integrity: sha512-OMcX/4IC/uqEPVgGeyfN22LJk6AZrMkRZHxcHBMBvHScDGgwTm2GT2Wkgtocyd3JfZffjj2kYUDXXII0Fk9W0g==}
-
   fs-constants@1.0.0:
     resolution: {integrity: sha512-y6OAwoSIf7FyjMIv94u+b5rdheZEjzR63GTyZJm5qh4Bi+2YgwLCcI/fPFZkL5PSixOt6ZNKm+w+Hfp/Bciwow==}
 
@@ -11190,9 +11191,9 @@ packages:
     resolution: {integrity: sha512-Ju0Bz/cEia55xDwUWEa8+olFpCiQoypjnQySseKtmjNrnps3P+xfpUmGr90T7yjlVJmOtybRvPXhKMbHr+fWnw==}
     engines: {node: '>= 0.10'}
 
-  into-stream@6.0.0:
-    resolution: {integrity: sha512-XHbaOAvP+uFKUFsOgoNPRjLkwB+I22JFPFe5OjTkQ0nwgj6+pSjb4NmB6VMxaPshLiOf+zcpOCBQuLwC1KHhZA==}
-    engines: {node: '>=10'}
+  into-stream@9.1.0:
+    resolution: {integrity: sha512-DRsRnQrbzdFjaQ1oe4C6/EIUymIOEix1qROEJTF9dbMq+M4Zrm6VaLp6SD/B9IsiEjPZuBSnWWFN+udajugdWA==}
+    engines: {node: '>=20'}
 
   iobuffer@5.4.0:
     resolution: {integrity: sha512-DRebOWuqDvxunfkNJAlc3IzWIPD5xVxwUNbHr7xKB8E6aLJxIPfNX3CoMJghcFjpv6RWQsrcJbghtEwSPoJqMA==}
@@ -12815,7 +12816,7 @@ packages:
     resolution: {integrity: sha512-3VW/8JpPqPvnJvseXowjZcirPisssnBuDikk6JIZ8jQzF7KJQX52iPFX4RYYxLycYH7IbMRSPUOga/esVjy5Yg==}
     engines: {node: '>=18'}
 
-  node@runtime:24.18.1:
+  node@runtime:24.22.1:
     resolution:
       type: variations
       variants:
@@ -12823,9 +12824,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-PHYkDAe58DV0pc+O2LoZ6NuJJxlDgXsaS5TeQ8l6nmY=
+            integrity: sha256-9ie20HmCnmSKS4AP+oidN9viORNQcDADDbhaqGFZGiY=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-aix-ppc64.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-aix-ppc64.tar.gz
           targets:
             - cpu: ppc64
               os: aix
@@ -12833,9 +12834,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-6wL3+rltPWfeQMXshWYJb8tMICZyh4doOuWpfrYSuUE=
+            integrity: sha256-icaCWT12zUQjP6U7FWMmTn3py7GJytFpE1xbT637wKc=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-darwin-arm64.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-darwin-arm64.tar.gz
           targets:
             - cpu: arm64
               os: darwin
@@ -12843,9 +12844,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-b7IPzqy7FXwvlYJbgN9KRUoPbYHNzXu4HurpFH4Oduw=
+            integrity: sha256-0TJVfn7iuFrwiwyMNDOOZcZDDyI40B9ydyjvQtyDsDU=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-darwin-x64.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-darwin-x64.tar.gz
           targets:
             - cpu: x64
               os: darwin
@@ -12853,9 +12854,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-3yJFVaCDuRjkYmDMlpg4UBufmocUDBGV5blZe1bV2uI=
+            integrity: sha256-M8N74jS6i+4EGWEEexkWD019DxZOjiRveL3RD+/xSLM=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-arm64.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-arm64.tar.gz
           targets:
             - cpu: arm64
               os: linux
@@ -12863,9 +12864,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-SoxiCbo6WuqExAIB2JZiTtcGuXmabcVMvZZUM6Npo9A=
+            integrity: sha256-nOVyhEUBaynkmtCY96M2Bhql93DRd9knJ4vCb9Ym5kM=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-ppc64le.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-ppc64le.tar.gz
           targets:
             - cpu: ppc64le
               os: linux
@@ -12873,9 +12874,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-Yq2FDv76mrQqPpAdjg3obXG/nIoMOJ2r7SSPHslZDFo=
+            integrity: sha256-cZea6xw4W8jugxANODo7HsClIC4D35+ZanBAMwnK/7U=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-s390x.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-s390x.tar.gz
           targets:
             - cpu: s390x
               os: linux
@@ -12883,9 +12884,20 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-n162rCGEWmbEk8kaJTsdoy/WhOiem3IC1JNpgjNr5Mo=
+            integrity: sha256-myUNKdariuON0jAZ4sBKbWspFqsdrXIcX24dorKQHGo=
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-x64.tar.gz
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-x64-musl.tar.gz
+          targets:
+            - cpu: x64
+              os: linux
+              libc: musl
+        - resolution:
+            archive: tarball
+            bin:
+              node: bin/node
+            integrity: sha256-62co53xXajUWLBIsRcyt8iTYn/AKvI2uRswol8YALXw=
+            type: binary
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-x64.tar.gz
           targets:
             - cpu: x64
               os: linux
@@ -12893,10 +12905,10 @@ packages:
             archive: zip
             bin:
               node: node.exe
-            integrity: sha256-/7x9PhuvaAT3Qx/5Txm5qIWmUFaMk+pMyxuwA49q+CU=
-            prefix: node-v24.18.1-win-arm64
+            integrity: sha256-oMgHMZ/t4kxKDY+EVkyCphm9MTsWsQwAfDg8JgnpkXE=
+            prefix: node-v24.22.1-win-arm64
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-win-arm64.zip
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-win-arm64.zip
           targets:
             - cpu: arm64
               os: win32
@@ -12904,10 +12916,10 @@ packages:
             archive: zip
             bin:
               node: node.exe
-            integrity: sha256-7Fa4SnVRiTqyMk69/cSrl0pjtHgRYmALaKEpPMPlN2U=
-            prefix: node-v24.18.1-win-x64
+            integrity: sha256-0gRtKMLD3NIRrFFFwL8w4gR++d+zBmk8jG4uzNi5X6U=
+            prefix: node-v24.22.1-win-x64
             type: binary
-            url: https://nodejs.org/download/release/v24.18.1/node-v24.18.1-win-x64.zip
+            url: https://nodejs.org/download/release/v24.22.1/node-v24.22.1-win-x64.zip
           targets:
             - cpu: x64
               os: win32
@@ -12915,9 +12927,9 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-rhtkV+24df2YEws3yFPlGlOsDMQIUOzM1JC2HFo1WPo=
+            integrity: sha256-glQSWCWj5eg0vYomDatMgwP3IEZKdBUG7CeYm5uhdps=
             type: binary
-            url: https://unofficial-builds.nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-arm64-musl.tar.gz
+            url: https://unofficial-builds.nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-arm64-musl.tar.gz
           targets:
             - cpu: arm64
               os: linux
@@ -12926,14 +12938,14 @@ packages:
             archive: tarball
             bin:
               node: bin/node
-            integrity: sha256-aWl5yu+SUFrXVmo2dMqak9hVjigvNOeJkYHAMhghrl8=
+            integrity: sha256-Cp7dzi0ujzrdvpT6RtdRMlstdPf9HOYylhZNNrbfxuU=
             type: binary
-            url: https://unofficial-builds.nodejs.org/download/release/v24.18.1/node-v24.18.1-linux-x64-musl.tar.gz
+            url: https://unofficial-builds.nodejs.org/download/release/v24.22.1/node-v24.22.1-linux-x64-musl.tar.gz
           targets:
             - cpu: x64
               os: linux
               libc: musl
-    version: 24.18.1
+    version: 24.22.1
     hasBin: true
 
   nodejs-polars-android-arm64@0.15.0:
@@ -13249,10 +13261,6 @@ packages:
   p-finally@1.0.0:
     resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
     engines: {node: '>=4'}
-
-  p-is-promise@3.0.0:
-    resolution: {integrity: sha512-Wo8VsW4IRQSKVXsJCn7TomUaVtyfjVDn3nUP7kE967BQk0CwFpdbZs0X0uk5sW9mkBa9eNM7hCMaG93WUAwxYQ==}
-    engines: {node: '>=8'}
 
   p-limit@2.3.0:
     resolution: {integrity: sha512-//88mFWSJx8lxCzwdAABTJL2MyWB12+eIY7MDL2SqLmAkeKU9qxRvWuSyTjm3FUmpBEMuFfckAIqEaVGUDxb6w==}
@@ -13914,6 +13922,11 @@ packages:
 
   postgres-range@1.1.3:
     resolution: {integrity: sha512-VdlZoocy5lCP0c/t66xAfclglEapXPCIVhqqJRncYpvbCgImF0w67aPKfbqUMr72tO2k5q0TdTZwCLjPTI6C9g==}
+
+  postject@1.0.0-alpha.6:
+    resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
+    engines: {node: '>=14.0.0'}
+    hasBin: true
 
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
@@ -14623,6 +14636,10 @@ packages:
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
+
+  resolve.exports@2.0.4:
+    resolution: {integrity: sha512-zepuGL0ulf+nt+XaFrlKeaiTJeyPFPLLY62+ncq1/VTHBdt3HsfXOH60priZ6tnXQozdGcDeIF5JVTanvIcYWQ==}
+    engines: {node: '>=10'}
 
   resolve@1.22.11:
     resolution: {integrity: sha512-RfqAvLnMl313r7c9oclB1HhUEAezcpLjz95wFH4LVuhk9JF/r22qmVP9AMmOU4vMX7Q8pN8jwNg/CSpdFnMjTQ==}
@@ -15437,6 +15454,9 @@ packages:
 
   tar-fs@2.1.4:
     resolution: {integrity: sha512-mDAjwmZdh7LTT6pNleZ05Yt65HC3E+NiQzl672vQG38jIrehtJk/J3mNwIg+vShQPcLF/LV7CMnDW6vjj6sfYQ==}
+
+  tar-fs@3.1.3:
+    resolution: {integrity: sha512-/hU4AXnIdZu+Gvl1pk0oI5f5HxWsCJRtY2aFaJdk9VvyL48DWU6iU5WAIPG+wIi1YvWA6eTJvIviP/tMAZZNwQ==}
 
   tar-mini@0.2.0:
     resolution: {integrity: sha512-+qfUHz700DWnRutdUsxRRVZ38G1Qr27OetwaMYTdg8hcPxf46U0S1Zf76dQMWRBmusOt2ZCK5kbIaiLkoGO7WQ==}
@@ -21323,6 +21343,8 @@ snapshots:
 
   '@remote-ui/rpc@1.4.3': {}
 
+  '@roberts_lando/vfs@0.3.3': {}
+
   '@rolldown/binding-android-arm64@1.0.3':
     optional: true
 
@@ -24282,38 +24304,42 @@ snapshots:
       d3-selection: 3.0.0
       d3-zoom: 3.0.0
 
-  '@yao-pkg/pkg-fetch@3.5.25(encoding@0.1.13)(supports-color@9.1.0)':
+  '@yao-pkg/pkg-fetch@3.6.6':
     dependencies:
-      https-proxy-agent: 5.0.1(supports-color@9.1.0)
-      node-fetch: 2.7.0(encoding@0.1.13)
       picocolors: 1.1.1
       progress: 2.0.3
       semver: 7.8.5
-      tar-fs: 2.1.4
+      tar-fs: 3.1.3
+      undici: 6.28.1
       yargs: 16.2.0
     transitivePeerDependencies:
-      - encoding
-      - supports-color
+      - bare-abort-controller
+      - bare-buffer
 
-  '@yao-pkg/pkg@6.7.0(encoding@0.1.13)(supports-color@9.1.0)':
+  '@yao-pkg/pkg@6.23.0(supports-color@9.1.0)':
     dependencies:
       '@babel/generator': 7.29.1
       '@babel/parser': 7.29.0
+      '@babel/traverse': 7.29.0(supports-color@9.1.0)
       '@babel/types': 7.29.0
-      '@yao-pkg/pkg-fetch': 3.5.25(encoding@0.1.13)(supports-color@9.1.0)
-      into-stream: 6.0.0
-      minimist: 1.2.8
+      '@roberts_lando/vfs': 0.3.3
+      '@yao-pkg/pkg-fetch': 3.6.6
+      esbuild: 0.28.2
+      into-stream: 9.1.0
       multistream: 4.1.0
       picocolors: 1.1.1
-      picomatch: 4.0.4
+      picomatch: 4.0.5
+      postject: 1.0.0-alpha.6
       prebuild-install: 7.1.3
       resolve: 1.22.11
+      resolve.exports: 2.0.4
       stream-meter: 1.0.4
       tar: 7.5.21
-      tinyglobby: 0.2.15
+      tinyglobby: 0.2.17
       unzipper: 0.12.3
     transitivePeerDependencies:
-      - encoding
+      - bare-abort-controller
+      - bare-buffer
       - supports-color
 
   a-sync-waterfall@1.0.1: {}
@@ -27390,11 +27416,6 @@ snapshots:
 
   fresh@2.0.0: {}
 
-  from2@2.3.0:
-    dependencies:
-      inherits: 2.0.4
-      readable-stream: 2.3.8
-
   fs-constants@1.0.0: {}
 
   fs-extra@10.0.0:
@@ -28369,10 +28390,7 @@ snapshots:
 
   interpret@2.2.0: {}
 
-  into-stream@6.0.0:
-    dependencies:
-      from2: 2.3.0
-      p-is-promise: 3.0.0
+  into-stream@9.1.0: {}
 
   iobuffer@5.4.0: {}
 
@@ -30273,7 +30291,7 @@ snapshots:
     dependencies:
       '@babel/parser': 7.29.0
 
-  node@runtime:24.18.1: {}
+  node@runtime:24.22.1: {}
 
   nodejs-polars-android-arm64@0.15.0:
     optional: true
@@ -30624,8 +30642,6 @@ snapshots:
       oxlint-tsgolint: 7.0.2001
 
   p-finally@1.0.0: {}
-
-  p-is-promise@3.0.0: {}
 
   p-limit@2.3.0:
     dependencies:
@@ -31277,6 +31293,10 @@ snapshots:
   postgres-interval@3.0.0: {}
 
   postgres-range@1.1.3: {}
+
+  postject@1.0.0-alpha.6:
+    dependencies:
+      commander: 9.5.0
 
   prebuild-install@7.1.3:
     dependencies:
@@ -32193,6 +32213,8 @@ snapshots:
   resolve-from@5.0.0: {}
 
   resolve-pkg-maps@1.0.0: {}
+
+  resolve.exports@2.0.4: {}
 
   resolve@1.22.11:
     dependencies:
@@ -33315,6 +33337,17 @@ snapshots:
       mkdirp-classic: 0.5.3
       pump: 3.0.3
       tar-stream: 2.2.0
+
+  tar-fs@3.1.3:
+    dependencies:
+      pump: 3.0.3
+      tar-stream: 3.1.8
+    optionalDependencies:
+      bare-fs: 4.5.6
+      bare-path: 3.0.0
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - bare-buffer
 
   tar-mini@0.2.0: {}
 

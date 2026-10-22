@@ -79,7 +79,7 @@
     "@types/tar-stream": "3.1.4",
     "@types/uuid": "10.0.0",
     "@vercel/ncc": "0.38.4",
-    "@yao-pkg/pkg": "6.7.0",
+    "@yao-pkg/pkg": "6.23.0",
     "copyfiles": "2.4.1",
     "oxlint": "1.75.0",
     "oxlint-tsgolint": "7.0.2001",
