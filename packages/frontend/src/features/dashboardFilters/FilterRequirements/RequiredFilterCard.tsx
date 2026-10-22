@@ -135,7 +135,13 @@ const RequiredFilterCard: FC<Props> = ({
                     <Text size="xs" c="ldGray.7">
                         Viewers must set this filter to load the dashboard.
                     </Text>
+                    {isSavedFilter && selectableFilters.length === 0 && (
+                        <Text size="xs" c="dimmed">
+                            Add another filter to use it as an alternative.
+                        </Text>
+                    )}
                     {isSavedFilter &&
+                        selectableFilters.length > 0 &&
                         (isAddingAlternative ? (
                             <FilterSelect
                                 selectableFilters={selectableFilters}
