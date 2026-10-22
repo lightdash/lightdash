@@ -546,7 +546,9 @@ new metadata writes with either flag value.
 Old workers do not check or advance generations. During a rolling upgrade, an old
 worker can overwrite a guarded publication, and a new worker cannot detect an
 intervening old-worker write. Enable this experimental flag after API and worker
-rollout completes. No CLI minimum version is introduced. New and old CLIs keep
-the existing request formats; an old server keeps its existing save behavior.
+rollout completes, and drain jobs and upload sessions that started without a
+snapshot. Those operations remain unguarded after enablement. No CLI minimum
+version is introduced. New and old CLIs keep the existing request formats; an old
+server keeps its existing save behavior.
 Rollback can leave the additive schema and diagnostic rows in place. The down
 migration removes the new schema after all workers using it have stopped.
