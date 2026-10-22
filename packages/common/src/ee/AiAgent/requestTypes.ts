@@ -197,7 +197,8 @@ export type CreateWebAppThread = {
     userUuid: string;
     createdFrom: AiWebAppThreadCreatedFrom;
     agentUuid: string | null;
-    embedSpaceUuid?: string | null;
+    // Every write space of the embed token; the first one is used for attribution.
+    embedSpaceUuids?: string[];
     battleProfile?: AiAgentBattleProfile | null;
     binding?: AiThreadBinding | null;
     threadContext?: string | null;
